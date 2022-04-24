@@ -8,7 +8,7 @@
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is an open source Bayesian Neural Networks that is based on Tractable Approximate Gaussian Inference (TAGI) theory. Currently, cuTAGI includes different types of layers for neural networks such as Full-connected, convolutional, and transpose convolutional layers. cuTAGI performs different tasks such as supervised-learning (e.g. classification and regression), unsupervised-learning (e.g. autoencoder), and reinforcement learning. 
+cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised-learning (i.e., classification and regression), unsupervised-learning (i.e., autoencoder) and reinforcement learning.
 
 ## Installation
 ### Ubuntu
@@ -18,7 +18,9 @@ To compile all functions, use `make -f Makefile`.
 
 Comming soon...
 
-NOTE: We currently support Ubuntu 20.04 with a NVIDA GPU and CUDA toolkit >=10.1
+NOTE: We currently support Ubuntu 20.04 with a NVIDA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply change the [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
+
+```CUDA_ROOT_DIR=your_cuda_directory```
 
 ## API
 
@@ -63,14 +65,14 @@ cuTAGI is released under the MIT license.
 * [Tractable approximate Gaussian inference for Bayesian neural networks](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf) (James-A. Goulet et al., 2021) 
 * [Analytically tractable hidden-states inference in Bayesian neural networks](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf) (Luong-Ha Nguyen and James-A. Goulet, 2022)
 * [Analytically tractable inference in deep neural networks](https://arxiv.org/pdf/2103.05461.pdf) (Luong-Ha Nguyen and James-A. Goulet, 2021)
-* [Analytically Tractable Bayesian Deep Q-Learning](https://arxiv.org/pdf/2106.11086.pdf) (Luong-Ha Nguyen and James-A. Goulet, 2021)
+* [Analytically tractable Bayesian deep Q-Learning](https://arxiv.org/pdf/2106.11086.pdf) (Luong-Ha Nguyen and James-A. Goulet, 2021)
 
 ## Citation
 
 ```
 @misc{
   Author = {Luong-Ha Nguyen and James-A. Goulet},
-  Title = {Tractable Approximate Gaussian Inference with CUDA programming},
+  Title = {a CUDA library for Bayesian neural networks with Tractable Approximate Gaussian Inference},
   Year = {2022},
 }
 ```
