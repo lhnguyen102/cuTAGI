@@ -84,10 +84,10 @@ strides:	        # How each kernel size scan the image
 widths: 	        # Widths of the images
 heights:	        # Heights of the images 
 filters:	        # Number of filters for 
-pads:               # Number of padding
-pad_types:          # Type of paddings
-activations:        # Activation units
-batch_size:         # Number of mini-batches
+pads:                 # Number of padding
+pad_types:            # Type of paddings
+activations:          # Activation units
+batch_size:           # Number of mini-batches
 sigma_v: 	        # Observation noise
 ```
 Here is an example of user inputs for the mnist classification [`cfg/mnist_3conv.txt`]()
@@ -99,10 +99,10 @@ strides:	  [1,     2,      1,      2,      0,      0,      0]
 widths: 	  [28,    0,      0,      0,      0,      0,      0]
 heights:	  [28,    0,      0,      0,      0,      0,      0]
 filters:	  [1,     16,     16,     32,     32,     1,      1]
-pads:         [1,     0,      0,      0,      0,      0,      0]
-pad_types:    [1,     0,      0,      0,      0,      0,      0]
-activations:  [0,     4,      0,      4,      0,      4,      0]
-batch_size:   10
+pads:           [1,     0,      0,      0,      0,      0,      0]
+pad_types:      [1,     0,      0,      0,      0,      0,      0]
+activations:    [0,     4,      0,      4,      0,      4,      0]
+batch_size:     10
 sigma_v: 	  1
 ```
 
@@ -119,7 +119,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
 ## API
-Here is a command line on termninal for classifying MNIST images using three convolutional layers.
+Here is a command line on termninal that run the classificaiton task for MNIST images using three convolutional  layers [`cfg/mnist_3conv.txt`]().
 ```cpp
 ./main user_input_classification.txt
 ```
