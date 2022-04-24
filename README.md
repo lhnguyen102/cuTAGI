@@ -119,7 +119,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
 ## API
-Here is a command line on termninal that run the classificaiton task for MNIST images using three convolutional  layers [`cfg/mnist_3conv.txt`]().
+Here is a command line on termninal that excecutes the classificaiton task for MNIST images using three convolutional  layers [`cfg/mnist_3conv.txt`]().
 ```cpp
 ./main user_input_classification.txt
 ```
