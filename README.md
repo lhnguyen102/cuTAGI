@@ -50,6 +50,7 @@ Comming soon...
 │   └── utils.cpp               # Different tools
 ├── config.py                   # Generate network architecture (.txt)
 ├── main.cpp                    # The ui
+
 ```
 
 ## Licensing 
