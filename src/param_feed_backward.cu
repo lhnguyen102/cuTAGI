@@ -1046,7 +1046,7 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
                 zposIn, aidxposIn, ki2fi, wohoB, fo, woho, wihi, fi, ki2,
                 padIdx, d_theta.d_delta_Sw);
 
-            if (net.num_biases[k] > 0) {
+            if (net.num_biases[k + 1] > 0) {
                 unsigned int gridCol = (fo + THREADS - 1) / THREADS;
                 dim3 dimGrid(gridCol, 1);
                 convDeltaMb<<<dimGrid, dimBlock>>>(
