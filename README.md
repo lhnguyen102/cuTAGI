@@ -77,33 +77,33 @@ An example of the use of these code names can be found in [Network Architecture]
 ## Network Architecture
 The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is following
 ```
-layers: 	        # Type of layers
-nodes:		        # Number of hidden units
-kernels:	        # Kernel size 
-strides:	        # How each kernel size scan the image
-widths: 	        # Widths of the images
-heights:	        # Heights of the images 
-filters:	        # Number of filters for 
-pads:                 # Number of padding
-pad_types:            # Type of paddings
-activations:          # Activation units
-batch_size:           # Number of mini-batches
-sigma_v: 	        # Observation noise
+layers:           # Type of layers
+nodes:            # Number of hidden units
+kernels:          # Kernel size 
+strides:          # How each kernel size scan the image
+widths:           # Widths of the images
+heights:          # Heights of the images 
+filters:          # Number of filters for 
+pads:             # Number of padding
+pad_types:        # Type of paddings
+activations:      # Activation units
+batch_size:       # Number of mini-batches
+sigma_v:          # Observation noise
 ```
 Here is an example of user inputs for the mnist classification [`cfg/mnist_3conv.txt`]()
 ```
-layers: 	  [2,     2,      4,      2,      4,      1,      1]
-nodes:		  [784,   0,      0,	  0,      0,      20,     11]
-kernels:	  [4,     3,      5,      3,      1,      1,      1]
-strides:	  [1,     2,      1,      2,      0,      0,      0]
-widths: 	  [28,    0,      0,      0,      0,      0,      0]
-heights:	  [28,    0,      0,      0,      0,      0,      0]
-filters:	  [1,     16,     16,     32,     32,     1,      1]
-pads:           [1,     0,      0,      0,      0,      0,      0]
-pad_types:      [1,     0,      0,      0,      0,      0,      0]
-activations:    [0,     4,      0,      4,      0,      4,      0]
-batch_size:     10
-sigma_v: 	  1
+layers:     [2,     2,      4,      2,      4,      1,      1]
+nodes:      [784,   0,      0,	    0,      0,      20,     11]
+kernels:    [4,     3,      5,      3,      1,      1,      1]
+strides:    [1,     2,      1,      2,      0,      0,      0]
+widths:     [28,    0,      0,      0,      0,      0,      0]
+heights:    [28,    0,      0,      0,      0,      0,      0]
+filters:    [1,     16,     16,     32,     32,     1,      1]
+pads:       [1,     0,      0,      0,      0,      0,      0]
+pad_types:  [1,     0,      0,      0,      0,      0,      0]
+activations:[0,     4,      0,      4,      0,      4,      0]
+batch_size: 10
+sigma_v:    1
 ```
 
 ## Installation
