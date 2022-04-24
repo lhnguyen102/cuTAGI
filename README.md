@@ -27,11 +27,11 @@ Comming soon...
 ## Directory Structure
 ```
 .
-├── bin                         # Object filess
-├── cfg                         # User input
-├── data                        # Data base
+├── bin                         # Object files
+├── cfg                         # User input (.txt)
+├── data                        # Database
 ├── include                     # Header file
-├── saved_param                 # Saved network's parameter (.csv)
+├── saved_param                 # Saved network's parameters (.csv)
 ├── saved_results               # Saved network's inference (.csv)
 ├── src                         # Source files
 │   ├── common.cpp              # Common functions 
