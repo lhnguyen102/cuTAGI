@@ -16,26 +16,26 @@ cuTAGI is an open-source Bayesian neural networks library that is based on Tract
 ## User Input
 The user inputs are stored as `.txt` that has to be found in the folder `cfg`. User-inputs for cuTAGI are following:
 ```
-model_name:              # Model name e.g. classification_mnist
-task_name:               # Task name  i.e. classification or autoencoder or regression
+model_name:              # Model name, e.g., classification_mnist
+task_name:               # Task name, i.e., classification, autoencoder or regression
 data_name:               # Data name e.g. mnist or cifar10
 net_name:                # Name of network architecture that is stored in the same folder 
-encoder_net_name:        # Name of encoder architecture. This is only for autoencoder task
-decoder_net_name:        # Name of decoder architecture. This is only for autoencoder task
+encoder_net_name:        # Name of encoder architecture (This is only for autoencoder task)
+decoder_net_name:        # Name of decoder architecture (This is only for autoencoder task)
 load_param:              # Do we want to load network's parameters that has been trained
 num_epochs:              # Number of epochs
 num_classes:             # Number of classes
 num_train_data:          # Number of training samples
 num_test_data:           # Number of testing samples
-mu:                      # Mean of each input e.g. for 3 channels mu = 0.5, 0.5, 0.5 
+mu:                      # Mean of each input, e.g., for 3 channels; mu: 0.5, 0.5, 0.5 
 sigma:                   # Standard deviation of each input
 x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input
 y_test_dir:              # Data directory for the testing output
-debug:                   # Debug mode i.e. true or false
+debug:                   # Debug mode, i.e., true or false
 ```
-The default values for each input user is set to empty. Here is an example of user inputs for the mnist classification [`cfg/user_input_classification.txt`]()
+The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification [`cfg/user_input_classification.txt`]()
 ```
 model_name: test
 task_name: classification
@@ -55,7 +55,7 @@ y_test_dir: data/mnist/t10k-labels-idx1-ubyte
 debug: true
 ```
 ## Code Name for Layers and Activation Functions
-Each layer type is assigned to an integer number.
+Each layer type is assigned to an integer number
 ```
 Full-connected layer          -> 1
 Convolutional layer           -> 2
@@ -75,20 +75,20 @@ LeakyReLU -> 6
 ```
 An example of the use of these code names can be found in [Network Architecture](#network-architecture).
 ## Network Architecture
-The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is following
+The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is as follow
 ```
 layers:           # Type of layers
 nodes:            # Number of hidden units
 kernels:          # Kernel size 
-strides:          # How each kernel size scan the image
-widths:           # Widths of the images
-heights:          # Heights of the images 
-filters:          # Number of filters for 
-pads:             # Number of padding
+strides:          # Increment size by which each kernel scans the image
+widths:           # Width of the images
+heights:          # Height of the images 
+filters:          # Number of filters 
+pads:             # Number of padding around the images
 pad_types:        # Type of paddings
 activations:      # Activation units
 batch_size:       # Number of mini-batches
-sigma_v:          # Observation noise
+sigma_v:          # Observation noise's standard deviation
 ```
 Here is an example of user inputs for the mnist classification [`cfg/mnist_3conv.txt`]()
 ```
