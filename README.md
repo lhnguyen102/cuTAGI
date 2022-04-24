@@ -14,7 +14,7 @@
 cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised-learning (i.e., classification and regression), unsupervised-learning (i.e., autoencoder), and reinforcement learning (working progress).
 
 ## User Input
-The user inputs are stored as `.txt` that has to be found in the folder `cfg`. User-inputs for cuTAGI are described following:
+The user inputs are stored as `.txt` that has to be found in the folder `cfg`. User-inputs for cuTAGI are following:
 ```
 model_name:              # Model name e.g. classification_mnist
 task_name:               # Task name  i.e. classification or autoencoder or regression
@@ -75,7 +75,7 @@ LeakyReLU -> 6
 ```
 An example of the use of these code names can be found in [Network Architecture](#network-architecture).
 ## Network Architecture
-The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is described following
+The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is following
 ```
 layers: 	        # Type of layers
 nodes:		        # Number of hidden units
