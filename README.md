@@ -16,7 +16,7 @@ To compile all functions, use `make -f Makefile`.
 
 ### Window
 
-Comming soon...
+Coming soon...
 
 NOTE: We currently support Ubuntu 20.04 with a NVIDA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply change the [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
 
@@ -24,7 +24,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDA GPU and CUDA toolkit >=10.1
 
 ## API
 
-Comming soon...
+Coming soon...
 
 ## Directory Structure
 ```
