@@ -18,7 +18,7 @@ The user inputs are stored as `.txt` that has to be found in the folder `cfg`. U
 ```
 model_name:              # Model name, e.g., classification_mnist
 task_name:               # Task name, i.e., classification, autoencoder or regression
-data_name:               # Data name e.g. mnist or cifar10
+data_name:               # Data name, e.g., mnist or cifar10
 net_name:                # Name of network architecture that is stored in the same folder 
 encoder_net_name:        # Name of encoder architecture (This is only for autoencoder task)
 decoder_net_name:        # Name of decoder architecture (This is only for autoencoder task)
