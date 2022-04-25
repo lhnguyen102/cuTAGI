@@ -172,7 +172,9 @@ cuTAGI is released under the MIT license.
 ```
 @misc{
   Author = {Luong-Ha Nguyen and James-A. Goulet},
-  Title = {a CUDA library for Bayesian neural networks with Tractable Approximate Gaussian Inference},
+  Title = {cuTAGI: a CUDA library for Bayesian neural networks with Tractable Approximate Gaussian Inference},
   Year = {2022},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/lhnguyen102/cuTAGI}}
 }
 ```
