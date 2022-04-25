@@ -87,7 +87,7 @@ filters:          # Number of filters
 pads:             # Number of padding around the images
 pad_types:        # Type of paddings
 activations:      # Type of activation function
-batch_size:       # Number of mini-batches
+batch_size:       # Number of observation per mini-batches
 sigma_v:          # Observation noise's standard deviation
 ```
 Here is an example of user inputs for the mnist classification [`cfg/mnist_3conv.txt`]()
