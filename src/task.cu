@@ -390,6 +390,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                     ImageData &imdb, ImageData &test_imdb, int n_epochs,
                     int n_classes, SavePath &path, bool train_mode, bool debug)
 /*Classification task
+
   Args:
     Net: Network architecture
     idx: Indices of network
@@ -401,6 +402,9 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     debug: Debugging mode allows saving inference data
  */
 {
+    // Seed
+    std::srand(unsigned(std::time(0)));
+
     // Number of bytes
     size_t id_bytes, od_bytes, ode_bytes, max_n_s_bytes;
     compute_net_memory(net, id_bytes, od_bytes, ode_bytes, max_n_s_bytes);
@@ -466,6 +470,10 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
         net.batch_size * net.nodes[net.nodes.size() - 1], 0);
 
     for (int e = 0; e < n_epochs; e++) {
+        // Shufle data
+        std::random_shuffle(data_idx.begin(), data_idx.end());
+
+        // Timer
         std::cout << "%%%%%%%%%%"
                   << "\n"
                   << std::endl;
@@ -552,7 +560,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             net.ra_mt = 0.0f;
 
             // Load data
-            get_batch_idx(data_idx, i, net.batch_size, batch_idx);
+            get_batch_idx(test_data_idx, i, net.batch_size, batch_idx);
             get_batch_data(test_imdb.images, batch_idx, net.nodes[0], x_batch);
             get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
@@ -587,8 +595,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
         auto test_avg_error = compute_average_error_rate(
             test_error_rate, test_imdb.num_data, test_imdb.num_data);
         test_epoch_error_rate[e] = test_avg_error;
-        std::cout << "#############"
-                  << "\n";
+        std::cout << "\n";
         std::cout << "Error rate: ";
         std::cout << std::fixed;
         std::cout << std::setprecision(3);
@@ -615,6 +622,7 @@ void regression(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 std::vector<float> &x, std::vector<float> &y, int n_iter,
                 int n_epochs)
 /*Classification task
+
 Args:
     Net: Network architecture
     idx: Indices of network

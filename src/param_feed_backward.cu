@@ -3,7 +3,7 @@
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2021
-// Updated:      April 23, 2022
+// Updated:      April 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -33,7 +33,6 @@ Args:
     n: Number of batches
     k: Number of hidden units for output
     deltaMw: Updated quantities for the mean of weights
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -67,7 +66,6 @@ Args:
     n: Number of batches
     k: Number of hidden units for output
     deltaSw: Updated quantities for the variance of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -98,7 +96,6 @@ Args:
     n: Number of batches
     k: Number of hidden units for output
     deltaMb: Updated quantities for the mean of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -129,7 +126,6 @@ Args:
     n: Number of batches
     k: Number of hidden units for output
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -173,7 +169,6 @@ Args:
     ki2: ki x ki
     padIdx: Size of the hidden state vector for this layer + 1
     deltaMw: Updated quantities for the mean of weights
-
 */
 // TODO: remove the duplicate in the input variables
 {
@@ -221,7 +216,6 @@ Args:
     ki2: ki x ki
     padIdx: Size of the hidden state vector for this layer + 1
     deltaSw: Updated quantities for the variance of weights
-
 */
 // TODO: remove the duplicate in the input variables
 {
@@ -285,7 +279,6 @@ Args:
     n: wo x ho xB
     k: fo
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -346,7 +339,6 @@ Args:
     fi: Number of filters of the input image
     B: Number of batches
     deltaMw: Updated quantities for the mean of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -404,7 +396,6 @@ Args:
     fi: Number of filters of the input image
     B: Number of batches
     deltaSw: Updated quantities for the mean of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -452,7 +443,6 @@ Args:
     fo: Number of filters of the output image
     B: Number of batches
     deltaMb: Updated quantities for the mean of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -487,7 +477,6 @@ Args:
     fo: Number of filters of the output image
     B: Number of batches
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -541,7 +530,6 @@ Args:
     k: wihi
     deltaMw: Updated quantities for the mean of weights
     deltaSw: Updated quantities for the variance of weights
-
 */
 // TODO: remove the duplicates
 {
@@ -581,7 +569,6 @@ Args:
     k: wihi
     deltaMb: Updated quantities for the mean of biases
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -625,7 +612,6 @@ Args:
     B: Number of batches
     deltaMw: Updated quantities for the mean of weights
     deltaSw: Updated quantities for the variance of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -667,7 +653,6 @@ Args:
     B: Number of batches
     deltaMb: Updated quantities for the mean of biases
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -718,7 +703,6 @@ Args:
     k: wihi x fi
     deltaMw: Updated quantities for the mean of weights
     deltaSw: Updated quantities for the variance of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -756,7 +740,6 @@ Args:
     k: wihi x fi
     deltaMb: Updated quantities for the mean of biases
     deltaSb: Updated quantities for the variance of biases
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -801,7 +784,6 @@ Args:
     B: Number of batches
     deltaMw: Updated quantities for the mean of weights
     deltaSw: Updated quantities for the variance of weights
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -886,8 +868,7 @@ __global__ void deltaParamSum(float const *deltaMe, float const *deltaSe,
 void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
                    DeltaStateGPU &d_state, IndexGPU &idx,
                    DeltaParamGPU &d_theta)
-/*
-  Compute updated quantities for weights and biases using TAGI.
+/*Compute updated quantities for weights and biases using TAGI.
 
   Args:
     net: Network architecture
