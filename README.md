@@ -35,7 +35,7 @@ x_test_dir:              # Data directory for the testing input
 y_test_dir:              # Data directory for the testing output
 debug:                   # Debug mode, i.e., true or false
 ```
-The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/cfg_mnist_3conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/cfg_mnist_3conv.txt)
+The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/cfg_mnist_2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/cfg_mnist_2conv.txt)
 ```
 model_name: test
 task_name: classification
@@ -91,7 +91,7 @@ activations:      # Type of activation function
 batch_size:       # Number of observation per mini-batches
 sigma_v:          # Observation noise's standard deviation
 ```
-Here is an example of user inputs for the mnist classification [`cfg/3conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/3conv.txt)
+Here is an example of user inputs for the mnist classification [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/2conv.txt)
 ```
 layers:     [2,     2,      4,      2,      4,      1,      1]
 nodes:      [784,   0,      0,	    0,      0,      20,     11]
@@ -120,7 +120,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 Coming soon...
 
 ## API
-Here is terminal command line that excecutes the classificaiton task for MNIST images using three convolutional layers [`cfg/3conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/3conv.txt).
+Here is terminal command line that excecutes the classificaiton task for MNIST images using three convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/3conv.txt).
 ```cpp
 ./main user_input_classification.txt
 ```
