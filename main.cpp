@@ -7,15 +7,22 @@
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
+
+#include <iostream>
 #include <string>
 
 #include "include/struct_var.h"
 #include "include/task.cuh"
 #include "include/user_input.h"
 
-void run() {
+int main(int argc, char *argv[]) {
     // User input file
-    std::string user_input_file = "user_input.txt";
+    std::string user_input_file;
+    if (argc > 1) {
+        user_input_file = argv[1];
+    } else {
+        user_input_file = "user_input.txt";
+    }
 
     // Default path
     SavePath path;
@@ -26,9 +33,5 @@ void run() {
 
     // Run task
     set_task(user_input_file, path);
-}
-
-int main() {
-    run();
     return 0;
 }

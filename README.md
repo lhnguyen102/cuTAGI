@@ -1,8 +1,5 @@
 # Table of Contents
 * [What is cuTAGI](#What-is-cuTAGI)
-* [User Input](#user-input)
-* [Code Name for Layers and Activation Functions](#code-name-for-layers-and-activation-functions)
-* [Network Architecture](#network-architecture)
 * [Installation](#Installation)
 * [API](#API)
 * [Directory Structure](#directory-structure)
@@ -12,99 +9,6 @@
 
 ## What is cuTAGI ?
 cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised-learning (i.e., classification and regression), unsupervised-learning (i.e., autoencoder), and reinforcement learning (working progress).
-
-## User Input
-The user inputs are stored as `.txt` that has to be found in the folder `cfg`. User-inputs for cuTAGI are following:
-```
-model_name:              # Model name e.g. classification_mnist
-task_name:               # Task name  i.e. classification or autoencoder or regression
-data_name:               # Data name e.g. mnist or cifar10
-net_name:                # Name of network architecture that is stored in the same folder 
-encoder_net_name:        # Name of encoder architecture. This is only for autoencoder task
-decoder_net_name:        # Name of decoder architecture. This is only for autoencoder task
-load_param:              # Do we want to load network's parameters that has been trained
-num_epochs:              # Number of epochs
-num_classes:             # Number of classes
-num_train_data:          # Number of training samples
-num_test_data:           # Number of testing samples
-mu:                      # Mean of each input e.g. for 3 channels mu = 0.5, 0.5, 0.5 
-sigma:                   # Standard deviation of each input
-x_train_dir:             # Data directory for the training input
-y_train_dir:             # Data directory for the training output
-x_test_dir:              # Data directory for the testing input
-y_test_dir:              # Data directory for the testing output
-debug:                   # Debug mode i.e. true or false
-```
-The default values for each input user is set to empty. Here is an example of user inputs for the mnist classification [`cfg/user_input_classification.txt`]()
-```
-model_name: test
-task_name: classification
-data_name: mnist
-net_name: mnist_3conv
-load_param: false
-num_epochs: 1
-num_classes: 10
-num_train_data: 60000
-num_test_data: 10000
-mu: 0.1309
-sigma: 1
-x_train_dir: data/mnist/train-images-idx3-ubyte
-y_train_dir: data/mnist/train-labels-idx1-ubyte
-x_test_dir: data/mnist/t10k-images-idx3-ubyte
-y_test_dir: data/mnist/t10k-labels-idx1-ubyte
-debug: true
-```
-## Code Name for Layers and Activation Functions
-Each layer type is assigned to an integer number.
-```
-Full-connected layer          -> 1
-Convolutional layer           -> 2
-Tranpose convolutional layer  -> 21
-Average pooling layer         -> 4
-Layer normlization            -> 5
-Batch normalization           -> 6
-```
-
-Each activation function is assigned to an integer number
-```
-Tanh      -> 1
-Sigmoid   -> 2
-ReLU      -> 4
-Softplus  -> 5
-LeakyReLU -> 6
-```
-An example of the use of these code names can be found in [Network Architecture](#network-architecture).
-## Network Architecture
-The network architecture (`.txt`) is user-specified and stored in the folder `cfg`. A basic network architecture file is following
-```
-layers:           # Type of layers
-nodes:            # Number of hidden units
-kernels:          # Kernel size 
-strides:          # How each kernel size scan the image
-widths:           # Widths of the images
-heights:          # Heights of the images 
-filters:          # Number of filters for 
-pads:             # Number of padding
-pad_types:        # Type of paddings
-activations:      # Activation units
-batch_size:       # Number of mini-batches
-sigma_v:          # Observation noise
-```
-Here is an example of user inputs for the mnist classification [`cfg/mnist_3conv.txt`]()
-```
-layers:     [2,     2,      4,      2,      4,      1,      1]
-nodes:      [784,   0,      0,	    0,      0,      20,     11]
-kernels:    [4,     3,      5,      3,      1,      1,      1]
-strides:    [1,     2,      1,      2,      0,      0,      0]
-widths:     [28,    0,      0,      0,      0,      0,      0]
-heights:    [28,    0,      0,      0,      0,      0,      0]
-filters:    [1,     16,     16,     32,     32,     1,      1]
-pads:       [1,     0,      0,      0,      0,      0,      0]
-pad_types:  [1,     0,      0,      0,      0,      0,      0]
-activations:[0,     4,      0,      4,      0,      4,      0]
-batch_size: 10
-sigma_v:    1
-```
 
 ## Installation
 ### Ubuntu
@@ -119,10 +23,6 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
 ## API
-Here is a command line on termninal that excecutes the classificaiton task for MNIST images using three convolutional  layers [`cfg/mnist_3conv.txt`]().
-```cpp
-./main user_input_classification.txt
-```
 
 Coming soon...
 
@@ -132,7 +32,7 @@ Coming soon...
 ├── bin                         # Object files
 ├── cfg                         # User input (.txt)
 ├── data                        # Database
-├── include                     # Header files
+├── include                     # Header file
 ├── saved_param                 # Saved network's parameters (.csv)
 ├── saved_results               # Saved network's inference (.csv)
 ├── src                         # Source files

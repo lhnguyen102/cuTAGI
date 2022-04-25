@@ -1,8 +1,7 @@
 model_name: test
-task_name: autoencoder
+task_name: classification
 data_name: mnist
-encoder_net_name: net_e
-decoder_net_name: net_d
+net_name: 3conv
 load_param: false
 num_epochs: 1
 num_classes: 10
