@@ -35,7 +35,7 @@ x_test_dir:              # Data directory for the testing input
 y_test_dir:              # Data directory for the testing output
 debug:                   # Debug mode, i.e., true or false
 ```
-The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification [`cfg/user_input_classification.txt`]()
+The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/user_input_classification.txt`]()
 ```
 model_name: test
 task_name: classification
@@ -80,13 +80,13 @@ The network architecture (`.txt`) is user-specified and stored in the folder `cf
 layers:           # Type of layers
 nodes:            # Number of hidden units
 kernels:          # Kernel size 
-strides:          # Increment size by which each kernel scans the image
+strides:          # Increment by which each kernel scans the image
 widths:           # Width of the images
 heights:          # Height of the images 
 filters:          # Number of filters 
 pads:             # Number of padding around the images
 pad_types:        # Type of paddings
-activations:      # Activation units
+activations:      # Type of activation function
 batch_size:       # Number of mini-batches
 sigma_v:          # Observation noise's standard deviation
 ```
@@ -119,7 +119,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
 ## API
-Here is a command line on termninal that excecutes the classificaiton task for MNIST images using three convolutional  layers [`cfg/mnist_3conv.txt`]().
+Here is terminal command line that excecutes the classificaiton task for MNIST images using three convolutional layers [`cfg/mnist_3conv.txt`]().
 ```cpp
 ./main user_input_classification.txt
 ```
