@@ -110,13 +110,13 @@ sigma_v:    1
 ### Ubuntu
 To compile all functions, use `make -f Makefile`.
 
-### Window
-
-Coming soon...
-
 NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying the [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
 
 ```CUDA_ROOT_DIR=your_cuda_directory```
+
+### Window
+
+Coming soon...
 
 ## API
 Here is terminal command line that excecutes the classificaiton task for MNIST images using three convolutional layers [`cfg/mnist_3conv.txt`]().
