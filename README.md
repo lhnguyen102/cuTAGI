@@ -1,12 +1,12 @@
 # Table of Contents
-* [What is cuTAGI](#What-is-cuTAGI)
+* [What is cuTAGI ?](#What-is-cuTAGI)
 * [User Input](#user-input)
 * [Code Name for Layers and Activation Functions](#code-name-for-layers-and-activation-functions)
 * [Network Architecture](#network-architecture)
 * [Installation](#Installation)
 * [API](#API)
 * [Directory Structure](#directory-structure)
-* [Licensing](#licensing)
+* [Licensse](#license)
 * [Related Papers](#related-papers)
 * [Citation](#citation)
 
@@ -106,7 +106,7 @@ sigma_v:    1
 ```
 
 ## Installation
-### Ubuntu
+### Ubuntu 20.04
 To compile all functions, use `make -f Makefile`.
 
 NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
@@ -118,7 +118,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 Coming soon...
 
 ## API
-Here is terminal command line that excecutes the classificaiton task for MNIST images using
+Here are terminal command lines that excecutes the classificaiton task for MNIST images using
 * Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv.txt).
 ```cpp
 ./main cfg_mnist_2conv.txt
@@ -127,7 +127,7 @@ Here is terminal command line that excecutes the classificaiton task for MNIST i
 ```cpp
 ./main cfg_mnist_2fc.txt
 ```
-* Two convolutional layers each is followed by a batch normalization [`cfg/2conv_bn`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
+* Two convolutional layers each is followed by a batch-normalization layer [`cfg/2conv_bn`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
 ```cpp
 ./main cfg_mnist_2conv_bn.txt
 ```
