@@ -107,7 +107,7 @@ sigma_v:    1
 
 ## Installation
 ### Ubuntu 20.04
-To compile all functions, use `make -f Makefile`.
+To compile all files, use `make -f Makefile`.
 
 NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
 
