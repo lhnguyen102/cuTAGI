@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      April 23, 2022
+// Updated:      April 24s, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,7 @@ __global__ void fcMean(float const *mw, float const *mb, float const *ma,
                        float *mz, int wpos, int bpos, int zposIn, int zposOut,
                        int m, int n, int k)
 /*Compute mean of product WA for full connected layer
+
 Args:
     mw: Mean of weights
     mb: Mean of the biases
@@ -31,7 +32,6 @@ Args:
     n: Input node
     m: Output node
     k: Number of batches
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -53,6 +53,7 @@ __global__ void fcVar(float const *mw, float const *Sw, float const *Sb,
                       float const *ma, float const *Sa, float *Sz, int wpos,
                       int bpos, int zposIn, int zposOut, int m, int n, int k)
 /*Compute variance of product WA for full connected layer
+
 Args:
     mw: Mean of weights
     Sw: Variance of weights
@@ -69,7 +70,6 @@ Args:
     n: Input node
     m: Output node
     k: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -98,6 +98,7 @@ __global__ void convMean(float const *mw, float const *mb, float const *ma,
                          int wihi, int fi, int ki2, int B, int n, int k,
                          int padIdx)
 /*Compute mean of product WA for convolutional layer
+
 Args:
     mw: Mean of weights
     mb: Mean of the biases
@@ -120,7 +121,6 @@ Args:
     n: ki2 x fi
     k: woho x B
     padIdx: Size of the hidden state vector for this layer + 1
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -146,6 +146,7 @@ __global__ void convVar(float const *mw, float const *Sw, float const *Sb,
                         int aidxpos, int woho, int fo, int wihi, int fi,
                         int ki2, int B, int n, int k, int padIdx)
 /*Compute variance of product WA for convolutional layer
+
 Args:
     mw: Mean of weights
     Sw: Variance of weights
@@ -170,7 +171,6 @@ Args:
     n: ki2 x fi
     k: woho x B
     padIdx: Size of the hidden state vector for this layer + 1
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -260,6 +260,7 @@ __global__ void tconvMean(float const *mw, float const *mb, float const *ma,
                           int woho, int fo, int wihi, int fi, int ki, int rf,
                           int B, float *mz)
 /*Compute mean of product WA for transpose convolutional layer
+
 Args:
     mw: Mean of weights
     mb: Mean of the biases
@@ -282,7 +283,6 @@ Args:
     ki: Kernel size
     rf: Number of columns of weight indices for mean product WA
     B: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -316,6 +316,7 @@ __global__ void tconvVar(float const *mw, float const *Sw, float const *Sb,
                          int fo, int wihi, int fi, int ki, int rf, int B,
                          float *Sz)
 /*Compute variance of product WA for convolutional layer
+
 Args:
     mw: Mean of weights
     Sw: Variance of weights
@@ -519,7 +520,6 @@ __global__ void convlnMean(float const *mw, float const *mb, float const *ma,
 /*Compute mean of product WA for convolutional layer. Note that we consider
 hidden states within layer as samples.
 
-
 Args:
     mw: Mean of weights
     mb: Mean of the biases
@@ -539,7 +539,6 @@ Args:
     wihi: Width x heights for the input layer
     m: Number of hidden units for output
     k: wihi x fi where fi is the number of filters for input
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -670,7 +669,6 @@ __global__ void fclnMean(float const *mw, float const *mb, float const *ma,
 /*Compute mean o fproduct WA of layer-normalization. Note that the previous
 layer is the full-connected layer.
 
-
 Args:
     mw: Mean of weights
     mb: Mean of the biases
@@ -689,7 +687,6 @@ Args:
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -731,7 +728,6 @@ Args:
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -994,7 +990,6 @@ Args:
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -1036,7 +1031,6 @@ Args:
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -1069,7 +1063,6 @@ Args:
     Sra: Statistical variance for the normalization layers
     spos: Position of statstical mean & variance
     N: Size of mra
-
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1225,7 +1218,6 @@ Args:
     Sa: Variance of activation units
     J: Jacobian matrix
     niB: Number of hidden units x number of batches for input layer
-
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1258,7 +1250,6 @@ Args:
     Sa: Variance of activation units
     J: Jacobian matrix
     niB: Number of hidden units x number of batches for input layer
-
 */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;

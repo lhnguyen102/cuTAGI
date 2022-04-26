@@ -2,12 +2,12 @@
 CUDA_ROOT_DIR=/usr/local/cuda
 
 # CC compiler:
-CC=g++ --std=c++14 -g 
+CC=g++ --std=c++14 
 CC_FLAGS=
 CC_LIBS=
 
 # NVCC compiler:
-NVCC=nvcc -g 
+NVCC=nvcc 
 NVCC_FLAGS=
 NVCC_LIBS=
 
@@ -39,7 +39,6 @@ $(OBJ_DIR)/common.o $(OBJ_DIR)/dataloader.o $(OBJ_DIR)/cost.o \
 $(OBJ_DIR)/data_transfer.o $(OBJ_DIR)/task.o $(OBJ_DIR)/user_input.o\
 $(OBJ_DIR)/net_init.o $(OBJ_DIR)/utils.o
 
-######################################################################
 ## COMPILE
 
 # Link c++ and CUDA compiled object files to application:

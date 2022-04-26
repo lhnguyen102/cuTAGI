@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      April 23, 2022
+// Updated:      April 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,6 @@ Args:
     ny: Size of the output layer
     nye: Number of observation to be updated
     n: Number of batches x size of output layer
-
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -299,7 +298,6 @@ __global__ void convDeltaSz(float const *mw, float const *Sz, float const *J,
     n: nr x fo
     k: wihi x B
     padIdx: Size of the hidden state vector for this layer + 1
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -507,7 +505,6 @@ __global__ void apDeltaMzSzOverlap(float const *Sz, float const *J,
        Z|Z+ i.e. col_z_ud
     k: Number of hidden units for input x number of batches
     padIdx: Size of the hidden state vector for this layer + 1
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -612,7 +609,6 @@ LAYER-NORMALIZATION layer whose the previous layer is convolutional layer.
     wihi: Width x height for input image
     m: Number of batches
     k: Width x height x kernel size for input image
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -655,7 +651,6 @@ LAYER-NORMALIZATION layer whose the previous layer is full-connected layer.
                 normalization layer
     ni: Number of hidden units for input
     k: Number of batches
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -702,7 +697,6 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
     wihi: Width x height for input image
     fi: Number of filters for input
     m:  Number of filters for input x number of batches
-
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -749,7 +743,6 @@ Args:
                normalization layer
    ni: Number of hidden units for input
    B:  Number of batches
-
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;

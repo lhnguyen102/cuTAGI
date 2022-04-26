@@ -65,12 +65,6 @@ Args:
     }
 }
 
-void get_obs_variance(std::vector<float> Sa, float sv) {
-    for (int i = 0; i < Sa.size(); i++) {
-        Sa[i] += sv;
-    }
-}
-
 float compute_average_error_rate(std::vector<int> &error_rate, int curr_idx,
                                  int n_past_data)
 /*Compute running error rate.
@@ -177,7 +171,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
 
     // Compute number of data
     int n_iter = 1;  // imdb.num_data / net_d.batch_size;
-    int test_n_iter = 1;
+    //int test_n_iter = 1;
 
     // Input and output layer
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
@@ -396,6 +390,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                     ImageData &imdb, ImageData &test_imdb, int n_epochs,
                     int n_classes, SavePath &path, bool train_mode, bool debug)
 /*Classification task
+
   Args:
     Net: Network architecture
     idx: Indices of network
@@ -407,6 +402,9 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     debug: Debugging mode allows saving inference data
  */
 {
+    // Seed
+    std::srand(unsigned(std::time(0)));
+
     // Number of bytes
     size_t id_bytes, od_bytes, ode_bytes, max_n_s_bytes;
     compute_net_memory(net, id_bytes, od_bytes, ode_bytes, max_n_s_bytes);
@@ -451,8 +449,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     unsigned int BLOCKS =
         (net.batch_size * net.nodes[0] + THREADS - 1) / THREADS;
     int mt_idx = 0;
-    int n_iter = 1;       // imdb.num_data / net.batch_size;
-    int test_n_iter = 1;  // test_imdb.num_data / net.batch_size;
+    int n_iter = imdb.num_data / net.batch_size;
+    int test_n_iter = test_imdb.num_data / net.batch_size;
 
     // Error rate for training
     std::vector<int> error_rate(imdb.num_data, 0);
@@ -461,150 +459,159 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> prob_class_batch;
 
     // Error rate for testing
-    std::vector<int> test_epoch_error_rate(n_epochs, 0);
+    std::vector<float> test_epoch_error_rate(n_epochs, 0);
     std::vector<int> test_error_rate(test_imdb.num_data, 0);
     std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
+    std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
+                                             n_epochs);
     std::vector<float> ma_output(
         net.batch_size * net.nodes[net.nodes.size() - 1], 0);
     std::vector<float> Sa_output(
         net.batch_size * net.nodes[net.nodes.size() - 1], 0);
 
     for (int e = 0; e < n_epochs; e++) {
-        if (train_mode) {
-            std::cout << "%%%%%%%%%%"
-                      << "\n"
-                      << std::endl;
-            std::cout << "Epoch #" << e << "\n" << std::endl;
-            auto start = std::chrono::steady_clock::now();
-            for (int i = 0; i < n_iter; i++) {
-                // TODO: Make a cleaner way to handle both cases
-                if (i == 0) {
-                    net.ra_mt = 0.0f;
-                } else {
-                    net.ra_mt = 0.9f;
-                }
+        // Shufle data
+        std::random_shuffle(data_idx.begin(), data_idx.end());
 
-                // Load data
-                get_batch_idx(data_idx, i, net.batch_size, batch_idx);
-                get_batch_data(imdb.images, batch_idx, net.nodes[0], x_batch);
-                get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-                get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs,
-                               idx_ud_batch);
-                get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-                ip_gpu.copy_host_to_device(x_batch, Sx_batch);
-                op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
-
-                // Initialize input
-                initializeStates<<<BLOCKS, THREADS>>>(
-                    ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                    state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa,
-                    state_gpu.d_J, net.batch_size * net.nodes[0]);
-
-                // Feed forward. TODO:  Need to update mra_prev and Sra_prev
-                // in state GPU
-                feedForward(net, theta_gpu, idx_gpu, state_gpu);
-
-                // Feed backward for hidden states
-                stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
-                              d_state_gpu);
-
-                // Feed backward for parameters
-                paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
-                              d_theta_gpu);
-
-                // Update model parameters. TODO: Double check if we need to
-                // duplicate parameters when updating
-                globalParamUpdate(d_theta_gpu, wN, bN, wN_sc, bN_sc, THREADS,
-                                  theta_gpu);
-
-                // Compute error rate
-                state_gpu.copy_device_to_host(state);
-                get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                                  net.z_pos[net.nodes.size() - 1]);
-                std::tie(error_rate_batch, prob_class_batch) =
-                    get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                              net.batch_size);
-                mt_idx = i * net.batch_size;
-                update_vector(error_rate, error_rate_batch, mt_idx, 1);
-                // update_vector(prob_class, prob_class_batch, mt_idx,
-                // n_classes);
-
-                if (i % 100 == 0) {
-                    int curr_idx = mt_idx + net.batch_size;
-                    auto avg_error =
-                        compute_average_error_rate(error_rate, curr_idx, 100);
-                    std::cout << "#############"
-                              << "\n";
-                    std::cout << "Error rate: ";
-                    std::cout << std::fixed;
-                    std::cout << std::setprecision(10);
-                    std::cout << avg_error << "\n" << std::endl;
-                }
-            }
-            auto end = std::chrono::steady_clock::now();
-            std::cout << "Elapsed time in seconds: "
-                      << std::chrono::duration_cast<std::chrono::seconds>(end -
-                                                                          start)
-                             .count()
-                      << " sec"
-                      << "\n";
-        } else {
-            for (int i = 0; i < test_n_iter; i++) {
-                // TODO: set = 0.9 when i > 0
+        // Timer
+        std::cout << "%%%%%%%%%%"
+                  << "\n";
+        std::cout << "Epoch #" << e + 1 << "\n";
+        std::cout << "Training...\n" ;
+        auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < n_iter; i++) {
+            // TODO: Make a cleaner way to handle both cases
+            if (i == 0) {
                 net.ra_mt = 0.0f;
+            } else {
+                net.ra_mt = 0.9f;
+            }
 
-                // Load data
-                get_batch_idx(data_idx, i, net.batch_size, batch_idx);
-                get_batch_data(test_imdb.images, batch_idx, net.nodes[0],
-                               x_batch);
-                get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs,
-                               y_batch);
-                get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
-                               idx_ud_batch);
-                get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
-                ip_gpu.copy_host_to_device(x_batch, Sx_batch);
-                op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
+            // Load data
+            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                          batch_idx);
+            get_batch_data(imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
+            get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
+            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
-                // Initialize input
-                initializeStates<<<BLOCKS, THREADS>>>(
-                    ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                    state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa,
-                    state_gpu.d_J, net.batch_size * net.nodes[0]);
+            // Initialize input
+            initializeStates<<<BLOCKS, THREADS>>>(
+                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
+                state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
+                net.batch_size * net.nodes[0]);
 
-                // Feed forward. TODO:  Need to update mra_prev and Sra_prev
-                // in state GPU
-                feedForward(net, theta_gpu, idx_gpu, state_gpu);
+            // Feed forward. TODO:  Need to update mra_prev and Sra_prev
+            // in state GPU
+            feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
-                // Compute error rate
-                state_gpu.copy_device_to_host(state);
-                get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                                  net.z_pos[net.nodes.size() - 1]);
-                std::tie(error_rate_batch, prob_class_batch) =
-                    get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                              net.batch_size);
-                mt_idx = i * net.batch_size;
-                update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
-                // update_vector(prob_class, prob_class_batch, mt_idx,
-                // n_classes);
+            // Feed backward for hidden states
+            stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
+                          d_state_gpu);
+
+            // Feed backward for parameters
+            paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
+                          d_theta_gpu);
+
+            // Update model parameters. TODO: Double check if we need to
+            // duplicate parameters when updating
+            globalParamUpdate(d_theta_gpu, wN, bN, wN_sc, bN_sc, THREADS,
+                              theta_gpu);
+
+            // Compute error rate
+            state_gpu.copy_device_to_host(state);
+            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
+                              net.z_pos[net.nodes.size() - 1]);
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                          net.batch_size);
+            mt_idx = i * net.batch_size;
+            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+            // update_vector(prob_class, prob_class_batch, mt_idx,
+            // n_classes);
+
+            if (i % 1000 == 0) {
+                int curr_idx = mt_idx + net.batch_size;
+                auto avg_error =
+                    compute_average_error_rate(error_rate, curr_idx, 100);
+
+                std::cout << "\tError rate for last 100 observation: ";
+                std::cout << std::fixed;
+                std::cout << std::setprecision(3);
+                std::cout << avg_error << "\n";
             }
         }
+        std::cout<<std::endl;
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "Elapsed time in seconds: "
+                  << std::chrono::duration_cast<std::chrono::seconds>(end -
+                                                                      start)
+                         .count()
+                  << " sec"
+                  << "\n";
+        std::cout << "\n";
+        std::cout << "Testing...\n";
+        for (int i = 0; i < test_n_iter; i++) {
+            // TODO: set = 0.9 when i > 0 or disable mean and variance in
+            // feed forward
+            net.ra_mt = 0.0f;
+
+            // Load data
+            get_batch_idx(test_data_idx, i, net.batch_size, batch_idx);
+            get_batch_data(test_imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
+            get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
+                           idx_ud_batch);
+            get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
+
+            // Initialize input
+            initializeStates<<<BLOCKS, THREADS>>>(
+                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
+                state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
+                net.batch_size * net.nodes[0]);
+
+            // Feed forward. TODO:  Need to update mra_prev and Sra_prev
+            // in state GPU
+            feedForward(net, theta_gpu, idx_gpu, state_gpu);
+
+            // Compute error rate
+            state_gpu.copy_device_to_host(state);
+            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
+                              net.z_pos[net.nodes.size() - 1]);
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                          net.batch_size);
+            mt_idx = i * net.batch_size;
+            update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
+            // update_vector(prob_class, prob_class_batch, mt_idx,
+            // n_classes);
+        }
+
         auto test_avg_error = compute_average_error_rate(
             test_error_rate, test_imdb.num_data, test_imdb.num_data);
         test_epoch_error_rate[e] = test_avg_error;
+        std::cout << "\n";
+        std::cout << "\tError rate: ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << test_avg_error << "\n" << std::endl;
     }
     d_state_gpu.copy_device_to_host();
     theta_gpu.copy_device_to_host(theta);
-    std::cout << "prob"
-              << "\n"
-              << std::endl;
-    for (int i = 0; i < prob_class_batch.size(); i++) {
-        std::cout << prob_class_batch[i] << '\n';
-    }
-    std::cout << std::endl;
+    d_theta_gpu.copy_device_to_host();
 
+
+    // Save error rate
+    std::string suffix = "test";
+    save_error_rate(path.saved_inference_path, test_epoch_error_rate, suffix);
     // Save debugging data
     if (debug) {
-        save_inference_results(path.saved_inference_path, d_state_gpu, theta);
+        std::string res_path = path.debug_path + "/saved_results/";
+        save_inference_results(res_path, d_state_gpu, theta);
     }
 }
 
@@ -615,6 +622,7 @@ void regression(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 std::vector<float> &x, std::vector<float> &y, int n_iter,
                 int n_epochs)
 /*Classification task
+
 Args:
     Net: Network architecture
     idx: Indices of network
@@ -747,10 +755,12 @@ void set_task(std::string &user_input_file, SavePath &path) {
         Network net;
         Param theta;
         NetState state;
-        net_init(user_input.encoder_net_name, net, theta, state, idx);
+        net_init(user_input.net_name, net, theta, state, idx);
+        net.is_idx_ud = true;
 
         // Data
         auto hrs = class_to_obs(user_input.num_classes);
+        net.nye = hrs.n_obs;
         auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
                                user_input.y_train_dir, user_input.mu,
                                user_input.sigma, net.widths[0], net.heights[0],
@@ -773,6 +783,7 @@ void set_task(std::string &user_input_file, SavePath &path) {
             save_net_prop(param_path, idx_path, theta, idx);
         }
 
+        std::cout << "Training...\n" << std::endl;
         classification(net, idx, state, theta, imdb, test_imdb,
                        user_input.num_epochs, user_input.num_classes, path,
                        train_mode, user_input.debug);
