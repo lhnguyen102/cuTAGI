@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      April 18, 2022
+// Updated:      April 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     if (argc > 1) {
         user_input_file = argv[1];
     } else {
-        user_input_file = "user_input.txt";
+        throw std::invalid_argument("User need to provid user input file -> see README");
     }
 
     // Default path
