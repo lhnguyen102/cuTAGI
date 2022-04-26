@@ -3,7 +3,7 @@
 // Description:  Indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 12, 2021
-// Updated:      April 11, 2022
+// Updated:      April 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -14,8 +14,8 @@
 // IMAGE CONSTRUCTION
 ////////////////////////////
 std::vector<int> get_image(int w, int h)
-/*
- * Create an image with indices from 0 to width * height
+/*Create an image with indices from 0 to width * height
+
  * Args:
  *    w: Width of an image
  *    h: Height of an image
@@ -36,9 +36,9 @@ std::vector<int> get_image(int w, int h)
 std::vector<int> get_padded_image(int w, int h, int w_p, int h_p, int start_idx,
                                   int end_idx, int offset, int pad, int pad_idx,
                                   std::vector<int> &raw_img)
-/*
- * Create an padded image associated with the raw image's indices
+/*Create an padded image associated with the raw image's indices
  * and padding index.
+
  * Args:
  *    w: Width of an image
  *    h: Height of an image
@@ -70,6 +70,7 @@ void get_padded_image_dim(int pad, int pad_type, int w, int h, int &w_p,
                           int &h_p, int &start_idx, int &end_idx, int &offset)
 /*
  * Get dimensions for the padded image
+
  * Args:
  *    pad: Number of padding
  *    pad_type: Padding type 1: two sides, 2: 4 sides
@@ -111,6 +112,7 @@ std::tuple<std::vector<int>, std::vector<int>, std::vector<int>, int, int>
 image_construction(int w, int h, int pad, int pad_idx, int pad_type)
 /*
  * Construct the raw and padded image.
+
  * Args:
  *    w: width of an image
  *    h: height of an image
@@ -145,6 +147,7 @@ image_construction(int w, int h, int pad, int pad_idx, int pad_type)
 ////////////////////////////
 std::vector<int> get_ref_kernel(std::vector<int> &img, int kernel, int w)
 /* Get first receptive field of an image
+
  * Args:
  *    img: Image associated with the indices
  *    kernel: Size of the receptive field
@@ -268,8 +271,8 @@ std::vector<int> get_receptive_field(std::vector<int> &img,
 // IDEM SORT
 ////////////////////////////
 std::vector<int> get_unique_idx(std::vector<int> &M, int pad_idx)
-/*
- * Get unique indices of matrix M.
+/*Get unique indices of matrix M.
+
  *
  * Args:
  *    M: A matrix
@@ -822,12 +825,10 @@ TconvIndexOut get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
  *    param_pad_idx: Index for the padding of the parameters
  *
  * Returns:
- *    FCwz_2_idx: ?
- *    Swz_ud_idx: ?
- *    FCzwa_1_idx: Index for the parameters sorted as the input hidden state
- *      ordering
- *    Szz_ud_idx: Index for the output hidden states sorted as the input
- *      hidden state ordering
+ *    FCwz_2_idx: Activaiton indices for covariance Z|WA
+ *    Swz_ud_idx: Hidden state (Z+) indices for covariance Z|Z+
+ *    FCzwa_1_idx: Weight indices for mean product WA
+ *    Szz_ud_idx: Next hidden state indices for covariance Z|Z+
  *    w: Width of three above-mentioned index matrix
  *    h: Height of three above_mentioned idex matrix
  *

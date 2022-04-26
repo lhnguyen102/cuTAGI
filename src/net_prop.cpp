@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      April 12, 2022
+// Updated:      April 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
