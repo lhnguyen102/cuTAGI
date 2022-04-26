@@ -44,7 +44,7 @@ void save_inference_results(std::string &res_path, DeltaStateGPU &d_state_gpu,
     write_csv(Sb_sc_path, theta.Sb_sc);
 }
 
-void save_error_rate(std::string &res_path, std::vector<int> &error_rate,
+void save_error_rate(std::string &res_path, std::vector<float> &error_rate,
                      std::string &suffix) {
     std::string error_rate_path = res_path + "error_rate_" + suffix + ".csv";
     write_csv(error_rate_path, error_rate);

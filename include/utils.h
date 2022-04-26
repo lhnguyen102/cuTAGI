@@ -65,7 +65,7 @@ void write_csv(std::string filename, T &v) {
     file.close();
 }
 
-void save_error_rate(std::string &res_path, std::vector<int> &error_rate,
+void save_error_rate(std::string &res_path, std::vector<float> &error_rate,
                      std::string &suffix);
 
 void save_inference_results(std::string &res_path, DeltaStateGPU &d_state_gpu,

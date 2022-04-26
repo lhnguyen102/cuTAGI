@@ -33,7 +33,6 @@ x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input
 y_test_dir:              # Data directory for the testing output
-debug:                   # Debug mode, i.e., true or false
 ```
 The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/cfg_mnist_2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/cfg_mnist_2conv.txt)
 ```
@@ -52,7 +51,6 @@ x_train_dir: data/mnist/train-images-idx3-ubyte
 y_train_dir: data/mnist/train-labels-idx1-ubyte
 x_test_dir: data/mnist/t10k-images-idx3-ubyte
 y_test_dir: data/mnist/t10k-labels-idx1-ubyte
-debug: true
 ```
 ## Code Name for Layers and Activation Functions
 Each layer type is assigned to an integer number
@@ -111,7 +109,7 @@ sigma_v:    1
 ### Ubuntu
 To compile all functions, use `make -f Makefile`.
 
-NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying the [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
+NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
 
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
@@ -120,12 +118,19 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 Coming soon...
 
 ## API
-Here is terminal command line that excecutes the classificaiton task for MNIST images using three convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/3conv.txt).
+Here is terminal command line that excecutes the classificaiton task for MNIST images using
+* Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/examples/cfg/3conv.txt).
 ```cpp
-./main user_input_classification.txt
+./main cfg_mnist_2conv.txt
 ```
-
-Coming soon...
+* Two full connected layer [`cfg/2fc.txt`]() 
+```cpp
+./main cfg_mnist_2fc.txt
+```
+* Two convolutional layers each is followed by a batch normalization [`cfg/2conv_bn`]()
+```cpp
+./main cfg_mnist_2conv_bn.txt
+```
 
 ## Directory Structure
 ```
@@ -137,7 +142,7 @@ Coming soon...
 ├── saved_param                 # Saved network's parameters (.csv)
 ├── saved_results               # Saved network's inference (.csv)
 ├── src                         # Source files
-│   ├── common.cpp              # Common functions 
+│   ├── common.cpp              # Common functionalities 
 │   ├── cost.cpp                # Performance metric
 │   ├── dataloader.cpp          # Load train and test data
 │   ├── data_transfer.cu        # Transfer data host from/to device
@@ -149,14 +154,14 @@ Coming soon...
 │   ├── param_feed_backward.cu  # Learn network's parameters
 │   ├── state_feed_backward.cu  # Learn network's hidden states
 │   ├── task.cu                 # Perform different tasks 
-│   ├── user_input.cpp          # User input variable
+│   ├── user_input.cpp          # User input variables
 │   └── utils.cpp               # Different tools
 ├── config.py                   # Generate network architecture (.txt)
 ├── main.cpp                    # The ui
 
 ```
 
-## Licensing 
+## License 
 
 cuTAGI is released under the MIT license. 
 
@@ -171,7 +176,7 @@ cuTAGI is released under the MIT license.
 ## Citation
 
 ```
-@misc{
+@misc{cutagi2022,
   Author = {Luong-Ha Nguyen and James-A. Goulet},
   Title = {cuTAGI: a CUDA library for Bayesian neural networks with Tractable Approximate Gaussian Inference},
   Year = {2022},

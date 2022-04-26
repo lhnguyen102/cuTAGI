@@ -171,7 +171,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
 
     // Compute number of data
     int n_iter = 1;  // imdb.num_data / net_d.batch_size;
-    int test_n_iter = 1;
+    //int test_n_iter = 1;
 
     // Input and output layer
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
@@ -459,7 +459,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> prob_class_batch;
 
     // Error rate for testing
-    std::vector<int> test_epoch_error_rate(n_epochs, 0);
+    std::vector<float> test_epoch_error_rate(n_epochs, 0);
     std::vector<int> test_error_rate(test_imdb.num_data, 0);
     std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
     std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
@@ -475,10 +475,9 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
 
         // Timer
         std::cout << "%%%%%%%%%%"
-                  << "\n"
-                  << std::endl;
-        std::cout << "Epoch #" << e << "\n" << std::endl;
-        std::cout << "Training...\n" << std::endl;
+                  << "\n";
+        std::cout << "Epoch #" << e + 1 << "\n";
+        std::cout << "Training...\n" ;
         auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < n_iter; i++) {
             // TODO: Make a cleaner way to handle both cases
@@ -537,14 +536,14 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 int curr_idx = mt_idx + net.batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);
-                std::cout << "#############"
-                          << "\n";
-                std::cout << "Error rate for last 100 observation: ";
+
+                std::cout << "\tError rate for last 100 observation: ";
                 std::cout << std::fixed;
                 std::cout << std::setprecision(3);
-                std::cout << avg_error << "\n" << std::endl;
+                std::cout << avg_error << "\n";
             }
         }
+        std::cout<<std::endl;
         auto end = std::chrono::steady_clock::now();
         std::cout << "Elapsed time in seconds: "
                   << std::chrono::duration_cast<std::chrono::seconds>(end -
@@ -552,8 +551,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                          .count()
                   << " sec"
                   << "\n";
-        std::cout << "\n" << std::endl;
-        std::cout << "Testing...\n" << std::endl;
+        std::cout << "\n";
+        std::cout << "Testing...\n";
         for (int i = 0; i < test_n_iter; i++) {
             // TODO: set = 0.9 when i > 0 or disable mean and variance in
             // feed forward
@@ -596,7 +595,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             test_error_rate, test_imdb.num_data, test_imdb.num_data);
         test_epoch_error_rate[e] = test_avg_error;
         std::cout << "\n";
-        std::cout << "Error rate: ";
+        std::cout << "\tError rate: ";
         std::cout << std::fixed;
         std::cout << std::setprecision(3);
         std::cout << test_avg_error << "\n" << std::endl;
@@ -604,6 +603,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     d_state_gpu.copy_device_to_host();
     theta_gpu.copy_device_to_host(theta);
     d_theta_gpu.copy_device_to_host();
+
 
     // Save error rate
     std::string suffix = "test";
