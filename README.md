@@ -59,7 +59,7 @@ Full-connected layer          -> 1
 Convolutional layer           -> 2
 Tranpose convolutional layer  -> 21
 Average pooling layer         -> 4
-Layer normlization            -> 5
+Layer normalization           -> 5
 Batch normalization           -> 6
 ```
 
