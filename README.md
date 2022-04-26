@@ -14,7 +14,7 @@
 cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised-learning (i.e., classification and regression), unsupervised-learning (i.e., autoencoder), and reinforcement learning (work in progress).
 
 ## User Input
-The user inputs are stored as `.txt` that has to be found in the folder `cfg`. User-inputs for cuTAGI are following:
+The user inputs are stored as `.txt` that has to be located in the folder `cfg`. User-inputs for cuTAGI are following:
 ```
 model_name:              # Model name, e.g., classification_mnist
 task_name:               # Task name, i.e., classification, autoencoder or regression
@@ -118,7 +118,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 Coming soon...
 
 ## API
-Here are terminal command lines that excecutes the classificaiton task for MNIST images using
+Here are terminal command lines that excecutes the classification task for MNIST images using
 * Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv.txt).
 ```cpp
 ./main cfg_mnist_2conv.txt
