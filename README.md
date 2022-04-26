@@ -36,12 +36,12 @@ y_test_dir:              # Data directory for the testing output
 ```
 The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/cfg_mnist_2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/cfg_mnist_2conv.txt)
 ```
-model_name: test
+model_name: mnist_2conv
 task_name: classification
 data_name: mnist
-net_name: mnist_3conv
+net_name: 2conv
 load_param: false
-num_epochs: 1
+num_epochs: 2
 num_classes: 10
 num_train_data: 60000
 num_test_data: 10000
