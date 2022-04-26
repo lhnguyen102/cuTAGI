@@ -6,7 +6,7 @@
 * [Installation](#Installation)
 * [API](#API)
 * [Directory Structure](#directory-structure)
-* [Licensse](#license)
+* [License](#license)
 * [Related Papers](#related-papers)
 * [Citation](#citation)
 
