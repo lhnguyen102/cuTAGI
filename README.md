@@ -123,11 +123,11 @@ Here are terminal command lines that excecutes the classification task for MNIST
 ```cpp
 ./main cfg_mnist_2conv.txt
 ```
-* Two full connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
+* Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
 ```cpp
 ./main cfg_mnist_2fc.txt
 ```
-* Two convolutional layers each is followed by a batch-normalization layer [`cfg/2conv_bn`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
+* Two convolutional layers each followed by a batch-normalization layer [`cfg/2conv_bn`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
 ```cpp
 ./main cfg_mnist_2conv_bn.txt
 ```
