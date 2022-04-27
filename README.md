@@ -122,7 +122,7 @@ NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.
 
 ```CUDA_ROOT_DIR=your_cuda_directory```
 
-### Window
+### Windows
 
 Coming soon...
 
