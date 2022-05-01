@@ -143,10 +143,9 @@ cmake --build build --config RelWithDebInfo -j 16
 COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
 TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
-
 4. Install GCC compiler by following [these instructions](https://www.youtube.com/watch?v=0HD0pqVtsmw&ab_channel=LearningLad) 
 
-5. Install CMake by following [these instructions](https://cmake.org/install/) 
+5. Download `Windows x64 Installer` and Install CMake by following [these instructions](https://cmake.org/install/) 
 
 6. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
 ```
