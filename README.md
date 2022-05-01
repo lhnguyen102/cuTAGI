@@ -116,29 +116,65 @@ sigma_v:    1
 
 ## Installation
 ### Ubuntu 20.04
-To compile all files, use `make -f Makefile`.
+1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
+```sh
+export PATH="/usr/local/cuda-10.1/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
+```
+2. Install GCC compiler by entering this line to Terminal
+```sh
+sudo apt install g++
+```
+3. Install CMake by following [these instructions](https://cmake.org/install/) 
 
-NOTE: We currently support Ubuntu 20.04 with a NVIDIA GPU and CUDA toolkit >=10.1. Note that users must specify the CUDA directory of their local machine in `Makefile`. This can be done by simply modifying [line 2](https://github.com/lhnguyen102/cuTAGI/blob/main/Makefile).
-
-```CUDA_ROOT_DIR=your_cuda_directory```
+4. Build the project using CMake by the folder `cuTAGI` and  entering these lines to `Terminal`
+```
+cmake . -B build
+cmake --build build --config RelWithDebInfo -j 16
+```
 
 ### Windows
+1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to [`Environment variables`](https://docs.nvidia.com/gameworks/content/developertools/desktop/environment_variables.htm)
 
-Coming soon...
+2. Download and install [MS Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/)
+
+3. Copy extenstions from CUDA to MS Visual Studio by following [these instructions](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963)
+```
+COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
+TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
+```
+
+4. Install GCC compiler by following [these instructions](https://www.youtube.com/watch?v=0HD0pqVtsmw&ab_channel=LearningLad) 
+
+5. Install CMake by following [these instructions](https://cmake.org/install/) 
+
+6. Add CMake CUDA compiler to [`Environment variables`](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
+```
+variable = CMAKE_CUDA_COMPILER 
+value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
+```
+
+7. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines to `Command Prompt`
+```
+cmake . -B build
+cmake --build build --config RelWithDebInfo -j 16
+```
+
+
 
 ## API
 Here are terminal command lines that excecutes the classification task for MNIST images using
 * Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv.txt).
 ```cpp
-./main cfg_mnist_2conv.txt
+build/main cfg_mnist_2conv.txt
 ```
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
 ```cpp
-./main cfg_mnist_2fc.txt
+build/main cfg_mnist_2fc.txt
 ```
 * Two convolutional layers each followed by a batch-normalization layer [`cfg/2conv_bn.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
 ```cpp
-./main cfg_mnist_2conv_bn.txt
+build/main cfg_mnist_2conv_bn.txt
 ```
 
 ## Directory Structure
