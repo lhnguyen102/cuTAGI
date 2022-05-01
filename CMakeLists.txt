@@ -110,6 +110,6 @@ target_compile_options(cutagi PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLA
 # Executable code i.e. application
 add_executable(main main.cpp)
 target_link_libraries(main PUBLIC cutagi)
-#target_compile_options(main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
+
 
 
