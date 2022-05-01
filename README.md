@@ -134,7 +134,7 @@ cmake --build build --config RelWithDebInfo -j 16
 ```
 
 ### Windows
-1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to [`Environment variables`](https://docs.nvidia.com/gameworks/content/developertools/desktop/environment_variables.htm)
+1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to [Environment variables](https://docs.nvidia.com/gameworks/content/developertools/desktop/environment_variables.htm)
 
 2. Download and install [MS Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/)
 
@@ -148,7 +148,7 @@ TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\
 
 5. Install CMake by following [these instructions](https://cmake.org/install/) 
 
-6. Add CMake CUDA compiler to [`Environment variables`](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
+6. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
 ```
 variable = CMAKE_CUDA_COMPILER 
 value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
