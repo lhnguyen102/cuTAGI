@@ -121,31 +121,32 @@ sigma_v:    1
 export PATH="/usr/local/cuda-10.1/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
 ```
-2. Install GCC compiler by entering this line to Terminal
+2. Install GCC compiler by entering this line in Terminal
 ```sh
 sudo apt install g++
 ```
 3. Install CMake by following [these instructions](https://cmake.org/install/) 
 
-4. Build the project using CMake by the folder `cuTAGI` and  entering these lines to `Terminal`
+4. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
 ```
 cmake . -B build
 cmake --build build --config RelWithDebInfo -j 16
 ```
 
 ### Windows
-1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to [Environment variables](https://docs.nvidia.com/gameworks/content/developertools/desktop/environment_variables.htm)
+1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to Environment variables [(see Step 5.3)](https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781)
 
 2. Download and install [MS Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/)
 
-3. Copy extenstions from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
+3. Install C and C++ for MS Visual Studio by following [these instructions](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
+
+4. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
 ```
 COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
 TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
-4. Install GCC compiler by following [these instructions](https://www.youtube.com/watch?v=0HD0pqVtsmw&ab_channel=LearningLad) 
 
-5. Download [Windows x64 Installer](https://cmake.org/download/) and Install CMake by following [these instructions](https://cmake.org/install/) 
+5. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) 
 
 6. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
 ```
@@ -153,7 +154,7 @@ variable = CMAKE_CUDA_COMPILER
 value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
 ```
 
-7. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines to `Command Prompt`
+7. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines in `Command Prompt`
 ```
 cmake . -B build
 cmake --build build --config RelWithDebInfo -j 16
