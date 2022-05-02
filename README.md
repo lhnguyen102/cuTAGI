@@ -121,7 +121,7 @@ sigma_v:    1
 export PATH="/usr/local/cuda-10.1/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
 ```
-2. Install GCC compiler by entering this line in Terminal
+2. Install GCC compiler by entering this line in `Terminal`
 ```sh
 sudo apt install g++
 ```
