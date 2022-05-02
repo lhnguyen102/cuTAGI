@@ -138,14 +138,13 @@ cmake --build build --config RelWithDebInfo -j 16
 
 2. Download and install [MS Visual Studio 2019 community](https://visualstudio.microsoft.com/vs/older-downloads/)
 
-3. Install C and C++ for MS Visual Studio by following [these instructions](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
+3. Install C and C++ for MS Visual Studio by following [Step 4](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
 
 4. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
 ```
 COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
 TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
-
 5. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) 
 
 6. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
