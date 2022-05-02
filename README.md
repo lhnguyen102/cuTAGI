@@ -136,27 +136,27 @@ cmake --build build --config RelWithDebInfo -j 16
 ### Windows
 1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to Environment variables [(see Step 5.3)](https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781)
 
-2. Download and install [MS Visual Studio 2019 community](https://visualstudio.microsoft.com/vs/older-downloads/)
+2. Download and install MS Visual Studio 2019 community and C/C++ by following [these instructions](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
 
-3. Install C and C++ for MS Visual Studio by following [Step 4](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
-
-4. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
+3. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
 ```
 COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
 TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
 ```
-5. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) and adding the install directory (e.g. `C:\Program Files\CMake\bin` to PATH in [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))
+4. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) and adding the install directory (e.g., `C:\Program Files\CMake\bin`) to PATH in [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))
 
-6. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))  
+5. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14)).  
 ```
 variable = CMAKE_CUDA_COMPILER 
 value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
 ```
-7. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines in `Command Prompt`
+6. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines in `Command Prompt`
 ```
 cmake . -B build
 cmake --build build --config RelWithDebInfo -j 16
 ```
+
+*NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 4 & 6 for Windows). 
 
 
 
