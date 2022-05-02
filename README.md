@@ -178,7 +178,6 @@ build/main cfg_mnist_2conv_bn.txt
 ## Directory Structure
 ```
 .
-├── bin                         # Object files
 ├── cfg                         # User input (.txt)
 ├── data                        # Database
 ├── include                     # Header files
