@@ -156,7 +156,7 @@ cmake . -B build
 cmake --build build --config RelWithDebInfo -j 16
 ```
 
-*NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 4 & 6 for Windows). 
+*NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 3 & 5 for Windows). 
 
 
 
