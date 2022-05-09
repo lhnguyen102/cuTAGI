@@ -226,7 +226,7 @@ cuTAGI is released under the MIT license.
 ```
 @misc{cutagi2022,
   Author = {Luong-Ha Nguyen and James-A. Goulet},
-  Title = {cuTAGI: a {CUDA} library for {B}ayesian neural networks with Tractable Approximate {G}aussian Inference},
+  Title = {cu{TAGI}: a {CUDA} library for {B}ayesian neural networks with Tractable Approximate {G}aussian Inference},
   Year = {2022},
   journal = {GitHub repository},
   howpublished = {https://github.com/lhnguyen102/cuTAGI}
