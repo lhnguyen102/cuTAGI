@@ -185,8 +185,9 @@ build/main cfg_mnist_2conv_bn.txt
 ```sh
 build/main cfg_mnist_2fc.txt
 ```
-![Generated images using autoencoder]
-<img src="./saved_results/mnist_autoencoder.pdf" width="190px">
+
+Generated images using autoencoder
+<img src="./saved_results/mnist_autoencoder.png" width="190px">
 
 ## Directory Structure
 ```
