@@ -161,7 +161,7 @@ cmake --build build --config RelWithDebInfo -j 16
 
 
 ## API
-Here are terminal command lines that excecutes the classification task for MNIST images using
+### Classification task for MNIST images using
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
 ```sh
 build/main cfg_mnist_2fc.txt
@@ -180,6 +180,12 @@ build/main cfg_mnist_2conv.txt
 ```cpp
 build/main cfg_mnist_2conv_bn.txt
 ```
+
+### Autoencoder task for MNIST
+```sh
+build/main cfg_mnist_2fc.txt
+```
+![Generated images using autoencoder](https://github.com/lhnguyen102/cuTAGI/blob/autoencoder_example/saved_results/mnist_autoencoder.pdf)
 
 ## Directory Structure
 ```
