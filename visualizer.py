@@ -61,7 +61,7 @@ class Visualizer:
         if not os.path.exists(path_dir):
             os.makedirs(path_dir)
 
-        fig_path = f'{path_dir}/{self.data_name}_{self.task_name}.pdf'
+        fig_path = f'{path_dir}/{self.data_name}_{self.task_name}.png'
 
         _, axes = plt.subplots(n_row, n_col, figsize=((5, 5)))
         for i in range(num):
