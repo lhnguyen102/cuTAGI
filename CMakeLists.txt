@@ -1,6 +1,6 @@
 # CMAKE VERSION
-# NOTE*: We only test this file using CUDA toolkit 10.2
-cmake_minimum_required(VERSION 3.16)
+# *NOTE: We only test this file using CUDA toolkit 10.2
+cmake_minimum_required(VERSION 3.23)
 
 ############################################################################################
 ## PPROJECT
@@ -28,7 +28,7 @@ endif()
 # CUDA Path 
 if (MSVC)
 else()
-	set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
+  set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
 endif()
 find_library(
 	${CUDA_TOOLKIT_ROOT_DIR}/lib64
@@ -43,7 +43,7 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -I/${CUDA_TOOLKIT_ROOT_DIR}/include")
 endif()
 
 set(CMAKE_CXX_STANDARD 14)    # C++ version
@@ -59,18 +59,23 @@ set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
 
 # Set compiler options
 if (MSVC)
-	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-bigobj")
+	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-bigobji")
 else()
 	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-mf16c")
 	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-Wno-float-conversion")
 	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-fno-strict-aliasing")
 	list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-fPIC")
-	set(CUDA_TOOLKIT_ROOT_DIR /opt/cuda/targets/x86_64-linux)
+  set(CUDA_TOOLKIT_ROOT_DIR /opt/cuda/targets/x86_64-linux)
 endif()
+
 
 # NOTE: This might need to change for higher CUDA version 
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
+
+# CUDA debug (-g) & device debug (- G)
+set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+
 
 # Header files for source code
 include_directories("include")

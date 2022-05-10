@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CUDA C++: Launch",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "debuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "cwd": "${fileDirname}"
+        },
+    ]
+}

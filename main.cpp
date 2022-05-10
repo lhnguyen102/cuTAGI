@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
     if (argc > 1) {
         user_input_file = argv[1];
     } else {
-        throw std::invalid_argument("User need to provide user input file -> see README");
+        throw std::invalid_argument(
+            "User need to provide user input file -> see README");
     }
 
     // Default path

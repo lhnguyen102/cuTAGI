@@ -1,0 +1,17 @@
+model_name: test
+task_name: autoencoder
+data_name: mnist
+encoder_net_name: encoder
+decoder_net_name: decoder
+load_param: false
+num_epochs: 10
+num_classes: 10
+num_train_data: 60000
+num_test_data: 100
+mu: 0.1309
+sigma: 1
+x_train_dir: data/mnist/train-images-idx3-ubyte
+y_train_dir: data/mnist/train-labels-idx1-ubyte
+x_test_dir: data/mnist/t10k-images-idx3-ubyte
+y_test_dir: data/mnist/t10k-labels-idx1-ubyte
+debug: false

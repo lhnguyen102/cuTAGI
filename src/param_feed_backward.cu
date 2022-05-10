@@ -3,7 +3,7 @@
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2021
-// Updated:      April 24, 2022
+// Updated:      May 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1059,6 +1059,7 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
                 unsigned int gridColS = (fi + THREADS - 1) / THREADS;
                 dim3 dimGridS(gridColS, 1);
 
+                // REMOVE dimGridS
                 deltaParamSum<<<dimGridS, dimBlock>>>(
                     d_state.d_dummy_m, d_state.d_dummy_S, wposIn, wihi, fi,
                     wihiB, d_theta.d_delta_mw, d_theta.d_delta_Sw);

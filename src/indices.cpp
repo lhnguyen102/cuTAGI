@@ -3,7 +3,7 @@
 // Description:  Indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 12, 2021
-// Updated:      April 26, 2022
+// Updated:      May 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////

@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      April 24s, 2022
+// Updated:      May 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -764,11 +764,10 @@ Args:
     B: Number of batches
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sumM = 0;
     float sumS = 0;
-    if (col < fi && row < 1) {
+    if (col < fi) {
         for (int i = 0; i < wihi * B; i++)  // n = wihi*B
         {
             sumM += ma[(i / wihi) * wihi * fi + i % wihi + col * wihi + zpos];
@@ -798,10 +797,9 @@ Args:
     B: Number of batches
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
-    if (col < fi && row < 1) {
+    if (col < fi) {
         for (int i = 0; i < wihi * B; i++) {
             sum += (ma[(i / wihi) * wihi * fi + i % wihi + col * wihi + zpos] -
                     ms[col + spos]) *
@@ -920,11 +918,10 @@ Args:
     B: Number of batches
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sumM = 0;
     float sumS = 0;
-    if (col < ni && row < 1) {
+    if (col < ni) {
         for (int i = 0; i < B; i++)  // n = wihi*B
         {
             sumM += ma[col + i * ni + zpos];
@@ -953,10 +950,9 @@ Args:
     B: Number of batches
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
-    if (col < ni && row < 1) {
+    if (col < ni) {
         for (int i = 0; i < B; i++) {
             sum += (ma[col + i * ni + zpos] - ms[col + spos]) *
                    (ma[col + i * ni + zpos] - ms[col + spos]);
@@ -1066,13 +1062,14 @@ Args:
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp = 0;
     if (col < N) {
         // mra[col + spos] = mraprev[col + spos];
         // Sra[col + spos] = Sraprev[col + spos];
-        mra[col + spos] =
-            mraprev[col + spos] * momentum + ms[col + spos] * (1 - momentum);
+        tmp = mraprev[col + spos] * momentum + ms[col + spos] * (1 - momentum);
         Sra[col + spos] =
             Sraprev[col + spos] * momentum + Ss[col + spos] * (1 - momentum);
+        mra[col + spos] = tmp;
     }
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -1283,6 +1280,21 @@ __global__ void getOutputHiddenStates(float const *mz, float const *Sz,
 }
 
 //////////////////////////////////////////////////////////////////////
+/// INITIALIZE  NORMALIZATION'S MEAN AND VARIANCE
+//////////////////////////////////////////////////////////////////////
+__global__ void updateMraSra(float const *mra, float const *Sra, int N,
+                             float *mra_prev, float *Sra_prev)
+/*Get states for the output layers.
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < N) {
+        mra_prev[col] = mra[col];
+        Sra_prev[col] = Sra[col];
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
 /// TAGI-FEEDFORWARD PASS
 //////////////////////////////////////////////////////////////////////
 void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
@@ -1361,6 +1373,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
             unsigned int gridRows = (fo + THREADS - 1) / THREADS;
             unsigned int gridCols = (K + THREADS - 1) / THREADS;
             dim3 dimGrid(gridCols, gridRows);
+
             // Compute mean and variance
             if (net.num_biases[j] > 0) {
                 convMean<<<dimGrid, dimBlock>>>(
@@ -1415,22 +1428,23 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 net.ra_pos[j - 1];  // location of input in running-avg vector
             if (net.layers[j - 1] == net.layer_names.fc) {
                 // Compute  statistical mean and variance
-                unsigned int gridCols = (B + THREADS - 1) / THREADS;
-                dim3 dimGrid(gridCols, 1);
-                fclnStatMeanVar<<<dimGrid, dimBlock>>>(
+                int BLOCKS_RA = (B + THREADS - 1) / THREADS;
+                fclnStatMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_Sa, state.d_ms, state.d_SsTmp, zposIn,
                     sposIn, ni, B);
 
-                fclnStatSampleVar<<<dimGrid, dimBlock>>>(
+                fclnStatSampleVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_ms, state.d_SsTmp, state.d_Ss, zposIn,
                     sposIn, ni, B);
 
                 // Update running average
-                raMeanVar<<<dimGrid, dimBlock>>>(
+                raMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ms, state.d_Ss, state.d_mra_prev, state.d_Sra_prev,
                     net.ra_mt, state.d_mra, state.d_Sra, sposIn, B);
 
                 // Compute norm-forwardpass
+                unsigned int gridCols = (B + THREADS - 1) / THREADS;
+                dim3 dimGrid(gridCols, 1);
                 unsigned int gridCols2 = (ni + THREADS - 1) / THREADS;
                 dim3 dimGrid2(gridCols2, gridCols);
                 fclnMean<<<dimGrid2, dimBlock>>>(
@@ -1445,22 +1459,23 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                     sposIn, ni, B);
             } else {
                 // Compute new statistical mean & variance
-                unsigned int gridCols = (B + THREADS - 1) / THREADS;
-                dim3 dimGrid(gridCols, 1);
-                convlnStatMeanVar<<<dimGrid, dimBlock>>>(
+                int BLOCKS_RA = (B + THREADS - 1) / THREADS;
+                convlnStatMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_Sa, state.d_ms, state.d_SsTmp, zposIn,
                     sposIn, wihi, fi, B);
 
-                convlnStatSampleVar<<<dimGrid, dimBlock>>>(
+                convlnStatSampleVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_ms, state.d_SsTmp, state.d_Ss, zposIn,
                     zposIn, wihi, fi, B);
 
                 // Update running average
-                raMeanVar<<<dimGrid, dimBlock>>>(
+                raMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ms, state.d_Ss, state.d_mra_prev, state.d_Sra_prev,
                     net.ra_mt, state.d_mra, state.d_Sra, sposIn, B);
 
                 // Compute norm-forwardpass
+                unsigned int gridCols = (B + THREADS - 1) / THREADS;
+                dim3 dimGrid(gridCols, 1);
                 int Kln = wihi * fi;
                 unsigned int gridCols2 = (Kln + THREADS - 1) / THREADS;
                 // Launch kernel
@@ -1486,22 +1501,23 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
             if (net.layers[j - 1] == net.layer_names.fc)  // FC layer
             {
                 // Compute  statistical mean and variance
-                unsigned int gridCols = (ni + THREADS - 1) / THREADS;
-                dim3 dimGrid(gridCols, 1);
-                fcbnStatMeanVar<<<dimGrid, dimBlock>>>(
+                int BLOCKS_RA = (ni + THREADS - 1) / THREADS;
+                fcbnStatMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_Sa, state.d_ms, state.d_SsTmp, zposIn,
                     sposIn, ni, B);
 
-                fcbnStatSampleVar<<<dimGrid, dimBlock>>>(
+                fcbnStatSampleVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_ms, state.d_SsTmp, state.d_Ss, zposIn,
                     sposIn, ni, B);
 
                 // Compute running average (to be continued)
-                raMeanVar<<<dimGrid, dimBlock>>>(
+                raMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ms, state.d_Ss, state.d_mra_prev, state.d_Sra_prev,
                     net.ra_mt, state.d_mra, state.d_Sra, sposIn, ni);
 
                 // Compute norm-forwardpass (need to defined mhat and shat)
+                unsigned int gridCols = (ni + THREADS - 1) / THREADS;
+                dim3 dimGrid(gridCols, 1);
                 unsigned int gridRows2 = (B + THREADS - 1) / THREADS;
                 dim3 dimGrid2(gridCols, gridRows2);
                 fcbnMean<<<dimGrid2, dimBlock>>>(
@@ -1520,16 +1536,17 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 unsigned int gridColN = (fi + THREADS - 1) / THREADS;
                 unsigned int gridRowN = (1 + THREADS - 1) / THREADS;
                 dim3 dimGridN(gridColN, gridRowN);
-                convbnStatMeanVar<<<dimGridN, dimBlock>>>(
+                int BLOCKS_RA = (fi + THREADS - 1) / THREADS;
+                convbnStatMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_Sa, state.d_ms, state.d_SsTmp, zposIn,
                     sposIn, wihi, fi, B);
 
-                convbnStatSampleVar<<<dimGridN, dimBlock>>>(
+                convbnStatSampleVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ma, state.d_ms, state.d_SsTmp, state.d_Ss, zposIn,
                     sposIn, wihi, fi, B);
 
                 // Update running average
-                raMeanVar<<<dimGridN, dimBlock>>>(
+                raMeanVar<<<BLOCKS_RA, THREADS>>>(
                     state.d_ms, state.d_Ss, state.d_mra, state.d_Sra, net.ra_mt,
                     state.d_mra, state.d_Sra, sposIn, fi);
 
@@ -1559,7 +1576,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         else if (net.layers[j] == net.layer_names.tconv) {
             // Launch kernel
             unsigned int gridRows = (B + THREADS - 1) / THREADS;
-            unsigned int gridCols = (woho * ho + THREADS - 1) / THREADS;
+            unsigned int gridCols = (woho * fo + THREADS - 1) / THREADS;
             dim3 dimGrid(gridCols, gridRows);
             dim3 dimBlock(THREADS, THREADS);
 

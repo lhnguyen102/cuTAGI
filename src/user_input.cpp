@@ -19,7 +19,7 @@ UserInput load_userinput(std::string &user_input_file)
     std::string key_words[] = {
         "model_name",     "net_name",         "task_name",
         "data_name",      "encoder_net_name", "decoder_net_name",
-        "load_data",      "num_epochs",       "num_classes",
+        "load_param",     "num_epochs",       "num_classes",
         "num_train_data", "num_test_data",    "mu",
         "sigma",          "x_train_dir",      "y_train_dir",
         "x_test_dir",     "y_test_dir",       "debug"};
