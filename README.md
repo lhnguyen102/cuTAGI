@@ -183,7 +183,7 @@ build/main cfg_mnist_2conv_bn.txt
 
 ### Autoencoder task for MNIST
 ```sh
-build/main cfg_mnist_2fc.txt
+build/main cfg_mnist_ae.txt
 ```
 <p align="center">
 <img src="./saved_results/mnist_autoencoder.png" width="350px">
