@@ -63,4 +63,15 @@
     },
     "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
     "editor.formatOnSave": true,
+    "python.linting.enabled": true,
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--rcfile",
+        "${workspaceFolder}/.vscode/pylintrc"
+    ],
+    "python.formatting.provider": "yapf",
+    "python.formatting.yapfArgs": [
+        "--style={based_on_style: google, column_limit: 80, indent_width: 4}"
+    ],
 }
