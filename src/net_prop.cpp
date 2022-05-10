@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      April 26, 2022
+// Updated:      May 10, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -245,7 +245,7 @@ float he_init(float fan_in)
  *  */
 
 {
-    float scale = 1 / fan_in;
+    float scale = pow(1 / fan_in, 0.5);
 
     return scale;
 }
@@ -771,10 +771,14 @@ Network load_cfg(std::string net_file)
  **/
 {
     // Dictionary for the cfg file
-    std::string key_words[] = {
-        "layers",      "nodes",      "kernels", "strides",   "widths",
-        "heights",     "filters",    "pads",    "pad_types", "shortcuts",
-        "activations", "batch_size", "sigma_v"};
+    std::string key_words[] = {"layers",      "nodes",
+                               "kernels",     "strides",
+                               "widths",      "heights",
+                               "filters",     "pads",
+                               "pad_types",   "shortcuts",
+                               "activations", "batch_size",
+                               "sigma_v",     "decay_factor_sigma_v",
+                               "sigma_v_min", "init_method"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -799,7 +803,7 @@ Network load_cfg(std::string net_file)
     Network net;
     int d;
     float f;
-    std::string string_input;
+    std::string si;
     std::string line;
     std::vector<int> v;
 
@@ -818,7 +822,7 @@ Network load_cfg(std::string net_file)
 
             // Find key in cfg file
             auto pos = line.find(key);
-            if (pos != std::string::npos) {
+            if (pos == 0) {
                 // Store data
                 if (key_words[k] == "batch_size") {
                     std::stringstream ss(line.substr(pos + key.size()));
@@ -831,6 +835,24 @@ Network load_cfg(std::string net_file)
                     if (ss.good()) {
                         ss >> f;
                         net.sigma_v = f;
+                    }
+                } else if (key_words[k] == "decay_factor_sigma_v") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.decay_factor_sigma_v = f;
+                    }
+                } else if (key_words[k] == "sigma_v_min") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.sigma_v_min = f;
+                    }
+                } else if (key_words[k] == "init_method") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        net.init_method = si;
                     }
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
@@ -849,12 +871,6 @@ Network load_cfg(std::string net_file)
                     // Map to field of Network
                     net.*fields[key_words[k]] = v;
                 }
-
-                //        // Print to double check
-                //        for (int i = 0; i < v.size(); i++)
-                //        {
-                //          std::cout << v[i] << "\n";
-                //        }
                 break;
             }
         }

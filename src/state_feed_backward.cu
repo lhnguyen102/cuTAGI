@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      April 24, 2022
+// Updated:      May 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1037,7 +1037,7 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
     int rowwIn, rowwfo, wihiB;
     int colzIn, kiwo, K, raposIn, wihifi, fiB, xposIn;
     int nL, padIdxIn, nLB;
-    unsigned int gridRowL, gridColL, gridRow, gridCol;
+    unsigned int gridRow, gridCol;
     int B = net.batch_size;
     int numLayers = net.layers.size();
 
@@ -1048,10 +1048,11 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
     if (net.is_output_ud)  // Update hidden states for the output layer
     {
         if (!net.is_idx_ud) {
-            gridRowL = (1 + THREADS - 1) / THREADS;
-            gridColL = (nLB + THREADS - 1) / THREADS;
-            dim3 dimGridL(gridColL, gridRowL);
-            deltaMzSz<<<dimGridL, dimBlock>>>(
+            // gridRowL = (1 + THREADS - 1) / THREADS;
+            // gridColL = (nLB + THREADS - 1) / THREADS;
+            // dim3 dimGridL(gridColL, gridRowL);
+            int BLOCKS_UD = (nLB + THREADS - 1) / THREADS;
+            deltaMzSz<<<BLOCKS_UD, THREADS>>>(
                 state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
                 obs.d_V_batch, d_state.d_delta_mz, d_state.d_delta_Sz, zposL,
                 nLB);
@@ -1059,10 +1060,11 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
         {
             NL = net.nye * B;
             // Launch kernel
-            gridRowL = (1 + THREADS - 1) / THREADS;
-            gridColL = (NL + THREADS - 1) / THREADS;
-            dim3 dimGridL(gridColL, gridRowL);
-            deltaMzSzWithIndices<<<dimGridL, dimBlock>>>(
+            // gridRowL = (1 + THREADS - 1) / THREADS;
+            // gridColL = (NL + THREADS - 1) / THREADS;
+            // dim3 dimGridL(gridColL, gridRowL);
+            int BLOCKS_UD = (NL + THREADS - 1) / THREADS;
+            deltaMzSzWithIndices<<<BLOCKS_UD, THREADS>>>(
                 state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
                 obs.d_V_batch, obs.d_idx_ud_batch, d_state.d_delta_mz,
                 d_state.d_delta_Sz, zposL, net.nodes[numLayers - 1], net.nye,
@@ -1071,22 +1073,24 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
     }
     // Connected network such as GAN and Autoencoder
     else {
-        gridRowL = (1 + THREADS - 1) / THREADS;
-        gridColL = (nLB + THREADS - 1) / THREADS;
-        dim3 dimGridL(gridColL, gridRowL);
-        duplicateMeanVar<<<dimGridL, dimBlock>>>(obs.d_y_batch, obs.d_V_batch,
+        // gridRowL = (1 + THREADS - 1) / THREADS;
+        // gridColL = (nLB + THREADS - 1) / THREADS;
+        // dim3 dimGridL(gridColL, gridRowL);
+        int BLOCKS_UD = (nLB + THREADS - 1) / THREADS;
+        duplicateMeanVar<<<BLOCKS_UD, THREADS>>>(obs.d_y_batch, obs.d_V_batch,
                                                  d_state.d_delta_mz,
                                                  d_state.d_delta_Sz, nLB);
     }
     // Inovation vector for output layer
-    unsigned int gridRowI = (1 + THREADS - 1) / THREADS;
-    unsigned int gridColI = (nLB + THREADS - 1) / THREADS;
-    dim3 dimGridI(gridColI, gridRowI);
+    // unsigned int gridRowI = (1 + THREADS - 1) / THREADS;
+    // unsigned int gridColI = (nLB + THREADS - 1) / THREADS;
+    // dim3 dimGridI(gridColI, gridRowI);
+    int BLOCKS_I = (nLB + THREADS - 1) / THREADS;
     // Inovavation vector for Z
-    inovationMean<<<dimGridI, dimBlock>>>(state.d_Sz, d_state.d_delta_mz,
-                                          d_state.d_delta_m, zposL, zposL, nLB);
-    inovationVar<<<dimGridI, dimBlock>>>(state.d_Sz, d_state.d_delta_Sz,
-                                         d_state.d_delta_S, zposL, zposL, nLB);
+    inovationMean<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_mz,
+                                         d_state.d_delta_m, zposL, zposL, nLB);
+    inovationVar<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_Sz,
+                                        d_state.d_delta_S, zposL, zposL, nLB);
 
     // Hidden-layer update
     nextSc2ud = -1;
@@ -1569,13 +1573,14 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
             }
         } else {
             // Inovavation vector for Z
-            inovationMean<<<dimGridI, dimBlock>>>(
-                state.d_Sz, d_state.d_delta_mz, d_state.d_delta_m, zposIn,
-                zposIn, niB);
-
-            inovationVar<<<dimGridI, dimBlock>>>(state.d_Sz, d_state.d_delta_Sz,
-                                                 d_state.d_delta_S, zposIn,
+            int BLOCKS_I = (niB + THREADS - 1) / THREADS;
+            inovationMean<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_mz,
+                                                 d_state.d_delta_m, zposIn,
                                                  zposIn, niB);
+
+            inovationVar<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_Sz,
+                                                d_state.d_delta_S, zposIn,
+                                                zposIn, niB);
         }
     }
 }

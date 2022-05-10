@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      April 26, 2022
+// Updated:      May 10, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -143,8 +143,8 @@ void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
 void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                  Param &theta_e, Network &net_d, IndexOut &idx_d,
                  NetState &state_d, Param &theta_d, ImageData &imdb,
-                 ImageData &test_imdb, int n_epochs, int n_classes,
-                 SavePath &path, bool train_mode, bool debug)
+                 int n_epochs, int n_classes, SavePath &path, bool train_mode,
+                 bool debug)
 /* Autoencoder network for generating images
    Args:
     net_e: Network properties for encoder
@@ -170,11 +170,10 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     }
 
     // Compute number of data
-    int n_iter = 1;  // imdb.num_data / net_d.batch_size;
-    //int test_n_iter = 1;
+    int n_iter = imdb.num_data / net_d.batch_size;
 
     // Input and output layer
-    std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
+    std::vector<float> x_batch, Sx_batch, y_batch, y_batch_e, V_batch_e;
     std::vector<int> data_idx = create_range(imdb.num_data);
     std::vector<int> test_data_idx = create_range(imdb.num_data);
     std::vector<int> batch_idx(net_d.batch_size);
@@ -184,9 +183,9 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
 
     x_batch.resize(net_e.batch_size * net_e.nodes[0], 0);
     Sx_batch.resize(net_e.batch_size * net_e.nodes[0], 0);
-    y_batch.resize(net_d.batch_size * net_d.nodes[net_d.nodes.size() - 1], 0);
-    V_batch.resize(net_d.batch_size * net_d.nodes[net_d.nodes.size() - 1],
-                   net_d.sigma_v);
+    y_batch.resize(net_d.batch_size * net_d.nodes.back(), 0);
+    y_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
+    V_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
 
     // Transfer data for states of encoder
     IndexGPU idx_e_gpu;
@@ -212,12 +211,10 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     InputGPU ip_gpu(net_e.nodes[0], net_d.batch_size);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_e_gpu(net_e.nodes[net_e.nodes.size() - 1], net_e.nye,
-                    net_e.batch_size);
+    ObsGPU op_e_gpu(net_e.nodes.back(), net_e.nye, net_e.batch_size);
     op_e_gpu.allocate_cuda_memory();
 
-    ObsGPU op_d_gpu(net_d.nodes[net_d.nodes.size() - 1], net_d.nye,
-                    net_d.batch_size);
+    ObsGPU op_d_gpu(net_d.nodes.back(), net_d.nye, net_d.batch_size);
     op_d_gpu.allocate_cuda_memory();
 
     // Loop initialization
@@ -227,17 +224,32 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     unsigned int BLOCKS_D =
         (net_d.batch_size * net_d.nodes[0] + THREADS - 1) / THREADS;
 
-    if (train_mode) {
-        for (int e = 0; e < n_epochs; e++) {
-            std::cout << "################"
-                      << "\n"
-                      << std::endl;
-            std::cout << "Epoch #" << e << "\n" << std::endl;
-            //    auto start_time = std::chrono::steady_clock::now();
+    // Compute kernel block for normalization layer
+    unsigned int BLOCKS_N_E = (state_e.mra.size() + THREADS - 1) / THREADS;
+    unsigned int BLOCKS_N_D = (state_d.mra.size() + THREADS - 1) / THREADS;
 
+    if (train_mode) {
+        std::cout << "Training...\n";
+        for (int e = 0; e < n_epochs; e++) {
+            std::cout << "################\n";
+            std::cout << "Epoch #" << e + 1 << "\n";
+
+            // Decay observation noise
+            if (e > 0) {
+                decay_obs_noise(net_d.sigma_v, net_d.decay_factor_sigma_v,
+                                net_d.sigma_v_min);
+            }
+            std::vector<float> V_batch(net_d.batch_size * net_d.nodes.back(),
+                                       pow(net_d.sigma_v, 2));
+            std::cout << "sigma v: " << V_batch[0] << "\n";
+
+            // Shufle data
+            std::random_shuffle(data_idx.begin(), data_idx.end());
+
+            auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
                 // TODO: Make a cleaner way to handle both cases
-                if (i == 0) {
+                if (i == 0 && e == 0) {
                     net_e.ra_mt = 0.0f;
                     net_d.ra_mt = 0.0f;
                 } else {
@@ -246,7 +258,8 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                 }
 
                 // Load input data for encoder and output data for decoder
-                get_batch_idx(data_idx, i, net_e.batch_size, batch_idx);
+                get_batch_idx(data_idx, i * net_d.batch_size, net_e.batch_size,
+                              batch_idx);
                 get_batch_data(imdb.images, batch_idx, net_e.nodes[0], x_batch);
                 get_batch_data(imdb.labels, batch_idx, 1, label_batch);
                 ip_gpu.copy_host_to_device(x_batch, Sx_batch);
@@ -266,10 +279,9 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                 initializeFullStates<<<BLOCKS_D, THREADS>>>(
                     state_e_gpu.d_mz, state_e_gpu.d_Sz, state_e_gpu.d_ma,
                     state_e_gpu.d_Sa, state_e_gpu.d_J,
-                    net_d.nodes[0] * net_d.batch_size,
-                    net_e.z_pos[net_e.nodes.size() - 1], state_d_gpu.d_mz,
-                    state_d_gpu.d_Sz, state_d_gpu.d_ma, state_d_gpu.d_Sa,
-                    state_d_gpu.d_J);
+                    net_d.nodes[0] * net_d.batch_size, net_e.z_pos.back(),
+                    state_d_gpu.d_mz, state_d_gpu.d_Sz, state_d_gpu.d_ma,
+                    state_d_gpu.d_Sa, state_d_gpu.d_J);
 
                 // Feed forward for decoder
                 feedForward(net_d, theta_d_gpu, idx_d_gpu, state_d_gpu);
@@ -285,12 +297,14 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                                   theta_d.mb.size(), theta_d.mw_sc.size(),
                                   theta_d.mb_sc.size(), THREADS, theta_d_gpu);
 
-                // TODO: Replace delta_m with delta_mz. Load output data for
-                // encoder
+                // Load output data for encoder
                 getInputDeltaState<<<BLOCKS_D, THREADS>>>(
                     d_state_d_gpu.d_delta_mz, d_state_d_gpu.d_delta_Sz,
                     net_d.nodes[0] * net_d.batch_size, op_e_gpu.d_y_batch,
                     op_e_gpu.d_V_batch);
+
+                // op_e_gpu.copy_device_to_host(y_batch_e, idx_ud_batch_e,
+                //                              V_batch_e);
 
                 // Feed backward for hidden state and parameters of encoder
                 stateBackward(net_e, theta_e_gpu, state_e_gpu, idx_e_gpu,
@@ -302,12 +316,42 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                 globalParamUpdate(d_theta_e_gpu, theta_e.mw.size(),
                                   theta_e.mb.size(), theta_e.mw_sc.size(),
                                   theta_e.mb_sc.size(), THREADS, theta_e_gpu);
+
+                ///////////////////////////
+                // DEBUG ONLY
+                if (debug) {
+                    // Transfer data from device to host
+                    state_e_gpu.copy_device_to_host(state_e);
+                    state_d_gpu.copy_device_to_host(state_d);
+                    d_theta_e_gpu.copy_device_to_host();
+                    d_theta_d_gpu.copy_device_to_host();
+
+                    // Save results
+                    std::string hs_path_d =
+                        path.debug_path + "/saved_hidden_state_dec/";
+                    std::string hs_path_e =
+                        path.debug_path + "/saved_hidden_state_enc/";
+
+                    std::string dp_path_d =
+                        path.debug_path + "/saved_delta_param_dec/";
+                    std::string dp_path_e =
+                        path.debug_path + "/saved_delta_param_enc/";
+
+                    save_hidden_states(hs_path_d, state_d);
+                    save_hidden_states(hs_path_e, state_e);
+                    save_delta_param(dp_path_e, d_theta_e_gpu);
+                    save_delta_param(dp_path_d, d_theta_d_gpu);
+                }
             }
+            std::cout << std::endl;
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                    .count();
+            std::cout << " Time per epoch: " << run_time << " sec\n";
+            std::cout << " Time left     : "
+                      << run_time * (n_epochs - e - 1) / 60 << " mins\n";
         }
-        //  auto end_time = std::chrono::steady_clock::now();
-        //  std::cout << "Time/epoch in seconds: "<<
-        //  std::chrono::duration_cast<std::chrono::seconds>(end_time -
-        //  start_time).count()<< " sec"<<"\n";
 
         d_state_e_gpu.copy_device_to_host();
         theta_e_gpu.copy_device_to_host(theta_e);
@@ -315,25 +359,6 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
         theta_d_gpu.copy_device_to_host(theta_d);
         state_e_gpu.copy_device_to_host(state_e);
         state_d_gpu.copy_device_to_host(state_d);
-        std::cout << "deltaMz_0"
-                  << "\n"
-                  << std::endl;
-        for (int i = 0; i < 12; i++) {
-            std::cout << std::fixed;
-            std::cout << std::setprecision(10);
-            std::cout << d_state_d_gpu.delta_mz[i] << '\n';
-        }
-        std::cout << std::endl;
-
-        std::cout << "deltaSz_0"
-                  << "\n"
-                  << std::endl;
-        for (int i = 0; i < theta_e.mw.size(); i++) {
-            std::cout << std::fixed;
-            std::cout << std::setprecision(10);
-            std::cout << theta_e.mw[i] << '\n';
-        }
-        std::cout << std::endl;
 
         // Save results
         if (debug) {
@@ -343,44 +368,66 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
             std::string res_path_d = path.debug_path + "/saved_result_dec/";
             save_inference_results(res_path_d, d_state_d_gpu, theta_d);
         }
+    } else {
+        std::cout << "Testing...\n";
+        std::vector<float> ma_d_batch_out(net_d.batch_size * net_d.nodes.back(),
+                                          0);
+        std::vector<float> Sa_d_batch_out(net_d.batch_size * net_d.nodes.back(),
+                                          0);
+        std::vector<float> ma_d_out(imdb.num_data * net_d.nodes.back(), 0);
+        std::vector<float> Sa_d_out(imdb.num_data * net_d.nodes.back(), 0);
+        std::vector<float> V_batch(net_d.batch_size * net_d.nodes.back(),
+                                   pow(net_d.sigma_v, 2));
+        int mt_idx = 0;
+
+        // Generate image from test set
+        for (int i = 0; i < n_iter; i++) {
+            // TODO: set momentum for normalization layer when i > i
+            net_e.ra_mt = 1.0f;
+            net_d.ra_mt = 1.0f;
+
+            // Load input data for encoder and output data for decoder
+            get_batch_idx(data_idx, i, net_e.batch_size, batch_idx);
+            get_batch_data(imdb.images, batch_idx, net_e.nodes[0], x_batch);
+            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            op_d_gpu.copy_host_to_device(x_batch, idx_ud_batch, V_batch);
+
+            // Initialize input of encoder
+            initializeStates<<<BLOCKS, THREADS>>>(
+                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_e_gpu.d_mz,
+                state_e_gpu.d_Sz, state_e_gpu.d_ma, state_e_gpu.d_Sa,
+                state_e_gpu.d_J, net_e.batch_size * net_e.nodes[0]);
+
+            // Feed forward for encoder
+            feedForward(net_e, theta_e_gpu, idx_e_gpu, state_e_gpu);
+
+            // Initialize the decoder's input.
+            initializeFullStates<<<BLOCKS_D, THREADS>>>(
+                state_e_gpu.d_mz, state_e_gpu.d_Sz, state_e_gpu.d_ma,
+                state_e_gpu.d_Sa, state_e_gpu.d_J,
+                net_d.nodes[0] * net_d.batch_size, net_e.z_pos.back(),
+                state_d_gpu.d_mz, state_d_gpu.d_Sz, state_d_gpu.d_ma,
+                state_d_gpu.d_Sa, state_d_gpu.d_J);
+
+            // Feed forward for decoder
+            feedForward(net_d, theta_d_gpu, idx_d_gpu, state_d_gpu);
+
+            // Get hidden states for output layers
+            state_d_gpu.copy_device_to_host(state_d);
+            get_output_states(state_d.ma, state_d.Sa, ma_d_batch_out,
+                              Sa_d_batch_out, net_d.z_pos.back());
+
+            // Update the final hidden state vector for last layer
+            mt_idx = i * net_d.batch_size * net_d.nodes.back();
+            update_vector(ma_d_out, ma_d_batch_out, mt_idx, net_d.nodes.back());
+        }
+        std::cout << std::endl;
+
+        // Save generated images
+        std::string suffix = "test";
+        save_generated_images(path.saved_inference_path, ma_d_out, suffix);
     }
-
-    // // Generate image from test set
-    // for (int i = 0; i < test_n_iter; i++) {
-    //     // TODO: set momentum for normalization layer when i > i
-    //     net_e.ra_mt = 0.0f;
-    //     net_d.ra_mt = 0.0f;
-
-    //     // Load input data for encoder and output data for decoder
-    //     get_batch_idx(data_idx, i, net_e.batch_size, batch_idx);
-    //     get_batch_data(imdb.images, batch_idx, net_e.nodes[0], x_batch);
-    //     get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-    //     ip_gpu.copy_host_to_device(x_batch, Sx_batch);
-    //     op_d_gpu.copy_host_to_device(x_batch, idx_ud_batch, V_batch);
-
-    //     // Initialize input of encoder
-    //     initializeStates<<<BLOCKS, THREADS>>>(
-    //         ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_e_gpu.d_mz,
-    //         state_e_gpu.d_Sz, state_e_gpu.d_ma, state_e_gpu.d_Sa,
-    //         state_e_gpu.d_J, net_e.batch_size * net_e.nodes[0]);
-
-    //     // Feed forward for encoder
-    //     feedForward(net_e, theta_e_gpu, idx_e_gpu, state_e_gpu);
-
-    //     // Initialize the decoder's input. TODO: double the position of
-    //     // hidden state for encoder net.
-    //     initializeFullStates<<<BLOCKS_D, THREADS>>>(
-    //         state_e_gpu.d_mz, state_e_gpu.d_Sz, state_e_gpu.d_ma,
-    //         state_e_gpu.d_Sa, state_e_gpu.d_J,
-    //         net_d.nodes[0] * net_d.batch_size,
-    //         net_e.z_pos[net_e.nodes.size() - 1], state_d_gpu.d_mz,
-    //         state_d_gpu.d_Sz, state_d_gpu.d_ma, state_d_gpu.d_Sa,
-    //         state_d_gpu.d_J);
-
-    //     // Feed forward for decoder
-    //     feedForward(net_d, theta_d_gpu, idx_d_gpu, state_d_gpu);
-    // }
-    // state_d_gpu.copy_device_to_host(state_d);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -421,7 +468,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     x_batch.resize(net.batch_size * net.nodes[0], 0);
     Sx_batch.resize(net.batch_size * net.nodes[0], 0);
     y_batch.resize(net.batch_size * hrs.n_obs, 0);
-    V_batch.resize(net.batch_size * hrs.n_obs, net.sigma_v);
+    V_batch.resize(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
 
     IndexGPU idx_gpu;
     StateGPU state_gpu;
@@ -474,14 +521,13 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
         std::random_shuffle(data_idx.begin(), data_idx.end());
 
         // Timer
-        std::cout << "%%%%%%%%%%"
-                  << "\n";
+        std::cout << "################\n";
         std::cout << "Epoch #" << e + 1 << "\n";
-        std::cout << "Training...\n" ;
+        std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < n_iter; i++) {
             // TODO: Make a cleaner way to handle both cases
-            if (i == 0) {
+            if (i == 0 && e == 0) {
                 net.ra_mt = 0.0f;
             } else {
                 net.ra_mt = 0.9f;
@@ -503,8 +549,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
                 net.batch_size * net.nodes[0]);
 
-            // Feed forward. TODO:  Need to update mra_prev and Sra_prev
-            // in state GPU
+            // Feed forward.
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
             // Feed backward for hidden states
@@ -515,8 +560,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
                           d_theta_gpu);
 
-            // Update model parameters. TODO: Double check if we need to
-            // duplicate parameters when updating
+            // Update model parameters.
             globalParamUpdate(d_theta_gpu, wN, bN, wN_sc, bN_sc, THREADS,
                               theta_gpu);
 
@@ -543,15 +587,14 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 std::cout << avg_error << "\n";
             }
         }
-        std::cout<<std::endl;
+        std::cout << std::endl;
         auto end = std::chrono::steady_clock::now();
-        std::cout << "Elapsed time in seconds: "
-                  << std::chrono::duration_cast<std::chrono::seconds>(end -
-                                                                      start)
-                         .count()
-                  << " sec"
-                  << "\n";
-        std::cout << "\n";
+        auto run_time =
+            std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                .count();
+        std::cout << " Time per epoch: " << run_time << " sec\n";
+        std::cout << " Time left     : " << run_time * (n_epochs - e - 1) / 60
+                  << " mins\n";
         std::cout << "Testing...\n";
         for (int i = 0; i < test_n_iter; i++) {
             // TODO: set = 0.9 when i > 0 or disable mean and variance in
@@ -574,8 +617,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
                 net.batch_size * net.nodes[0]);
 
-            // Feed forward. TODO:  Need to update mra_prev and Sra_prev
-            // in state GPU
+            // Feed forward.
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
             // Compute error rate
@@ -603,7 +645,6 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     d_state_gpu.copy_device_to_host();
     theta_gpu.copy_device_to_host(theta);
     d_theta_gpu.copy_device_to_host();
-
 
     // Save error rate
     std::string suffix = "test";
@@ -832,19 +873,26 @@ void set_task(std::string &user_input_file, SavePath &path) {
         }
 
         // Save data for debugging
-        save_autoencoder_net_prop(theta_e, theta_d, idx_e, idx_d,
-                                  path.debug_path);
+        if (user_input.debug) {
+            save_autoencoder_net_prop(theta_e, theta_d, idx_e, idx_d,
+                                      path.debug_path);
+        }
 
         // Train network
         bool train_mode = true;
         autoencoder(net_e, idx_e, state_e, theta_e, net_d, idx_d, state_d,
-                    theta_d, imdb, test_imdb, user_input.num_epochs,
+                    theta_d, imdb, user_input.num_epochs,
                     user_input.num_classes, path, train_mode, user_input.debug);
 
         save_net_param(user_input.model_name, user_input.encoder_net_name,
                        path.saved_param_path, theta_e);
         save_net_param(user_input.model_name, user_input.decoder_net_name,
                        path.saved_param_path, theta_d);
+
+        train_mode = false;
+        autoencoder(net_e, idx_e, state_e, theta_e, net_d, idx_d, state_d,
+                    theta_d, test_imdb, user_input.num_epochs,
+                    user_input.num_classes, path, train_mode, user_input.debug);
 
     } else if (user_input.task_name == "regression") {
         // Data

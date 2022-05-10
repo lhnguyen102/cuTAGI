@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      April 21, 2022
+// Updated:      May 10, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,8 @@ struct Network {
         is_output_ud: Whether or not to update output layer
         is_idx_ud: Wheher or not to update only hidden units in the output
                    layers
+        decay_factor: Decreasing percentage (default value: 0.99)
+        sigma_v_min: Minimum value of observation noise (default value: 0.3)
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -117,12 +119,14 @@ struct Network {
     int init_sc = -1;
     int nye = 0;
     int last_backward_layer = 1;
-    float sigma_v = 0.0;
-    float alpha = 0.1;
+    float sigma_v = 0.0f;
+    float alpha = 0.1f;
     float epsilon = 0.0001f;
-    float ra_mt = 0.9;
+    float ra_mt = 0.9f;
     bool is_output_ud = true;
     bool is_idx_ud = false;
+    float decay_factor_sigma_v = 0.99f;
+    float sigma_v_min = 0.3f;
 };
 
 // NETWORK STATE

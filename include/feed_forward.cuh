@@ -24,7 +24,8 @@ __global__ void initializeFullStates(float const *mz_0, float const *Sz_0,
                                      float const *J_0, int niB, int zposIn,
                                      float *mz, float *Sz, float *ma, float *Sa,
                                      float *J);
-
+__global__ void updateMraSra(float const *mra, float const *Sra, int N,
+                             float *mra_prev, float *Sra_prev);
 ////////////////////////////////////////////////////////////////////////////////
 /// TAGI-FEEDFORWARD PASS
 ////////////////////////////////////////////////////////////////////////////////

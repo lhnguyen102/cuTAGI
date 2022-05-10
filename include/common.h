@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      May 01, 2022
+// Updated:      May 10, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,6 +21,10 @@
 #include <unistd.h>
 #define GetCurrentDir getcwd
 #endif
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+//#include "nvToolsExt.h"
 
 std::string get_current_dir();
 
@@ -101,3 +105,7 @@ void push_back_with_idx(T &v, T &m, int idx)
 int sum(std::vector<int> &v);
 
 std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
+
+void create_directory(std::string &path);
+
+void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);

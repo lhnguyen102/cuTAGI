@@ -89,7 +89,7 @@ void StateGPU::copy_host_to_device(NetState &state) {
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
-            "Failed to make data tranfer to devicei for hidden states";
+            "Failed to make data tranfer to device for hidden states";
         std::cerr << error << ": " << err_msg;
     }
 }
