@@ -161,7 +161,7 @@ cmake --build build --config RelWithDebInfo -j 16
 
 
 ## API
-### Classification task for MNIST images
+### Classification task for MNIST
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
 ```sh
 build/main cfg_mnist_2fc.txt
