@@ -166,7 +166,7 @@ cmake --build build --config RelWithDebInfo -j 16
   ```sh
   build/main cfg_mnist_2fc.txt
   ```
-or
+  or
   ```sh
   "build/main" cfg_mnist_2fc.txt
   ```
