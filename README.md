@@ -163,28 +163,28 @@ cmake --build build --config RelWithDebInfo -j 16
 ## API
 ### Classification task for MNIST
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
-```sh
-build/main cfg_mnist_2fc.txt
-```
+  ```sh
+  build/main cfg_mnist_2fc.txt
+  ```
 or
-```sh
-"build/main" cfg_mnist_2fc.txt
-```
+  ```sh
+  "build/main" cfg_mnist_2fc.txt
+  ```
 
 * Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv.txt).
-```sh
-build/main cfg_mnist_2conv.txt
-```
+  ```sh
+  build/main cfg_mnist_2conv.txt
+  ```
 
 * Two convolutional layers each followed by a batch-normalization layer [`cfg/2conv_bn.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv_bn.txt)
-```cpp
-build/main cfg_mnist_2conv_bn.txt
-```
+  ```cpp
+  build/main cfg_mnist_2conv_bn.txt
+  ```
 
 ### Autoencoder task for MNIST
-```sh
-build/main cfg_mnist_ae.txt
-```
+ ```sh
+ build/main cfg_mnist_ae.txt
+ ```
 <p align="center">
 <img src="./saved_results/mnist_autoencoder.png" width="350px">
 </p>
