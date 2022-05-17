@@ -3,7 +3,7 @@
 // Description:  utils for TAGI package such saving and loading parameters
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 10, 2022
-// Updated:      May 09, 2022
+// Updated:      May 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -205,14 +205,14 @@ Args:
     std::string Sb_sc_path = param_path + "8_Sb_sc.csv";
 
     // Load parameters
-    read_csv(mw_path, theta.mw);
-    read_csv(Sw_path, theta.Sw);
-    read_csv(mb_path, theta.mb);
-    read_csv(Sb_path, theta.Sb);
-    read_csv(mw_sc_path, theta.mw_sc);
-    read_csv(Sw_sc_path, theta.Sw_sc);
-    read_csv(mb_sc_path, theta.mb_sc);
-    read_csv(Sb_sc_path, theta.Sb_sc);
+    read_csv(mw_path, theta.mw, 1, false);
+    read_csv(Sw_path, theta.Sw, 1, false);
+    read_csv(mb_path, theta.mb, 1, false);
+    read_csv(Sb_path, theta.Sb, 1, false);
+    read_csv(mw_sc_path, theta.mw_sc, 1, false);
+    read_csv(Sw_sc_path, theta.Sw_sc, 1, false);
+    read_csv(mb_sc_path, theta.mb_sc, 1, false);
+    read_csv(Sb_sc_path, theta.Sb_sc, 1, false);
 }
 void save_net_param(std::string &model_name, std::string &net_name,
                     std::string path, Param &theta)

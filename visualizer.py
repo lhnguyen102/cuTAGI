@@ -1,9 +1,9 @@
 ###############################################################################
-# File:         visualizer
+# File:         visualizer.py
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      May 10, 2022
+# Updated:      May 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ###############################################################################

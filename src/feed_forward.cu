@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      May 09, 2022
+// Updated:      May 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,11 +23,11 @@ Args:
     mb: Mean of the biases
     ma: Mean of activation units
     mz: Mean of hidden states
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
              of network
     n: Input node
     m: Output node
@@ -57,15 +57,15 @@ __global__ void fcVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Varaince of the biases
+    Sb: Variance of the biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
              of network
     n: Input node
     m: Output node
@@ -105,11 +105,11 @@ Args:
     ma: Mean of activation units
     mz: Mean of hidden states
     aidx: Activation indices for mean product WA
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     aidxpos: Position of weight indices for mean product WA
     woho: Width x heights for the output layer
@@ -150,16 +150,16 @@ __global__ void convVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Varaince of the biases
+    Sb: Variance of the biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
     aidx: Acrivation indices for mean product WA
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     aidxpos: Position of activation indices for mean product WA
     woho: Width x heights for the output layer
@@ -268,11 +268,11 @@ Args:
     mz: Mean of hidden states
     widx: Weight indices for mean product WA
     aidx: Activation indices for mean product WA
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     widxpos: Position of weight indices for mean product WA
     aidxpos: Position of activation indices for mean product WA
@@ -320,17 +320,17 @@ __global__ void tconvVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Varaince of the biases
+    Sb: Variance of the biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
     widx: Weight indices for mean product WA
     aidx: Activation indices for mean product WA
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     widxpos: Position of weight indices for mean product WA
     aidxpos: Position of activation indices for mean product WA
@@ -385,11 +385,11 @@ Args:
     mz: Mean of hidden states
     Sz: Variance of hidden states
     aidx: Activation indices for mean product WA
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     aidxpos: Position of weight indices for mean product WA
     woho: Width x heights for the output layer
@@ -458,7 +458,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
           of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -492,7 +492,7 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -529,11 +529,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
@@ -572,11 +572,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
@@ -610,7 +610,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
@@ -643,7 +643,7 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
@@ -678,11 +678,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
@@ -719,11 +719,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
@@ -756,7 +756,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
           of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -789,7 +789,7 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -827,11 +827,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
     of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
     of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
@@ -871,11 +871,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
     of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
     of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
@@ -911,7 +911,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
@@ -943,7 +943,7 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
     of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
@@ -977,11 +977,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
             of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
@@ -1018,11 +1018,11 @@ Args:
     mra: Statistical mean for the normalzation layers
     Sra: Statistical variance for the normalzation layers
     epsilon: Constant for normalization layer to avoid zero-division
-    wpos: Weight postision for this layer in the weight vector of network
-    bpos: Bias postision for this layer in the bias vector of network
-    zposIn: Input-hidden-state postision for this layer in the weight vector
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
             of network
-    zposOut: Output-hidden-state postision for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the weight vector
              of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
@@ -1107,7 +1107,7 @@ Args:
     ma: Mean of activation units
     Sa: Variance of activation units
     J: Jacobian matrix
-    zpos: Input-hidden-state postision for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the weight vector
           of network
     n: Number of hidden units for this layer
 */
@@ -1208,7 +1208,7 @@ __global__ void initializeStates(float const *x, float const *Sx, float *mz,
 
 Args:
     x: Input data:
-    Sx: Varaince of input data i.e. in the common case, Sx=0
+    Sx: Variance of input data i.e. in the common case, Sx=0
     mz: Mean of hidden states
     Sz: Variance of hidden states
     ma: Mean of activation units

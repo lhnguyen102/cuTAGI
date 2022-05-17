@@ -3,7 +3,7 @@
 // Description:  Header file for utils
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 10, 2022
-// Updated:      May 09, 2022
+// Updated:      May 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -18,7 +18,8 @@
 #include "struct_var.h"
 
 template <typename T>
-void read_csv(std::string filename, std::vector<T> &v) {
+void read_csv(std::string &filename, std::vector<T> &v, int num_col,
+              bool skip_header) {
     // Create input filestream
     std::ifstream myFile(filename);
 
@@ -28,27 +29,48 @@ void read_csv(std::string filename, std::vector<T> &v) {
     }
 
     // Initialization
-    std::string line;
+    std::string line, col;
     T d;
 
-    // Set column counter
-    int row_counter = 0;
+    // Set counter
+    int count = -1;
+    int line_count = 0;
     while (std::getline(myFile, line)) {
         // Create a stringstream of the current line
         std::stringstream ss(line);
 
-        // Get the data
-        if (ss.good()) {
-            ss >> d;
-            v[row_counter] = d;
-            row_counter++;
+        if (line_count > 0 || !skip_header) {
+            // Get the data
+            if (ss.good()) {
+                while (std::getline(ss, col, ',')) {
+                    std::stringstream ss_col(col);
+                    if (ss_col.good()) {
+                        count++;
+                        ss_col >> d;
+                        v[count] = d;
+                    }
+                }
+            }
         }
+        line_count++;
     }
 
+    // Total number of data
+    int us_num_data = v.size() / num_col;
+    int ac_num_row = (count + 1) / num_col;
+
     // Check output size
-    if (v.size() != row_counter) {
+    if (v.size() != count + 1) {
+        std::cout << "\nUser-specified number of data: " << us_num_data << "x"
+                  << num_col << "\n";
+        std::cout << "Actual number of data        : " << ac_num_row << "x"
+                  << num_col << "\n";
+        std::cout << std::endl;
         throw std::runtime_error("There is missing data - utils.h");
     }
+
+    // Close file
+    myFile.close();
 }
 
 template <typename T>

@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      April 12, 2022
+// Updated:      May 15, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,6 +21,7 @@
 
 #include "cost.h"
 #include "struct_var.h"
+#include "utils.h"
 
 std::vector<int> create_range(int N);
 
@@ -55,8 +56,26 @@ ImageData get_images(std::string data_name,
                      std::vector<float> &mu, std::vector<float> &sigma, int w,
                      int h, int d, HrSoftmax &hrs, int num);
 
+Dataloader get_dataloader(std::vector<std::string> &input_file,
+                          std::vector<std::string> &output_file,
+                          std::vector<float> mu_x, std::vector<float> sigma_x,
+                          std::vector<float> mu_y, std::vector<float> sigma_y,
+                          int num, int nx, int ny);
+
 void normalize_images(std::vector<float> &imgs, std::vector<float> &mu,
                       std::vector<float> &sigma, int w, int h, int d, int num);
+
+void normalize_data(std::vector<float> &x, std::vector<float> &mu,
+                    std::vector<float> &sigma, int w);
+
+void denormalize_mean(std::vector<float> &norm_my, std::vector<float> &mu,
+                      std::vector<float> &sigma, int w, std::vector<float> &my);
+
+void denormalize_std(std::vector<float> &norm_sy, std::vector<float> &mu,
+                     std::vector<float> &sigma, int w, std::vector<float> &sy);
+
+void compute_mean_std(std::vector<float> &x, std::vector<float> &mu,
+                      std::vector<float> &sigma, int w);
 
 void compute_mean_std_each_channel(std::vector<float> &imgs,
                                    std::vector<float> &mu,

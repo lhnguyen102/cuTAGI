@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      April 09, 2022
+// Updated:      May 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -228,6 +228,7 @@ ImageData get_images(std::string data_name,
                      std::vector<float> &mu, std::vector<float> &sigma, int w,
                      int h, int d, HrSoftmax &hrs, int num)
 /*Load image dataset
+
  Args:
     data_name: Name of dataset e.g. mnist, cifar
     image_file: Directory path to image file
@@ -285,6 +286,71 @@ Returns:
     return {imgs, obs, obs_idx, labels, num};
 }
 
+Dataloader get_dataloader(std::vector<std::string> &input_file,
+                          std::vector<std::string> &output_file,
+                          std::vector<float> mu_x, std::vector<float> sigma_x,
+                          std::vector<float> mu_y, std::vector<float> sigma_y,
+                          int num, int nx, int ny)
+/* Get dataloader for input and output data.
+
+Args:
+    input_file: Input data file (*.csv)
+    output_file: Output data file (*.csv)
+    mu_x: Sample mean of input data
+    sigma_x: Sample standard deviation of input data
+    mu_y: Sample mean of output data
+    sigma_y: Sample standard deviation of output data
+    num: Total number of data
+    nx: Number of input features
+    ny: Number of output features
+
+Returns:
+    dataset: Dataloader
+ */
+{
+    Dataloader db;
+    std::vector<float> x(nx * num, 0), y(ny * num, 0);
+
+    // Load input data
+    for (int i = 0; i < input_file.size(); i++) {
+        read_csv(input_file[i], x, nx, true);
+        db.x.insert(db.x.end(), x.begin(), x.end());
+    };
+
+    for (int i = 0; i < output_file.size(); i++) {
+        read_csv(output_file[i], y, ny, true);
+        db.y.insert(db.y.end(), y.begin(), y.end());
+    };
+
+    // Compute sample mean and std for dataset
+    if (mu_x.size() == 0 || sigma_x.size() == 0) {
+        mu_x.resize(nx, 0);
+        sigma_x.resize(nx, 1);
+        compute_mean_std(db.x, mu_x, sigma_x, nx);
+    }
+    if (mu_y.size() == 0 || sigma_y.size() == 0) {
+        mu_y.resize(ny, 0);
+        sigma_y.resize(ny, 1);
+        compute_mean_std(db.y, mu_y, sigma_y, ny);
+    }
+
+    // Normalize dataset
+    normalize_data(db.x, mu_x, sigma_x, nx);
+    normalize_data(db.y, mu_y, sigma_y, ny);
+
+    // Set data to output variable
+    db.mu_x = mu_x;
+    db.sigma_x = sigma_x;
+    db.mu_y = mu_y;
+    db.sigma_y = sigma_y;
+    db.nx = nx;
+    db.ny = ny;
+    int actual_num = db.x.size() / nx;
+    db.num_data = num;
+
+    return db;
+}
+
 void normalize_images(std::vector<float> &imgs, std::vector<float> &mu,
                       std::vector<float> &sigma, int w, int h, int d, int num) {
     /*
@@ -293,7 +359,9 @@ void normalize_images(std::vector<float> &imgs, std::vector<float> &mu,
      * Args:
      *    imgs: Image dataset
      *    mu: Mean of each channel
-     *    sigma: Standard deviation for each channel
+     *    sigmu_x: Sample mean of input data
+        sigma_x: Sample standard deviation of input datama: Standard deviation
+     for each channel
      *    w: Width of images
      *    h: Height of images
      *    d: Depth of images
@@ -314,11 +382,103 @@ void normalize_images(std::vector<float> &imgs, std::vector<float> &mu,
     }
 }
 
+void normalize_data(std::vector<float> &x, std::vector<float> &mu,
+                    std::vector<float> &sigma, int w)
+/* Normalize data in the range [-1, 1].
+
+Args:
+    x: Dataset
+    mu: Mean of data
+    sigma: Standard deviation of data
+    w: Number of columns of x
+*/
+{
+    int h = x.size() / w;
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            x[row * w + col] = (x[row * w + col] - mu[col]) / sigma[col];
+        }
+    }
+}
+
+void denormalize_mean(std::vector<float> &norm_my, std::vector<float> &mu,
+                      std::vector<float> &sigma, int w, std::vector<float> &my)
+/* Transfer mean value from normalized to original spaces.
+
+Args:
+    norm_my: Normalized mean values
+    mu: Mean of data
+    sigma: Standard deviation of data
+    w: Number of columns of x
+    my: Mean value in origial space
+*/
+{
+    int h = norm_my.size() / w;
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            my[row * w + col] = (norm_my[row * w + col] * sigma[col]) + mu[col];
+        }
+    }
+}
+
+void denormalize_std(std::vector<float> &norm_sy, std::vector<float> &mu,
+                     std::vector<float> &sigma, int w, std::vector<float> &sy)
+/* Transfer standard deviation value from normalized to original spaces.
+
+Args:
+    norm_Sy: Normalized variance values
+    mu: Mean of data
+    sigma: Standard deviation of data
+    w: Number of columns of x
+    Sy: Variance value in origial space
+*/
+{
+    int h = norm_sy.size() / w;
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            sy[row * w + col] = norm_sy[row * w + col] * sigma[col];
+        }
+    }
+}
+
+void compute_mean_std(std::vector<float> &x, std::vector<float> &mu,
+                      std::vector<float> &sigma, int w)
+/* Compute stat mean and standard deviation of data.
+
+Args:
+    x: Dataset
+    mu: Mean of data
+    sigma: Standard deviation of data
+    w: Number of columns of x
+ */
+{
+    int h = x.size() / w;
+
+    // Compute mean
+    for (int col = 0; col < w; col++) {
+        float sum = 0;
+        for (int row = 0; row < h; row++) {
+            sum += x[row * w + col];
+        }
+        mu[col] = sum / h;
+    }
+
+    // Compute standard deviation
+    for (int col = 0; col < w; col++) {
+        float sq_sum = 0;
+        for (int row = 0; row < h; row++) {
+            sq_sum += pow(x[row * w + col] - mu[col], 2);
+        }
+        sigma[col] = pow(sq_sum / h, 0.5);
+    }
+}
+
 void compute_mean_std_each_channel(std::vector<float> &imgs,
                                    std::vector<float> &mu,
                                    std::vector<float> &sigma, int w, int h,
                                    int d, int num)
 /*Compute mean and standard deviation for each channel of images.
+
 Args:
   imgs: Images
   w: Width of image

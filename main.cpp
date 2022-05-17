@@ -33,6 +33,6 @@ int main(int argc, char *argv[]) {
     path.saved_inference_path = path.curr_path + "/saved_results/";
 
     // Run task
-    set_task(user_input_file, path);
+    task_command(user_input_file, path);
     return 0;
 }

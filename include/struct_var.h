@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      May 10, 2022
+// Updated:      May 15, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -139,9 +139,9 @@ struct NetState {
         Sa: Variance of activation units
         J: Jacobian matrix
         msc: Mean of the shortcut's hidden states
-        Ssc: Varaince of the short's hidden states
+        Ssc: Variance of the short's hidden states
         mdsc: Mean of the delta shortcut's hidden states
-        Sdsc: Varaince of the delta short's hidden states
+        Sdsc: Variance of the delta short's hidden states
         mra: Statistical mean for the normalzation layers
         Sra: Statistical variance for the normalzation layers
     */
@@ -222,6 +222,25 @@ struct ImageData {
     std::vector<int> obs_idx;
     std::vector<int> labels;
     int num_data;
+};
+
+// REGRESSION DATA
+
+struct Dataloader {
+    /* Regression-like database's format
+    Args:
+        x: Input data
+        y: Output data
+        mu_x: Sample mean of input data
+        sigma_x: Sample standard deviation of input data
+        mu_y: Sample mean of output data
+        sigma_y: Sample standard deviation of output data
+        num_data: Total number of data
+        nx: Number of input features
+        ny: Number of output features
+     */
+    std::vector<float> x, y, mu_x, sigma_x, mu_y, sigma_y;
+    int num_data, nx, ny;
 };
 
 // HIERARCHICAL SOFTMAX

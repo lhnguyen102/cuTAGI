@@ -3,7 +3,7 @@
 // Description:  Cost functions for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 01, 2022
-// Updated:      April 12, 2022
+// Updated:      May 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
 ////////////////////////////////////////////////////////////////////////////////
@@ -251,6 +251,59 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
     }
 
     return {er, P};
+}
+
+float mean_squared_error(std::vector<float> &pred, std::vector<float> &obs)
+/* Compute mean squared error.
+Args:
+    pred: Prediction
+    obs: Observation
+
+Returns:
+    mse: Mean squared error
+*/
+{
+    if (pred.size() != obs.size()) {
+        throw std::invalid_argument(
+            "Prediciton and observation does not have the same lenght - "
+            "cost.cpp");
+    }
+    float sum = 0;
+    for (int i = 0; i < pred.size(); i++) {
+        sum += pow((obs[i] - pred[i]), 2);
+    }
+
+    return sum / obs.size();
+}
+
+float avg_univar_log_lik(std::vector<float> &x, std::vector<float> &mu,
+                         std::vector<float> &sigma)
+/* Compute the average of univariate log-likelihood.
+
+Args:
+    x: Prediction
+    mu: Observation's mean
+    sigma: Observation's standard deviation
+
+Returns:
+    avg_log_lik: Averaged log-likelihood
+
+*NOTE: We assume that pred ~ Normal(mu, sigma).
+*/
+{
+    if (x.size() == 0 || mu.size() == 0 || sigma.size() == 0) {
+        throw std::invalid_argument(
+            "Invalid inputs for normal density - cost.cpp");
+    }
+    float sum = 0;
+    float PI_C = 3.141592653f;
+
+    for (int i = 0; i < x.size(); i++) {
+        sum += -0.5 * log(2 * PI_C * pow(sigma[i], 2)) -
+               0.5 * pow((x[i] - mu[i]) / sigma[i], 2);
+    }
+
+    return sum / x.size();
 }
 
 /////////////////////////////////

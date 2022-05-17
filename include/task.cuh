@@ -30,4 +30,4 @@
 #include "user_input.h"
 #include "utils.h"
 
-void set_task(std::string &user_input_file, SavePath &path);
+void task_command(std::string &user_input_file, SavePath &path);
