@@ -155,8 +155,8 @@ struct Param {
        Args:
         mw: Mean of weights
         Sw: Variance of weights
-        mb: Mean of the biases
-        Sb: Variance of the biases
+        mb: Mean of biases
+        Sb: Variance of biases
         mw_sc: Mean of weights for residual network
         Sw_sc: Variance of weights for residual network
         mb_sc: Mean of biases for residual network

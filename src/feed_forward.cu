@@ -20,7 +20,7 @@ __global__ void fcMean(float const *mw, float const *mb, float const *ma,
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     wpos: Weight position for this layer in the weight vector of network
@@ -57,7 +57,7 @@ __global__ void fcVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Variance of the biases
+    Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
@@ -101,7 +101,7 @@ __global__ void convMean(float const *mw, float const *mb, float const *ma,
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     aidx: Activation indices for mean product WA
@@ -150,7 +150,7 @@ __global__ void convVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Variance of the biases
+    Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
@@ -263,7 +263,7 @@ __global__ void tconvMean(float const *mw, float const *mb, float const *ma,
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     widx: Weight indices for mean product WA
@@ -320,7 +320,7 @@ __global__ void tconvVar(float const *mw, float const *Sw, float const *Sb,
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    Sb: Variance of the biases
+    Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
     Sz: Variance of hidden states
@@ -379,7 +379,7 @@ there is the overlap when sliding kernel size.
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     Sa: Variance of activation units
     mz: Mean of hidden states
@@ -522,7 +522,7 @@ hidden states within layer as samples.
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
@@ -563,7 +563,7 @@ hidden states within layer as samples.
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
@@ -671,7 +671,7 @@ layer is the full-connected layer.
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
@@ -710,7 +710,7 @@ Note that the previous layer is a full-connected layer.
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
@@ -820,7 +820,7 @@ layer is a convolutional layer.
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
@@ -862,7 +862,7 @@ previous layer is a convolutional layer.
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units
@@ -970,7 +970,7 @@ previous layer is a full-connected layer.
 
 Args:
     mw: Mean of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
@@ -1009,7 +1009,7 @@ layer is a full-connected layer.
 Args:
     mw: Mean of weights
     Sw: Variance of weights
-    mb: Mean of the biases
+    mb: Mean of biases
     Sb: Variance of biases
     ma: Mean of activation units
     Sa: Variance of activation units

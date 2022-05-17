@@ -815,8 +815,6 @@ Args:
         std::vector<float> my(sy_norm.size(), 0);
         std::vector<float> sy(sy_norm.size(), 0);
         std::vector<float> y_test(sy_norm.size(), 0);
-
-        // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
             sy_norm[k] = pow(Sa_out[k], 0.5) + net.sigma_v;
         }
@@ -826,6 +824,8 @@ Args:
 
         // Compute metrics
         auto mse = mean_squared_error(my, y_test);
+
+        // Compute log-likelihood
         auto log_lik = avg_univar_log_lik(my, y_test, sy);
 
         // Display results
