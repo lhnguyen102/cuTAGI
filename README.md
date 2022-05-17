@@ -189,6 +189,11 @@ cmake --build build --config RelWithDebInfo -j 16
 <img src="./saved_results/mnist_autoencoder.png" width="350px">
 </p>
 
+### Regression task
+ ```sh
+ build/main cfg_bh_2fc.txt
+ ```
+
 ## Directory Structure
 ```
 .
