@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         main.cpp
+// File:         main.cu
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
@@ -8,14 +8,17 @@
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+
 #include <iostream>
 #include <string>
 
 #include "include/struct_var.h"
+#include "include/task.cuh"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // User input file
     std::string user_input_file;
     if (argc > 1) {
@@ -34,6 +37,10 @@ int main(int argc, char *argv[]) {
     path.saved_inference_path = path.curr_path + "/saved_results/";
 
     // Run task
-    task_command_cpu(user_input, path);
+    if (user_input.device == "cuda") {
+        task_command(user_input, path);
+    } else {
+        task_command_cpu(user_input, path);
+    }
     return 0;
 }

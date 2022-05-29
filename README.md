@@ -117,21 +117,21 @@ sigma_v:    1
 ## Installation
 ### Ubuntu 20.04
 1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
-```sh
-export PATH="/usr/local/cuda-10.1/bin:$PATH"
-export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
-```
+    ```sh
+    export PATH="/usr/local/cuda-10.1/bin:$PATH"
+    export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
+    ```
 2. Install GCC compiler by entering this line in `Terminal`
-```sh
-sudo apt install g++
-```
+    ```sh
+    sudo apt install g++
+    ```
 3. Install CMake by following [these instructions](https://cmake.org/install/) 
 
 4. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
-```
-cmake . -B build
-cmake --build build --config RelWithDebInfo -j 16
-```
+    ```sh
+    cmake . -B build
+    cmake --build build --config RelWithDebInfo -j 16
+    ```
 
 ### Windows
 1. Download and install MS Visual Studio 2019 community and C/C++ by following [these instructions](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
@@ -139,26 +139,45 @@ cmake --build build --config RelWithDebInfo -j 16
 2. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to Environment variables [(see Step 5.3)](https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781)
 
 3. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
-```
-COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
-TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
-```
+    ```sh
+    COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions 
+    TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
+    ```
 4. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) and add the install directory (e.g., `C:\Program Files\CMake\bin`) to PATH in [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))
 
 5. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14)).  
-```
-variable = CMAKE_CUDA_COMPILER 
-value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
-```
+    ```sh
+    variable = CMAKE_CUDA_COMPILER 
+    value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
+    ```
 6. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines in `Command Prompt`
-```
-cmake . -B build
-cmake --build build --config RelWithDebInfo -j 16
-```
+    ```sh
+    cmake . -B build
+    cmake --build build --config RelWithDebInfo -j 16
+    ```
 
 *NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 3 & 5 for Windows). 
 
+### MAC OS (CPU Version)
+1. [Install gcc and g++](https://formulae.brew.sh/formula/gcc) via `Terminal`
+    ```sh
+    brew install gcc
+    ```
+2. Install CMake by following [these instructions](https://cmake.org/install/)
 
+3. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
+    ```sh
+    cmake . -B build
+    cmake --build build --config RelWithDebInfo -j 16
+    ```
+
+### VS CODE
+1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS 
+2. Install CMake w.r.t operating system 
+3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
+* Visual Studio Code
+* C++ extension for VS COde
+* CMake Tools extension for VS Code
 
 ## API
 ### Classification task for MNIST
@@ -190,9 +209,17 @@ cmake --build build --config RelWithDebInfo -j 16
 </p>
 
 ### Regression task
- ```sh
- build/main cfg_bh_2fc.txt
- ```
+* UCI Dataset
+  ```sh
+  build/main cfg_bh_2fc.txt
+  ```
+* 1D Toy Example
+  ```sh
+  build/main cfg_toy_example_fc.txt
+  ```
+  <p align="center">
+  <img src="./saved_results/pred_toy_example.png" width="380px">
+  </p>
 
 ## Directory Structure
 ```

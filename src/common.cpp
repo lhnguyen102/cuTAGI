@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      May 10, 2022
+// Updated:      May 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ void create_directory(std::string &path) {
      */
     struct stat st = {0};
     const char *res_path_c = path.c_str();
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     if (stat(res_path_c, &st) == -1) {
         mkdir(res_path_c, 0700);
     }
@@ -87,5 +87,23 @@ Args:
     sigma_v = decay_factor * sigma_v;
     if (sigma_v < sigma_v_min) {
         sigma_v = sigma_v_min;
+    }
+}
+
+void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
+                       std::vector<float> &ma_output,
+                       std::vector<float> &Sa_output, int idx)
+/*Get output's distrinution
+Args:
+    ma: Mean of activation units of the entire network
+    ma: Variance of activation units of the entire network
+    ma_output: mean of activation units of the output layer
+    Sa_output: Variance of activation units of the output layer
+    idx: Starting index of the output layer
+*/
+{
+    for (int i = 0; i < ma_output.size(); i++) {
+        ma_output[i] = ma[idx + i];
+        Sa_output[i] = Sa[idx + i];
     }
 }
