@@ -306,6 +306,32 @@ Returns:
     return sum / x.size();
 }
 
+float compute_average_error_rate(std::vector<int> &error_rate, int curr_idx,
+                                 int n_past_data)
+/*Compute running error rate.
+
+  Args:
+    error_rate: Vector of error rate
+    curr_idx: Index of the current error rate
+    n_past_data: Number of past data from the current index
+*/
+{
+    int end_idx = curr_idx - n_past_data;
+    if (end_idx < 0) {
+        end_idx = 0;
+        n_past_data = curr_idx;
+    }
+
+    float tmp = 0;
+    for (int i = 0; i < n_past_data; i++) {
+        tmp += error_rate[end_idx + i];
+    }
+
+    float avg_error = tmp / n_past_data;
+
+    return avg_error;
+}
+
 /////////////////////////////////
 // TEST UNI
 ////////////////////////////////

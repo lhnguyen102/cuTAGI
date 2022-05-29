@@ -1,0 +1,477 @@
+///////////////////////////////////////////////////////////////////////////////
+// File:         task_cpu.cpp
+// Description:  CPU version for task command providing different tasks
+// Authors:      Luong-Ha Nguyen & James-A. Goulet
+// Created:      May 21, 2022
+// Updated:      May 29, 2022
+// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+///////////////////////////////////////////////////////////////////////////////
+
+#include "../include/task_cpu.h"
+
+///////////////////////////////////////////////////////////////////////
+// CLASSIFICATION
+///////////////////////////////////////////////////////////////////////
+void classification_cpu(Network &net, IndexOut &idx, NetState &state,
+                        Param &theta, ImageData &imdb, ImageData &test_imdb,
+                        int n_epochs, int n_classes, SavePath &path,
+                        bool train_mode, bool debug)
+/*Classification task
+
+  Args:
+    Net: Network architecture
+    idx: Indices of network
+    theta: Weights & biases of network
+    imdb: Image database
+    n_epochs: Number of epochs
+    n_classes: Number of classes of image data
+    path: Directory stored the final results
+    debug: Debugging mode allows saving inference data
+ */
+{
+    // Seed
+    std::srand(unsigned(std::time(0)));
+
+    // Compute number of data points
+    int n_iter = imdb.num_data / net.batch_size;
+    int test_n_iter = test_imdb.num_data / net.batch_size;
+    int n_w = theta.mw.size();
+    int n_b = theta.mb.size();
+    int n_w_sc = theta.mw_sc.size();
+    int n_b_sc = theta.mb_sc.size();
+    int ni_B = net.batch_size * net.nodes.front();
+    std::vector<int> data_idx = create_range(imdb.num_data);
+    std::vector<int> test_data_idx = create_range(test_imdb.num_data);
+
+    // Input and output layer
+    auto hrs = class_to_obs(n_classes);
+    std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> y_batch(net.batch_size * hrs.n_obs, 0);
+    std::vector<float> V_batch(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
+    std::vector<int> batch_idx(net.batch_size);
+    std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
+    std::vector<int> label_batch(net.batch_size, 0);
+
+    // Input & output
+    Input ip;
+    Obs op;
+
+    // Updated quantities for state & parameters
+    DeltaState d_state;
+    DeltaParam d_theta;
+    d_state.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
+                       net.n_max_state);
+    d_theta.set_values(n_w, n_b, n_w_sc, n_b_sc);
+
+    // Error rate for training
+    int mt_idx = 0;
+    std::vector<int> error_rate(imdb.num_data, 0);
+    std::vector<float> prob_class(imdb.num_data * n_classes);
+    std::vector<int> error_rate_batch;
+    std::vector<float> prob_class_batch;
+
+    // Error rate for testing
+    std::vector<float> test_epoch_error_rate(n_epochs, 0);
+    std::vector<int> test_error_rate(test_imdb.num_data, 0);
+    std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
+    std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
+                                             n_epochs);
+    std::vector<float> ma_output(net.batch_size * net.nodes.back(), 0);
+    std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
+
+    for (int e = 0; e < n_epochs; e++) {
+        /* TRAINNING */
+        // Shufle data
+        std::random_shuffle(data_idx.begin(), data_idx.end());
+
+        // Timer
+        std::cout << "################\n";
+        std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
+        std::cout << "Training...\n";
+        auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < n_iter; i++) {
+            // TODO: Make a cleaner way to handle both cases
+            if (i == 0 && e == 0) {
+                net.ra_mt = 0.0f;
+            } else {
+                net.ra_mt = 0.9f;
+            }
+
+            // Load data
+            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                          batch_idx);
+            get_batch_data(imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
+            get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
+            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            ip.set_values(x_batch, Sx_batch);
+            op.set_values(y_batch, V_batch, idx_ud_batch);
+
+            // Initialize input
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+
+            // Feed forward
+            feed_forward_cpu(net, theta, idx, state);
+
+            // Feed backward for hidden states
+            state_backward_cpu(net, theta, state, idx, op, d_state);
+
+            // Feed backward for parameters
+            param_backward_cpu(net, theta, state, d_state, idx, d_theta);
+
+            // Update model parameters
+            global_param_update_cpu(d_theta, n_w, n_b, n_w_sc, n_b_sc, theta);
+
+            // Compute error rate
+            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
+                              net.z_pos.back());
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                          net.batch_size);
+            mt_idx = i * net.batch_size;
+            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+
+            if (i % 1000 == 0) {
+                int curr_idx = mt_idx + net.batch_size;
+                auto avg_error =
+                    compute_average_error_rate(error_rate, curr_idx, 100);
+
+                std::cout << "\tError rate for last 100 observation: ";
+                std::cout << std::fixed;
+                std::cout << std::setprecision(3);
+                std::cout << avg_error << "\n";
+            }
+        }
+        /* TESTING */
+        std::cout << std::endl;
+        auto end = std::chrono::steady_clock::now();
+        auto run_time =
+            std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                .count();
+        std::cout << " Time per epoch: " << run_time << " sec\n";
+        std::cout << " Time left     : " << run_time * (n_epochs - e - 1) / 60
+                  << " mins\n";
+        std::cout << "Testing...\n";
+        for (int i = 0; i < test_n_iter; i++) {
+            // TODO: set = 0.9 when i > 0 or disable mean and variance in
+            // feed forward
+            net.ra_mt = 0.0f;
+
+            // Load data
+            get_batch_idx(test_data_idx, i, net.batch_size, batch_idx);
+            get_batch_data(test_imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
+            get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
+                           idx_ud_batch);
+            get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
+            ip.set_values(x_batch, Sx_batch);
+            op.set_values(y_batch, V_batch, idx_ud_batch);
+
+            // Initialize input
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+
+            // Feed forward
+            feed_forward_cpu(net, theta, idx, state);
+
+            // Compute error rate
+            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
+                              net.z_pos[net.nodes.size() - 1]);
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                          net.batch_size);
+            mt_idx = i * net.batch_size;
+            update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
+        }
+        auto test_avg_error = compute_average_error_rate(
+            test_error_rate, test_imdb.num_data, test_imdb.num_data);
+        test_epoch_error_rate[e] = test_avg_error;
+        std::cout << "\n";
+        std::cout << "\tError rate: ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << test_avg_error << "\n" << std::endl;
+    }
+
+    // Save error rate
+    std::string suffix = "test";
+    save_error_rate(path.saved_inference_path, test_epoch_error_rate, suffix);
+}
+
+///////////////////////////////////////////////////////////////////////
+// REGRESSION
+///////////////////////////////////////////////////////////////////////
+void regression_cpu(Network &net, IndexOut &idx, NetState &state, Param &theta,
+                    Dataloader &db, int n_epochs, SavePath &path,
+                    bool train_mode, bool debug)
+/* Regression task
+
+Args:
+    Net: Network architecture
+    idx: Indices of network
+    theta: Weights & biases of network
+    db: database
+    n_epochs: Number of epochs
+    path: Directory stored the final results
+    train_mode: Whether to train the network
+    path: Directory stored the final results
+    debug: Debugging mode allows saving inference data
+*/
+
+{
+    // Seed
+    std::srand(unsigned(std::time(0)));
+
+    // Compute number of data points
+    int n_iter = db.num_data / net.batch_size;
+    int n_w = theta.mw.size();
+    int n_b = theta.mb.size();
+    int n_w_sc = theta.mw_sc.size();
+    int n_b_sc = theta.mb_sc.size();
+    int ni_B = net.batch_size * net.nodes.front();
+    std::vector<int> data_idx = create_range(db.num_data);
+
+    // Initialize the data's variables
+    std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> y_batch(net.batch_size * net.nodes.back(), 0);
+    std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+                               pow(net.sigma_v, 2));
+    std::vector<int> batch_idx(net.batch_size);
+    std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
+
+    // Input & output
+    Input ip;
+    Obs op;
+
+    // Updated quantities for state & parameters
+    DeltaState d_state;
+    DeltaParam d_theta;
+    d_state.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
+                       net.n_max_state);
+    d_theta.set_values(n_w, n_b, n_w_sc, n_b_sc);
+
+    if (train_mode) {
+        for (int e = 0; e < n_epochs; e++) {
+            // Shuffle data
+            if (e > 0) {
+                std::random_shuffle(data_idx.begin(), data_idx.end());
+            }
+
+            // Timer
+            std::cout << "################\n";
+            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
+            std::cout << "Training...\n";
+            auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < n_iter; i++) {
+                // Load data
+                get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                              batch_idx);
+                get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
+                get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
+                ip.set_values(x_batch, Sx_batch);
+                op.set_values(y_batch, V_batch, idx_ud_batch);
+
+                // Initialize input
+                initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+
+                // Feed forward
+                feed_forward_cpu(net, theta, idx, state);
+
+                // Feed backward for hidden states
+                state_backward_cpu(net, theta, state, idx, op, d_state);
+
+                // Feed backward for parameters
+                param_backward_cpu(net, theta, state, d_state, idx, d_theta);
+
+                // Update model parameters
+                global_param_update_cpu(d_theta, n_w, n_b, n_w_sc, n_b_sc,
+                                        theta);
+            }
+
+            // Report running time
+            std::cout << std::endl;
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                    .count();
+            std::cout << " Time per epoch: " << run_time << " sec\n";
+            std::cout << " Time left     : "
+                      << run_time * (n_epochs - e - 1) / 60 << " mins\n";
+        }
+        int a = 0;
+    } else {
+        std::cout << "Testing...\n";
+        std::vector<float> ma_batch_out(net.batch_size * net.nodes.back(), 0);
+        std::vector<float> Sa_batch_out(net.batch_size * net.nodes.back(), 0);
+        std::vector<float> ma_out(db.num_data * net.nodes.back(), 0);
+        std::vector<float> Sa_out(db.num_data * net.nodes.back(), 0);
+        int mt_idx = 0;
+
+        // Prediction
+        for (int i = 0; i < n_iter; i++) {
+            // Load data
+            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                          batch_idx);
+            get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
+            get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
+            ip.set_values(x_batch, Sx_batch);
+            op.set_values(y_batch, V_batch, idx_ud_batch);
+
+            // Initialize input
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+
+            // Feed forward
+            feed_forward_cpu(net, theta, idx, state);
+
+            // Get hidden states for output layers
+            get_output_states(state.ma, state.Sa, ma_batch_out, Sa_batch_out,
+                              net.z_pos.back());
+
+            // Update the final hidden state vector for last layer
+            mt_idx = i * net.batch_size * net.nodes.back();
+            update_vector(ma_out, ma_batch_out, mt_idx, net.nodes.back());
+            update_vector(Sa_out, Sa_batch_out, mt_idx, net.nodes.back());
+        }
+        // Denormalize data
+        std::vector<float> sy_norm(db.y.size(), 0);
+        std::vector<float> my(sy_norm.size(), 0);
+        std::vector<float> sy(sy_norm.size(), 0);
+        std::vector<float> y_test(sy_norm.size(), 0);
+
+        // Compute log-likelihood
+        for (int k = 0; k < db.y.size(); k++) {
+            sy_norm[k] = pow(Sa_out[k], 0.5) + net.sigma_v;
+        }
+        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.nodes.back(), my);
+        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.nodes.back(), y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.nodes.back(), sy);
+
+        // Compute metrics
+        auto mse = mean_squared_error(my, y_test);
+        auto log_lik = avg_univar_log_lik(my, y_test, sy);
+
+        // Display results
+        std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+        std::cout << "RMSE           : " << pow(mse, 0.5) << "\n";
+        std::cout << "Log likelihood: " << log_lik;
+        std::cout << std::endl;
+
+        // Save predictions
+        std::string suffix = "prediction";
+        save_predictions(path.saved_inference_path, my, sy, suffix);
+    }
+}
+
+void task_command_cpu(UserInput &user_input, SavePath &path)
+/* Assign different tasks and its parameters
+
+    Args:
+        user_input: User-specified inputs
+        res_path: Directory path where results are stored under *.csv file
+*/
+{
+    if (user_input.task_name == "classification") {
+        // Network
+        bool train_mode = true;
+        IndexOut idx;
+        Network net;
+        Param theta;
+        NetState state;
+        net_init(user_input.net_name, net, theta, state, idx);
+        net.is_idx_ud = true;
+
+        // Data
+        auto hrs = class_to_obs(user_input.num_classes);
+        net.nye = hrs.n_obs;
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, net.widths[0], net.heights[0],
+                               net.filters[0], hrs, user_input.num_train_data);
+        auto test_imdb = get_images(
+            user_input.data_name, user_input.x_test_dir, user_input.y_test_dir,
+            user_input.mu, user_input.sigma, net.widths[0], net.heights[0],
+            net.filters[0], hrs, user_input.num_test_data);
+
+        // Load param
+        if (user_input.load_param) {
+            load_net_param(user_input.model_name, user_input.net_name,
+                           path.saved_param_path, theta);
+        }
+
+        // Saved debug data
+        if (user_input.debug) {
+            std::string param_path = path.debug_path + "/saved_param/";
+            std::string idx_path = path.debug_path + "/saved_idx/";
+            save_net_prop(param_path, idx_path, theta, idx);
+        }
+
+        std::cout << "Training...\n" << std::endl;
+        classification_cpu(net, idx, state, theta, imdb, test_imdb,
+                           user_input.num_epochs, user_input.num_classes, path,
+                           train_mode, user_input.debug);
+
+        // Save net's parameters
+        save_net_param(user_input.model_name, user_input.net_name,
+                       path.saved_param_path, theta);
+
+    } else if (user_input.task_name == "regression") {
+        // Train network
+        IndexOut idx;
+        Network net;
+        Param theta;
+        NetState state;
+
+        // Test network
+        IndexOut test_idx;
+        Network test_net;
+        NetState test_state;
+        int test_batch_size = 1;
+
+        net_init(user_input.net_name, net, theta, state, idx);
+        reset_net_batchsize(user_input.net_name, test_net, test_state, test_idx,
+                            test_batch_size);
+
+        // Train data
+        std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
+        auto train_db =
+            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
+                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
+                           net.nodes.front(), net.nodes.back());
+        // Test data
+        auto test_db = get_dataloader(
+            user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
+            train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
+            user_input.num_test_data, net.nodes.front(), net.nodes.back());
+
+        // Load param
+        if (user_input.load_param) {
+            load_net_param(user_input.model_name, user_input.net_name,
+                           path.saved_param_path, theta);
+        }
+
+        // Save network's parameter to debug data
+        if (user_input.debug) {
+            std::string param_path = path.debug_path + "/saved_param/";
+            save_param(param_path, theta);
+        }
+
+        // Training
+        bool train_mode = true;
+        regression_cpu(net, idx, state, theta, train_db, user_input.num_epochs,
+                       path, train_mode, user_input.debug);
+
+        // Testing
+        train_mode = false;
+        regression_cpu(test_net, test_idx, test_state, theta, test_db,
+                       user_input.num_epochs, path, train_mode,
+                       user_input.debug);
+
+        // Save net's parameters
+        save_net_param(user_input.model_name, user_input.net_name,
+                       path.saved_param_path, theta);
+    } else {
+        throw std::invalid_argument("Task name does not exist - task_cpu.cpp");
+    }
+}

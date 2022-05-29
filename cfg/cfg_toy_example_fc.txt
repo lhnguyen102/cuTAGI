@@ -1,0 +1,13 @@
+model_name: 1D
+task_name: regression
+data_name: toy_example
+net_name: 1fc_toy
+load_param: false
+num_epochs: 30
+num_train_data: 20
+num_test_data: 100
+device: cpu
+x_train_dir: data/toy_example/x_train_1D.csv
+y_train_dir: data/toy_example/y_train_1D.csv
+x_test_dir: data/toy_example/x_test_1D.csv
+y_test_dir: data/toy_example/y_test_1D.csv

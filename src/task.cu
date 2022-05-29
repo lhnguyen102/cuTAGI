@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      May 16, 2022
+// Updated:      May 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,71 +23,6 @@ void compute_net_memory(Network &net, size_t &id_bytes, size_t &od_bytes,
     od_bytes = net.batch_size * net.nodes[net.nodes.size() - 1] * sizeof(float);
     ode_bytes = net.batch_size * net.nye * sizeof(int);
     max_n_s_bytes = net.n_max_state * sizeof(float);
-}
-
-void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
-                       std::vector<float> &ma_output,
-                       std::vector<float> &Sa_output, int idx)
-/*Get output's distrinution
-Args:
-    ma: Mean of activation units of the entire network
-    ma: Variance of activation units of the entire network
-    ma_output: mean of activation units of the output layer
-    Sa_output: Variance of activation units of the output layer
-    idx: Starting index of the output layer
-*/
-{
-    for (int i = 0; i < ma_output.size(); i++) {
-        ma_output[i] = ma[idx + i];
-        Sa_output[i] = Sa[idx + i];
-    }
-}
-
-template <typename T>
-void update_vector(std::vector<T> &v, std::vector<T> &new_values, int idx,
-                   int w)
-/*Save new value to vector.
-Args:
-    v: Vector of interest
-    new_values: Values to be stored in the vector v
-    idx: Indices of new value in vector v
-*/
-{
-    int N = new_values.size() / w;
-    if (v.size() - idx < new_values.size()) {
-        throw std::invalid_argument(
-            "Vector capacity is insufficient - task.cu");
-    }
-    for (int i = 0; i < N; i++) {
-        for (int c = 0; c < w; c++) {
-            v[idx + i * w + c] = new_values[w * i + c];
-        }
-    }
-}
-
-float compute_average_error_rate(std::vector<int> &error_rate, int curr_idx,
-                                 int n_past_data)
-/*Compute running error rate.
-  Args:
-    error_rate: Vector of error rate
-    curr_idx: Index of the current error rate
-    n_past_data: Number of past data from the current index
-*/
-{
-    int end_idx = curr_idx - n_past_data;
-    if (end_idx < 0) {
-        end_idx = 0;
-        n_past_data = curr_idx;
-    }
-
-    float tmp = 0;
-    for (int i = 0; i < n_past_data; i++) {
-        tmp += error_rate[end_idx + i];
-    }
-
-    float avg_error = tmp / n_past_data;
-
-    return avg_error;
 }
 
 void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
@@ -452,6 +387,12 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     // Seed
     std::srand(unsigned(std::time(0)));
 
+    // Compute number of data points
+    int n_iter = imdb.num_data / net.batch_size;
+    int test_n_iter = test_imdb.num_data / net.batch_size;
+    std::vector<int> data_idx = create_range(imdb.num_data);
+    std::vector<int> test_data_idx = create_range(test_imdb.num_data);
+
     // Number of bytes
     size_t id_bytes, od_bytes, ode_bytes, max_n_s_bytes;
     compute_net_memory(net, id_bytes, od_bytes, ode_bytes, max_n_s_bytes);
@@ -459,14 +400,12 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     // Input and output layer
     auto hrs = class_to_obs(n_classes);
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
-    std::vector<int> data_idx = create_range(imdb.num_data);
-    std::vector<int> test_data_idx = create_range(test_imdb.num_data);
     std::vector<int> batch_idx(net.batch_size);
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
     std::vector<int> label_batch(net.batch_size, 0);
 
-    x_batch.resize(net.batch_size * net.nodes[0], 0);
-    Sx_batch.resize(net.batch_size * net.nodes[0], 0);
+    x_batch.resize(net.batch_size * net.nodes.front(), 0);
+    Sx_batch.resize(net.batch_size * net.nodes.front(), 0);
     y_batch.resize(net.batch_size * hrs.n_obs, 0);
     V_batch.resize(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
 
@@ -496,8 +435,6 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     unsigned int BLOCKS =
         (net.batch_size * net.nodes[0] + THREADS - 1) / THREADS;
     int mt_idx = 0;
-    int n_iter = imdb.num_data / net.batch_size;
-    int test_n_iter = test_imdb.num_data / net.batch_size;
 
     // Error rate for training
     std::vector<int> error_rate(imdb.num_data, 0);
@@ -511,10 +448,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
     std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
                                              n_epochs);
-    std::vector<float> ma_output(
-        net.batch_size * net.nodes[net.nodes.size() - 1], 0);
-    std::vector<float> Sa_output(
-        net.batch_size * net.nodes[net.nodes.size() - 1], 0);
+    std::vector<float> ma_output(net.batch_size * net.nodes.back(), 0);
+    std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
 
     for (int e = 0; e < n_epochs; e++) {
         // Shufle data
@@ -676,6 +611,9 @@ Args:
     debug: Debugging mode allows saving inference data
 */
 {
+    // Seed
+    std::srand(unsigned(std::time(0)));
+
     // Compute number of data
     int n_iter = db.num_data / net.batch_size;
 
@@ -683,7 +621,7 @@ Args:
     size_t id_bytes, od_bytes, ode_bytes, max_n_s_bytes;
     compute_net_memory(net, id_bytes, od_bytes, ode_bytes, max_n_s_bytes);
 
-    // Copie data
+    // Initialize the data's variables
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
     std::vector<int> data_idx = create_range(db.num_data);
     std::vector<int> batch_idx(net.batch_size);
@@ -721,9 +659,11 @@ Args:
         (net.batch_size * net.nodes.front() + THREADS - 1) / THREADS;
 
     if (train_mode) {
-        // Shufle data
-        std::random_shuffle(data_idx.begin(), data_idx.end());
         for (int e = 0; e < n_epochs; e++) {
+            // Shufle data
+            if (e > 0) {
+                std::random_shuffle(data_idx.begin(), data_idx.end());
+            }
             // Timer
             std::cout << "################\n";
             std::cout << "Epoch #" << e + 1 << "\n";
@@ -815,6 +755,8 @@ Args:
         std::vector<float> my(sy_norm.size(), 0);
         std::vector<float> sy(sy_norm.size(), 0);
         std::vector<float> y_test(sy_norm.size(), 0);
+
+        // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
             sy_norm[k] = pow(Sa_out[k], 0.5) + net.sigma_v;
         }
@@ -824,8 +766,6 @@ Args:
 
         // Compute metrics
         auto mse = mean_squared_error(my, y_test);
-
-        // Compute log-likelihood
         auto log_lik = avg_univar_log_lik(my, y_test, sy);
 
         // Display results
@@ -833,20 +773,23 @@ Args:
         std::cout << "RMSE           : " << pow(mse, 0.5) << "\n";
         std::cout << "Log likelihood: " << log_lik;
         std::cout << std::endl;
+
+        // Save predictions
+        std::string suffix = "prediction";
+        save_predictions(path.saved_inference_path, my, sy, suffix);
     }
 }
 
 ///////////////////////////////////////////////////////////////////////
 // TASK MAIN
 ///////////////////////////////////////////////////////////////////////
-void task_command(std::string &user_input_file, SavePath &path) {
+void task_command(UserInput &user_input, SavePath &path) {
     /* Assign different tasks and its parameters
 
     Args:
-        user_input_file: User-specified inputs
+        user_input: User-specified inputs
         res_path: Directory path where results are stored under *.csv file
     */
-    auto user_input = load_userinput(user_input_file);
 
     if (user_input.task_name == "classification") {
         // Network

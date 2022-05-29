@@ -3,7 +3,7 @@
 // Description:  Load user input
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 05, 2022
-// Updated:      April 18, 2022
+// Updated:      May 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,13 +16,25 @@ UserInput load_userinput(std::string &user_input_file)
  **/
 {
     // Dictionary for the cfg file
-    std::string key_words[] = {
-        "model_name",     "net_name",         "task_name",
-        "data_name",      "encoder_net_name", "decoder_net_name",
-        "load_param",     "num_epochs",       "num_classes",
-        "num_train_data", "num_test_data",    "mu",
-        "sigma",          "x_train_dir",      "y_train_dir",
-        "x_test_dir",     "y_test_dir",       "debug"};
+    std::string key_words[] = {"model_name",
+                               "net_name",
+                               "task_name",
+                               "data_name",
+                               "encoder_net_name",
+                               "decoder_net_name",
+                               "device",
+                               "load_param",
+                               "num_epochs",
+                               "num_classes",
+                               "num_train_data",
+                               "num_test_data",
+                               "mu",
+                               "sigma",
+                               "x_train_dir",
+                               "y_train_dir",
+                               "x_test_dir",
+                               "y_test_dir",
+                               "debug"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Load user input file
@@ -187,6 +199,20 @@ UserInput load_userinput(std::string &user_input_file)
                     if (ss.good()) {
                         ss >> si;
                         user_input.decoder_net_name = si;
+                    }
+                } else if (key_words[k] == "device") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        if (si.compare("cpu") == 0) {
+                            user_input.device = "cpu";
+                        } else if (si.compare("cuda") == 0) {
+                            user_input.device = "cuda";
+                        } else {
+                            throw std::invalid_argument(
+                                "Device can be either cuda or cpu - "
+                                "user_input.cpp");
+                        }
                     }
                 } else if (key_words[k] == "load_param") {
                     std::stringstream ss(line.substr(pos + key.size()));
