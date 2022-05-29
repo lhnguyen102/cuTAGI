@@ -158,7 +158,7 @@ sigma_v:    1
 
 *NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 3 & 5 for Windows). 
 
-### MAC OS (CPU Version)
+### Mac OS (CPU Version)
 1. [Install gcc and g++](https://formulae.brew.sh/formula/gcc) via `Terminal`
     ```sh
     brew install gcc
@@ -171,7 +171,7 @@ sigma_v:    1
     cmake --build build --config RelWithDebInfo -j 16
     ```
 
-### VS CODE
+### VS Code
 1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS 
 2. Install CMake w.r.t operating system 
 3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
@@ -218,7 +218,7 @@ sigma_v:    1
   build/main cfg_toy_example_fc.txt
   ```
   <p align="center">
-  <img src="./saved_results/pred_toy_example.png" width="380px">
+  <img src="./saved_results/pred_toy_example.png" width="400px">
   </p>
 
 ## Directory Structure
