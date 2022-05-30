@@ -178,7 +178,7 @@ sigma_v:    1
 
 ### VS Code
 1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS 
-2. Install CMake w.r.t operating system 
+2. Install CMake 
 3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
 * Visual Studio Code
 * C++ extension for VS Code
