@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      May 15, 2022
+// Updated:      May 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ struct Network {
                     indices when perform TAGI's forward pass
         FCzwa_1_pos: Position of weight indices for covariance Z|WA
         FCzwa_2_pos: Position of activation indices for covariance Z|WA
-        Szz_ud_pos: Postision of next hidden state indices for covariance Z|Z+
+        Szz_ud_pos: Positionof next hidden state indices for covariance Z|Z+
         FCwz_2_pos: Position of activation indices for covariance W|Z+
         Swz_ud_pos: Position of hidden state (Z+) indices for covariance Z|Z+
         row_zw: Number of rows of weight indices for covariance Z|WA
@@ -91,6 +91,8 @@ struct Network {
                    layers
         decay_factor: Decreasing percentage (default value: 0.99)
         sigma_v_min: Minimum value of observation noise (default value: 0.3)
+        multithreading: Whether or not to run parallel computing using multiple
+            threads
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -127,6 +129,7 @@ struct Network {
     bool is_idx_ud = false;
     float decay_factor_sigma_v = 0.99f;
     float sigma_v_min = 0.3f;
+    bool multithreading = true;
 };
 
 // NETWORK STATE
@@ -155,8 +158,8 @@ struct Param {
        Args:
         mw: Mean of weights
         Sw: Variance of weights
-        mb: Mean of biases
-        Sb: Variance of biases
+        mb: Mean of the biases
+        Sb: Variance of the biases
         mw_sc: Mean of weights for residual network
         Sw_sc: Variance of weights for residual network
         mb_sc: Mean of biases for residual network

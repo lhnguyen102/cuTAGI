@@ -106,28 +106,6 @@ class DeltaParamGPU {
     ~DeltaParamGPU();
 };
 
-// class ObsGPU
-//{
-//   public:
-//     size_t id_bytes, od_bytes, ode_bytes;
-//
-//     float *d_x_batch, *d_Sx_batch, *d_y_batch, *d_V_batch;
-//     int *d_idx_ud_batch;
-//
-//     ObsGPU(int nx, int ny, int nye, int B);
-//     void allocate_cuda_memory();
-//
-//     void copy_host_to_device(std::vector<float> &x_batch,
-//     std::vector<float> Sx_batch, std::vector<float> &y_batch,
-//     std::vector<int> &idx_ud_batch, std::vector<float> &V_batch);
-//
-//     void copy_device_to_host(std::vector<float> &x_batch,
-//     std::vector<float> Sx_batch, std::vector<float> &y_batch,
-//     std::vector<int> &idx_ud_batch, std::vector<float> &V_batch);
-//
-//     ~ObsGPU();
-// };
-
 class InputGPU {
    public:
     size_t id_bytes;

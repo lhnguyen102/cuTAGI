@@ -165,7 +165,12 @@ sigma_v:    1
     ```
 2. Install CMake by following [these instructions](https://cmake.org/install/)
 
-3. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
+3. Add CMake to PATH. For example, adding the following line to your `.zshrc` file
+    ```sh
+    export PATH="/Applications/CMake.app/Contents/bin/:$PATH"
+    ```
+
+4. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
     ```sh
     cmake . -B build
     cmake --build build --config RelWithDebInfo -j 16
@@ -176,7 +181,7 @@ sigma_v:    1
 2. Install CMake w.r.t operating system 
 3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
 * Visual Studio Code
-* C++ extension for VS COde
+* C++ extension for VS Code
 * CMake Tools extension for VS Code
 
 ## API
