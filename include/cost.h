@@ -3,7 +3,7 @@
 // Description:  Header file for cost function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 19, 2022
-// Updated:      May 15, 2022
+// Updated:      May 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,3 +30,5 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
 float mean_squared_error(std::vector<float> &pred, std::vector<float> &obs);
 float avg_univar_log_lik(std::vector<float> &x, std::vector<float> &mu,
                          std::vector<float> &sigma);
+float compute_average_error_rate(std::vector<int> &error_rate, int curr_idx,
+                                 int n_past_data);

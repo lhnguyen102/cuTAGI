@@ -31,7 +31,8 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
  */
 {
     // Seed
-    std::srand(unsigned(std::time(0)));
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
 
     // Compute number of data points
     int n_iter = imdb.num_data / net.batch_size;
@@ -84,7 +85,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
     for (int e = 0; e < n_epochs; e++) {
         /* TRAINNING */
         // Shufle data
-        std::random_shuffle(data_idx.begin(), data_idx.end());
+        std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
 
         // Timer
         std::cout << "################\n";
@@ -221,7 +222,8 @@ Args:
 
 {
     // Seed
-    std::srand(unsigned(std::time(0)));
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
 
     // Compute number of data points
     int n_iter = db.num_data / net.batch_size;
@@ -256,7 +258,7 @@ Args:
         for (int e = 0; e < n_epochs; e++) {
             // Shuffle data
             if (e > 0) {
-                std::random_shuffle(data_idx.begin(), data_idx.end());
+                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
             }
 
             // Timer
