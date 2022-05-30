@@ -165,7 +165,7 @@ sigma_v:    1
     ```
 2. Install CMake by following [these instructions](https://cmake.org/install/)
 
-3. Add CMake to PATH. For example, adding the following line to your `.zshrc` file
+3. [Add CMake to PATH](https://code2care.org/pages/permanently-set-path-variable-in-mac-zsh-shell). Add the following line to your `.zshrc` file
     ```sh
     export PATH="/Applications/CMake.app/Contents/bin/:$PATH"
     ```
