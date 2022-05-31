@@ -38,7 +38,7 @@ num_train_data:          # Number of training samples
 num_test_data:           # Number of testing samples
 mu:                      # Mean of each input, e.g., for 3 channels; mu: 0.5, 0.5, 0.5 
 sigma:                   # Standard deviation of each input
-device:                  # Either cpu or cuda
+device:                  # cpu or cuda
 x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input
@@ -65,7 +65,7 @@ y_test_dir: data/mnist/t10k-labels-idx1-ubyte
 ## Code Name for Layers and Activation Functions
 Each layer type is assigned to an integer number
 ```
-Fully-connected layer          -> 1
+Fully-connected layer         -> 1
 Convolutional layer           -> 2
 Tranpose convolutional layer  -> 21
 Average pooling layer         -> 4
