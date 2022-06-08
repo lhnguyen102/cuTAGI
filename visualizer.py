@@ -172,16 +172,16 @@ class PredictionViz:
         plt.figure(figsize=self.figsize)
         ax = plt.axes()
         ax.set_title(title, fontsize=1.1 * self.fontsize, fontweight='bold')
-        ax.text(-5.5, 170, eq, color='k', fontsize=self.fontsize)
+        ax.text(-5.5, 100, eq, color='k', fontsize=self.fontsize)
         ax.plot(x_test, y_pred, 'r', lw=self.lw, label=r"$\mathbb{E}[Y]$")
         ax.plot(x_test, y_test, 'k', lw=self.lw, label=r"$y_{true}$")
 
         ax.fill_between(x_test,
-                        y_pred - 3 * sy_pred,
-                        y_pred + 3 * sy_pred,
+                        y_pred - 1 * sy_pred,
+                        y_pred + 1 * sy_pred,
                         facecolor='red',
                         alpha=0.3,
-                        label=r"$\mathbb{E}[Y]\pm3\sigma$")
+                        label=r"$\mathbb{E}[Y]\pm\sigma$")
         if sy_test is not None:
             ax.fill_between(x_test,
                             y_test - 1 * sy_test,
@@ -274,7 +274,7 @@ def regression():
                          y_pred=y_pred,
                          sy_pred=sy_pred,
                          label='diag',
-                         title='Diagonal covariance',
+                         title=r"\textbf{Diagonal covariance}",
                          eq=eq)
 
 
@@ -325,10 +325,10 @@ def input_uncertainty_prop():
                          sy_pred=sy_pred,
                          sy_test=sy_test,
                          label='full_cov',
-                         title='Full covariance',
+                         title=r"\textbf{Full covariance",
                          eq=eq)
 
 
 if __name__ == '__main__':
-    regression()
-    #input_uncertainty_prop()
+    #regression()
+    input_uncertainty_prop()
