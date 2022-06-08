@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      May 22, 2022
+// Updated:      June 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -77,6 +77,7 @@ void create_directory(std::string &path) {
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min)
 /* Decrease the value of observation noise after each epoch
+
 Args:
     sigma_v: Observation noise
     decay_factor: Decreasing percentage (default value: 0.99)
@@ -94,6 +95,7 @@ void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx)
 /*Get output's distrinution
+
 Args:
     ma: Mean of activation units of the entire network
     ma: Variance of activation units of the entire network
@@ -106,4 +108,33 @@ Args:
         ma_output[i] = ma[idx + i];
         Sa_output[i] = Sa[idx + i];
     }
+}
+
+std::vector<float> initialize_upper_triu(float &Sx, int n)
+/* Initialize the covariance matrix where only the elements of the triangle
+upper matrix are stored in a vector.
+
+Args:
+    Sx: Initial value of the diagonal term of the covariance matrix
+    n: Size of the covatiance matrix
+
+Returns:
+    Sx_tu: Vector of the triangle upper matrix
+*/
+{
+    std::vector<float> Sx_tu;
+    int tu;
+    for (int row = 0; row < n; row++) {
+        for (int col = 0; col < n; col++) {
+            if (row <= col) {
+                tu = n * row + col;
+                if (row == col) {
+                    Sx_tu.push_back(Sx);
+                } else {
+                    Sx_tu.push_back(0.0f);
+                }
+            }
+        }
+    }
+    return Sx_tu;
 }

@@ -3,7 +3,7 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      May 21, 2022
+// Updated:      June 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -56,9 +56,11 @@ DeltaParam::~DeltaParam() {}
 // INPUT
 //////////////////////////////
 Input::Input() {}
-void Input::set_values(std::vector<float> &x, std::vector<float> &Sx) {
+void Input::set_values(std::vector<float> &x, std::vector<float> &Sx,
+                       std::vector<float> &Sx_f) {
     this->x_batch = x;
     this->Sx_batch = Sx;
+    this->Sx_f_batch = Sx_f;
 }
 Input::~Input() {}
 

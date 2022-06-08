@@ -3,7 +3,7 @@
 // Description:  Network initialization
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 07, 2021
-// Updated:      April 15, 2022
+// Updated:      June 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,6 @@ void net_init(std::string &net_file, Network &net, Param &theta,
     index_default(idx);
     theta = initialize_param(net);
     state = initialize_net_states(net);
-    int check = 1;
 }
 
 void reset_net_batchsize(std::string &net_file, Network &net, NetState &state,

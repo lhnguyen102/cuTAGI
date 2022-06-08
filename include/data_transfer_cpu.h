@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer within CPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      May 21, 2022
+// Updated:      June 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -52,9 +52,10 @@ class DeltaParam {
 //////////////////////////////
 class Input {
    public:
-    std::vector<float> x_batch, Sx_batch;
+    std::vector<float> x_batch, Sx_batch, Sx_f_batch;
     Input();
-    void set_values(std::vector<float> &x, std::vector<float> &Sx);
+    void set_values(std::vector<float> &x, std::vector<float> &Sx,
+                    std::vector<float> &Sx_f);
     ~Input();
 };
 

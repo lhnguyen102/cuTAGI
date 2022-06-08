@@ -592,7 +592,7 @@ LAYER-NORMALIZATION layer whose the previous layer is convolutional layer.
     mw: Mean of weights
     Sz: Variance of hidden states
     J: Jacobian vector
-    Shat: Statistical variance for the normalzation layers
+    Shat: Statistical variance for the normalization layers
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -636,7 +636,7 @@ LAYER-NORMALIZATION layer whose the previous layer is full-connected layer.
     mw: Mean of weights
     Sz: Variance of hidden states
     J: Jacobian vector
-    Shat: Statistical variance for the normalzation layers
+    Shat: Statistical variance for the normalization layers
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -680,7 +680,7 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
     mw: Mean of weights
     Sz: Variance of hidden states
     J: Jacobian vector
-    Shat: Statistical variance for the normalzation layers
+    Shat: Statistical variance for the normalization layers
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -727,7 +727,7 @@ Args:
    mw: Mean of weights
    Sz: Variance of hidden states
    J: Jacobian vector
-   Shat: Statistical variance for the normalzation layers
+   Shat: Statistical variance for the normalization layers
    deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
    deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
    epsilon: Constant for normalization layer to avoid zero-division

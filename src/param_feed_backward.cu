@@ -512,8 +512,8 @@ batch-normalization layer applied to convolutional layer.
 Args:
     Sw: Variance of weights
     ma: Mean of activation units
-    mhat: Statistical mean for the normalzation layers i.e. mra
-    Shat: Statistical variance for the normalzation layers i.e. Sra
+    mhat: Statistical mean for the normalization layers i.e. mra
+    Shat: Statistical variance for the normalization layers i.e. Sra
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -596,8 +596,8 @@ batch-normalization layer applied to full-connected layer.
 Args:
     Sw: Variance of weights
     ma: Mean of activation units
-    mhat: Statistical mean for the normalzation layers i.e. mra
-    Shat: Statistical variance for the normalzation layers i.e. Sra
+    mhat: Statistical mean for the normalization layers i.e. mra
+    Shat: Statistical variance for the normalization layers i.e. Sra
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -686,8 +686,8 @@ LAYER-NORMALIZATION layer applied to convolutional layer.
 Args:
     Sw: Variance of weights
     ma: Mean of activation units
-    mhat: Statistical mean for the normalzation layers i.e. mra
-    Shat: Statistical variance for the normalzation layers i.e. Sra
+    mhat: Statistical mean for the normalization layers i.e. mra
+    Shat: Statistical variance for the normalization layers i.e. Sra
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
@@ -768,8 +768,8 @@ LAYER-NORMALIZATION layer applied to full-connected layer.
 Args:
     Sw: Variance of weights
     ma: Mean of activation units
-    mhat: Statistical mean for the normalzation layers i.e. mra
-    Shat: Statistical variance for the normalzation layers i.e. Sra
+    mhat: Statistical mean for the normalization layers i.e. mra
+    Shat: Statistical variance for the normalization layers i.e. Sra
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division

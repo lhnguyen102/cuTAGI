@@ -38,7 +38,6 @@ num_train_data:          # Number of training samples
 num_test_data:           # Number of testing samples
 mu:                      # Mean of each input, e.g., for 3 channels; mu: 0.5, 0.5, 0.5 
 sigma:                   # Standard deviation of each input
-device:                  # cpu or cuda
 x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input
@@ -65,7 +64,7 @@ y_test_dir: data/mnist/t10k-labels-idx1-ubyte
 ## Code Name for Layers and Activation Functions
 Each layer type is assigned to an integer number
 ```
-Fully-connected layer         -> 1
+Full-connected layer          -> 1
 Convolutional layer           -> 2
 Tranpose convolutional layer  -> 21
 Average pooling layer         -> 4
@@ -166,7 +165,7 @@ sigma_v:    1
     ```
 2. Install CMake by following [these instructions](https://cmake.org/install/)
 
-3. [Add CMake to PATH](https://code2care.org/pages/permanently-set-path-variable-in-mac-zsh-shell). Add the following line to your `.zshrc` file
+3. Add CMake to PATH. For example, adding the following line to your `.zshrc` file
     ```sh
     export PATH="/Applications/CMake.app/Contents/bin/:$PATH"
     ```
@@ -179,7 +178,7 @@ sigma_v:    1
 
 ### VS Code
 1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS 
-2. Install CMake 
+2. Install CMake w.r.t operating system 
 3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
 * Visual Studio Code
 * C++ extension for VS Code
@@ -187,7 +186,7 @@ sigma_v:    1
 
 ## API
 ### Classification task for MNIST
-* Two fully-connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
+* Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
   ```sh
   build/main cfg_mnist_2fc.txt
   ```
@@ -224,41 +223,34 @@ sigma_v:    1
   build/main cfg_toy_example_fc.txt
   ```
   <p align="center">
-  <img src="./saved_results/pred_toy_example.png" width="400px">
+  <img src="./saved_results/pred_diag_toy_example.png" width="400px"><img src="./saved_results/ppred_full_cov_toy_example.png" width="400px">
   </p>
 
 ## Directory Structure
 ```
 .
-├── cfg                               # User input (.txt)
-├── data                              # Database
-├── include                           # Header files
-├── saved_param                       # Saved network's parameters (.csv)
-├── saved_results                     # Saved network's inference (.csv)
-├── src                               # Source files
-│   ├── common.cpp                    # Common functionalities 
-│   ├── cost.cpp                      # Performance metric
-│   ├── dataloader.cpp                # Load train and test data
-│   ├── data_transfer.cu              # Transfer data host from/to device
-│   ├── data_transfer_cpu.cpp         # Transfer data within cpus
-│   ├── feed_forward.cu               # Prediction 
-│   ├── feed_forward_cpu.cpp          # CPU version for prediction
-│   ├── global_param_update.cu        # Update network's parameters
-│   ├── global_param_update_cpu.cpp   # CPU version for updating network's parameters
-│   ├── indices.cpp                   # Pre-compute indices for network
-│   ├── net_init.cpp                  # Initialize the network
-│   ├── net_prop.cpp                  # Network's properties
-│   ├── param_feed_backward.cu        # Learn network's parameters
-│   ├── param_feed_backward_cpu.cpp   # CPU version for learning network's parameters
-│   ├── state_feed_backward.cu        # Learn network's hidden states
-│   ├── state_feed_backward_cpu.cpp   # CPU version for learning network's hidden states
-│   ├── task.cu                       # Task command
-│   ├── task_cpu.cpp                  # CPU version for task command
-│   ├── user_input.cpp                # User input variables
-│   └── utils.cpp                     # Different tools
-├── config.py                         # Generate network architecture (.txt)
-├── main.cu                           # The ui
-├── main.cpp                          # CPU version for the ui
+├── cfg                         # User input (.txt)
+├── data                        # Database
+├── include                     # Header files
+├── saved_param                 # Saved network's parameters (.csv)
+├── saved_results               # Saved network's inference (.csv)
+├── src                         # Source files
+│   ├── common.cpp              # Common functionalities 
+│   ├── cost.cpp                # Performance metric
+│   ├── dataloader.cpp          # Load train and test data
+│   ├── data_transfer.cu        # Transfer data host from/to device
+│   ├── feed_forward.cu         # Prediction 
+│   ├── global_param_update.cu  # Update network's parameters
+│   ├── indices.cpp             # Pre-compute indices for network
+│   ├── net_init.cpp            # Initialize the network
+│   ├── net_prop.cpp            # Network's properties
+│   ├── param_feed_backward.cu  # Learn network's parameters
+│   ├── state_feed_backward.cu  # Learn network's hidden states
+│   ├── task.cu                 # Perform different tasks 
+│   ├── user_input.cpp          # User input variables
+│   └── utils.cpp               # Different tools
+├── config.py                   # Generate network architecture (.txt)
+├── main.cpp                    # The ui
 
 ```
 

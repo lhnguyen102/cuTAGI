@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      May 28, 2022
+// Updated:      June 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -83,6 +83,7 @@ struct Network {
         n_nye: Number of observation for hierarchical softmax
         last_backward_layer: Index of last layer whose hidden states are updated
         sigma_v: Observation noise
+        sigma_x: Input noise noise
         alpha: alpha in leakylu
         epsilon: Constant for normalization layer to avoid zero-division
         ra_mt: Momentum for the normalization layer
@@ -101,7 +102,7 @@ struct Network {
     std::vector<int> pads, pad_types, shortcuts, num_weights, num_biases;
     std::vector<int> num_weights_sc, num_biases_sc, similar_layers;
     LayerLabel layer_names;
-    std::string init_method;
+    std::string init_method = "Xavier";
     std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
     std::vector<int> z_pos, sc_pos, ra_pos, overlap;
 
@@ -122,14 +123,16 @@ struct Network {
     int nye = 0;
     int last_backward_layer = 1;
     float sigma_v = 0.0f;
+    float sigma_x = 0.0f;
     float alpha = 0.1f;
     float epsilon = 0.0001f;
     float ra_mt = 0.9f;
     bool is_output_ud = true;
     bool is_idx_ud = false;
-    float decay_factor_sigma_v = 0.99f;
-    float sigma_v_min = 0.3f;
+    float decay_factor_sigma_v = 1.0f;
+    float sigma_v_min = 0.0f;
     bool multithreading = true;
+    bool is_full_cov = false;
 };
 
 // NETWORK STATE
@@ -145,10 +148,14 @@ struct NetState {
         Ssc: Variance of the short's hidden states
         mdsc: Mean of the delta shortcut's hidden states
         Sdsc: Variance of the delta short's hidden states
-        mra: Statistical mean for the normalzation layers
-        Sra: Statistical variance for the normalzation layers
+        Sz_f: Full covariance of hidden states
+        Sa_f: Full covariance of activation units
+        Sz_fp: Partially full covariance of hidden states
+        mra: Statistical mean for the normalization layers
+        Sra: Statistical variance for the normalization layers
     */
-    std::vector<float> mz, Sz, ma, Sa, J, msc, Ssc, mdsc, Sdsc;
+    std::vector<float> mz, Sz, ma, Sa, J, msc, Ssc, mdsc, Sdsc, Sz_f, Sa_f,
+        Sz_fp;
     std::vector<float> mra, Sra;
 };
 

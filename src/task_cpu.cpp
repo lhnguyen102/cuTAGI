@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      May 29, 2022
+// Updated:      June 08 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,9 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
     // Input and output layer
     auto hrs = class_to_obs(n_classes);
     std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
-    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(),
+                                pow(net.sigma_x, 2));
+    std::vector<float> Sx_f_batch;
     std::vector<float> y_batch(net.batch_size * hrs.n_obs, 0);
     std::vector<float> V_batch(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
     std::vector<int> batch_idx(net.batch_size);
@@ -84,8 +86,17 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
 
     for (int e = 0; e < n_epochs; e++) {
         /* TRAINNING */
-        // Shufle data
-        std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        if (e > 0) {
+            // Shufle data
+            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+
+            // Decay observation noise
+            decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
+                            net.sigma_v_min);
+        }
+
+        std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+                                   pow(net.sigma_v, 2));
 
         // Timer
         std::cout << "################\n";
@@ -107,11 +118,12 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
             get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
             get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-            ip.set_values(x_batch, Sx_batch);
+            ip.set_values(x_batch, Sx_batch, Sx_f_batch);
             op.set_values(y_batch, V_batch, idx_ud_batch);
 
             // Initialize input
-            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                  net.nodes.front(), net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
@@ -145,15 +157,16 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
                 std::cout << avg_error << "\n";
             }
         }
-        /* TESTING */
         std::cout << std::endl;
         auto end = std::chrono::steady_clock::now();
         auto run_time =
-            std::chrono::duration_cast<std::chrono::seconds>(end - start)
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
                 .count();
-        std::cout << " Time per epoch: " << run_time << " sec\n";
-        std::cout << " Time left     : " << run_time * (n_epochs - e - 1) / 60
-                  << " mins\n";
+        std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
+        std::cout << " Time left     : "
+                  << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
+
+        /* TESTING */
         std::cout << "Testing...\n";
         for (int i = 0; i < test_n_iter; i++) {
             // TODO: set = 0.9 when i > 0 or disable mean and variance in
@@ -167,11 +180,12 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
             get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
                            idx_ud_batch);
             get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
-            ip.set_values(x_batch, Sx_batch);
+            ip.set_values(x_batch, Sx_batch, Sx_f_batch);
             op.set_values(y_batch, V_batch, idx_ud_batch);
 
             // Initialize input
-            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                  net.nodes.front(), net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
@@ -236,12 +250,21 @@ Args:
 
     // Initialize the data's variables
     std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
-    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(), 0);
+    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(),
+                                pow(net.sigma_x, 2));
+    std::vector<float> Sx_f_batch;
     std::vector<float> y_batch(net.batch_size * net.nodes.back(), 0);
     std::vector<float> V_batch(net.batch_size * net.nodes.back(),
                                pow(net.sigma_v, 2));
     std::vector<int> batch_idx(net.batch_size);
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
+
+    // *TODO: Is there any better way?
+    if (net.is_full_cov) {
+        float var_x = pow(net.sigma_x, 2);
+        auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
+        Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
+    }
 
     // Input & output
     Input ip;
@@ -256,10 +279,17 @@ Args:
 
     if (train_mode) {
         for (int e = 0; e < n_epochs; e++) {
-            // Shuffle data
             if (e > 0) {
+                // Shuffle data
                 std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+
+                // Decay observation noise
+                decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
+                                net.sigma_v_min);
             }
+
+            std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+                                       pow(net.sigma_v, 2));
 
             // Timer
             std::cout << "################\n";
@@ -272,11 +302,12 @@ Args:
                               batch_idx);
                 get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
                 get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
-                ip.set_values(x_batch, Sx_batch);
+                ip.set_values(x_batch, Sx_batch, Sx_f_batch);
                 op.set_values(y_batch, V_batch, idx_ud_batch);
 
                 // Initialize input
-                initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+                initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                      net.nodes.front(), net.batch_size, state);
 
                 // Feed forward
                 feed_forward_cpu(net, theta, idx, state);
@@ -296,13 +327,14 @@ Args:
             std::cout << std::endl;
             auto end = std::chrono::steady_clock::now();
             auto run_time =
-                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
                     .count();
-            std::cout << " Time per epoch: " << run_time << " sec\n";
+            std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
             std::cout << " Time left     : "
-                      << run_time * (n_epochs - e - 1) / 60 << " mins\n";
+                      << (run_time * 1e-9) * (n_epochs - e - 1) / 60
+                      << " mins\n";
         }
-        int a = 0;
     } else {
         std::cout << "Testing...\n";
         std::vector<float> ma_batch_out(net.batch_size * net.nodes.back(), 0);
@@ -318,11 +350,12 @@ Args:
                           batch_idx);
             get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
             get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
-            ip.set_values(x_batch, Sx_batch);
+            ip.set_values(x_batch, Sx_batch, Sx_f_batch);
             op.set_values(y_batch, V_batch, idx_ud_batch);
 
             // Initialize input
-            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ni_B, state);
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                  net.nodes.front(), net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
@@ -344,7 +377,7 @@ Args:
 
         // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
-            sy_norm[k] = pow(Sa_out[k], 0.5) + net.sigma_v;
+            sy_norm[k] = pow(Sa_out[k] + pow(net.sigma_v, 2), 0.5);
         }
         denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.nodes.back(), my);
         denormalize_mean(db.y, db.mu_y, db.sigma_y, net.nodes.back(), y_test);
@@ -381,8 +414,12 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         Network net;
         Param theta;
         NetState state;
+        LayerLabel lb;
         net_init(user_input.net_name, net, theta, state, idx);
         net.is_idx_ud = true;
+
+        // Check feature availability
+        cpu_feature_availability(net, lb);
 
         // Data
         auto hrs = class_to_obs(user_input.num_classes);
@@ -424,6 +461,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         Network net;
         Param theta;
         NetState state;
+        LayerLabel lb;
 
         // Test network
         IndexOut test_idx;
@@ -434,6 +472,9 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         net_init(user_input.net_name, net, theta, state, idx);
         reset_net_batchsize(user_input.net_name, test_net, test_state, test_idx,
                             test_batch_size);
+
+        // Check feature availability
+        cpu_feature_availability(net, lb);
 
         // Train data
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
@@ -456,7 +497,8 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         // Save network's parameter to debug data
         if (user_input.debug) {
             std::string param_path = path.debug_path + "/saved_param/";
-            save_param(param_path, theta);
+            save_net_param(user_input.model_name, user_input.net_name,
+                           param_path, theta);
         }
 
         // Training
@@ -465,6 +507,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
                        path, train_mode, user_input.debug);
 
         // Testing
+        test_net.sigma_v = net.sigma_v;
         train_mode = false;
         regression_cpu(test_net, test_idx, test_state, theta, test_db,
                        user_input.num_epochs, path, train_mode,

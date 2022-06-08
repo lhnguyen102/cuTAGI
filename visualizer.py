@@ -3,7 +3,7 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      May 29, 2022
+# Updated:      June 08, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ###############################################################################
@@ -12,6 +12,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
+
+plt.rcParams.update({
+    'font.size': 18,
+    'text.usetex': True,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
 
 
 class ImageViz:
@@ -100,7 +106,7 @@ class PredictionViz:
                  task_name: str,
                  data_name: str,
                  figsize: tuple = (12, 12),
-                 fontsize: int = 24,
+                 fontsize: int = 28,
                  lw: int = 3,
                  ms: int = 10,
                  ndiv_x: int = 4,
@@ -130,48 +136,72 @@ class PredictionViz:
 
         return df[0].values
 
-    def plot_predictions(self, x_train: npt.NDArray, y_train: npt.NDArray,
-                         x_test: npt.NDArray, y_test: npt.NDArray,
-                         y_pred: npt.NDArray, sy_pred: npt.NDArray) -> None:
-        """Compare prediciton and true value
-        Args:
+    def plot_predictions(self,
+                         x_train: npt.NDArray,
+                         y_train: npt.NDArray,
+                         x_test: npt.NDArray,
+                         y_test: npt.NDArray,
+                         y_pred: npt.NDArray,
+                         sy_pred: npt.NDArray,
+                         sy_test: npt.NDArray | None = None,
+                         label: str = 'diag',
+                         title: str | None = None,
+                         eq: str | None = None) -> None:
+        """Compare prediciton distribution with theorical distribution
+
             x_train: Input train data
             y_train: Output train data
-            x_test: Input train data
-            y_test: Output train data
+            x_test: Input test data
+            y_test: Output test data
             y_pred: Prediciton of network
             sy_pred: Standard deviation of the prediction
+            sy_test: Output test's theorical standard deviation
+            label: Name of file
+            title: Figure title
+            eq: Math equation for data
+
         """
 
         # Get max and min values
-        max_y = np.maximum(max(y_train), max(y_test))
-        min_y = np.minimum(min(y_train), min(y_test))
-        max_x = np.maximum(max(x_train), max(x_test))
-        min_x = np.minimum(min(x_train), min(x_test))
+        max_y = max(y_test)
+        min_y = min(y_test)
+        max_x = max(x_test)
+        min_x = min(x_test)
 
         # Plot figure
         plt.figure(figsize=self.figsize)
         ax = plt.axes()
-        ax.plot(x_test, y_pred, 'r', lw=self.lw, label='Pred')
+        ax.set_title(title, fontsize=1.1 * self.fontsize, fontweight='bold')
+        ax.text(-5.5, 170, eq, color='k', fontsize=self.fontsize)
+        ax.plot(x_test, y_pred, 'r', lw=self.lw, label=r"$\mathbb{E}[Y]$")
+        ax.plot(x_test, y_test, 'k', lw=self.lw, label=r"$y_{true}$")
+
         ax.fill_between(x_test,
                         y_pred - 3 * sy_pred,
                         y_pred + 3 * sy_pred,
                         facecolor='red',
                         alpha=0.3,
-                        label='$\pm3\sigma$')
-        ax.plot(x_test, y_test, 'k', lw=self.lw, label='True')
-        ax.plot(x_train,
-                y_train,
-                'k',
-                marker='o',
-                mfc='none',
-                lw=self.lw,
-                ms=self.ms,
-                linestyle='',
-                label='Training')
+                        label=r"$\mathbb{E}[Y]\pm3\sigma$")
+        if sy_test is not None:
+            ax.fill_between(x_test,
+                            y_test - 1 * sy_test,
+                            y_test + 1 * sy_test,
+                            facecolor='blue',
+                            alpha=0.3,
+                            label=r"$y_{true}\pm\sigma$")
+        if x_train is not None:
+            ax.plot(x_train,
+                    y_train,
+                    'k',
+                    marker='o',
+                    mfc='none',
+                    lw=self.lw,
+                    ms=self.ms,
+                    linestyle='',
+                    label=r'$y_{train}$')
 
-        ax.set_xlabel('x', fontsize=self.fontsize)
-        ax.set_ylabel('y', fontsize=self.fontsize)
+        ax.set_xlabel(r'$x$', fontsize=self.fontsize)
+        ax.set_ylabel(r'$y$', fontsize=self.fontsize)
         x_ticks = np.linspace(min_x, max_x, self.ndiv_x)
         y_ticks = np.linspace(min_y, max_y, self.ndiv_y)
         ax.set_yticks(y_ticks)
@@ -185,9 +215,11 @@ class PredictionViz:
                   fontsize=1 * self.fontsize,
                   ncol=2,
                   framealpha=0.3)
+        ax.set_ylim([min_y, max_y])
+        ax.set_xlim([min_x, max_x])
 
         # Save figure
-        saving_path = f'saved_results/pred_{self.data_name}.png'
+        saving_path = f'saved_results/pred_{label}_{self.data_name}.png'
         plt.savefig(saving_path, bbox_inches='tight')
         plt.close()
 
@@ -211,6 +243,9 @@ def autoencoder():
 
 
 def regression():
+    # Equation
+    eq = r"$Y = x^{3} + V, ~V\sim\mathcal{N}(0, 3^{2})$"
+
     # User input data
     task_name = 'regression'
     data_name = 'toy_example'
@@ -237,8 +272,63 @@ def regression():
                          x_test=x_test,
                          y_test=y_test,
                          y_pred=y_pred,
-                         sy_pred=sy_pred)
+                         sy_pred=sy_pred,
+                         label='diag',
+                         title='Diagonal covariance',
+                         eq=eq)
+
+
+def input_uncertainty_prop():
+    """ The analytical formulation for output is defined following
+        y = x^3 + Normal(0, \sigma_v), where x ~ Normal(mu_x, \sigma_x).
+
+        Var[y] = (|dy/dy|)^2 * (\sigma_x)^2 + (\sigma_v) ^2.
+
+    """
+    # Equation
+    eq = r"$Y = X^{3} + V,~X \sim \mathcal{N}(\mu_{X}, 1),~V\sim\mathcal{N}(0, 3^{2})$"
+
+    # Standard deviation. NOTE: the following values must correspond to
+    # the data file path specified by user
+    sigma_v = 3
+    sigma_x = 1
+
+    # User input data
+    task_name = 'regression'
+    data_name = 'toy_example'
+    x_train_path = './data/toy_example/x_train_1D_full_cov.csv'
+    y_train_path = './data/toy_example/y_train_1D_full_cov.csv'
+    x_test_path = './data/toy_example/x_test_1D_full_cov.csv'
+    y_test_path = './data/toy_example/y_test_1D_full_cov.csv'
+    y_pred_path = './saved_results/y_prediction.csv'
+    sy_pred_path = './saved_results/sy_prediction.csv'
+
+    viz = PredictionViz(task_name=task_name, data_name=data_name)
+
+    # Load data
+    x_train = viz.load_dataset(file_path=x_train_path, header=True)
+    y_train = viz.load_dataset(file_path=y_train_path, header=True)
+    x_test = viz.load_dataset(file_path=x_test_path, header=True)
+    y_test = viz.load_dataset(file_path=y_test_path, header=True)
+    y_pred = viz.load_dataset(file_path=y_pred_path)
+    sy_pred = viz.load_dataset(file_path=sy_pred_path)
+
+    # Compute theorical standard deviation for the output
+    sy_test = ((3 * (x_test**2))**2 * (sigma_x**2) + sigma_v**2)**0.5
+
+    # Plot
+    viz.plot_predictions(x_train=None,
+                         y_train=y_train,
+                         x_test=x_test,
+                         y_test=y_test,
+                         y_pred=y_pred,
+                         sy_pred=sy_pred,
+                         sy_test=sy_test,
+                         label='full_cov',
+                         title='Full covariance',
+                         eq=eq)
 
 
 if __name__ == '__main__':
     regression()
+    #input_uncertainty_prop()

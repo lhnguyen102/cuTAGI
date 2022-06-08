@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      May 21, 2022
+// Updated:      June 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,9 +25,6 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-//#include "nvToolsExt.h"
-
-std::string get_current_dir();
 
 template <typename T>
 void print_matrix(std::vector<T> &M, int w, int h)
@@ -126,18 +123,6 @@ Args:
     }
 }
 
-int sum(std::vector<int> &v);
-
-std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
-
-void create_directory(std::string &path);
-
-void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
-
-void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
-                       std::vector<float> &ma_output,
-                       std::vector<float> &Sa_output, int idx);
-
 template <typename T>
 void read_csv(std::string &filename, std::vector<T> &v, int num_col,
               bool skip_header) {
@@ -207,3 +192,29 @@ void write_csv(std::string filename, T &v) {
     // Close the file
     file.close();
 }
+
+template <typename T>
+std::vector<T> repmat_vector(std::vector<T> &v, int num_copies) {
+    std::vector<T> new_v(v.size() * num_copies, 0);
+    for (int i = 0; i < num_copies; i++) {
+        for (int j = 0; j < v.size(); j++) {
+            new_v[i * v.size() + j] = v[j];
+        }
+    }
+    return new_v;
+};
+
+std::string get_current_dir();
+
+int sum(std::vector<int> &v);
+
+std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
+
+void create_directory(std::string &path);
+
+void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
+
+void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
+                       std::vector<float> &ma_output,
+                       std::vector<float> &Sa_output, int idx);
+std::vector<float> initialize_upper_triu(float &Sx, int n);

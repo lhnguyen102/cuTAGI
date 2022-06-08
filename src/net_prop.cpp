@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      May 15, 2022
+// Updated:      June 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -544,9 +544,7 @@ void net_default(Network &net)
     net.num_biases_sc.resize(num_layers, 0);
     net.similar_layers.resize(num_layers, 0);
     net.overlap.resize(num_layers, 1);
-    if (net.init_method.empty()) {
-        net.init_method = "Xavier";
-    }
+
     if (net.gain_w.size() == 0) {
         net.gain_w.resize(num_layers, 1);
     }
@@ -561,6 +559,10 @@ void net_default(Network &net)
     net.col_z_ud.resize(num_layers, 0);
     net.row_w_sc.resize(num_layers, 0);
     net.col_z_sc.resize(num_layers, 0);
+
+    if (net.sigma_v_min == 0) {
+        net.sigma_v_min = net.sigma_v;
+    }
 
     // Network's indices
     if (sizeof(net.nye) == 0) {
@@ -590,6 +592,14 @@ NetState initialize_net_states(Network &net) {
     S.Sdsc.resize(net.n_state_sc, 1);  // Variance of residual
     S.mra.resize(net.n_ra, 0);         // Mean of batch and layer normalization
     S.Sra.resize(net.n_ra, 1);  // Variance of batch and layer normalization
+
+    // TODO: Is there a better way to initialize the full covariance matrix?
+    if (net.is_full_cov) {
+        int n = net.n_max_state / net.batch_size;
+        S.Sz_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
+        S.Sa_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
+        S.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
+    }
 
     return S;
 }
@@ -771,14 +781,16 @@ Network load_cfg(std::string net_file)
  **/
 {
     // Dictionary for the cfg file
-    std::string key_words[] = {"layers",      "nodes",
-                               "kernels",     "strides",
-                               "widths",      "heights",
-                               "filters",     "pads",
-                               "pad_types",   "shortcuts",
-                               "activations", "batch_size",
-                               "sigma_v",     "decay_factor_sigma_v",
-                               "sigma_v_min", "init_method"};
+    std::string key_words[] = {"layers",        "nodes",
+                               "kernels",       "strides",
+                               "widths",        "heights",
+                               "filters",       "pads",
+                               "pad_types",     "shortcuts",
+                               "activations",   "batch_size",
+                               "sigma_v",       "decay_factor_sigma_v",
+                               "sigma_v_min",   "sigma_x",
+                               "init_method",   "is_full_cov",
+                               "multithreading"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -816,6 +828,7 @@ Network load_cfg(std::string net_file)
         std::string::iterator tab_pos =
             std::remove(line.begin(), line.end(), '\t');
         line.erase(tab_pos, line.end());
+
         for (int k = 0; k < num_keys; k++) {
             // Key =  keyword + separator
             std::string key = key_words[k] + ":";
@@ -848,11 +861,43 @@ Network load_cfg(std::string net_file)
                         ss >> f;
                         net.sigma_v_min = f;
                     }
+                } else if (key_words[k] == "sigma_x") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.sigma_x = f;
+                    }
                 } else if (key_words[k] == "init_method") {
                     std::stringstream ss(line.substr(pos + key.size()));
                     if (ss.good()) {
                         ss >> si;
                         net.init_method = si;
+                    }
+                } else if (key_words[k] == "is_full_cov") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        if (si.compare("true") == 0) {
+                            net.is_full_cov = true;
+                        } else if (si.compare("true") == 0) {
+                            net.is_full_cov = false;
+                        } else {
+                            throw std::invalid_argument(
+                                "Input must be true or false - is_full_cov");
+                        }
+                    }
+                } else if (key_words[k] == "multithreading") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        if (si.compare("true") == 0) {
+                            net.multithreading = true;
+                        } else if (si.compare("true") == 0) {
+                            net.multithreading = false;
+                        } else {
+                            throw std::invalid_argument(
+                                "Input must be true or false - multithreading");
+                        }
                     }
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
@@ -876,6 +921,49 @@ Network load_cfg(std::string net_file)
         }
     }
     return net;
+}
+
+bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the convolutional layer?
+
+Args:
+    layers: All layer types of the network
+    layer_names: Code name of each layer
+
+Returns:
+    bool
+*/
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.conv) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_tconv(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the transpose convolutional layer layer?
+ */
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.tconv) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_fc(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the fully-connected layer?
+ */
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.fc) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void test_get_net_prop() {

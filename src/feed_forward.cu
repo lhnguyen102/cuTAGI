@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      May 16, 2022
+// Updated:      June 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,91 @@ Args:
         Sz[col * m + row + zposOut] = sum + Sb[row + bpos];
     }
 }
+
+__global__ void fcCov(float const *mw, float const *Saf, int wpos, int no,
+                      int ni, int B, float *Szfp)
+/* Compute full covariance matrix for fully-connected layer.
+
+Args:
+    mw: Mean of weights
+    Saf: Full-covariance matrix of activation units for the previous layer
+    wpos: Weight position for this layer in the weight vector of network
+    no: Output node
+    ni: Input node
+    B: Number of batches
+    Szfp: Partial full-covariance matrix of hidden states of current
+        layer
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int tu = 0;
+    float sum = 0;
+    float SaIn = 0;
+    if ((col < (row % no) || col == (row % no)) && row < no * B) {
+        for (int i = 0; i < ni * ni; i++) {
+            if ((i / ni) > (i % ni))  // Upper triangle
+            {
+                tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) + i / ni);
+            } else {
+                tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) + i % ni);
+            }
+            SaIn = Saf[tu + (row / no) * (ni * (ni + 1)) / 2];
+            if (SaIn != 0) {
+                sum += mw[i % ni + (row % no) * ni + wpos] *
+                       mw[i / ni + (col % no) * ni + wpos] * SaIn;
+            }
+        }
+        Szfp[no * col - ((col * (col + 1)) / 2) + row % no +
+             (row / no) * (((no + 1) * no) / 2)] = sum;
+    }
+}
+
+__global__ void fcFullVar(float const *mw, float const *Sw, float const *Sb,
+                          float const *ma, float const *Sa, float const *Szfp,
+                          int wpos, int bpos, int no, int ni, int B, int zposIn,
+                          int zposOut, float *Sz, float *Szf)
+/* Add diagonal terms to the full covariance matrix.
+
+Args:
+    mw: Mean of weights
+    Sw: Variance of weights
+    Sb: Variance of biases
+    Szfp: Partial full-covariance matrix of hidden states of current
+                layer
+    wpos: Weight position for this layer in the weight vector of network
+    bpos: Bias position for this layer in the bias vector of network
+    zposIn: Input-hidden-state position for this layer in the weight vector
+              of network
+    zposOut: Output-hidden-state position for this layer in the weight vector
+               of network
+    no: Output node
+    ni: Input node
+    B: Number of batches
+    Sz: Diagonal covariance matrix for hidden states
+    Szf: Full-covariance matrix for hidden states
+ */
+
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum = 0;
+    float finalSum = 0;
+    int k;
+
+    if (col < B && row < no) {
+        for (int i = 0; i < ni; i++) {
+            sum += Sw[row * ni + i + wpos] * Sa[ni * col + i + zposIn] +
+                   Sw[row * ni + i + wpos] * ma[ni * col + i + zposIn] *
+                       ma[ni * col + i + zposIn];
+        }
+        k = no * row - (row * (row - 1)) / 2 + col * (no * (no + 1)) / 2;
+        finalSum = sum + Sb[row + bpos] + Szfp[k];
+        Sz[col * no + row + zposOut] = finalSum;
+        Szf[k] = finalSum;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // CONVOLUTIONAL
 ////////////////////////////////////////////////////////////////////////////////
@@ -526,8 +611,8 @@ Args:
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -569,8 +654,8 @@ Args:
     Sa: Variance of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -675,7 +760,7 @@ Args:
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
+    mra: Statistical mean for the normalization layers
     Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
@@ -716,8 +801,8 @@ Args:
     Sa: Variance of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -824,8 +909,8 @@ Args:
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -868,8 +953,8 @@ Args:
     Sa: Variance of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -974,8 +1059,8 @@ Args:
     ma: Mean of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -1015,8 +1100,8 @@ Args:
     Sa: Variance of activation units
     mz: Mean of hidden states
     Sz: Variance of hidden states
-    mra: Statistical mean for the normalzation layers
-    Sra: Statistical variance for the normalzation layers
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
@@ -1052,10 +1137,10 @@ __global__ void raMeanVar(float const *ms, float const *Ss,
 Args:
     ms: New statistical mean of samples
     Ss: New statistical variance of samples
-    mraprev: Previous mean for the normalzation layers
+    mraprev: Previous mean for the normalization layers
     Sraprev: Previous statistical variance for the normalization layers
     momentum: Running average factor
-    mra: Statistical mean for the normalzation layers
+    mra: Statistical mean for the normalization layers
     Sra: Statistical variance for the normalization layers
     spos: Position of statstical mean & variance
     N: Size of mra
@@ -1198,6 +1283,40 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
         }
     }
 }
+
+__global__ void act_full_cov(float const *Szf, float const *J, int no, int B,
+                             int zposOut, float *Saf)
+/*Activate the full covariance.
+
+Args:
+    Szf: Full-covariance matrix for hidden states
+    J: Jacobian matrix
+    no: Output node
+    B: Number of batches
+    zposOut: Output-hidden-state position for this layer in the weight vector
+        of network
+    Saf: Full-covariance matrix for activation units
+
+*/
+
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = 0;
+    if ((col < (row % no) || col == (row % no)) && row < no * B) {
+        idx = no * col - ((col * (col + 1)) / 2) + row % no +
+              (row / no) * (((no + 1) * no) / 2);
+        Saf[idx] = Szf[idx] * J[row % no + (row / no) * no + zposOut] *
+                   J[col + (row / no) * no + zposOut];
+    }
+}
+__global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < Nf) {
+        Saf[col] = Szf[col];
+    }
+}
+
 //////////////////////////////////////////////////////////////////////
 /// INITIALIZE STATES
 //////////////////////////////////////////////////////////////////////
