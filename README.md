@@ -218,12 +218,17 @@ sigma_v:    1
   ```sh
   build/main cfg_bh_2fc.txt
   ```
-* 1D Toy Example
+* 1D Toy Example using diagonal covariance matrix
   ```sh
   build/main cfg_toy_example_fc.txt
   ```
-  <p align="center">
-  <img src="./saved_results/pred_diag_toy_example.png" width="400px"><img src="./saved_results/ppred_full_cov_toy_example.png" width="400px">
+
+* 1D Toy Example using full covariance matrix
+  ```sh
+  build/main cfg_toy_full_cov_fc.txt
+  ```
+  <p align="left">
+  <img src="./saved_results/pred_diag_toy_example.png" width="400px"> <img src="./saved_results/pred_full_cov_toy_example.png" width="400px">
   </p>
 
 ## Directory Structure
