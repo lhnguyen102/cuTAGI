@@ -236,28 +236,35 @@ sigma_v:    1
 ## Directory Structure
 ```
 .
-├── cfg                         # User input (.txt)
-├── data                        # Database
-├── include                     # Header files
-├── saved_param                 # Saved network's parameters (.csv)
-├── saved_results               # Saved network's inference (.csv)
-├── src                         # Source files
-│   ├── common.cpp              # Common functionalities 
-│   ├── cost.cpp                # Performance metric
-│   ├── dataloader.cpp          # Load train and test data
-│   ├── data_transfer.cu        # Transfer data host from/to device
-│   ├── feed_forward.cu         # Prediction 
-│   ├── global_param_update.cu  # Update network's parameters
-│   ├── indices.cpp             # Pre-compute indices for network
-│   ├── net_init.cpp            # Initialize the network
-│   ├── net_prop.cpp            # Network's properties
-│   ├── param_feed_backward.cu  # Learn network's parameters
-│   ├── state_feed_backward.cu  # Learn network's hidden states
-│   ├── task.cu                 # Perform different tasks 
-│   ├── user_input.cpp          # User input variables
-│   └── utils.cpp               # Different tools
-├── config.py                   # Generate network architecture (.txt)
-├── main.cpp                    # The ui
+├── cfg                               # User input (.txt)
+├── data                              # Database
+├── include                           # Header files
+├── saved_param                       # Saved network's parameters (.csv)
+├── saved_results                     # Saved network's inference (.csv)
+├── src                               # Source files
+│   ├── common.cpp                    # Common functionalities 
+│   ├── cost.cpp                      # Performance metric
+│   ├── dataloader.cpp                # Load train and test data
+│   ├── data_transfer.cu              # Transfer data host from/to device
+│   ├── data_transfer_cpu.cpp         # Transfer data within cpus
+│   ├── feed_forward.cu               # Prediction 
+│   ├── feed_forward_cpu.cpp          # CPU version for prediction
+│   ├── global_param_update.cu        # Update network's parameters
+│   ├── global_param_update_cpu.cpp   # CPU version for updating network's parameters
+│   ├── indices.cpp                   # Pre-compute indices for network
+│   ├── net_init.cpp                  # Initialize the network
+│   ├── net_prop.cpp                  # Network's properties
+│   ├── param_feed_backward.cu        # Learn network's parameters
+│   ├── param_feed_backward_cpu.cpp   # CPU version for learning network's parameters
+│   ├── state_feed_backward.cu        # Learn network's hidden states
+│   ├── state_feed_backward_cpu.cpp   # CPU version for learning network's hidden states
+│   ├── task.cu                       # Task command
+│   ├── task_cpu.cpp                  # CPU version for task command
+│   ├── user_input.cpp                # User input variables
+│   └── utils.cpp                     # Different tools
+├── config.py                         # Generate network architecture (.txt)
+├── main.cu                           # The ui
+├── main.cpp                          # CPU version for the ui
 
 ```
 
