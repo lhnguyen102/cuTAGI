@@ -228,7 +228,7 @@ sigma_v:    1
   build/main cfg_toy_full_cov_fc.txt
   ```
   <p align="left">
-  <img src="./saved_results/pred_diag_toy_example.png" width="350px"> <img src="./saved_results/pred_full_cov_toy_example.png" width="350px">
+  <img src="./saved_results/pred_diag_toy_example.png" width="350px"> <img src="./saved_results/pred_full_cov_toy_example.png" width="380px">
   </p>
 
 ## Directory Structure
