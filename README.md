@@ -21,6 +21,9 @@ Coming soon...
 * Unsupervised learning: GANs
 * Reinforcement learning: DQN
 * +++
+<p align="center">
+  <img src="./saved_results/pred_diag_toy_example.png" width="350px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="355px">
+  </p>
 
 ## User Input
 The user inputs are stored as `.txt` that has to be located in the folder `cfg`. User-inputs for cuTAGI are following:
@@ -227,9 +230,6 @@ sigma_v:    1
   ```sh
   build/main cfg_toy_full_cov_fc.txt
   ```
-  <p align="center">
-  <img src="./saved_results/pred_diag_toy_example.png" width="350px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="355px">
-  </p>
 
 ## Directory Structure
 ```
