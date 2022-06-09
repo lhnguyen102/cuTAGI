@@ -69,12 +69,12 @@ y_test_dir: data/mnist/t10k-labels-idx1-ubyte
 ## Code Name for Layers and Activation Functions
 Each layer type is assigned to an integer number
 ```
-Full-connected layer          -> 1
-Convolutional layer           -> 2
-Tranpose convolutional layer  -> 21
-Average pooling layer         -> 4
-Layer normalization           -> 5
-Batch normalization           -> 6
+Fully-connected layer          -> 1
+Convolutional layer            -> 2
+Tranpose convolutional layer   -> 21
+Average pooling layer          -> 4
+Layer normalization            -> 5
+Batch normalization            -> 6
 ```
 
 Each activation function is assigned to an integer number
@@ -170,7 +170,7 @@ sigma_v:    1
     ```
 2. Install CMake by following [these instructions](https://cmake.org/install/)
 
-3. Add CMake to PATH. For example, adding the following line to your `.zshrc` file
+3. [Add CMake to PATH](https://code2care.org/pages/permanently-set-path-variable-in-mac-zsh-shell). Add the following line to your `.zshrc` file
     ```sh
     export PATH="/Applications/CMake.app/Contents/bin/:$PATH"
     ```
@@ -183,7 +183,7 @@ sigma_v:    1
 
 ### VS Code
 1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS 
-2. Install CMake w.r.t operating system 
+2. Install CMake 
 3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
 * Visual Studio Code
 * C++ extension for VS Code
