@@ -22,7 +22,7 @@ Coming soon...
 * Reinforcement learning: DQN
 * +++
 
-An example of the [regression task](#regression-task) in diagonal and full covariance modes
+An example of [regression task](#regression-task) in diagonal and full covariance modes (Note, the full covariance mode is required to handles input-layer uncertainties)
 <p align="center">
   <img src="./saved_results/pred_diag_toy_example.png" width="350px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="355px">
   </p>
