@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      June 01, 2022
+// Updated:      June 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,10 +25,10 @@ Args:
     mz: Mean of hidden states
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-             of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches
@@ -63,10 +63,10 @@ Args:
     Sz: Variance of hidden states
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-             of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches
@@ -107,25 +107,27 @@ Args:
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int tu = 0;
+    int tu = 0, k = 0;
     float sum = 0;
     float SaIn = 0;
-    if ((col < (row % no) || col == (row % no)) && row < no * B) {
+    if (col <= (row % no) && row < no * B) {
         for (int i = 0; i < ni * ni; i++) {
-            if ((i / ni) > (i % ni))  // Upper triangle
+            int row_in = i / ni;
+            int col_in = i % ni;
+            if (row_in > col_in)  // lower triangle
             {
-                tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) + i / ni);
+                tu = (ni * col_in - ((col_in * (col_in + 1)) / 2) + row_in);
             } else {
-                tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) + i % ni);
+                tu = (ni * row_in - ((row_in * (row_in + 1)) / 2) + col_in);
             }
             SaIn = Saf[tu + (row / no) * (ni * (ni + 1)) / 2];
-            if (SaIn != 0) {
-                sum += mw[i % ni + (row % no) * ni + wpos] *
-                       mw[i / ni + (col % no) * ni + wpos] * SaIn;
-            }
+
+            sum += mw[i % ni + (row % no) * ni + wpos] * SaIn *
+                   mw[i / ni + (col % no) * ni + wpos];
         }
-        Szfp[no * col - ((col * (col + 1)) / 2) + row % no +
-             (row / no) * (((no + 1) * no) / 2)] = sum;
+        k = no * col - ((col * (col + 1)) / 2) + row % no +
+            (row / no) * (((no + 1) * no) / 2);
+        Szfp[k] = sum;
     }
 }
 
@@ -192,10 +194,10 @@ Args:
     aidx: Activation indices for mean product WA
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     aidxpos: Position of weight indices for mean product WA
     woho: Width x heights for the output layer
     fo: Number of filters for the output layer
@@ -242,10 +244,10 @@ Args:
     aidx: Acrivation indices for mean product WA
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     aidxpos: Position of activation indices for mean product WA
     woho: Width x heights for the output layer
     fo: Number of filters for the output layer
@@ -289,7 +291,7 @@ __global__ void convMeanNoBiases(float const *mw, float const *ma,
                                  int zposIn, int zposOut, int aidxpos, int woho,
                                  int fo, int wihi, int fi, int ki2, int B,
                                  int n, int k, int padIdx)
-/*Compute the meanof product WAfor the convolutional layer WITHOUT biases.
+/*Compute the meanof product WA for the convolutional layer WITHOUT biases.
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -355,10 +357,10 @@ Args:
     aidx: Activation indices for mean product WA
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for mean product WA
     aidxpos: Position of activation indices for mean product WA
     woho: Width x heights for the output layer
@@ -413,10 +415,10 @@ Args:
     aidx: Activation indices for mean product WA
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for mean product WA
     aidxpos: Position of activation indices for mean product WA
     woho: Width x heights for the output layer
@@ -472,10 +474,10 @@ Args:
     aidx: Activation indices for mean product WA
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     aidxpos: Position of weight indices for mean product WA
     woho: Width x heights for the output layer
     wihi: Width x heights for the input layer
@@ -543,7 +545,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state position for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
           of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -577,8 +579,8 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state position for this layer in the weight vector
-    of network
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
+        of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
     fi: Number of filters for the input layer
@@ -616,10 +618,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
     m: Number of hidden units for output
@@ -659,10 +661,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
     m: Number of hidden units for output
@@ -695,8 +697,8 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state position for this layer in the weight vector
-    of network
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
+        of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
     B: Number of batches
@@ -728,8 +730,8 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state position for this layer in the weight vector
-    of network
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
+        of network
     spos: Position of sample mean and varance in the vector for entire network
     ni: Number of hidden units for inputs
     B: Number of batches
@@ -765,10 +767,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
@@ -806,10 +808,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
@@ -841,7 +843,7 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state position for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
           of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
@@ -874,8 +876,8 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state position for this layer in the weight vector
-    of network
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
+        of network
     spos: Position of sample mean and varance in the vector for entire network
     wihi: Width x heights for the input layer
     fi: Number of filters for the input layer
@@ -914,10 +916,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-    of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-    of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
     m: fi x B
@@ -958,10 +960,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-    of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-    of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     wihi: Width x heights for the input layer
     m: fi x B
@@ -996,9 +998,9 @@ Args:
     Sa: Variance of activation units
     ms: Mean of samples e.g. ms = mean(ma)
     Ss: Variance of samples
-    zpos: Input-hidden-state position for this layer in the weight vector
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
     of network
-    spos: Position of sample mean and varance in the vector for entire network
+    spos: Position of sample mean and variance in the vector for entire network
     ni: Number of hidden units for inputs
     B: Number of batches
 */
@@ -1028,9 +1030,9 @@ Args:
     ms: Mean of samples
     Ss: Variance of samples
     S: Statistical vatiance
-    zpos: Input-hidden-state position for this layer in the weight vector
-    of network
-    spos: Position of sample mean and varance in the vector for entire network
+    zpos: Input-hidden-state position for this layer in the hidden-state vector
+        of network
+    spos: Position of sample mean and variance in the vector for entire network
     ni: Number of hidden units for inputs
     B: Number of batches
 */
@@ -1064,10 +1066,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
@@ -1105,10 +1107,10 @@ Args:
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
     bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-             of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     spos: Position of statstical mean & variance
     ni: Number of hidden units
     B: Number of batches
@@ -1284,8 +1286,8 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
     }
 }
 
-__global__ void act_full_cov(float const *Szf, float const *J, int no, int B,
-                             int zposOut, float *Saf)
+__global__ void actFullCov(float const *Szf, float const *J, int no, int B,
+                           int zposOut, float *Saf)
 /*Activate the full covariance.
 
 Args:
@@ -1303,7 +1305,7 @@ Args:
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = 0;
-    if ((col < (row % no) || col == (row % no)) && row < no * B) {
+    if (col <= (row % no) && row < no * B) {
         idx = no * col - ((col * (col + 1)) / 2) + row % no +
               (row / no) * (((no + 1) * no) / 2);
         Saf[idx] = Szf[idx] * J[row % no + (row / no) * no + zposOut] *
@@ -1320,10 +1322,11 @@ __global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
 //////////////////////////////////////////////////////////////////////
 /// INITIALIZE STATES
 //////////////////////////////////////////////////////////////////////
-__global__ void initializeStates(float const *x, float const *Sx, float *mz,
-                                 float *Sz, float *ma, float *Sa, float *J,
-                                 int niB)
-/* Insert input data to network's states
+__global__ void initializeDiagCovStates(float const *x, float const *Sx,
+                                        float *mz, float *Sz, float *ma,
+                                        float *Sa, float *J, int niB)
+/* Insert input data to network's states. For the covariance matrix, we
+only initialize the diagonal term.
 
 Args:
     x: Input data:
@@ -1343,6 +1346,50 @@ Args:
         ma[col] = x[col];
         Sa[col] = Sx[col];
         J[col] = 1;
+    }
+}
+
+__global__ void initializeFullCovStates(float const *Sx_f, int nf, float *Sz_f,
+                                        float *Sa_f)
+/* Insert input data to full covariance matrix for hidden states
+
+Args:
+    Sx_f: Full covariance of input data
+    nf: Total number of elements
+    Sz_f: Full covariance matrix for hidden state
+    Sa_f: Full covariance matrix for activation units
+
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < nf) {
+        Sz_f[col] = Sx_f[col];
+        Sa_f[col] = Sx_f[col];
+    }
+}
+
+void initializeStates(StateGPU &state, InputGPU &ip, Network &net)
+/* Initialize the input data to network's state
+
+Args:
+    state: Hidden state of network
+    ip: Input data
+    net: Network architecture
+*/
+{
+    int THREADS = net.num_gpu_threads;
+    int niB = net.nodes.front() * net.batch_size;
+    int nf = (net.nodes.front() * (net.nodes.front() + 1)) / 2 * net.batch_size;
+    int BLOCK_DIAG = (niB - 1 + THREADS) / THREADS;
+    int BLOCK_FULL = (nf - 1 + THREADS) / THREADS;
+
+    initializeDiagCovStates<<<BLOCK_DIAG, THREADS>>>(
+        ip.d_x_batch, ip.d_Sx_batch, state.d_mz, state.d_Sz, state.d_ma,
+        state.d_Sa, state.d_J, niB);
+
+    if (net.is_full_cov) {
+        initializeFullCovStates<<<BLOCK_FULL, THREADS>>>(
+            ip.d_Sx_f_batch, nf, state.d_Sz_f, state.d_Sa_f);
     }
 }
 
@@ -1377,6 +1424,48 @@ Args:
         J[col] = J_0[col + zposIn];
     }
 }
+
+__global__ void initialize_upper_triu(float const *Sx, int n, int B, int zpos,
+                                      float *Sx_tu)
+/* Initialize the covariance matrix where only the elements of the triangle
+upper matrix are stored in a vector. Note that the off-diagonal-term is set
+to zero.
+
+Args:
+    Sx: Initial value of the diagonal term of the covariance matrix
+    n: Size of the covariance matrix
+    B: Batch size
+    zpos: Input-hidden-state position for this layer in the hidden state vector
+            of network
+    Sx_tu: Vector of the triangle upper matrix
+*/
+// TODO: To be tested
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int k;
+    if (col < B && row < n) {
+        k = n * row - (row * (row - 1)) / 2 + col * (n * (n + 1)) / 2;
+        Sx_tu[k] = Sx[col * n + row + zpos];
+    }
+}
+
+__global__ void initialize_upper_triu_zero(int nf, float *Sz_tu)
+/* Initialize the upper triangular matrix to zeros. Note that only upper
+and diagonal elements are stored.
+
+Args:
+    nf: Total number of elements
+    Sz_tu: Upper triangle covariance matrix.
+ */
+// TODO: To be tested
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < nf) {
+        Sz_tu[col] = 0.0f;
+    }
+}
+
 //////////////////////////////////////////////////////////////////////
 /// GET OUTPUT HIDDEN STATE
 //////////////////////////////////////////////////////////////////////
@@ -1431,7 +1520,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
 
 {
     // Launch kernel
-    int THREADS = 16;
+    int THREADS = net.num_gpu_threads;
     dim3 dimBlock(THREADS, THREADS);
     int B = net.batch_size;
 
@@ -1444,6 +1533,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         int bposIn = net.b_pos[j - 1];  // location of biases in param. vector
         int M = net.nodes[j];           // num. of nodes for output
         int ni = net.nodes[j - 1];      // num. of nodes for input
+        int no = net.nodes[j];          // num. of nodes for output
 
         // Hyperparameters are requried only for CNN.
         int ki = net.kernels[j - 1];  // kernel size of input
@@ -1475,10 +1565,27 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
             fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.d_ma,
                                           state.d_mz, wposIn, bposIn, zposIn,
                                           zposOut, M, N, B);
+            if (!net.is_full_cov) {
+                fcVar<<<dimGrid, dimBlock>>>(
+                    theta.d_mw, theta.d_Sw, theta.d_Sb, state.d_ma, state.d_Sa,
+                    state.d_Sz, wposIn, bposIn, zposIn, zposOut, M, N, B);
+            } else {
+                unsigned int gridRowPf = (no * B + THREADS - 1) / THREADS;
+                unsigned int gridColPf = (no + THREADS - 1) / THREADS;
+                dim3 dimGridPf(gridColPf, gridRowPf);
 
-            fcVar<<<dimGrid, dimBlock>>>(
-                theta.d_mw, theta.d_Sw, theta.d_Sb, state.d_ma, state.d_Sa,
-                state.d_Sz, wposIn, bposIn, zposIn, zposOut, M, N, B);
+                fcCov<<<dimGridPf, dimBlock>>>(theta.d_mw, state.d_Sa_f, wposIn,
+                                               no, ni, B, state.d_Sz_fp);
+
+                int nf = (no * (no + 1)) / 2 * B;
+                unsigned int BLOCKS = (nf + THREADS - 1) / THREADS;
+                noActFullCov<<<BLOCKS, THREADS>>>(state.d_Sz_fp, state.d_Sz_f,
+                                                  nf);
+                fcFullVar<<<dimGrid, dimBlock>>>(
+                    theta.d_mw, theta.d_Sw, theta.d_Sb, state.d_ma, state.d_Sa,
+                    state.d_Sz_fp, wposIn, bposIn, no, ni, B, zposIn, zposOut,
+                    state.d_Sz, state.d_Sz_f);
+            }
         }
         //**
         // 2: Convolutional
@@ -1833,6 +1940,23 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
             noActMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                               state.d_ma, state.d_J, state.d_Sa,
                                               zposOut, MB);
+        }
+
+        // Full covariance mode
+        if (net.is_full_cov) {
+            if (net.activations[j] == 0) {
+                int nf = (no * (no + 1)) / 2 * B;
+                unsigned int BLOCKS = (nf + THREADS - 1) / THREADS;
+                noActFullCov<<<BLOCKS, THREADS>>>(state.d_Sz_f, state.d_Sa_f,
+                                                  nf);
+
+            } else {
+                unsigned int gridRow = (no * B + THREADS - 1) / THREADS;
+                unsigned int gridCol = (no + THREADS - 1) / THREADS;
+                dim3 dimGrid(gridCol, gridRow);
+                actFullCov<<<dimGrid, dimBlock>>>(state.d_Sz_f, state.d_J, no,
+                                                  B, zposOut, state.d_Sa_f);
+            }
         }
     }
 }

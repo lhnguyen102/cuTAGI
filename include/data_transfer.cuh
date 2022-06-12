@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      April 20, 2022
+// Updated:      June 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,13 +22,14 @@
 
 class StateGPU {
    public:
-    size_t s_bytes, sc_bytes, dsc_bytes, ra_bytes;
+    size_t s_bytes, sc_bytes, dsc_bytes, ra_bytes, max_full_cov_bytes;
     std::vector<float> mra_prev, Sra_prev, ms, Ss, SsTmp;
     float *d_mz, *d_Sz, *d_ma, *d_Sa, *d_J, *d_msc, *d_Ssc, *d_mdsc, *d_Sdsc;
     float *d_mra, *d_Sra, *d_mra_prev, *d_Sra_prev, *d_ms, *d_Ss, *d_SsTmp;
+    float *d_Sz_f, *d_Sa_f, *d_Sz_fp;
 
     StateGPU();
-    void set_values(NetState &state);
+    void set_values(NetState &state, Network &net);
 
     void allocate_cuda_memory();
     void copy_host_to_device(NetState &state);
@@ -108,16 +109,18 @@ class DeltaParamGPU {
 
 class InputGPU {
    public:
-    size_t id_bytes;
-    float *d_x_batch, *d_Sx_batch;
+    size_t id_bytes, id_f_bytes;
+    float *d_x_batch, *d_Sx_batch, *d_Sx_f_batch;
 
-    InputGPU(int nx, int B);
+    InputGPU(Network &net);
     void allocate_cuda_memory();
     void copy_host_to_device(std::vector<float> &x_batch,
-                             std::vector<float> &Sx_batch);
+                             std::vector<float> &Sx_batch,
+                             std::vector<float> &Sx_f_batch);
 
     void copy_device_to_host(std::vector<float> &x_batch,
-                             std::vector<float> &Sx_batch);
+                             std::vector<float> &Sx_batch,
+                             std::vector<float> &Sx_f_batch);
 
     ~InputGPU();
 };

@@ -3,7 +3,7 @@
 // Description:  global parameter update in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 28, 2021
-// Updated:      May 21, 2022
+// Updated:      June 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,6 @@ void globalParamUpdate(DeltaParamGPU &d_theta, int wN, int bN, int wN_sc,
                                        bN, theta.d_mb, theta.d_Sb);
 
     if (wN_sc > 0) {
-        int THREADS = 16;
         int BLOCKS_W_SC = (wN_sc + THREADS - 1) / THREADS;
         int BLOCKS_B_SC = (bN_sc + THREADS - 1) / THREADS;
 

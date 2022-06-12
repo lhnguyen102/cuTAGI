@@ -3,7 +3,7 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      June 08, 2022
+# Updated:      June 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ###############################################################################
@@ -80,7 +80,7 @@ class ImageViz:
 
         fig_path = f'{path_dir}/{self.data_name}_{self.task_name}.png'
 
-        _, axes = plt.subplots(n_row, n_col, figsize=((5, 5)))
+        _, axes = plt.subplots(n_row, n_col, figsize=((10, 10)))
         for i in range(num):
             ax = axes[i // n_col, i % n_col]
             ax.imshow(imgs[i], cmap='gray')
@@ -165,8 +165,8 @@ class PredictionViz:
         # Get max and min values
         max_y = max(y_test)
         min_y = min(y_test)
-        max_x = max(x_test)
-        min_x = min(x_test)
+        max_x = max(x_test) + 1
+        min_x = min(x_test) - 1
 
         # Plot figure
         plt.figure(figsize=self.figsize)
@@ -331,4 +331,5 @@ def input_uncertainty_prop():
 
 if __name__ == '__main__':
     #regression()
-    input_uncertainty_prop()
+    autoencoder()
+    #input_uncertainty_prop()

@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      June 08 2022
+// Updated:      June 12 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -157,6 +157,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
                 std::cout << avg_error << "\n";
             }
         }
+        // Report computational time
         std::cout << std::endl;
         auto end = std::chrono::steady_clock::now();
         auto run_time =
