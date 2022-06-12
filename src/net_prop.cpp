@@ -892,7 +892,7 @@ Network load_cfg(std::string net_file)
                         ss >> si;
                         if (si.compare("true") == 0) {
                             net.multithreading = true;
-                        } else if (si.compare("true") == 0) {
+                        } else if (si.compare("false") == 0) {
                             net.multithreading = false;
                         } else {
                             throw std::invalid_argument(

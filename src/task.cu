@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      May 22, 2022
+// Updated:      June 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -31,6 +31,7 @@ void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
                                   DeltaStateGPU &d_state_gpu,
                                   DeltaParamGPU &d_theta_gpu)
 /*Send network's data to device
+
   Args:
     net: Network properties on CPU
     idx: Indices of network on CPU
@@ -49,7 +50,7 @@ void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
     idx_gpu.copy_host_to_device(idx);
 
     // Data transfer for states
-    state_gpu.set_values(state);
+    state_gpu.set_values(state, net);
     state_gpu.allocate_cuda_memory();
     state_gpu.copy_host_to_device(state);
 
@@ -81,6 +82,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                  int n_epochs, int n_classes, SavePath &path, bool train_mode,
                  bool debug)
 /* Autoencoder network for generating images
+
    Args:
     net_e: Network properties for encoder
     idx_e: Indices of network for encoder
@@ -98,6 +100,10 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     debug: Debugging mode allows saving inference data
  */
 {
+    // Seed
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
+
     // Batch size check
     if (net_e.batch_size != net_d.batch_size) {
         throw std::invalid_argument(
@@ -117,10 +123,18 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     std::vector<int> label_batch(net_d.batch_size, 0);
 
     x_batch.resize(net_e.batch_size * net_e.nodes[0], 0);
-    Sx_batch.resize(net_e.batch_size * net_e.nodes[0], 0);
+    Sx_batch.resize(net_e.batch_size * net_e.nodes[0], pow(net_e.sigma_x, 2));
     y_batch.resize(net_d.batch_size * net_d.nodes.back(), 0);
     y_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
     V_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
+
+    // *TODO: Is there any better way?
+    std::vector<float> Sx_f_batch;
+    if (net_e.is_full_cov) {
+        float var_x = pow(net_e.sigma_x, 2);
+        auto Sx_f = initialize_upper_triu(var_x, net_e.nodes.front());
+        Sx_f_batch = repmat_vector(Sx_f, net_e.batch_size);
+    }
 
     // Transfer data for states of encoder
     IndexGPU idx_e_gpu;
@@ -143,7 +157,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                                  d_theta_d_gpu);
 
     // Transfer data for input and output
-    InputGPU ip_gpu(net_e.nodes[0], net_d.batch_size);
+    InputGPU ip_gpu(net_e);
     ip_gpu.allocate_cuda_memory();
 
     ObsGPU op_e_gpu(net_e.nodes.back(), net_e.nye, net_e.batch_size);
@@ -153,7 +167,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     op_d_gpu.allocate_cuda_memory();
 
     // Loop initialization
-    int THREADS = 16;
+    int THREADS = net_e.num_gpu_threads;
     unsigned int BLOCKS =
         (net_e.batch_size * net_e.nodes[0] + THREADS - 1) / THREADS;
     unsigned int BLOCKS_D =
@@ -163,23 +177,24 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     unsigned int BLOCKS_N_E = (state_e.mra.size() + THREADS - 1) / THREADS;
     unsigned int BLOCKS_N_D = (state_d.mra.size() + THREADS - 1) / THREADS;
 
+    /* TRAINING */
     if (train_mode) {
         std::cout << "Training...\n";
         for (int e = 0; e < n_epochs; e++) {
             std::cout << "################\n";
-            std::cout << "Epoch #" << e + 1 << "\n";
+            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
 
-            // Decay observation noise
             if (e > 0) {
+                // Shufle data
+                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+
+                // Decay observation noise
                 decay_obs_noise(net_d.sigma_v, net_d.decay_factor_sigma_v,
                                 net_d.sigma_v_min);
             }
             std::vector<float> V_batch(net_d.batch_size * net_d.nodes.back(),
                                        pow(net_d.sigma_v, 2));
             std::cout << "sigma v: " << V_batch[0] << "\n";
-
-            // Shufle data
-            std::random_shuffle(data_idx.begin(), data_idx.end());
 
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
@@ -197,14 +212,11 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                               batch_idx);
                 get_batch_data(imdb.images, batch_idx, net_e.nodes[0], x_batch);
                 get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-                ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+                ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
                 op_d_gpu.copy_host_to_device(x_batch, idx_ud_batch, V_batch);
 
                 // Initialize input of encoder
-                initializeStates<<<BLOCKS, THREADS>>>(
-                    ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_e_gpu.d_mz,
-                    state_e_gpu.d_Sz, state_e_gpu.d_ma, state_e_gpu.d_Sa,
-                    state_e_gpu.d_J, net_e.batch_size * net_e.nodes[0]);
+                initializeStates(state_e_gpu, ip_gpu, net_e);
 
                 // Feed forward for encoder
                 feedForward(net_e, theta_e_gpu, idx_e_gpu, state_e_gpu);
@@ -278,14 +290,19 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                     save_delta_param(dp_path_d, d_theta_d_gpu);
                 }
             }
+            // Report computational time
             std::cout << std::endl;
             auto end = std::chrono::steady_clock::now();
             auto run_time =
-                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
                     .count();
-            std::cout << " Time per epoch: " << run_time << " sec\n";
-            std::cout << " Time left     : "
-                      << run_time * (n_epochs - e - 1) / 60 << " mins\n";
+            std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
+            std::cout << " Time left     : ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
+                      << " mins\n";
         }
 
         d_state_e_gpu.copy_device_to_host();
@@ -304,6 +321,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
             save_inference_results(res_path_d, d_state_d_gpu, theta_d);
         }
     } else {
+        /* TESTING */
         std::cout << "Testing...\n";
         std::vector<float> ma_d_batch_out(net_d.batch_size * net_d.nodes.back(),
                                           0);
@@ -325,14 +343,11 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
             get_batch_idx(data_idx, i, net_e.batch_size, batch_idx);
             get_batch_data(imdb.images, batch_idx, net_e.nodes[0], x_batch);
             get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
             op_d_gpu.copy_host_to_device(x_batch, idx_ud_batch, V_batch);
 
             // Initialize input of encoder
-            initializeStates<<<BLOCKS, THREADS>>>(
-                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_e_gpu.d_mz,
-                state_e_gpu.d_Sz, state_e_gpu.d_ma, state_e_gpu.d_Sa,
-                state_e_gpu.d_J, net_e.batch_size * net_e.nodes[0]);
+            initializeStates(state_e_gpu, ip_gpu, net_e);
 
             // Feed forward for encoder
             feedForward(net_e, theta_e_gpu, idx_e_gpu, state_e_gpu);
@@ -385,7 +400,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
  */
 {
     // Seed
-    std::srand(unsigned(std::time(0)));
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
 
     // Compute number of data points
     int n_iter = imdb.num_data / net.batch_size;
@@ -405,9 +421,17 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<int> label_batch(net.batch_size, 0);
 
     x_batch.resize(net.batch_size * net.nodes.front(), 0);
-    Sx_batch.resize(net.batch_size * net.nodes.front(), 0);
+    Sx_batch.resize(net.batch_size * net.nodes.front(), pow(net.sigma_x, 2));
     y_batch.resize(net.batch_size * hrs.n_obs, 0);
     V_batch.resize(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
+
+    // *TODO: Is there any better way?
+    std::vector<float> Sx_f_batch;
+    if (net.is_full_cov) {
+        float var_x = pow(net.sigma_x, 2);
+        auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
+        Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
+    }
 
     IndexGPU idx_gpu;
     StateGPU state_gpu;
@@ -419,10 +443,10 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                                  theta_gpu, d_state_gpu, d_theta_gpu);
 
     // Data transfer for input and output data
-    InputGPU ip_gpu(net.nodes[0], net.batch_size);
+    InputGPU ip_gpu(net);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_gpu(net.nodes[net.nodes.size() - 1], net.nye, net.batch_size);
+    ObsGPU op_gpu(net.nodes.back(), net.nye, net.batch_size);
     op_gpu.allocate_cuda_memory();
 
     // Initialization
@@ -431,7 +455,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     int wN_sc = theta.mw_sc.size();
     int bN_sc = theta.mb_sc.size();
 
-    int THREADS = 16;
+    int THREADS = net.num_gpu_threads;
     unsigned int BLOCKS =
         (net.batch_size * net.nodes[0] + THREADS - 1) / THREADS;
     int mt_idx = 0;
@@ -452,12 +476,14 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
 
     for (int e = 0; e < n_epochs; e++) {
-        // Shufle data
-        std::random_shuffle(data_idx.begin(), data_idx.end());
-
+        /* TRAINING */
+        if (e > 0) {
+            // Shufle data
+            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        }
         // Timer
         std::cout << "################\n";
-        std::cout << "Epoch #" << e + 1 << "\n";
+        std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < n_iter; i++) {
@@ -475,14 +501,11 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
             get_batch_data(imdb.labels, batch_idx, 1, label_batch);
-            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
             op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
             // Initialize input
-            initializeStates<<<BLOCKS, THREADS>>>(
-                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
-                net.batch_size * net.nodes[0]);
+            initializeStates(state_gpu, ip_gpu, net);
 
             // Feed forward
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
@@ -508,8 +531,6 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                           net.batch_size);
             mt_idx = i * net.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
-            // update_vector(prob_class, prob_class_batch, mt_idx,
-            // n_classes);
 
             if (i % 1000 == 0) {
                 int curr_idx = mt_idx + net.batch_size;
@@ -522,14 +543,19 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                 std::cout << avg_error << "\n";
             }
         }
+        // Report computational time
         std::cout << std::endl;
         auto end = std::chrono::steady_clock::now();
         auto run_time =
-            std::chrono::duration_cast<std::chrono::seconds>(end - start)
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
                 .count();
-        std::cout << " Time per epoch: " << run_time << " sec\n";
-        std::cout << " Time left     : " << run_time * (n_epochs - e - 1) / 60
-                  << " mins\n";
+        std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
+        std::cout << " Time left     : ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
+
+        /* TESTING */
         std::cout << "Testing...\n";
         for (int i = 0; i < test_n_iter; i++) {
             // TODO: set = 0.9 when i > 0 or disable mean and variance in
@@ -543,14 +569,11 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
                            idx_ud_batch);
             get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
-            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
             op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
             // Initialize input
-            initializeStates<<<BLOCKS, THREADS>>>(
-                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
-                net.batch_size * net.nodes[0]);
+            initializeStates(state_gpu, ip_gpu, net);
 
             // Feed forward
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
@@ -558,14 +581,12 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             // Compute error rate
             state_gpu.copy_device_to_host(state);
             get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                              net.z_pos[net.nodes.size() - 1]);
+                              net.z_pos.back());
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
                           net.batch_size);
             mt_idx = i * net.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
-            // update_vector(prob_class, prob_class_batch, mt_idx,
-            // n_classes);
         }
 
         auto test_avg_error = compute_average_error_rate(
@@ -612,7 +633,8 @@ Args:
 */
 {
     // Seed
-    std::srand(unsigned(std::time(0)));
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
 
     // Compute number of data
     int n_iter = db.num_data / net.batch_size;
@@ -628,9 +650,17 @@ Args:
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
 
     x_batch.resize(net.batch_size * net.nodes.front(), 0);
-    Sx_batch.resize(net.batch_size * net.nodes.front(), 0);
+    Sx_batch.resize(net.batch_size * net.nodes.front(), pow(net.sigma_x, 2));
     y_batch.resize(net.batch_size * net.nodes.back(), 0);
     V_batch.resize(net.batch_size * net.nodes.back(), pow(net.sigma_v, 2));
+
+    // *TODO: Is there any better way?
+    std::vector<float> Sx_f_batch;
+    if (net.is_full_cov) {
+        float var_x = pow(net.sigma_x, 2);
+        auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
+        Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
+    }
 
     // Data transfer
     StateGPU state_gpu;
@@ -643,7 +673,7 @@ Args:
                                  theta_gpu, d_state_gpu, d_theta_gpu);
 
     // Data transfer for input and output data
-    InputGPU ip_gpu(net.nodes.front(), net.batch_size);
+    InputGPU ip_gpu(net);
     ip_gpu.allocate_cuda_memory();
 
     ObsGPU op_gpu(net.nodes.back(), net.nye, net.batch_size);
@@ -654,19 +684,28 @@ Args:
     int wN_sc = theta.mw_sc.size();
     int bN_sc = theta.mb_sc.size();
 
-    int THREADS = 16;
+    int THREADS = net.num_gpu_threads;
     unsigned int BLOCKS =
         (net.batch_size * net.nodes.front() + THREADS - 1) / THREADS;
 
+    /* TRAINING */
     if (train_mode) {
         for (int e = 0; e < n_epochs; e++) {
             // Shufle data
             if (e > 0) {
-                std::random_shuffle(data_idx.begin(), data_idx.end());
+                // Shufle data
+                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+
+                // Decay observation noise
+                decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
+                                net.sigma_v_min);
             }
+            std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+                                       pow(net.sigma_v, 2));
+
             // Timer
             std::cout << "################\n";
-            std::cout << "Epoch #" << e + 1 << "\n";
+            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
             std::cout << "Training...\n";
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
@@ -675,17 +714,15 @@ Args:
                               batch_idx);
                 get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
                 get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
-                ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+                ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
                 op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
                 // Initialize input
-                initializeStates<<<BLOCKS, THREADS>>>(
-                    ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                    state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa,
-                    state_gpu.d_J, net.batch_size * net.nodes.front());
+                initializeStates(state_gpu, ip_gpu, net);
 
                 // Feed forward
                 feedForward(net, theta_gpu, idx_gpu, state_gpu);
+                state_gpu.copy_device_to_host(state);
 
                 // Feed backward for hidden states
                 stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
@@ -704,16 +741,21 @@ Args:
             std::cout << std::endl;
             auto end = std::chrono::steady_clock::now();
             auto run_time =
-                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
                     .count();
-            std::cout << " Time per epoch: " << run_time << " sec\n";
-            std::cout << " Time left     : "
-                      << run_time * (n_epochs - e - 1) / 60 << " mins\n";
+            std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
+            std::cout << " Time left     : ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
+                      << " mins\n";
         }
         // state_gpu.copy_device_to_host(state);
         theta_gpu.copy_device_to_host(theta);
 
     } else {
+        /* TESTING */
         std::cout << "Testing...\n";
         std::vector<float> ma_batch_out(net.batch_size * net.nodes.back(), 0);
         std::vector<float> Sa_batch_out(net.batch_size * net.nodes.back(), 0);
@@ -728,14 +770,11 @@ Args:
                           batch_idx);
             get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
             get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
-            ip_gpu.copy_host_to_device(x_batch, Sx_batch);
+            ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
             op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
             // Initialize input
-            initializeStates<<<BLOCKS, THREADS>>>(
-                ip_gpu.d_x_batch, ip_gpu.d_Sx_batch, state_gpu.d_mz,
-                state_gpu.d_Sz, state_gpu.d_ma, state_gpu.d_Sa, state_gpu.d_J,
-                net.batch_size * net.nodes.front());
+            initializeStates(state_gpu, ip_gpu, net);
 
             // Feed forward
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
@@ -758,7 +797,7 @@ Args:
 
         // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
-            sy_norm[k] = pow(Sa_out[k], 0.5) + net.sigma_v;
+            sy_norm[k] = pow(Sa_out[k] + pow(net.sigma_v, 2), 0.5);
         }
         denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.nodes.back(), my);
         denormalize_mean(db.y, db.mu_y, db.sigma_y, net.nodes.back(), y_test);
@@ -943,6 +982,7 @@ void task_command(UserInput &user_input, SavePath &path) {
                    path, train_mode, user_input.debug);
 
         // Testing
+        test_net.sigma_v = net.sigma_v;
         train_mode = false;
         regression(test_net, test_idx, test_state, theta, test_db,
                    user_input.num_epochs, path, train_mode, user_input.debug);

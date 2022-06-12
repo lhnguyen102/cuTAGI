@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 04, 2022
+// Updated:      June 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -116,7 +116,7 @@ upper matrix are stored in a vector.
 
 Args:
     Sx: Initial value of the diagonal term of the covariance matrix
-    n: Size of the covatiance matrix
+    n: Size of the covariance matrix
 
 Returns:
     Sx_tu: Vector of the triangle upper matrix

@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      May 09, 2022
+// Updated:      June 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -142,10 +142,10 @@ Args:
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaMz: Updated quantities for the mean of output's hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ni: Number of hidden units for input
     B: Number of batches
     no: Number of hidden units for output
@@ -175,10 +175,10 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     deltaSz: Updated quantities for the varaince of output's hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ni: Number of hidden units for input
     B: Number of batches
     no: Number of hidden units for output
@@ -218,11 +218,11 @@ __global__ void convDeltaMz(float const *mw, float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaMz: Updated quantities for the mean of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     zwidxpos: Position of weight indices for covariance Z|WA
     zudidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
@@ -282,11 +282,11 @@ __global__ void convDeltaSz(float const *mw, float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     zwidxpos: Position of weight indices for covariance Z|WA
     zudidxpos: Positionof next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
@@ -362,10 +362,10 @@ __global__ void tconvDeltaMz(float const *mw, float const *Sz, float const *J,
     widx: Weight indices for covariance Z|WA i.e. FCzwa_1
     zidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for covariance Z|WA
     zidxpos: Positionof next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
@@ -424,10 +424,10 @@ __global__ void tconvDeltaSz(float const *mw, float const *Sz, float const *J,
     widx: Weight indices for covariance Z|WA i.e. FCzwa_1
     zidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for covariance Z|WA
     zidxpos: Positionof next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
@@ -492,11 +492,11 @@ __global__ void apDeltaMzSzOverlap(float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaMz: Updated quantities for the mean of the hidden states
     deltaSz: Updated quantities for the variance of the hidden states
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     zudidxpos: Positionof next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     wihi: Width x height of the input image
@@ -546,11 +546,11 @@ __global__ void apDeltaMzSz(float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaMz: Updated quantities for the mean of the hidden states
     deltaSz: Updated quantities for the variance of the hidden states
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     zudidxpos: Positionof next hidden state indices for covariance Z|Z+
     wo: Width for the output image
     ki: Kernel size
@@ -599,11 +599,11 @@ LAYER-NORMALIZATION layer whose the previous layer is convolutional layer.
     deltaMz: Updated quantities for the mean of the hidden states
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     rapos: Statistical mean and variance position for the
                 normalization layer
     wihi: Width x height for input image
@@ -643,10 +643,10 @@ LAYER-NORMALIZATION layer whose the previous layer is full-connected layer.
     deltaMz: Updated quantities for the mean of the hidden states
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     rapos: Statistical mean and variance position for the
                 normalization layer
     ni: Number of hidden units for input
@@ -687,11 +687,11 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
     deltaMz: Updated quantities for the mean of the hidden states
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     rapos: Statistical mean and variance position for the
                 normalization layer
     wihi: Width x height for input image
@@ -724,25 +724,25 @@ __global__ void fcbnDeltaMzSz(float const *mw, float const *Sz, float const *J,
 BATCH-NORMALIZATION layer whose the previous layer is full-connected layer.
 
 Args:
-   mw: Mean of weights
-   Sz: Variance of hidden states
-   J: Jacobian vector
-   Shat: Statistical variance for the normalization layers
-   deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
-   deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
-   epsilon: Constant for normalization layer to avoid zero-division
-   deltaMz: Updated quantities for the mean of the hidden states
-   deltaSz: Updated quantities for the variance of the hidden states
-   wpos: Weight position for this layer in the weight vector of network
-   zposIn: Input-hidden-state position for this layer in the weight vector
-           of network
-   jposIn: Positionos the Jacobian vector for this layer
-   zposOut: Output-hidden-state position for this layer in the weight vector
-           of network
-   rapos: Statistical mean and variance position for the
+    mw: Mean of weights
+    Sz: Variance of hidden states
+    J: Jacobian vector
+    Shat: Statistical variance for the normalization layers
+    deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
+    deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
+    epsilon: Constant for normalization layer to avoid zero-division
+    deltaMz: Updated quantities for the mean of the hidden states
+    deltaSz: Updated quantities for the variance of the hidden states
+    wpos: Weight position for this layer in the weight vector of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    jposIn: Positionos the Jacobian vector for this layer
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    rapos: Statistical mean and variance position for the
                normalization layer
-   ni: Number of hidden units for input
-   B:  Number of batches
+    ni: Number of hidden units for input
+    B:  Number of batches
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -782,11 +782,11 @@ __global__ void convDeltaMzsc(float const *mw, float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaMz: Updated quantities for the mean of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for covariance Z|WA
     aidxpos: Position of activation indices for covariance Z|WA
     zudidxpos: Positionof next hidden state indices for covariance Z|Z+
@@ -857,11 +857,11 @@ __global__ void convDeltaSzsc(float const *mw, float const *Sz, float const *J,
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     widxpos: Position of weight indices for covariance Z|WA
     aidxpos: Position of activation indices for covariance Z|WA
     zudidxpos: Positionof next hidden state indices for covariance Z|Z+
@@ -943,11 +943,11 @@ Args:
     J: Jacobian vector
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
     jposIn: Positionos the Jacobian vector for this layer
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     msposIn: Shorcut-hidden-state position
     N: Number of hidden units for the shortcut layer x number of batches.
 */
@@ -1023,7 +1023,7 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
  */
 {
     // Launch kernel
-    int THREADS = 16;
+    int THREADS = net.num_gpu_threads;
     dim3 dimBlock(THREADS, THREADS);
 
     // Declare variables

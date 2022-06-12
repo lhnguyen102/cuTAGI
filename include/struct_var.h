@@ -94,6 +94,7 @@ struct Network {
         sigma_v_min: Minimum value of observation noise (default value: 0.3)
         multithreading: Whether or not to run parallel computing using multiple
             threads
+        num_gpu_threads: Number of threads for gpu
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -133,6 +134,7 @@ struct Network {
     float sigma_v_min = 0.0f;
     bool multithreading = true;
     bool is_full_cov = false;
+    int num_gpu_threads = 16;
 };
 
 // NETWORK STATE

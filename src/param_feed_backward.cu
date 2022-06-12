@@ -3,7 +3,7 @@
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2021
-// Updated:      May 09, 2022
+// Updated:      June 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -25,10 +25,10 @@ Args:
     ma: Mean of activation units
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     m: Number of hidden units for input
     n: Number of batches
     k: Number of hidden units for output
@@ -58,10 +58,10 @@ Args:
     ma: Mean of activation units
     deltaS: Inovation vector for variance i.e (S_observation - S_prediction)
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     m: Number of hidden units for input
     n: Number of batches
     k: Number of hidden units for output
@@ -90,8 +90,8 @@ Args:
     Cbz: Covariance b|Z+
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     bpos: Bias position for this layer in the bias vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     m: Number of hidden units for input
     n: Number of batches
     k: Number of hidden units for output
@@ -120,7 +120,8 @@ Args:
     Cbz: Covariance b|Z+
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     bpos: Bias position for this layer in the bias vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     of network
     m: Number of hidden units for input
     n: Number of batches
@@ -327,10 +328,10 @@ Args:
     aidx: Activation indices for covariance W|Z+ i.e. FCwz_2
     zidx: Hidden state (Z+) indices for covariance Z|Z+ i.e. Swz_ud
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     aidxpos: Position of adix in its index vector of the network
     zidxpos: Position of zidx in its vector of the network
     woho: Width x height of the output image
@@ -384,10 +385,10 @@ Args:
     aidx: Activation indices for covariance W|Z+ i.e. FCwz_2
     zidx: Hidden state (Z+) indices for covariance Z|Z+ i.e. Swz_ud
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     aidxpos: Position of adix in its index vector of the network
     zidxpos: Position of zidx in its vector of the network
     woho: Width x height of the output image
@@ -437,8 +438,8 @@ Args:
     Cbz: Covariance b|Z+
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     bpos: Bias position for this layer in the bias vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     woho: Width x height of the output image
     fo: Number of filters of the output image
     B: Number of batches
@@ -471,8 +472,8 @@ Args:
     Cbz: Covariance b|Z+
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     bpos: Bias position for this layer in the bias vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-    of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     woho: Width x height of the output image
     fo: Number of filters of the output image
     B: Number of batches
@@ -518,10 +519,10 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ra_pos: Statistical mean and variance position for the
                 normalization layer
     wihi: Width x height of the input image
@@ -561,8 +562,8 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     bpos: biases position for this layer in the weight vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-             of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     wihi: Width x height of the input image
     fi: Number of filters of the input image
     m: fi x B
@@ -602,10 +603,10 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ra_pos: Statistical mean and variance position for the
             normalization layer
     ni: Number of hidden units for input
@@ -647,8 +648,8 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     bpos: Biases position for this layer in the weight vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ni: Number of hidden units for input
     B: Number of batches
     deltaMb: Updated quantities for the mean of biases
@@ -692,10 +693,10 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ra_pos: Statistical mean and variance position for the
     normalization layer
     wihi: Width x height of the input image
@@ -733,8 +734,8 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     bpos: biases position for this layer in the weight vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     wihi: Width x height of the input image
     m: B
     k: wihi x fi
@@ -774,10 +775,10 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     wpos: Weight position for this layer in the weight vector of network
-    zposIn: Input-hidden-state position for this layer in the weight vector
-            of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposIn: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ra_pos: Statistical mean and variance position for the
             normalization layer
     ni: Number of hidden units for input
@@ -818,8 +819,8 @@ Args:
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     epsilon: Constant for normalization layer to avoid zero-division
     bpos: Biases position for this layer in the weight vector of network
-    zposOut: Output-hidden-state position for this layer in the weight vector
-            of network
+    zposOut: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     ni: Number of hidden units for input
     B: Number of batches
     deltaMb: Updated quantities for the mean of biases
@@ -882,7 +883,7 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
  */
 {
     // Launch kernel
-    int THREADS = 16;
+    int THREADS = net.num_gpu_threads;
     dim3 dimBlock(THREADS, THREADS);
 
     // Declare variable
