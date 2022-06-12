@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.23)
 
 PROJECT(
   cuTAGI
-  VERSION 0.1.0
+  VERSION 0.1.1
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX 
 )
