@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 07, 2022
+// Updated:      June 13, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,10 +22,10 @@ Args:
     mz: Mean of hidden states
     w_pos: Weight position for this layer in the weight vector of network
     b_pos: Bias position for this layer in the bias vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-              of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-               of network
+    z_pos_in: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_out: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches
@@ -60,10 +60,10 @@ Args:
     Sz: Variance of hidden states
     w_pos: Weight position for this layer in the weight vector of network
     b_pos: Bias position for this layer in the bias vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-            of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-             of network
+    z_pos_in: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_out: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches

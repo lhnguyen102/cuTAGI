@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 06, 2022
+// Updated:      June 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +84,8 @@ struct Network {
         last_backward_layer: Index of last layer whose hidden states are updated
         sigma_v: Observation noise
         sigma_x: Input noise noise
+        noise_type: homosce or heteros
+        is_noise_inference: Whether or not to perform online inference
         alpha: alpha in leakylu
         epsilon: Constant for normalization layer to avoid zero-division
         ra_mt: Momentum for the normalization layer
@@ -95,6 +97,7 @@ struct Network {
         multithreading: Whether or not to run parallel computing using multiple
             threads
         num_gpu_threads: Number of threads for gpu
+        min_operations: Minimal number of operations to trigger multithread
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -125,6 +128,8 @@ struct Network {
     int last_backward_layer = 1;
     float sigma_v = 0.0f;
     float sigma_x = 0.0f;
+    std::string noise_type = "homosce";
+    bool is_noise_inference = false;
     float alpha = 0.1f;
     float epsilon = 0.0001f;
     float ra_mt = 0.9f;
@@ -135,11 +140,13 @@ struct Network {
     bool multithreading = true;
     bool is_full_cov = false;
     int num_gpu_threads = 16;
+    int min_operations = 1000;
 };
 
 // NETWORK STATE
 struct NetState {
     /* Network's hidden states
+
        Args:
         mz: Mean of hidden states
         Sz: Variance of hidden states
@@ -159,6 +166,44 @@ struct NetState {
     std::vector<float> mz, Sz, ma, Sa, J, msc, Ssc, mdsc, Sdsc, Sz_f, Sa_f,
         Sz_fp;
     std::vector<float> mra, Sra;
+    NoiseState noise_state;
+};
+
+struct NoiseState {
+    /* Observation noise's hidden states for the noise inference task
+
+    Args:
+        ma_mu: Mean of activation units for the output layer
+        Sa_mu: Variance of activation units for the output layer
+        Sz_mu: Variance of hidden states for the output layer
+        J_mu: Jacobian matrix for the output layer
+        ma_v2_prior: Prior mean of activation units for the noise observation
+        Sa_v2_prior: Prior variance of activation units for the noise
+            observation squared
+        Cza_v2: Prior covariance between activation units and hidden states for
+            the noise observation squared
+        J_v2: Jacobian matrix for the noise observation
+        ma_v2_post: Post mean of activation units for the noise observation
+            squared
+        Sa_v2_post: Post variance of activation units for the noise
+            observation sqaured
+        J_v: Jacobian matrix for the noise observation
+        delta_mv: Updated values for mean of hidden states for the observation
+             noise
+        delta_Sv: Updated values for variance of hidden states for the
+            observation noise
+        delta_mz_mu: Updated values for mean of the hidden states for the
+            outputs
+        delta_Sz_mu: Updated values for variance of the hidden states for the
+            outputs
+        delta_mz_v2b: Updated values for mean of the hidden states for the
+            observation noise squared
+        delta_Sz_v2b: Updated values for variance of the hidden states for the
+            observation noise squared
+     */
+    std::vector<float> ma_mu, Sa_mu, Sz_mu, J_mu, ma_v2_prior, Sa_v2_prior,
+        Cza_v2, J_v2, ma_v2_post, Sa_v2_post, J_v, delta_mv, delta_Sv,
+        delta_mz_mu, delta_Sz_mu, delta_mz_v2b, delta_Sz_v2b;
 };
 
 // NETWORK PARAMETERS

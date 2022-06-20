@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 08, 2022
+// Updated:      June 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -599,6 +599,27 @@ NetState initialize_net_states(Network &net) {
         S.Sz_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
         S.Sa_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
         S.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
+    }
+
+    if (net.is_noise_inference) {
+        int n_noise = net.nodes.back() / 2;
+        S.noise_state.ma_mu.resize(n_noise, 0);
+        S.noise_state.Sa_mu.resize(n_noise, 0);
+        S.noise_state.Sz_mu.resize(n_noise, 0);
+        S.noise_state.J_mu.resize(n_noise, 1);
+        S.noise_state.ma_v2_prior.resize(n_noise, 0);
+        S.noise_state.Sa_v2_prior.resize(n_noise, 0);
+        S.noise_state.Cza_v2.resize(n_noise, 0);
+        S.noise_state.J_v2.resize(n_noise, 1);
+        S.noise_state.ma_v2_post.resize(n_noise, 0);
+        S.noise_state.Sa_v2_post.resize(n_noise, 0);
+        S.noise_state.J_v.resize(n_noise, 1);
+        S.noise_state.delta_mv.resize(n_noise, 0);
+        S.noise_state.delta_Sv.resize(n_noise, 0);
+        S.noise_state.delta_mz_mu.resize(n_noise, 0);
+        S.noise_state.delta_Sz_mu.resize(n_noise, 0);
+        S.noise_state.delta_mz_v2b.resize(n_noise, 0);
+        S.noise_state.delta_Sz_v2b.resize(n_noise, 0);
     }
 
     return S;
