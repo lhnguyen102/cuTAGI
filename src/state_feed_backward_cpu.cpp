@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      June 19, 2022
+// Updated:      June 20, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -454,6 +454,12 @@ Args:
     }
 }
 
+void compute_obs_noise_variance(std::vector<float> &Sa, std::vector<float> &V) {
+    for (int i = 0; i < Sa.size(); i++) {
+        Sa[i] += V[i];
+    }
+}
+
 void get_output_hidden_states(std::vector<float> &z, int ny, int z_pos,
                               std::vector<float> &z_mu)
 /* Get hidden states of the output layer
@@ -666,14 +672,14 @@ Args:
     // function for the hidden states representing the observation noise for the
     // homoscedastic case so that we have to handle both following cases.
     // Heteroscedastic case
-    if (noise_type.compare("heteros")) {
+    if (noise_type.compare("heteros") == 0) {
         delta_mz_Sz_backward(
             noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
             noise_state.Cza_v2, noise_state.ma_v2_post, noise_state.Sa_v2_post,
             noise_state.delta_mz_v2b, noise_state.delta_Sz_v2b);
     }
     // Homoscedastic case
-    else if (noise_type.compare("homosce")) {
+    else if (noise_type.compare("homosce") == 0) {
         delta_mz_Sz_backward(noise_state.ma_v2_prior, noise_state.Sa_v2_prior,
                              noise_state.J_v, noise_state.Sa_v2_prior,
                              noise_state.ma_v2_post, noise_state.Sa_v2_post,
@@ -725,7 +731,7 @@ void delta_mz_Sz_with_idx_noise_dist(NoiseState &noise_state,
                                      std::string noise_type,
                                      std::vector<int> &ud_idx, int ny, int nye)
 /*Compute the updated quantities for the heteroscedastic & homoscedastic noise
-   distribution for the specified observaiton noise.
+   distribution for the specified observation noise.
 
 Args:
     noise_state: Noise state for the output layer
@@ -748,7 +754,7 @@ Args:
                                 noise_state.Sa_v2_prior);
 
     // Heteroscedastic case
-    if (noise_type.compare("heteros")) {
+    if (noise_type.compare("heteros") == 0) {
         delta_mz_Sz_with_indices_backward(
             noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
             noise_state.Cza_v2, noise_state.ma_v2_post, noise_state.Sa_v2_post,
@@ -756,7 +762,7 @@ Args:
             noise_state.delta_Sz_v2b);
     }
     // Homoscedastic case
-    else if (noise_type.compare("homosce")) {
+    else if (noise_type.compare("homosce") == 0) {
         delta_mz_Sz_with_indices_backward(
             noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v,
             noise_state.Sa_v2_prior, noise_state.ma_v2_post,
@@ -771,6 +777,18 @@ Args:
 ///////////////////////////////////////////////////////////////////////////
 /// UPDATED VALUES OF HIDDEN STATES FOR OUTPUT LAYER
 ///////////////////////////////////////////////////////////////////////////
+void update_homosce_noise(NoiseState &noise_state, int ny, int B) {
+    float tmp_m = 0.0f;
+    float tmp_S = 0.0f;
+    for (int i = 0; i < ny / 2; i++) {
+        for (int j = 0; j < B; j++) {
+            tmp_m += noise_state.delta_mz_v2b[j * B + i];
+            tmp_S += noise_state.delta_Sz_v2b[j * B + i];
+        }
+        noise_state.ma_v2_prior[i] += tmp_m;
+        noise_state.Sa_v2_prior[i] += tmp_S;
+    }
+}
 void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
                                               Obs &obs, DeltaState &d_state)
 /* Compute the updated value for the output layer including the noise
@@ -786,7 +804,7 @@ void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
                              state.noise_state.Sa_mu);
     get_output_hidden_states(state.J, net.nodes.back(), z_pos,
                              state.noise_state.J_mu);
-    if (net.noise_type.compare("heteros")) {
+    if (net.noise_type.compare("heteros") == 0) {
         get_noise_hidden_states(state.ma, net.nodes.back(), z_pos,
                                 state.noise_state.ma_v2_prior);
         get_noise_hidden_states(state.Sa, net.nodes.back(), z_pos,
@@ -822,7 +840,7 @@ void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
     }
 
     // Join updated values (outputs + its observatio noise)
-    if (net.noise_type.compare("heteros")) {
+    if (net.noise_type.compare("heteros") == 0) {
         join_output_hidden_states(state.noise_state.delta_mz_mu,
                                   state.noise_state.delta_mz_v2b,
                                   net.nodes.back(), d_state.delta_mz);
@@ -830,6 +848,12 @@ void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
         join_output_hidden_states(state.noise_state.delta_Sz_mu,
                                   state.noise_state.delta_Sz_v2b,
                                   net.nodes.back(), d_state.delta_Sz);
+    } else if (net.noise_type.compare("homosce") == 0) {
+        update_homosce_noise(state.noise_state, net.nodes.back(),
+                             net.batch_size);
+    } else {
+        throw std::invalid_argument(
+            "Noise inference type is invalid - state_feed_backward_cpu.cpp");
     }
 }
 
@@ -885,7 +909,8 @@ void update_output_hidden_states(Network &net, NetState &state, Obs &obs,
 {
     // Compute updated quantities for the output layer's hidden state
     if (!net.is_output_ud) {
-        if (!net.is_noise_inference) {
+        if (net.noise_type.compare("homosce") != 0 &&
+            net.noise_type.compare("heteros") != 0) {
             output_delta_mz_Sz(net, state, obs, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inferenece(state, net, obs, d_state);

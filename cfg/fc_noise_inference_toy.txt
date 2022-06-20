@@ -1,0 +1,6 @@
+layers: 	[1,     1,       1,     1,      1]
+nodes:		[1,     25,      25,    25,    2]
+activations:[0,     4,       4,     4,      0]
+batch_size: 1
+sigma_v: 0.5
+noise_type: heteros

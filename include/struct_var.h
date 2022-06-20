@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 19, 2022
+// Updated:      June 20, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,8 @@ struct Network {
         sigma_v: Observation noise
         sigma_x: Input noise noise
         noise_type: homosce or heteros
-        is_noise_inference: Whether or not to perform online inference
+        mu_v2b: Mean of the observation noise squared
+        sigma_v2b: Standard deviation of the observation noise squared
         alpha: alpha in leakylu
         epsilon: Constant for normalization layer to avoid zero-division
         ra_mt: Momentum for the normalization layer
@@ -128,8 +129,9 @@ struct Network {
     int last_backward_layer = 1;
     float sigma_v = 0.0f;
     float sigma_x = 0.0f;
-    std::string noise_type = "homosce";
-    bool is_noise_inference = false;
+    std::string noise_type = "none";
+    float mu_v2b = 0.0f;
+    float sigma_v2b = 0.0f;
     float alpha = 0.1f;
     float epsilon = 0.0001f;
     float ra_mt = 0.9f;
