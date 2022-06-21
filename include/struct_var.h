@@ -146,31 +146,6 @@ struct Network {
 };
 
 // NETWORK STATE
-struct NetState {
-    /* Network's hidden states
-
-       Args:
-        mz: Mean of hidden states
-        Sz: Variance of hidden states
-        ma: Mean of activation units
-        Sa: Variance of activation units
-        J: Jacobian matrix
-        msc: Mean of the shortcut's hidden states
-        Ssc: Variance of the short's hidden states
-        mdsc: Mean of the delta shortcut's hidden states
-        Sdsc: Variance of the delta short's hidden states
-        Sz_f: Full covariance of hidden states
-        Sa_f: Full covariance of activation units
-        Sz_fp: Partially full covariance of hidden states
-        mra: Statistical mean for the normalization layers
-        Sra: Statistical variance for the normalization layers
-    */
-    std::vector<float> mz, Sz, ma, Sa, J, msc, Ssc, mdsc, Sdsc, Sz_f, Sa_f,
-        Sz_fp;
-    std::vector<float> mra, Sra;
-    NoiseState noise_state;
-};
-
 struct NoiseState {
     /* Observation noise's hidden states for the noise inference task
 
@@ -206,6 +181,31 @@ struct NoiseState {
     std::vector<float> ma_mu, Sa_mu, Sz_mu, J_mu, ma_v2_prior, Sa_v2_prior,
         Cza_v2, J_v2, ma_v2_post, Sa_v2_post, J_v, delta_mv, delta_Sv,
         delta_mz_mu, delta_Sz_mu, delta_mz_v2b, delta_Sz_v2b;
+};
+
+struct NetState {
+    /* Network's hidden states
+
+       Args:
+        mz: Mean of hidden states
+        Sz: Variance of hidden states
+        ma: Mean of activation units
+        Sa: Variance of activation units
+        J: Jacobian matrix
+        msc: Mean of the shortcut's hidden states
+        Ssc: Variance of the short's hidden states
+        mdsc: Mean of the delta shortcut's hidden states
+        Sdsc: Variance of the delta short's hidden states
+        Sz_f: Full covariance of hidden states
+        Sa_f: Full covariance of activation units
+        Sz_fp: Partially full covariance of hidden states
+        mra: Statistical mean for the normalization layers
+        Sra: Statistical variance for the normalization layers
+    */
+    std::vector<float> mz, Sz, ma, Sa, J, msc, Ssc, mdsc, Sdsc, Sz_f, Sa_f,
+        Sz_fp;
+    std::vector<float> mra, Sra;
+    NoiseState noise_state;
 };
 
 // NETWORK PARAMETERS

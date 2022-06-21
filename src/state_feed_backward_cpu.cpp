@@ -434,65 +434,9 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
 ///////////////////////////////////////////////////////////////////////////
 /// NOISE INFERENCE
 ///////////////////////////////////////////////////////////////////////////
-void exp_fn(std::vector<float> &mz, std::vector<float> &Sz,
-            std::vector<float> &ma, std::vector<float> &Sa,
-            std::vector<float> &Cza)
-/* Exponential function y = exp(x)
-
-Args:
-    mz: Mean of hidden states
-    Sz: Variance of hidden states
-    ma: Mean of activation units
-    Sa: Variance of activation units
-    Cza: Covariance between hidden states and activation units
-*/
-{
-    for (int i = 0; i < mz.size(); i++) {
-        ma[i] = exp(mz[i] + 0.5 * Sz[i]);
-        Sa[i] = exp(2 * mz[i] + Sz[i]) * (exp(Sz[i]) - 1);
-        Cza[i] = Sz[i] * exp(mz[i] + 0.5 * Sz[i]);
-    }
-}
-
 void compute_obs_noise_variance(std::vector<float> &Sa, std::vector<float> &V) {
     for (int i = 0; i < Sa.size(); i++) {
         Sa[i] += V[i];
-    }
-}
-
-void get_output_hidden_states(std::vector<float> &z, int ny, int z_pos,
-                              std::vector<float> &z_mu)
-/* Get hidden states of the output layer
-
-Args:
-    z: Output hidden states of the entire network
-    ny: Number of hidden states of the output layer including hidden states
-        for noise observation
-    z_pos: Position of hidden state for the output layer
-        in hidden-state vector of network
-    z_mu: Hidden states for the output
- */
-{
-    int n = z_mu.size();
-    int h = ny / 2;
-    int k;
-    for (int i = 0; i < n; i++) {
-        k = (i / h) * ny + i % h + h;
-        z_mu[i] = z[z_pos + k];
-    }
-}
-
-void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
-                             std::vector<float> &z_v2)
-/* Get hidden states of the output layer
- */
-{
-    int n = z_v2.size();
-    int h = ny / 2;
-    int m;
-    for (int i = 0; i < n; i++) {
-        m = (i / h) * ny + i % h;
-        z_v2[i] = z[z_pos + m];
     }
 }
 
@@ -777,7 +721,11 @@ Args:
 ///////////////////////////////////////////////////////////////////////////
 /// UPDATED VALUES OF HIDDEN STATES FOR OUTPUT LAYER
 ///////////////////////////////////////////////////////////////////////////
-void update_homosce_noise(NoiseState &noise_state, int ny, int B) {
+void update_homosce_noise(NoiseState &noise_state, int ny, int B)
+/* Compute the updated values for homoscedastic noise squared by summing up the
+   mini-batches of updated values of each noise observation squared
+ */
+{
     float tmp_m = 0.0f;
     float tmp_S = 0.0f;
     for (int i = 0; i < ny / 2; i++) {
@@ -796,29 +744,6 @@ void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
  */
 {
     int z_pos = net.z_pos.back();
-
-    // Assign value to the nosie states
-    get_output_hidden_states(state.ma, net.nodes.back(), z_pos,
-                             state.noise_state.ma_mu);
-    get_output_hidden_states(state.Sa, net.nodes.back(), z_pos,
-                             state.noise_state.Sa_mu);
-    get_output_hidden_states(state.J, net.nodes.back(), z_pos,
-                             state.noise_state.J_mu);
-    if (net.noise_type.compare("heteros") == 0) {
-        get_noise_hidden_states(state.ma, net.nodes.back(), z_pos,
-                                state.noise_state.ma_v2_prior);
-        get_noise_hidden_states(state.Sa, net.nodes.back(), z_pos,
-                                state.noise_state.Sa_v2_prior);
-        get_noise_hidden_states(state.J, net.nodes.back(), z_pos,
-                                state.noise_state.J_v2);
-
-        // Activate observation noise squared using exponential fun.
-        // TODO: DOUBLE CHECK IF IT OVERITES THE VECTOR
-        exp_fn(state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
-               state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
-               state.noise_state.Cza_v2);
-    }
-
     if (net.is_idx_ud) {
         // Compute updated values for the output distribution
         delta_mz_Sz_with_idx_output_dist(obs.y_batch, obs.V_batch,

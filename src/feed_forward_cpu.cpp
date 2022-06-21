@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 13, 2022
+// Updated:      June 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -748,6 +748,26 @@ void leakyrelu_mean_var_multithreading(std::vector<float> &mz,
     }
 }
 
+void exp_fn(std::vector<float> &mz, std::vector<float> &Sz,
+            std::vector<float> &ma, std::vector<float> &Sa,
+            std::vector<float> &Cza)
+/* Exponential function y = exp(x)
+
+Args:
+    mz: Mean of hidden states
+    Sz: Variance of hidden states
+    ma: Mean of activation units
+    Sa: Variance of activation units
+    Cza: Covariance between hidden states and activation units
+*/
+{
+    for (int i = 0; i < mz.size(); i++) {
+        ma[i] = exp(mz[i] + 0.5 * Sz[i]);
+        Sa[i] = exp(2 * mz[i] + Sz[i]) * (exp(Sz[i]) - 1);
+        Cza[i] = Sz[i] * exp(mz[i] + 0.5 * Sz[i]);
+    }
+}
+
 void act_full_cov(std::vector<float> &Sz_f, std::vector<float> &J, int no,
                   int B, int z_pos_out, std::vector<float> &Sa_f)
 /*Activate the full covariance.
@@ -938,6 +958,95 @@ void initialize_states_multithreading(std::vector<float> &x,
 }
 
 //////////////////////////////////////////////////////////////////////
+/// OUTPUT HIDDEN STATES
+//////////////////////////////////////////////////////////////////////
+void get_output_hidden_states(std::vector<float> &z, int z_pos,
+                              std::vector<float> &z_mu)
+/*Get output's distrinution
+
+Args:
+    z: Mean of activation units of the entire network
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    z_mu: Hidden states for the output
+*/
+{
+    for (int i = 0; i < z_mu.size(); i++) {
+        z_mu[i] = z[z_pos + i];
+    }
+}
+
+void get_output_hidden_states_ni(std::vector<float> &z, int ny, int z_pos,
+                                 std::vector<float> &z_mu)
+/* Get hidden states of the output layer for the noise-inference case
+
+Args:
+    z: Output hidden states of the entire network
+    ny: Number of hidden states of the output layer including hidden states
+        for noise observation
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    z_mu: Hidden states for the output
+ */
+{
+    int n = z_mu.size();
+    int h = ny / 2;
+    int k;
+    for (int i = 0; i < n; i++) {
+        k = (i / h) * ny + i % h + h;
+        z_mu[i] = z[z_pos + k];
+    }
+}
+
+void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
+                             std::vector<float> &z_v2)
+/* Get hidden states of the output layer
+ */
+{
+    int n = z_v2.size();
+    int h = ny / 2;
+    int m;
+    for (int i = 0; i < n; i++) {
+        m = (i / h) * ny + i % h;
+        z_v2[i] = z[z_pos + m];
+    }
+}
+
+void output_hidden_states(NetState &state, Network &net,
+                          std::vector<float> &ma_output,
+                          std::vector<float> &Sa_output)
+/* Get output's activation units
+
+Args:
+    net: Network architecture
+    state: Hidden state of network
+    ma_output: Mean of output's activation units
+    Sa_output: Variance of output's activation units
+
+ */
+{
+    if (net.noise_type.compare("heteros") == 0) {
+        int ny = net.nodes.back();
+        ma_output.resize((ny / 2) * net.batch_size, 0);
+        Sa_output.resize((ny / 2) * net.batch_size, 0);
+        for (int i = 0; i < (ny / 2) * net.batch_size; i++) {
+            ma_output[i] = state.noise_state.ma_mu[i];
+            Sa_output[i] =
+                state.noise_state.Sa_mu[i] + state.noise_state.ma_v2_prior[i];
+        }
+    } else {
+        get_output_hidden_states(state.ma, net.z_pos.back(), ma_output);
+        get_output_hidden_states(state.Sa, net.z_pos.back(), Sa_output);
+        if (net.noise_type.compare("homosce") == 0) {
+            for (int i = 0; i < net.nodes.back() * net.batch_size; i++) {
+                Sa_output[i] = state.noise_state.Sa_mu[i] +
+                               state.noise_state.ma_v2_prior[i];
+            }
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
 /// TAGI-FEEDFORWARD PASS
 //////////////////////////////////////////////////////////////////////
 void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
@@ -970,7 +1079,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         //
         if (net.layers[j] == net.layer_names.fc) {
             if (!net.is_full_cov) {
-                if (no * B > 1000 && net.multithreading) {
+                if (no * B > net.min_operations && net.multithreading) {
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
@@ -985,7 +1094,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                                B, state.Sz);
                 }
             } else {
-                if (no * B * no > 1000 && net.multithreading) {
+                if (no * B * no > net.min_operations && net.multithreading) {
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
@@ -1019,7 +1128,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         //
         if (net.activations[j] == 1)  // tanh
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 no_act_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                no_B, state.ma, state.J,
                                                state.Sa);
@@ -1029,7 +1138,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 2)  // sigmoid
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 tanh_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                              no_B, state.ma, state.J, state.Sa);
 
@@ -1039,7 +1148,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 4)  // ReLU
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 relu_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                              no_B, state.ma, state.J, state.Sa);
             } else {
@@ -1048,7 +1157,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 5)  // softplus
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 softplus_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                  no_B, state.ma, state.J,
                                                  state.Sa);
@@ -1059,7 +1168,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 6)  // leaky ReLU
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 leakyrelu_mean_var_multithreading(state.mz, state.Sz, net.alpha,
                                                   z_pos_out, no_B, state.ma,
                                                   state.J, state.Sa);
@@ -1069,7 +1178,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else  // no activation
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 no_act_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                no_B, state.ma, state.J,
                                                state.Sa);
@@ -1082,14 +1191,15 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         // Full-covariance mode
         if (net.is_full_cov) {
             if (net.activations[j] == 0) {
-                if (no * B * no > 1000 && net.multithreading) {
+                if (no * B * no > net.min_operations && net.multithreading) {
                     no_act_full_cov_multithreading(state.Sz_f, no, B,
                                                    state.Sa_f);
                 } else {
                     no_act_full_cov(state.Sz_f, no, B, state.Sa_f);
                 }
             } else {
-                if (((no * (no + 1) / 2) * B) > 1000 && net.multithreading) {
+                if (((no * (no + 1) / 2) * B) > net.min_operations &&
+                    net.multithreading) {
                     act_full_cov_multithreading(state.Sz_f, state.J, no, B,
                                                 z_pos_out, state.Sa_f);
                 } else {
@@ -1098,5 +1208,38 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                 }
             }
         }
+    }
+    // Separare the output layer into output & noise hidden states
+    if (net.noise_type.compare("heteros") == 0) {
+        // Assign value to the nosie states
+        get_output_hidden_states_ni(state.ma, net.nodes.back(),
+                                    net.z_pos.back(), state.noise_state.ma_mu);
+        get_output_hidden_states_ni(state.Sa, net.nodes.back(),
+                                    net.z_pos.back(), state.noise_state.Sa_mu);
+        get_output_hidden_states_ni(state.J, net.nodes.back(), net.z_pos.back(),
+                                    state.noise_state.J_mu);
+
+        get_noise_hidden_states(state.ma, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.ma_v2_prior);
+        get_noise_hidden_states(state.Sa, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.Sa_v2_prior);
+        get_noise_hidden_states(state.J, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.J_v2);
+
+        // Activate observation noise squared using exponential fun.
+        // TODO: DOUBLE CHECK IF IT OVERITES THE VECTOR
+        exp_fn(state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
+               state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
+               state.noise_state.Cza_v2);
+
+    } else if (net.noise_type.compare("homosce") == 0) {
+        // Assign value to the nosie states
+        get_output_hidden_states(state.ma, net.z_pos.back(),
+                                 state.noise_state.ma_mu);
+        get_output_hidden_states(state.Sa, net.z_pos.back(),
+                                 state.noise_state.Sa_mu);
+        get_output_hidden_states(state.J, net.z_pos.back(),
+                                 state.noise_state.J_mu);
+    } else {
     }
 }

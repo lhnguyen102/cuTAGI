@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 20, 2022
+// Updated:      June 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -604,7 +604,12 @@ NetState initialize_net_states(Network &net) {
 
     if (net.noise_type.compare("homosce") == 0 ||
         net.noise_type.compare("heteros") == 0) {
-        int n_noise = net.nodes.back() / 2;
+        int n_noise;
+        if (net.noise_type.compare("heteros") == 0) {
+            n_noise = net.nodes.back() / 2;
+        } else {
+            n_noise = net.nodes.back();
+        }
         state.noise_state.ma_mu.resize(n_noise, 0);
         state.noise_state.Sa_mu.resize(n_noise, 0);
         state.noise_state.Sz_mu.resize(n_noise, 0);
