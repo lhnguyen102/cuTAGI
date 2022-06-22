@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 20, 2022
+// Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,6 +43,8 @@ struct Network {
         init_method: Initalization method e.g. He and Xavier
         gain_w: Gain for weight parameters when initializing
         gain_b: Gain for biases parameters when initializing
+        noise_gain : Gain fof biases parameters relating to noise's hidden
+            states
         w_pos: Weights weight position for each layer in the vector of weights
         b_pos: Biases position for each layer in the vector of biases
         w_pos_sc: Weights position for each layer in the vector of weights for
@@ -74,6 +76,8 @@ struct Network {
         FCzwa_1_col:Number of column of weight indices for covariance Z|WA
 
         ***********************************************************************
+        n_x: Number of inputs
+        n_y: Number of outputs without the heteroscedastic noise
         batch_size: Number of batches of data
         n_state: Total number of states
         n_max_state: Maximum number of states amongst layers
@@ -119,6 +123,7 @@ struct Network {
     std::vector<int> col_z_sc;
     std::vector<int> Fmwa_1_col, FCzwa_1_col;
 
+    int n_x, n_y;
     int batch_size = 1;
     int n_state = 1;
     int n_max_state = 1;
@@ -130,6 +135,7 @@ struct Network {
     float sigma_v = 0.0f;
     float sigma_x = 0.0f;
     std::string noise_type = "none";
+    float noise_gain = 0.5f;
     float mu_v2b = 0.0f;
     float sigma_v2b = 0.0f;
     float alpha = 0.1f;

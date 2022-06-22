@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      June 21 2022
+// Updated:      June 22 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -488,15 +488,14 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Train data
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
-        auto train_db =
-            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
-                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
-                           net.nodes.front(), net.nodes.back());
+        auto train_db = get_dataloader(
+            user_input.x_train_dir, user_input.y_train_dir, mu_x, sigma_x, mu_y,
+            sigma_y, user_input.num_train_data, net.n_x, net.n_y);
         // Test data
         auto test_db = get_dataloader(
             user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
             train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
-            user_input.num_test_data, net.nodes.front(), net.nodes.back());
+            user_input.num_test_data, net.n_x, net.n_y);
 
         // Load param
         if (user_input.load_param) {

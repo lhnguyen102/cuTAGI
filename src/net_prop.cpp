@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 21, 2022
+// Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,6 +312,53 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     return {m, S};
 }
 
+std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
+    float scale, float gain, float noise_gain, int N)
+/* Parmeter initialization of TAGI neural network including the noise's hidden
+ * states
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Variance for output and noise's hidden states
+        if (i < N / 2) {
+            S[i] = gain * pow(scale, 2);
+        } else {
+            S[i] = noise_gain * pow(scale, 2);
+            scale = pow(S[i], 0.5);
+            int a = 0;
+        }
+
+        // Get normal distribution
+        std::normal_distribution<float> d(0.0f, scale);
+
+        // Get sample for weights
+        m[i] = d(gen);
+    }
+
+    return {m, S};
+}
+
 void get_net_props(Network &net)
 /*
  * Get network properties based on the network architecture
@@ -511,6 +558,14 @@ void net_default(Network &net)
  **/
 {
     int num_layers = net.layers.size();
+    // Number of inputs & outputs
+    if (net.noise_type.compare("heteros") == 0) {
+        net.n_y = net.nodes.back() / 2;
+    } else {
+        net.n_y = net.nodes.back();
+    }
+    net.n_x = net.nodes.front();
+
     // Network architecture
     if (net.widths.size() == 0) {
         net.widths.resize(num_layers, 0);
@@ -688,14 +743,28 @@ Param initialize_param(Network &net) {
 
             // Weight
             if (net.num_weights[j] > 0) {
-                std::tie(mw_j, Sw_j) = gaussian_param_init(scale, net.gain_w[j],
-                                                           net.num_weights[j]);
+                if (net.noise_type.compare("heteros") == 0 &&
+                    j == num_layers - 1) {
+                    std::tie(mw_j, Sw_j) = gaussian_param_init_ni(
+                        scale, net.gain_w[j], net.noise_gain,
+                        net.num_weights[j]);
+                } else {
+                    std::tie(mw_j, Sw_j) = gaussian_param_init(
+                        scale, net.gain_w[j], net.num_weights[j]);
+                }
             }
 
             // Biases
             if (net.num_biases[j] > 0) {
-                std::tie(mb_j, Sb_j) = gaussian_param_init(scale, net.gain_b[j],
-                                                           net.num_biases[j]);
+                if (net.noise_type.compare("heteros") == 0 &&
+                    j == num_layers - 1) {
+                    std::tie(mb_j, Sb_j) = gaussian_param_init_ni(
+                        scale, net.gain_b[j], net.noise_gain,
+                        net.num_biases[j]);
+                } else {
+                    std::tie(mb_j, Sb_j) = gaussian_param_init(
+                        scale, net.gain_b[j], net.num_biases[j]);
+                }
             }
         }
 

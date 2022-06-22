@@ -833,7 +833,7 @@ void update_output_hidden_states(Network &net, NetState &state, Obs &obs,
  */
 {
     // Compute updated quantities for the output layer's hidden state
-    if (!net.is_output_ud) {
+    if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
             net.noise_type.compare("heteros") != 0) {
             output_delta_mz_Sz(net, state, obs, d_state);

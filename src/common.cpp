@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 11, 2022
+// Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -91,6 +91,94 @@ Args:
     }
 }
 
+//////////////////////////////////////////////////////////////////////
+/// OUTPUT HIDDEN STATES
+//////////////////////////////////////////////////////////////////////
+void get_output_hidden_states(std::vector<float> &z, int z_pos,
+                              std::vector<float> &z_mu)
+/*Get output's distrinution
+
+Args:
+    z: Mean of activation units of the entire network
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    z_mu: Hidden states for the output
+*/
+{
+    for (int i = 0; i < z_mu.size(); i++) {
+        z_mu[i] = z[z_pos + i];
+    }
+}
+
+void get_output_hidden_states_ni(std::vector<float> &z, int ny, int z_pos,
+                                 std::vector<float> &z_mu)
+/* Get hidden states of the output layer for the noise-inference case
+
+Args:
+    z: Output hidden states of the entire network
+    ny: Number of hidden states of the output layer including hidden states
+        for noise observation
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    z_mu: Hidden states for the output
+ */
+{
+    int n = z_mu.size();
+    int h = ny / 2;
+    int m;
+    for (int i = 0; i < n; i++) {
+        m = (i / h) * ny + i % h;
+        z_mu[i] = z[z_pos + m];
+    }
+}
+
+void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
+                             std::vector<float> &z_v2)
+/* Get hidden states of the output layer
+ */
+{
+    int n = z_v2.size();
+    int h = ny / 2;
+    int k;
+    for (int i = 0; i < n; i++) {
+        k = (i / h) * ny + i % h + h;
+        z_v2[i] = z[z_pos + k];
+    }
+}
+
+void output_hidden_states(NetState &state, Network &net,
+                          std::vector<float> &ma_output,
+                          std::vector<float> &Sa_output)
+/* Get output's activation units
+
+Args:
+    net: Network architecture
+    state: Hidden state of network
+    ma_output: Mean of output's activation units
+    Sa_output: Variance of output's activation units
+
+ */
+{
+    if (net.noise_type.compare("heteros") == 0) {
+        int ny = net.nodes.back();
+        ma_output.resize((ny / 2) * net.batch_size, 0);
+        Sa_output.resize((ny / 2) * net.batch_size, 0);
+        for (int i = 0; i < (ny / 2) * net.batch_size; i++) {
+            ma_output[i] = state.noise_state.ma_mu[i];
+            Sa_output[i] =
+                state.noise_state.Sa_mu[i] + state.noise_state.ma_v2_prior[i];
+        }
+    } else {
+        get_output_hidden_states(state.ma, net.z_pos.back(), ma_output);
+        get_output_hidden_states(state.Sa, net.z_pos.back(), Sa_output);
+        if (net.noise_type.compare("homosce") == 0) {
+            for (int i = 0; i < net.nodes.back() * net.batch_size; i++) {
+                Sa_output[i] = state.noise_state.Sa_mu[i] +
+                               state.noise_state.ma_v2_prior[i];
+            }
+        }
+    }
+}
 void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx)
