@@ -22,9 +22,9 @@ Coming soon...
 * Reinforcement learning: DQN
 * +++
 
-An example of [regression task](#regression-task) in diagonal and full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties)
+An example of [regression task](#regression-task) in diagonal, full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties) and an example of inferring the heteroscedastic noise for the regression task.
 <p align="center">
-  <img src="./saved_results/pred_diag_toy_example.png" width="350px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="355px">
+  <img src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img src="./saved_results/pred_hete_toy_example.png" width="348px">
   </p>
 
 ## User Input
@@ -47,6 +47,7 @@ x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input
 y_test_dir:              # Data directory for the testing output
+device:                  # cuda or cpu
 ```
 The default values for each input user is set to empty. Here is an example of user inputs for the MNIST classification task [`cfg/cfg_mnist_2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/cfg_mnist_2conv.txt)
 ```
@@ -219,18 +220,23 @@ sigma_v:    1
 </p>
 
 ### Regression task
-* UCI Dataset
+* UCI dataset
   ```sh
   build/main cfg_bh_2fc.txt
   ```
-* 1D Toy Example using diagonal covariance matrix
+* 1D toy example using diagonal covariance matrix
   ```sh
   build/main cfg_toy_example_fc.txt
   ```
 
-* 1D Toy Example using full covariance matrix
+* 1D toy example using full covariance matrix
   ```sh
   build/main cfg_toy_full_cov_fc.txt
+  ```
+
+* Heteroscedastic noise inference for 1D toy example
+  ```sh
+  build/main cfg_toy_ni_fc.txt
   ```
 
 ## Directory Structure

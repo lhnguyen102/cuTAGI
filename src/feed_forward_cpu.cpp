@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 22, 2022
+// Updated:      June 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -763,8 +763,8 @@ Args:
 {
     float tmp_m, tmp_S;
     for (int i = 0; i < mz.size(); i++) {
-        tmp_m = ma[i];
-        tmp_S = Sa[i];
+        tmp_m = mz[i];
+        tmp_S = Sz[i];
         ma[i] = exp(mz[i] + 0.5 * Sz[i]);
         Sa[i] = exp(2 * tmp_m + tmp_S) * (exp(tmp_S) - 1);
         Cza[i] = tmp_S * exp(tmp_m + 0.5 * tmp_S);

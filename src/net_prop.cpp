@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 22, 2022
+// Updated:      June 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -659,12 +659,7 @@ NetState initialize_net_states(Network &net) {
 
     if (net.noise_type.compare("homosce") == 0 ||
         net.noise_type.compare("heteros") == 0) {
-        int n_noise;
-        if (net.noise_type.compare("heteros") == 0) {
-            n_noise = net.nodes.back() / 2;
-        } else {
-            n_noise = net.nodes.back();
-        }
+        int n_noise = net.n_y * net.batch_size;
         state.noise_state.ma_mu.resize(n_noise, 0);
         state.noise_state.Sa_mu.resize(n_noise, 0);
         state.noise_state.Sz_mu.resize(n_noise, 0);
@@ -878,17 +873,18 @@ Network load_cfg(std::string net_file)
  **/
 {
     // Dictionary for the cfg file
-    std::string key_words[] = {"layers",      "nodes",
-                               "kernels",     "strides",
-                               "widths",      "heights",
-                               "filters",     "pads",
-                               "pad_types",   "shortcuts",
-                               "activations", "batch_size",
-                               "sigma_v",     "decay_factor_sigma_v",
-                               "sigma_v_min", "sigma_x",
-                               "init_method", "is_full_cov",
-                               "noise_type",  "mu_v2b",
-                               "sigma_v2b",   "multithreading"};
+    std::string key_words[] = {"layers",        "nodes",
+                               "kernels",       "strides",
+                               "widths",        "heights",
+                               "filters",       "pads",
+                               "pad_types",     "shortcuts",
+                               "activations",   "batch_size",
+                               "sigma_v",       "decay_factor_sigma_v",
+                               "sigma_v_min",   "sigma_x",
+                               "init_method",   "is_full_cov",
+                               "noise_type",    "mu_v2b",
+                               "sigma_v2b",     "noise_gain",
+                               "multithreading"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1001,6 +997,12 @@ Network load_cfg(std::string net_file)
                     if (ss.good()) {
                         ss >> f;
                         net.sigma_v2b = f;
+                    }
+                } else if (key_words[k] == "noise_gain") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.noise_gain = f;
                     }
                 } else if (key_words[k] == "multithreading") {
                     std::stringstream ss(line.substr(pos + key.size()));

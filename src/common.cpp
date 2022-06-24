@@ -160,10 +160,7 @@ Args:
  */
 {
     if (net.noise_type.compare("heteros") == 0) {
-        int ny = net.nodes.back();
-        ma_output.resize((ny / 2) * net.batch_size, 0);
-        Sa_output.resize((ny / 2) * net.batch_size, 0);
-        for (int i = 0; i < (ny / 2) * net.batch_size; i++) {
+        for (int i = 0; i < net.n_y * net.batch_size; i++) {
             ma_output[i] = state.noise_state.ma_mu[i];
             Sa_output[i] =
                 state.noise_state.Sa_mu[i] + state.noise_state.ma_v2_prior[i];
@@ -172,7 +169,7 @@ Args:
         get_output_hidden_states(state.ma, net.z_pos.back(), ma_output);
         get_output_hidden_states(state.Sa, net.z_pos.back(), Sa_output);
         if (net.noise_type.compare("homosce") == 0) {
-            for (int i = 0; i < net.nodes.back() * net.batch_size; i++) {
+            for (int i = 0; i < net.n_y * net.batch_size; i++) {
                 Sa_output[i] = state.noise_state.Sa_mu[i] +
                                state.noise_state.ma_v2_prior[i];
             }

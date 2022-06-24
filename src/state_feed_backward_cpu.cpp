@@ -455,7 +455,7 @@ Args:
 {
     int h = ny / 2;
     int m, k;
-    for (int i = 0; i < h; i++) {
+    for (int i = 0; i < z_mu.size(); i++) {
         m = (i / h) * ny + i % h;
         k = (i / h) * ny + i % h + h;
         z[m] = z_mu[i];
@@ -795,25 +795,25 @@ void output_delta_mz_Sz(Network &net, NetState &state, Obs &obs,
 {
     int n_state_last_layer = net.batch_size * net.nodes.back();
     if (!net.is_idx_ud) {
-        if (n_state_last_layer < net.min_operations && !net.multithreading) {
-            delta_mzSz(state.ma, state.Sa, state.Sz, state.J, obs.y_batch,
-                       obs.V_batch, net.z_pos.back(), n_state_last_layer,
-                       d_state.delta_mz, d_state.delta_Sz);
-        } else {
+        if (n_state_last_layer > net.min_operations && net.multithreading) {
             delta_mzSz_multithreading(state.ma, state.Sa, state.Sz, state.J,
                                       obs.y_batch, obs.V_batch,
                                       net.z_pos.back(), n_state_last_layer,
                                       d_state.delta_mz, d_state.delta_Sz);
+        } else {
+            delta_mzSz(state.ma, state.Sa, state.Sz, state.J, obs.y_batch,
+                       obs.V_batch, net.z_pos.back(), n_state_last_layer,
+                       d_state.delta_mz, d_state.delta_Sz);
         }
     } else {
         int n_state_last_layer_e = net.nye * net.batch_size;
-        if (n_state_last_layer < net.min_operations && !net.multithreading) {
-            delta_mzSz_with_indices(
+        if (n_state_last_layer > net.min_operations && net.multithreading) {
+            delta_mzSz_with_indices_multithreading(
                 state.ma, state.Sa, state.Sz, state.J, obs.y_batch, obs.V_batch,
                 obs.idx_ud_batch, net.z_pos.back(), net.nodes.back(), net.nye,
                 n_state_last_layer_e, d_state.delta_mz, d_state.delta_Sz);
         } else {
-            delta_mzSz_with_indices_multithreading(
+            delta_mzSz_with_indices(
                 state.ma, state.Sa, state.Sz, state.J, obs.y_batch, obs.V_batch,
                 obs.idx_ud_batch, net.z_pos.back(), net.nodes.back(), net.nye,
                 n_state_last_layer_e, d_state.delta_mz, d_state.delta_Sz);
@@ -869,16 +869,16 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
     update_output_hidden_states(net, state, obs, d_state);
 
     // Compute inovation vector
-    if (n_state_last_layer < net.min_operations && !net.multithreading) {
-        inovation_mean(state.Sz, d_state.delta_mz, net.z_pos.back(),
-                       net.z_pos.back(), n_state_last_layer, d_state.delta_m);
-        inovation_var(state.Sz, d_state.delta_Sz, net.z_pos.back(),
-                      net.z_pos.back(), n_state_last_layer, d_state.delta_S);
-    } else {
+    if (n_state_last_layer > net.min_operations && net.multithreading) {
         inovation_multithreading(state.Sz, d_state.delta_mz, d_state.delta_Sz,
                                  net.z_pos.back(), net.z_pos.back(),
                                  n_state_last_layer, d_state.delta_m,
                                  d_state.delta_S);
+    } else {
+        inovation_mean(state.Sz, d_state.delta_mz, net.z_pos.back(),
+                       net.z_pos.back(), n_state_last_layer, d_state.delta_m);
+        inovation_var(state.Sz, d_state.delta_Sz, net.z_pos.back(),
+                      net.z_pos.back(), n_state_last_layer, d_state.delta_S);
     }
 
     int no, ni, niB, z_pos_in, z_pos_out, w_pos_in;
@@ -894,29 +894,30 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         // 1: Full connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
-            if (niB < net.min_operations && !net.multithreading) {
+            if (niB > net.min_operations && net.multithreading) {
+                fc_delta_mzSz_multithreading(
+                    theta.mw, state.Sz, state.J, d_state.delta_m,
+                    d_state.delta_S, w_pos_in, z_pos_in, z_pos_out, ni, no, B,
+                    d_state.delta_mz, d_state.delta_Sz);
+
+            } else {
                 fc_delta_mz(theta.mw, state.Sz, state.J, d_state.delta_m,
                             w_pos_in, z_pos_in, z_pos_out, ni, no, B,
                             d_state.delta_mz);
                 fc_delta_Sz(theta.mw, state.Sz, state.J, d_state.delta_S,
                             w_pos_in, z_pos_in, z_pos_out, ni, no, B,
                             d_state.delta_Sz);
-            } else {
-                fc_delta_mzSz_multithreading(
-                    theta.mw, state.Sz, state.J, d_state.delta_m,
-                    d_state.delta_S, w_pos_in, z_pos_in, z_pos_out, ni, no, B,
-                    d_state.delta_mz, d_state.delta_Sz);
             }
         }
-        if (niB < net.min_operations && !net.multithreading) {
+        if (niB > net.min_operations && net.multithreading) {
+            inovation_multithreading(state.Sz, d_state.delta_mz,
+                                     d_state.delta_Sz, z_pos_in, z_pos_in, niB,
+                                     d_state.delta_m, d_state.delta_S);
+        } else {
             inovation_mean(state.Sz, d_state.delta_mz, z_pos_in, z_pos_in, niB,
                            d_state.delta_m);
             inovation_var(state.Sz, d_state.delta_Sz, z_pos_in, z_pos_in, niB,
                           d_state.delta_S);
-        } else {
-            inovation_multithreading(state.Sz, d_state.delta_mz,
-                                     d_state.delta_Sz, z_pos_in, z_pos_in, niB,
-                                     d_state.delta_m, d_state.delta_S);
         }
     }
 }
