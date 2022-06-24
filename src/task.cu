@@ -722,7 +722,6 @@ Args:
 
                 // Feed forward
                 feedForward(net, theta_gpu, idx_gpu, state_gpu);
-                state_gpu.copy_device_to_host(state);
 
                 // Feed backward for hidden states
                 stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
