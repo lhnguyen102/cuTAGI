@@ -3,12 +3,16 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      June 12, 2022
+// Updated:      June 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/data_transfer.cuh"
+
+////////////////////////
+// STATE GPU
+///////////////////////
 
 StateGPU::StateGPU() {
     this->d_mz = nullptr;
@@ -30,6 +34,10 @@ StateGPU::StateGPU() {
     this->d_Sz_f = nullptr;
     this->d_Sa_f = nullptr;
     this->d_Sz_fp = nullptr;
+    this->noise_state = NoiseStateGPU();
+}
+StateGPU::StateGPU(NoiseStateGPU &_noise_state) {
+    this->noise_state = _noise_state;
 }
 void StateGPU::set_values(NetState &state, Network &net) {
     this->s_bytes = state.mz.size() * sizeof(float);
@@ -109,6 +117,9 @@ void StateGPU::copy_host_to_device(NetState &state) {
         cudaMemcpy(d_Sz_fp, state.Sz_fp.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
     }
+    if (this->noise_state.n_bytes > 0) {
+        this->noise_state.copy_host_to_device(state.noise_state);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -139,6 +150,9 @@ void StateGPU::copy_device_to_host(NetState &state) {
         cudaMemcpy(state.Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
     }
+    if (this->noise_state.n_bytes > 0) {
+        this->noise_state.copy_device_to_host(state.noise_state);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -168,8 +182,169 @@ StateGPU::~StateGPU() {
     cudaFree(d_SsTmp);
     cudaFree(d_Sz_f);
     cudaFree(d_Sa_f);
+    if (this->noise_state.n_bytes > 0) {
+        this->noise_state.~NoiseStateGPU();
+    }
 }
 
+////////////////////////
+// NOISE STATE GPU
+///////////////////////
+NoiseStateGPU::NoiseStateGPU() {
+    this->n_bytes = 0 * sizeof(float);
+    this->d_ma_mu = nullptr;
+    this->d_Sa_mu = nullptr;
+    this->d_J_mu = nullptr;
+    this->d_ma_v2_prior = nullptr;
+    this->d_Sa_v2_prior = nullptr;
+    this->d_Cza_v2 = nullptr;
+    this->d_J_v2 = nullptr;
+    this->d_ma_v2_post = nullptr;
+    this->d_Sa_v2_post = nullptr;
+    this->d_J_v = nullptr;
+    this->d_delta_mv = nullptr;
+    this->d_delta_Sv = nullptr;
+    this->d_delta_mz_mu = nullptr;
+    this->d_delta_Sz_mu = nullptr;
+    this->d_delta_mz_v2b = nullptr;
+    this->d_delta_Sz_v2b = nullptr;
+}
+
+NoiseStateGPU::NoiseStateGPU(int n) { this->n_bytes = n * sizeof(float); }
+
+void NoiseStateGPU::allocate_cuda_memory() {
+    cudaMalloc(&d_ma_mu, n_bytes);
+    cudaMalloc(&d_Sa_mu, n_bytes);
+    cudaMalloc(&d_J_mu, n_bytes);
+    cudaMalloc(&d_ma_v2_prior, n_bytes);
+    cudaMalloc(&d_Sa_v2_prior, n_bytes);
+    cudaMalloc(&d_Cza_v2, n_bytes);
+    cudaMalloc(&d_J_v2, n_bytes);
+    cudaMalloc(&d_ma_v2_post, n_bytes);
+    cudaMalloc(&d_Sa_v2_post, n_bytes);
+    cudaMalloc(&d_J_v, n_bytes);
+    cudaMalloc(&d_delta_mv, n_bytes);
+    cudaMalloc(&d_delta_Sv, n_bytes);
+    cudaMalloc(&d_delta_mz_mu, n_bytes);
+    cudaMalloc(&d_delta_Sz_mu, n_bytes);
+    cudaMalloc(&d_delta_mz_v2b, n_bytes);
+    cudaMalloc(&d_delta_Sz_v2b, n_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for noise state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void NoiseStateGPU::copy_host_to_device(NoiseState &noise_state) {
+    cudaMemcpy(d_ma_mu, noise_state.ma_mu.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa_mu, noise_state.Sa_mu.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J_mu, noise_state.J_mu.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ma_v2_prior, noise_state.ma_v2_prior.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa_v2_prior, noise_state.Sa_v2_prior.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cza_v2, noise_state.Cza_v2.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J_v2, noise_state.J_v2.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ma_v2_post, noise_state.ma_v2_post.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa_v2_post, noise_state.Sa_v2_post.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J_v, noise_state.J_v.data(), n_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_mv, noise_state.delta_mv.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_Sv, noise_state.delta_Sv.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_mz_mu, noise_state.delta_mz_mu.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_Sz_mu, noise_state.delta_Sz_mu.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_mz_v2b, noise_state.delta_mz_v2b.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta_Sz_v2b, noise_state.delta_Sz_v2b.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to device for noise state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void NoiseStateGPU::copy_device_to_host(NoiseState &noise_state) {
+    cudaMemcpy(noise_state.ma_mu.data(), d_ma_mu, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.Sa_mu.data(), d_Sa_mu, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.J_mu.data(), d_J_mu, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.ma_v2_prior.data(), d_ma_v2_prior, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.Sa_v2_prior.data(), d_Sa_v2_prior, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.ma_v2_prior.data(), d_ma_v2_prior, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.J_v2.data(), d_J_v2, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.ma_v2_post.data(), d_ma_v2_post, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.Sa_v2_post.data(), d_Sa_v2_post, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.J_v.data(), d_J_v, n_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_mv.data(), d_delta_mv, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_Sv.data(), d_delta_Sv, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_mz_mu.data(), d_delta_mz_mu, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_Sz_mu.data(), d_delta_Sz_mu, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_mz_v2b.data(), d_delta_mz_v2b, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.delta_Sz_v2b.data(), d_delta_Sz_v2b, n_bytes,
+               cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to host for noise state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+};
+
+NoiseStateGPU::~NoiseStateGPU() {
+    cudaFree(d_ma_mu);
+    cudaFree(d_Sa_mu);
+    cudaFree(d_J_mu);
+    cudaFree(d_ma_v2_prior);
+    cudaFree(d_Sa_v2_prior);
+    cudaFree(d_Cza_v2);
+    cudaFree(d_J_v2);
+    cudaFree(d_ma_v2_post);
+    cudaFree(d_Sa_v2_post);
+    cudaFree(d_J_v);
+    cudaFree(d_delta_mv);
+    cudaFree(d_delta_Sv);
+    cudaFree(d_delta_mz_mu);
+    cudaFree(d_delta_Sz_mu);
+    cudaFree(d_delta_mz_v2b);
+    cudaFree(d_delta_Sz_v2b);
+};
+
+////////////////////////
+// Parameter GPU
+///////////////////////
 ParamGPU::ParamGPU() {
     this->d_mw = nullptr;
     this->d_Sw = nullptr;

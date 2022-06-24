@@ -94,8 +94,8 @@ Args:
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES
 //////////////////////////////////////////////////////////////////////
-void get_output_hidden_states(std::vector<float> &z, int z_pos,
-                              std::vector<float> &z_mu)
+void get_output_hidden_states_cpu(std::vector<float> &z, int z_pos,
+                                  std::vector<float> &z_mu)
 /*Get output's distrinution
 
 Args:
@@ -110,8 +110,8 @@ Args:
     }
 }
 
-void get_output_hidden_states_ni(std::vector<float> &z, int ny, int z_pos,
-                                 std::vector<float> &z_mu)
+void get_output_hidden_states_ni_cpu(std::vector<float> &z, int ny, int z_pos,
+                                     std::vector<float> &z_mu)
 /* Get hidden states of the output layer for the noise-inference case
 
 Args:
@@ -132,8 +132,8 @@ Args:
     }
 }
 
-void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
-                             std::vector<float> &z_v2)
+void get_noise_hidden_states_cpu(std::vector<float> &z, int ny, int z_pos,
+                                 std::vector<float> &z_v2)
 /* Get hidden states of the output layer
  */
 {
@@ -166,8 +166,8 @@ Args:
                 state.noise_state.Sa_mu[i] + state.noise_state.ma_v2_prior[i];
         }
     } else {
-        get_output_hidden_states(state.ma, net.z_pos.back(), ma_output);
-        get_output_hidden_states(state.Sa, net.z_pos.back(), Sa_output);
+        get_output_hidden_states_cpu(state.ma, net.z_pos.back(), ma_output);
+        get_output_hidden_states_cpu(state.Sa, net.z_pos.back(), Sa_output);
         if (net.noise_type.compare("homosce") == 0) {
             for (int i = 0; i < net.n_y * net.batch_size; i++) {
                 Sa_output[i] = state.noise_state.Sa_mu[i] +

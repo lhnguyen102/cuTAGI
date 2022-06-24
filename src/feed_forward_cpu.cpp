@@ -1123,24 +1123,30 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         }
     }
-    // Separare the output layer into output & noise hidden states
+    // Split the output layer into output & noise hidden states
     if (net.noise_type.compare("heteros") == 0) {
         // Assign value to the nosie states
-        get_output_hidden_states_ni(state.ma, net.nodes.back(),
-                                    net.z_pos.back(), state.noise_state.ma_mu);
-        get_output_hidden_states_ni(state.Sa, net.nodes.back(),
-                                    net.z_pos.back(), state.noise_state.Sa_mu);
-        get_output_hidden_states_ni(state.Sz, net.nodes.back(),
-                                    net.z_pos.back(), state.noise_state.Sz_mu);
-        get_output_hidden_states_ni(state.J, net.nodes.back(), net.z_pos.back(),
-                                    state.noise_state.J_mu);
+        get_output_hidden_states_ni_cpu(state.ma, net.nodes.back(),
+                                        net.z_pos.back(),
+                                        state.noise_state.ma_mu);
+        get_output_hidden_states_ni_cpu(state.Sa, net.nodes.back(),
+                                        net.z_pos.back(),
+                                        state.noise_state.Sa_mu);
+        get_output_hidden_states_ni_cpu(state.Sz, net.nodes.back(),
+                                        net.z_pos.back(),
+                                        state.noise_state.Sz_mu);
+        get_output_hidden_states_ni_cpu(state.J, net.nodes.back(),
+                                        net.z_pos.back(),
+                                        state.noise_state.J_mu);
 
-        get_noise_hidden_states(state.ma, net.nodes.back(), net.z_pos.back(),
-                                state.noise_state.ma_v2_prior);
-        get_noise_hidden_states(state.Sa, net.nodes.back(), net.z_pos.back(),
-                                state.noise_state.Sa_v2_prior);
-        get_noise_hidden_states(state.J, net.nodes.back(), net.z_pos.back(),
-                                state.noise_state.J_v2);
+        get_noise_hidden_states_cpu(state.ma, net.nodes.back(),
+                                    net.z_pos.back(),
+                                    state.noise_state.ma_v2_prior);
+        get_noise_hidden_states_cpu(state.Sa, net.nodes.back(),
+                                    net.z_pos.back(),
+                                    state.noise_state.Sa_v2_prior);
+        get_noise_hidden_states_cpu(state.J, net.nodes.back(), net.z_pos.back(),
+                                    state.noise_state.J_v2);
 
         // Activate observation noise squared using exponential fun.
         // TODO: DOUBLE CHECK IF IT OVERITES THE VECTOR
@@ -1150,12 +1156,12 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
 
     } else if (net.noise_type.compare("homosce") == 0) {
         // Assign value to the nosie states
-        get_output_hidden_states(state.ma, net.z_pos.back(),
-                                 state.noise_state.ma_mu);
-        get_output_hidden_states(state.Sa, net.z_pos.back(),
-                                 state.noise_state.Sa_mu);
-        get_output_hidden_states(state.J, net.z_pos.back(),
-                                 state.noise_state.J_mu);
+        get_output_hidden_states_cpu(state.ma, net.z_pos.back(),
+                                     state.noise_state.ma_mu);
+        get_output_hidden_states_cpu(state.Sa, net.z_pos.back(),
+                                     state.noise_state.Sa_mu);
+        get_output_hidden_states_cpu(state.J, net.z_pos.back(),
+                                     state.noise_state.J_mu);
     } else {
     }
 }
