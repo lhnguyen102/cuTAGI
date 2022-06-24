@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 08, 2022
+// Updated:      June 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,6 +312,53 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     return {m, S};
 }
 
+std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
+    float scale, float gain, float noise_gain, int N)
+/* Parmeter initialization of TAGI neural network including the noise's hidden
+ * states
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Variance for output and noise's hidden states
+        if (i < N / 2) {
+            S[i] = gain * pow(scale, 2);
+        } else {
+            S[i] = noise_gain * pow(scale, 2);
+            scale = pow(S[i], 0.5);
+            int a = 0;
+        }
+
+        // Get normal distribution
+        std::normal_distribution<float> d(0.0f, scale);
+
+        // Get sample for weights
+        m[i] = d(gen);
+    }
+
+    return {m, S};
+}
+
 void get_net_props(Network &net)
 /*
  * Get network properties based on the network architecture
@@ -511,6 +558,14 @@ void net_default(Network &net)
  **/
 {
     int num_layers = net.layers.size();
+    // Number of inputs & outputs
+    if (net.noise_type.compare("heteros") == 0) {
+        net.n_y = net.nodes.back() / 2;
+    } else {
+        net.n_y = net.nodes.back();
+    }
+    net.n_x = net.nodes.front();
+
     // Network architecture
     if (net.widths.size() == 0) {
         net.widths.resize(num_layers, 0);
@@ -580,28 +635,51 @@ void net_default(Network &net)
 }
 
 NetState initialize_net_states(Network &net) {
-    NetState S;
-    S.mz.resize(net.n_state, 0);       // Mean of hidden states
-    S.Sz.resize(net.n_state, 1);       // Variance of hidden states
-    S.ma.resize(net.n_state, 0);       // Mean of activation units
-    S.Sa.resize(net.n_state, 1);       // Variance of activation units
-    S.J.resize(net.n_state, 1);        // Diagonal Jacobian matrix
-    S.msc.resize(net.n_state_sc, 0);   // Mean of identity's hidden states
-    S.Ssc.resize(net.n_state_sc, 1);   // Variance of identity's hidden states
-    S.mdsc.resize(net.n_state_sc, 0);  // Mean of residual
-    S.Sdsc.resize(net.n_state_sc, 1);  // Variance of residual
-    S.mra.resize(net.n_ra, 0);         // Mean of batch and layer normalization
-    S.Sra.resize(net.n_ra, 1);  // Variance of batch and layer normalization
+    NetState state;
+    state.mz.resize(net.n_state, 0);      // Mean of hidden states
+    state.Sz.resize(net.n_state, 1);      // Variance of hidden states
+    state.ma.resize(net.n_state, 0);      // Mean of activation units
+    state.Sa.resize(net.n_state, 1);      // Variance of activation units
+    state.J.resize(net.n_state, 1);       // Diagonal Jacobian matrix
+    state.msc.resize(net.n_state_sc, 0);  // Mean of identity's hidden states
+    state.Ssc.resize(net.n_state_sc,
+                     1);  // Variance of identity's hidden states
+    state.mdsc.resize(net.n_state_sc, 0);  // Mean of residual
+    state.Sdsc.resize(net.n_state_sc, 1);  // Variance of residual
+    state.mra.resize(net.n_ra, 0);  // Mean of batch and layer normalization
+    state.Sra.resize(net.n_ra, 1);  // Variance of batch and layer normalization
 
     // TODO: Is there a better way to initialize the full covariance matrix?
     if (net.is_full_cov) {
         int n = net.n_max_state / net.batch_size;
-        S.Sz_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
-        S.Sa_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
-        S.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
+        state.Sz_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
+        state.Sa_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
+        state.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
     }
 
-    return S;
+    if (net.noise_type.compare("homosce") == 0 ||
+        net.noise_type.compare("heteros") == 0) {
+        int n_noise = net.n_y * net.batch_size;
+        state.noise_state.ma_mu.resize(n_noise, 0);
+        state.noise_state.Sa_mu.resize(n_noise, 0);
+        state.noise_state.Sz_mu.resize(n_noise, 0);
+        state.noise_state.J_mu.resize(n_noise, 1);
+        state.noise_state.ma_v2_prior.resize(n_noise, net.mu_v2b);
+        state.noise_state.Sa_v2_prior.resize(n_noise, pow(net.sigma_v2b, 2));
+        state.noise_state.Cza_v2.resize(n_noise, 0);
+        state.noise_state.J_v2.resize(n_noise, 1);
+        state.noise_state.ma_v2_post.resize(n_noise, 0);
+        state.noise_state.Sa_v2_post.resize(n_noise, 0);
+        state.noise_state.J_v.resize(n_noise, 1);
+        state.noise_state.delta_mv.resize(n_noise, 0);
+        state.noise_state.delta_Sv.resize(n_noise, 0);
+        state.noise_state.delta_mz_mu.resize(n_noise, 0);
+        state.noise_state.delta_Sz_mu.resize(n_noise, 0);
+        state.noise_state.delta_mz_v2b.resize(n_noise, 0);
+        state.noise_state.delta_Sz_v2b.resize(n_noise, 0);
+    }
+
+    return state;
 }
 
 //////////////////////////////////////
@@ -660,14 +738,28 @@ Param initialize_param(Network &net) {
 
             // Weight
             if (net.num_weights[j] > 0) {
-                std::tie(mw_j, Sw_j) = gaussian_param_init(scale, net.gain_w[j],
-                                                           net.num_weights[j]);
+                if (net.noise_type.compare("heteros") == 0 &&
+                    j == num_layers - 1) {
+                    std::tie(mw_j, Sw_j) = gaussian_param_init_ni(
+                        scale, net.gain_w[j], net.noise_gain,
+                        net.num_weights[j]);
+                } else {
+                    std::tie(mw_j, Sw_j) = gaussian_param_init(
+                        scale, net.gain_w[j], net.num_weights[j]);
+                }
             }
 
             // Biases
             if (net.num_biases[j] > 0) {
-                std::tie(mb_j, Sb_j) = gaussian_param_init(scale, net.gain_b[j],
-                                                           net.num_biases[j]);
+                if (net.noise_type.compare("heteros") == 0 &&
+                    j == num_layers - 1) {
+                    std::tie(mb_j, Sb_j) = gaussian_param_init_ni(
+                        scale, net.gain_b[j], net.noise_gain,
+                        net.num_biases[j]);
+                } else {
+                    std::tie(mb_j, Sb_j) = gaussian_param_init(
+                        scale, net.gain_b[j], net.num_biases[j]);
+                }
             }
         }
 
@@ -790,6 +882,8 @@ Network load_cfg(std::string net_file)
                                "sigma_v",       "decay_factor_sigma_v",
                                "sigma_v_min",   "sigma_x",
                                "init_method",   "is_full_cov",
+                               "noise_type",    "mu_v2b",
+                               "sigma_v2b",     "noise_gain",
                                "multithreading"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
@@ -885,6 +979,30 @@ Network load_cfg(std::string net_file)
                             throw std::invalid_argument(
                                 "Input must be true or false - is_full_cov");
                         }
+                    }
+                } else if (key_words[k] == "noise_type") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        net.noise_type = si;
+                    }
+                } else if (key_words[k] == "mu_v2b") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.mu_v2b = f;
+                    }
+                } else if (key_words[k] == "sigma_v2b") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.sigma_v2b = f;
+                    }
+                } else if (key_words[k] == "noise_gain") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.noise_gain = f;
                     }
                 } else if (key_words[k] == "multithreading") {
                     std::stringstream ss(line.substr(pos + key.size()));

@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      June 12 2022
+// Updated:      June 24 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +84,12 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
     std::vector<float> ma_output(net.batch_size * net.nodes.back(), 0);
     std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
 
+    // Number of outputs
+    int n_output = net.nodes.back();
+    if (net.noise_type.compare("heteros") == 0) {
+        n_output = net.nodes.back() / 2;
+    }
+
     for (int e = 0; e < n_epochs; e++) {
         /* TRAINNING */
         if (e > 0) {
@@ -138,8 +144,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
             global_param_update_cpu(d_theta, n_w, n_b, n_w_sc, n_b_sc, theta);
 
             // Compute error rate
-            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                              net.z_pos.back());
+            output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
                           net.batch_size);
@@ -192,8 +197,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
             feed_forward_cpu(net, theta, idx, state);
 
             // Compute error rate
-            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                              net.z_pos[net.nodes.size() - 1]);
+            output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
                           net.batch_size);
@@ -246,24 +250,22 @@ Args:
     int n_b = theta.mb.size();
     int n_w_sc = theta.mw_sc.size();
     int n_b_sc = theta.mb_sc.size();
-    int ni_B = net.batch_size * net.nodes.front();
+    int ni_B = net.batch_size * net.n_x;
     std::vector<int> data_idx = create_range(db.num_data);
 
     // Initialize the data's variables
-    std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
-    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(),
-                                pow(net.sigma_x, 2));
+    std::vector<float> x_batch(net.batch_size * net.n_x, 0);
+    std::vector<float> Sx_batch(net.batch_size * net.n_x, pow(net.sigma_x, 2));
     std::vector<float> Sx_f_batch;
-    std::vector<float> y_batch(net.batch_size * net.nodes.back(), 0);
-    std::vector<float> V_batch(net.batch_size * net.nodes.back(),
-                               pow(net.sigma_v, 2));
+    std::vector<float> y_batch(net.batch_size * net.n_y, 0);
+    std::vector<float> V_batch(net.batch_size * net.n_y, pow(net.sigma_v, 2));
     std::vector<int> batch_idx(net.batch_size);
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
 
     // *TODO: Is there any better way?
     if (net.is_full_cov) {
         float var_x = pow(net.sigma_x, 2);
-        auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
+        auto Sx_f = initialize_upper_triu(var_x, net.n_x);
         Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
     }
 
@@ -289,7 +291,7 @@ Args:
                                 net.sigma_v_min);
             }
 
-            std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+            std::vector<float> V_batch(net.batch_size * net.n_y,
                                        pow(net.sigma_v, 2));
 
             // Timer
@@ -301,14 +303,14 @@ Args:
                 // Load data
                 get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
                               batch_idx);
-                get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
-                get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
+                get_batch_data(db.x, batch_idx, net.n_x, x_batch);
+                get_batch_data(db.y, batch_idx, net.n_y, y_batch);
                 ip.set_values(x_batch, Sx_batch, Sx_f_batch);
                 op.set_values(y_batch, V_batch, idx_ud_batch);
 
                 // Initialize input
                 initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                      net.nodes.front(), net.batch_size, state);
+                                      net.n_x, net.batch_size, state);
 
                 // Feed forward
                 feed_forward_cpu(net, theta, idx, state);
@@ -338,10 +340,10 @@ Args:
         }
     } else {
         std::cout << "Testing...\n";
-        std::vector<float> ma_batch_out(net.batch_size * net.nodes.back(), 0);
-        std::vector<float> Sa_batch_out(net.batch_size * net.nodes.back(), 0);
-        std::vector<float> ma_out(db.num_data * net.nodes.back(), 0);
-        std::vector<float> Sa_out(db.num_data * net.nodes.back(), 0);
+        std::vector<float> ma_batch_out(net.batch_size * net.n_y, 0);
+        std::vector<float> Sa_batch_out(net.batch_size * net.n_y, 0);
+        std::vector<float> ma_out(db.num_data * net.n_y, 0);
+        std::vector<float> Sa_out(db.num_data * net.n_y, 0);
         int mt_idx = 0;
 
         // Prediction
@@ -349,26 +351,25 @@ Args:
             // Load data
             get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
                           batch_idx);
-            get_batch_data(db.x, batch_idx, net.nodes.front(), x_batch);
-            get_batch_data(db.y, batch_idx, net.nodes.back(), y_batch);
+            get_batch_data(db.x, batch_idx, net.n_x, x_batch);
+            get_batch_data(db.y, batch_idx, net.n_y, y_batch);
             ip.set_values(x_batch, Sx_batch, Sx_f_batch);
             op.set_values(y_batch, V_batch, idx_ud_batch);
 
             // Initialize input
             initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                  net.nodes.front(), net.batch_size, state);
+                                  net.n_x, net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
 
             // Get hidden states for output layers
-            get_output_states(state.ma, state.Sa, ma_batch_out, Sa_batch_out,
-                              net.z_pos.back());
+            output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
 
             // Update the final hidden state vector for last layer
-            mt_idx = i * net.batch_size * net.nodes.back();
-            update_vector(ma_out, ma_batch_out, mt_idx, net.nodes.back());
-            update_vector(Sa_out, Sa_batch_out, mt_idx, net.nodes.back());
+            mt_idx = i * net.batch_size * net.n_y;
+            update_vector(ma_out, ma_batch_out, mt_idx, net.n_y);
+            update_vector(Sa_out, Sa_batch_out, mt_idx, net.n_y);
         }
         // Denormalize data
         std::vector<float> sy_norm(db.y.size(), 0);
@@ -380,9 +381,9 @@ Args:
         for (int k = 0; k < db.y.size(); k++) {
             sy_norm[k] = pow(Sa_out[k] + pow(net.sigma_v, 2), 0.5);
         }
-        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.nodes.back(), my);
-        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.nodes.back(), y_test);
-        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.nodes.back(), sy);
+        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.n_y, my);
+        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.n_y, y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
 
         // Compute metrics
         auto mse = mean_squared_error(my, y_test);
@@ -479,15 +480,14 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Train data
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
-        auto train_db =
-            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
-                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
-                           net.nodes.front(), net.nodes.back());
+        auto train_db = get_dataloader(
+            user_input.x_train_dir, user_input.y_train_dir, mu_x, sigma_x, mu_y,
+            sigma_y, user_input.num_train_data, net.n_x, net.n_y);
         // Test data
         auto test_db = get_dataloader(
             user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
             train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
-            user_input.num_test_data, net.nodes.front(), net.nodes.back());
+            user_input.num_test_data, net.n_x, net.n_y);
 
         // Load param
         if (user_input.load_param) {

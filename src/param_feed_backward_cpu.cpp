@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      May 29, 2022
+// Updated:      June 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -296,7 +296,18 @@ Returns:
         // 1: Full connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
-            if (ni * no < 1000) {
+            if (ni * no > net.min_operations && net.multithreading) {
+                // Compute updated quantites for weights
+                fc_delta_w_multithreading(theta.Sw, state.ma, d_state.delta_m,
+                                          d_state.delta_S, w_pos_in, z_pos_in,
+                                          z_pos_out, ni, B, no,
+                                          d_theta.delta_mw, d_theta.delta_Sw);
+
+                // Compute updated quantities for biases
+                fc_delta_b_multithreading(
+                    theta.Sb, d_state.delta_m, d_state.delta_S, b_pos_in,
+                    z_pos_out, no, B, 1, d_theta.delta_mb, d_theta.delta_Sb);
+            } else {
                 // Compute updated quantites for weights
                 fc_delta_mw(theta.Sw, state.ma, d_state.delta_m, w_pos_in,
                             z_pos_in, z_pos_out, ni, B, no, d_theta.delta_mw);
@@ -308,17 +319,6 @@ Returns:
                             B, 1, d_theta.delta_mb);
                 fc_delta_Sb(theta.Sb, d_state.delta_S, b_pos_in, z_pos_out, no,
                             B, 1, d_theta.delta_Sb);
-            } else {
-                // Compute updated quantites for weights
-                fc_delta_w_multithreading(theta.Sw, state.ma, d_state.delta_m,
-                                          d_state.delta_S, w_pos_in, z_pos_in,
-                                          z_pos_out, ni, B, no,
-                                          d_theta.delta_mw, d_theta.delta_Sw);
-
-                // Compute updated quantities for biases
-                fc_delta_b_multithreading(
-                    theta.Sb, d_state.delta_m, d_state.delta_S, b_pos_in,
-                    z_pos_out, no, B, 1, d_theta.delta_mb, d_theta.delta_Sb);
             }
         }
     }

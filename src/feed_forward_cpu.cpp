@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 07, 2022
+// Updated:      June 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,10 +22,10 @@ Args:
     mz: Mean of hidden states
     w_pos: Weight position for this layer in the weight vector of network
     b_pos: Bias position for this layer in the bias vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-              of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-               of network
+    z_pos_in: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_out: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches
@@ -60,10 +60,10 @@ Args:
     Sz: Variance of hidden states
     w_pos: Weight position for this layer in the weight vector of network
     b_pos: Bias position for this layer in the bias vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-            of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-             of network
+    z_pos_in: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_out: Output-hidden-state position for this layer in the hidden-state
+        vector of network
     n: Input node
     m: Output node
     k: Number of batches
@@ -748,6 +748,29 @@ void leakyrelu_mean_var_multithreading(std::vector<float> &mz,
     }
 }
 
+void exp_fn(std::vector<float> &mz, std::vector<float> &Sz,
+            std::vector<float> &ma, std::vector<float> &Sa,
+            std::vector<float> &Cza)
+/* Exponential function y = exp(x)
+
+Args:
+    mz: Mean of hidden states
+    Sz: Variance of hidden states
+    ma: Mean of activation units
+    Sa: Variance of activation units
+    Cza: Covariance between hidden states and activation units
+*/
+{
+    float tmp_m, tmp_S;
+    for (int i = 0; i < mz.size(); i++) {
+        tmp_m = mz[i];
+        tmp_S = Sz[i];
+        ma[i] = exp(mz[i] + 0.5 * Sz[i]);
+        Sa[i] = exp(2 * tmp_m + tmp_S) * (exp(tmp_S) - 1);
+        Cza[i] = tmp_S * exp(tmp_m + 0.5 * tmp_S);
+    }
+}
+
 void act_full_cov(std::vector<float> &Sz_f, std::vector<float> &J, int no,
                   int B, int z_pos_out, std::vector<float> &Sa_f)
 /*Activate the full covariance.
@@ -938,7 +961,7 @@ void initialize_states_multithreading(std::vector<float> &x,
 }
 
 //////////////////////////////////////////////////////////////////////
-/// TAGI-FEEDFORWARD PASS
+/// FEEDFORWARD PASS
 //////////////////////////////////////////////////////////////////////
 void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                       NetState &state)
@@ -970,7 +993,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         //
         if (net.layers[j] == net.layer_names.fc) {
             if (!net.is_full_cov) {
-                if (no * B > 1000 && net.multithreading) {
+                if (no * B > net.min_operations && net.multithreading) {
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
@@ -985,7 +1008,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                                B, state.Sz);
                 }
             } else {
-                if (no * B * no > 1000 && net.multithreading) {
+                if (no * B * no > net.min_operations && net.multithreading) {
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
@@ -1019,7 +1042,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         //
         if (net.activations[j] == 1)  // tanh
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 no_act_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                no_B, state.ma, state.J,
                                                state.Sa);
@@ -1029,7 +1052,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 2)  // sigmoid
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 tanh_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                              no_B, state.ma, state.J, state.Sa);
 
@@ -1039,7 +1062,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 4)  // ReLU
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 relu_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                              no_B, state.ma, state.J, state.Sa);
             } else {
@@ -1048,7 +1071,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 5)  // softplus
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 softplus_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                  no_B, state.ma, state.J,
                                                  state.Sa);
@@ -1059,7 +1082,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else if (net.activations[j] == 6)  // leaky ReLU
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 leakyrelu_mean_var_multithreading(state.mz, state.Sz, net.alpha,
                                                   z_pos_out, no_B, state.ma,
                                                   state.J, state.Sa);
@@ -1069,7 +1092,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             }
         } else  // no activation
         {
-            if (no * B > 1000 && net.multithreading) {
+            if (no * B > net.min_operations && net.multithreading) {
                 no_act_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
                                                no_B, state.ma, state.J,
                                                state.Sa);
@@ -1082,14 +1105,15 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         // Full-covariance mode
         if (net.is_full_cov) {
             if (net.activations[j] == 0) {
-                if (no * B * no > 1000 && net.multithreading) {
+                if (no * B * no > net.min_operations && net.multithreading) {
                     no_act_full_cov_multithreading(state.Sz_f, no, B,
                                                    state.Sa_f);
                 } else {
                     no_act_full_cov(state.Sz_f, no, B, state.Sa_f);
                 }
             } else {
-                if (((no * (no + 1) / 2) * B) > 1000 && net.multithreading) {
+                if (((no * (no + 1) / 2) * B) > net.min_operations &&
+                    net.multithreading) {
                     act_full_cov_multithreading(state.Sz_f, state.J, no, B,
                                                 z_pos_out, state.Sa_f);
                 } else {
@@ -1098,5 +1122,40 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                 }
             }
         }
+    }
+    // Separare the output layer into output & noise hidden states
+    if (net.noise_type.compare("heteros") == 0) {
+        // Assign value to the nosie states
+        get_output_hidden_states_ni(state.ma, net.nodes.back(),
+                                    net.z_pos.back(), state.noise_state.ma_mu);
+        get_output_hidden_states_ni(state.Sa, net.nodes.back(),
+                                    net.z_pos.back(), state.noise_state.Sa_mu);
+        get_output_hidden_states_ni(state.Sz, net.nodes.back(),
+                                    net.z_pos.back(), state.noise_state.Sz_mu);
+        get_output_hidden_states_ni(state.J, net.nodes.back(), net.z_pos.back(),
+                                    state.noise_state.J_mu);
+
+        get_noise_hidden_states(state.ma, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.ma_v2_prior);
+        get_noise_hidden_states(state.Sa, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.Sa_v2_prior);
+        get_noise_hidden_states(state.J, net.nodes.back(), net.z_pos.back(),
+                                state.noise_state.J_v2);
+
+        // Activate observation noise squared using exponential fun.
+        // TODO: DOUBLE CHECK IF IT OVERITES THE VECTOR
+        exp_fn(state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
+               state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
+               state.noise_state.Cza_v2);
+
+    } else if (net.noise_type.compare("homosce") == 0) {
+        // Assign value to the nosie states
+        get_output_hidden_states(state.ma, net.z_pos.back(),
+                                 state.noise_state.ma_mu);
+        get_output_hidden_states(state.Sa, net.z_pos.back(),
+                                 state.noise_state.Sa_mu);
+        get_output_hidden_states(state.J, net.z_pos.back(),
+                                 state.noise_state.J_mu);
+    } else {
     }
 }

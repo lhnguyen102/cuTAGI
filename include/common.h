@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 04, 2022
+// Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,6 +25,8 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "struct_var.h"
 
 template <typename T>
 void print_matrix(std::vector<T> &M, int w, int h)
@@ -172,7 +174,7 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
         std::cout << "Actual number of data        : " << ac_num_row << "x"
                   << num_col << "\n";
         std::cout << std::endl;
-        throw std::runtime_error("There is missing data - utils.h");
+        throw std::runtime_error("There is missing data - common.h");
     }
 
     // Close file
@@ -214,7 +216,24 @@ void create_directory(std::string &path);
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
+//////////////////////////////////////////////////////////////////////
+/// OUTPUT HIDDEN STATES
+//////////////////////////////////////////////////////////////////////
+void get_output_hidden_states(std::vector<float> &z, int z_pos,
+                              std::vector<float> &z_mu);
+
+void get_output_hidden_states_ni(std::vector<float> &z, int ny, int z_pos,
+                                 std::vector<float> &z_mu);
+
+void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
+                             std::vector<float> &z_v2);
+
+void output_hidden_states(NetState &state, Network &net,
+                          std::vector<float> &ma_output,
+                          std::vector<float> &Sa_output);
+
 void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx);
+
 std::vector<float> initialize_upper_triu(float &Sx, int n);

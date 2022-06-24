@@ -3,7 +3,7 @@
 // Description:  Header file for CPU forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 05, 2022
+// Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,9 +12,9 @@
 #include <iostream>
 #include <thread>
 
+#include "common.h"
 #include "net_prop.h"
 #include "struct_var.h"
-
 void initialize_states_cpu(std::vector<float> &x, std::vector<float> &Sx,
                            std::vector<float> &Sx_f, int ni, int B,
                            NetState &state);
