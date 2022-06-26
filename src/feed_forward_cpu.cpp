@@ -1125,7 +1125,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
     }
     // Split the output layer into output & noise hidden states
     if (net.noise_type.compare("heteros") == 0) {
-        // Assign value to the nosie states
+        // Split hidden state of output layer
         get_output_hidden_states_ni_cpu(state.ma, net.nodes.back(),
                                         net.z_pos.back(),
                                         state.noise_state.ma_mu);
@@ -1148,8 +1148,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         get_noise_hidden_states_cpu(state.J, net.nodes.back(), net.z_pos.back(),
                                     state.noise_state.J_v2);
 
-        // Activate observation noise squared using exponential fun.
-        // TODO: DOUBLE CHECK IF IT OVERITES THE VECTOR
+        // Activate observation noise squared using exponential fun for ensuring
+        // the positive values
         exp_fn(state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
                state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
                state.noise_state.Cza_v2);

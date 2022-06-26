@@ -511,8 +511,8 @@ Args:
     up_idx: Indices for the hidden states to be updated
     ny: Total number of hidden states for the output layer
     nye: Totoal number of hidden states to be updated for the output layer
-    delta_mz: Updated quantities of mean for the hidden states
-    delta_Sz: Updated quantities of variance for the hidden states
+    delta_mz: Updated values of mean for the hidden states
+    delta_Sz: Updated values of variance for the hidden states
  */
 {
     float Jz = 0.0f;
@@ -570,8 +570,8 @@ void delta_mz_Sz_output_dist(std::vector<float> &y, std::vector<float> &Sv,
 /*Compute the updated quantities for the output distribution. The
    observation is defined following
                         y = x + v, v ~ N(0, \sigma_v^2),
-   where y is the observation and x is the output distribution i.e., x -
-   N(\mu_x, Sx).
+   where y is the observation and x is the output distribution i.e.,
+   x ~ N(\mu_x, Sx).
 
 Args:
     y: Observation vector
@@ -579,13 +579,13 @@ Args:
     noise_state: Noise state for the output layer
 */
 {
-    // Update hidden stats for the mean
+    // Update hidden states for the mean
     delta_mzSz(noise_state.ma_mu, noise_state.Sa_mu, noise_state.Sz_mu,
                noise_state.J_mu, y, noise_state.ma_v2_prior, 0,
                noise_state.ma_v2_prior.size(), noise_state.delta_mz_mu,
                noise_state.delta_Sz_mu);
 
-    // Update hidden states for observation noise
+    // Update hidden states for observation noise's hidden states
     delta_mzSz(noise_state.ma_mu, noise_state.Sa_mu, noise_state.ma_v2_prior,
                noise_state.J_v, y, noise_state.ma_v2_prior, 0,
                noise_state.ma_v2_prior.size(), noise_state.delta_mv,
@@ -603,7 +603,7 @@ Args:
     noise_type: Type of noise i.e., homoscedastic or heteroscedastic noises
 */
 {
-    // Update hidden state for observation noise squared
+    // Update hidden stats for observation noise squared
     int z_pos_v = noise_state.ma_v2_prior.size();
     compute_posterior_for_v_squared(
         noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2_prior,
@@ -614,7 +614,8 @@ Args:
 
     // NOTE: We do not apply the activatation function i.e., exponential
     // function for the hidden states representing the observation noise for the
-    // homoscedastic case so that we have to handle both following cases.
+    // homoscedastic case so that we have to handle both following cases
+    // differently.
     // Heteroscedastic case
     if (noise_type.compare("heteros") == 0) {
         delta_mz_Sz_backward(
@@ -656,7 +657,7 @@ void delta_mz_Sz_with_idx_output_dist(std::vector<float> &y,
     // states for the observation noise
     int ny_h = ny / 2;
 
-    // Update hidden stats for the mean
+    // Update hidden states for the mean
     delta_mzSz_with_indices(noise_state.ma_mu, noise_state.Sa_mu,
                             noise_state.Sz_mu, noise_state.J_mu, y,
                             noise_state.ma_v2_prior, ud_idx, 0, ny_h, nye,
@@ -764,7 +765,7 @@ void output_delta_mz_Sz_with_noise_inferenece(NetState &state, Network &net,
         delta_mz_Sz_noise_dist(state.noise_state, net.noise_type);
     }
 
-    // Join updated values (outputs + its observatio noise)
+    // Join updated values (outputs + its observation noise)
     if (net.noise_type.compare("heteros") == 0) {
         join_output_hidden_states(state.noise_state.delta_mz_mu,
                                   state.noise_state.delta_mz_v2b,
@@ -832,7 +833,6 @@ void update_output_hidden_states(Network &net, NetState &state, Obs &obs,
     obs: Observations
  */
 {
-    // Compute updated quantities for the output layer's hidden state
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
             net.noise_type.compare("heteros") != 0) {
