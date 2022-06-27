@@ -5,7 +5,7 @@
 // Created:      May 18, 2022
 // Updated:      June 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <math.h>

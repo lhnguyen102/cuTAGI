@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      June 25, 2022
+// Updated:      June 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -2027,44 +2027,47 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         }
     }
     int ny_B = net.n_y * net.batch_size;
+    unsigned int BLOCK_N = (ny_B + THREADS - 1) / THREADS;
     if (net.noise_type.compare("heteros") == 0) {
         // Split hidden state of output layer into output and noise
-        unsigned int BLOCK_HETEROS = (ny_B + THREADS - 1) / THREADS;
-        get_output_hidden_states_ni<<<BLOCK_HETEROS, THREADS>>>(
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
             state.d_ma, net.nodes.back(), net.z_pos.back(), net.batch_size,
             state.noise_state.d_ma_mu);
-        get_output_hidden_states_ni<<<BLOCK_HETEROS, THREADS>>>(
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
             state.d_Sa, net.nodes.back(), net.z_pos.back(), net.batch_size,
             state.noise_state.d_Sa_mu);
-        get_output_hidden_states_ni<<<BLOCK_HETEROS, THREADS>>>(
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
             state.d_Sz, net.nodes.back(), net.z_pos.back(), net.batch_size,
             state.noise_state.d_Sz_mu);
-        get_output_hidden_states_ni<<<BLOCK_HETEROS, THREADS>>>(
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
             state.d_J, net.nodes.back(), net.z_pos.back(), net.batch_size,
             state.noise_state.d_J_mu);
 
-        get_noise_hidden_states(state.d_ma, net.nodes.back(), net.z_pos.back(),
-                                net.batch_size, state.d_ma_v2_prior);
-        get_noise_hidden_states(state.d_Sa, net.nodes.back(), net.z_pos.back(),
-                                net.batch_size, state.d_Sa_v2_prior);
-        get_noise_hidden_states(state.d_J, net.nodes.back(), net.z_pos.back(),
-                                net.batch_size, state.d_J_v2);
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_ma, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_ma_v2_prior);
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_Sa, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_Sa_v2_prior);
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_J, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_J_v2);
 
         // Activate observation noise squared using exponential fun for ensuring
         // the positive values
-        exp_fun(state.noise_state.d_ma_v2_prior,
-                state.noise_state.d_Sa_v2_prior, ny_B,
-                state.noise_state.d_ma_v2_prior,
-                state.noise_state.d_Sa_v2_prior, state.noise_state.Cza_v2);
+        exp_fun<<<BLOCK_N, THREADS>>>(
+            state.noise_state.d_ma_v2_prior, state.noise_state.d_Sa_v2_prior,
+            ny_B, state.noise_state.d_ma_v2_prior,
+            state.noise_state.d_Sa_v2_prior, state.noise_state.d_Cza_v2);
+
     } else if (net.noise_type.compare("homosce") == 0) {
-        unsigned int BLOCK_HOMOCES = (ny_B + THREADS - 1) / THREADS;
-        get_output_hidden_states<<<BLOCK_HOMOCES, THREADS>>>(
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_ma, net.z_pos.back(), ny_B, state.noise_state.d_ma_mu);
-        get_output_hidden_states<<<BLOCK_HOMOCES, THREADS>>>(
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_Sa, net.z_pos.back(), ny_B, state.noise_state.d_Sa_mu);
-        get_output_hidden_states<<<BLOCK_HOMOCES, THREADS>>>(
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_Sz, net.z_pos.back(), ny_B, state.noise_state.d_Sz_mu);
-        get_output_hidden_states<<<BLOCK_HOMOCES, THREADS>>>(
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_J, net.z_pos.back(), ny_B, state.noise_state.d_J_mu);
     } else {
     }

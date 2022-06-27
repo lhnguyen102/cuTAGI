@@ -5,7 +5,7 @@
 // Created:      April 20, 2022
 // Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iostream>
@@ -66,7 +66,7 @@ struct Network {
                     indices when perform TAGI's forward pass
         FCzwa_1_pos: Position of weight indices for covariance Z|WA
         FCzwa_2_pos: Position of activation indices for covariance Z|WA
-        Szz_ud_pos: Positionof next hidden state indices for covariance Z|Z+
+        Szz_ud_pos: Position of next hidden state indices for covariance Z|Z+
         FCwz_2_pos: Position of activation indices for covariance W|Z+
         Swz_ud_pos: Position of hidden state (Z+) indices for covariance Z|Z+
         row_zw: Number of rows of weight indices for covariance Z|WA
@@ -255,7 +255,7 @@ struct IndexOut {
         Fmwa_1: Weight indices for mean product WA
         Fmwa_2: Activation indices for mean product WA
         FCzwa_1: Weight indices for covariance Z|WA
-        FCzwa_2: Activaiton indices for covariance Z|WA
+        FCzwa_2: Activation indices for covariance Z|WA
         Szz_ud: Next hidden state indices for covariance Z|Z+
         pooling: Pooling index
         FCwz_2: Activation indices for covariance W|Z+

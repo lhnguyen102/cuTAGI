@@ -3,9 +3,9 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 24, 2022
+// Updated:      June 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/feed_forward_cpu.h"
@@ -748,9 +748,9 @@ void leakyrelu_mean_var_multithreading(std::vector<float> &mz,
     }
 }
 
-void exp_fn(std::vector<float> &mz, std::vector<float> &Sz,
-            std::vector<float> &ma, std::vector<float> &Sa,
-            std::vector<float> &Cza)
+void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                 std::vector<float> &ma, std::vector<float> &Sa,
+                 std::vector<float> &Cza)
 /* Exponential function y = exp(x)
 
 Args:
@@ -961,7 +961,7 @@ void initialize_states_multithreading(std::vector<float> &x,
 }
 
 //////////////////////////////////////////////////////////////////////
-/// FEEDFORWARD PASS
+/// FEED FORWARD PASS
 //////////////////////////////////////////////////////////////////////
 void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                       NetState &state)
@@ -1150,9 +1150,10 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
 
         // Activate observation noise squared using exponential fun for ensuring
         // the positive values
-        exp_fn(state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
-               state.noise_state.ma_v2_prior, state.noise_state.Sa_v2_prior,
-               state.noise_state.Cza_v2);
+        exp_fun_cpu(state.noise_state.ma_v2_prior,
+                    state.noise_state.Sa_v2_prior,
+                    state.noise_state.ma_v2_prior,
+                    state.noise_state.Sa_v2_prior, state.noise_state.Cza_v2);
 
     } else if (net.noise_type.compare("homosce") == 0) {
         // Assign value to the nosie states
