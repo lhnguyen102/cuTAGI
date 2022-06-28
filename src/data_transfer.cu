@@ -51,7 +51,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
 
     // Noise state
     if (net.noise_type.compare("heteros") == 0) {
-        this->noise_state.compute_bytes(net.n_y);
+        this->noise_state.compute_bytes(net.n_y * net.batch_size);
     }
 
     this->mra_prev.assign(state.mra.begin(), state.mra.end());
@@ -195,9 +195,6 @@ StateGPU::~StateGPU() {
     cudaFree(d_SsTmp);
     cudaFree(d_Sz_f);
     cudaFree(d_Sa_f);
-    if (this->noise_state.n_bytes > 0) {
-        this->noise_state.~NoiseStateGPU();
-    }
 }
 
 ////////////////////////
@@ -311,7 +308,7 @@ void NoiseStateGPU::copy_device_to_host(NoiseState &noise_state) {
                cudaMemcpyDeviceToHost);
     cudaMemcpy(noise_state.Sa_v2_prior.data(), d_Sa_v2_prior, n_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(noise_state.ma_v2_prior.data(), d_ma_v2_prior, n_bytes,
+    cudaMemcpy(noise_state.Cza_v2.data(), d_Cza_v2, n_bytes,
                cudaMemcpyDeviceToHost);
     cudaMemcpy(noise_state.J_v2.data(), d_J_v2, n_bytes,
                cudaMemcpyDeviceToHost);

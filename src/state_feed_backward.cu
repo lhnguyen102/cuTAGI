@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      June 27, 2022
+// Updated:      June 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1148,6 +1148,8 @@ Args:
     int n = net.n_y * net.batch_size;
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
 
+    // NOTE: To use the deltaMzSz function, we assume that ma_v2_prior is
+    // equivalent to \Sigma_v.
     // Update hidden states for the mean
     deltaMzSz<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
@@ -1179,7 +1181,7 @@ Args:
     compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_delta_mv, noise_state.d_delta_Sv,
         noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
-        noise_state.d_ma_v2_post);
+        noise_state.d_Sa_v2_post);
 
     compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
@@ -1197,7 +1199,6 @@ Args:
             noise_state.d_delta_Sz_v2b);
 
     } else if (net.noise_type.compare("homosce") == 0) {
-        // TODO: Double check with matlab version on Sa_v2_prior
         delta_mz_Sz_backward<<<BLOCKS, net.num_gpu_threads>>>(
             noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
             noise_state.d_J_v, noise_state.d_Sa_v2_prior,
@@ -1223,7 +1224,6 @@ void delta_mz_Sz_with_idx_output_dist(ObsGPU &obs, Network &net,
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
 
     // Update hidden states for the mean
-    // TODO: Double check on obsevation nosie. It shoude be Sa_v2_prior
     deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
         noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2_prior,

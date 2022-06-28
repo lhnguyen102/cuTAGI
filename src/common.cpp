@@ -70,7 +70,7 @@ void create_directory(std::string &path) {
 
 #ifdef _WIN32
     if (stat(res_path_c, &st) == -1) {
-        _mdir(res_path_c);
+        _mkdir(res_path_c);
     }
 #endif
 }

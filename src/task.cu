@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      June 27, 2022
+// Updated:      June 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -721,12 +721,10 @@ Args:
 
                 // Feed forward
                 feedForward(net, theta_gpu, idx_gpu, state_gpu);
-                // state_gpu.copy_device_to_host(state);
 
                 // Feed backward for hidden states
                 stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
                               d_state_gpu);
-                // state_gpu.copy_device_to_host(state);
 
                 // Feed backward for parameters
                 paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
