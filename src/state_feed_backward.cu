@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      June 12, 2022
+// Updated:      June 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -288,7 +288,7 @@ __global__ void convDeltaSz(float const *mw, float const *Sz, float const *J,
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
     zwidxpos: Position of weight indices for covariance Z|WA
-    zudidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zudidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     fo: Number of filters of the output image
     wihi: Width x height of the input image
@@ -367,7 +367,7 @@ __global__ void tconvDeltaMz(float const *mw, float const *Sz, float const *J,
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
     widxpos: Position of weight indices for covariance Z|WA
-    zidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     fo: Number of filters of the output image
     wihi: Width x height of the input image
@@ -429,7 +429,7 @@ __global__ void tconvDeltaSz(float const *mw, float const *Sz, float const *J,
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
     widxpos: Position of weight indices for covariance Z|WA
-    zidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     fo: Number of filters of the output image
     wihi: Width x height of the input image
@@ -497,7 +497,7 @@ __global__ void apDeltaMzSzOverlap(float const *Sz, float const *J,
     jposIn: Positionos the Jacobian vector for this layer
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
-    zudidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zudidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     wihi: Width x height of the input image
     ki: ki x ki
@@ -551,7 +551,7 @@ __global__ void apDeltaMzSz(float const *Sz, float const *J,
     jposIn: Positionos the Jacobian vector for this layer
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
-    zudidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zudidxpos: Position of next hidden state indices for covariance Z|Z+
     wo: Width for the output image
     ki: Kernel size
     ki: ki x ki
@@ -778,7 +778,7 @@ __global__ void convDeltaMzsc(float const *mw, float const *Sz, float const *J,
     J: Jacobian vector
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     widx: Weight indices for covariance Z|WA i.e. FCzwa_1
-    aidx: Activaiton indices for covariance Z|WA i.e. FCzwa_2
+    aidx: Activation indices for covariance Z|WA i.e. FCzwa_2
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaMz: Updated quantities for the mean of the hidden states
     wpos: Weight position for this layer in the weight vector of network
@@ -789,7 +789,7 @@ __global__ void convDeltaMzsc(float const *mw, float const *Sz, float const *J,
         vector of network
     widxpos: Position of weight indices for covariance Z|WA
     aidxpos: Position of activation indices for covariance Z|WA
-    zudidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zudidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     fo: Number of filters of the output image
     realwihi: Width x height of the shortcut image
@@ -853,7 +853,7 @@ __global__ void convDeltaSzsc(float const *mw, float const *Sz, float const *J,
     J: Jacobian vector
     deltaS: Inovation vector for variance i.e. (S_observation - S_prediction)
     widx: Weight indices for covariance Z|WA i.e. FCzwa_1
-    aidx: Activaiton indices for covariance Z|WA i.e. FCzwa_2
+    aidx: Activation indices for covariance Z|WA i.e. FCzwa_2
     zudidx: Next hidden state indices for covariance Z|Z+ i.e. Szz_ud
     deltaSz: Updated quantities for the variance of the hidden states
     wpos: Weight position for this layer in the weight vector of network
@@ -864,7 +864,7 @@ __global__ void convDeltaSzsc(float const *mw, float const *Sz, float const *J,
         vector of network
     widxpos: Position of weight indices for covariance Z|WA
     aidxpos: Position of activation indices for covariance Z|WA
-    zudidxpos: Positionof next hidden state indices for covariance Z|Z+
+    zudidxpos: Position of next hidden state indices for covariance Z|Z+
     woho: Width x height of the output image
     fo: Number of filters of the output image
     realwihi: Width x height of the shortcut image
@@ -1003,6 +1003,419 @@ __global__ void duplicateMeanVar(float const *m1, float const *S1, float *m,
         S[col] = S1[col];
     }
 }
+///////////////////////////////////////////////////////////////////////////
+/// NOISE INFERENCE
+///////////////////////////////////////////////////////////////////////////
+__global__ void compute_obs_noise_variance(float const *V, int n, float *Sa) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < n) {
+        Sa[col] += V[col];
+    }
+}
+
+__global__ void join_output_hidden_states(float const *z_mu, float const *z_v2,
+                                          int ny, int B, float *z) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int h = ny / 2;
+    int m, k;
+    if (col < h * B) {
+        m = (col / h) * ny + col % h;
+        k = (col / h) * ny + col % h + h;
+        z[m] = z_mu[col];
+        z[k] = z_v2[col];
+    }
+}
+
+__global__ void delta_mz_Sz_backward(float const *ma_prior,
+                                     float const *Sa_prior, float const *J,
+                                     float const *Cza_prior,
+                                     float const *ma_post, float const *Sa_post,
+                                     int n, float *delta_mz, float *delta_Sz)
+/*Compute the updated quantities for hidden states using the backward update
+  i.e. smoother algorithm
+
+Args:
+    ma_prior: Prior mean of activation unit
+    Sa_prior: Prior variance of activation unit
+    J: Jacobian matrix
+    Cza_prior: Covariance between hidden state and activation units
+    ma_post: Posterior mean of activation units
+    Sa_post: Posterior variance of activation units
+    n: Number of activation units
+    delta_mz: Updated quantities of mean for the hidden states
+    delta_Sz: Updated quantities of variance for the hidden states
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float Jz;
+    if (col < n) {
+        Jz = J[col] * Cza_prior[col] / Sa_prior[col];
+        delta_mz[col] = Jz * (ma_post[col] - ma_prior[col]);
+        delta_Sz[col] = Jz * (Sa_post[col] - Sa_prior[col]) * Jz;
+    }
+}
+
+__global__ void delta_mz_Sz_with_indices_backward(
+    float const *ma_prior, float const *Sa_prior, float const *J,
+    float const *Cza_prior, float const *ma_post, float const *Sa_post,
+    int const *ud_idx, int ny, int nye, int B, float *delta_mz, float *delta_Sz)
+/*Compute the updated quantities for specified hidden states using the backward
+  update i.e. smoother algorithm
+
+Args:
+    ma_prior: Prior mean of activation units
+    Sa_prior: Prior variance of activation units
+    J: Jacobian matrix
+    Cza_prior: Covariance between hidden state and activation units
+    ma_post: Posterior mean of activation units
+    Sa_post: Posterior variance of activation units
+    up_idx: Indices for the hidden states to be updated
+    ny: Total number of hidden states for the output layer
+    nye: Totoal number of hidden states to be updated for the output layer
+    B: Batch size
+    delta_mz: Updated values of mean for the hidden states
+    delta_Sz: Updated values of variance for the hidden states
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float Jz;
+    int idx;
+    if (col < nye * B) {
+        idx = ud_idx[col] + (col / nye) * ny - 1;
+        Jz = J[idx] * Cza_prior[idx] / Sa_prior[idx];
+        delta_mz[idx] = Jz * (ma_post[idx] - ma_prior[idx]);
+        delta_Sz[idx] = Jz * (Sa_post[idx] - Sa_prior[idx]) * Jz;
+    }
+}
+
+__global__ void compute_posterior_for_v_squared(float const *delta_mv,
+                                                float const *delta_Sv,
+                                                float const *ma_v2, int n,
+                                                float *mz_v2, float *Sz_v2)
+/* Compute the posterior distribution for the v squared.
+
+Args:
+    delta_mv: Updated value of the mean for the observation noise (v)
+    delta_Sv: Updated value of the variance of the observation noise
+    ma_v2: Mean of activation units for the observation noise squared (v^2)
+    Sa_v2: Variance of activation units for the observation noise squared
+    n: Number of hidden states
+    mz_v2: Mean of hidden states for the observation noise squared
+    Sz_v2: Variance of hidden states for the observation noise squared
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float Sv_p;
+    if (col < n) {
+        Sv_p = ma_v2[col] + delta_Sv[col];
+        mz_v2[col] = pow(delta_mv[col], 2) + Sv_p;
+        Sz_v2[col] = 2 * pow(Sv_p, 2) + 4 * pow(delta_mv[col], 2) * Sv_p;
+    }
+}
+
+__global__ void compute_prior_for_v_squared(float const *ma_v2, int n,
+                                            float *Sa_v2)
+/* Compute the posterior distribition for observation noise v.
+
+Args:
+    ma_v2: Mean of activation units for the observation noise squared (v^2)
+    Sa_v2: Variance of activation units for the observation noise squared
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp;
+    if (col < n) {
+        tmp = Sa_v2[col];
+        Sa_v2[col] = 3 * tmp + 2 * pow(ma_v2[col], 2);
+    }
+}
+
+void delta_mz_Sz_output_dist(ObsGPU &obs, Network &net,
+                             NoiseStateGPU &noise_state)
+/*Compute the updated quantities for the output distribution. The
+   observation is defined following
+                        y = x + v, v ~ N(0, \sigma_v^2),
+   where y is the observation and x is the output distribution i.e.,
+   x ~ N(\mu_x, Sx).
+
+Args:
+    obs: Observation object i.e., observation and its noises
+    net: Network
+    noise_state: Noise's hidden state
+*/
+{
+    int z_pos = 0;
+    int n = net.n_y * net.batch_size;
+    unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
+
+    // NOTE: To use the deltaMzSz function, we assume that ma_v2_prior is
+    // equivalent to \Sigma_v.
+    // Update hidden states for the mean
+    deltaMzSz<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
+        noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        noise_state.d_delta_mz_mu, noise_state.d_delta_Sz_mu, z_pos, n);
+
+    // Update hidden states for observation noise's hidden states
+    deltaMzSz<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2_prior,
+        noise_state.d_J_v, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        noise_state.d_delta_mv, noise_state.d_delta_Sv, z_pos, n);
+}
+
+void delta_mz_Sz_noise_dist(Network &net, NoiseStateGPU &noise_state)
+/*Compute the updated quantities for the heteroscedastic & homoscedastic noise
+   distribution for the observation noise squared (v^2). The observation is
+   defined following
+                    y = x + v, v ~ N(0, \sigma_v^2)
+
+Args:
+    net: Network
+    noise_state: Noise state for the output layer
+
+*/
+{
+    // Update hidden states for the observation noise squared
+    int n = net.n_y * net.batch_size;
+    unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_delta_mv, noise_state.d_delta_Sv,
+        noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
+        noise_state.d_Sa_v2_post);
+
+    compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
+
+    // NOTE: We do not apply the activatation function i.e., exponential
+    // function for the hidden states representing the observation noise for the
+    // homoscedastic case so that we have to handle both following cases
+    // differently.
+    // Heteroscedastic case
+    if (net.noise_type.compare("heteros") == 0) {
+        delta_mz_Sz_backward<<<BLOCKS, net.num_gpu_threads>>>(
+            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v2, noise_state.d_Cza_v2, noise_state.d_ma_v2_post,
+            noise_state.d_Sa_v2_post, n, noise_state.d_delta_mz_v2b,
+            noise_state.d_delta_Sz_v2b);
+
+    } else if (net.noise_type.compare("homosce") == 0) {
+        delta_mz_Sz_backward<<<BLOCKS, net.num_gpu_threads>>>(
+            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2_post, noise_state.d_Sa_v2_post, n,
+            noise_state.d_delta_mz_v2b, noise_state.d_delta_Sz_v2b);
+
+    } else {
+        throw std::invalid_argument(
+            "Noise inference type is invalid - state_feed_backward.cu");
+    }
+}
+
+void delta_mz_Sz_with_idx_output_dist(ObsGPU &obs, Network &net,
+                                      NoiseStateGPU &noise_state)
+/*Compute the updated quantities for the output distribution specified by
+ indices
+*/
+{
+    // Get number of hidden states for the output layer without the hidden
+    // states for the observation noise
+    int z_pos = 0;
+    int n = net.nye * net.batch_size;
+    unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
+
+    // Update hidden states for the mean
+    deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
+        noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        obs.d_idx_ud_batch, noise_state.d_delta_mz_mu,
+        noise_state.d_delta_Sz_mu, z_pos, net.n_y, net.nye, n);
+
+    // Update hidden states for observation noise (v)
+    deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2_prior,
+        noise_state.d_J_v, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        obs.d_idx_ud_batch, noise_state.d_delta_mv, noise_state.d_delta_Sv,
+        z_pos, net.n_y, net.nye, n);
+}
+
+void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
+                                     NoiseStateGPU &noise_state)
+/*Compute the updated quantities for the heteroscedastic & homoscedastic noise
+   distribution for the specified observation noise.
+*/
+{
+    // Update hidden states for the observation noise squared
+    int n = net.n_y * net.batch_size;
+    unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_delta_mv, noise_state.d_delta_Sv,
+        noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
+        noise_state.d_ma_v2_post);
+
+    compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
+
+    // Heteroscedastic case
+    unsigned int BLOCK_B =
+        (net.nye * net.batch_size + net.num_gpu_threads - 1) /
+        net.num_gpu_threads;
+    if (net.noise_type.compare("heteros") == 0) {
+        delta_mz_Sz_with_indices_backward<<<BLOCK_B, net.num_gpu_threads>>>(
+            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v2, noise_state.d_Cza_v2, noise_state.d_ma_v2_post,
+            noise_state.d_Sa_v2_post, obs.d_idx_ud_batch, net.nodes.back(),
+            net.nye, net.batch_size, noise_state.d_delta_mz_v2b,
+            noise_state.d_delta_Sz_v2b);
+    }
+    // Homoscedastic case
+    else if (net.noise_type.compare("homosce")) {
+        delta_mz_Sz_with_indices_backward<<<BLOCK_B, net.num_gpu_threads>>>(
+            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2_post, noise_state.d_Sa_v2_post,
+            obs.d_idx_ud_batch, net.nodes.back(), net.nye, net.batch_size,
+            noise_state.d_delta_mz_v2b, noise_state.d_delta_Sz_v2b);
+    } else {
+        throw std::invalid_argument(
+            "Noise inference type is invalid - state_feed_backward.cu");
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+/// UPDATED VALUES OF HIDDEN STATES FOR OUTPUT LAYER
+///////////////////////////////////////////////////////////////////////////
+__global__ void update_homosce_noise(float const *delta_mz_v2b,
+                                     float const *delta_Sz_v2b, int ny, int B,
+                                     float *ma_v2_prior, float *Sa_v2_prior)
+/* Compute the updated values for homoscedastic noise squared by summing up the
+   mini-batches of updated values of each noise observation squared
+
+Args:
+    delta_mz_v2b: Updated values for the mean of the observation noise squared
+    delta_Sz_v2B: Updatred values for the variance of the observation noise
+        squared
+    ny: Number of hidden states for the output layer
+    B: Batch size
+    ma_v2_prior: Mean of the observation noise squared
+    Sa_v2_prior: Variance of the observation noise squared
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp_m = 0.0f;
+    float tmp_S = 0.0f;
+    if (col < ny / 2) {
+        for (int j = 0; j < B; j++) {
+            tmp_m += delta_mz_v2b[j * B + col];
+            tmp_S += delta_Sz_v2b[j * B + col];
+        }
+        ma_v2_prior[col] += tmp_m;
+        Sa_v2_prior[col] += tmp_S;
+    }
+}
+
+void output_delta_mz_Sz_with_noise_inference(ObsGPU &obs, Network &net,
+                                             StateGPU &state,
+                                             DeltaStateGPU &d_state)
+/* Compute the updated value for the output layer including the noise
+   observation's hidden states
+ */
+{
+    int z_pos = net.z_pos.back();
+    if (net.is_idx_ud) {
+        // Compute updated values for the output distribution
+        delta_mz_Sz_with_idx_output_dist(obs, net, state.noise_state);
+
+        // Compute updated values for the noise observation of the output
+        // distribution
+        delta_mz_Sz_with_idx_noise_dist(obs, net, state.noise_state);
+
+    } else {
+        delta_mz_Sz_output_dist(obs, net, state.noise_state);
+        delta_mz_Sz_noise_dist(net, state.noise_state);
+    }
+
+    // Join updated values (outputs + its observation noise)
+    unsigned int BLOCKS;
+    if (net.noise_type.compare("heteros") == 0) {
+        BLOCKS = (net.n_y * net.batch_size + net.num_gpu_threads - 1) /
+                 net.num_gpu_threads;
+        join_output_hidden_states<<<BLOCKS, net.num_gpu_threads>>>(
+            state.noise_state.d_delta_mz_mu, state.noise_state.d_delta_mz_v2b,
+            net.nodes.back(), net.batch_size, d_state.d_delta_mz);
+
+        join_output_hidden_states<<<BLOCKS, net.num_gpu_threads>>>(
+            state.noise_state.d_delta_Sz_mu, state.noise_state.d_delta_Sz_v2b,
+            net.nodes.back(), net.batch_size, d_state.d_delta_Sz);
+
+    } else if (net.noise_type.compare("homosce") == 0) {
+        BLOCKS = (net.n_y + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        update_homosce_noise<<<BLOCKS, net.num_gpu_threads>>>(
+            state.noise_state.d_delta_mz_v2b, state.noise_state.d_delta_Sz_v2b,
+            net.nodes.back(), net.batch_size, state.noise_state.d_ma_v2_prior,
+            state.noise_state.d_Sa_v2_prior);
+
+    } else {
+        throw std::invalid_argument(
+            "Noise inference type is invalid - state_feed_backward.cu");
+    }
+}
+
+void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
+                        DeltaStateGPU &d_state)
+/* Compute the updated value for the hidden states of the output layer
+
+ Args:
+    obs: Observations
+    net: Network architecture
+    state: Hidden state of network
+    d_state: Updated quantities for network's hidden states
+ */
+{
+    int nl_B = net.nodes.back() * net.batch_size;
+    if (!net.is_idx_ud) {
+        int BLOCKS_UD = (nl_B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        deltaMzSz<<<BLOCKS_UD, net.num_gpu_threads>>>(
+            state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
+            obs.d_V_batch, d_state.d_delta_mz, d_state.d_delta_Sz,
+            net.z_pos.back(), nl_B);
+    } else  // Only update the hidden states in the indices udIdx
+    {
+        int nl = net.nye * net.batch_size;
+        int BLOCKS_UD = (nl + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        deltaMzSzWithIndices<<<BLOCKS_UD, net.num_gpu_threads>>>(
+            state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
+            obs.d_V_batch, obs.d_idx_ud_batch, d_state.d_delta_mz,
+            d_state.d_delta_Sz, net.z_pos.back(), net.nodes.back(), net.nye,
+            nl);
+    }
+}
+
+void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
+                                 DeltaStateGPU &d_state)
+/*Compute updated quantities for the output layer's hidden state
+
+ Args:
+    obs: Observations
+    net: Network architecture
+    state: Hidden state of network
+    d_state: Updated quantities for network's hidden states
+ */
+{
+    if (net.is_output_ud) {
+        if (net.noise_type.compare("homosce") != 0 &&
+            net.noise_type.compare("heteros") != 0) {
+            output_delta_mz_Sz(obs, net, state, d_state);
+        } else {
+            output_delta_mz_Sz_with_noise_inference(obs, net, state, d_state);
+        }
+    } else {
+        int nl_B = net.nodes.back() * net.batch_size;
+        int BLOCKS_UD = (nl_B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        duplicateMeanVar<<<BLOCKS_UD, net.num_gpu_threads>>>(
+            obs.d_y_batch, obs.d_V_batch, d_state.d_delta_mz,
+            d_state.d_delta_Sz, nl_B);
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////
 /// STATE BACKWARD PASS
@@ -1027,7 +1440,7 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
     dim3 dimBlock(THREADS, THREADS);
 
     // Declare variables
-    int zposL, NL, zposIn, zposOut, wposIn, no, ni, ki, fi, wi;
+    int zposL, zposIn, zposOut, wposIn, no, ni, ki, fi, wi;
     int hi, fo, wo, ho;
     int ki2, wihi, woho, niB, padIdx, xsIn, nextSc2ud;
     int fisc, scposOut, scposIn, zscposIn, wisc, hisc;
@@ -1036,61 +1449,25 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
     int zascidxposIn, zudscidxposIn, nisc, niscB;
     int rowwIn, rowwfo, wihiB;
     int colzIn, kiwo, K, raposIn, wihifi, fiB, xposIn;
-    int nL, padIdxIn, nLB;
+    int nl, padIdxIn, nl_B;
     unsigned int gridRow, gridCol;
     int B = net.batch_size;
     int numLayers = net.layers.size();
 
-    zposL = net.z_pos[numLayers - 1];  // minus 1 due to matlab's index
-    nL = net.nodes[numLayers - 1];
-    nLB = nL * B;
     // Output-layer update
-    if (net.is_output_ud)  // Update hidden states for the output layer
-    {
-        if (!net.is_idx_ud) {
-            // gridRowL = (1 + THREADS - 1) / THREADS;
-            // gridColL = (nLB + THREADS - 1) / THREADS;
-            // dim3 dimGridL(gridColL, gridRowL);
-            int BLOCKS_UD = (nLB + THREADS - 1) / THREADS;
-            deltaMzSz<<<BLOCKS_UD, THREADS>>>(
-                state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
-                obs.d_V_batch, d_state.d_delta_mz, d_state.d_delta_Sz, zposL,
-                nLB);
-        } else  // Only update the hidden states in the indices udIdx
-        {
-            NL = net.nye * B;
-            // Launch kernel
-            // gridRowL = (1 + THREADS - 1) / THREADS;
-            // gridColL = (NL + THREADS - 1) / THREADS;
-            // dim3 dimGridL(gridColL, gridRowL);
-            int BLOCKS_UD = (NL + THREADS - 1) / THREADS;
-            deltaMzSzWithIndices<<<BLOCKS_UD, THREADS>>>(
-                state.d_ma, state.d_Sa, state.d_Sz, state.d_J, obs.d_y_batch,
-                obs.d_V_batch, obs.d_idx_ud_batch, d_state.d_delta_mz,
-                d_state.d_delta_Sz, zposL, net.nodes[numLayers - 1], net.nye,
-                NL);
-        }
-    }
-    // Connected network such as GAN and Autoencoder
-    else {
-        // gridRowL = (1 + THREADS - 1) / THREADS;
-        // gridColL = (nLB + THREADS - 1) / THREADS;
-        // dim3 dimGridL(gridColL, gridRowL);
-        int BLOCKS_UD = (nLB + THREADS - 1) / THREADS;
-        duplicateMeanVar<<<BLOCKS_UD, THREADS>>>(obs.d_y_batch, obs.d_V_batch,
-                                                 d_state.d_delta_mz,
-                                                 d_state.d_delta_Sz, nLB);
-    }
+    update_output_hidden_states(obs, net, state, d_state);
+
     // Inovation vector for output layer
-    // unsigned int gridRowI = (1 + THREADS - 1) / THREADS;
-    // unsigned int gridColI = (nLB + THREADS - 1) / THREADS;
-    // dim3 dimGridI(gridColI, gridRowI);
-    int BLOCKS_I = (nLB + THREADS - 1) / THREADS;
+    zposL = net.z_pos.back();
+    nl = net.nodes.back();
+    nl_B = nl * B;
+    int BLOCKS_I = (nl_B + THREADS - 1) / THREADS;
+
     // Inovavation vector for Z
     inovationMean<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_mz,
-                                         d_state.d_delta_m, zposL, zposL, nLB);
+                                         d_state.d_delta_m, zposL, zposL, nl_B);
     inovationVar<<<BLOCKS_I, THREADS>>>(state.d_Sz, d_state.d_delta_Sz,
-                                        d_state.d_delta_S, zposL, zposL, nLB);
+                                        d_state.d_delta_S, zposL, zposL, nl_B);
 
     // Hidden-layer update
     nextSc2ud = -1;

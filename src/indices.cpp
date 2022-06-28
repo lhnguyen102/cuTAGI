@@ -825,7 +825,7 @@ TconvIndexOut get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
  *    param_pad_idx: Index for the padding of the parameters
  *
  * Returns:
- *    FCwz_2_idx: Activaiton indices for covariance Z|WA
+ *    FCwz_2_idx: Activation indices for covariance Z|WA
  *    Swz_ud_idx: Hidden state (Z+) indices for covariance Z|Z+
  *    FCzwa_1_idx: Weight indices for mean product WA
  *    Szz_ud_idx: Next hidden state indices for covariance Z|Z+

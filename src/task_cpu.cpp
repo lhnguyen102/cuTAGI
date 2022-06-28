@@ -5,7 +5,7 @@
 // Created:      May 21, 2022
 // Updated:      June 24 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/task_cpu.h"
@@ -333,9 +333,14 @@ Args:
                 std::chrono::duration_cast<std::chrono::nanoseconds>(end -
                                                                      start)
                     .count();
-            std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
-            std::cout << " Time left     : "
-                      << (run_time * 1e-9) * (n_epochs - e - 1) / 60
+            std::cout << " Time per epoch: ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << run_time * 1e-9 << " sec\n";
+            std::cout << " Time left     : ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
                       << " mins\n";
         }
     } else {
@@ -391,8 +396,14 @@ Args:
 
         // Display results
         std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-        std::cout << "RMSE           : " << pow(mse, 0.5) << "\n";
-        std::cout << "Log likelihood: " << log_lik;
+        std::cout << "RMSE           : ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << pow(mse, 0.5) << "\n";
+        std::cout << "Log likelihood: ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << log_lik;
         std::cout << std::endl;
 
         // Save predictions

@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      June 11, 2022
+// Updated:      June 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1286,6 +1286,20 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
     }
 }
 
+__global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
+                        float *Sa, float *Cza) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp_m = 0.0f;
+    float tmp_S = 0.0f;
+    if (col < n) {
+        tmp_m = mz[col];
+        tmp_S = Sz[col];
+        ma[col] = expf(tmp_m + 0.5 * tmp_S);
+        Sa[col] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1.0f);
+        Cza[col] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
+    }
+}
+
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf)
 /*Activate the full covariance.
@@ -1487,6 +1501,59 @@ __global__ void getOutputHiddenStates(float const *mz, float const *Sz,
     }
 }
 
+__global__ void get_output_hidden_states(float const *z, int z_pos, int n,
+                                         float *z_mu)
+/*Get output's distrinution
+
+Args:
+    z: Mean of activation units of the entire network
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    n: Number of hidden states
+    z_mu: Hidden states for the output
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < n) {
+        z_mu[col] = z[z_pos + col];
+    }
+}
+__global__ void get_output_hidden_states_ni(float const *z, int ny, int z_pos,
+                                            int B, float *z_mu)
+/* Get hidden states of the output layer for the noise-inference case
+
+Args:
+    z: Output hidden states of the entire network
+    ny: Number of hidden states of the output layer including hidden states
+        for noise observation
+    B: Batch size
+    z_pos: Position of hidden state for the output layer
+        in hidden-state vector of network
+    z_mu: Hidden states for the output
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int h = ny / 2;
+    int m;
+    if (col < h * B) {
+        m = (col / h) * ny + col % h;
+        z_mu[col] = z[z_pos + m];
+    }
+}
+
+__global__ void get_noise_hidden_states(float const *z, int ny, int z_pos,
+                                        int B, float *z_v2)
+/* Get hidden states of the output layer
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int h = ny / 2;
+    int k;
+    if (col < h * B) {
+        k = (col / h) * ny + col % h + h;
+        z_v2[col] = z[z_pos + k];
+    }
+}
 //////////////////////////////////////////////////////////////////////
 /// INITIALIZE  NORMALIZATION'S MEAN AND VARIANCE
 //////////////////////////////////////////////////////////////////////
@@ -1958,5 +2025,50 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                                                   B, zposOut, state.d_Sa_f);
             }
         }
+    }
+    int ny_B = net.n_y * net.batch_size;
+    unsigned int BLOCK_N = (ny_B + THREADS - 1) / THREADS;
+    if (net.noise_type.compare("heteros") == 0) {
+        // Split hidden state of output layer into output and noise
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
+            state.d_ma, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_ma_mu);
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
+            state.d_Sa, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_Sa_mu);
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
+            state.d_Sz, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_Sz_mu);
+        get_output_hidden_states_ni<<<BLOCK_N, THREADS>>>(
+            state.d_J, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_J_mu);
+
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_ma, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_ma_v2_prior);
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_Sa, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_Sa_v2_prior);
+        get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_J, net.nodes.back(), net.z_pos.back(), net.batch_size,
+            state.noise_state.d_J_v2);
+
+        // Activate observation noise squared using exponential fun for ensuring
+        // the positive values
+        exp_fun<<<BLOCK_N, THREADS>>>(
+            state.noise_state.d_ma_v2_prior, state.noise_state.d_Sa_v2_prior,
+            ny_B, state.noise_state.d_ma_v2_prior,
+            state.noise_state.d_Sa_v2_prior, state.noise_state.d_Cza_v2);
+
+    } else if (net.noise_type.compare("homosce") == 0) {
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_ma, net.z_pos.back(), ny_B, state.noise_state.d_ma_mu);
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_Sa, net.z_pos.back(), ny_B, state.noise_state.d_Sa_mu);
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_Sz, net.z_pos.back(), ny_B, state.noise_state.d_Sz_mu);
+        get_output_hidden_states<<<BLOCK_N, THREADS>>>(
+            state.d_J, net.z_pos.back(), ny_B, state.noise_state.d_J_mu);
+    } else {
     }
 }

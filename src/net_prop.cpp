@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 23, 2022
+// Updated:      June 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -702,8 +702,6 @@ Param initialize_param(Network &net) {
     int tot_biases = sum(net.num_biases);
     int tot_weights_sc = sum(net.num_weights_sc);
     int tot_biases_sc = sum(net.num_biases_sc);
-    std::string Xavier = "Xavier";
-    std::string He = "He";
 
     Param p;
     p.mw.resize(tot_weights, 0);
@@ -730,7 +728,8 @@ Param initialize_param(Network &net) {
             fan_out = net.nodes[j];
 
             // Compute variance
-            if (net.init_method == Xavier) {
+            if (net.init_method.compare("Xavier") == 0 ||
+                net.init_method.compare("xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);
@@ -770,7 +769,8 @@ Param initialize_param(Network &net) {
             fan_out = pow(net.kernels[j - 1], 2) * net.filters[j];
 
             // Compute variance
-            if (net.init_method == Xavier) {
+            if (net.init_method.compare("Xavier") == 0 ||
+                net.init_method.compare("xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);
@@ -827,7 +827,8 @@ Param initialize_param(Network &net) {
             float fan_out_sc = net.filters[j];
 
             // Compute variance
-            if (net.init_method == Xavier) {
+            if (net.init_method.compare("Xavier") == 0 ||
+                net.init_method.compare("xavier") == 0) {
                 scale_sc = xavier_init(fan_in_sc, fan_out_sc);
             } else {
                 scale_sc = he_init(fan_in_sc);

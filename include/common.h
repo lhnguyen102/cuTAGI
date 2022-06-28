@@ -5,7 +5,7 @@
 // Created:      January 15, 2022
 // Updated:      June 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <fstream>
@@ -219,14 +219,14 @@ void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES
 //////////////////////////////////////////////////////////////////////
-void get_output_hidden_states(std::vector<float> &z, int z_pos,
-                              std::vector<float> &z_mu);
+void get_output_hidden_states_cpu(std::vector<float> &z, int z_pos,
+                                  std::vector<float> &z_mu);
 
-void get_output_hidden_states_ni(std::vector<float> &z, int ny, int z_pos,
-                                 std::vector<float> &z_mu);
+void get_output_hidden_states_ni_cpu(std::vector<float> &z, int ny, int z_pos,
+                                     std::vector<float> &z_mu);
 
-void get_noise_hidden_states(std::vector<float> &z, int ny, int z_pos,
-                             std::vector<float> &z_v2);
+void get_noise_hidden_states_cpu(std::vector<float> &z, int ny, int z_pos,
+                                 std::vector<float> &z_v2);
 
 void output_hidden_states(NetState &state, Network &net,
                           std::vector<float> &ma_output,
