@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      May 29, 2022
+// Updated:      Jine 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,6 @@
 
 #include "include/struct_var.h"
 #include "include/task.cuh"
-#include "include/task_cpu.h"
 #include "include/user_input.h"
 
 int main(int argc, char* argv[]) {
@@ -40,7 +39,8 @@ int main(int argc, char* argv[]) {
     if (user_input.device == "cuda") {
         task_command(user_input, path);
     } else {
-        task_command_cpu(user_input, path);
+        throw std::invalid_argument(
+            "This version does not support CPU -- main.cu");
     }
     return 0;
 }
