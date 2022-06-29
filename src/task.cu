@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      June 28, 2022
+// Updated:      June 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -123,7 +123,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     std::vector<int> label_batch(net_d.batch_size, 0);
 
     x_batch.resize(net_e.batch_size * net_e.nodes[0], 0);
-    Sx_batch.resize(net_e.batch_size * net_e.nodes[0], pow(net_e.sigma_x, 2));
+    Sx_batch.resize(net_e.batch_size * net_e.nodes[0], powf(net_e.sigma_x, 2));
     y_batch.resize(net_d.batch_size * net_d.nodes.back(), 0);
     y_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
     V_batch_e.resize(net_e.batch_size * net_e.nodes.back(), 0);
@@ -131,7 +131,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
     // *TODO: Is there any better way?
     std::vector<float> Sx_f_batch;
     if (net_e.is_full_cov) {
-        float var_x = pow(net_e.sigma_x, 2);
+        float var_x = powf(net_e.sigma_x, 2);
         auto Sx_f = initialize_upper_triu(var_x, net_e.nodes.front());
         Sx_f_batch = repmat_vector(Sx_f, net_e.batch_size);
     }
@@ -193,7 +193,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                                 net_d.sigma_v_min);
             }
             std::vector<float> V_batch(net_d.batch_size * net_d.nodes.back(),
-                                       pow(net_d.sigma_v, 2));
+                                       powf(net_d.sigma_v, 2));
             std::cout << "sigma v: " << V_batch[0] << "\n";
 
             auto start = std::chrono::steady_clock::now();
@@ -330,7 +330,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
         std::vector<float> ma_d_out(imdb.num_data * net_d.nodes.back(), 0);
         std::vector<float> Sa_d_out(imdb.num_data * net_d.nodes.back(), 0);
         std::vector<float> V_batch(net_d.batch_size * net_d.nodes.back(),
-                                   pow(net_d.sigma_v, 2));
+                                   powf(net_d.sigma_v, 2));
         int mt_idx = 0;
 
         // Generate image from test set
@@ -421,14 +421,14 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<int> label_batch(net.batch_size, 0);
 
     x_batch.resize(net.batch_size * net.nodes.front(), 0);
-    Sx_batch.resize(net.batch_size * net.nodes.front(), pow(net.sigma_x, 2));
+    Sx_batch.resize(net.batch_size * net.nodes.front(), powf(net.sigma_x, 2));
     y_batch.resize(net.batch_size * hrs.n_obs, 0);
-    V_batch.resize(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
+    V_batch.resize(net.batch_size * hrs.n_obs, powf(net.sigma_v, 2));
 
     // *TODO: Is there any better way?
     std::vector<float> Sx_f_batch;
     if (net.is_full_cov) {
-        float var_x = pow(net.sigma_x, 2);
+        float var_x = powf(net.sigma_x, 2);
         auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
         Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
     }
@@ -650,14 +650,14 @@ Args:
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
 
     x_batch.resize(net.batch_size * net.n_x, 0);
-    Sx_batch.resize(net.batch_size * net.n_x, pow(net.sigma_x, 2));
+    Sx_batch.resize(net.batch_size * net.n_x, powf(net.sigma_x, 2));
     y_batch.resize(net.batch_size * net.n_y, 0);
-    V_batch.resize(net.batch_size * net.n_y, pow(net.sigma_v, 2));
+    V_batch.resize(net.batch_size * net.n_y, powf(net.sigma_v, 2));
 
     // *TODO: Is there any better way?
     std::vector<float> Sx_f_batch;
     if (net.is_full_cov) {
-        float var_x = pow(net.sigma_x, 2);
+        float var_x = powf(net.sigma_x, 2);
         auto Sx_f = initialize_upper_triu(var_x, net.n_x);
         Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
     }
@@ -700,7 +700,7 @@ Args:
                                 net.sigma_v_min);
             }
             std::vector<float> V_batch(net.batch_size * net.n_y,
-                                       pow(net.sigma_v, 2));
+                                       powf(net.sigma_v, 2));
 
             // Timer
             std::cout << "################\n";
@@ -794,7 +794,7 @@ Args:
 
         // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
-            sy_norm[k] = pow(Sa_out[k] + pow(net.sigma_v, 2), 0.5);
+            sy_norm[k] = powf(Sa_out[k] + powf(net.sigma_v, 2), 0.5);
         }
         denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.n_y, my);
         denormalize_mean(db.y, db.mu_y, db.sigma_y, net.n_y, y_test);
@@ -809,7 +809,7 @@ Args:
         std::cout << "RMSE           : ";
         std::cout << std::fixed;
         std::cout << std::setprecision(3);
-        std::cout << pow(mse, 0.5) << "\n";
+        std::cout << powf(mse, 0.5) << "\n";
         std::cout << "Log likelihood: ";
         std::cout << std::fixed;
         std::cout << std::setprecision(3);

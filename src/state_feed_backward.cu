@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      June 28, 2022
+// Updated:      June 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1108,8 +1108,8 @@ Args:
     float Sv_p;
     if (col < n) {
         Sv_p = ma_v2[col] + delta_Sv[col];
-        mz_v2[col] = pow(delta_mv[col], 2) + Sv_p;
-        Sz_v2[col] = 2 * pow(Sv_p, 2) + 4 * pow(delta_mv[col], 2) * Sv_p;
+        mz_v2[col] = powf(delta_mv[col], 2) + Sv_p;
+        Sz_v2[col] = 2 * powf(Sv_p, 2) + 4 * powf(delta_mv[col], 2) * Sv_p;
     }
 }
 
@@ -1126,7 +1126,7 @@ Args:
     float tmp;
     if (col < n) {
         tmp = Sa_v2[col];
-        Sa_v2[col] = 3 * tmp + 2 * pow(ma_v2[col], 2);
+        Sa_v2[col] = 3 * tmp + 2 * powf(ma_v2[col], 2);
     }
 }
 
