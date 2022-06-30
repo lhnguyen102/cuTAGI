@@ -36,11 +36,7 @@ int main(int argc, char* argv[]) {
     path.saved_inference_path = path.curr_path + "/saved_results/";
 
     // Run task
-    if (user_input.device == "cuda") {
-        task_command(user_input, path);
-    } else {
-        throw std::invalid_argument(
-            "This version does not support CPU -- main.cu");
-    }
+    task_command(user_input, path);
+
     return 0;
 }
