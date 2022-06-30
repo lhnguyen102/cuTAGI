@@ -3,9 +3,9 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      June 12, 2022
+# Updated:      June 24, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 import os
 import matplotlib.pyplot as plt
@@ -143,10 +143,13 @@ class PredictionViz:
                          y_test: npt.NDArray,
                          y_pred: npt.NDArray,
                          sy_pred: npt.NDArray,
+                         std_factor: int,
                          sy_test: npt.NDArray | None = None,
                          label: str = 'diag',
                          title: str | None = None,
-                         eq: str | None = None) -> None:
+                         eq: str | None = None,
+                         x_eq: float | None = None,
+                         y_eq: float | None = None) -> None:
         """Compare prediciton distribution with theorical distribution
 
             x_train: Input train data
@@ -155,37 +158,45 @@ class PredictionViz:
             y_test: Output test data
             y_pred: Prediciton of network
             sy_pred: Standard deviation of the prediction
+            std_factor: Standard deviation factor
             sy_test: Output test's theorical standard deviation
             label: Name of file
             title: Figure title
             eq: Math equation for data
+            x_eq: x-coordinate for eq
+            y_eq: y-coordinate for eq
 
         """
 
         # Get max and min values
-        max_y = max(y_test)
-        min_y = min(y_test)
-        max_x = max(x_test) + 1
-        min_x = min(x_test) - 1
+        if sy_test is not None:
+            std_y = max(sy_test)
+        else:
+            std_y = 0
+        max_y = max(y_test) + std_y
+        min_y = min(y_test) - std_y
+        max_x = max(x_test)
+        min_x = min(x_test)
 
         # Plot figure
         plt.figure(figsize=self.figsize)
         ax = plt.axes()
         ax.set_title(title, fontsize=1.1 * self.fontsize, fontweight='bold')
-        ax.text(-5.5, 100, eq, color='k', fontsize=self.fontsize)
+        if eq is not None:
+            ax.text(x_eq, y_eq, eq, color='k', fontsize=self.fontsize)
         ax.plot(x_test, y_pred, 'r', lw=self.lw, label=r"$\mathbb{E}[Y]$")
         ax.plot(x_test, y_test, 'k', lw=self.lw, label=r"$y_{true}$")
 
         ax.fill_between(x_test,
-                        y_pred - 1 * sy_pred,
-                        y_pred + 1 * sy_pred,
+                        y_pred - std_factor * sy_pred,
+                        y_pred + std_factor * sy_pred,
                         facecolor='red',
                         alpha=0.3,
                         label=r"$\mathbb{E}[Y]\pm\sigma$")
         if sy_test is not None:
             ax.fill_between(x_test,
-                            y_test - 1 * sy_test,
-                            y_test + 1 * sy_test,
+                            y_test - std_factor * sy_test,
+                            y_test + std_factor * sy_test,
                             facecolor='blue',
                             alpha=0.3,
                             label=r"$y_{true}\pm\sigma$")
@@ -196,7 +207,7 @@ class PredictionViz:
                     marker='o',
                     mfc='none',
                     lw=self.lw,
-                    ms=self.ms,
+                    ms=0.2 * self.ms,
                     linestyle='',
                     label=r'$y_{train}$')
 
@@ -245,6 +256,8 @@ def autoencoder():
 def regression():
     # Equation
     eq = r"$Y = x^{3} + V, ~V\sim\mathcal{N}(0, 3^{2})$"
+    x_eq = -5.5
+    y_eq = 100
 
     # User input data
     task_name = 'regression'
@@ -267,15 +280,19 @@ def regression():
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
 
     # Plot
+    std_factor = 3
     viz.plot_predictions(x_train=x_train,
                          y_train=y_train,
                          x_test=x_test,
                          y_test=y_test,
                          y_pred=y_pred,
                          sy_pred=sy_pred,
+                         std_factor=std_factor,
                          label='diag',
                          title=r"\textbf{Diagonal covariance}",
-                         eq=eq)
+                         eq=eq,
+                         x_eq=x_eq,
+                         y_eq=y_eq)
 
 
 def input_uncertainty_prop():
@@ -287,6 +304,8 @@ def input_uncertainty_prop():
     """
     # Equation
     eq = r"$Y = X^{3} + V,~X \sim \mathcal{N}(\mu_{X}, 1),~V\sim\mathcal{N}(0, 3^{2})$"
+    x_eq = -5.5
+    y_eq = 100
 
     # Standard deviation. NOTE: the following values must correspond to
     # the data file path specified by user
@@ -317,19 +336,73 @@ def input_uncertainty_prop():
     sy_test = ((3 * (x_test**2))**2 * (sigma_x**2) + sigma_v**2)**0.5
 
     # Plot
+    std_factor = 1
     viz.plot_predictions(x_train=None,
                          y_train=y_train,
                          x_test=x_test,
                          y_test=y_test,
                          y_pred=y_pred,
                          sy_pred=sy_pred,
+                         std_factor=std_factor,
                          sy_test=sy_test,
                          label='full_cov',
                          title=r"\textbf{Full covariance",
-                         eq=eq)
+                         eq=eq,
+                         x_eq=x_eq,
+                         y_eq=y_eq)
+
+
+def noise_inference():
+    """ The analytical formulation for output is defined following
+    """
+    # Equation
+    eq = r"$\begin{array}{rcl}Y &=& x^{3} + V, ~V\sim\mathcal{N}(0, \sigma_V^2)\\[4pt]\sigma_V &=& 0.45(x + 0.5)^2\end{array}$"
+    x_eq = -0.95
+    y_eq = 1.6
+
+    # User input data
+    task_name = 'noise_inference_regression'
+    data_name = 'toy_example'
+    x_train_path = './data/toy_example/x_train_1D_noise_inference.csv'
+    y_train_path = './data/toy_example/y_train_1D_noise_inference.csv'
+    sigma_v_train_path = './data/toy_example/noise_train_1D_noise_inference.csv'
+    x_test_path = './data/toy_example/x_test_1D_noise_inference.csv'
+    y_test_path = './data/toy_example/y_test_1D_noise_inference.csv'
+    sigma_v_test_path = './data/toy_example/noise_test_1D_noise_inference.csv'
+    y_pred_path = './saved_results/y_prediction.csv'
+    sy_pred_path = './saved_results/sy_prediction.csv'
+
+    viz = PredictionViz(task_name=task_name, data_name=data_name)
+
+    # Load data
+    x_train = viz.load_dataset(file_path=x_train_path, header=True)
+    y_train = viz.load_dataset(file_path=y_train_path, header=True)
+    sy_train = viz.load_dataset(file_path=sigma_v_train_path, header=True)
+    x_test = viz.load_dataset(file_path=x_test_path, header=True)
+    y_test = viz.load_dataset(file_path=y_test_path, header=True)
+    sy_test = viz.load_dataset(file_path=sigma_v_test_path, header=True)
+    y_pred = viz.load_dataset(file_path=y_pred_path)
+    sy_pred = viz.load_dataset(file_path=sy_pred_path)
+
+    # Plot
+    std_factor = 1
+    viz.plot_predictions(x_train=x_train,
+                         y_train=y_train,
+                         x_test=x_test,
+                         y_test=y_test,
+                         y_pred=y_pred,
+                         sy_pred=sy_pred,
+                         std_factor=std_factor,
+                         sy_test=sy_test,
+                         label='hete',
+                         title=r"\textbf{Heteroscedastic Nosie Inference",
+                         eq=eq,
+                         x_eq=x_eq,
+                         y_eq=y_eq)
 
 
 if __name__ == '__main__':
     #regression()
-    autoencoder()
+    #autoencoder()
     #input_uncertainty_prop()
+    noise_inference()
