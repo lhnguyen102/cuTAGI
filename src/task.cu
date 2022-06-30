@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      June 29, 2022
+// Updated:      June 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -420,8 +420,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
     std::vector<int> label_batch(net.batch_size, 0);
 
-    x_batch.resize(net.batch_size * net.nodes.front(), 0);
-    Sx_batch.resize(net.batch_size * net.nodes.front(), powf(net.sigma_x, 2));
+    x_batch.resize(net.batch_size * net.n_x, 0);
+    Sx_batch.resize(net.batch_size * net.n_x, powf(net.sigma_x, 2));
     y_batch.resize(net.batch_size * hrs.n_obs, 0);
     V_batch.resize(net.batch_size * hrs.n_obs, powf(net.sigma_v, 2));
 
@@ -429,7 +429,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> Sx_f_batch;
     if (net.is_full_cov) {
         float var_x = powf(net.sigma_x, 2);
-        auto Sx_f = initialize_upper_triu(var_x, net.nodes.front());
+        auto Sx_f = initialize_upper_triu(var_x, net.n_x);
         Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
     }
 
@@ -446,7 +446,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     InputGPU ip_gpu(net);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_gpu(net.nodes.back(), net.nye, net.batch_size);
+    ObsGPU op_gpu(net.n_y, net.nye, net.batch_size);
     op_gpu.allocate_cuda_memory();
 
     // Initialization
@@ -456,8 +456,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     int bN_sc = theta.mb_sc.size();
 
     int THREADS = net.num_gpu_threads;
-    unsigned int BLOCKS =
-        (net.batch_size * net.nodes[0] + THREADS - 1) / THREADS;
+    unsigned int BLOCKS = (net.batch_size * net.n_x + THREADS - 1) / THREADS;
     int mt_idx = 0;
 
     // Error rate for training
@@ -472,8 +471,8 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
     std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
     std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
                                              n_epochs);
-    std::vector<float> ma_output(net.batch_size * net.nodes.back(), 0);
-    std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
+    std::vector<float> ma_output(net.batch_size * net.n_y, 0);
+    std::vector<float> Sa_output(net.batch_size * net.n_y, 0);
 
     for (int e = 0; e < n_epochs; e++) {
         /* TRAINING */
@@ -497,7 +496,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             // Load data
             get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
                           batch_idx);
-            get_batch_data(imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(imdb.images, batch_idx, net.n_x, x_batch);
             get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
             get_batch_data(imdb.labels, batch_idx, 1, label_batch);
@@ -524,8 +523,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
 
             // Compute error rate
             state_gpu.copy_device_to_host(state);
-            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                              net.z_pos[net.nodes.size() - 1]);
+            output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
                           net.batch_size);
@@ -564,7 +562,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
 
             // Load data
             get_batch_idx(test_data_idx, i, net.batch_size, batch_idx);
-            get_batch_data(test_imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(test_imdb.images, batch_idx, net.n_x, x_batch);
             get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
                            idx_ud_batch);
@@ -580,8 +578,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
 
             // Compute error rate
             state_gpu.copy_device_to_host(state);
-            get_output_states(state.ma, state.Sa, ma_output, Sa_output,
-                              net.z_pos.back());
+            output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
                           net.batch_size);
@@ -598,15 +595,14 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
         std::cout << std::setprecision(3);
         std::cout << test_avg_error << "\n" << std::endl;
     }
-    d_state_gpu.copy_device_to_host();
     theta_gpu.copy_device_to_host(theta);
-    d_theta_gpu.copy_device_to_host();
 
     // Save error rate
     std::string suffix = "test";
     save_error_rate(path.saved_inference_path, test_epoch_error_rate, suffix);
     // Save debugging data
     if (debug) {
+        d_state_gpu.copy_device_to_host();
         std::string res_path = path.debug_path + "/saved_results/";
         save_inference_results(res_path, d_state_gpu, theta);
     }

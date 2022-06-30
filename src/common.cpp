@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 22, 2022
+// Updated:      June 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -146,33 +146,70 @@ void get_noise_hidden_states_cpu(std::vector<float> &z, int ny, int z_pos,
     }
 }
 
+void compute_output_variance(std::vector<float> &Sa, std::vector<float> &V,
+                             std::vector<float> &S)
+/* Add observation noise (V) to the model noise (Sa)
+
+Args:
+    Sa: Model variance from last layer of the network
+    V: Observation variance i.e., \sigma_V_2
+    S: Output's total variance
+ */
+{
+    for (int i = 0; i < Sa.size(); i++) {
+        S[i] = Sa[i] + V[i];
+    }
+}
+
+void compute_output_variance_with_idx(std::vector<float> &Sa,
+                                      std::vector<float> &V,
+                                      std::vector<int> ud_idx, int ny, int nye,
+                                      std::vector<float> &S)
+/* Add observation noise (V) to the model noise (Sa) for the given outputs
+
+Args:
+    Sa: Model variance from last layer of the network
+    V: Observation variance i.e., \sigma_V_2
+    up_idx: Indices for the hidden states to be updated
+    ny: Total number of hidden states for the output layer
+    nye: Totoal number of hidden states to be updated for the output layer
+    S: Output's total variance
+
+*/
+// NOTE: We might only need to compute the output variance of the given indices
+{
+    int idx;
+    for (int i = 0; i < ud_idx.size(); i++) {
+        idx = ud_idx[i] + (i / nye) * ny - 1;
+        S[idx] = Sa[idx] + V[idx];
+    }
+}
+
 void output_hidden_states(NetState &state, Network &net,
                           std::vector<float> &ma_output,
                           std::vector<float> &Sa_output)
 /* Get output's activation units
 
 Args:
-    net: Network architecture
-    state: Hidden state of network
-    ma_output: Mean of output's activation units
-    Sa_output: Variance of output's activation units
+net: Network architecture
+state: Hidden state of network
+ma_output: Mean of output's activation units
+Sa_output: Variance of output's activation units
 
- */
+*/
 {
     if (net.noise_type.compare("heteros") == 0) {
         for (int i = 0; i < net.n_y * net.batch_size; i++) {
             ma_output[i] = state.noise_state.ma_mu[i];
-            Sa_output[i] =
-                state.noise_state.Sa_mu[i] + state.noise_state.ma_v2_prior[i];
         }
+        compute_output_variance(state.noise_state.Sa_mu,
+                                state.noise_state.ma_v2_prior, Sa_output);
     } else {
         get_output_hidden_states_cpu(state.ma, net.z_pos.back(), ma_output);
         get_output_hidden_states_cpu(state.Sa, net.z_pos.back(), Sa_output);
         if (net.noise_type.compare("homosce") == 0) {
-            for (int i = 0; i < net.n_y * net.batch_size; i++) {
-                Sa_output[i] = state.noise_state.Sa_mu[i] +
-                               state.noise_state.ma_v2_prior[i];
-            }
+            compute_output_variance(state.noise_state.Sa_mu,
+                                    state.noise_state.ma_v2_prior, Sa_output);
         }
     }
 }

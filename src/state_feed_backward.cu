@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      June 29, 2022
+// Updated:      June 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -33,7 +33,7 @@ Args:
     deltaSz: Updated quantities for the varaince of output's hidden states
     zpos: Hidden state's position for output layer
     ny: Size of the output layer
-    nye: Number of observation to be updated
+    nye: Number of observation to be updated for an observation
     n: Number of batches x size of output layer
  */
 {
@@ -42,8 +42,8 @@ Args:
     float tmp = 0;
     int idx = 0;
     if (col < n) {
-        idx = udIdx[col] + (col / nye) * ny -
-              1;  // minus 1 due to matlab's indexing
+        // minus 1 due to matlab's indexing
+        idx = udIdx[col] + (col / nye) * ny - 1;
         tmp = (J[idx + zpos] * Sz[idx + zpos]) / (Sa[idx + zpos] + Sv[col]);
         if (isinf(tmp) || isnan(tmp)) {
             deltaMz[idx] = zeroPad;
@@ -1013,6 +1013,30 @@ __global__ void compute_obs_noise_variance(float const *V, int n, float *Sa) {
     }
 }
 
+__global__ void get_obs_noise_variance_with_idx(float const *Sa,
+                                                int const *ud_idx, int ny,
+                                                int nye, int B, float *Sv)
+/*Get observation noise variance from the last output layer
+
+Args:
+    Sa: Variance predicted using network
+    udIdx: Selected indiced to update
+    ny: Number of hidden states of the output layer without hidden states
+        for noise observation
+    nye: Number of observation to be updated for an observation
+    B: Batch size
+    Sv: Observation variance i.e., V = [nye x 1]
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx;
+    if (col < nye * B) {
+        // minus 1 due to matlab's indexing
+        idx = ud_idx[col] + (col / nye) * ny - 1;
+        Sv[col] += Sa[idx];
+    }
+}
+
 __global__ void join_output_hidden_states(float const *z_mu, float const *z_v2,
                                           int ny, int B, float *z) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1223,19 +1247,24 @@ void delta_mz_Sz_with_idx_output_dist(ObsGPU &obs, Network &net,
     int n = net.nye * net.batch_size;
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
 
+    // Compute the observation noise variance
+    get_obs_noise_variance_with_idx<<<BLOCKS, net.num_gpu_threads>>>(
+        noise_state.d_ma_v2_prior, obs.d_idx_ud_batch, net.n_y, net.nye,
+        net.batch_size, obs.d_V_batch);
+
     // Update hidden states for the mean
     deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
-        noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2_prior,
-        obs.d_idx_ud_batch, noise_state.d_delta_mz_mu,
-        noise_state.d_delta_Sz_mu, z_pos, net.n_y, net.nye, n);
+        noise_state.d_J_mu, obs.d_y_batch, obs.d_V_batch, obs.d_idx_ud_batch,
+        noise_state.d_delta_mz_mu, noise_state.d_delta_Sz_mu, z_pos, net.n_y,
+        net.nye, n);
 
     // Update hidden states for observation noise (v)
     deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2_prior,
-        noise_state.d_J_v, obs.d_y_batch, noise_state.d_ma_v2_prior,
-        obs.d_idx_ud_batch, noise_state.d_delta_mv, noise_state.d_delta_Sv,
-        z_pos, net.n_y, net.nye, n);
+        noise_state.d_J_v, obs.d_y_batch, obs.d_V_batch, obs.d_idx_ud_batch,
+        noise_state.d_delta_mv, noise_state.d_delta_Sv, z_pos, net.n_y, net.nye,
+        n);
 }
 
 void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
@@ -1250,7 +1279,7 @@ void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
     compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_delta_mv, noise_state.d_delta_Sv,
         noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
-        noise_state.d_ma_v2_post);
+        noise_state.d_Sa_v2_post);
 
     compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
@@ -1263,8 +1292,8 @@ void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
         delta_mz_Sz_with_indices_backward<<<BLOCK_B, net.num_gpu_threads>>>(
             noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
             noise_state.d_J_v2, noise_state.d_Cza_v2, noise_state.d_ma_v2_post,
-            noise_state.d_Sa_v2_post, obs.d_idx_ud_batch, net.nodes.back(),
-            net.nye, net.batch_size, noise_state.d_delta_mz_v2b,
+            noise_state.d_Sa_v2_post, obs.d_idx_ud_batch, net.n_y, net.nye,
+            net.batch_size, noise_state.d_delta_mz_v2b,
             noise_state.d_delta_Sz_v2b);
     }
     // Homoscedastic case
@@ -1273,7 +1302,7 @@ void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
             noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
             noise_state.d_J_v, noise_state.d_Sa_v2_prior,
             noise_state.d_ma_v2_post, noise_state.d_Sa_v2_post,
-            obs.d_idx_ud_batch, net.nodes.back(), net.nye, net.batch_size,
+            obs.d_idx_ud_batch, net.n_y, net.nye, net.batch_size,
             noise_state.d_delta_mz_v2b, noise_state.d_delta_Sz_v2b);
     } else {
         throw std::invalid_argument(
