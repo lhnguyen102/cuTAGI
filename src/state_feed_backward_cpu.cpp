@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      June 20, 2022
+// Updated:      June 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -434,10 +434,24 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
 ///////////////////////////////////////////////////////////////////////////
 /// NOISE INFERENCE
 ///////////////////////////////////////////////////////////////////////////
-void compute_obs_noise_variance_cpu(std::vector<float> &Sa,
-                                    std::vector<float> &V) {
-    for (int i = 0; i < Sa.size(); i++) {
-        Sa[i] += V[i];
+void get_obs_noise_variance_with_idx_cpu(std::vector<float> &Sa,
+                                         std::vector<int> &udIdx, int ny,
+                                         int nye, std::vector<float> &Sv)
+/*Get observation noise variance from the last output layer
+
+Args:
+    Sa: Variance predicted using network
+    udIdx: Selected indiced to update
+    ny: Number of hidden states of the output layer without hidden states
+        for noise observation
+    nye: Number of observation to be updated for an observation
+    Sv: Observation variance i.e., V = [nye x 1]
+*/
+{
+    int idx = 0;
+    for (int i = 0; i < udIdx.size(); i++) {
+        idx = udIdx[i] + (i / nye) * ny - 1;
+        Sv[i] += Sa[idx];
     }
 }
 
@@ -508,7 +522,8 @@ Args:
     ma_post: Posterior mean of activation units
     Sa_post: Posterior variance of activation units
     up_idx: Indices for the hidden states to be updated
-    ny: Total number of hidden states for the output layer
+    ny: Total number of hidden states for the output layer w/o noise's hidden
+        states
     nye: Totoal number of hidden states to be updated for the output layer
     delta_mz: Updated values of mean for the hidden states
     delta_Sz: Updated values of variance for the hidden states
@@ -516,7 +531,7 @@ Args:
 {
     float Jz = 0.0f;
     int idx = 0;
-    for (int i = 0; i < ma_prior.size(); i++) {
+    for (int i = 0; i < ud_idx.size(); i++) {
         idx = ud_idx[i] + (i / nye) * ny - 1;
         Jz = J[idx] * Cza_prior[idx] / Sa_prior[idx];
         delta_mz[idx] = Jz * (ma_post[idx] - ma_prior[idx]);
@@ -646,7 +661,8 @@ void delta_mz_Sz_with_idx_output_dist_cpu(std::vector<float> &y,
     y: Observation vector
     Sv: Observation noise
     up_idx: Indices for the hidden states to be updated
-    ny: Total number of hidden states for the output layer
+    ny: Total number of hidden states for the output layer w/o noise's hidden
+        states
     nye: Totoal number of hidden states to be updated for the output layer
     noise_state: Noise state for the output layer
 
@@ -654,20 +670,22 @@ void delta_mz_Sz_with_idx_output_dist_cpu(std::vector<float> &y,
 {
     // Get number of hidden states for the output layer without the hidden
     // states for the observation noise
-    int ny_h = ny / 2;
+    int z_pos = 0;
+
+    // Compute the observation noise variance
+    get_obs_noise_variance_with_idx_cpu(noise_state.ma_v2_prior, ud_idx, ny,
+                                        nye, Sv);
 
     // Update hidden states for the mean
     delta_mzSz_with_indices(noise_state.ma_mu, noise_state.Sa_mu,
-                            noise_state.Sz_mu, noise_state.J_mu, y,
-                            noise_state.ma_v2_prior, ud_idx, 0, ny_h, nye,
-                            noise_state.ma_v2_prior.size(),
-                            noise_state.delta_mz_mu, noise_state.delta_Sz_mu);
+                            noise_state.Sz_mu, noise_state.J_mu, y, Sv, ud_idx,
+                            z_pos, ny, nye, y.size(), noise_state.delta_mz_mu,
+                            noise_state.delta_Sz_mu);
 
     // Update hidden states for observation noise (v)
     delta_mzSz_with_indices(noise_state.ma_mu, noise_state.Sa_mu,
-                            noise_state.ma_v2_prior, noise_state.J_v, y,
-                            noise_state.ma_v2_prior, ud_idx, 0, ny_h, nye,
-                            noise_state.ma_v2_prior.size(),
+                            noise_state.ma_v2_prior, noise_state.J_v, y, Sv,
+                            ud_idx, z_pos, ny, nye, y.size(),
                             noise_state.delta_mv, noise_state.delta_Sv);
 }
 
@@ -681,14 +699,11 @@ Args:
     noise_state: Noise state for the output layer
     noise_type: Type of noise i.e., homoscedastic or heteroscedastic noises
     up_idx: Indices for the hidden states to be updated
-    ny: Total number of hidden states for the output layer
+    ny: Total number of hidden states for the output layer w/o noise's hidden
+        states
     nye: Total number of hidden states to be updated for the output layer
  */
 {
-    // Get number of hidden states for the output layer without the hidden
-    // states for the observation noise
-    int ny_h = ny / 2;
-
     // Update hidden state for observation noise squared (v^2)
     compute_posterior_for_v_squared_cpu(
         noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2_prior,
@@ -702,7 +717,7 @@ Args:
         delta_mz_Sz_with_indices_backward_cpu(
             noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
             noise_state.Cza_v2, noise_state.ma_v2_post, noise_state.Sa_v2_post,
-            ud_idx, ny_h, nye, noise_state.delta_mz_v2b,
+            ud_idx, ny, nye, noise_state.delta_mz_v2b,
             noise_state.delta_Sz_v2b);
     }
     // Homoscedastic case
@@ -710,7 +725,7 @@ Args:
         delta_mz_Sz_with_indices_backward_cpu(
             noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v,
             noise_state.Sa_v2_prior, noise_state.ma_v2_post,
-            noise_state.Sa_v2_post, ud_idx, ny_h, nye, noise_state.delta_mz_v2b,
+            noise_state.Sa_v2_post, ud_idx, ny, nye, noise_state.delta_mz_v2b,
             noise_state.delta_Sz_v2b);
     } else {
         throw std::invalid_argument(
@@ -719,7 +734,7 @@ Args:
 }
 
 ///////////////////////////////////////////////////////////////////////////
-/// UPDATED VALUES OF HIDDEN STATES FOR OUTPUT LAYER
+/// UPDATE VALUES OF HIDDEN STATES FOR OUTPUT LAYER
 ///////////////////////////////////////////////////////////////////////////
 void update_homosce_noise_cpu(NoiseState &noise_state, int ny, int B)
 /* Compute the updated values for homoscedastic noise squared by summing up the
@@ -747,14 +762,13 @@ void output_delta_mz_Sz_with_noise_inferenece_cpu(NetState &state, Network &net,
     if (net.is_idx_ud) {
         // Compute updated values for the output distribution
         delta_mz_Sz_with_idx_output_dist_cpu(obs.y_batch, obs.V_batch,
-                                             obs.idx_ud_batch, net.nodes.back(),
-                                             net.nye, state.noise_state);
+                                             obs.idx_ud_batch, net.n_y, net.nye,
+                                             state.noise_state);
 
         // Compute updated values for the noise observation of the output
         // distribution
         delta_mz_Sz_with_idx_noise_dist(state.noise_state, net.noise_type,
-                                        obs.idx_ud_batch, net.nodes.back(),
-                                        net.nye);
+                                        obs.idx_ud_batch, net.n_y, net.nye);
     } else {
         // Compute updated values for the output distribution
         delta_mz_Sz_output_dist_cpu(obs.y_batch, obs.V_batch,

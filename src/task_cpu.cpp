@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      June 24 2022
+// Updated:      June 30 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,9 +47,8 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
 
     // Input and output layer
     auto hrs = class_to_obs(n_classes);
-    std::vector<float> x_batch(net.batch_size * net.nodes.front(), 0);
-    std::vector<float> Sx_batch(net.batch_size * net.nodes.front(),
-                                pow(net.sigma_x, 2));
+    std::vector<float> x_batch(net.batch_size * net.n_x, 0);
+    std::vector<float> Sx_batch(net.batch_size * net.n_x, pow(net.sigma_x, 2));
     std::vector<float> Sx_f_batch;
     std::vector<float> y_batch(net.batch_size * hrs.n_obs, 0);
     std::vector<float> V_batch(net.batch_size * hrs.n_obs, pow(net.sigma_v, 2));
@@ -81,8 +80,8 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
     std::vector<float> prob_class_test(test_imdb.num_data * n_classes);
     std::vector<float> test_epoch_prob_class(test_imdb.num_data * n_classes *
                                              n_epochs);
-    std::vector<float> ma_output(net.batch_size * net.nodes.back(), 0);
-    std::vector<float> Sa_output(net.batch_size * net.nodes.back(), 0);
+    std::vector<float> ma_output(net.batch_size * net.n_y, 0);
+    std::vector<float> Sa_output(net.batch_size * net.n_y, 0);
 
     // Number of outputs
     int n_output = net.nodes.back();
@@ -101,7 +100,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
                             net.sigma_v_min);
         }
 
-        std::vector<float> V_batch(net.batch_size * net.nodes.back(),
+        std::vector<float> V_batch(net.batch_size * hrs.n_obs,
                                    pow(net.sigma_v, 2));
 
         // Timer
@@ -120,7 +119,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
             // Load data
             get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
                           batch_idx);
-            get_batch_data(imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(imdb.images, batch_idx, net.n_x, x_batch);
             get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
             get_batch_data(imdb.labels, batch_idx, 1, label_batch);
@@ -129,7 +128,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
 
             // Initialize input
             initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                  net.nodes.front(), net.batch_size, state);
+                                  net.n_x, net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
@@ -181,7 +180,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
 
             // Load data
             get_batch_idx(test_data_idx, i, net.batch_size, batch_idx);
-            get_batch_data(test_imdb.images, batch_idx, net.nodes[0], x_batch);
+            get_batch_data(test_imdb.images, batch_idx, net.n_x, x_batch);
             get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
             get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
                            idx_ud_batch);
@@ -191,7 +190,7 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
 
             // Initialize input
             initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                  net.nodes.front(), net.batch_size, state);
+                                  net.n_x, net.batch_size, state);
 
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
