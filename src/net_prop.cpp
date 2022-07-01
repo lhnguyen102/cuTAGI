@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 24, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -664,8 +664,9 @@ NetState initialize_net_states(Network &net) {
         state.noise_state.Sa_mu.resize(n_noise, 0);
         state.noise_state.Sz_mu.resize(n_noise, 0);
         state.noise_state.J_mu.resize(n_noise, 1);
-        state.noise_state.ma_v2_prior.resize(n_noise, net.mu_v2b);
-        state.noise_state.Sa_v2_prior.resize(n_noise, pow(net.sigma_v2b, 2));
+        state.noise_state.ma_v2b_prior.resize(n_noise, 0);
+        state.noise_state.Sa_v2b_prior.resize(n_noise, 0);
+        state.noise_state.Sa_v2_prior.resize(n_noise, 0);
         state.noise_state.Cza_v2.resize(n_noise, 0);
         state.noise_state.J_v2.resize(n_noise, 1);
         state.noise_state.ma_v2_post.resize(n_noise, 0);
@@ -677,6 +678,11 @@ NetState initialize_net_states(Network &net) {
         state.noise_state.delta_Sz_mu.resize(n_noise, 0);
         state.noise_state.delta_mz_v2b.resize(n_noise, 0);
         state.noise_state.delta_Sz_v2b.resize(n_noise, 0);
+    }
+    if (net.noise_type.compare("homosce") == 0) {
+        set_homosce_noise_param(net.mu_v2b, net.sigma_v2b,
+                                state.noise_state.ma_v2b_prior,
+                                state.noise_state.Sa_v2b_prior);
     }
 
     return state;
@@ -988,17 +994,30 @@ Network load_cfg(std::string net_file)
                         net.noise_type = si;
                     }
                 } else if (key_words[k] == "mu_v2b") {
-                    std::stringstream ss(line.substr(pos + key.size()));
-                    if (ss.good()) {
-                        ss >> f;
-                        net.mu_v2b = f;
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<float> v;
+                    while (ss.good()) {
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        if (iss >> f) {
+                            v.push_back(f);
+                        }
                     }
+                    net.mu_v2b = v;
                 } else if (key_words[k] == "sigma_v2b") {
-                    std::stringstream ss(line.substr(pos + key.size()));
-                    if (ss.good()) {
-                        ss >> f;
-                        net.sigma_v2b = f;
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<float> v;
+                    while (ss.good()) {
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+                        if (iss >> f) {
+                            v.push_back(f);
+                        }
                     }
+                    net.sigma_v2b = v;
                 } else if (key_words[k] == "noise_gain") {
                     std::stringstream ss(line.substr(pos + key.size()));
                     if (ss.good()) {

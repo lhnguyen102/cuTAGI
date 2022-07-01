@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      June 30, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1038,7 +1038,10 @@ Args:
 }
 
 __global__ void join_output_hidden_states(float const *z_mu, float const *z_v2,
-                                          int ny, int B, float *z) {
+                                          int ny, int B, float *z)
+/*Join the updated values of output's hidden states and geteroscedastic
+   observation noise's hidden states*/
+{
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int h = ny / 2;
     int m, k;
@@ -1047,6 +1050,17 @@ __global__ void join_output_hidden_states(float const *z_mu, float const *z_v2,
         k = (col / h) * ny + col % h + h;
         z[m] = z_mu[col];
         z[k] = z_v2[col];
+    }
+}
+
+__global__ void transfer_updated_values(float const *d_z_mu, int n, float *d_z)
+/*Transfer the updated values from noise state to delta state. This is required
+   for the case of the homoscedastic nosie in order to update the hidden state
+   of the output layer*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < n) {
+        d_z[col] = d_z_mu[col];
     }
 }
 
@@ -1137,20 +1151,19 @@ Args:
     }
 }
 
-__global__ void compute_prior_for_v_squared(float const *ma_v2, int n,
-                                            float *Sa_v2)
+__global__ void compute_prior_for_v_squared(float const *ma_v2b, float *Sa_v2b,
+                                            int n, float *Sa_v2)
 /* Compute the posterior distribition for observation noise v.
 
 Args:
-    ma_v2: Mean of activation units for the observation noise squared (v^2)
-    Sa_v2: Variance of activation units for the observation noise squared
+    ma_v2b: Mean of activation units for the observation noise squared
+        (\overline{v}^2)
+    Sa_v2b: Variance of activation units for the observation noise squared
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp;
     if (col < n) {
-        tmp = Sa_v2[col];
-        Sa_v2[col] = 3 * tmp + 2 * powf(ma_v2[col], 2);
+        Sa_v2[col] = 3 * Sa_v2b[col] + 2 * powf(ma_v2b[col], 2);
     }
 }
 
@@ -1172,18 +1185,18 @@ Args:
     int n = net.n_y * net.batch_size;
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
 
-    // NOTE: To use the deltaMzSz function, we assume that ma_v2_prior is
+    // NOTE: To use the deltaMzSz function, we assume that ma_v2b_prior is
     // equivalent to \Sigma_v.
     // Update hidden states for the mean
     deltaMzSz<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_Sz_mu,
-        noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        noise_state.d_J_mu, obs.d_y_batch, noise_state.d_ma_v2b_prior,
         noise_state.d_delta_mz_mu, noise_state.d_delta_Sz_mu, z_pos, n);
 
     // Update hidden states for observation noise's hidden states
     deltaMzSz<<<BLOCKS, net.num_gpu_threads>>>(
-        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2_prior,
-        noise_state.d_J_v, obs.d_y_batch, noise_state.d_ma_v2_prior,
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2b_prior,
+        noise_state.d_J_v, obs.d_y_batch, noise_state.d_ma_v2b_prior,
         noise_state.d_delta_mv, noise_state.d_delta_Sv, z_pos, n);
 }
 
@@ -1204,11 +1217,12 @@ Args:
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
     compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_delta_mv, noise_state.d_delta_Sv,
-        noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
+        noise_state.d_ma_v2b_prior, n, noise_state.d_ma_v2_post,
         noise_state.d_Sa_v2_post);
 
     compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
-        noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
+        noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2b_prior, n,
+        noise_state.d_Sa_v2_prior);
 
     // NOTE: We do not apply the activatation function i.e., exponential
     // function for the hidden states representing the observation noise for the
@@ -1217,21 +1231,21 @@ Args:
     // Heteroscedastic case
     if (net.noise_type.compare("heteros") == 0) {
         delta_mz_Sz_backward<<<BLOCKS, net.num_gpu_threads>>>(
-            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2_prior,
             noise_state.d_J_v2, noise_state.d_Cza_v2, noise_state.d_ma_v2_post,
             noise_state.d_Sa_v2_post, n, noise_state.d_delta_mz_v2b,
             noise_state.d_delta_Sz_v2b);
 
     } else if (net.noise_type.compare("homosce") == 0) {
         delta_mz_Sz_backward<<<BLOCKS, net.num_gpu_threads>>>(
-            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
-            noise_state.d_J_v, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v, noise_state.d_Sa_v2b_prior,
             noise_state.d_ma_v2_post, noise_state.d_Sa_v2_post, n,
             noise_state.d_delta_mz_v2b, noise_state.d_delta_Sz_v2b);
 
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward.cu");
+            "Noise inference type is invalid - delta_mz_Sz_noise_dist");
     }
 }
 
@@ -1249,7 +1263,7 @@ void delta_mz_Sz_with_idx_output_dist(ObsGPU &obs, Network &net,
 
     // Compute the observation noise variance
     get_obs_noise_variance_with_idx<<<BLOCKS, net.num_gpu_threads>>>(
-        noise_state.d_ma_v2_prior, obs.d_idx_ud_batch, net.n_y, net.nye,
+        noise_state.d_ma_v2b_prior, obs.d_idx_ud_batch, net.n_y, net.nye,
         net.batch_size, obs.d_V_batch);
 
     // Update hidden states for the mean
@@ -1261,7 +1275,7 @@ void delta_mz_Sz_with_idx_output_dist(ObsGPU &obs, Network &net,
 
     // Update hidden states for observation noise (v)
     deltaMzSzWithIndices<<<BLOCKS, net.num_gpu_threads>>>(
-        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2_prior,
+        noise_state.d_ma_mu, noise_state.d_Sa_mu, noise_state.d_ma_v2b_prior,
         noise_state.d_J_v, obs.d_y_batch, obs.d_V_batch, obs.d_idx_ud_batch,
         noise_state.d_delta_mv, noise_state.d_delta_Sv, z_pos, net.n_y, net.nye,
         n);
@@ -1278,11 +1292,12 @@ void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
     unsigned int BLOCKS = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
     compute_posterior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
         noise_state.d_delta_mv, noise_state.d_delta_Sv,
-        noise_state.d_ma_v2_prior, n, noise_state.d_ma_v2_post,
+        noise_state.d_ma_v2b_prior, n, noise_state.d_ma_v2_post,
         noise_state.d_Sa_v2_post);
 
     compute_prior_for_v_squared<<<BLOCKS, net.num_gpu_threads>>>(
-        noise_state.d_ma_v2_prior, n, noise_state.d_Sa_v2_prior);
+        noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2b_prior, n,
+        noise_state.d_Sa_v2_prior);
 
     // Heteroscedastic case
     unsigned int BLOCK_B =
@@ -1290,32 +1305,39 @@ void delta_mz_Sz_with_idx_noise_dist(ObsGPU &obs, Network &net,
         net.num_gpu_threads;
     if (net.noise_type.compare("heteros") == 0) {
         delta_mz_Sz_with_indices_backward<<<BLOCK_B, net.num_gpu_threads>>>(
-            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2_prior,
             noise_state.d_J_v2, noise_state.d_Cza_v2, noise_state.d_ma_v2_post,
             noise_state.d_Sa_v2_post, obs.d_idx_ud_batch, net.n_y, net.nye,
             net.batch_size, noise_state.d_delta_mz_v2b,
             noise_state.d_delta_Sz_v2b);
     }
     // Homoscedastic case
-    else if (net.noise_type.compare("homosce")) {
+    else if (net.noise_type.compare("homosce") == 0) {
         delta_mz_Sz_with_indices_backward<<<BLOCK_B, net.num_gpu_threads>>>(
-            noise_state.d_ma_v2_prior, noise_state.d_Sa_v2_prior,
-            noise_state.d_J_v, noise_state.d_Sa_v2_prior,
+            noise_state.d_ma_v2b_prior, noise_state.d_Sa_v2_prior,
+            noise_state.d_J_v, noise_state.d_Sa_v2b_prior,
             noise_state.d_ma_v2_post, noise_state.d_Sa_v2_post,
             obs.d_idx_ud_batch, net.n_y, net.nye, net.batch_size,
             noise_state.d_delta_mz_v2b, noise_state.d_delta_Sz_v2b);
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward.cu");
+            "Noise inference type is invalid - "
+            "delta_mz_Sz_with_idx_noise_dist");
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 /// UPDATED VALUES OF HIDDEN STATES FOR OUTPUT LAYER
 ///////////////////////////////////////////////////////////////////////////
+__global__ void reset_updated_values(int n, float *z) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < n) {
+        z[col] = 0.0f;
+    }
+}
 __global__ void update_homosce_noise(float const *delta_mz_v2b,
                                      float const *delta_Sz_v2b, int ny, int B,
-                                     float *ma_v2_prior, float *Sa_v2_prior)
+                                     float *ma_v2b_prior, float *Sa_v2b_prior)
 /* Compute the updated values for homoscedastic noise squared by summing up the
    mini-batches of updated values of each noise observation squared
 
@@ -1325,20 +1347,22 @@ Args:
         squared
     ny: Number of hidden states for the output layer
     B: Batch size
-    ma_v2_prior: Mean of the observation noise squared
-    Sa_v2_prior: Variance of the observation noise squared
+    ma_v2b_prior: Mean of the observation noise squared
+    Sa_v2b_prior: Variance of the observation noise squared
  */
+// TODO: Need to fixed the sum of each batch
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp_m = 0.0f;
-    float tmp_S = 0.0f;
-    if (col < ny / 2) {
+    if (col < ny * B) {
+        float tmp_m = 0.0f;
+        float tmp_S = 0.0f;
         for (int j = 0; j < B; j++) {
-            tmp_m += delta_mz_v2b[j * B + col];
-            tmp_S += delta_Sz_v2b[j * B + col];
+            tmp_m += delta_mz_v2b[(j % B) * ny + col % ny];
+            tmp_S += delta_Sz_v2b[(j % B) * ny + col % ny];
         }
-        ma_v2_prior[col] += tmp_m;
-        Sa_v2_prior[col] += tmp_S;
+
+        ma_v2b_prior[col] += tmp_m;
+        Sa_v2b_prior[col] += tmp_S;
     }
 }
 
@@ -1351,6 +1375,29 @@ void output_delta_mz_Sz_with_noise_inference(ObsGPU &obs, Network &net,
 {
     int z_pos = net.z_pos.back();
     if (net.is_idx_ud) {
+        // Reset noise state's updated values to zeros
+        int ny_B = net.n_y * net.batch_size;
+        unsigned int BLOCK_RS =
+            (ny_B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_mz_mu);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_Sz_mu);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_mv);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_Sv);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_mz_v2b);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, state.noise_state.d_delta_Sz_v2b);
+
+        // Reset state's updated values to zeros
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, d_state.d_delta_mz);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, d_state.d_delta_Sz);
+
         // Compute updated values for the output distribution
         delta_mz_Sz_with_idx_output_dist(obs, net, state.noise_state);
 
@@ -1377,15 +1424,23 @@ void output_delta_mz_Sz_with_noise_inference(ObsGPU &obs, Network &net,
             net.nodes.back(), net.batch_size, d_state.d_delta_Sz);
 
     } else if (net.noise_type.compare("homosce") == 0) {
-        BLOCKS = (net.n_y + net.num_gpu_threads - 1) / net.num_gpu_threads;
-        update_homosce_noise<<<BLOCKS, net.num_gpu_threads>>>(
+        int ny_B = net.n_y * net.batch_size;
+        unsigned int BLOCK_TUD =
+            (ny_B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        transfer_updated_values<<<BLOCK_TUD, net.num_gpu_threads>>>(
+            state.noise_state.d_delta_mz_mu, ny_B, d_state.d_delta_mz);
+        transfer_updated_values<<<BLOCK_TUD, net.num_gpu_threads>>>(
+            state.noise_state.d_delta_Sz_mu, ny_B, d_state.d_delta_Sz);
+
+        update_homosce_noise<<<BLOCK_TUD, net.num_gpu_threads>>>(
             state.noise_state.d_delta_mz_v2b, state.noise_state.d_delta_Sz_v2b,
-            net.nodes.back(), net.batch_size, state.noise_state.d_ma_v2_prior,
-            state.noise_state.d_Sa_v2_prior);
+            net.nodes.back(), net.batch_size, state.noise_state.d_ma_v2b_prior,
+            state.noise_state.d_Sa_v2b_prior);
 
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward.cu");
+            "Noise inference type is invalid - "
+            "output_delta_mz_Sz_with_noise_inference");
     }
 }
 
@@ -1409,6 +1464,15 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
             net.z_pos.back(), nl_B);
     } else  // Only update the hidden states in the indices udIdx
     {
+        // Reset the updated values to zeros
+        int ny_B = net.n_y * net.batch_size;
+        unsigned int BLOCK_RS =
+            (ny_B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, d_state.d_delta_mz);
+        reset_updated_values<<<BLOCK_RS, net.num_gpu_threads>>>(
+            ny_B, d_state.d_delta_Sz);
+
         int nl = net.nye * net.batch_size;
         int BLOCKS_UD = (nl + net.num_gpu_threads - 1) / net.num_gpu_threads;
         deltaMzSzWithIndices<<<BLOCKS_UD, net.num_gpu_threads>>>(

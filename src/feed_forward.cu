@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      June 28, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1503,7 +1503,7 @@ __global__ void getOutputHiddenStates(float const *mz, float const *Sz,
 
 __global__ void get_output_hidden_states(float const *z, int z_pos, int n,
                                          float *z_mu)
-/*Get output's distrinution
+/*Get output's distribution
 
 Args:
     z: Mean of activation units of the entire network
@@ -2045,10 +2045,10 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
 
         get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_ma, net.nodes.back(), net.z_pos.back(), net.batch_size,
-            state.noise_state.d_ma_v2_prior);
+            state.noise_state.d_ma_v2b_prior);
         get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_Sa, net.nodes.back(), net.z_pos.back(), net.batch_size,
-            state.noise_state.d_Sa_v2_prior);
+            state.noise_state.d_Sa_v2b_prior);
         get_noise_hidden_states<<<BLOCK_N, THREADS>>>(
             state.d_J, net.nodes.back(), net.z_pos.back(), net.batch_size,
             state.noise_state.d_J_v2);
@@ -2056,9 +2056,9 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // Activate observation noise squared using exponential fun for ensuring
         // the positive values
         exp_fun<<<BLOCK_N, THREADS>>>(
-            state.noise_state.d_ma_v2_prior, state.noise_state.d_Sa_v2_prior,
-            ny_B, state.noise_state.d_ma_v2_prior,
-            state.noise_state.d_Sa_v2_prior, state.noise_state.d_Cza_v2);
+            state.noise_state.d_ma_v2b_prior, state.noise_state.d_Sa_v2b_prior,
+            ny_B, state.noise_state.d_ma_v2b_prior,
+            state.noise_state.d_Sa_v2b_prior, state.noise_state.d_Cza_v2);
 
     } else if (net.noise_type.compare("homosce") == 0) {
         get_output_hidden_states<<<BLOCK_N, THREADS>>>(

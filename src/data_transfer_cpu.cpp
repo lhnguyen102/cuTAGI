@@ -3,7 +3,7 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      June 05, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,6 +30,13 @@ void DeltaState::set_values(int s, int sc, int dsc, int max_n_s) {
     this->delta_S.resize(s, 0);
     this->delta_mx.resize(dsc, 0);
     this->delta_Sx.resize(dsc, 0);
+}
+
+void DeltaState::reset_updated_values(int n) {
+    for (int i = 0; i < n; i++) {
+        this->delta_mz[i] = 0.0f;
+        this->delta_Sz[i] = 0.0f;
+    }
 }
 
 DeltaState::~DeltaState() {}
