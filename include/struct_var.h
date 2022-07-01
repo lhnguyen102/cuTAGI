@@ -136,8 +136,8 @@ struct Network {
     float sigma_x = 0.0f;
     std::string noise_type = "none";
     float noise_gain = 0.5f;
-    float mu_v2b = 0.0f;
-    float sigma_v2b = 0.0f;
+    std::vector<float> mu_v2b;
+    std::vector<float> sigma_v2b;
     float alpha = 0.1f;
     float epsilon = 0.0001f;
     float ra_mt = 0.9f;
@@ -149,6 +149,8 @@ struct Network {
     bool is_full_cov = false;
     int num_gpu_threads = 16;
     int min_operations = 1000;
+
+    // TODO: Move the default values to net_default in net_prop.cpp
 };
 
 // NETWORK STATE
@@ -160,8 +162,8 @@ struct NoiseState {
         Sa_mu: Variance of activation units for the output layer
         Sz_mu: Variance of hidden states for the output layer
         J_mu: Jacobian matrix for the output layer
-        ma_v2_prior: Prior mean of activation units for the noise observation
-        Sa_v2_prior: Prior variance of activation units for the noise
+        ma_v2b_prior: Prior mean of activation units for the noise observation
+        Sa_v2b_prior: Prior variance of activation units for the noise
             observation squared
         Cza_v2: Prior covariance between activation units and hidden states for
             the noise observation squared
@@ -184,9 +186,9 @@ struct NoiseState {
         delta_Sz_v2b: Updated values for variance of the hidden states for the
             observation noise squared
      */
-    std::vector<float> ma_mu, Sa_mu, Sz_mu, J_mu, ma_v2_prior, Sa_v2_prior,
-        Cza_v2, J_v2, ma_v2_post, Sa_v2_post, J_v, delta_mv, delta_Sv,
-        delta_mz_mu, delta_Sz_mu, delta_mz_v2b, delta_Sz_v2b;
+    std::vector<float> ma_mu, Sa_mu, Sz_mu, J_mu, ma_v2b_prior, Sa_v2b_prior,
+        Sa_v2_prior, Cza_v2, J_v2, ma_v2_post, Sa_v2_post, J_v, delta_mv,
+        delta_Sv, delta_mz_mu, delta_Sz_mu, delta_mz_v2b, delta_Sz_v2b;
 };
 
 struct NetState {

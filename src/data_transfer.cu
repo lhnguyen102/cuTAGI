@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      June 27, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,8 @@ void StateGPU::set_values(NetState &state, Network &net) {
     }
 
     // Noise state
-    if (net.noise_type.compare("heteros") == 0) {
+    if (net.noise_type.compare("heteros") == 0 ||
+        net.noise_type.compare("homosce") == 0) {
         this->noise_state.compute_bytes(net.n_y * net.batch_size);
     }
 
@@ -206,7 +207,8 @@ NoiseStateGPU::NoiseStateGPU() {
     this->d_Sa_mu = nullptr;
     this->d_Sz_mu = nullptr;
     this->d_J_mu = nullptr;
-    this->d_ma_v2_prior = nullptr;
+    this->d_ma_v2b_prior = nullptr;
+    this->d_Sa_v2b_prior = nullptr;
     this->d_Sa_v2_prior = nullptr;
     this->d_Cza_v2 = nullptr;
     this->d_J_v2 = nullptr;
@@ -228,7 +230,8 @@ void NoiseStateGPU::allocate_cuda_memory() {
     cudaMalloc(&d_Sa_mu, n_bytes);
     cudaMalloc(&d_Sz_mu, n_bytes);
     cudaMalloc(&d_J_mu, n_bytes);
-    cudaMalloc(&d_ma_v2_prior, n_bytes);
+    cudaMalloc(&d_ma_v2b_prior, n_bytes);
+    cudaMalloc(&d_Sa_v2b_prior, n_bytes);
     cudaMalloc(&d_Sa_v2_prior, n_bytes);
     cudaMalloc(&d_Cza_v2, n_bytes);
     cudaMalloc(&d_J_v2, n_bytes);
@@ -260,7 +263,9 @@ void NoiseStateGPU::copy_host_to_device(NoiseState &noise_state) {
                cudaMemcpyHostToDevice);
     cudaMemcpy(d_J_mu, noise_state.J_mu.data(), n_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ma_v2_prior, noise_state.ma_v2_prior.data(), n_bytes,
+    cudaMemcpy(d_ma_v2b_prior, noise_state.ma_v2b_prior.data(), n_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa_v2b_prior, noise_state.Sa_v2b_prior.data(), n_bytes,
                cudaMemcpyHostToDevice);
     cudaMemcpy(d_Sa_v2_prior, noise_state.Sa_v2_prior.data(), n_bytes,
                cudaMemcpyHostToDevice);
@@ -304,7 +309,9 @@ void NoiseStateGPU::copy_device_to_host(NoiseState &noise_state) {
                cudaMemcpyDeviceToHost);
     cudaMemcpy(noise_state.J_mu.data(), d_J_mu, n_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(noise_state.ma_v2_prior.data(), d_ma_v2_prior, n_bytes,
+    cudaMemcpy(noise_state.ma_v2b_prior.data(), d_ma_v2b_prior, n_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(noise_state.Sa_v2b_prior.data(), d_Sa_v2b_prior, n_bytes,
                cudaMemcpyDeviceToHost);
     cudaMemcpy(noise_state.Sa_v2_prior.data(), d_Sa_v2_prior, n_bytes,
                cudaMemcpyDeviceToHost);
@@ -344,7 +351,8 @@ NoiseStateGPU::~NoiseStateGPU() {
     cudaFree(d_Sa_mu);
     cudaFree(d_Sz_mu);
     cudaFree(d_J_mu);
-    cudaFree(d_ma_v2_prior);
+    cudaFree(d_ma_v2b_prior);
+    cudaFree(d_Sa_v2b_prior);
     cudaFree(d_Sa_v2_prior);
     cudaFree(d_Cza_v2);
     cudaFree(d_J_v2);

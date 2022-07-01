@@ -3,18 +3,18 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 22, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <tuple>
 #include <vector>
-
 #ifdef _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd
@@ -237,3 +237,16 @@ void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &Sa_output, int idx);
 
 std::vector<float> initialize_upper_triu(float &Sx, int n);
+
+//////////////////////////////////////////////////////////////////////
+/// NOISE INFERENCE
+//////////////////////////////////////////////////////////////////////
+void set_homosce_noise_param(std::vector<float> &mu_v2b,
+                             std::vector<float> &sigma_v2b,
+                             std::vector<float> &ma_v2b_prior,
+                             std::vector<float> &Sa_v2b_prior);
+
+void get_homosce_noise_param(std::vector<float> &ma_v2b_prior,
+                             std::vector<float> &Sa_v2b_prior,
+                             std::vector<float> &mu_v2b,
+                             std::vector<float> &sigma_v2b);

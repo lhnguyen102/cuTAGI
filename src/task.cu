@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      June 30, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -748,6 +748,14 @@ Args:
         // state_gpu.copy_device_to_host(state);
         theta_gpu.copy_device_to_host(theta);
 
+        // Retrieve homocesdastic noise distribution's parameter
+        if (net.noise_type.compare("homosce") == 0) {
+            state_gpu.copy_device_to_host(state);
+            get_homosce_noise_param(state.noise_state.ma_v2b_prior,
+                                    state.noise_state.Sa_v2b_prior, net.mu_v2b,
+                                    net.sigma_v2b);
+        }
+
     } else {
         /* TESTING */
         std::cout << "Testing...\n";
@@ -980,6 +988,10 @@ void task_command(UserInput &user_input, SavePath &path) {
                    path, train_mode, user_input.debug);
 
         // Testing
+        if (net.noise_type.compare("homosce") == 0) {
+            test_net.mu_v2b = net.mu_v2b;
+            test_net.sigma_v2b = net.sigma_v2b;
+        }
         test_net.sigma_v = net.sigma_v;
         train_mode = false;
         regression(test_net, test_idx, test_state, theta, test_db,

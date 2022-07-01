@@ -3,7 +3,7 @@
 // Description:  Header file for net_prop.cpp
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 04, 2022
+// Updated:      Jyly 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -12,15 +12,15 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <stdexcept>
-#include <tuple>
-#include <vector>
-//#include <filesystem>
 #include <map>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <tuple>
+#include <vector>
 
+#include "common.h"
 #include "struct_var.h"
 
 std::tuple<int, int> compute_downsample_img_size(int kernel, int stride, int wi,

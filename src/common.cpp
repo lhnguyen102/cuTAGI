@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      June 30, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,13 +203,13 @@ Sa_output: Variance of output's activation units
             ma_output[i] = state.noise_state.ma_mu[i];
         }
         compute_output_variance(state.noise_state.Sa_mu,
-                                state.noise_state.ma_v2_prior, Sa_output);
+                                state.noise_state.ma_v2b_prior, Sa_output);
     } else {
         get_output_hidden_states_cpu(state.ma, net.z_pos.back(), ma_output);
         get_output_hidden_states_cpu(state.Sa, net.z_pos.back(), Sa_output);
         if (net.noise_type.compare("homosce") == 0) {
             compute_output_variance(state.noise_state.Sa_mu,
-                                    state.noise_state.ma_v2_prior, Sa_output);
+                                    state.noise_state.ma_v2b_prior, Sa_output);
         }
     }
 }
@@ -232,6 +232,51 @@ Args:
     }
 }
 
+//////////////////////////////////////////////////////////////////////
+/// NOISE INFERENCE
+//////////////////////////////////////////////////////////////////////
+void set_homosce_noise_param(std::vector<float> &mu_v2b,
+                             std::vector<float> &sigma_v2b,
+                             std::vector<float> &ma_v2b_prior,
+                             std::vector<float> &Sa_v2b_prior)
+/* Set user-specified parameter values for the prior of homoscedastic noise
+
+Args:
+    mu_v2b: User-specified mean of the homoscedastic observatio noise's
+        distribution for each observation
+    sigma_v2b: Standard deviation of the homoscedastic observation noise's
+        distribution for each observation
+    ma_v2b_prior: Mean of the homoscedastic observation noise's distribution in
+        batches
+    Sa_v2b_prior: Variance of the homoscedastic observation noise's distribution
+        in batches
+*/
+{
+    int ny = mu_v2b.size();
+    for (int i = 0; i < ma_v2b_prior.size(); i++) {
+        ma_v2b_prior[i] = mu_v2b[(i % ny)];
+        Sa_v2b_prior[i] = pow(sigma_v2b[(i % ny)], 2);
+    }
+}
+
+void get_homosce_noise_param(std::vector<float> &ma_v2b_prior,
+                             std::vector<float> &Sa_v2b_prior,
+                             std::vector<float> &mu_v2b,
+                             std::vector<float> &sigma_v2b)
+/* Get the mean and standard deviation of the observation noise's
+ distribution after training.
+ */
+{
+    int ny = mu_v2b.size();
+    for (int i = 0; i < ny; i++) {
+        mu_v2b[i] = ma_v2b_prior[i * ny];
+        sigma_v2b[i] = pow(Sa_v2b_prior[i * ny], 0.5);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+/// FULL COVARIANCE
+//////////////////////////////////////////////////////////////////////
 std::vector<float> initialize_upper_triu(float &Sx, int n)
 /* Initialize the covariance matrix where only the elements of the triangle
 upper matrix are stored in a vector.

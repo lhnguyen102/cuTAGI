@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      June 27, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1141,19 +1141,19 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
 
         get_noise_hidden_states_cpu(state.ma, net.nodes.back(),
                                     net.z_pos.back(),
-                                    state.noise_state.ma_v2_prior);
+                                    state.noise_state.ma_v2b_prior);
         get_noise_hidden_states_cpu(state.Sa, net.nodes.back(),
                                     net.z_pos.back(),
-                                    state.noise_state.Sa_v2_prior);
+                                    state.noise_state.Sa_v2b_prior);
         get_noise_hidden_states_cpu(state.J, net.nodes.back(), net.z_pos.back(),
                                     state.noise_state.J_v2);
 
         // Activate observation noise squared using exponential fun for ensuring
         // the positive values
-        exp_fun_cpu(state.noise_state.ma_v2_prior,
-                    state.noise_state.Sa_v2_prior,
-                    state.noise_state.ma_v2_prior,
-                    state.noise_state.Sa_v2_prior, state.noise_state.Cza_v2);
+        exp_fun_cpu(state.noise_state.ma_v2b_prior,
+                    state.noise_state.Sa_v2b_prior,
+                    state.noise_state.ma_v2b_prior,
+                    state.noise_state.Sa_v2b_prior, state.noise_state.Cza_v2);
 
     } else if (net.noise_type.compare("homosce") == 0) {
         // Assign value to the nosie states
@@ -1163,6 +1163,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                                      state.noise_state.Sa_mu);
         get_output_hidden_states_cpu(state.J, net.z_pos.back(),
                                      state.noise_state.J_mu);
+        get_output_hidden_states_cpu(state.Sz, net.z_pos.back(),
+                                     state.noise_state.Sz_mu);
     } else {
     }
 }

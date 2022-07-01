@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      June 30, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -478,6 +478,17 @@ Args:
     }
 }
 
+void transfer_updated_values_cpu(std::vector<float> &d_z_mu,
+                                 std::vector<float> &d_z)
+/*Transfer the updated values from noise state to delta state. This is required
+   for the case of the homoscedastic nosie in order to update the hidden state
+   of the output layer*/
+{
+    for (int i = 0; i < d_z_mu.size(); i++) {
+        d_z[i] = d_z_mu[i];
+    }
+}
+
 void delta_mz_Sz_backward_cpu(
     std::vector<float> &ma_prior, std::vector<float> &Sa_prior,
     std::vector<float> &J, std::vector<float> &Cza_prior,
@@ -564,7 +575,8 @@ Args:
     }
 }
 
-void compute_prior_for_v_squared_cpu(std::vector<float> &ma_v2,
+void compute_prior_for_v_squared_cpu(std::vector<float> &ma_v2b,
+                                     std::vector<float> &Sa_v2b,
                                      std::vector<float> &Sa_v2)
 /* Compute the posterior distribition for observation noise v.
 
@@ -575,7 +587,7 @@ Args:
 {
     int n = Sa_v2.size();
     for (int i = 0; i < n; i++) {
-        Sa_v2[i] = 3 * Sa_v2[i] + 2 * pow(ma_v2[i], 2);
+        Sa_v2[i] = 3 * Sa_v2b[i] + 2 * pow(ma_v2b[i], 2);
     }
 }
 
@@ -595,14 +607,14 @@ Args:
 {
     // Update hidden states for the mean
     delta_mzSz(noise_state.ma_mu, noise_state.Sa_mu, noise_state.Sz_mu,
-               noise_state.J_mu, y, noise_state.ma_v2_prior, 0,
-               noise_state.ma_v2_prior.size(), noise_state.delta_mz_mu,
+               noise_state.J_mu, y, noise_state.ma_v2b_prior, 0,
+               noise_state.ma_v2b_prior.size(), noise_state.delta_mz_mu,
                noise_state.delta_Sz_mu);
 
     // Update hidden states for observation noise's hidden states
-    delta_mzSz(noise_state.ma_mu, noise_state.Sa_mu, noise_state.ma_v2_prior,
-               noise_state.J_v, y, noise_state.ma_v2_prior, 0,
-               noise_state.ma_v2_prior.size(), noise_state.delta_mv,
+    delta_mzSz(noise_state.ma_mu, noise_state.Sa_mu, noise_state.ma_v2b_prior,
+               noise_state.J_v, y, noise_state.ma_v2b_prior, 0,
+               noise_state.ma_v2b_prior.size(), noise_state.delta_mv,
                noise_state.delta_Sv);
 }
 
@@ -618,12 +630,13 @@ Args:
 */
 {
     // Update hidden stats for observation noise squared
-    int z_pos_v = noise_state.ma_v2_prior.size();
+    int z_pos_v = noise_state.ma_v2b_prior.size();
     compute_posterior_for_v_squared_cpu(
-        noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2_prior,
+        noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2b_prior,
         noise_state.ma_v2_post, noise_state.Sa_v2_post);
 
-    compute_prior_for_v_squared_cpu(noise_state.ma_v2_prior,
+    compute_prior_for_v_squared_cpu(noise_state.ma_v2b_prior,
+                                    noise_state.Sa_v2b_prior,
                                     noise_state.Sa_v2_prior);
 
     // NOTE: We do not apply the activatation function i.e., exponential
@@ -633,20 +646,20 @@ Args:
     // Heteroscedastic case
     if (noise_type.compare("heteros") == 0) {
         delta_mz_Sz_backward_cpu(
-            noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
+            noise_state.ma_v2b_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
             noise_state.Cza_v2, noise_state.ma_v2_post, noise_state.Sa_v2_post,
             noise_state.delta_mz_v2b, noise_state.delta_Sz_v2b);
     }
     // Homoscedastic case
     else if (noise_type.compare("homosce") == 0) {
         delta_mz_Sz_backward_cpu(
-            noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v,
-            noise_state.Sa_v2_prior, noise_state.ma_v2_post,
+            noise_state.ma_v2b_prior, noise_state.Sa_v2_prior, noise_state.J_v,
+            noise_state.Sa_v2b_prior, noise_state.ma_v2_post,
             noise_state.Sa_v2_post, noise_state.delta_mz_v2b,
             noise_state.delta_Sz_v2b);
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward_cpu.cpp");
+            "Noise inference type is invalid - delta_mz_Sz_noise_dist_cpu");
     }
 }
 
@@ -673,7 +686,7 @@ void delta_mz_Sz_with_idx_output_dist_cpu(std::vector<float> &y,
     int z_pos = 0;
 
     // Compute the observation noise variance
-    get_obs_noise_variance_with_idx_cpu(noise_state.ma_v2_prior, ud_idx, ny,
+    get_obs_noise_variance_with_idx_cpu(noise_state.ma_v2b_prior, ud_idx, ny,
                                         nye, Sv);
 
     // Update hidden states for the mean
@@ -684,7 +697,7 @@ void delta_mz_Sz_with_idx_output_dist_cpu(std::vector<float> &y,
 
     // Update hidden states for observation noise (v)
     delta_mzSz_with_indices(noise_state.ma_mu, noise_state.Sa_mu,
-                            noise_state.ma_v2_prior, noise_state.J_v, y, Sv,
+                            noise_state.ma_v2b_prior, noise_state.J_v, y, Sv,
                             ud_idx, z_pos, ny, nye, y.size(),
                             noise_state.delta_mv, noise_state.delta_Sv);
 }
@@ -706,16 +719,17 @@ Args:
 {
     // Update hidden state for observation noise squared (v^2)
     compute_posterior_for_v_squared_cpu(
-        noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2_prior,
+        noise_state.delta_mv, noise_state.delta_Sv, noise_state.ma_v2b_prior,
         noise_state.ma_v2_post, noise_state.Sa_v2_post);
 
-    compute_prior_for_v_squared_cpu(noise_state.ma_v2_prior,
+    compute_prior_for_v_squared_cpu(noise_state.ma_v2b_prior,
+                                    noise_state.Sa_v2b_prior,
                                     noise_state.Sa_v2_prior);
 
     // Heteroscedastic case
     if (noise_type.compare("heteros") == 0) {
         delta_mz_Sz_with_indices_backward_cpu(
-            noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
+            noise_state.ma_v2b_prior, noise_state.Sa_v2_prior, noise_state.J_v2,
             noise_state.Cza_v2, noise_state.ma_v2_post, noise_state.Sa_v2_post,
             ud_idx, ny, nye, noise_state.delta_mz_v2b,
             noise_state.delta_Sz_v2b);
@@ -723,43 +737,71 @@ Args:
     // Homoscedastic case
     else if (noise_type.compare("homosce") == 0) {
         delta_mz_Sz_with_indices_backward_cpu(
-            noise_state.ma_v2_prior, noise_state.Sa_v2_prior, noise_state.J_v,
-            noise_state.Sa_v2_prior, noise_state.ma_v2_post,
+            noise_state.ma_v2b_prior, noise_state.Sa_v2_prior, noise_state.J_v,
+            noise_state.Sa_v2b_prior, noise_state.ma_v2_post,
             noise_state.Sa_v2_post, ud_idx, ny, nye, noise_state.delta_mz_v2b,
             noise_state.delta_Sz_v2b);
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward_cpu.cpp");
+            "Noise inference type is invalid - "
+            "delta_mz_Sz_with_idx_noise_dist");
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
 /// UPDATE VALUES OF HIDDEN STATES FOR OUTPUT LAYER
 ///////////////////////////////////////////////////////////////////////////
+void reset_updated_values(int n, std::vector<float> &z) {
+    for (int i = 0; i < n; i++) {
+        z[i] = 0.0f;
+    }
+}
+
 void update_homosce_noise_cpu(NoiseState &noise_state, int ny, int B)
 /* Compute the updated values for homoscedastic noise squared by summing up the
-   mini-batches of updated values of each noise observation squared
+   mini-batches of updated values of each noise observation squared.
  */
 {
     float tmp_m = 0.0f;
     float tmp_S = 0.0f;
-    for (int i = 0; i < ny / 2; i++) {
+    for (int i = 0; i < ny * B; i++) {
+        tmp_m = 0.0f;
+        tmp_S = 0.0f;
         for (int j = 0; j < B; j++) {
-            tmp_m += noise_state.delta_mz_v2b[j * B + i];
-            tmp_S += noise_state.delta_Sz_v2b[j * B + i];
+            tmp_m += noise_state.delta_mz_v2b[(j % B) * ny + i % ny];
+            tmp_S += noise_state.delta_Sz_v2b[(j % B) * ny + i % ny];
         }
-        noise_state.ma_v2_prior[i] += tmp_m;
-        noise_state.Sa_v2_prior[i] += tmp_S;
+
+        noise_state.ma_v2b_prior[i] += tmp_m;
+        noise_state.Sa_v2b_prior[i] += tmp_S;
     }
 }
+
 void output_delta_mz_Sz_with_noise_inferenece_cpu(NetState &state, Network &net,
                                                   Obs &obs, DeltaState &d_state)
 /* Compute the updated value for the output layer including the noise
-   observation's hidden states
+   observation's hidden states.
  */
 {
     int z_pos = net.z_pos.back();
     if (net.is_idx_ud) {
+        // Reset the updated values to zeros
+        reset_updated_values(state.noise_state.delta_mz_mu.size(),
+                             state.noise_state.delta_mz_mu);
+        reset_updated_values(state.noise_state.delta_Sz_mu.size(),
+                             state.noise_state.delta_Sz_mu);
+        reset_updated_values(state.noise_state.delta_mv.size(),
+                             state.noise_state.delta_mv);
+        reset_updated_values(state.noise_state.delta_Sv.size(),
+                             state.noise_state.delta_Sv);
+        reset_updated_values(state.noise_state.delta_mz_v2b.size(),
+                             state.noise_state.delta_mz_v2b);
+        reset_updated_values(state.noise_state.delta_Sz_v2b.size(),
+                             state.noise_state.delta_Sz_v2b);
+
+        int ny_B = net.n_y * net.batch_size;
+        d_state.reset_updated_values(ny_B);
+
         // Compute updated values for the output distribution
         delta_mz_Sz_with_idx_output_dist_cpu(obs.y_batch, obs.V_batch,
                                              obs.idx_ud_batch, net.n_y, net.nye,
@@ -789,11 +831,16 @@ void output_delta_mz_Sz_with_noise_inferenece_cpu(NetState &state, Network &net,
                                       state.noise_state.delta_Sz_v2b,
                                       net.nodes.back(), d_state.delta_Sz);
     } else if (net.noise_type.compare("homosce") == 0) {
+        transfer_updated_values_cpu(state.noise_state.delta_mz_mu,
+                                    d_state.delta_mz);
+        transfer_updated_values_cpu(state.noise_state.delta_Sz_mu,
+                                    d_state.delta_Sz);
         update_homosce_noise_cpu(state.noise_state, net.nodes.back(),
                                  net.batch_size);
     } else {
         throw std::invalid_argument(
-            "Noise inference type is invalid - state_feed_backward_cpu.cpp");
+            "Noise inference type is invalid - "
+            "output_delta_mz_Sz_with_noise_inferenece_cpu");
     }
 }
 
@@ -821,6 +868,10 @@ void output_delta_mz_Sz_cpu(Network &net, NetState &state, Obs &obs,
                        d_state.delta_mz, d_state.delta_Sz);
         }
     } else {
+        // Reset updated values to zeros
+        int ny_B = net.n_y * net.batch_size;
+        d_state.reset_updated_values(ny_B);
+
         int n_state_last_layer_e = net.nye * net.batch_size;
         if (n_state_last_layer > net.min_operations && net.multithreading) {
             delta_mzSz_with_indices_multithreading(

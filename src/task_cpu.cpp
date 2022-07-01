@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      June 30 2022
+// Updated:      July 01,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -210,7 +210,8 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
         std::cout << "\tError rate: ";
         std::cout << std::fixed;
         std::cout << std::setprecision(3);
-        std::cout << test_avg_error << "\n" << std::endl;
+        std::cout << test_avg_error << "\n";
+        std::cout << state.noise_state.ma_v2b_prior[0] << "\n" << std::endl;
     }
 
     // Save error rate
@@ -341,6 +342,13 @@ Args:
             std::cout << std::setprecision(3);
             std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
                       << " mins\n";
+        }
+
+        // Retrieve homocesdastic noise distribution's parameter
+        if (net.noise_type.compare("homosce") == 0) {
+            get_homosce_noise_param(state.noise_state.ma_v2b_prior,
+                                    state.noise_state.Sa_v2b_prior, net.mu_v2b,
+                                    net.sigma_v2b);
         }
     } else {
         std::cout << "Testing...\n";
@@ -518,6 +526,10 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
                        path, train_mode, user_input.debug);
 
         // Testing
+        if (net.noise_type.compare("homosce") == 0) {
+            test_net.mu_v2b = net.mu_v2b;
+            test_net.sigma_v2b = net.sigma_v2b;
+        }
         test_net.sigma_v = net.sigma_v;
         train_mode = false;
         regression_cpu(test_net, test_idx, test_state, theta, test_db,

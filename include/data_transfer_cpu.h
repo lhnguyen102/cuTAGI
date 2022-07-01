@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer within CPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      June 06, 2022
+// Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,7 @@ class DeltaState {
 
     DeltaState();
     void set_values(int s, int sc, int dsc, int max_n_s);
+    void reset_updated_values(int n);
 
     ~DeltaState();
 };
