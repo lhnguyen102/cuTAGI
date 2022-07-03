@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 01,  2022
+// Updated:      July 03,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -82,12 +82,6 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
                                              n_epochs);
     std::vector<float> ma_output(net.batch_size * net.n_y, 0);
     std::vector<float> Sa_output(net.batch_size * net.n_y, 0);
-
-    // Number of outputs
-    int n_output = net.nodes.back();
-    if (net.noise_type.compare("heteros") == 0) {
-        n_output = net.nodes.back() / 2;
-    }
 
     for (int e = 0; e < n_epochs; e++) {
         /* TRAINNING */

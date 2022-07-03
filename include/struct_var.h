@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 22, 2022
+// Updated:      July 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -149,8 +149,6 @@ struct Network {
     bool is_full_cov = false;
     int num_gpu_threads = 16;
     int min_operations = 1000;
-
-    // TODO: Move the default values to net_default in net_prop.cpp
 };
 
 // NETWORK STATE

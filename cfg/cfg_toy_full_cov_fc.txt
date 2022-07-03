@@ -6,7 +6,7 @@ load_param: false
 num_epochs: 50
 num_train_data: 500
 num_test_data: 100
-device: cpu
+device: cuda
 x_train_dir: data/toy_example/x_train_1D_full_cov.csv
 y_train_dir: data/toy_example/y_train_1D_full_cov.csv
 x_test_dir: data/toy_example/x_test_1D_full_cov.csv

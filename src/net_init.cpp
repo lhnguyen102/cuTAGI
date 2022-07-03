@@ -3,7 +3,7 @@
 // Description:  Network initialization
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 07, 2021
-// Updated:      June 08, 2022
+// Updated:      July 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,7 @@ void net_init(std::string &net_file, Network &net, Param &theta,
     std::string net_file_ext = net_file + ".txt";
 
     // Initialize network
-    net = load_cfg(net_file_ext);
+    load_cfg(net_file_ext, net);
     net_default(net);
     get_net_props(net);
     get_similar_layer(net);
@@ -52,9 +52,9 @@ size of train network is incompatible with the test set.
     std::string net_file_ext = net_file + ".txt";
 
     // Initialize network
-    net = load_cfg(net_file_ext);
-    net.batch_size = batch_size;
+    load_cfg(net_file_ext, net);
     net_default(net);
+    net.batch_size = batch_size;
     get_net_props(net);
     get_similar_layer(net);
     tagi_idx(idx, net);
