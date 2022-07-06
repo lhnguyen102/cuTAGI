@@ -92,7 +92,6 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
-include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 include_directories("include")
 
 # Sources code for CUDA
@@ -149,6 +148,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 
 if(CMAKE_CUDA_COMPILER)
+  include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
   add_library(cutagi STATIC ${GPU_SOURCES})
   set_target_properties(cutagi PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
   set_target_properties(cutagi PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
