@@ -1,2 +1,2 @@
 #!/bin/bash
-/build/main $VAR1
+/usr/src/cutagi/build/main $VAR1

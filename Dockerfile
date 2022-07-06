@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.4.2-devel-ubuntu20.04 As builder
 
 ARG DEBIAN_FRONTEND=noninteractive # ignore user input required
 
@@ -48,11 +48,16 @@ COPY visualizer.py ${WDC}/visualizer.py
 COPY docker_main.sh ${WDC}/docker_main.sh
 
 # Work directory for the docker image
-WORKDIR ${WDC}
+WORKDIR ${WDC}/
 
 # Run cmake to compile the code
-RUN mkdir -p ./build 
-RUN cmake -B/build -S .
-RUN cmake --build /build
+RUN mkdir -p ${WDC}/build 
+RUN cmake -B${WDC}/build -S .
+RUN cmake --build ${WDC}/build
 
+FROM nvidia/cuda:11.4.2-runtime-ubuntu20.04
+ARG WDC=/usr/src/cutagi
+WORKDIR ${WDC}/
+COPY --from=builder  ${WDC}/build/main ./build/ 
+COPY --from=builder  ${WDC}/docker_main.sh ./
 CMD ["/bin/bash","docker_main.sh"]
