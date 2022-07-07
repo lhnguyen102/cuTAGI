@@ -23,6 +23,7 @@ RUN apt-get -y update && \
     apt-get clean 
 
 # Install cmake
+ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
     apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
     apt-get update &&\

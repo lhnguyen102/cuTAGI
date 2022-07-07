@@ -19,11 +19,12 @@ RUN apt-get -y update && \
     gdb \
     valgrind \
     locales \
+    gpg-agent \
     locales-all &&\
     apt-get clean 
 
 # Install cmake
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
+RUN wget --quiet -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
     apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
     apt-get update &&\
     apt-get install -y cmake
