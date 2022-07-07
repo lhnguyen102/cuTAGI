@@ -25,4 +25,4 @@ docker run --rm \
             -v $DATA_DIR:/usr/src/cutagi/data \
             -v $SAVED_PARAM_DIR:/usr/src/cutagi/saved_param \
             -v $SAVED_RESULTS_DIR:/usr/src/cutagi/saved_results \
-            cutagi:0.1.2 
+            cutagi:latest
