@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 01, 2022
+// Updated:      July 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -870,7 +870,7 @@ Param initialize_param(Network &net) {
     return p;
 }
 
-Network load_cfg(std::string net_file)
+void load_cfg(std::string net_file, Network &net)
 /*
  * Load the user-speficied network archtecture
  *
@@ -913,7 +913,6 @@ Network load_cfg(std::string net_file)
     std::ifstream cfg_file(cfg_path);
 
     // Initialize pointers
-    Network net;
     int d;
     float f;
     std::string si;
@@ -1058,7 +1057,6 @@ Network load_cfg(std::string net_file)
             }
         }
     }
-    return net;
 }
 
 bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)

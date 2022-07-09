@@ -54,7 +54,7 @@ NetState initialize_net_states(Network &net);
 
 Param initialize_param(Network &net);
 
-Network load_cfg(std::string net_file);
+void load_cfg(std::string net_file, Network &net);
 
 bool is_conv(std::vector<int> &layers, LayerLabel &layer_names);
 

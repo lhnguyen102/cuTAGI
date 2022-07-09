@@ -403,6 +403,6 @@ def noise_inference():
 
 if __name__ == '__main__':
     #regression()
-    #autoencoder()
+    autoencoder()
     #input_uncertainty_prop()
-    noise_inference()
+    #noise_inference()

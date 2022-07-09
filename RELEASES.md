@@ -1,3 +1,7 @@
+# Version 0.1.2 (2022-07-09)
+* Add homoscedastic & heteroscedastic noise inferences 
+* Support docker images 
+
 # Version 0.1.1 (2022-05-31)
 * Support CPU with multithreading for only fully-connected layer
 * Regression, classification, and autoencoder are working

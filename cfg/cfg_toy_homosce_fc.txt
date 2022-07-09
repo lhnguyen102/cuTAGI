@@ -1,9 +1,9 @@
 model_name: 1D
 task_name: regression
 data_name: toy_example
-net_name: 1fc_toy
+net_name: fc_homosce_toy
 load_param: false
-num_epochs: 30
+num_epochs: 50
 num_train_data: 20
 num_test_data: 100
 device: cpu

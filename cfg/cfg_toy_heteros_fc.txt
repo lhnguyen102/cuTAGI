@@ -1,12 +1,12 @@
 model_name: 1D
 task_name: regression
 data_name: toy_example
-net_name: fc_noise_inference_toy
+net_name: fc_heteros_toy
 load_param: false
 num_epochs: 50
 num_train_data: 400
 num_test_data: 200
-device: cpu
+device: cuda
 x_train_dir: data/toy_example/x_train_1D_noise_inference.csv
 y_train_dir: data/toy_example/y_train_1D_noise_inference.csv
 x_test_dir: data/toy_example/x_test_1D_noise_inference.csv
