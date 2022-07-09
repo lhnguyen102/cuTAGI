@@ -132,7 +132,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
       ```
   * CUDA build 
       ```sh
-      bash bin/build.sh --device=cuda
+      bash bin/build.sh -d cuda
       ```
 ### Ubuntu 20.04
 1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
@@ -253,11 +253,11 @@ All above-mentioned tasks can be run in docker container using the following com
 
 * Docker with cpu build 
   ```sh
-  bash bin/run.sh --cfg=cfg_mnist_2fc.txt
+  bash bin/run.sh -c cfg_mnist_2fc.txt
   ```
 * Docker with cuda build 
   ```sh
-  bash bin/run.sh --cfg=cfg_mnist_2fc.txt --device=cuda
+  bash bin/run.sh -c cfg_mnist_2fc.txt -d =cuda
   ```
 
 ## Directory Structure

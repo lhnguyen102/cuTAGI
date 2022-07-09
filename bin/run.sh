@@ -1,4 +1,6 @@
-#!/bin/bash
+ #!/bin/bash
+
+
 #####################
 ## DIRECTORIES
 #####################
@@ -25,22 +27,31 @@ echo "Using data in $SAVED_RESULTS_DIR"
 ## ARGUMENT PASSING
 #####################
 unset -v CFG VERSION DEVICE
-TEMP=$(getopt -n "$0" -a -l "cfg:, version:,device:" -- -- "$@")
-[ $? -eq 0 ] || exit
-eval set --  "$TEMP"
-while [ $# -gt 0 ]
+# TEMP=$(getopt -n "$0" -a -l "cfg:,version:,device:" -- -- "$@")
+# [ $? -eq 0 ] || exit
+# eval set --  "$TEMP"
+# while [ $# -gt 0 ]
+# do
+#     case "$1" in
+#         --cfg) CFG="$2"; shift;;
+#         --version) VERSION="$2"; shift;;
+#         --device) DEVICE="$2"; shift;;
+#         --) shift;;
+#     esac
+#     shift;
+# done
+
+while getopts "c:v:d:" flag;
 do
-    case "$1" in
-        --cfg) CFG="$2"; shift;;
-        --version) VERSION="$2"; shift;;
-        --device) DEVICE="$2"; shift;;
-        --) shift;;
+    case "${flag}" in
+        c) CFG=${OPTARG};;
+        v) VERSION=${OPTARG};;
+        d) DEVICE=${OPTARG};;
     esac
-    shift;
 done
 
 if [ -z "${CFG+set}" ]; then
-    echo "ERORR: User input file is not provided"
+    echo "ERROR: User input file is not provided"
     exit 1;
 fi
 if [ -z "${VERSION+set}" ]; then
@@ -53,7 +64,7 @@ fi
 if [ ${DEVICE} != "cuda" ]; then
     docker run --rm \
                 -it \
-                -e VAR1=$CFG \
+                -e VAR1=${CFG} \
                 -v $CONFIG_DIR:/usr/src/cutagi/cfg \
                 -v $DATA_DIR:/usr/src/cutagi/data \
                 -v $SAVED_PARAM_DIR:/usr/src/cutagi/saved_param \
