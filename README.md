@@ -257,7 +257,7 @@ All above-mentioned tasks can be run in docker container using the following com
   ```
 * Docker with cuda build 
   ```sh
-  bash bin/run.sh -c cfg_mnist_2fc.txt -d =cuda
+  bash bin/run.sh -c cfg_mnist_2fc.txt -d cuda
   ```
 
 ## Directory Structure
