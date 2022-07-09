@@ -121,7 +121,7 @@ sigma_v:    1
 ```
 
 ## Installation
-We highly recommend installing cuTAGI using DOCKER method to facilitate the installation.
+We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
 ### Docker
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
