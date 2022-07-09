@@ -251,11 +251,11 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
 ### Docker 
 All above-mentioned tasks can be run in docker container using the following commands 
 
-* Docker with cpu build 
+* Docker with CPU build 
   ```sh
   bash bin/run.sh -c cfg_mnist_2fc.txt
   ```
-* Docker with cuda build 
+* Docker with CUDA build 
   ```sh
   bash bin/run.sh -c cfg_mnist_2fc.txt -d cuda
   ```

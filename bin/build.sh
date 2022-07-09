@@ -3,28 +3,28 @@
 ## ARGUMENT PASSING
 #####################
 unset -v VERSION DEVICE
-TEMP=$(getopt -n "$0" -a -l "version:,device:" -- -- "$@")
-[ $? -eq 0 ] || exit
-eval set --  "$TEMP"
-while [ $# -gt 0 ]
-do
-    case "$1" in
-        --version) VERSION="$2"; shift;;
-        --device) DEVICE="$2"; shift;;
-        --) shift;;
-    esac
-    shift;
-done
+# TEMP=$(getopt -n "$0" -a -l "version:,device:" -- -- "$@")
+# [ $? -eq 0 ] || exit
+# eval set --  "$TEMP"
+# while [ $# -gt 0 ]
+# do
+#     case "$1" in
+#         --version) VERSION="$2"; shift;;
+#         --device) DEVICE="$2"; shift;;
+#         --) shift;;
+#     esac
+#     shift;
+# done
 
 ###########################
 ## pass flags
-# while getopts "v:d:" flag;
-# do
-#     case "${flag}" in
-#         v) VERSION=${OPTARG};;
-#         d) DEVICE=${OPTARG};;
-#     esac
-# done
+while getopts "v:d:" flag;
+do
+    case "${flag}" in
+        v) VERSION=${OPTARG};;
+        d) DEVICE=${OPTARG};;
+    esac
+done
 
 if [ -z "${VERSION+set}" ]; then
     VERSION="latest"
