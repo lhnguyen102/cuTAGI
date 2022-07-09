@@ -1,3 +1,6 @@
+#####################################################
+## BUILD STAGE 
+#####################################################
 FROM nvidia/cuda:11.4.2-devel-ubuntu20.04 As builder
 
 ARG DEBIAN_FRONTEND=noninteractive # ignore user input required
@@ -53,9 +56,12 @@ WORKDIR ${WDC}/
 
 # Run cmake to compile the code
 RUN mkdir -p ${WDC}/build 
-RUN cmake -B${WDC}/build -S .
-RUN cmake --build ${WDC}/build
+RUN cmake . -B ${WDC}/build 
+RUN cmake --build ${WDC}/build --config RelWithDebInfo -j 16
 
+#####################################################
+## RUNTIME STAGE
+#####################################################
 FROM nvidia/cuda:11.4.2-runtime-ubuntu20.04
 ARG WDC=/usr/src/cutagi
 WORKDIR ${WDC}/

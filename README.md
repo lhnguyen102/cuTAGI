@@ -121,6 +121,19 @@ sigma_v:    1
 ```
 
 ## Installation
+We highly recommend installing cuTAGI using DOCKER method to facilitate the installation.
+
+### DOCKER 
+1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
+2. Build docker image
+  * CPU build.
+      ```sh
+      bash bin/build.sh
+      ```
+  * CUDA build 
+      ```sh
+      bash bin/build.sh --device=cuda
+      ```
 ### Ubuntu 20.04
 1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
     ```sh
@@ -196,10 +209,6 @@ sigma_v:    1
   ```sh
   build/main cfg_mnist_2fc.txt
   ```
-  or
-  ```sh
-  "build/main" cfg_mnist_2fc.txt
-  ```
 
 * Two convolutional layers [`cfg/2conv.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2conv.txt).
   ```sh
@@ -239,9 +248,22 @@ sigma_v:    1
   build/main cfg_toy_ni_fc.txt
   ```
 
+### Docker 
+All above-mentioned tasks can be run in docker container using the following commands 
+
+* Docker with cpu build 
+  ```sh
+  bash bin/run.sh --cfg=cfg_mnist_2fc.txt
+  ```
+* Docker with cuda build 
+  ```sh
+  bash bin/run.sh --cfg=cfg_mnist_2fc.txt --device=cuda
+  ```
+
 ## Directory Structure
 ```
 .
+├── bin                               # Bash script for building and runing docker images
 ├── cfg                               # User input (.txt)
 ├── data                              # Database
 ├── include                           # Header files
