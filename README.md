@@ -126,7 +126,7 @@ We highly recommend installing cuTAGI using DOCKER method to facilitate the inst
 ### DOCKER 
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
 2. Build docker image
-  * CPU build.
+  * CPU build
       ```sh
       bash bin/build.sh
       ```
