@@ -123,7 +123,7 @@ sigma_v:    1
 ## Installation
 We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
-### Docker
+### Docker build
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
 2. Build docker image
   * CPU build
@@ -134,6 +134,8 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
       ```sh
       bash bin/build.sh -d cuda
       ```
+*NOTE: During the build and run, make sure that Docker desktop application is opened. The commands for runing tasks such as classification and regression can be found [here](#docker-run)
+
 ### Ubuntu 20.04
 1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
     ```sh
@@ -248,7 +250,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
   build/main cfg_toy_ni_fc.txt
   ```
 
-### Docker 
+### Docker run
 All above-mentioned tasks can be run in docker container using the following commands 
 
 * Docker with CPU build 
@@ -263,7 +265,7 @@ All above-mentioned tasks can be run in docker container using the following com
 ## Directory Structure
 ```
 .
-├── bin                               # Bash script for building and runing docker images
+├── bin                               # Bash scripts for building and runing docker images
 ├── cfg                               # User input (.txt)
 ├── data                              # Database
 ├── include                           # Header files
