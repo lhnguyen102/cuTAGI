@@ -356,8 +356,8 @@ def noise_inference():
     """ The analytical formulation for output is defined following
     """
     # Equation
-    eq = r"$\begin{array}{rcl}Y &=& x^{3} + V, ~V\sim\mathcal{N}(0, \sigma_V^2)\\[4pt]\sigma_V &=& 0.45(x + 0.5)^2\end{array}$"
-    x_eq = -0.95
+    eq = r"$\begin{array}{rcl}Y &=& -(x + 0.5)\sin(3\pi x) + V, ~V\sim\mathcal{N}(0, \sigma_V^2)\\[4pt]\sigma_V &=& 0.45(x + 0.5)^2\end{array}$"
+    x_eq = -0.98
     y_eq = 1.6
 
     # User input data
@@ -403,6 +403,6 @@ def noise_inference():
 
 if __name__ == '__main__':
     #regression()
-    autoencoder()
+    #autoencoder()
     #input_uncertainty_prop()
-    #noise_inference()
+    noise_inference()
