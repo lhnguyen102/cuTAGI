@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 03, 2022
+// Updated:      July 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -632,6 +632,38 @@ void net_default(Network &net)
     if (net.FCzwa_1_col.size() == 0) {
         net.FCzwa_1_col.resize(num_layers, 0);
     }
+}
+
+void initialize_derivative_state(Network &net, NetState &state) {
+    int max_num_nodes = net.n_max_state / net.batch_size;
+    state.derv_state.mda.resize(net.n_state, 0);
+    state.derv_state.Sda.resize(net.n_state, 0);
+    state.derv_state.md_node.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Sd_node.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdo_di.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdo_wi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdo_diwi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.md_layer.resize(net.n_max_state, 0);
+    state.derv_state.Sd_layer.resize(net.n_max_state, 0);
+    state.derv_state.md_layer_m.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Sd_layer_m.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cai_zi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cao_zi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdi_zi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdo_zi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
+    state.derv_state.Cdl_zi.resize(
+        max_num_nodes * max_num_nodes * net.batch_size, 0);
 }
 
 NetState initialize_net_states(Network &net) {

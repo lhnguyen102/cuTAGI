@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      July 03, 2022
+// Updated:      July 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -101,6 +101,7 @@ struct Network {
         sigma_v_min: Minimum value of observation noise (default value: 0.3)
         multithreading: Whether or not to run parallel computing using multiple
             threads
+        collect_derivative: Whether or not to compute derivative
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
 
@@ -147,6 +148,7 @@ struct Network {
     float sigma_v_min = 0.0f;
     bool multithreading = true;
     bool is_full_cov = false;
+    bool collect_derivative = false;
     int num_gpu_threads = 16;
     int min_operations = 1000;
 };
@@ -189,6 +191,13 @@ struct NoiseState {
         delta_Sv, delta_mz_mu, delta_Sz_mu, delta_mz_v2b, delta_Sz_v2b;
 };
 
+struct DerivativeState {
+    /*Derivative's hidden states*/
+    std::vector<float> mda, Sda, md_node, Sd_node, Cdo_di, Cdo_wi, Cdo_diwi,
+        md_layer, Sd_layer, md_layer_m, Sd_layer_m, Cai_zi, Cao_zi, Cdi_zi,
+        Cdo_zi, Cdl_zi;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -212,6 +221,7 @@ struct NetState {
         Sz_fp;
     std::vector<float> mra, Sra;
     NoiseState noise_state;
+    DerivativeState derv_state;
 };
 
 // NETWORK PARAMETERS
