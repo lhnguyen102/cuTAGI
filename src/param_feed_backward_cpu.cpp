@@ -284,7 +284,7 @@ Returns:
 {
     int no, ni, z_pos_in, z_pos_out, w_pos_in, b_pos_in;
     int B = net.batch_size;
-    for (int k = net.layers.size() - 1; k >= 0; k--) {
+    for (int k = net.layers.size() - 2; k >= 0; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
         z_pos_out = net.z_pos[k + 1];

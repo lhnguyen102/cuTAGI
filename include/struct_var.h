@@ -193,9 +193,8 @@ struct NoiseState {
 
 struct DerivativeState {
     /*Derivative's hidden states*/
-    std::vector<float> mda, Sda, md_node, Sd_node, Cdo_di, Cdo_wi, Cdo_diwi,
-        md_layer, Sd_layer, md_layer_m, Sd_layer_m, Cai_zi, Cao_zi, Cdi_zi,
-        Cdo_zi, Cdl_zi;
+    std::vector<float> mda, Sda, md_node, Sd_node, Cdo_diwi, md_layer, Sd_layer,
+        md_layer_m, Sd_layer_m, md_layer_m_o, Cdi_zi, Cdo_zi, Cld_zi, Cld_zi_m;
 };
 
 struct NetState {

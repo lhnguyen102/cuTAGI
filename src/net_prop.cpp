@@ -642,10 +642,6 @@ void initialize_derivative_state(Network &net, NetState &state) {
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Sd_node.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
-    state.derv_state.Cdo_di.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
-    state.derv_state.Cdo_wi.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Cdo_diwi.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.md_layer.resize(net.n_max_state, 0);
@@ -654,15 +650,14 @@ void initialize_derivative_state(Network &net, NetState &state) {
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Sd_layer_m.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
-    state.derv_state.Cai_zi.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
-    state.derv_state.Cao_zi.resize(
+    state.derv_state.md_layer_m_o.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Cdi_zi.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Cdo_zi.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
-    state.derv_state.Cdl_zi.resize(
+    state.derv_state.Cld_zi.resize(net.n_state, 0);
+    state.derv_state.Cld_zi_m.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
 }
 
