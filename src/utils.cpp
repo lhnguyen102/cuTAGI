@@ -66,6 +66,15 @@ void save_predictions(std::string &res_path, std::vector<float> &ma,
     write_csv(Sy_path, sa);
 }
 
+void save_derivatives(std::string &res_path, std::vector<float> &md_layer,
+                      std::vector<float> &Sd_layer, std::string &suffix) {
+    /*Save images that generated from neural network.*/
+    std::string my_path = res_path + "md_" + suffix + ".csv";
+    std::string Sy_path = res_path + "Sd_" + suffix + ".csv";
+    write_csv(my_path, md_layer);
+    write_csv(Sy_path, Sd_layer);
+}
+
 void save_idx(std::string &idx_path, IndexOut &idx) {
     // Save indices
     std::string FCzwa_1_path = idx_path + "1_FCzwa_1.csv";

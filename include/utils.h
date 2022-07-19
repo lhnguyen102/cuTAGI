@@ -3,7 +3,7 @@
 // Description:  Header file for utils
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 10, 2022
-// Updated:      May 25, 2022
+// Updated:      July 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,3 +42,6 @@ void save_autoencoder_net_prop(Param &theta_e, Param &theta_d, IndexOut &idx_e,
 
 void save_predictions(std::string &res_path, std::vector<float> &ma,
                       std::vector<float> &sa, std::string &suffix);
+
+void save_derivatives(std::string &res_path, std::vector<float> &md_layer,
+                      std::vector<float> &Sd_layer, std::string &suffix);
