@@ -3,7 +3,7 @@
 // Description:  utils for TAGI package such saving and loading parameters
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 10, 2022
-// Updated:      May 29, 2022
+// Updated:      July 20, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -177,6 +177,9 @@ Args:
     theta: Parameters of network
  */
 {
+    // Create directory
+    create_directory(path);
+
     // Common path
     std::string param_path = path + model_name + "_" + net_name + "_";
 

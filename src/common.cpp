@@ -64,7 +64,7 @@ void create_directory(std::string &path) {
     const char *res_path_c = path.c_str();
 #if defined(__linux__) || defined(__APPLE__)
     if (stat(res_path_c, &st) == -1) {
-        mkdir(res_path_c, 0700);
+        mkdir(res_path_c, 0777);
     }
 #endif
 

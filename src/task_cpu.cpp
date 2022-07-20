@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 19,  2022
+// Updated:      July 20,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -236,205 +236,6 @@ Args:
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-
-    // Compute number of data points
-    int n_iter = db.num_data / net.batch_size;
-    int n_w = theta.mw.size();
-    int n_b = theta.mb.size();
-    int n_w_sc = theta.mw_sc.size();
-    int n_b_sc = theta.mb_sc.size();
-    int ni_B = net.batch_size * net.n_x;
-    std::vector<int> data_idx = create_range(db.num_data);
-
-    // Initialize the data's variables
-    std::vector<float> x_batch(net.batch_size * net.n_x, 0);
-    std::vector<float> Sx_batch(net.batch_size * net.n_x, pow(net.sigma_x, 2));
-    std::vector<float> Sx_f_batch;
-    std::vector<float> y_batch(net.batch_size * net.n_y, 0);
-    std::vector<float> V_batch(net.batch_size * net.n_y, pow(net.sigma_v, 2));
-    std::vector<int> batch_idx(net.batch_size);
-    std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
-
-    // *TODO: Is there any better way?
-    if (net.is_full_cov) {
-        float var_x = pow(net.sigma_x, 2);
-        auto Sx_f = initialize_upper_triu(var_x, net.n_x);
-        Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
-    }
-
-    // Input & output
-    Input ip;
-    Obs op;
-
-    // Updated quantities for state & parameters
-    DeltaState d_state;
-    DeltaParam d_theta;
-    d_state.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
-                       net.n_max_state);
-    d_theta.set_values(n_w, n_b, n_w_sc, n_b_sc);
-
-    if (train_mode) {
-        for (int e = 0; e < n_epochs; e++) {
-            if (e > 0) {
-                // Shuffle data
-                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
-
-                // Decay observation noise
-                decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
-                                net.sigma_v_min);
-            }
-
-            std::vector<float> V_batch(net.batch_size * net.n_y,
-                                       pow(net.sigma_v, 2));
-
-            // Timer
-            std::cout << "################\n";
-            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
-            std::cout << "Training...\n";
-            auto start = std::chrono::steady_clock::now();
-            for (int i = 0; i < n_iter; i++) {
-                // Load data
-                get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
-                              batch_idx);
-                get_batch_data(db.x, batch_idx, net.n_x, x_batch);
-                get_batch_data(db.y, batch_idx, net.n_y, y_batch);
-                ip.set_values(x_batch, Sx_batch, Sx_f_batch);
-                op.set_values(y_batch, V_batch, idx_ud_batch);
-
-                // Initialize input
-                initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                      net.n_x, net.batch_size, state);
-
-                // Feed forward
-                feed_forward_cpu(net, theta, idx, state);
-
-                // Feed backward for hidden states
-                state_backward_cpu(net, theta, state, idx, op, d_state);
-
-                // Feed backward for parameters
-                param_backward_cpu(net, theta, state, d_state, idx, d_theta);
-
-                // Update model parameters
-                global_param_update_cpu(d_theta, n_w, n_b, n_w_sc, n_b_sc,
-                                        theta);
-            }
-
-            // Report running time
-            std::cout << std::endl;
-            auto end = std::chrono::steady_clock::now();
-            auto run_time =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
-                                                                     start)
-                    .count();
-            std::cout << " Time per epoch: ";
-            std::cout << std::fixed;
-            std::cout << std::setprecision(3);
-            std::cout << run_time * 1e-9 << " sec\n";
-            std::cout << " Time left     : ";
-            std::cout << std::fixed;
-            std::cout << std::setprecision(3);
-            std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
-                      << " mins\n";
-        }
-
-        // Retrieve homocesdastic noise distribution's parameter
-        if (net.noise_type.compare("homosce") == 0) {
-            get_homosce_noise_param(state.noise_state.ma_v2b_prior,
-                                    state.noise_state.Sa_v2b_prior, net.mu_v2b,
-                                    net.sigma_v2b);
-        }
-    } else {
-        std::cout << "Testing...\n";
-        std::vector<float> ma_batch_out(net.batch_size * net.n_y, 0);
-        std::vector<float> Sa_batch_out(net.batch_size * net.n_y, 0);
-        std::vector<float> ma_out(db.num_data * net.n_y, 0);
-        std::vector<float> Sa_out(db.num_data * net.n_y, 0);
-        int mt_idx = 0;
-
-        // Prediction
-        for (int i = 0; i < n_iter; i++) {
-            // Load data
-            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
-                          batch_idx);
-            get_batch_data(db.x, batch_idx, net.n_x, x_batch);
-            get_batch_data(db.y, batch_idx, net.n_y, y_batch);
-            ip.set_values(x_batch, Sx_batch, Sx_f_batch);
-            op.set_values(y_batch, V_batch, idx_ud_batch);
-
-            // Initialize input
-            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
-                                  net.n_x, net.batch_size, state);
-
-            // Feed forward
-            feed_forward_cpu(net, theta, idx, state);
-
-            // Get hidden states for output layers
-            output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
-
-            // Update the final hidden state vector for last layer
-            mt_idx = i * net.batch_size * net.n_y;
-            update_vector(ma_out, ma_batch_out, mt_idx, net.n_y);
-            update_vector(Sa_out, Sa_batch_out, mt_idx, net.n_y);
-        }
-        // Denormalize data
-        std::vector<float> sy_norm(db.y.size(), 0);
-        std::vector<float> my(sy_norm.size(), 0);
-        std::vector<float> sy(sy_norm.size(), 0);
-        std::vector<float> y_test(sy_norm.size(), 0);
-
-        // Compute log-likelihood
-        for (int k = 0; k < db.y.size(); k++) {
-            sy_norm[k] = pow(Sa_out[k] + pow(net.sigma_v, 2), 0.5);
-        }
-        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.n_y, my);
-        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.n_y, y_test);
-        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
-
-        // Compute metrics
-        auto mse = mean_squared_error(my, y_test);
-        auto log_lik = avg_univar_log_lik(my, y_test, sy);
-
-        // Display results
-        std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-        std::cout << "RMSE           : ";
-        std::cout << std::fixed;
-        std::cout << std::setprecision(3);
-        std::cout << pow(mse, 0.5) << "\n";
-        std::cout << "Log likelihood: ";
-        std::cout << std::fixed;
-        std::cout << std::setprecision(3);
-        std::cout << log_lik;
-        std::cout << std::endl;
-
-        // Save predictions
-        std::string suffix = "prediction";
-        save_predictions(path.saved_inference_path, my, sy, suffix);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////
-// DERIVATIVE
-///////////////////////////////////////////////////////////////////////
-void derivative_cpu(Network &net, IndexOut &idx, NetState &state, Param &theta,
-                    Dataloader &db, int n_epochs, SavePath &path,
-                    bool train_mode, bool debug)
-/*Compute derivative of the output's hidden states w.r.t input's hidden states
-
-Args:
-    Net: Network architecture
-    idx: Indices of network
-    theta: Weights & biases of network
-    db: database
-    n_epochs: Number of epochs
-    path: Directory stored the final results
-    train_mode: Whether to train the network
-    path: Directory stored the final results
-    debug: Debugging mode allows saving inference data
-*/
-{
-    // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine seed_e(seed);
     int derivative_layer = 0;
 
     // Compute number of data points
@@ -508,6 +309,12 @@ Args:
                 // Feed forward
                 feed_forward_cpu(net, theta, idx, state);
 
+                // Derivatives
+                if (net.collect_derivative) {
+                    compute_network_derivatives(net, theta, state,
+                                                derivative_layer);
+                }
+
                 // Feed backward for hidden states
                 state_backward_cpu(net, theta, state, idx, op, d_state);
 
@@ -569,7 +376,10 @@ Args:
             feed_forward_cpu(net, theta, idx, state);
 
             // Derivatives
-            compute_network_derivatives(net, theta, state, derivative_layer);
+            if (net.collect_derivative) {
+                compute_network_derivatives(net, theta, state,
+                                            derivative_layer);
+            }
 
             // Get hidden states for output layers
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
@@ -612,8 +422,11 @@ Args:
         // Save predictions
         std::string suffix = "prediction";
         save_predictions(path.saved_inference_path, my, sy, suffix);
-        save_derivatives(path.saved_inference_path, state.derv_state.md_layer,
-                         state.derv_state.Sd_layer, suffix);
+        if (net.collect_derivative) {
+            save_derivatives(path.saved_inference_path,
+                             state.derv_state.md_layer,
+                             state.derv_state.Sd_layer, suffix);
+        }
     }
 }
 
@@ -713,7 +526,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Save network's parameter to debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param/";
+            std::string param_path = path.debug_path + "/saved_param";
             save_net_param(user_input.model_name, user_input.net_name,
                            param_path, theta);
         }

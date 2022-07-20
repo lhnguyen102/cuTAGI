@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 17, 2022
+// Updated:      July 20, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -684,6 +684,7 @@ NetState initialize_net_states(Network &net) {
         state.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
     }
 
+    // Noise inference
     if (net.noise_type.compare("homosce") == 0 ||
         net.noise_type.compare("heteros") == 0) {
         int n_noise = net.n_y * net.batch_size;
@@ -710,6 +711,11 @@ NetState initialize_net_states(Network &net) {
         set_homosce_noise_param(net.mu_v2b, net.sigma_v2b,
                                 state.noise_state.ma_v2b_prior,
                                 state.noise_state.Sa_v2b_prior);
+    }
+
+    // Derivative state
+    if (net.collect_derivative) {
+        initialize_derivative_state(net, state);
     }
 
     return state;
@@ -907,18 +913,18 @@ void load_cfg(std::string net_file, Network &net)
  **/
 {
     // Dictionary for the cfg file
-    std::string key_words[] = {"layers",        "nodes",
-                               "kernels",       "strides",
-                               "widths",        "heights",
-                               "filters",       "pads",
-                               "pad_types",     "shortcuts",
-                               "activations",   "batch_size",
-                               "sigma_v",       "decay_factor_sigma_v",
-                               "sigma_v_min",   "sigma_x",
-                               "init_method",   "is_full_cov",
-                               "noise_type",    "mu_v2b",
-                               "sigma_v2b",     "noise_gain",
-                               "multithreading"};
+    std::string key_words[] = {"layers",         "nodes",
+                               "kernels",        "strides",
+                               "widths",         "heights",
+                               "filters",        "pads",
+                               "pad_types",      "shortcuts",
+                               "activations",    "batch_size",
+                               "sigma_v",        "decay_factor_sigma_v",
+                               "sigma_v_min",    "sigma_x",
+                               "init_method",    "is_full_cov",
+                               "noise_type",     "mu_v2b",
+                               "sigma_v2b",      "noise_gain",
+                               "multithreading", "collect_derivative"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1061,6 +1067,20 @@ void load_cfg(std::string net_file, Network &net)
                         } else {
                             throw std::invalid_argument(
                                 "Input must be true or false - multithreading");
+                        }
+                    }
+                } else if (key_words[k] == "collect_derivative") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        if (si.compare("true") == 0) {
+                            net.collect_derivative = true;
+                        } else if (si.compare("false") == 0) {
+                            net.collect_derivative = false;
+                        } else {
+                            throw std::invalid_argument(
+                                "Input must be true or false - "
+                                "collect_derivative");
                         }
                     }
                 } else {

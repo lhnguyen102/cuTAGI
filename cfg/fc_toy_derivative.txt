@@ -1,0 +1,8 @@
+layers: 	[1,     1,       1,     1]
+nodes:		[1,     3,       4,     1]
+activations:[0,     1,       4,     0]
+batch_size: 2
+sigma_v: 0.1
+multithreading: false
+collect_derivative: true
+init_method: He

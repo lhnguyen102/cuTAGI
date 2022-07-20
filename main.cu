@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     SavePath path;
     path.curr_path = get_current_dir();
     path.saved_param_path = path.curr_path + "/saved_param/";
-    path.debug_path = path.curr_path + "/debug_data/";
+    path.debug_path = path.curr_path + "/debug_data";
     path.saved_inference_path = path.curr_path + "/saved_results/";
 
     // Run task
