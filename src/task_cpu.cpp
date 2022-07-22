@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 20,  2022
+// Updated:      July 22,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -526,7 +526,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Save network's parameter to debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param";
+            std::string param_path = path.debug_path + "saved_param/";
             save_net_param(user_input.model_name, user_input.net_name,
                            param_path, theta);
         }
@@ -547,9 +547,9 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
                        user_input.num_epochs, path, train_mode,
                        user_input.debug);
 
-        // Save net's parameters
-        save_net_param(user_input.model_name, user_input.net_name,
-                       path.saved_param_path, theta);
+        // // Save net's parameters
+        // save_net_param(user_input.model_name, user_input.net_name,
+        //                path.saved_param_path, theta);
     } else {
         throw std::invalid_argument("Task name does not exist - task_cpu.cpp");
     }

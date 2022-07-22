@@ -3,7 +3,7 @@
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 12, 2022
-// Updated:      July 20, 2022
+// Updated:      July 22, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +19,7 @@ void compute_node_derivative_mean_var_fc(
     int k;
     for (int j = 0; j < no; j++) {
         for (int i = 0; i < ni * B; i++) {
-            k = (i / ni) * j * B;
+            k = (i % ni) + j * ni;
             md_node[ni * B * j + i] = mw[k + w_pos] * mda[i + z_pos];
             Sd_node[ni * B * j + i] =
                 Sw[k + w_pos] * Sda[i + z_pos] +
@@ -43,7 +43,7 @@ void compute_cov_aw_aa_fc(std::vector<float> &mw, std::vector<float> &Sw,
     for (int j = 0; j < no; j++) {
         for (int i = 0; i < ni * B; i++) {
             m = (i / ni) * no + j;
-            k = (i / ni) * j * B;
+            k = (i % ni) + j * ni;
             Cao_wi[ni * B * j + i] =
                 Sw[k + w_pos_i] * ma_i[i + z_pos_i] * J_o[m + z_pos_o];
             Cao_ai[ni * B * j + i] =
@@ -71,8 +71,8 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
-                k = (i / ni) * j * B;
-                Cao_ai_tmp = Sw[k + w_pos_i] * ma[i + z_pos_i] * J[m + z_pos_o];
+                k = (i % ni) + j * ni;
+                Cao_ai_tmp = mw[k + w_pos_i] * Sa[i + z_pos_i] * J[m + z_pos_o];
                 Cdo_diwi[ni * B * j + i] =
                     (2 * Cao_ai_tmp * Cao_ai_tmp +
                      4 * Cao_ai_tmp * ma[i + z_pos_i] * ma[m + z_pos_o]) *
@@ -84,8 +84,8 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
-                k = (i / ni) * j * B;
-                Cao_ai_tmp = Sw[k + w_pos_i] * ma[i + z_pos_i] * J[m + z_pos_o];
+                k = (i % ni) + j * ni;
+                Cao_ai_tmp = mw[k + w_pos_i] * Sa[i + z_pos_i] * J[m + z_pos_o];
                 Cdo_diwi[ni * B * j + i] =
                     (Cao_ai_tmp - 2 * Cao_ai_tmp * ma[i + z_pos_i] -
                      2 * ma[m + z_pos_o] * Cao_ai_tmp +
@@ -105,10 +105,10 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
-                k = (i / ni) * j * B;
+                k = (i % ni) + j * ni;
                 Cdo_diwi[ni * B * j + i] +=
-                    (-2.0f * ma[m + z_pos_o] * mw[k + w_pos_i] *
-                     Sa[i + z_pos_i] * J[m + z_pos_o]) *
+                    (-2.0f * ma[m + z_pos_o] * Sw[k + w_pos_i] *
+                     ma[i + z_pos_i] * J[m + z_pos_o]) *
                     mda[ni * B * j + i + z_pos_i];
             }
         }
@@ -117,9 +117,9 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
-                k = (i / ni) * j * B;
+                k = (i % ni) + j * ni;
                 Cdo_diwi[ni * B * j + i] +=
-                    (mw[k + w_pos_i] * Sa[i + z_pos_i] * J[m + z_pos_o]) *
+                    (Sw[k + w_pos_i] * ma[i + z_pos_i] * J[m + z_pos_o]) *
                     mda[ni * B * j + i + z_pos_i];
             }
         }
@@ -273,7 +273,7 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
-                k = (i / ni) * j * B;
+                k = (i % ni) + j * ni;
                 Cdo_zi[ni * B * j + i] = -2.0f * ma[m + z_pos_o] *
                                          mw[k + w_pos_i] * J[i] * Sz[i] *
                                          J[m + z_pos_o];
@@ -335,7 +335,7 @@ void compute_cov_last_last_minus_1_layers(std::vector<float> &mw,
     int q;
     for (int j = 0; j < no; j++) {
         for (int i = 0; i < ni * B; i++) {
-            q = (i / ni) * j * B + ni * no;
+            q = (i % ni) + j * ni;  //(i / ni) * j * B + ni * no;
             Cld_zi[ni * B * j + i] = Cdi_zi[i + j * ni * B] * mw[q + w_pos_i];
         }
     }
@@ -544,10 +544,10 @@ void compute_network_derivatives(Network &net, Param &theta, NetState &state,
    of the lth layer*/
 {
     // Last layer
-    int last_layer = net.layers.size() - 1;
+    int last_layer = net.layers.size() - 2;
     compute_last_minus_1_layer_derivative(net, theta, state, last_layer);
 
-    for (int k = net.nodes.size() - 2; k >= 0; k--) {
+    for (int k = net.nodes.size() - 3; k >= 0; k--) {
         if (net.layers[k + 1] == net.layer_names.fc) {
             compute_layer_derivative(net, theta, state, k);
         }
