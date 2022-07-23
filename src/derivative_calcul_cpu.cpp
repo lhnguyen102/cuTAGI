@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         derivative_calculation_cpu.cpp
+// File:         derivative_calcul_cpu.cpp
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 12, 2022
-// Updated:      July 22, 2022
+// Updated:      July 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "../include/derivative_calculation_cpu.h"
+#include "../include/derivative_calcul_cpu.h"
 
 void compute_node_derivative_mean_var_fc(
     std::vector<float> &mw, std::vector<float> &Sw, std::vector<float> &mda,
@@ -74,8 +74,8 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
                 k = (i % ni) + j * ni;
                 Cao_ai_tmp = mw[k + w_pos_i] * Sa[i + z_pos_i] * J[m + z_pos_o];
                 Cdo_diwi[ni * B * j + i] =
-                    (2 * Cao_ai_tmp * Cao_ai_tmp +
-                     4 * Cao_ai_tmp * ma[i + z_pos_i] * ma[m + z_pos_o]) *
+                    (2.0f * Cao_ai_tmp * Cao_ai_tmp +
+                     4.0f * Cao_ai_tmp * ma[i + z_pos_i] * ma[m + z_pos_o]) *
                     mw[k + w_pos_i];
             }
         }
@@ -109,7 +109,7 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
                 Cdo_diwi[ni * B * j + i] +=
                     (-2.0f * ma[m + z_pos_o] * Sw[k + w_pos_i] *
                      ma[i + z_pos_i] * J[m + z_pos_o]) *
-                    mda[ni * B * j + i + z_pos_i];
+                    mda[i + z_pos_i];
             }
         }
     } else if (act_o == 2)  // Sigmoid
@@ -175,8 +175,8 @@ void compute_layer_derivative_mean_var_fc(
     std::vector<float> &md_node, std::vector<float> &Sd_node,
     std::vector<float> &md_layer, std::vector<float> &Sd_layer,
     std::vector<float> &md_layer_m_o, std::vector<float> &mw_o,
-    std::vector<float> &Cdo_diwi, int z_pos_o, int z_pos_n, int ni, int no,
-    int nn, int B, std::vector<float> &md_layer_m,
+    std::vector<float> &Cdo_diwi, int w_pos_o, int z_pos_o, int z_pos_n, int ni,
+    int no, int nn, int B, std::vector<float> &md_layer_m,
     std::vector<float> &Sd_layer_m)
 /*Compute the derivatives of output w.r.t layer's nodes
 
@@ -196,10 +196,10 @@ void compute_layer_derivative_mean_var_fc(
             tmp_md = 0;
             tmp_cov = 0;
             for (int k = 0; k < nn; k++) {
-                l = k + (i / ni) * no * nn + k * nn * j;
+                l = k + (i / ni) * no * nn + nn * j;
                 tmp_md = md_layer_m_o[l];
-                tmp_cov = md_layer[k + (i / ni) * nn + z_pos_n] * mw_o[k * no] *
-                          Cdo_diwi[i + j * ni * B];
+                tmp_cov = md_layer[k + (i / ni) * nn + z_pos_n] *
+                          mw_o[j + k * no + w_pos_o] * Cdo_diwi[i + j * ni * B];
                 sum_cov += Sd_node[i + j * ni * B] * tmp_md * tmp_md +
                            tmp_cov * tmp_cov +
                            2 * tmp_cov * tmp_md * md_node[i + j * ni * B];
@@ -248,22 +248,19 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
     int k, m;
     if (act_i == 1)  // Tanh
     {
-        for (int j = 0; j < no; j++) {
-            for (int i = 0; i < ni * B; i++) {
-                Cdi_zi[ni * B * j + i] =
-                    -2.0f * ma[i + z_pos_i] * J[i + z_pos_i] * Sz[i + z_pos_i];
-            }
+        for (int i = 0; i < ni * B; i++) {
+            Cdi_zi[i] =
+                -2.0f * ma[i + z_pos_i] * J[i + z_pos_i] * Sz[i + z_pos_i];
         }
+
     } else if (act_i == 2)  // sigmoid
     {
-        for (int j = 0; j < no; j++) {
-            for (int i = 0; i < ni * B; i++) {
-                Cdi_zi[ni * B * j + i] = (1.0f - 2.0f * ma[i + z_pos_i]) *
-                                         J[i + z_pos_i] * Sz[i + z_pos_i];
-            }
+        for (int i = 0; i < ni * B; i++) {
+            Cdi_zi[i] = (1.0f - 2.0f * ma[i + z_pos_i]) * J[i + z_pos_i] *
+                        Sz[i + z_pos_i];
         }
     } else {
-        for (int i = 0; i < no * ni * B; i++) {
+        for (int i = 0; i < ni * B; i++) {
             Cdi_zi[i] = 0.0f;
         }
     }
@@ -275,8 +272,8 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
                 m = (i / ni) * no + j;
                 k = (i % ni) + j * ni;
                 Cdo_zi[ni * B * j + i] = -2.0f * ma[m + z_pos_o] *
-                                         mw[k + w_pos_i] * J[i] * Sz[i] *
-                                         J[m + z_pos_o];
+                                         mw[k + w_pos_i] * J[i + z_pos_i] *
+                                         Sz[i + z_pos_i] * J[m + z_pos_o];
             }
         }
     } else if (act_o == 2)  // Sigmoid
@@ -285,8 +282,8 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
                 Cdo_zi[ni * B * j + i] = (1.0f - 2.0f * ma[m + z_pos_o]) *
-                                         mw[k + w_pos_i] * J[i] * Sz[i] *
-                                         J[m + z_pos_o];
+                                         mw[k + w_pos_i] * J[i + z_pos_i] *
+                                         Sz[i + z_pos_i] * J[m + z_pos_o];
             }
         }
     } else {
@@ -312,13 +309,13 @@ void compute_cov_last_current_layers(std::vector<float> &mw,
         for (int i = 0; i < ni * B; i++) {
             sum = 0;
             for (int k = 0; k < nn; k++) {
-                l = k + (i / ni) * no * nn + k * nn * j;
-                q = (i / ni) * j * B + k * ni * no;
+                l = k + (i / ni) * no * nn + nn * j;
+                q = (i % ni) + j * ni;
                 tmp_md = md_layer_m_o[l];
-                sum += tmp_md * Cdi_zi[i + j * ni * B] * mw[q + w_pos_i] +
+                sum += tmp_md * Cdi_zi[i] * mw[q + w_pos_i] +
                        Cdo_zi[i + j * ni * B] * md_node[i + j * ni * B] *
                            md_layer[k + (i / ni) * nn + z_pos_n] *
-                           mw[k * no + w_pos_o];
+                           mw[j + k * no + w_pos_o];
             }
             Cld_zi[ni * B * j + i] = sum;
         }
@@ -335,7 +332,7 @@ void compute_cov_last_last_minus_1_layers(std::vector<float> &mw,
     int q;
     for (int j = 0; j < no; j++) {
         for (int i = 0; i < ni * B; i++) {
-            q = (i % ni) + j * ni;  //(i / ni) * j * B + ni * no;
+            q = (i % ni) + j * ni;
             Cld_zi[ni * B * j + i] = Cdi_zi[i + j * ni * B] * mw[q + w_pos_i];
         }
     }
@@ -403,7 +400,7 @@ void compute_layer_derivative(Network &net, Param &theta, NetState &state,
         state.derv_state.md_node, state.derv_state.Sd_node,
         state.derv_state.md_layer, state.derv_state.Sd_layer,
         state.derv_state.md_layer_m_o, theta.mw, state.derv_state.Cdo_diwi,
-        z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
+        w_pos_o, z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
         state.derv_state.md_layer_m, state.derv_state.Sd_layer_m);
 
     sum_derivatives(state.derv_state.md_layer_m, ni, no, net.batch_size,
@@ -418,8 +415,8 @@ void compute_layer_derivative(Network &net, Param &theta, NetState &state,
 
     // Compute cov(d_output, z)
     compute_cov_last_current_layers(
-        theta.mw, state.derv_state.md_layer, state.derv_state.md_layer_m_o,
-        state.derv_state.md_layer_m, state.derv_state.Cdi_zi,
+        theta.mw, state.derv_state.md_layer, state.derv_state.md_node,
+        state.derv_state.md_layer_m_o, state.derv_state.Cdi_zi,
         state.derv_state.Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
         net.batch_size, state.derv_state.Cld_zi_m);
 
@@ -452,6 +449,10 @@ void compute_last_minus_1_layer_derivative(Network &net, Param &theta,
                     state.derv_state.md_layer);
     sum_derivatives(state.derv_state.Sd_node, ni, no, net.batch_size, z_pos_i,
                     state.derv_state.Sd_layer);
+
+    // Copy md_layer_m for next layer
+    copy_derivative_mean(state.derv_state.md_node, ni, no, net.batch_size,
+                         state.derv_state.md_layer_m);
 
     // Compute cov(d+, z) & cov(d, z)
     compute_cov_dz(state.ma, state.J, state.Sz, theta.mw, act_o, act_i, w_pos_i,

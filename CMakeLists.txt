@@ -119,7 +119,7 @@ set(GPU_SOURCES
   src/state_feed_backward_cpu.cpp
   src/task_cpu.cpp
   src/feature_availability.cpp
-  src/derivative_calculation_cpu.cpp
+  src/derivative_calcul_cpu.cpp
 )
 
 # Source codes for only CPU
@@ -139,7 +139,7 @@ set(CPU_SOURCES
   src/user_input.cpp
   src/utils.cpp
   src/feature_availability.cpp
-  src/derivative_calculation_cpu.cpp
+  src/derivative_calcul_cpu.cpp
 )
 
 # Output binary folder der for different mode

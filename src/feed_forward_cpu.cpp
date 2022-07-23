@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      July 22, 2022
+// Updated:      July 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -453,9 +453,8 @@ void partition_tanh_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
     for (col = start_idx; col < end_idx; col++) {
         tmp = tanhf(mz[col + zpos]);
         ma[col + zpos] = tmp;
-        J[col + zpos] = (1 - powf(tmp, 2));
-        Sa[col + zpos] =
-            (1 - powf(tmp, 2)) * Sz[col + zpos] * (1 - powf(tmp, 2));
+        J[col + zpos] = (1 - tmp * tmp);
+        Sa[col + zpos] = (1 - tmp * tmp) * Sz[col + zpos] * (1 - tmp * tmp);
     }
 }
 
