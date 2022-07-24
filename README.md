@@ -24,7 +24,7 @@ Coming soon...
 
 An example of [regression task](#regression-task) in diagonal, full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties), an example of inferring the heteroscedastic noise for the regression task, and an example of inferring the derivative of a function.
 <p align="center">
-  <img src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img src="./saved_results/pred_hete_toy_example.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example.png" width="335px">
+  <img  align="left", src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example.png" width="335px">
 </p>
 
 ## User Input
