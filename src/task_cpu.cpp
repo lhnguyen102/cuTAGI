@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 03,  2022
+// Updated:      July 24,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -232,11 +232,11 @@ Args:
     path: Directory stored the final results
     debug: Debugging mode allows saving inference data
 */
-
 {
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
+    int derivative_layer = 0;
 
     // Compute number of data points
     int n_iter = db.num_data / net.batch_size;
@@ -346,14 +346,28 @@ Args:
         }
     } else {
         std::cout << "Testing...\n";
+
+        // Output results
         std::vector<float> ma_batch_out(net.batch_size * net.n_y, 0);
         std::vector<float> Sa_batch_out(net.batch_size * net.n_y, 0);
         std::vector<float> ma_out(db.num_data * net.n_y, 0);
         std::vector<float> Sa_out(db.num_data * net.n_y, 0);
+
+        // Derivative results for the input layers
+        std::vector<float> mdy_batch_in, Sdy_batch_in, mdy_in, Sdy_in;
+        if (net.collect_derivative) {
+            mdy_batch_in.resize(net.batch_size * net.n_x, 0);
+            Sdy_batch_in.resize(net.batch_size * net.n_x, 0);
+            mdy_in.resize(db.num_data * net.n_x, 0);
+            Sdy_in.resize(db.num_data * net.n_x, 0);
+        }
+
         int mt_idx = 0;
 
         // Prediction
         for (int i = 0; i < n_iter; i++) {
+            mt_idx = i * net.batch_size * net.n_y;
+
             // Load data
             get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
                           batch_idx);
@@ -369,11 +383,21 @@ Args:
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
 
+            // Derivatives
+            if (net.collect_derivative) {
+                compute_network_derivatives(net, theta, state,
+                                            derivative_layer);
+                get_input_derv_states(state.derv_state.md_layer,
+                                      state.derv_state.Sd_layer, mdy_batch_in,
+                                      Sdy_batch_in);
+                update_vector(mdy_in, mdy_batch_in, mt_idx, net.n_x);
+                update_vector(Sdy_in, Sdy_batch_in, mt_idx, net.n_x);
+            }
+
             // Get hidden states for output layers
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
 
             // Update the final hidden state vector for last layer
-            mt_idx = i * net.batch_size * net.n_y;
             update_vector(ma_out, ma_batch_out, mt_idx, net.n_y);
             update_vector(Sa_out, Sa_batch_out, mt_idx, net.n_y);
         }
@@ -410,6 +434,9 @@ Args:
         // Save predictions
         std::string suffix = "prediction";
         save_predictions(path.saved_inference_path, my, sy, suffix);
+        if (net.collect_derivative) {
+            save_derivatives(path.saved_inference_path, mdy_in, Sdy_in, suffix);
+        }
     }
 }
 
@@ -490,16 +517,17 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         // Check feature availability
         cpu_feature_availability(net, lb);
 
-        // Train data
+        // Train data. TODO: refactor the dataloader
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
-        auto train_db = get_dataloader(
-            user_input.x_train_dir, user_input.y_train_dir, mu_x, sigma_x, mu_y,
-            sigma_y, user_input.num_train_data, net.n_x, net.n_y);
+        auto train_db =
+            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
+                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
+                           net.n_x, net.n_y, user_input.data_norm);
         // Test data
         auto test_db = get_dataloader(
             user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
             train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
-            user_input.num_test_data, net.n_x, net.n_y);
+            user_input.num_test_data, net.n_x, net.n_y, user_input.data_norm);
 
         // Load param
         if (user_input.load_param) {
@@ -509,7 +537,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Save network's parameter to debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param/";
+            std::string param_path = path.debug_path + "saved_param/";
             save_net_param(user_input.model_name, user_input.net_name,
                            param_path, theta);
         }

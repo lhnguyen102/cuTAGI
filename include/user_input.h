@@ -3,7 +3,7 @@
 // Description:  Load user input
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 05, 2022
-// Updated:      May 29, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,6 +24,7 @@ struct UserInput {
     bool load_param = false, debug = false;
     std::vector<float> mu, sigma;
     std::vector<std::string> x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    bool data_norm = true;
 };
 
 UserInput load_userinput(std::string &user_input_file);

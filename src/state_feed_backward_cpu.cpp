@@ -949,7 +949,7 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
 
     int no, ni, niB, z_pos_in, z_pos_out, w_pos_in;
     int B = net.batch_size;
-    for (int k = net.layers.size() - 1; k >= net.last_backward_layer; k--) {
+    for (int k = net.layers.size() - 2; k >= net.last_backward_layer; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
         z_pos_out = net.z_pos[k + 1];

@@ -3,7 +3,7 @@
 // Description:  Load user input
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 05, 2022
-// Updated:      May 29, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,6 +34,7 @@ UserInput load_userinput(std::string &user_input_file)
                                "y_train_dir",
                                "x_test_dir",
                                "y_test_dir",
+                               "data_norm",
                                "debug"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
@@ -188,6 +189,18 @@ UserInput load_userinput(std::string &user_input_file)
                         }
                     }
                     user_input.y_test_dir = v;
+                } else if (key_words[k] == "data_norm") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> si;
+                        if (si.compare("true") == 0) {
+                            user_input.data_norm = true;
+                        } else if (si.compare("false") == 0) {
+                            user_input.data_norm = false;
+                        } else {
+                            user_input.data_norm = true;
+                        }
+                    }
                 } else if (key_words[k] == "encoder_net_name") {
                     std::stringstream ss(line.substr(pos + key.size()));
                     if (ss.good()) {

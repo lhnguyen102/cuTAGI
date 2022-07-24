@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      July 01, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -235,6 +235,10 @@ void output_hidden_states(NetState &state, Network &net,
 void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx);
+
+void get_input_derv_states(std::vector<float> &md, std::vector<float> &Sd,
+                           std::vector<float> &md_output,
+                           std::vector<float> &Sd_output);
 
 std::vector<float> initialize_upper_triu(float &Sx, int n);
 

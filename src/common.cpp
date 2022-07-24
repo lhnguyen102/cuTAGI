@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      July 01, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ void create_directory(std::string &path) {
     const char *res_path_c = path.c_str();
 #if defined(__linux__) || defined(__APPLE__)
     if (stat(res_path_c, &st) == -1) {
-        mkdir(res_path_c, 0700);
+        mkdir(res_path_c, 0777);
     }
 #endif
 
@@ -213,7 +213,7 @@ Sa_output: Variance of output's activation units
         }
     }
 }
-void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
+void get_output_states(std::vector<float> &ma, std::vector<float> &Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx)
 /*Get output's distrinution
@@ -229,6 +229,18 @@ Args:
     for (int i = 0; i < ma_output.size(); i++) {
         ma_output[i] = ma[idx + i];
         Sa_output[i] = Sa[idx + i];
+    }
+}
+
+void get_input_derv_states(std::vector<float> &md, std::vector<float> &Sd,
+                           std::vector<float> &md_output,
+                           std::vector<float> &Sd_output)
+/*Get output's distrinution
+ */
+{
+    for (int i = 0; i < md_output.size(); i++) {
+        md_output[i] = md[i];
+        Sd_output[i] = Sd[i];
     }
 }
 

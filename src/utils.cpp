@@ -3,7 +3,7 @@
 // Description:  utils for TAGI package such saving and loading parameters
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 10, 2022
-// Updated:      May 29, 2022
+// Updated:      July 20, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,6 +64,15 @@ void save_predictions(std::string &res_path, std::vector<float> &ma,
     std::string Sy_path = res_path + "sy_" + suffix + ".csv";
     write_csv(my_path, ma);
     write_csv(Sy_path, sa);
+}
+
+void save_derivatives(std::string &res_path, std::vector<float> &md_layer,
+                      std::vector<float> &Sd_layer, std::string &suffix) {
+    /*Save images that generated from neural network.*/
+    std::string my_path = res_path + "md_" + suffix + ".csv";
+    std::string Sy_path = res_path + "Sd_" + suffix + ".csv";
+    write_csv(my_path, md_layer);
+    write_csv(Sy_path, Sd_layer);
 }
 
 void save_idx(std::string &idx_path, IndexOut &idx) {
@@ -168,6 +177,9 @@ Args:
     theta: Parameters of network
  */
 {
+    // Create directory
+    create_directory(path);
+
     // Common path
     std::string param_path = path + model_name + "_" + net_name + "_";
 
