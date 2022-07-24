@@ -371,6 +371,27 @@ void sum_derivatives(std::vector<float> &d_layer_m, int ni, int no, int B,
         d_layer[i + z_pos] = sum;
     }
 }
+/////////////////////////////////////////////////////////////////////////////
+/// MULTITHREADING VERSION
+/////////////////////////////////////////////////////////////////////////////
+void partition_fc_mean_var(std::vector<float> &mw, std::vector<float> &Sw,
+                           std::vector<float> &mda, std::vector<float> &Sda,
+                           int w_pos, int z_pos, int ni, int no, int B,
+                           int start_idx, int end_idx,
+                           std::vector<float> &md_node,
+                           std::vector<float> &Sd_node) {
+    int k;
+    for (int i = start_idx; i < end_idx; i++) {
+        int row = i / no;
+        int col = i % no;
+        k = (col / ni) + row * ni;
+        md_node[ni * B * row + col] = mw[k + w_pos] * mda[col + z_pos];
+        Sd_node[ni * B * row + col] =
+            Sw[k + w_pos] * Sda[col + z_pos] +
+            Sw[k + w_pos] * mda[col + z_pos] * mda[col + z_pos] +
+            Sda[col + z_pos] * mw[k + w_pos] * mw[k + w_pos];
+    }
+}
 
 void compute_layer_derivative(Network &net, Param &theta, NetState &state,
                               int curr_layer)
