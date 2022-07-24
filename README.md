@@ -22,10 +22,10 @@ Coming soon...
 * Reinforcement learning: DQN
 * +++
 
-An example of [regression task](#regression-task) in diagonal, full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties) and an example of inferring the heteroscedastic noise for the regression task.
+An example of [regression task](#regression-task) in diagonal, full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties), an example of inferring the heteroscedastic noise for the regression task, and an example of inferring the derivative of a function.
 <p align="center">
-  <img src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img src="./saved_results/pred_hete_toy_example.png" width="348px">
-  </p>
+  <img src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img src="./saved_results/pred_hete_toy_example.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example.png" width="335px">
+</p>
 
 ## User Input
 The user inputs are stored as `.txt` that has to be located in the folder `cfg`. User-inputs for cuTAGI are following:
@@ -36,13 +36,14 @@ data_name:               # Data name, e.g., mnist or cifar10
 net_name:                # Name of network architecture that is stored in the same folder 
 encoder_net_name:        # Name of encoder architecture (This is only for autoencoder task)
 decoder_net_name:        # Name of decoder architecture (This is only for autoencoder task)
-load_param:              # Do we want to load network's parameters that has been trained
+load_param:              # Load trained model parameters (true or false)
 num_epochs:              # Number of epochs
 num_classes:             # Number of classes
 num_train_data:          # Number of training samples
 num_test_data:           # Number of testing samples
 mu:                      # Mean of each input, e.g., for 3 channels; mu: 0.5, 0.5, 0.5 
 sigma:                   # Standard deviation of each input
+data_norm:               # Data normalization (true or false)
 x_train_dir:             # Data directory for the training input
 y_train_dir:             # Data directory for the training output
 x_test_dir:              # Data directory for the testing input

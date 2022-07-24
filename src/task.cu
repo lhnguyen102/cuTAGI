@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      July 03, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -957,14 +957,15 @@ void task_command(UserInput &user_input, SavePath &path) {
 
         // Train data
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
-        auto train_db = get_dataloader(
-            user_input.x_train_dir, user_input.y_train_dir, mu_x, sigma_x, mu_y,
-            sigma_y, user_input.num_train_data, net.n_x, net.n_y);
+        auto train_db =
+            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
+                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
+                           net.n_x, net.n_y, user_input.data_norm);
         // Test data
         auto test_db = get_dataloader(
             user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
             train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
-            user_input.num_test_data, net.n_x, net.n_y);
+            user_input.num_test_data, net.n_x, net.n_y, user_input.data_norm);
 
         // Load param
         if (user_input.load_param) {

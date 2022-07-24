@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 23, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -636,7 +636,7 @@ void net_default(Network &net)
 
 void initialize_derivative_state(Network &net, NetState &state) {
     int max_num_nodes = net.n_max_state / net.batch_size;
-    state.derv_state.mda.resize(net.n_state, 0);
+    state.derv_state.mda.resize(net.n_state, 1);
     state.derv_state.Sda.resize(net.n_state, 0);
     state.derv_state.md_node.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
@@ -645,7 +645,7 @@ void initialize_derivative_state(Network &net, NetState &state) {
     state.derv_state.Cdo_diwi.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.md_layer.resize(net.n_state, 1);
-    state.derv_state.Sd_layer.resize(net.n_state, 1);
+    state.derv_state.Sd_layer.resize(net.n_state, 0);
     state.derv_state.md_layer_m.resize(
         max_num_nodes * max_num_nodes * net.batch_size, 0);
     state.derv_state.Sd_layer_m.resize(

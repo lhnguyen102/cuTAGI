@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      May 15, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@ Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,
                           std::vector<float> mu_x, std::vector<float> sigma_x,
                           std::vector<float> mu_y, std::vector<float> sigma_y,
-                          int num, int nx, int ny);
+                          int num, int nx, int ny, bool data_norm);
 
 void normalize_images(std::vector<float> &imgs, std::vector<float> &mu,
                       std::vector<float> &sigma, int w, int h, int d, int num);

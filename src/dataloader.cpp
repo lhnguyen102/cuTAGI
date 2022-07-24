@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      May 17, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -290,7 +290,7 @@ Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,
                           std::vector<float> mu_x, std::vector<float> sigma_x,
                           std::vector<float> mu_y, std::vector<float> sigma_y,
-                          int num, int nx, int ny)
+                          int num, int nx, int ny, bool data_norm)
 /* Get dataloader for input and output data.
 
 Args:
@@ -323,20 +323,17 @@ Returns:
     };
 
     // Compute sample mean and std for dataset
-    if (mu_x.size() == 0 || sigma_x.size() == 0) {
-        mu_x.resize(nx, 0);
-        sigma_x.resize(nx, 1);
+    mu_x.resize(nx, 0);
+    sigma_x.resize(nx, 1);
+    mu_y.resize(ny, 0);
+    sigma_y.resize(ny, 1);
+    if (data_norm) {
         compute_mean_std(db.x, mu_x, sigma_x, nx);
-    }
-    if (mu_y.size() == 0 || sigma_y.size() == 0) {
-        mu_y.resize(ny, 0);
-        sigma_y.resize(ny, 1);
         compute_mean_std(db.y, mu_y, sigma_y, ny);
+        // Normalize dataset
+        normalize_data(db.x, mu_x, sigma_x, nx);
+        normalize_data(db.y, mu_y, sigma_y, ny);
     }
-
-    // Normalize dataset
-    normalize_data(db.x, mu_x, sigma_x, nx);
-    normalize_data(db.y, mu_y, sigma_y, ny);
 
     // Set data to output variable
     db.mu_x = mu_x;

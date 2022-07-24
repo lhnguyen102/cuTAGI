@@ -3,7 +3,7 @@
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 12, 2022
-// Updated:      July 23, 2022
+// Updated:      July 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,7 +14,22 @@ void compute_node_derivative_mean_var_fc(
     std::vector<float> &mw, std::vector<float> &Sw, std::vector<float> &mda,
     std::vector<float> &Sda, int w_pos, int z_pos, int ni, int no, int B,
     std::vector<float> &md_node, std::vector<float> &Sd_node)
-/* Compute derivatives for each node of fully-connected layer*/
+/* Compute derivatives for each node for fully-connected layer
+
+Args:
+    mw: Mean of weights
+    Sw: Variance of weights
+    mda: Mean of activation derivative w.r.t hidden states
+    Sda: Variance of activation derivative w.r.t hidden states
+    w_pos: Weight position for this layer in the weight vector of network
+    z_pos: Input-hidden-state position for this layer in the hidden-state
+        vector of network
+    ni: Number of hidden units for imputs
+    no: Number of hidden units for outputs
+    B: Batch size
+    md_node: Derivative mean for each node
+    Sd_node: Derivative variance for each node
+*/
 {
     int k;
     for (int j = 0; j < no; j++) {
@@ -29,38 +44,31 @@ void compute_node_derivative_mean_var_fc(
     }
 }
 
-void compute_cov_aw_aa_fc(std::vector<float> &mw, std::vector<float> &Sw,
-                          std::vector<float> &J_o, std::vector<float> &ma_i,
-                          std::vector<float> &Sa_i, int w_pos_i, int z_pos_i,
-                          int z_pos_o, int ni, int no, int B,
-                          std::vector<float> &Cao_wi,
-                          std::vector<float> &Cao_ai)
-/*Compute covriance between activation units of current layer and weights
-   (Cao_wi) & activation units (Cao_ai) from the previous layer
-*/
-{
-    int k, m;
-    for (int j = 0; j < no; j++) {
-        for (int i = 0; i < ni * B; i++) {
-            m = (i / ni) * no + j;
-            k = (i % ni) + j * ni;
-            Cao_wi[ni * B * j + i] =
-                Sw[k + w_pos_i] * ma_i[i + z_pos_i] * J_o[m + z_pos_o];
-            Cao_ai[ni * B * j + i] =
-                mw[k + w_pos_i] * Sa_i[i + z_pos_i] * J_o[m + z_pos_o];
-        }
-    }
-}
-
 void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
                          std::vector<float> &Sa, std::vector<float> &J,
                          std::vector<float> &mw, std::vector<float> &Sw,
                          int act_i, int act_o, int w_pos_i, int z_pos_i,
                          int z_pos_o, int ni, int no, int B,
                          std::vector<float> &Cdo_diwi)
-/*Compute covariance between the hidden state's derivatives of the next layer
-   and the product of the hidden state's derivaitves & weights fromt the current
-   layer
+/*Compute covariance between derivative and the product of derivaitves &
+weights i.e., cov(d+, dw)
+
+Args:
+    mda: Mean of activation derivative w.r.t hidden states
+    ma: Mean of activation units
+    mw: Mean of weights
+    Sw: Variance of weights
+    act_i: Activation function of the inputs
+    act_o: Activation function of the outputs
+    w_pos_i: Weight position for input in the weight vector of network
+    z_pos_i: Input-hidden-state position for inputs in the hidden-state
+        vector of network
+    z_pos_o: Input-hidden-state position for outputs in the hidden-state
+        vector of network
+    ni: Number of hidden units for imputs
+    no: Number of hidden units for outputs
+    B: Batch size
+    Cdo_widi: covariance(d+, dw)
 */
 {
     // TODO: Need to create a struct or enum for activation labels
@@ -119,57 +127,14 @@ void compute_cov_d_dw_fc(std::vector<float> &mda, std::vector<float> &ma,
                 m = (i / ni) * no + j;
                 k = (i % ni) + j * ni;
                 Cdo_diwi[ni * B * j + i] +=
+                    (1.0f - 2.0f * ma[m + z_pos_o]) *
                     (Sw[k + w_pos_i] * ma[i + z_pos_i] * J[m + z_pos_o]) *
-                    mda[ni * B * j + i + z_pos_i];
+                    mda[i + z_pos_i];
             }
         }
     } else {
     }
 }
-
-// void compute_d_dw_fc(std::vector<float> &mda, std::vector<float> &mw,
-//                      std::vector<float> &Cdo_wi, std::vector<float> &Cdo_di,
-//                      int w_pos_i, int z_pos_i, int ni, int no, int B,
-//                      std::vector<float> &Cdo_diwi)
-// /*Compute covariance between the hidden state's derivatives of the next layer
-//    and the product of the hidden state's derivaitves & weights fromt the
-//    current layer*/
-// {
-//     int k;
-//     for (int j = 0; j < no; j++) {
-//         for (int i = 0; i < ni * B; i++) {
-//             k = (i / ni) * j * B;
-//             Cdo_diwi[ni * B * j + i] =
-//                 Cdo_wi[ni * B * j + i] * mda[ni * B * j + i + z_pos_i] +
-//                 Cdo_di[ni * B * j + i] * mw[k + w_pos_i];
-//         }
-//     }
-// }
-
-// void compute_cov_d_dw_dw_fc(std::vector<float> &md_n, std::vector<float>
-// &mw_o,
-//                             std::vector<float> &Cdo_diwi, int w_pos_o, int
-//                             ni, int no, int nn, int B, std::vector<float>
-//                             &Cdn_dowo_diwi)
-// /*Compute covariance between the hidden state's derivatives of the l+2 layer
-//    and
-//     - product of product of hidden state's derivatives & the weights of the
-//       next layer and,
-//     - of product of hidden state's derivative & weights of the
-//       current layers.
-// See equation Equation (31) for further details.
-// */
-// {
-//     int l, q;
-//     for (int j = 0; j < B * ni; j++) {
-//         for (int i = 0; i < no * nn; j++) {
-//             l = (i % no) * B * ni + j;
-//             q = (i % no) + nn * (j / ni);
-//             Cdn_dowo_diwi[j + no * nn * i] =
-//                 md_n[q] * mw_o[i + w_pos_o] * Cdo_diwi[l];
-//         }
-//     }
-// }
 
 void compute_layer_derivative_mean_var_fc(
     std::vector<float> &md_node, std::vector<float> &Sd_node,
@@ -180,10 +145,33 @@ void compute_layer_derivative_mean_var_fc(
     std::vector<float> &Sd_layer_m)
 /*Compute the derivatives of output w.r.t layer's nodes
 
+Args:
+    md_node: Derivative mean for each node
+    Sd_node: Derivative variance for each node
+    md_layer: Layer derivative mean for the network
+    Sd_layer: Layer derivative variance for the network
+    md_layer_m_o: Layer derivative mean w/o summing over the node for
+         output layer
+    mw: Mean of weights
+    Cdo_widi: covariance(d+, dw)
+    w_pos_o: Weight position for output in the weight vector of network
+    z_pos_o: Input-hidden-state position for output in the hidden-state
+        vector of network
+    z_pos_n: Input-hidden-state position for next layer in the hidden-state
+        vector of network
+    ni: Number of hidden units for inputs
+    no: Number of hidden units for outputs
+    nn: Number of hidden units for next layer
+    B: Batch size
+    md_layer_m_: Layer derivative mean w/o summing over the node for
+        input layer
+    Sd_layer_m_: Layer derivative mean w/o summing over the node for
+        input layer
+
 *NOTE:
-    i -> input i.e., represent the current layer (l)
-    o -> output i.e., represent the next layer (l + 1)
-    n -> next layer after output i.e., represent layer (l + 2)
+    i -> input i.e., input layer (l)
+    o -> output i.e., output layer (l + 1)
+    n -> next layer after output layer i.e., layer (l + 2)
 */
 {
     int m, l;
@@ -196,10 +184,11 @@ void compute_layer_derivative_mean_var_fc(
             tmp_md = 0;
             tmp_cov = 0;
             for (int k = 0; k < nn; k++) {
-                l = k + (i / ni) * no * nn + nn * j;
+                l = k * no * B + (i / ni) * no + j;
                 tmp_md = md_layer_m_o[l];
                 tmp_cov = md_layer[k + (i / ni) * nn + z_pos_n] *
                           mw_o[j + k * no + w_pos_o] * Cdo_diwi[i + j * ni * B];
+
                 sum_cov += Sd_node[i + j * ni * B] * tmp_md * tmp_md +
                            tmp_cov * tmp_cov +
                            2 * tmp_cov * tmp_md * md_node[i + j * ni * B];
@@ -218,31 +207,32 @@ void compute_layer_derivative_mean_var_fc(
     }
 }
 
-// void compute_cov_az(std::vector<float> &J, std::vector<float> &Sz,
-//                     std::vector<float> &mw, int w_pos_i, int z_pos_i,
-//                     int z_pos_o, int ni, int no, int B,
-//                     std::vector<float> &Cai_zi, std::vector<float> &Cao_zi)
-// /*Compute the covariance between activation units & hidden states*/
-// {
-//     int k, m;
-//     for (int j = 0; j < no; j++) {
-//         for (int i = 0; i < ni * B; i++) {
-//             m = (i / ni) * no + j;
-//             k = (i / ni) * j * B;
-//             Cai_zi[ni * B * j + i] = J[i + z_pos_i] * Sz[i + z_pos_i];
-//             Cao_zi[ni * B * j + i] =
-//                 mw[k + w_pos_i] * J[i] * Sz[i] * J[m + z_pos_o];
-//         }
-//     }
-// }
-
 void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
                     std::vector<float> &Sz, std::vector<float> &mw, int act_o,
                     int act_i, int w_pos_i, int z_pos_i, int z_pos_o, int ni,
                     int no, int B, std::vector<float> &Cdi_zi,
                     std::vector<float> &Cdo_zi)
-/*Compute covariance between derivatives of the next and current layers and
-   hidden states of the current layer*/
+/*Compute covariance between derivatives and hidden states
+
+Args:
+    ma: Mean of activation units
+    J: Jacobian matrix
+    Sz: Variance of hidden states
+    mw: Mean of weights
+    act_i: Activation function of the input
+    act_o: Activation function of the output
+    w_pos_i: Weight position for input in the weight vector of network
+    z_pos_i: Input-hidden-state position for input in the hidden-state
+        vector of network
+    z_pos_o: Input-hidden-state position for output in the hidden-state
+        vector of network
+    ni: Number of hidden units for imputs
+    no: Number of hidden units for outputs
+    B: Batch size
+    Cdi_zi: Covariance between derivative and hidden state of inputs
+    Cdo_zi: Covariance between derivative of the ouputs and hidden state of
+        inputs
+*/
 {
     // TODO: Need to create a struct or enum for activation labels
     int k, m;
@@ -281,6 +271,7 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
         for (int j = 0; j < no; j++) {
             for (int i = 0; i < ni * B; i++) {
                 m = (i / ni) * no + j;
+                k = (i % ni) + j * ni;
                 Cdo_zi[ni * B * j + i] = (1.0f - 2.0f * ma[m + z_pos_o]) *
                                          mw[k + w_pos_i] * J[i + z_pos_i] *
                                          Sz[i + z_pos_i] * J[m + z_pos_o];
@@ -293,15 +284,34 @@ void compute_cov_dz(std::vector<float> &ma, std::vector<float> &J,
     }
 }
 
-void compute_cov_last_current_layers(std::vector<float> &mw,
-                                     std::vector<float> &md_layer,
-                                     std::vector<float> &md_node,
-                                     std::vector<float> &md_layer_m_o,
-                                     std::vector<float> &Cdi_zi,
-                                     std::vector<float> &Cdo_zi, int w_pos_i,
-                                     int w_pos_o, int z_pos_n, int ni, int no,
-                                     int nn, int B, std::vector<float> &Cld_zi)
-/*Compute the covariance between last layer and current layer's  hidden states*/
+void compute_cov_last_current_layers(
+    std::vector<float> &mw, std::vector<float> &md_layer,
+    std::vector<float> &md_node, std::vector<float> &md_layer_m_o,
+    std::vector<float> &Cdi_zi, std::vector<float> &Cdo_zi, int w_pos_i,
+    int w_pos_o, int z_pos_n, int ni, int no, int nn, int B,
+    std::vector<float> &Cld_zi_m)
+/*Compute the covariance between final output and the hidden states
+
+Args:
+    mw: Mean of weights
+    md_layer: Layer derivative mean for the network
+    md_node: Derivative mean for each node
+    md_layer_m_o: Layer derivative mean w/o summing over the node for
+         output layer
+    Cdi_zi: Covariance between derivative and hidden state of inputs
+    Cdo_zi: Covariance between derivative of the ouputs and hidden state of
+        inputs
+    w_pos_i: Weight position for input in the weight vector of network
+    w_pos_o: Weight position for output in the weight vector of network
+    z_pos_n: Input-hidden-state position for l+2 layer in the hidden-state
+        vector of network
+    ni: Number of hidden units for imputs
+    no: Number of hidden units for outputs
+    no: Number of hidden units for l+2 layer
+    B: Batch size
+    Cdi_zi_m: Covariance between final output and the hidden states w/o
+        summing over the node
+*/
 {
     int l, q;
     float sum, tmp_md;
@@ -309,7 +319,7 @@ void compute_cov_last_current_layers(std::vector<float> &mw,
         for (int i = 0; i < ni * B; i++) {
             sum = 0;
             for (int k = 0; k < nn; k++) {
-                l = k + (i / ni) * no * nn + nn * j;
+                l = k * no * B + (i / ni) * no + j;
                 q = (i % ni) + j * ni;
                 tmp_md = md_layer_m_o[l];
                 sum += tmp_md * Cdi_zi[i] * mw[q + w_pos_i] +
@@ -317,7 +327,7 @@ void compute_cov_last_current_layers(std::vector<float> &mw,
                            md_layer[k + (i / ni) * nn + z_pos_n] *
                            mw[j + k * no + w_pos_o];
             }
-            Cld_zi[ni * B * j + i] = sum;
+            Cld_zi_m[ni * B * j + i] = sum;
         }
     }
 }
@@ -338,19 +348,19 @@ void compute_cov_last_last_minus_1_layers(std::vector<float> &mw,
     }
 }
 
-void copy_derivative_mean(std::vector<float> &md_layer_m, int ni, int no, int B,
-                          std::vector<float> &md_layer_m_o)
-/*Copy layer derivative mean from next layer to avoid overwritting it between
-   layer b/c we only store the layer derivatives of the current layer*/
+void copy_derivative_mean(std::vector<float> &md_layer_m, int ni, int no,
+                          int nn, int B, std::vector<float> &md_layer_m_o)
+/*Copy layer derivative mean from output layer to avoid overwritting it between
+   layer b/c we only store the layer derivatives of the input layer*/
 {
-    for (int i = 0; i < ni * no * B; i++) {
+    for (int i = 0; i < ni * no * B * nn; i++) {
         md_layer_m_o[i] = md_layer_m[i];
     }
 }
 
 void sum_derivatives(std::vector<float> &d_layer_m, int ni, int no, int B,
                      int z_pos, std::vector<float> &d_layer)
-/*Sum the derivatives along the row (next layer) */
+/*Sum the derivatives over the node (output layer) */
 {
     float sum;
     for (int i = 0; i < B * ni; i++) {
@@ -380,8 +390,8 @@ void compute_layer_derivative(Network &net, Param &theta, NetState &state,
     int act_o = net.activations[curr_layer + 1];
 
     // Copy md_layer_m for next layer
-    copy_derivative_mean(state.derv_state.md_layer_m, ni, no, net.batch_size,
-                         state.derv_state.md_layer_m_o);
+    copy_derivative_mean(state.derv_state.md_layer_m, ni, no, nn,
+                         net.batch_size, state.derv_state.md_layer_m_o);
 
     // Compute node derivatives
     compute_node_derivative_mean_var_fc(
@@ -451,7 +461,8 @@ void compute_last_minus_1_layer_derivative(Network &net, Param &theta,
                     state.derv_state.Sd_layer);
 
     // Copy md_layer_m for next layer
-    copy_derivative_mean(state.derv_state.md_node, ni, no, net.batch_size,
+    int nn = 1;
+    copy_derivative_mean(state.derv_state.md_node, ni, no, nn, net.batch_size,
                          state.derv_state.md_layer_m);
 
     // Compute cov(d+, z) & cov(d, z)
@@ -499,6 +510,8 @@ void relu_derivatives(std::vector<float> &mz, int z_pos, int n,
     for (int i = 0; i < n; i++) {
         if (mz[i + z_pos] > 0) {
             mda[i + z_pos] = 1.0f;
+        } else {
+            mda[i + z_pos] = 0.0f;
         }
         Sda[i + z_pos] = 0.0f;
     }
@@ -542,12 +555,19 @@ void compute_activation_derivatives(Network &net, NetState &state, int j) {
 void compute_network_derivatives(Network &net, Param &theta, NetState &state,
                                  int l)
 /*Compute derivative of ouput layer's hidden states w.r.t to the hidden states
-   of the lth layer*/
+   of the lth layer
+
+  Args:
+    net: Network architecture
+    theta: Network's weights and biases
+    state: Hidden states of network
+*/
 {
     // Last layer
     int last_layer = net.layers.size() - 2;
     compute_last_minus_1_layer_derivative(net, theta, state, last_layer);
 
+    // Other layers
     for (int k = net.nodes.size() - 3; k >= 0; k--) {
         if (net.layers[k + 1] == net.layer_names.fc) {
             compute_layer_derivative(net, theta, state, k);
