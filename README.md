@@ -11,18 +11,19 @@
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised learning, unsupervised learning, and reinforcement learning.
+cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised learning, unsupervised learning, and reinforcement learning. The library includes some of the advanced features such as the capacity to propagate uncertainties from the input to the output layer using the the [full covariance mode for hidden layers](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf), the capacity to estimate the [derivative](https://www.jmlr.org/papers/volume23/21-0758/21-0758.pdf) of a neural network, and the capacity to quantify heteroscedastic aleatory uncertainty. 
 
 cuTAGI is under development and new features will be added as they are ready. Currently supported tasks are:
 * Supervised learning: Regression and classification using fully-connected, convolutional and residual architectures
 * Unsupervised learning: autoencoders
  
 Coming soon...
+* Supervised learning: RNNs
 * Unsupervised learning: GANs
 * Reinforcement learning: DQN
 * +++
 
-An example of [regression task](#regression-task) in diagonal, full covariance modes for hidden layers (Note, the full covariance mode is required to handle input-layer uncertainties), an example of inferring the heteroscedastic noise for the regression task, and an example of inferring the derivative of a function.
+Examples of [regression task](#regression-task) using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
 <p align="center">
   <img  align="left", src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_best.png" width="335px">
 </p>
