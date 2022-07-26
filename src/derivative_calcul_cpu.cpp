@@ -3,7 +3,7 @@
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 12, 2022
-// Updated:      July 24, 2022
+// Updated:      July 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -374,12 +374,13 @@ void sum_derivatives(std::vector<float> &d_layer_m, int ni, int no, int B,
 /////////////////////////////////////////////////////////////////////////////
 /// MULTITHREADING VERSION
 /////////////////////////////////////////////////////////////////////////////
-void partition_fc_mean_var(std::vector<float> &mw, std::vector<float> &Sw,
-                           std::vector<float> &mda, std::vector<float> &Sda,
-                           int w_pos, int z_pos, int ni, int no, int B,
-                           int start_idx, int end_idx,
-                           std::vector<float> &md_node,
-                           std::vector<float> &Sd_node) {
+void node_derv_mean_var_fc_worker(std::vector<float> &mw,
+                                  std::vector<float> &Sw,
+                                  std::vector<float> &mda,
+                                  std::vector<float> &Sda, int w_pos, int z_pos,
+                                  int ni, int no, int B, int start_idx,
+                                  int end_idx, std::vector<float> &md_node,
+                                  std::vector<float> &Sd_node) {
     int k;
     for (int i = start_idx; i < end_idx; i++) {
         int row = i / no;
@@ -390,6 +391,434 @@ void partition_fc_mean_var(std::vector<float> &mw, std::vector<float> &Sw,
             Sw[k + w_pos] * Sda[col + z_pos] +
             Sw[k + w_pos] * mda[col + z_pos] * mda[col + z_pos] +
             Sda[col + z_pos] * mw[k + w_pos] * mw[k + w_pos];
+    }
+}
+
+void compute_node_derv_mean_var_fc_mp(
+    std::vector<float> &mw, std::vector<float> &Sw, std::vector<float> &mda,
+    std::vector<float> &Sda, int w_pos, int z_pos, int ni, int no, int B,
+    unsigned int num_threads, std::vector<float> &md_node,
+    std::vector<float> &Sd_node)
+/*Multithreading for computing the node derivative's mean and variance*/
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(node_derv_mean_var_fc_worker, std::ref(Sw),
+                                 std::ref(mda), std::ref(Sda), w_pos, z_pos, ni,
+                                 no, B, start_idx, end_idx, std::ref(md_node),
+                                 std::ref(Sd_node));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void cov_d_dw_fc_worker(std::vector<float> &mda, std::vector<float> &ma,
+                        std::vector<float> &Sa, std::vector<float> &J,
+                        std::vector<float> &mw, std::vector<float> &Sw,
+                        int act_i, int act_o, int w_pos_i, int z_pos_i,
+                        int z_pos_o, int ni, int no, int B, int start_idx,
+                        int end_idx, std::vector<float> &Cdo_diwi)
+/* Worker for computing covariance cov(d+, dw)*/
+{
+    int k, m;
+    float Cao_ai_tmp;
+    if (act_i == 1)  // Tanh
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cao_ai_tmp = mw[k + w_pos_i] * Sa[col + z_pos_i] * J[m + z_pos_o];
+            Cdo_diwi[ni * B * row + col] =
+                (2.0f * Cao_ai_tmp * Cao_ai_tmp +
+                 4.0f * Cao_ai_tmp * ma[col + z_pos_i] * ma[m + z_pos_o]) *
+                mw[k + w_pos_i];
+        }
+    } else if (act_i == 2)  // Sigmoid
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cao_ai_tmp = mw[k + w_pos_i] * Sa[col + z_pos_i] * J[m + z_pos_o];
+            Cdo_diwi[ni * B * row + col] =
+                (Cao_ai_tmp - 2 * Cao_ai_tmp * ma[col + z_pos_i] -
+                 2.0f * ma[m + z_pos_o] * Cao_ai_tmp +
+                 2.0f * Cao_ai_tmp * Cao_ai_tmp +
+                 4.0f * Cao_ai_tmp * ma[col + z_pos_i] * ma[m + z_pos_o]) *
+                mw[k + w_pos_i];
+        }
+    } else {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            Cdo_diwi[ni * B * row + col] = 0.0f;
+        }
+    }
+
+    if (act_o == 1)  // Tanh
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cdo_diwi[ni * B * row + col] =
+                (-2.0f * ma[m + z_pos_o] * Sw[k + w_pos_i] * ma[col + z_pos_i] *
+                 J[m + z_pos_o]) *
+                mda[col + z_pos_i];
+        }
+    } else if (act_o == 2)  // Sigmoid
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cdo_diwi[ni * B * row + col] =
+                (1.0f - 2.0f * ma[m + z_pos_o]) *
+                (Sw[k + w_pos_i] * ma[col + z_pos_i] * J[m + z_pos_o]) *
+                mda[col + z_pos_i];
+        }
+    }
+}
+
+void compute_cov_d_dw_fc_mp(std::vector<float> &mda, std::vector<float> &ma,
+                            std::vector<float> &Sa, std::vector<float> &J,
+                            std::vector<float> &mw, std::vector<float> &Sw,
+                            int act_i, int act_o, int w_pos_i, int z_pos_i,
+                            int z_pos_o, int ni, int no, int B, int num_threads,
+                            std::vector<float> &Cdo_diwi)
+/*Multithreading version for computing the node derivative's mean and variance*/
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(cov_d_dw_fc_worker, std::ref(mda), std::ref(ma),
+                        std::ref(Sa), std::ref(J), std::ref(mw), std::ref(Sw),
+                        act_i, act_o, w_pos_i, z_pos_i, z_pos_o, ni, no, B,
+                        start_idx, end_idx, std::ref(Cdo_diwi));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void layer_derv_mean_var_fc_worker(
+    std::vector<float> &md_node, std::vector<float> &Sd_node,
+    std::vector<float> &md_layer, std::vector<float> &Sd_layer,
+    std::vector<float> &md_layer_m_o, std::vector<float> &mw_o,
+    std::vector<float> &Cdo_diwi, int w_pos_o, int z_pos_o, int z_pos_n, int ni,
+    int no, int nn, int B, int start_idx, int end_idx,
+    std::vector<float> &md_layer_m, std::vector<float> &Sd_layer_m)
+/*Worker for computing the layer derivative*/
+{
+    int m, l;
+    float sum_mean, sum_cov, tmp_md, tmp_cov;
+    for (int i = start_idx; i < end_idx; i++) {
+        int row = i / no;
+        int col = i % no;
+
+        // Cross covariance
+        sum_mean = 0;
+        sum_cov = 0;
+        tmp_md = 0;
+        tmp_cov = 0;
+
+        for (int k = 0; k < nn; k++) {
+            l = k * no * B + (col / ni) * no + row;
+            tmp_md = md_layer_m_o[l];
+            tmp_cov = md_layer[k + (col / ni) * nn + z_pos_n] *
+                      mw_o[row + k * no + w_pos_o] *
+                      Cdo_diwi[col + row * ni * B];
+
+            sum_cov += Sd_node[col + row * ni * B] * tmp_md * tmp_md +
+                       tmp_cov * tmp_cov +
+                       2 * tmp_cov * tmp_md * md_node[col + row * ni * B];
+            sum_mean += tmp_cov;
+        }
+
+        // Variance
+        m = (col / ni) * no + row;
+        md_layer_m[ni * B * row + col] =
+            sum_mean + md_node[ni * B * row + col] * md_layer[m + z_pos_o];
+        Sd_layer_m[ni * B * row + col] =
+            sum_cov + Sd_node[ni * B * row + col] * Sd_layer[m + z_pos_o] +
+            Sd_layer[m + z_pos_o] * md_node[ni * B * row + col] *
+                md_node[ni * B * row + col];
+    }
+}
+
+void compute_layer_derivative_mean_var_fc_mp(
+    std::vector<float> &md_node, std::vector<float> &Sd_node,
+    std::vector<float> &md_layer, std::vector<float> &Sd_layer,
+    std::vector<float> &md_layer_m_o, std::vector<float> &mw_o,
+    std::vector<float> &Cdo_diwi, int w_pos_o, int z_pos_o, int z_pos_n, int ni,
+    int no, int nn, int B, int num_threads, std::vector<float> &md_layer_m,
+    std::vector<float> &Sd_layer_m)
+/*Multithreading version for computing the layer derivative*/
+
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            layer_derv_mean_var_fc_worker, std::ref(md_node), std::ref(Sd_node),
+            std::ref(md_layer), std::ref(Sd_layer), std::ref(md_layer_m_o),
+            std::ref(mw_o), std::ref(Cdo_diwi), w_pos_o, z_pos_o, z_pos_n, ni,
+            no, nn, B, start_idx, end_idx, std::ref(md_layer_m),
+            std::ref(Sd_layer_m));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void cov_dz_fc_worker(std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sz, std::vector<float> &mw, int act_i,
+                      int act_o, int w_pos_i, int z_pos_i, int z_pos_o, int ni,
+                      int no, int B, int start_idx, int end_idx,
+                      std::vector<float> &Cdi_zi, std::vector<float> &Cdo_zi)
+/*Worker for computing covariance between derivartives and hidden states*/
+{
+    int k, m;
+    if (act_i == 1)  // Tanh
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            Cdi_zi[ni * B * row + col] = -2.0f *
+                                         ma[ni * B * row + col + z_pos_i] *
+                                         J[ni * B * row + col + z_pos_i] *
+                                         Sz[ni * B * row + col + z_pos_i];
+        }
+
+    } else if (act_i == 2)  // sigmoid
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            Cdi_zi[ni * B * row + col] =
+                (1.0f - 2.0f * ma[ni * B * row + col + z_pos_i]) *
+                J[ni * B * row + col + z_pos_i] *
+                Sz[ni * B * row + col + z_pos_i];
+        }
+    } else {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            Cdi_zi[ni * B * row + col] = 0.0f;
+        }
+    }
+
+    if (act_o == 1)  // Tanh
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cdo_zi[ni * B * row + col] = -2.0f * ma[m + z_pos_o] *
+                                         mw[k + w_pos_i] * J[col + z_pos_i] *
+                                         Sz[col + z_pos_i] * J[m + z_pos_o];
+        }
+    } else if (act_o == 2)  // Sigmoid
+    {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            m = (col / ni) * no + row;
+            k = (col % ni) + row * ni;
+            Cdo_zi[ni * B * row + col] = (1.0f - 2.0f * ma[m + z_pos_o]) *
+                                         mw[k + w_pos_i] * J[col + z_pos_i] *
+                                         Sz[col + z_pos_i] * J[m + z_pos_o];
+        }
+    } else {
+        for (int i = start_idx; i < end_idx; i++) {
+            int row = i / no;
+            int col = i % no;
+            Cdo_zi[ni * B * row + col] = 0.0f;
+        }
+    }
+}
+void compute_cov_dz_fc_mp(std::vector<float> &ma, std::vector<float> &J,
+                          std::vector<float> &Sz, std::vector<float> &mw,
+                          int act_o, int act_i, int w_pos_i, int z_pos_i,
+                          int z_pos_o, int ni, int no, int B, int num_threads,
+                          std::vector<float> &Cdi_zi,
+                          std::vector<float> &Cdo_zi)
+/*Multithreading for computing covariance between derivatives and hidden
+   states*/
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            cov_dz_fc_worker, std::ref(ma), std::ref(J), std::ref(Sz),
+            std::ref(mw), act_i, act_o, w_pos_i, z_pos_i, z_pos_o, ni, no, B,
+            start_idx, end_idx, std::ref(Cdi_zi), std::ref(Cdo_zi));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void cov_last_current_layers_worker(
+    std::vector<float> &mw, std::vector<float> &md_layer,
+    std::vector<float> &md_node, std::vector<float> &md_layer_m_o,
+    std::vector<float> &Cdi_zi, std::vector<float> &Cdo_zi, int w_pos_i,
+    int w_pos_o, int z_pos_n, int ni, int no, int nn, int B, int start_idx,
+    int end_idx, std::vector<float> &Cld_zi_m)
+/*Worker for computing the covariance between final output and the hidden
+   states*/
+{
+    int l, q;
+    float sum, tmp_md;
+    for (int i = start_idx; i < end_idx; i++) {
+        int row = i / no;
+        int col = i % no;
+        sum = 0;
+        for (int k = 0; k < nn; k++) {
+            l = k * no * B + (col / ni) * no + row;
+            q = (col % ni) + row * ni;
+            tmp_md = md_layer_m_o[l];
+            sum += tmp_md * Cdi_zi[col] * mw[q + w_pos_i] +
+                   Cdo_zi[col + row * ni * B] * md_node[col + row * ni * B] *
+                       md_layer[k + (col / ni) * nn + z_pos_n] *
+                       mw[row + k * no + w_pos_o];
+        }
+        Cld_zi_m[ni * B * row + col] = sum;
+    }
+}
+
+void compute_cov_last_current_layers_mp(
+    std::vector<float> &mw, std::vector<float> &md_layer,
+    std::vector<float> &md_node, std::vector<float> &md_layer_m_o,
+    std::vector<float> &Cdi_zi, std::vector<float> &Cdo_zi, int w_pos_i,
+    int w_pos_o, int z_pos_n, int ni, int no, int nn, int B, int num_threads,
+    std::vector<float> &Cld_zi_m)
+/*Multithread version for computing the covariance between final output and the
+   hidden states*/
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            cov_last_current_layers_worker, std::ref(mw), std::ref(md_layer),
+            std::ref(md_node), std::ref(md_layer_m_o), std::ref(Cdi_zi),
+            std::ref(Cdo_zi), w_pos_i, w_pos_o, z_pos_n, ni, no, nn, B,
+            start_idx, end_idx, std::ref(Cld_zi_m));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void cov_last_last_minus_1_layers_worker(std::vector<float> &mw,
+                                         std::vector<float> &Cdi_zi,
+                                         std::vector<float> &Cdo_zi,
+                                         int w_pos_i, int ni, int no, int B,
+                                         int start_idx, int end_idx,
+                                         std::vector<float> &Cld_zi)
+/*Compute the covariance between last layer and current layer's  hidden states*/
+{
+    int q;
+    for (int i = start_idx; i < end_idx; i++) {
+        int row = i / no;
+        int col = i % no;
+        q = (col % ni) + row * ni;
+        Cld_zi[ni * B * row + col] =
+            Cdi_zi[col + row * ni * B] * mw[q + w_pos_i];
+    }
+}
+
+void compute_cov_last_last_minus_1_layers_mp(std::vector<float> &mw,
+                                             std::vector<float> &Cdi_zi,
+                                             std::vector<float> &Cdo_zi,
+                                             int w_pos_i, int ni, int no, int B,
+                                             int num_threads,
+                                             std::vector<float> &Cld_zi)
+/*Multithreading version for computing the covariance between last layer and
+   current layer's  hidden states*/
+{
+    const int tot_ops = ni * no * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(cov_last_last_minus_1_layers_worker, std::ref(mw),
+                        std::ref(Cdi_zi), std::ref(Cdo_zi), w_pos_i, ni, no, B,
+                        start_idx, end_idx, std::ref(Cld_zi));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
     }
 }
 
