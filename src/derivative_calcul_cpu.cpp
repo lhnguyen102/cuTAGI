@@ -3,7 +3,7 @@
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 12, 2022
-// Updated:      July 26, 2022
+// Updated:      July 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -371,6 +371,52 @@ void sum_derivatives(std::vector<float> &d_layer_m, int ni, int no, int B,
         d_layer[i + z_pos] = sum;
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+// ACTIVATION DERIVATIVES
+////////////////////////////////////////////////////////////////////////////////
+void tanh_derivatives(std::vector<float> &ma, std::vector<float> &Sa,
+                      std::vector<float> &J, int z_pos, int n,
+                      std::vector<float> &mda, std::vector<float> &Sda)
+/*Compute mean and variance for the derivatives*/
+{
+    for (int i = 0; i < n; i++) {
+        mda[i + z_pos] = (1 - powf(ma[i + z_pos], 2) - Sa[i + z_pos]);
+        Sda[i + z_pos] =
+            (2 * Sa[i + z_pos] * (Sa[i + z_pos] + 2 * powf(ma[i + z_pos], 2)));
+    }
+}
+
+void sigmoid_derivatives(std::vector<float> &ma, std::vector<float> &Sa,
+                         std::vector<float> &J, int z_pos, int n,
+                         std::vector<float> &mda, std::vector<float> &Sda) {
+    for (int i = 0; i < n; i++) {
+        mda[i + z_pos] = J[i + z_pos] - Sa[i + z_pos];
+        Sda[i + z_pos] =
+            Sa[i + z_pos] * (2 * Sa[i + z_pos] + 4 * powf(ma[i + z_pos], 2) -
+                             4 * ma[i + z_pos] + 1);
+    }
+}
+
+void relu_derivatives(std::vector<float> &mz, int z_pos, int n,
+                      std::vector<float> &mda, std::vector<float> &Sda) {
+    for (int i = 0; i < n; i++) {
+        if (mz[i + z_pos] > 0) {
+            mda[i + z_pos] = 1.0f;
+        } else {
+            mda[i + z_pos] = 0.0f;
+        }
+        Sda[i + z_pos] = 0.0f;
+    }
+}
+
+void no_act_derivatives(int z_pos, int n, std::vector<float> &mda,
+                        std::vector<float> &Sda) {
+    for (int i = 0; i < n; i++) {
+        mda[i + z_pos] = 1.0f;
+        Sda[i + z_pos] = 0.0f;
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 /// MULTITHREADING VERSION
 /////////////////////////////////////////////////////////////////////////////
@@ -502,7 +548,8 @@ void compute_cov_d_dw_fc_mp(std::vector<float> &mda, std::vector<float> &ma,
                             std::vector<float> &Sa, std::vector<float> &J,
                             std::vector<float> &mw, std::vector<float> &Sw,
                             int act_i, int act_o, int w_pos_i, int z_pos_i,
-                            int z_pos_o, int ni, int no, int B, int num_threads,
+                            int z_pos_o, int ni, int no, int B,
+                            unsigned int num_threads,
                             std::vector<float> &Cdo_diwi)
 /*Multithreading version for computing the node derivative's mean and variance*/
 {
@@ -581,8 +628,8 @@ void compute_layer_derivative_mean_var_fc_mp(
     std::vector<float> &md_layer, std::vector<float> &Sd_layer,
     std::vector<float> &md_layer_m_o, std::vector<float> &mw_o,
     std::vector<float> &Cdo_diwi, int w_pos_o, int z_pos_o, int z_pos_n, int ni,
-    int no, int nn, int B, int num_threads, std::vector<float> &md_layer_m,
-    std::vector<float> &Sd_layer_m)
+    int no, int nn, int B, unsigned int num_threads,
+    std::vector<float> &md_layer_m, std::vector<float> &Sd_layer_m)
 /*Multithreading version for computing the layer derivative*/
 
 {
@@ -681,8 +728,8 @@ void cov_dz_fc_worker(std::vector<float> &ma, std::vector<float> &J,
 void compute_cov_dz_fc_mp(std::vector<float> &ma, std::vector<float> &J,
                           std::vector<float> &Sz, std::vector<float> &mw,
                           int act_o, int act_i, int w_pos_i, int z_pos_i,
-                          int z_pos_o, int ni, int no, int B, int num_threads,
-                          std::vector<float> &Cdi_zi,
+                          int z_pos_o, int ni, int no, int B,
+                          unsigned int num_threads, std::vector<float> &Cdi_zi,
                           std::vector<float> &Cdo_zi)
 /*Multithreading for computing covariance between derivatives and hidden
    states*/
@@ -743,8 +790,8 @@ void compute_cov_last_current_layers_mp(
     std::vector<float> &mw, std::vector<float> &md_layer,
     std::vector<float> &md_node, std::vector<float> &md_layer_m_o,
     std::vector<float> &Cdi_zi, std::vector<float> &Cdo_zi, int w_pos_i,
-    int w_pos_o, int z_pos_n, int ni, int no, int nn, int B, int num_threads,
-    std::vector<float> &Cld_zi_m)
+    int w_pos_o, int z_pos_n, int ni, int no, int nn, int B,
+    unsigned int num_threads, std::vector<float> &Cld_zi_m)
 /*Multithread version for computing the covariance between final output and the
    hidden states*/
 {
@@ -794,7 +841,7 @@ void compute_cov_last_last_minus_1_layers_mp(std::vector<float> &mw,
                                              std::vector<float> &Cdi_zi,
                                              std::vector<float> &Cdo_zi,
                                              int w_pos_i, int ni, int no, int B,
-                                             int num_threads,
+                                             unsigned int num_threads,
                                              std::vector<float> &Cld_zi)
 /*Multithreading version for computing the covariance between last layer and
    current layer's  hidden states*/
@@ -822,6 +869,236 @@ void compute_cov_last_last_minus_1_layers_mp(std::vector<float> &mw,
     }
 }
 
+void copy_derivative_worker(std::vector<float> &md_layer_m, int ni, int no,
+                            int nn, int B, int start_idx, int end_idx,
+                            std::vector<float> &md_layer_m_o)
+/*Worker for coping layer derivative mean from output layer to avoid
+   overwritting it between layer*/
+{
+    for (int i = start_idx; i < end_idx; i++) {
+        md_layer_m_o[i] = md_layer_m[i];
+    }
+}
+
+void copy_derivative_mp(std::vector<float> &md_layer_m, int ni, int no, int nn,
+                        int B, unsigned int num_threads,
+                        std::vector<float> &md_layer_m_o)
+/*Multithread version for coping layer derivative mean from output layer to
+   avoid overwritting it between layer*/
+{
+    const int tot_ops = ni * no * B * nn;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(copy_derivative_worker, std::ref(md_layer_m), ni, no,
+                        nn, B, start_idx, end_idx, std::ref(md_layer_m_o));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void sum_derivatives_worker(std::vector<float> &d_layer_m, int ni, int no,
+                            int B, int z_pos, int start_idx, int end_idx,
+                            std::vector<float> &d_layer)
+/*Worker for summing the derivatives over the node (output layer)*/
+{
+    float sum;
+    for (int i = start_idx; i < end_idx; i++) {
+        sum = 0;
+        for (int j = 0; j < no; j++) {
+            sum += d_layer_m[j * B * ni + i];
+        }
+        d_layer[i + z_pos] = sum;
+    }
+}
+
+void sum_derivatives_mp(std::vector<float> &d_layer_m, int ni, int no, int B,
+                        int z_pos, unsigned int num_threads,
+                        std::vector<float> &d_layer)
+/*Multithread version for summing the derivatives over the node (output layer)*/
+{
+    const int tot_ops = ni * B;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(sum_derivatives_worker, std::ref(d_layer_m), ni, no, B,
+                        z_pos, start_idx, end_idx, std::ref(d_layer));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void tanh_derivatives_worker(std::vector<float> &ma, std::vector<float> &Sa,
+                             std::vector<float> &J, int z_pos, int start_idx,
+                             int end_idx, std::vector<float> &mda,
+                             std::vector<float> &Sda)
+/*Worker for computing mean and variance for the derivatives*/
+{
+    for (int i = start_idx; i < end_idx; i++) {
+        mda[i + z_pos] = (1 - powf(ma[i + z_pos], 2) - Sa[i + z_pos]);
+        Sda[i + z_pos] =
+            (2 * Sa[i + z_pos] * (Sa[i + z_pos] + 2 * powf(ma[i + z_pos], 2)));
+    }
+}
+
+void tanh_derivatives_mp(std::vector<float> &ma, std::vector<float> &Sa,
+                         std::vector<float> &J, int z_pos, int n,
+                         unsigned int num_threads, std::vector<float> &mda,
+                         std::vector<float> &Sda)
+/*Multithread versiong for computing mean and variance for the derivatives*/
+{
+    const int n_batch = n / num_threads;
+    const int rem_batch = n / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(tanh_derivatives_worker, std::ref(ma),
+                                 std::ref(Sa), std::ref(J), z_pos, start_idx,
+                                 end_idx, std::ref(mda), std::ref(Sda));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void sigmoid_derivatives_worker(std::vector<float> &ma, std::vector<float> &Sa,
+                                std::vector<float> &J, int z_pos, int start_idx,
+                                int end_idx, std::vector<float> &mda,
+                                std::vector<float> &Sda) {
+    for (int i = start_idx; i < end_idx; i++) {
+        mda[i + z_pos] = J[i + z_pos] - Sa[i + z_pos];
+        Sda[i + z_pos] =
+            Sa[i + z_pos] * (2 * Sa[i + z_pos] + 4 * powf(ma[i + z_pos], 2) -
+                             4 * ma[i + z_pos] + 1);
+    }
+}
+
+void sigmoid_derivatives_mp(std::vector<float> &ma, std::vector<float> &Sa,
+                            std::vector<float> &J, int z_pos, int n,
+                            unsigned int num_threads, std::vector<float> &mda,
+                            std::vector<float> &Sda) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(sigmoid_derivatives_worker, std::ref(ma),
+                                 std::ref(Sa), std::ref(J), z_pos, start_idx,
+                                 end_idx, std::ref(mda), std::ref(Sda));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void relu_derivatives_worker(std::vector<float> &mz, int z_pos, int n,
+                             int start_idx, int end_idx,
+                             std::vector<float> &mda, std::vector<float> &Sda) {
+    for (int i = start_idx; i < end_idx; i++) {
+        if (mz[i + z_pos] > 0) {
+            mda[i + z_pos] = 1.0f;
+        } else {
+            mda[i + z_pos] = 0.0f;
+        }
+        Sda[i + z_pos] = 0.0f;
+    }
+}
+
+void relu_derivatives_mp(std::vector<float> &mz, int z_pos, int n,
+                         unsigned int num_threads, std::vector<float> &mda,
+                         std::vector<float> &Sda) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(relu_derivatives_worker, std::ref(mz), z_pos, start_idx,
+                        end_idx, std::ref(mda), std::ref(Sda));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void no_act_derivatives_worker(int z_pos, int n, int start_idx, int end_idx,
+                               std::vector<float> &mda,
+                               std::vector<float> &Sda) {
+    for (int i = start_idx; i < end_idx; i++) {
+        mda[i + z_pos] = 1.0f;
+        Sda[i + z_pos] = 0.0f;
+    }
+}
+
+void no_act_derivatives_mp(int z_pos, int n, unsigned int num_threads,
+                           std::vector<float> &mda, std::vector<float> &Sda) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n / num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(no_act_derivatives_worker, z_pos, start_idx,
+                                 end_idx, std::ref(mda), std::ref(Sda));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
 void compute_layer_derivative(Network &net, Param &theta, NetState &state,
                               int curr_layer)
 /* Compute derivatives of output layer's hidden states w.r.t hidden states of
@@ -839,49 +1116,95 @@ void compute_layer_derivative(Network &net, Param &theta, NetState &state,
     int act_i = net.activations[curr_layer];
     int act_o = net.activations[curr_layer + 1];
 
-    // Copy md_layer_m for next layer
-    copy_derivative_mean(state.derv_state.md_layer_m, ni, no, nn,
-                         net.batch_size, state.derv_state.md_layer_m_o);
+    if (net.multithreading) {
+        // Copy md_layer_m for next layer
+        copy_derivative_mp(state.derv_state.md_layer_m, ni, no, nn,
+                           net.batch_size, net.num_cpu_threads,
+                           state.derv_state.md_layer_m_o);
 
-    // Compute node derivatives
-    compute_node_derivative_mean_var_fc(
-        theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda, w_pos_i,
-        z_pos_i, ni, no, net.batch_size, state.derv_state.md_node,
-        state.derv_state.Sd_node);
+        // Compute node derivatives
+        compute_node_derv_mean_var_fc_mp(
+            theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda,
+            w_pos_i, z_pos_i, ni, no, net.batch_size, net.num_cpu_threads,
+            state.derv_state.md_node, state.derv_state.Sd_node);
 
-    // Compute cov(d+, dw)
-    compute_cov_d_dw_fc(state.derv_state.mda, state.ma, state.Sa, state.J,
-                        theta.mw, theta.Sw, act_i, act_o, w_pos_i, z_pos_i,
-                        z_pos_o, ni, no, net.batch_size,
-                        state.derv_state.Cdo_diwi);
+        // Compute cov(d+, dw)
+        compute_cov_d_dw_fc_mp(
+            state.derv_state.mda, state.ma, state.Sa, state.J, theta.mw,
+            theta.Sw, act_i, act_o, w_pos_i, z_pos_i, z_pos_o, ni, no,
+            net.batch_size, net.num_cpu_threads, state.derv_state.Cdo_diwi);
 
-    // Compute layer derivatives
-    compute_layer_derivative_mean_var_fc(
-        state.derv_state.md_node, state.derv_state.Sd_node,
-        state.derv_state.md_layer, state.derv_state.Sd_layer,
-        state.derv_state.md_layer_m_o, theta.mw, state.derv_state.Cdo_diwi,
-        w_pos_o, z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
-        state.derv_state.md_layer_m, state.derv_state.Sd_layer_m);
+        // Compute layer derivatives
+        compute_layer_derivative_mean_var_fc_mp(
+            state.derv_state.md_node, state.derv_state.Sd_node,
+            state.derv_state.md_layer, state.derv_state.Sd_layer,
+            state.derv_state.md_layer_m_o, theta.mw, state.derv_state.Cdo_diwi,
+            w_pos_o, z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
+            net.num_cpu_threads, state.derv_state.md_layer_m,
+            state.derv_state.Sd_layer_m);
 
-    sum_derivatives(state.derv_state.md_layer_m, ni, no, net.batch_size,
-                    z_pos_i, state.derv_state.md_layer);
-    sum_derivatives(state.derv_state.Sd_layer_m, ni, no, net.batch_size,
-                    z_pos_i, state.derv_state.Sd_layer);
+        sum_derivatives_mp(state.derv_state.md_layer_m, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.md_layer);
+        sum_derivatives_mp(state.derv_state.Sd_layer_m, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.Sd_layer);
 
-    // Compute cov(d+, z) & cov(d, z)
-    compute_cov_dz(state.ma, state.J, state.Sz, theta.mw, act_o, act_i, w_pos_i,
-                   z_pos_i, z_pos_o, ni, no, net.batch_size,
-                   state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
+        // Compute cov(d+, z) & cov(d, z)
+        compute_cov_dz_fc_mp(state.ma, state.J, state.Sz, theta.mw, act_o,
+                             act_i, w_pos_i, z_pos_i, z_pos_o, ni, no,
+                             net.batch_size, net.num_cpu_threads,
+                             state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
 
-    // Compute cov(d_output, z)
-    compute_cov_last_current_layers(
-        theta.mw, state.derv_state.md_layer, state.derv_state.md_node,
-        state.derv_state.md_layer_m_o, state.derv_state.Cdi_zi,
-        state.derv_state.Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
-        net.batch_size, state.derv_state.Cld_zi_m);
+        // Compute cov(d_output, z)
+        compute_cov_last_current_layers_mp(
+            theta.mw, state.derv_state.md_layer, state.derv_state.md_node,
+            state.derv_state.md_layer_m_o, state.derv_state.Cdi_zi,
+            state.derv_state.Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
+            net.batch_size, net.num_cpu_threads, state.derv_state.Cld_zi_m);
 
-    sum_derivatives(state.derv_state.Cld_zi_m, ni, no, net.batch_size, z_pos_i,
-                    state.derv_state.Cld_zi);
+        sum_derivatives_mp(state.derv_state.Cld_zi_m, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.Cld_zi);
+    } else {
+        copy_derivative_mean(state.derv_state.md_layer_m, ni, no, nn,
+                             net.batch_size, state.derv_state.md_layer_m_o);
+
+        compute_node_derivative_mean_var_fc(
+            theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda,
+            w_pos_i, z_pos_i, ni, no, net.batch_size, state.derv_state.md_node,
+            state.derv_state.Sd_node);
+
+        compute_cov_d_dw_fc(state.derv_state.mda, state.ma, state.Sa, state.J,
+                            theta.mw, theta.Sw, act_i, act_o, w_pos_i, z_pos_i,
+                            z_pos_o, ni, no, net.batch_size,
+                            state.derv_state.Cdo_diwi);
+
+        compute_layer_derivative_mean_var_fc(
+            state.derv_state.md_node, state.derv_state.Sd_node,
+            state.derv_state.md_layer, state.derv_state.Sd_layer,
+            state.derv_state.md_layer_m_o, theta.mw, state.derv_state.Cdo_diwi,
+            w_pos_o, z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
+            state.derv_state.md_layer_m, state.derv_state.Sd_layer_m);
+
+        sum_derivatives(state.derv_state.md_layer_m, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.md_layer);
+        sum_derivatives(state.derv_state.Sd_layer_m, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.Sd_layer);
+
+        compute_cov_dz(state.ma, state.J, state.Sz, theta.mw, act_o, act_i,
+                       w_pos_i, z_pos_i, z_pos_o, ni, no, net.batch_size,
+                       state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
+
+        compute_cov_last_current_layers(
+            theta.mw, state.derv_state.md_layer, state.derv_state.md_node,
+            state.derv_state.md_layer_m_o, state.derv_state.Cdi_zi,
+            state.derv_state.Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
+            net.batch_size, state.derv_state.Cld_zi_m);
+
+        sum_derivatives(state.derv_state.Cld_zi_m, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.Cld_zi);
+    }
 }
 
 void compute_last_minus_1_layer_derivative(Network &net, Param &theta,
@@ -898,80 +1221,64 @@ void compute_last_minus_1_layer_derivative(Network &net, Param &theta,
     int z_pos_o = net.z_pos[curr_layer + 1];
     int act_i = net.activations[curr_layer];
     int act_o = net.activations[curr_layer + 1];
-
-    // Compute node derivatives
-    compute_node_derivative_mean_var_fc(
-        theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda, w_pos_i,
-        z_pos_i, ni, no, net.batch_size, state.derv_state.md_node,
-        state.derv_state.Sd_node);
-
-    sum_derivatives(state.derv_state.md_node, ni, no, net.batch_size, z_pos_i,
-                    state.derv_state.md_layer);
-    sum_derivatives(state.derv_state.Sd_node, ni, no, net.batch_size, z_pos_i,
-                    state.derv_state.Sd_layer);
-
-    // Copy md_layer_m for next layer
     int nn = 1;
-    copy_derivative_mean(state.derv_state.md_node, ni, no, nn, net.batch_size,
-                         state.derv_state.md_layer_m);
 
-    // Compute cov(d+, z) & cov(d, z)
-    compute_cov_dz(state.ma, state.J, state.Sz, theta.mw, act_o, act_i, w_pos_i,
-                   z_pos_i, z_pos_o, ni, no, net.batch_size,
-                   state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
+    if (net.multithreading) {  // Compute node derivatives
+        compute_node_derv_mean_var_fc_mp(
+            theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda,
+            w_pos_i, z_pos_i, ni, no, net.batch_size, net.num_cpu_threads,
+            state.derv_state.md_node, state.derv_state.Sd_node);
 
-    // Compute cov(d_output, z)
-    compute_cov_last_last_minus_1_layers(
-        theta.mw, state.derv_state.Cdi_zi, state.derv_state.Cdo_zi, w_pos_i, ni,
-        no, net.batch_size, state.derv_state.Cld_zi_m);
+        sum_derivatives_mp(state.derv_state.md_node, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.md_layer);
+        sum_derivatives_mp(state.derv_state.Sd_node, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.Sd_layer);
 
-    sum_derivatives(state.derv_state.Cld_zi_m, ni, no, net.batch_size, z_pos_i,
-                    state.derv_state.Cld_zi);
-}
+        // Copy md_layer_m for next layer
+        copy_derivative_mp(state.derv_state.md_node, ni, no, nn, net.batch_size,
+                           net.num_cpu_threads, state.derv_state.md_layer_m);
 
-////////////////////////////////////////////////////////////////////////////////
-// ACTIVATION DERIVATIVES
-////////////////////////////////////////////////////////////////////////////////
-void tanh_derivatives(std::vector<float> &ma, std::vector<float> &Sa,
-                      std::vector<float> &J, int z_pos, int n,
-                      std::vector<float> &mda, std::vector<float> &Sda)
-/*Compute mean and variance for the derivatives*/
-{
-    for (int i = 0; i < n; i++) {
-        mda[i + z_pos] = (1 - powf(ma[i + z_pos], 2) - Sa[i + z_pos]);
-        Sda[i + z_pos] =
-            (2 * Sa[i + z_pos] * (Sa[i + z_pos] + 2 * powf(ma[i + z_pos], 2)));
-    }
-}
+        // Compute cov(d+, z) & cov(d, z)
+        compute_cov_dz_fc_mp(state.ma, state.J, state.Sz, theta.mw, act_o,
+                             act_i, w_pos_i, z_pos_i, z_pos_o, ni, no,
+                             net.batch_size, net.num_cpu_threads,
+                             state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
 
-void sigmoid_derivatives(std::vector<float> &ma, std::vector<float> &Sa,
-                         std::vector<float> &J, int z_pos, int n,
-                         std::vector<float> &mda, std::vector<float> &Sda) {
-    for (int i = 0; i < n; i++) {
-        mda[i + z_pos] = J[i + z_pos] - Sa[i + z_pos];
-        Sda[i + z_pos] =
-            Sa[i + z_pos] * (2 * Sa[i + z_pos] + 4 * powf(ma[i + z_pos], 2) -
-                             4 * ma[i + z_pos] + 1);
-    }
-}
+        // Compute cov(d_output, z)
+        compute_cov_last_last_minus_1_layers_mp(
+            theta.mw, state.derv_state.Cdi_zi, state.derv_state.Cdo_zi, w_pos_i,
+            ni, no, net.batch_size, net.num_cpu_threads,
+            state.derv_state.Cld_zi_m);
 
-void relu_derivatives(std::vector<float> &mz, int z_pos, int n,
-                      std::vector<float> &mda, std::vector<float> &Sda) {
-    for (int i = 0; i < n; i++) {
-        if (mz[i + z_pos] > 0) {
-            mda[i + z_pos] = 1.0f;
-        } else {
-            mda[i + z_pos] = 0.0f;
-        }
-        Sda[i + z_pos] = 0.0f;
-    }
-}
+        sum_derivatives_mp(state.derv_state.Cld_zi_m, ni, no, net.batch_size,
+                           z_pos_i, net.num_cpu_threads,
+                           state.derv_state.Cld_zi);
+    } else {
+        compute_node_derivative_mean_var_fc(
+            theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda,
+            w_pos_i, z_pos_i, ni, no, net.batch_size, state.derv_state.md_node,
+            state.derv_state.Sd_node);
 
-void no_act_derivatives(int z_pos, int n, std::vector<float> &mda,
-                        std::vector<float> &Sda) {
-    for (int i = 0; i < n; i++) {
-        mda[i + z_pos] = 1.0f;
-        Sda[i + z_pos] = 0.0f;
+        sum_derivatives(state.derv_state.md_node, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.md_layer);
+        sum_derivatives(state.derv_state.Sd_node, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.Sd_layer);
+
+        copy_derivative_mean(state.derv_state.md_node, ni, no, nn,
+                             net.batch_size, state.derv_state.md_layer_m);
+
+        compute_cov_dz(state.ma, state.J, state.Sz, theta.mw, act_o, act_i,
+                       w_pos_i, z_pos_i, z_pos_o, ni, no, net.batch_size,
+                       state.derv_state.Cdi_zi, state.derv_state.Cdo_zi);
+
+        compute_cov_last_last_minus_1_layers(
+            theta.mw, state.derv_state.Cdi_zi, state.derv_state.Cdo_zi, w_pos_i,
+            ni, no, net.batch_size, state.derv_state.Cld_zi_m);
+
+        sum_derivatives(state.derv_state.Cld_zi_m, ni, no, net.batch_size,
+                        z_pos_i, state.derv_state.Cld_zi);
     }
 }
 
@@ -979,23 +1286,45 @@ void compute_activation_derivatives(Network &net, NetState &state, int j) {
     int n = net.nodes[j] * net.batch_size;
     if (net.activations[j] == 1)  // tanh
     {
-        tanh_derivatives(state.ma, state.Sa, state.J, net.z_pos[j], n,
-                         state.derv_state.mda, state.derv_state.Sda);
+        if (net.multithreading) {
+            tanh_derivatives_mp(state.ma, state.Sa, state.J, net.z_pos[j], n,
+                                net.num_cpu_threads, state.derv_state.mda,
+                                state.derv_state.Sda);
+        } else {
+            tanh_derivatives(state.ma, state.Sa, state.J, net.z_pos[j], n,
+                             state.derv_state.mda, state.derv_state.Sda);
+        }
     } else if (net.activations[j] == 2)  // Sigmoid
     {
-        sigmoid_derivatives(state.ma, state.Sa, state.J, net.z_pos[j], n,
-                            state.derv_state.mda, state.derv_state.Sda);
+        if (net.multithreading) {
+            sigmoid_derivatives_mp(state.ma, state.Sa, state.J, net.z_pos[j], n,
+                                   net.num_cpu_threads, state.derv_state.mda,
+                                   state.derv_state.Sda);
+        } else {
+            sigmoid_derivatives(state.ma, state.Sa, state.J, net.z_pos[j], n,
+                                state.derv_state.mda, state.derv_state.Sda);
+        }
     } else if (net.activations[j] == 4)  // ReLU
     {
-        relu_derivatives(state.mz, net.z_pos[j], n, state.derv_state.mda,
-                         state.derv_state.Sda);
+        if (net.multithreading) {
+            relu_derivatives_mp(state.mz, net.z_pos[j], n, net.num_cpu_threads,
+                                state.derv_state.mda, state.derv_state.Sda);
+        } else {
+            relu_derivatives(state.mz, net.z_pos[j], n, state.derv_state.mda,
+                             state.derv_state.Sda);
+        }
     } else if (net.activations[j] == 0)  // No activation
     {
-        no_act_derivatives(net.z_pos[j], n, state.derv_state.mda,
-                           state.derv_state.Sda);
+        if (net.multithreading) {
+            no_act_derivatives_mp(net.z_pos[j], n, net.num_cpu_threads,
+                                  state.derv_state.mda, state.derv_state.Sda);
+        } else {
+            no_act_derivatives(net.z_pos[j], n, state.derv_state.mda,
+                               state.derv_state.Sda);
+        }
     } else {
         throw std::invalid_argument(
-            "Activation function is invalid --derivative_cpu.cpp");
+            "Activation function is invalid -- derivative_cpu.cpp");
     }
 }
 
