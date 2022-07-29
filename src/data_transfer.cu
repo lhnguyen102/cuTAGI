@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      July 01, 2022
+// Updated:      July 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,6 +34,7 @@ StateGPU::StateGPU() {
     this->d_Sa_f = nullptr;
     this->d_Sz_fp = nullptr;
     this->noise_state = NoiseStateGPU();
+    this->derv_state = DerivativeStateGPU();
 }
 
 void StateGPU::set_values(NetState &state, Network &net) {
@@ -49,17 +50,24 @@ void StateGPU::set_values(NetState &state, Network &net) {
         this->max_full_cov_bytes = 0;
     }
 
+    this->mra_prev.assign(state.mra.begin(), state.mra.end());
+    this->Sra_prev.assign(state.Sra.begin(), state.Sra.end());
+    this->ms.resize(state.mra.size(), 0);
+    this->Ss.resize(state.Sra.size(), 0);
+    this->SsTmp.resize(state.Sra.size(), 0);
+
     // Noise state
     if (net.noise_type.compare("heteros") == 0 ||
         net.noise_type.compare("homosce") == 0) {
         this->noise_state.compute_bytes(net.n_y * net.batch_size);
     }
 
-    this->mra_prev.assign(state.mra.begin(), state.mra.end());
-    this->Sra_prev.assign(state.Sra.begin(), state.Sra.end());
-    this->ms.resize(state.mra.size(), 0);
-    this->Ss.resize(state.Sra.size(), 0);
-    this->SsTmp.resize(state.Sra.size(), 0);
+    // Derivative state
+    if (net.collect_derivative) {
+        int num_max_nodes = net.n_max_state / net.batch_size;
+        this->derv_state.compute_bytes(net.n_state, num_max_nodes,
+                                       net.batch_size);
+    }
 }
 
 void StateGPU::allocate_cuda_memory() {
@@ -88,6 +96,11 @@ void StateGPU::allocate_cuda_memory() {
     // zero
     if (this->noise_state.n_bytes > 0) {
         this->noise_state.allocate_cuda_memory();
+    }
+
+    // Derivative state
+    if (this->derv_state.n_state_bytes > 0) {
+        this->derv_state.allocate_cuda_memory();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -132,6 +145,11 @@ void StateGPU::copy_host_to_device(NetState &state) {
         this->noise_state.copy_host_to_device(state.noise_state);
     }
 
+    // Derivative state
+    if (this->derv_state.n_state_bytes > 0) {
+        this->derv_state.copy_host_to_device(state.derv_state);
+    }
+
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -166,6 +184,11 @@ void StateGPU::copy_device_to_host(NetState &state) {
     // zero
     if (this->noise_state.n_bytes > 0) {
         this->noise_state.copy_device_to_host(state.noise_state);
+    }
+
+    // Derivative state
+    if (this->derv_state.n_state_bytes > 0) {
+        this->derv_state.copy_device_to_host(state.derv_state);
     }
 
     cudaError_t error = cudaGetLastError();
@@ -366,6 +389,155 @@ NoiseStateGPU::~NoiseStateGPU() {
     cudaFree(d_delta_mz_v2b);
     cudaFree(d_delta_Sz_v2b);
 };
+
+////////////////////////
+// DERIVATIVE STATE GPU
+///////////////////////
+
+DerivativeStateGPU::DerivativeStateGPU() {
+    this->n_state_bytes = 0 * sizeof(float);
+    this->n_tmp_bytes = 0 * sizeof(float);
+    this->d_mda = nullptr;
+    this->d_Sda = nullptr;
+    this->d_md_node = nullptr;
+    this->d_Sd_node = nullptr;
+    this->d_Cdo_diwi = nullptr;
+    this->d_md_layer = nullptr;
+    this->d_Sd_layer = nullptr;
+    this->d_md_layer_m = nullptr;
+    this->d_Sd_layer_m = nullptr;
+    this->d_md_layer_m_o = nullptr;
+    this->d_Cdi_zi = nullptr;
+    this->d_Cdo_zi = nullptr;
+    this->d_Cld_zi = nullptr;
+    this->d_Cld_zi_m = nullptr;
+}
+
+void DerivativeStateGPU::compute_bytes(int n_state, int n_max_nodes,
+                                       int batch_size) {
+    this->n_state_bytes = n_state * sizeof(float);
+    this->n_tmp_bytes = n_max_nodes * n_max_nodes * batch_size * sizeof(float);
+}
+
+void DerivativeStateGPU::allocate_cuda_memory() {
+    cudaMalloc(&d_mda, n_state_bytes);
+    cudaMalloc(&d_Sda, n_state_bytes);
+    cudaMalloc(&d_md_node, n_tmp_bytes);
+    cudaMalloc(&d_Sd_node, n_tmp_bytes);
+    cudaMalloc(&d_Cdo_diwi, n_tmp_bytes);
+    cudaMalloc(&d_md_layer, n_state_bytes);
+    cudaMalloc(&d_Sd_layer, n_state_bytes);
+    cudaMalloc(&d_md_layer_m, n_tmp_bytes);
+    cudaMalloc(&d_Sd_layer_m, n_tmp_bytes);
+    cudaMalloc(&d_md_layer_m_o, n_tmp_bytes);
+    cudaMalloc(&d_Cdi_zi, n_tmp_bytes);
+    cudaMalloc(&d_Cdo_zi, n_tmp_bytes);
+    cudaMalloc(&d_Cld_zi, n_state_bytes);
+    cudaMalloc(&d_Cld_zi_m, n_tmp_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for derivative states - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void DerivativeStateGPU::copy_host_to_device(DerivativeState &derv_state) {
+    cudaMemcpy(d_mda, derv_state.mda.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sda, derv_state.Sda.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_md_node, derv_state.md_node.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sd_node, derv_state.Sd_node.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cdo_diwi, derv_state.Cdo_diwi.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_md_layer, derv_state.md_layer.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sd_layer, derv_state.Sd_layer.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_md_layer_m, derv_state.md_layer_m.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sd_layer_m, derv_state.Sd_layer_m.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_md_layer_m_o, derv_state.md_layer_m_o.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cdi_zi, derv_state.Cdi_zi.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cdo_zi, derv_state.Cdo_zi.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cld_zi_m, derv_state.Cld_zi_m.data(), n_tmp_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Cld_zi, derv_state.Cld_zi.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to device for derivative state - "
+            "data_transfer.cu";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void DerivativeStateGPU::copy_device_to_host(DerivativeState &derv_state) {
+    cudaMemcpy(derv_state.mda.data(), d_mda, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Sda.data(), d_Sda, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.md_node.data(), d_md_node, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Sd_node.data(), d_Sd_node, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Cdo_diwi.data(), d_Cdo_diwi, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.md_layer.data(), d_md_layer, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Sd_layer.data(), d_Sd_layer, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.md_layer_m.data(), d_md_layer_m, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Sd_layer_m.data(), d_Sd_layer_m, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.md_layer_m_o.data(), d_md_layer_m_o, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Cdi_zi.data(), d_Cdi_zi, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Cdo_zi.data(), d_Cdo_zi, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Cld_zi_m.data(), d_Cld_zi_m, n_tmp_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(derv_state.Cld_zi.data(), d_Cld_zi, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to host for derivative states - "
+            "data_transfer.cu";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+DerivativeStateGPU::~DerivativeStateGPU() {
+    cudaFree(d_mda);
+    cudaFree(d_Sda);
+    cudaFree(d_md_node);
+    cudaFree(d_Sd_node);
+    cudaFree(d_Cdo_diwi);
+    cudaFree(d_md_layer);
+    cudaFree(d_Sd_layer);
+    cudaFree(d_md_layer_m);
+    cudaFree(d_Sd_layer_m);
+    cudaFree(d_md_layer_m_o);
+    cudaFree(d_Cdi_zi);
+    cudaFree(d_Cdo_zi);
+    cudaFree(d_Cld_zi_m);
+    cudaFree(d_Cld_zi);
+}
 
 ////////////////////////
 // Parameter GPU

@@ -3,12 +3,12 @@
 // Description:  Calculate derivatives of neural networks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      July 17, 2022
-// Updated:      July 27, 2022
+// Updated:      July 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "../derivative_calcul.cuh"
+#include "../include/derivative_calcul.cuh"
 
 __global__ void compute_node_derivative_mean_var_fc(
     float const *mw, float const *Sw, float const *mda, float const *Sda,
@@ -279,7 +279,7 @@ __global__ void compute_cov_last_current_layers(
     float const *mw, float const *md_layer, float const *md_node,
     float const *md_layer_m_o, float const *Cdi_zi, float const *Cdo_zi,
     int w_pos_i, int w_pos_o, int z_pos_n, int ni, int no, int nn, int B,
-    float const *Cld_zi_m)
+    float *Cld_zi_m)
 /*Compute the covariance between final output and the hidden states
 
 Args:
@@ -331,8 +331,9 @@ __global__ void compute_cov_last_last_minus_1_layers(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int q;
     if (row < no && col < ni * B) {
-        q = (i % ni) + j * ni;
-        Cld_zi[ni * B * j + i] = Cdi_zi[i + j * ni * B] * mw[q + w_pos_i];
+        q = (col % ni) + row * ni;
+        Cld_zi[ni * B * row + col] =
+            Cdi_zi[col + row * ni * B] * mw[q + w_pos_i];
     }
 }
 
@@ -342,7 +343,7 @@ __global__ void copy_derivative(float const *md_layer_m, int ni, int no, int nn,
    layer b/c we only store the layer derivatives of the input layer*/
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    for (col < ni * no * B * nn) {
+    if (col < ni * no * B * nn) {
         md_layer_m_o[col] = md_layer_m[col];
     }
 }
@@ -411,7 +412,7 @@ __global__ void no_act_derivatives(int z_pos, int n, float *mda, float *Sda) {
     }
 }
 
-void compute_layer_derivative(Network &net, ParamGPU &theta, StatGPU &state,
+void compute_layer_derivative(Network &net, ParamGPU &theta, StateGPU &state,
                               int curr_layer)
 /* Compute derivatives of output layer's hidden states w.r.t hidden states of
    the current layers*/
@@ -429,55 +430,179 @@ void compute_layer_derivative(Network &net, ParamGPU &theta, StatGPU &state,
     int act_o = net.activations[curr_layer + 1];
 
     // Kernels
-    unsigned int blocks = (ni * no * net.batch_size + net.num_gpu_threads - 1) /
-                          net.num_gpu_threads;
+    // unsigned int blocks = (ni * no * net.batch_size + net.num_gpu_threads -
+    // 1) /
+    //                       net.num_gpu_threads;
+    unsigned int copy_blocks =
+        (ni * no * nn * net.batch_size + net.num_gpu_threads - 1) /
+        net.num_gpu_threads;
     unsigned int grid_rows =
         (no + net.num_gpu_threads - 1) / net.num_gpu_threads;
     unsigned int grid_cols =
-        (ni * B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+        (ni * net.batch_size + net.num_gpu_threads - 1) / net.num_gpu_threads;
     dim3 dim_grid(grid_cols, grid_rows);
     dim3 dim_block(net.num_gpu_threads, net.num_gpu_threads);
 
-    copy_derivative<<<blocks, net.num_gpu_threads>>>(
+    copy_derivative<<<copy_blocks, net.num_gpu_threads>>>(
         state.derv_state.d_md_layer_m, ni, no, nn, net.batch_size,
         state.derv_state.d_md_layer_m_o);
 
     compute_node_derivative_mean_var_fc<<<dim_grid, dim_block>>>(
-        theta.mw, theta.Sw, state.derv_state.mda, state.derv_state.Sda, w_pos_i,
-        z_pos_i, ni, no, net.batch_size, state.derv_state.md_node,
-        state.derv_state.Sd_node);
+        theta.d_mw, theta.d_Sw, state.derv_state.d_mda, state.derv_state.d_Sda,
+        w_pos_i, z_pos_i, ni, no, net.batch_size, state.derv_state.d_md_node,
+        state.derv_state.d_Sd_node);
 
     compute_cov_d_dw_fc<<<dim_grid, dim_block>>>(
-        state.derv_state.mda, state.ma, state.Sa, state.J, theta.mw, theta.Sw,
-        act_i, act_o, w_pos_i, z_pos_i, z_pos_o, ni, no, net.batch_size,
-        state.derv_state.Cdo_diwi);
+        state.derv_state.d_mda, state.d_ma, state.d_Sa, state.d_J, theta.d_mw,
+        theta.d_Sw, act_i, act_o, w_pos_i, z_pos_i, z_pos_o, ni, no,
+        net.batch_size, state.derv_state.d_Cdo_diwi);
 
     compute_layer_derivative_mean_var_fc<<<dim_grid, dim_block>>>(
-        state.derv_state.md_node, state.derv_state.Sd_node,
-        state.derv_state.md_layer, state.derv_state.Sd_layer,
-        state.derv_state.md_layer_m_o, theta.mw, state.derv_state.Cdo_diwi,
-        w_pos_o, z_pos_o, z_pos_n, ni, no, nn, net.batch_size,
-        state.derv_state.md_layer_m, state.derv_state.Sd_layer_m);
+        state.derv_state.d_md_node, state.derv_state.d_Sd_node,
+        state.derv_state.d_md_layer, state.derv_state.d_Sd_layer,
+        state.derv_state.d_md_layer_m_o, theta.d_mw,
+        state.derv_state.d_Cdo_diwi, w_pos_o, z_pos_o, z_pos_n, ni, no, nn,
+        net.batch_size, state.derv_state.d_md_layer_m,
+        state.derv_state.d_Sd_layer_m);
 
     sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
-        state.derv_state.md_layer_m, ni, no, net.batch_size, z_pos_i,
-        state.derv_state.md_layer);
+        state.derv_state.d_md_layer_m, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_md_layer);
     sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
-        state.derv_state.Sd_layer_m, ni, no, net.batch_size, z_pos_i,
-        state.derv_state.Sd_layer);
+        state.derv_state.d_Sd_layer_m, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_Sd_layer);
 
     compute_cov_dz<<<dim_grid, dim_block>>>(
-        state.ma, state.J, state.Sz, theta.mw, act_o, act_i, w_pos_i, z_pos_i,
-        z_pos_o, ni, no, net.batch_size, state.derv_state.Cdi_zi,
-        state.derv_state.Cdo_zi);
+        state.d_ma, state.d_J, state.d_Sz, theta.d_mw, act_o, act_i, w_pos_i,
+        z_pos_i, z_pos_o, ni, no, net.batch_size, state.derv_state.d_Cdi_zi,
+        state.derv_state.d_Cdo_zi);
 
     compute_cov_last_current_layers<<<dim_grid, dim_block>>>(
-        theta.mw, state.derv_state.md_layer, state.derv_state.md_node,
-        state.derv_state.md_layer_m_o, state.derv_state.Cdi_zi,
-        state.derv_state.Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
-        net.batch_size, state.derv_state.Cld_zi_m);
+        theta.d_mw, state.derv_state.d_md_layer, state.derv_state.d_md_node,
+        state.derv_state.d_md_layer_m_o, state.derv_state.d_Cdi_zi,
+        state.derv_state.d_Cdo_zi, w_pos_i, w_pos_o, z_pos_n, ni, no, nn,
+        net.batch_size, state.derv_state.d_Cld_zi_m);
 
     sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
-        state.derv_state.Cld_zi_m, ni, no, net.batch_size, z_pos_i,
-        state.derv_state.Cld_zi);
+        state.derv_state.d_Cld_zi_m, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_Cld_zi);
+}
+
+void compute_last_minus_1_layer_derivative(Network &net, ParamGPU &theta,
+                                           StateGPU &state, int curr_layer)
+/* Compute derivatives of output layer's hidden states w.r.t hidden states of
+   the current layers*/
+{
+    // Initialization
+    int ni = net.nodes[curr_layer];
+    int no = net.nodes[curr_layer + 1];
+    int w_pos_i = net.w_pos[curr_layer];
+    int w_pos_o = net.w_pos[curr_layer + 1];
+    int z_pos_i = net.z_pos[curr_layer];
+    int z_pos_o = net.z_pos[curr_layer + 1];
+    int act_i = net.activations[curr_layer];
+    int act_o = net.activations[curr_layer + 1];
+    int nn = 1;
+
+    // Kernels
+    unsigned int blocks = (ni * no * net.batch_size + net.num_gpu_threads - 1) /
+                          net.num_gpu_threads;
+    unsigned int copy_blocks =
+        (ni * no * nn * net.batch_size + net.num_gpu_threads - 1) /
+        net.num_gpu_threads;
+    unsigned int grid_rows =
+        (no + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    unsigned int grid_cols =
+        (ni * net.batch_size + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    dim3 dim_grid(grid_cols, grid_rows);
+    dim3 dim_block(net.num_gpu_threads, net.num_gpu_threads);
+
+    compute_node_derivative_mean_var_fc<<<blocks, net.num_gpu_threads>>>(
+        theta.d_mw, theta.d_Sw, state.derv_state.d_mda, state.derv_state.d_Sda,
+        w_pos_i, z_pos_i, ni, no, net.batch_size, state.derv_state.d_md_node,
+        state.derv_state.d_Sd_node);
+
+    sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
+        state.derv_state.d_md_node, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_md_layer);
+    sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
+        state.derv_state.d_Sd_node, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_Sd_layer);
+
+    copy_derivative<<<copy_blocks, net.num_gpu_threads>>>(
+        state.derv_state.d_md_node, ni, no, nn, net.batch_size,
+        state.derv_state.d_md_layer_m);
+
+    compute_cov_dz<<<dim_grid, dim_block>>>(
+        state.d_ma, state.d_J, state.d_Sz, theta.d_mw, act_o, act_i, w_pos_i,
+        z_pos_i, z_pos_o, ni, no, net.batch_size, state.derv_state.d_Cdi_zi,
+        state.derv_state.d_Cdo_zi);
+
+    compute_cov_last_last_minus_1_layers<<<dim_grid, dim_block>>>(
+        theta.d_mw, state.derv_state.d_Cdi_zi, state.derv_state.d_Cdo_zi,
+        w_pos_i, ni, no, net.batch_size, state.derv_state.d_Cld_zi_m);
+
+    sum_derivatives<<<grid_cols, net.num_gpu_threads>>>(
+        state.derv_state.d_Cld_zi_m, ni, no, net.batch_size, z_pos_i,
+        state.derv_state.d_Cld_zi);
+}
+
+void compute_activation_derivatives(Network &net, StateGPU &state, int j) {
+    int n = net.nodes[j] * net.batch_size;
+
+    // Kernels
+    unsigned int blocks = (n + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    if (net.activations[j] == 1)  // tanh
+    {
+        tanh_derivatives<<<blocks, net.num_gpu_threads>>>(
+            state.d_ma, state.d_Sa, state.d_J, net.z_pos[j], n,
+            state.derv_state.d_mda, state.derv_state.d_Sda);
+
+    } else if (net.activations[j] == 2)  // Sigmoid
+    {
+        sigmoid_derivatives<<<blocks, net.num_gpu_threads>>>(
+            state.d_ma, state.d_Sa, state.d_J, net.z_pos[j], n,
+            state.derv_state.d_mda, state.derv_state.d_Sda);
+
+    } else if (net.activations[j] == 4)  // ReLU
+    {
+        relu_derivatives<<<blocks, net.num_gpu_threads>>>(
+            state.d_mz, net.z_pos[j], n, state.derv_state.d_mda,
+            state.derv_state.d_Sda);
+
+    } else if (net.activations[j] == 0)  // No activation
+    {
+        no_act_derivatives<<<blocks, net.num_gpu_threads>>>(
+            net.z_pos[j], n, state.derv_state.d_mda, state.derv_state.d_Sda);
+
+    } else {
+        throw std::invalid_argument(
+            "Activation function is invalid -- derivative_cpu.cpp");
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// MAIN
+////////////////////////////////////////////////////////////////////////////////
+void compute_network_derivatives(Network &net, ParamGPU &theta, StateGPU &state,
+                                 int l)
+/*Compute derivative of ouput layer's hidden states w.r.t to the hidden states
+   of the lth layer
+
+  Args:
+    net: Network architecture
+    theta: Network's weights and biases
+    state: Hidden states of network
+*/
+{
+    // Last layer
+    int last_layer = net.layers.size() - 2;
+    compute_last_minus_1_layer_derivative(net, theta, state, last_layer);
+
+    // Other layers
+    for (int k = net.nodes.size() - 3; k >= l; k--) {
+        if (net.layers[k + 1] == net.layer_names.fc) {
+            compute_layer_derivative(net, theta, state, k);
+        }
+    }
 }

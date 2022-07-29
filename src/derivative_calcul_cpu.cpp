@@ -461,10 +461,10 @@ void compute_node_derv_mean_var_fc_mp(
             start_idx = n_batch * i + rem_batch;
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(node_derv_mean_var_fc_worker, std::ref(Sw),
-                                 std::ref(mda), std::ref(Sda), w_pos, z_pos, ni,
-                                 no, B, start_idx, end_idx, std::ref(md_node),
-                                 std::ref(Sd_node));
+        threads[i] = std::thread(node_derv_mean_var_fc_worker, std::ref(mw),
+                                 std::ref(Sw), std::ref(mda), std::ref(Sda),
+                                 w_pos, z_pos, ni, no, B, start_idx, end_idx,
+                                 std::ref(md_node), std::ref(Sd_node));
     }
     for (int i = 0; i < num_threads; i++) {
         threads[i].join();
@@ -1029,9 +1029,9 @@ void sigmoid_derivatives_mp(std::vector<float> &ma, std::vector<float> &Sa,
     }
 }
 
-void relu_derivatives_worker(std::vector<float> &mz, int z_pos, int n,
-                             int start_idx, int end_idx,
-                             std::vector<float> &mda, std::vector<float> &Sda) {
+void relu_derivatives_worker(std::vector<float> &mz, int z_pos, int start_idx,
+                             int end_idx, std::vector<float> &mda,
+                             std::vector<float> &Sda) {
     for (int i = start_idx; i < end_idx; i++) {
         if (mz[i + z_pos] > 0) {
             mda[i + z_pos] = 1.0f;
@@ -1067,7 +1067,7 @@ void relu_derivatives_mp(std::vector<float> &mz, int z_pos, int n,
     }
 }
 
-void no_act_derivatives_worker(int z_pos, int n, int start_idx, int end_idx,
+void no_act_derivatives_worker(int z_pos, int start_idx, int end_idx,
                                std::vector<float> &mda,
                                std::vector<float> &Sda) {
     for (int i = start_idx; i < end_idx; i++) {
@@ -1347,7 +1347,7 @@ void compute_network_derivatives(Network &net, Param &theta, NetState &state,
     compute_last_minus_1_layer_derivative(net, theta, state, last_layer);
 
     // Other layers
-    for (int k = net.nodes.size() - 3; k >= 0; k--) {
+    for (int k = net.nodes.size() - 3; k >= l; k--) {
         if (net.layers[k + 1] == net.layer_names.fc) {
             compute_layer_derivative(net, theta, state, k);
         }
