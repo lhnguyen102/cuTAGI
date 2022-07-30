@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      July 29, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -627,6 +627,7 @@ Args:
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
+    int derivative_layer = 0;
 
     // Compute number of data
     int n_iter = db.num_data / net.batch_size;
@@ -761,6 +762,15 @@ Args:
         std::vector<float> Sa_out(db.num_data * net.n_y, 0);
         int mt_idx = 0;
 
+        // Derivative results for the input layers
+        std::vector<float> mdy_batch_in, Sdy_batch_in, mdy_in, Sdy_in;
+        if (net.collect_derivative) {
+            mdy_batch_in.resize(net.batch_size * net.n_x, 0);
+            Sdy_batch_in.resize(net.batch_size * net.n_x, 0);
+            mdy_in.resize(db.num_data * net.n_x, 0);
+            Sdy_in.resize(db.num_data * net.n_x, 0);
+        }
+
         // Prediction
         for (int i = 0; i < n_iter; i++) {
             // Load data
@@ -777,9 +787,22 @@ Args:
             // Feed forward
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
+            if (net.collect_derivative) {
+                compute_network_derivatives(net, theta_gpu, state_gpu,
+                                            derivative_layer);
+            }
+
             // Get hidden states for output layers
             state_gpu.copy_device_to_host(state);
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
+
+            if (net.collect_derivative) {
+                get_input_derv_states(state.derv_state.md_layer,
+                                      state.derv_state.Sd_layer, mdy_batch_in,
+                                      Sdy_batch_in);
+                update_vector(mdy_in, mdy_batch_in, mt_idx, net.n_x);
+                update_vector(Sdy_in, Sdy_batch_in, mt_idx, net.n_x);
+            }
 
             // Update the final hidden state vector for last layer
             mt_idx = i * net.batch_size * net.n_y;
@@ -819,6 +842,9 @@ Args:
         // Save predictions
         std::string suffix = "prediction";
         save_predictions(path.saved_inference_path, my, sy, suffix);
+        if (net.collect_derivative) {
+            save_derivatives(path.saved_inference_path, mdy_in, Sdy_in, suffix);
+        }
     }
 }
 
@@ -840,7 +866,8 @@ void task_command(UserInput &user_input, SavePath &path) {
         Network net;
         Param theta;
         NetState state;
-        net_init(user_input.net_name, net, theta, state, idx);
+        net_init(user_input.net_name, user_input.device, net, theta, state,
+                 idx);
         net.is_idx_ud = true;
 
         // Data
@@ -883,7 +910,8 @@ void task_command(UserInput &user_input, SavePath &path) {
         Network net_e;
         Param theta_e;
         NetState state_e;
-        net_init(user_input.encoder_net_name, net_e, theta_e, state_e, idx_e);
+        net_init(user_input.encoder_net_name, user_input.device, net_e, theta_e,
+                 state_e, idx_e);
         net_e.is_output_ud = false;
 
         // Decoder
@@ -891,7 +919,8 @@ void task_command(UserInput &user_input, SavePath &path) {
         Network net_d;
         Param theta_d;
         NetState state_d;
-        net_init(user_input.decoder_net_name, net_d, theta_d, state_d, idx_d);
+        net_init(user_input.decoder_net_name, user_input.device, net_d, theta_d,
+                 state_d, idx_d);
         net_d.is_idx_ud = false;
         // It eable to infer the input's hidden states
         net_d.last_backward_layer = 0;
@@ -951,9 +980,10 @@ void task_command(UserInput &user_input, SavePath &path) {
         NetState test_state;
         int test_batch_size = 1;
 
-        net_init(user_input.net_name, net, theta, state, idx);
-        reset_net_batchsize(user_input.net_name, test_net, test_state, test_idx,
-                            test_batch_size);
+        net_init(user_input.net_name, user_input.device, net, theta, state,
+                 idx);
+        reset_net_batchsize(user_input.net_name, user_input.device, test_net,
+                            test_state, test_idx, test_batch_size);
 
         // Train data
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;

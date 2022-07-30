@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      June 24, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -87,12 +87,12 @@ Args:
     }
 }
 
-void partition_fc_delta_w(std::vector<float> &Sw, std::vector<float> &ma,
-                          std::vector<float> &delta_m,
-                          std::vector<float> &delta_S, int w_pos, int z_pos_in,
-                          int z_pos_out, int m, int n, int k, int start_idx,
-                          int end_idx, std::vector<float> &delta_mw,
-                          std::vector<float> &delta_Sw) {
+void fc_delta_w_worker(std::vector<float> &Sw, std::vector<float> &ma,
+                       std::vector<float> &delta_m, std::vector<float> &delta_S,
+                       int w_pos, int z_pos_in, int z_pos_out, int m, int n,
+                       int k, int start_idx, int end_idx,
+                       std::vector<float> &delta_mw,
+                       std::vector<float> &delta_Sw) {
     for (int j = start_idx; j < end_idx; j++) {
         int row = j / k;
         int col = j % k;
@@ -114,11 +114,11 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
                                std::vector<float> &delta_m,
                                std::vector<float> &delta_S, int w_pos,
                                int z_pos_in, int z_pos_out, int m, int n, int k,
+                               unsigned int NUM_THREADS,
                                std::vector<float> &delta_mw,
                                std::vector<float> &delta_Sw)
 
 {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
     const int tot_ops = m * k;
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
@@ -134,7 +134,7 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            partition_fc_delta_w, std::ref(Sw), std::ref(ma), std::ref(delta_m),
+            fc_delta_w_worker, std::ref(Sw), std::ref(ma), std::ref(delta_m),
             std::ref(delta_S), w_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
             end_idx, std::ref(delta_mw), std::ref(delta_Sw));
     }
@@ -208,11 +208,11 @@ Args:
     }
 }
 
-void partition_fc_delta_b(std::vector<float> &C_bz, std::vector<float> &delta_m,
-                          std::vector<float> &delta_S, int b_pos, int z_pos_out,
-                          int m, int n, int k, int start_idx, int end_idx,
-                          std::vector<float> &delta_mb,
-                          std::vector<float> &delta_Sb)
+void fc_delta_b_worker(std::vector<float> &C_bz, std::vector<float> &delta_m,
+                       std::vector<float> &delta_S, int b_pos, int z_pos_out,
+                       int m, int n, int k, int start_idx, int end_idx,
+                       std::vector<float> &delta_mb,
+                       std::vector<float> &delta_Sb)
 
 {
     for (int j = start_idx; j < end_idx; j++) {
@@ -234,11 +234,11 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
                                std::vector<float> &delta_m,
                                std::vector<float> &delta_S, int b_pos,
                                int z_pos_out, int m, int n, int k,
+                               unsigned int NUM_THREADS,
                                std::vector<float> &delta_mb,
                                std::vector<float> &delta_Sb)
 
 {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
     const int tot_ops = m * k;
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
@@ -254,7 +254,7 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(partition_fc_delta_b, std::ref(C_bz), std::ref(delta_m),
+            std::thread(fc_delta_b_worker, std::ref(C_bz), std::ref(delta_m),
                         std::ref(delta_S), b_pos, z_pos_out, m, n, k, start_idx,
                         end_idx, std::ref(delta_mb), std::ref(delta_Sb));
     }
@@ -298,15 +298,16 @@ Returns:
         if (net.layers[k + 1] == net.layer_names.fc) {
             if (ni * no > net.min_operations && net.multithreading) {
                 // Compute updated quantites for weights
-                fc_delta_w_multithreading(theta.Sw, state.ma, d_state.delta_m,
-                                          d_state.delta_S, w_pos_in, z_pos_in,
-                                          z_pos_out, ni, B, no,
-                                          d_theta.delta_mw, d_theta.delta_Sw);
+                fc_delta_w_multithreading(
+                    theta.Sw, state.ma, d_state.delta_m, d_state.delta_S,
+                    w_pos_in, z_pos_in, z_pos_out, ni, B, no,
+                    net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw);
 
                 // Compute updated quantities for biases
-                fc_delta_b_multithreading(
-                    theta.Sb, d_state.delta_m, d_state.delta_S, b_pos_in,
-                    z_pos_out, no, B, 1, d_theta.delta_mb, d_theta.delta_Sb);
+                fc_delta_b_multithreading(theta.Sb, d_state.delta_m,
+                                          d_state.delta_S, b_pos_in, z_pos_out,
+                                          no, B, 1, net.num_cpu_threads,
+                                          d_theta.delta_mb, d_theta.delta_Sb);
             } else {
                 // Compute updated quantites for weights
                 fc_delta_mw(theta.Sw, state.ma, d_state.delta_m, w_pos_in,

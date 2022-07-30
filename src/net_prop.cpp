@@ -1149,6 +1149,19 @@ bool is_fc(std::vector<int> &layers, LayerLabel &layer_names)
     return false;
 }
 
+bool is_leakyrelu(std::vector<int> &activations)
+/* Does network contain the leakyrely activation?
+ */
+{
+    for (int i = 0; i < activations.size(); i++) {
+        // TODO: Put label instead of integer for leakyrelu
+        if (activations[i] == 6) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void test_get_net_prop() {
     Network net;
     net.layers = {2, 2, 4, 2, 4, 2, 4, 1, 1};

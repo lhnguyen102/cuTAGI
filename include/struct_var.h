@@ -153,6 +153,7 @@ struct Network {
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
     int min_operations = 1000;
+    std::string device = "cpu";
 };
 
 // NETWORK STATE
@@ -278,6 +279,19 @@ struct IndexOut {
     std::vector<int> Fmwa_1, Fmwa_2, FCzwa_1, FCzwa_2, Szz_ud, pooling, FCwz_2,
         Swz_ud;
     std::vector<int> Fmwa_2_sc, FCzwa_1_sc, FCzwa_2_sc, Szz_ud_sc;
+};
+
+// USER INPUT
+
+struct UserInput {
+    std::string model_name, net_name, task_name, data_name, encoder_net_name,
+        decoder_net_name;
+    std::string device = "cuda";
+    int num_classes, num_epochs, num_train_data, num_test_data;
+    bool load_param = false, debug = false;
+    std::vector<float> mu, sigma;
+    std::vector<std::string> x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    bool data_norm = true;
 };
 
 // IMAGE DATA

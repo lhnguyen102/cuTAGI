@@ -17,7 +17,7 @@
 #include "net_prop.h"
 #include "struct_var.h"
 
-void compute_network_derivatives(Network &net, Param &theta, NetState &state,
-                                 int l);
+void compute_network_derivatives_cpu(Network &net, Param &theta,
+                                     NetState &state, int l);
 
-void compute_activation_derivatives(Network &net, NetState &state, int j);
+void compute_activation_derivatives_cpu(Network &net, NetState &state, int j);

@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 24,  2022
+// Updated:      July 30,  2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -385,8 +385,8 @@ Args:
 
             // Derivatives
             if (net.collect_derivative) {
-                compute_network_derivatives(net, theta, state,
-                                            derivative_layer);
+                compute_network_derivatives_cpu(net, theta, state,
+                                                derivative_layer);
                 get_input_derv_states(state.derv_state.md_layer,
                                       state.derv_state.Sd_layer, mdy_batch_in,
                                       Sdy_batch_in);
@@ -455,12 +455,9 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         Network net;
         Param theta;
         NetState state;
-        LayerLabel lb;
-        net_init(user_input.net_name, net, theta, state, idx);
+        net_init(user_input.net_name, user_input.device, net, theta, state,
+                 idx);
         net.is_idx_ud = true;
-
-        // Check feature availability
-        cpu_feature_availability(net, lb);
 
         // Data
         auto hrs = class_to_obs(user_input.num_classes);
@@ -502,7 +499,6 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         Network net;
         Param theta;
         NetState state;
-        LayerLabel lb;
 
         // Test network
         IndexOut test_idx;
@@ -510,12 +506,10 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         NetState test_state;
         int test_batch_size = 1;
 
-        net_init(user_input.net_name, net, theta, state, idx);
-        reset_net_batchsize(user_input.net_name, test_net, test_state, test_idx,
-                            test_batch_size);
-
-        // Check feature availability
-        cpu_feature_availability(net, lb);
+        net_init(user_input.net_name, user_input.device, net, theta, state,
+                 idx);
+        reset_net_batchsize(user_input.net_name, user_input.device, test_net,
+                            test_state, test_idx, test_batch_size);
 
         // Train data. TODO: refactor the dataloader
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;

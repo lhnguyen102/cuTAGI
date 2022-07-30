@@ -441,8 +441,8 @@ def derivative():
     dy_test_path = "./data/toy_example/derivative_dy_test_1D.csv"
     y_pred_path = "./saved_results/y_prediction.csv"
     sy_pred_path = "./saved_results/sy_prediction.csv"
-    md_pred_path = "./saved_results/md_prediction_best.csv"
-    Sd_pred_path = "./saved_results/Sd_prediction_best.csv"
+    md_pred_path = "./saved_results/md_prediction.csv"
+    Sd_pred_path = "./saved_results/Sd_prediction.csv"
 
     viz = PredictionViz(task_name=task_name, data_name=data_name)
 
