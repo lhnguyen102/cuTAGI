@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      July 01, 2022
+// Updated:      July 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -39,6 +39,22 @@ class NoiseStateGPU {
     ~NoiseStateGPU();
 };
 
+class DerivativeStateGPU
+/*Derivative state*/
+{
+   public:
+    size_t n_state_bytes, n_tmp_bytes;
+    float *d_mda, *d_Sda, *d_md_node, *d_Sd_node, *d_Cdo_diwi, *d_md_layer,
+        *d_Sd_layer, *d_md_layer_m, *d_Sd_layer_m, *d_md_layer_m_o, *d_Cdi_zi,
+        *d_Cdo_zi, *d_Cld_zi, *d_Cld_zi_m;
+    DerivativeStateGPU();
+    void compute_bytes(int n_state, int n_max_nodes, int batch_size);
+    void allocate_cuda_memory();
+    void copy_host_to_device(DerivativeState &derv_state);
+    void copy_device_to_host(DerivativeState &derv_state);
+    ~DerivativeStateGPU();
+};
+
 class StateGPU {
    public:
     size_t s_bytes, sc_bytes, dsc_bytes, ra_bytes, max_full_cov_bytes;
@@ -47,6 +63,7 @@ class StateGPU {
     float *d_mra, *d_Sra, *d_mra_prev, *d_Sra_prev, *d_ms, *d_Ss, *d_SsTmp;
     float *d_Sz_f, *d_Sa_f, *d_Sz_fp;
     NoiseStateGPU noise_state;
+    DerivativeStateGPU derv_state;
 
     StateGPU();
     void set_values(NetState &state, Network &net);

@@ -2,7 +2,6 @@
 ## BUILD STAGE 
 #####################################################
 FROM nvidia/cuda:11.4.2-devel-ubuntu20.04 As builder
-
 ARG DEBIAN_FRONTEND=noninteractive # ignore user input required
 
 # Install essential packages

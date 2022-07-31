@@ -107,6 +107,7 @@ set(GPU_SOURCES
   src/feed_forward.cu
   src/param_feed_backward.cu
   src/state_feed_backward.cu
+  src/derivative_calcul.cu
   src/task.cu
   src/user_input.cpp
   src/utils.cpp

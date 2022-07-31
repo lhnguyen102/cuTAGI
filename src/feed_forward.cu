@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      July 01, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -2024,6 +2024,11 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 actFullCov<<<dimGrid, dimBlock>>>(state.d_Sz_f, state.d_J, no,
                                                   B, zposOut, state.d_Sa_f);
             }
+        }
+
+        // Activaiton derivatives
+        if (net.collect_derivative) {
+            compute_activation_derivatives(net, state, j);
         }
     }
     int ny_B = net.n_y * net.batch_size;

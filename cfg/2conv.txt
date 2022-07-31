@@ -9,4 +9,4 @@ pads:       [1,     0,      0,      0,      0,      0,      0]
 pad_types:  [1,     0,      0,      0,      0,      0,      0]
 activations:[0,     4,      0,      4,      0,      4,      0]
 batch_size: 10
-sigma_v: 	
+sigma_v: 	1

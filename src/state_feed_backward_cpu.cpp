@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      July 01, 2022
+// Updated:      August 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -51,63 +51,6 @@ Args:
     }
 }
 
-void partition_delta_mzSz_with_indices(
-    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &Sz,
-    std::vector<float> &J, std::vector<float> &y, std::vector<float> &Sv,
-    std::vector<int> &udIdx, int z_pos, int ny, int nye, int start_idx,
-    int end_idx, std::vector<float> &delta_mz, std::vector<float> &delta_Sz)
-
-{
-    float zeroPad = 0;
-    float tmp = 0;
-    int idx = 0;
-    for (int col = start_idx; col < end_idx; col++) {
-        // minus 1 due to matlab's indexing
-        idx = udIdx[col] + (col / nye) * ny - 1;
-        tmp = (J[idx + z_pos] * Sz[idx + z_pos]) / (Sa[idx + z_pos] + Sv[col]);
-        if (isinf(tmp) || isnan(tmp)) {
-            delta_mz[idx] = zeroPad;
-            delta_Sz[idx] = zeroPad;
-        } else {
-            delta_mz[idx] = tmp * (y[col] - ma[idx + z_pos]);
-            delta_Sz[idx] = -tmp * (J[idx + z_pos] * Sz[idx + z_pos]);
-        }
-    }
-}
-
-void delta_mzSz_with_indices_multithreading(
-    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &Sz,
-    std::vector<float> &J, std::vector<float> &y, std::vector<float> &Sv,
-    std::vector<int> &udIdx, int z_pos, int ny, int nye, int n,
-    std::vector<float> &delta_mz, std::vector<float> &delta_Sz)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            partition_delta_mzSz_with_indices, std::ref(ma), std::ref(Sa),
-            std::ref(Sz), std::ref(J), std::ref(y), std::ref(Sv),
-            std::ref(udIdx), z_pos, ny, nye, start_idx, end_idx,
-            std::ref(delta_mz), std::ref(delta_Sz));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 void delta_mzSz(std::vector<float> &ma, std::vector<float> &Sa,
                 std::vector<float> &Sz, std::vector<float> &J,
                 std::vector<float> &y, std::vector<float> &Sv, int z_pos, int n,
@@ -123,56 +66,6 @@ void delta_mzSz(std::vector<float> &ma, std::vector<float> &Sa,
             delta_mz[col] = tmp * (y[col] - ma[col + z_pos]);
             delta_Sz[col] = -tmp * (J[col + z_pos] * Sz[col + z_pos]);
         }
-    }
-}
-
-void partition_delta_mzSz(std::vector<float> &ma, std::vector<float> &Sa,
-                          std::vector<float> &Sz, std::vector<float> &J,
-                          std::vector<float> &y, std::vector<float> &Sv,
-                          int z_pos, int start_idx, int end_idx,
-                          std::vector<float> &delta_mz,
-                          std::vector<float> &delta_Sz) {
-    float zeroPad = 0;
-    float tmp = 0;
-    for (int col = start_idx; col < end_idx; col++) {
-        tmp = (J[col + z_pos] * Sz[col + z_pos]) / (Sa[col + z_pos] + Sv[col]);
-        if (isinf(tmp) || isnan(tmp)) {
-            delta_mz[col] = zeroPad;
-            delta_Sz[col] = zeroPad;
-        } else {
-            delta_mz[col] = tmp * (y[col] - ma[col + z_pos]);
-            delta_Sz[col] = -tmp * (J[col + z_pos] * Sz[col + z_pos]);
-        }
-    }
-}
-
-void delta_mzSz_multithreading(std::vector<float> &ma, std::vector<float> &Sa,
-                               std::vector<float> &Sz, std::vector<float> &J,
-                               std::vector<float> &y, std::vector<float> &Sv,
-                               int z_pos, int n, std::vector<float> &delta_mz,
-                               std::vector<float> &delta_Sz) {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            partition_delta_mzSz, std::ref(ma), std::ref(Sa), std::ref(Sz),
-            std::ref(J), std::ref(y), std::ref(Sv), z_pos, start_idx, end_idx,
-            std::ref(delta_mz), std::ref(delta_Sz));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
     }
 }
 
@@ -228,62 +121,6 @@ Args:
         } else {
             delta_S[col + z_delta_pos] = tmp / Sz[col + z_pos];
         }
-    }
-}
-
-void partition_inovation(std::vector<float> &Sz, std::vector<float> &delta_mz,
-                         std::vector<float> &delta_Sz, int z_pos,
-                         int z_delta_pos, int start_idx, int end_idx,
-                         std::vector<float> &delta_m,
-                         std::vector<float> &delta_S)
-
-{
-    float zeroPad = 0;
-    float tmp_mz = 0;
-    float tmp_Sz = 0;
-    for (int col = start_idx; col < end_idx; col++) {
-        tmp_mz = delta_mz[col] / Sz[col + z_pos];
-        tmp_Sz = delta_Sz[col] / Sz[col + z_pos];
-        if (isinf(tmp_mz) || isnan(tmp_mz) || isinf(tmp_Sz) || isnan(tmp_Sz)) {
-            delta_m[col + z_delta_pos] = zeroPad;
-            delta_S[col + z_delta_pos] = zeroPad;
-        } else {
-            delta_m[col + z_delta_pos] = tmp_mz;
-            delta_S[col + z_delta_pos] = tmp_Sz / Sz[col + z_pos];
-        }
-    }
-}
-
-void inovation_multithreading(std::vector<float> &Sz,
-                              std::vector<float> &delta_mz,
-                              std::vector<float> &delta_Sz, int z_pos,
-                              int z_delta_pos, int n,
-                              std::vector<float> &delta_m,
-                              std::vector<float> &delta_S)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(partition_inovation, std::ref(Sz), std::ref(delta_mz),
-                        std::ref(delta_Sz), z_pos, z_delta_pos, start_idx,
-                        end_idx, std::ref(delta_m), std::ref(delta_S));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
     }
 }
 
@@ -365,13 +202,175 @@ Args:
     }
 }
 
-void partition_fc_delta_mzSz(std::vector<float> &mw, std::vector<float> &Sz,
-                             std::vector<float> &J, std::vector<float> &delta_m,
-                             std::vector<float> &delta_S, int w_pos,
-                             int z_pos_in, int z_pos_out, int ni, int no, int B,
-                             int start_idx, int end_idx,
-                             std::vector<float> &delta_mz,
-                             std::vector<float> &delta_Sz)
+//////////////////////////////////////////////////////////////////////
+/// MULTITHREAD VERSION
+//////////////////////////////////////////////////////////////////////
+void delta_mzSz_with_indices_worker(
+    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &Sz,
+    std::vector<float> &J, std::vector<float> &y, std::vector<float> &Sv,
+    std::vector<int> &udIdx, int z_pos, int ny, int nye, int start_idx,
+    int end_idx, std::vector<float> &delta_mz, std::vector<float> &delta_Sz)
+
+{
+    float zeroPad = 0;
+    float tmp = 0;
+    int idx = 0;
+    for (int col = start_idx; col < end_idx; col++) {
+        // minus 1 due to matlab's indexing
+        idx = udIdx[col] + (col / nye) * ny - 1;
+        tmp = (J[idx + z_pos] * Sz[idx + z_pos]) / (Sa[idx + z_pos] + Sv[col]);
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_mz[idx] = zeroPad;
+            delta_Sz[idx] = zeroPad;
+        } else {
+            delta_mz[idx] = tmp * (y[col] - ma[idx + z_pos]);
+            delta_Sz[idx] = -tmp * (J[idx + z_pos] * Sz[idx + z_pos]);
+        }
+    }
+}
+
+void delta_mzSz_with_indices_multithreading(
+    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &Sz,
+    std::vector<float> &J, std::vector<float> &y, std::vector<float> &Sv,
+    std::vector<int> &udIdx, int z_pos, int ny, int nye, int n,
+    unsigned int NUM_THREADS, std::vector<float> &delta_mz,
+    std::vector<float> &delta_Sz)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(delta_mzSz_with_indices_worker, std::ref(ma),
+                                 std::ref(Sa), std::ref(Sz), std::ref(J),
+                                 std::ref(y), std::ref(Sv), std::ref(udIdx),
+                                 z_pos, ny, nye, start_idx, end_idx,
+                                 std::ref(delta_mz), std::ref(delta_Sz));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void delta_mzSz_worker(std::vector<float> &ma, std::vector<float> &Sa,
+                       std::vector<float> &Sz, std::vector<float> &J,
+                       std::vector<float> &y, std::vector<float> &Sv, int z_pos,
+                       int start_idx, int end_idx, std::vector<float> &delta_mz,
+                       std::vector<float> &delta_Sz) {
+    float zeroPad = 0;
+    float tmp = 0;
+    for (int col = start_idx; col < end_idx; col++) {
+        tmp = (J[col + z_pos] * Sz[col + z_pos]) / (Sa[col + z_pos] + Sv[col]);
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_mz[col] = zeroPad;
+            delta_Sz[col] = zeroPad;
+        } else {
+            delta_mz[col] = tmp * (y[col] - ma[col + z_pos]);
+            delta_Sz[col] = -tmp * (J[col + z_pos] * Sz[col + z_pos]);
+        }
+    }
+}
+
+void delta_mzSz_multithreading(std::vector<float> &ma, std::vector<float> &Sa,
+                               std::vector<float> &Sz, std::vector<float> &J,
+                               std::vector<float> &y, std::vector<float> &Sv,
+                               int z_pos, int n, unsigned int NUM_THREADS,
+                               std::vector<float> &delta_mz,
+                               std::vector<float> &delta_Sz) {
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(delta_mzSz_worker, std::ref(ma), std::ref(Sa),
+                                 std::ref(Sz), std::ref(J), std::ref(y),
+                                 std::ref(Sv), z_pos, start_idx, end_idx,
+                                 std::ref(delta_mz), std::ref(delta_Sz));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void inovation_worker(std::vector<float> &Sz, std::vector<float> &delta_mz,
+                      std::vector<float> &delta_Sz, int z_pos, int z_delta_pos,
+                      int start_idx, int end_idx, std::vector<float> &delta_m,
+                      std::vector<float> &delta_S)
+
+{
+    float zeroPad = 0;
+    float tmp_mz = 0;
+    float tmp_Sz = 0;
+    for (int col = start_idx; col < end_idx; col++) {
+        tmp_mz = delta_mz[col] / Sz[col + z_pos];
+        tmp_Sz = delta_Sz[col] / Sz[col + z_pos];
+        if (isinf(tmp_mz) || isnan(tmp_mz) || isinf(tmp_Sz) || isnan(tmp_Sz)) {
+            delta_m[col + z_delta_pos] = zeroPad;
+            delta_S[col + z_delta_pos] = zeroPad;
+        } else {
+            delta_m[col + z_delta_pos] = tmp_mz;
+            delta_S[col + z_delta_pos] = tmp_Sz / Sz[col + z_pos];
+        }
+    }
+}
+
+void inovation_multithreading(std::vector<float> &Sz,
+                              std::vector<float> &delta_mz,
+                              std::vector<float> &delta_Sz, int z_pos,
+                              int z_delta_pos, int n, unsigned int NUM_THREADS,
+                              std::vector<float> &delta_m,
+                              std::vector<float> &delta_S)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(inovation_worker, std::ref(Sz), std::ref(delta_mz),
+                        std::ref(delta_Sz), z_pos, z_delta_pos, start_idx,
+                        end_idx, std::ref(delta_m), std::ref(delta_S));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void fc_delta_mzSz_worker(std::vector<float> &mw, std::vector<float> &Sz,
+                          std::vector<float> &J, std::vector<float> &delta_m,
+                          std::vector<float> &delta_S, int w_pos, int z_pos_in,
+                          int z_pos_out, int ni, int no, int B, int start_idx,
+                          int end_idx, std::vector<float> &delta_mz,
+                          std::vector<float> &delta_Sz)
 
 {
     for (int j = start_idx; j < end_idx; j++) {
@@ -401,11 +400,11 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
                                   std::vector<float> &delta_m,
                                   std::vector<float> &delta_S, int w_pos,
                                   int z_pos_in, int z_pos_out, int ni, int no,
-                                  int B, std::vector<float> &delta_mz,
+                                  int B, unsigned int NUM_THREADS,
+                                  std::vector<float> &delta_mz,
                                   std::vector<float> &delta_Sz)
 
 {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
     const int tot_ops = ni * B;
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
@@ -421,7 +420,7 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(partition_fc_delta_mzSz, std::ref(mw), std::ref(Sz),
+            std::thread(fc_delta_mzSz_worker, std::ref(mw), std::ref(Sz),
                         std::ref(J), std::ref(delta_m), std::ref(delta_S),
                         w_pos, z_pos_in, z_pos_out, ni, no, B, start_idx,
                         end_idx, std::ref(delta_mz), std::ref(delta_Sz));
@@ -431,6 +430,7 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
         threads[i].join();
     }
 }
+
 ///////////////////////////////////////////////////////////////////////////
 /// NOISE INFERENCE
 ///////////////////////////////////////////////////////////////////////////
@@ -858,10 +858,10 @@ void output_delta_mz_Sz_cpu(Network &net, NetState &state, Obs &obs,
     int n_state_last_layer = net.batch_size * net.nodes.back();
     if (!net.is_idx_ud) {
         if (n_state_last_layer > net.min_operations && net.multithreading) {
-            delta_mzSz_multithreading(state.ma, state.Sa, state.Sz, state.J,
-                                      obs.y_batch, obs.V_batch,
-                                      net.z_pos.back(), n_state_last_layer,
-                                      d_state.delta_mz, d_state.delta_Sz);
+            delta_mzSz_multithreading(
+                state.ma, state.Sa, state.Sz, state.J, obs.y_batch, obs.V_batch,
+                net.z_pos.back(), n_state_last_layer, net.num_cpu_threads,
+                d_state.delta_mz, d_state.delta_Sz);
         } else {
             delta_mzSz(state.ma, state.Sa, state.Sz, state.J, obs.y_batch,
                        obs.V_batch, net.z_pos.back(), n_state_last_layer,
@@ -877,7 +877,8 @@ void output_delta_mz_Sz_cpu(Network &net, NetState &state, Obs &obs,
             delta_mzSz_with_indices_multithreading(
                 state.ma, state.Sa, state.Sz, state.J, obs.y_batch, obs.V_batch,
                 obs.idx_ud_batch, net.z_pos.back(), net.nodes.back(), net.nye,
-                n_state_last_layer_e, d_state.delta_mz, d_state.delta_Sz);
+                n_state_last_layer_e, net.num_cpu_threads, d_state.delta_mz,
+                d_state.delta_Sz);
         } else {
             delta_mzSz_with_indices(
                 state.ma, state.Sa, state.Sz, state.J, obs.y_batch, obs.V_batch,
@@ -938,8 +939,8 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
     if (n_state_last_layer > net.min_operations && net.multithreading) {
         inovation_multithreading(state.Sz, d_state.delta_mz, d_state.delta_Sz,
                                  net.z_pos.back(), net.z_pos.back(),
-                                 n_state_last_layer, d_state.delta_m,
-                                 d_state.delta_S);
+                                 n_state_last_layer, net.num_cpu_threads,
+                                 d_state.delta_m, d_state.delta_S);
     } else {
         inovation_mean(state.Sz, d_state.delta_mz, net.z_pos.back(),
                        net.z_pos.back(), n_state_last_layer, d_state.delta_m);
@@ -964,7 +965,7 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
                 fc_delta_mzSz_multithreading(
                     theta.mw, state.Sz, state.J, d_state.delta_m,
                     d_state.delta_S, w_pos_in, z_pos_in, z_pos_out, ni, no, B,
-                    d_state.delta_mz, d_state.delta_Sz);
+                    net.num_cpu_threads, d_state.delta_mz, d_state.delta_Sz);
 
             } else {
                 fc_delta_mz(theta.mw, state.Sz, state.J, d_state.delta_m,
@@ -978,7 +979,8 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         if (niB > net.min_operations && net.multithreading) {
             inovation_multithreading(state.Sz, d_state.delta_mz,
                                      d_state.delta_Sz, z_pos_in, z_pos_in, niB,
-                                     d_state.delta_m, d_state.delta_S);
+                                     net.num_cpu_threads, d_state.delta_m,
+                                     d_state.delta_S);
         } else {
             inovation_mean(state.Sz, d_state.delta_mz, z_pos_in, z_pos_in, niB,
                            d_state.delta_m);

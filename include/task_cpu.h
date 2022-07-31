@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Updated:      May 20, 2022
-// Updated:      July 23, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,6 @@
 #include "data_transfer_cpu.h"
 #include "dataloader.h"
 #include "derivative_calcul_cpu.h"
-#include "feature_availability.h"
 #include "feed_forward_cpu.h"
 #include "global_param_update_cpu.h"
 #include "indices.h"

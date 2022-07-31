@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 24, 2022
+// Updated:      July 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -635,30 +635,30 @@ void net_default(Network &net)
 }
 
 void initialize_derivative_state(Network &net, NetState &state) {
-    int max_num_nodes = net.n_max_state / net.batch_size;
+    int num_max_nodes = net.n_max_state / net.batch_size;
     state.derv_state.mda.resize(net.n_state, 1);
     state.derv_state.Sda.resize(net.n_state, 0);
     state.derv_state.md_node.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Sd_node.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Cdo_diwi.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.md_layer.resize(net.n_state, 1);
     state.derv_state.Sd_layer.resize(net.n_state, 0);
     state.derv_state.md_layer_m.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Sd_layer_m.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.md_layer_m_o.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Cdi_zi.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Cdo_zi.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
     state.derv_state.Cld_zi.resize(net.n_state, 0);
     state.derv_state.Cld_zi_m.resize(
-        max_num_nodes * max_num_nodes * net.batch_size, 0);
+        num_max_nodes * num_max_nodes * net.batch_size, 0);
 }
 
 NetState initialize_net_states(Network &net) {
@@ -1143,6 +1143,19 @@ bool is_fc(std::vector<int> &layers, LayerLabel &layer_names)
 {
     for (int i = 0; i < layers.size(); i++) {
         if (layers[i] == layer_names.fc) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_leakyrelu(std::vector<int> &activations)
+/* Does network contain the leakyrely activation?
+ */
+{
+    for (int i = 0; i < activations.size(); i++) {
+        // TODO: Put label instead of integer for leakyrelu
+        if (activations[i] == 6) {
             return true;
         }
     }

@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      July 17, 2022
+// Updated:      July 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -102,6 +102,7 @@ struct Network {
         multithreading: Whether or not to run parallel computing using multiple
             threads
         collect_derivative: Whether or not to compute derivative
+        num_cpu_threads: Number of threads for gpu
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
 
@@ -149,8 +150,10 @@ struct Network {
     bool multithreading = true;
     bool is_full_cov = false;
     bool collect_derivative = false;
+    unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
     int min_operations = 1000;
+    std::string device = "cpu";
 };
 
 // NETWORK STATE
@@ -276,6 +279,19 @@ struct IndexOut {
     std::vector<int> Fmwa_1, Fmwa_2, FCzwa_1, FCzwa_2, Szz_ud, pooling, FCwz_2,
         Swz_ud;
     std::vector<int> Fmwa_2_sc, FCzwa_1_sc, FCzwa_2_sc, Szz_ud_sc;
+};
+
+// USER INPUT
+
+struct UserInput {
+    std::string model_name, net_name, task_name, data_name, encoder_net_name,
+        decoder_net_name;
+    std::string device = "cuda";
+    int num_classes, num_epochs, num_train_data, num_test_data;
+    bool load_param = false, debug = false;
+    std::vector<float> mu, sigma;
+    std::vector<std::string> x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    bool data_norm = true;
 };
 
 // IMAGE DATA

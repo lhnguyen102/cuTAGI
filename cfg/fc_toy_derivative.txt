@@ -5,6 +5,6 @@ batch_size: 10
 sigma_v: 0.3
 sigma_v_min: 0.1
 decay_factor_sigma_v: 0.99
-multithreading: true
+multithreading: false
 collect_derivative: true
 init_method: He

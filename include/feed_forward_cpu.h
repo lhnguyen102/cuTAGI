@@ -3,7 +3,7 @@
 // Description:  Header file for CPU forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      July 23, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,7 @@ void initialize_states_cpu(std::vector<float> &x, std::vector<float> &Sx,
                            NetState &state);
 void initialize_states_multithreading(std::vector<float> &x,
                                       std::vector<float> &Sx, int niB,
+                                      unsigned int NUM_THREADS,
                                       NetState &state);
 
 void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,

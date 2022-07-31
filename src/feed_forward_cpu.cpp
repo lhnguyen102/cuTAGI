@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      July 24, 2022
+// Updated:      July 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,182 +182,6 @@ Args:
     }
 }
 
-void partition_fc_mean_var(std::vector<float> &mw, std::vector<float> &Sw,
-                           std::vector<float> &mb, std::vector<float> &Sb,
-                           std::vector<float> &ma, std::vector<float> &Sa,
-                           int w_pos, int b_pos, int z_pos_in, int z_pos_out,
-                           int m, int n, int k, int start_idx, int end_idx,
-                           std::vector<float> &mz, std::vector<float> &Sz) {
-    float ma_tmp;
-    float Sa_tmp;
-    for (int i = start_idx; i < end_idx; i++) {
-        int row = i / k;
-        int col = i % k;
-        float sum_mz = 0.0f;
-        float sum_Sz = 0.0f;
-        for (int j = 0; j < n; j++) {
-            ma_tmp = ma[n * col + j + z_pos_in];
-            Sa_tmp = Sa[n * col + j + z_pos_in];
-            sum_mz += mw[row * n + j + w_pos] * ma_tmp;
-            sum_Sz += (mw[row * n + j + w_pos] * mw[row * n + j + w_pos] +
-                       Sw[row * n + j + w_pos]) *
-                          Sa_tmp +
-                      Sw[row * n + j + w_pos] * ma_tmp * ma_tmp;
-        }
-        mz[col * m + row + z_pos_out] = sum_mz + mb[row + b_pos];
-        Sz[col * m + row + z_pos_out] = sum_Sz + Sb[row + b_pos];
-    }
-}
-
-void fc_mean_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
-                                std::vector<float> &mb, std::vector<float> &Sb,
-                                std::vector<float> &ma, std::vector<float> &Sa,
-                                int w_pos, int b_pos, int z_pos_in,
-                                int z_pos_out, int m, int n, int k,
-                                std::vector<float> &mz, std::vector<float> &Sz)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int tot_ops = m * k;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            partition_fc_mean_var, std::ref(mw), std::ref(Sw), std::ref(mb),
-            std::ref(Sb), std::ref(ma), std::ref(Sa), w_pos, b_pos, z_pos_in,
-            z_pos_out, m, n, k, start_idx, end_idx, std::ref(mz), std::ref(Sz));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
-void partition_full_cov(std::vector<float> &mw, std::vector<float> &Sa_f,
-                        int w_pos, int no, int ni, int B, int start_idx,
-                        int end_idx, std::vector<float> &Sz_fp) {
-    int tu, col, row, k;
-    float Sa_in;
-    for (int j = start_idx; j < end_idx; j++) {
-        row = j / ((no * B - 1) % no + 1);
-        col = j % ((no * B - 1) % no + 1);
-        float sum = 0.0f;
-        for (int i = 0; i < ni * ni; i++) {
-            if ((i / ni) > (i % ni))  // Upper triangle
-            {
-                tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) + i / ni);
-            } else {
-                tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) + i % ni);
-            }
-            Sa_in = Sa_f[tu + (row / no) * (ni * (ni + 1)) / 2];
-            sum += mw[i % ni + (row % no) * ni + w_pos] * Sa_in *
-                   mw[i / ni + (col % no) * ni + w_pos];
-        }
-        k = no * col - ((col * (col + 1)) / 2) + row % no +
-            (row / no) * (((no + 1) * no) / 2);
-        Sz_fp[k] = sum;
-    }
-}
-
-void fc_full_cov_multithreading(std::vector<float> &mw,
-                                std::vector<float> &Sa_f, int w_pos, int no,
-                                int ni, int B, std::vector<float> &Sz_fp) {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int tot_ops = no * B * no;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(partition_full_cov, std::ref(mw), std::ref(Sa_f), w_pos,
-                        no, ni, B, start_idx, end_idx, std::ref(Sz_fp));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
-void partition_fc_full_var(std::vector<float> &mw, std::vector<float> &Sw,
-                           std::vector<float> &Sb, std::vector<float> &ma,
-                           std::vector<float> &Sa, std::vector<float> &Sz_fp,
-                           int w_pos, int b_pos, int z_pos_in, int z_pos_out,
-                           int no, int ni, int B, int start_idx, int end_idx,
-                           std::vector<float> &Sz, std::vector<float> &Sz_f) {
-    int col, row, i, k;
-    float final_sum;
-    for (int j = start_idx; j < end_idx; j++) {
-        row = j / B;
-        col = j % B;
-        float sum = 0.0f;
-        for (i = 0; i < ni; i++) {
-            sum += Sw[row * ni + i + w_pos] * Sa[ni * col + i + z_pos_in] +
-                   Sw[row * ni + i + w_pos] * ma[ni * col + i + z_pos_in] *
-                       ma[ni * col + i + z_pos_in];
-        }
-        k = no * row - (row * (row - 1)) / 2 + col * (no * (no + 1)) / 2;
-        final_sum = sum + Sb[row + b_pos] + Sz_fp[k];
-        Sz[col * no + row + z_pos_out] = final_sum;
-        Sz_f[k] = final_sum;
-    }
-}
-
-void fc_full_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
-                                std::vector<float> &Sb, std::vector<float> &ma,
-                                std::vector<float> &Sa,
-                                std::vector<float> &Sz_fp, int w_pos, int b_pos,
-                                int z_pos_in, int z_pos_out, int no, int ni,
-                                int B, std::vector<float> &Sz,
-                                std::vector<float> &Sz_f) {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int tot_ops = no * B;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
-    int start_idx, end_idx;
-
-    for (int j = 0; j < (no * (no + 1) / 2) * B; j++) {
-        Sz_f[j] = Sz_fp[j];
-    }
-    std::thread threads[NUM_THREADS];
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_fc_full_var, std::ref(mw),
-                                 std::ref(Sw), std::ref(Sb), std::ref(ma),
-                                 std::ref(Sa), std::ref(Sz_fp), w_pos, b_pos,
-                                 z_pos_in, z_pos_out, no, ni, B, start_idx,
-                                 end_idx, std::ref(Sz), std::ref(Sz_f));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 /// ACTIVATION
 ////////////////////////////////////////////////////////////////////////////////
@@ -385,52 +209,6 @@ Args:
     }
 }
 
-void partition_no_act_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
-                               int zpos, int start_idx, int end_idx,
-                               std::vector<float> &ma, std::vector<float> &J,
-                               std::vector<float> &Sa)
-
-{
-    int col;
-    float onePad = 1;
-    for (col = start_idx; col < end_idx; col++) {
-        ma[col + zpos] = mz[col + zpos];
-        J[col + zpos] = onePad;
-        Sa[col + zpos] = Sz[col + zpos];
-    }
-}
-
-void no_act_mean_var_multithreading(std::vector<float> &mz,
-                                    std::vector<float> &Sz, int z_pos, int n,
-                                    std::vector<float> &ma,
-                                    std::vector<float> &J,
-                                    std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_no_act_mean_var, std::ref(mz),
-                                 std::ref(Sz), z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 void tanh_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
                        int n, std::vector<float> &ma, std::vector<float> &J,
                        std::vector<float> &Sa) {
@@ -444,50 +222,6 @@ void tanh_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
     }
 }
 
-void partition_tanh_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
-                             int zpos, int start_idx, int end_idx,
-                             std::vector<float> &ma, std::vector<float> &J,
-                             std::vector<float> &Sa) {
-    int col;
-    float tmp = 0;
-    for (col = start_idx; col < end_idx; col++) {
-        tmp = tanhf(mz[col + zpos]);
-        ma[col + zpos] = tmp;
-        J[col + zpos] = (1 - tmp * tmp);
-        Sa[col + zpos] = (1 - tmp * tmp) * Sz[col + zpos] * (1 - tmp * tmp);
-    }
-}
-
-void tanh_mean_var_multithreading(std::vector<float> &mz,
-                                  std::vector<float> &Sz, int z_pos, int n,
-                                  std::vector<float> &ma, std::vector<float> &J,
-                                  std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_tanh_mean_var, std::ref(mz),
-                                 std::ref(Sz), z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 void sigmoid_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                           int zpos, int n, std::vector<float> &ma,
                           std::vector<float> &J, std::vector<float> &Sa) {
@@ -497,51 +231,6 @@ void sigmoid_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         ma[col + zpos] = tmp;
         J[col + zpos] = tmp * (1 - tmp);
         Sa[col + zpos] = tmp * (1 - tmp) * Sz[col + zpos] * tmp * (1 - tmp);
-    }
-}
-
-void partition_sigmoid_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
-                                int zpos, int start_idx, int end_idx,
-                                std::vector<float> &ma, std::vector<float> &J,
-                                std::vector<float> &Sa) {
-    int col;
-    float tmp;
-    for (col = start_idx; col < end_idx; col++) {
-        tmp = 1 / (1 + expf(-mz[col + zpos]));
-        ma[col + zpos] = tmp;
-        J[col + zpos] = tmp * (1 - tmp);
-        Sa[col + zpos] = tmp * (1 - tmp) * Sz[col + zpos] * tmp * (1 - tmp);
-    }
-}
-
-void sigmoid_mean_var_multithreading(std::vector<float> &mz,
-                                     std::vector<float> &Sz, int z_pos, int n,
-                                     std::vector<float> &ma,
-                                     std::vector<float> &J,
-                                     std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_sigmoid_mean_var, std::ref(mz),
-                                 std::ref(Sz), z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
     }
 }
 
@@ -564,57 +253,6 @@ void relu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
     }
 }
 
-void partition_relu_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
-                             int zpos, int start_idx, int end_idx,
-                             std::vector<float> &ma, std::vector<float> &J,
-                             std::vector<float> &Sa) {
-    float zeroPad = 0;
-    float onePad = 1;
-    float tmp;
-    int col;
-    for (col = start_idx; col < end_idx; col++) {
-        tmp = std::max(mz[col + zpos], zeroPad);
-        ma[col + zpos] = tmp;
-        if (tmp == 0) {
-            J[col + zpos] = zeroPad;
-            Sa[col + zpos] = zeroPad;
-        } else {
-            J[col + zpos] = onePad;
-            Sa[col + zpos] = Sz[col + zpos];
-        }
-    }
-}
-
-void relu_mean_var_multithreading(std::vector<float> &mz,
-                                  std::vector<float> &Sz, int z_pos, int n,
-                                  std::vector<float> &ma, std::vector<float> &J,
-                                  std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_relu_mean_var, std::ref(mz),
-                                 std::ref(Sz), z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 void softplus_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                            int zpos, int n, std::vector<float> &ma,
                            std::vector<float> &J, std::vector<float> &Sa) {
@@ -624,51 +262,6 @@ void softplus_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         tmp = 1 / (1 + expf(-mz[col + zpos]));
         J[col + zpos] = tmp;
         Sa[col + zpos] = tmp * Sz[col + zpos] * tmp;
-    }
-}
-
-void partition_softplus_mean_var(std::vector<float> &mz, std::vector<float> &Sz,
-                                 int zpos, int start_idx, int end_idx,
-                                 std::vector<float> &ma, std::vector<float> &J,
-                                 std::vector<float> &Sa) {
-    float tmp;
-    int col;
-    for (col = start_idx; col < end_idx; col++) {
-        ma[col + zpos] = logf(1 + expf(mz[col + zpos]));
-        tmp = 1 / (1 + expf(-mz[col + zpos]));
-        J[col + zpos] = tmp;
-        Sa[col + zpos] = tmp * Sz[col + zpos] * tmp;
-    }
-}
-
-void softplus_mean_var_multithreading(std::vector<float> &mz,
-                                      std::vector<float> &Sz, int z_pos, int n,
-                                      std::vector<float> &ma,
-                                      std::vector<float> &J,
-                                      std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_softplus_mean_var, std::ref(mz),
-                                 std::ref(Sz), z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
     }
 }
 
@@ -690,60 +283,6 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
             J[col + zpos] = onePad;
             Sa[col + zpos] = Sz[col + zpos];
         }
-    }
-}
-
-void partition_leakyrelu_mean_var(std::vector<float> &mz,
-                                  std::vector<float> &Sz, float alpha, int zpos,
-                                  int start_idx, int end_idx,
-                                  std::vector<float> &ma, std::vector<float> &J,
-                                  std::vector<float> &Sa) {
-    float zeroPad = 0;
-    float onePad = 1;
-    float tmp;
-    int col;
-    for (col = start_idx; col < end_idx; col++) {
-        tmp = std::max(mz[col + zpos], zeroPad);
-        if (tmp == 0) {
-            ma[col + zpos] = alpha * mz[col + zpos];
-            J[col + zpos] = alpha;
-            Sa[col + zpos] = alpha * Sz[col + zpos] * alpha;
-        } else {
-            ma[col + zpos] = tmp;
-            J[col + zpos] = onePad;
-            Sa[col + zpos] = Sz[col + zpos];
-        }
-    }
-}
-
-void leakyrelu_mean_var_multithreading(std::vector<float> &mz,
-                                       std::vector<float> &Sz, float alpha,
-                                       int z_pos, int n, std::vector<float> &ma,
-                                       std::vector<float> &J,
-                                       std::vector<float> &Sa)
-
-{
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(partition_leakyrelu_mean_var, std::ref(mz),
-                                 std::ref(Sz), alpha, z_pos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
     }
 }
 
@@ -809,26 +348,100 @@ void no_act_full_cov(std::vector<float> &Sz_f, int no, int B,
     }
 }
 
-void partition_act_full_cov(std::vector<float> &Sz_f, std::vector<float> &J,
-                            int no, int B, int z_pos_out, int start_idx,
-                            int end_idx, std::vector<float> &Sa_f) {
-    int col, row, idx;
-    for (int j = start_idx; j < end_idx; j++) {
-        row = j / ((no * B - 1) % no + 1);
-        col = j % ((no * B - 1) % no + 1);
-
-        idx = no * col - ((col * (col + 1)) / 2) + row % no +
-              (row / no) * (((no + 1) * no) / 2);
-
-        Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
-                    J[col + (row / no) * no + z_pos_out];
+//////////////////////////////////////////////////////////////////////
+/// MULTITHREAD VERSION
+//////////////////////////////////////////////////////////////////////
+void fc_mean_var_worker(std::vector<float> &mw, std::vector<float> &Sw,
+                        std::vector<float> &mb, std::vector<float> &Sb,
+                        std::vector<float> &ma, std::vector<float> &Sa,
+                        int w_pos, int b_pos, int z_pos_in, int z_pos_out,
+                        int m, int n, int k, int start_idx, int end_idx,
+                        std::vector<float> &mz, std::vector<float> &Sz) {
+    float ma_tmp;
+    float Sa_tmp;
+    for (int i = start_idx; i < end_idx; i++) {
+        int row = i / k;
+        int col = i % k;
+        float sum_mz = 0.0f;
+        float sum_Sz = 0.0f;
+        for (int j = 0; j < n; j++) {
+            ma_tmp = ma[n * col + j + z_pos_in];
+            Sa_tmp = Sa[n * col + j + z_pos_in];
+            sum_mz += mw[row * n + j + w_pos] * ma_tmp;
+            sum_Sz += (mw[row * n + j + w_pos] * mw[row * n + j + w_pos] +
+                       Sw[row * n + j + w_pos]) *
+                          Sa_tmp +
+                      Sw[row * n + j + w_pos] * ma_tmp * ma_tmp;
+        }
+        mz[col * m + row + z_pos_out] = sum_mz + mb[row + b_pos];
+        Sz[col * m + row + z_pos_out] = sum_Sz + Sb[row + b_pos];
     }
 }
 
-void act_full_cov_multithreading(std::vector<float> &Sz_f,
-                                 std::vector<float> &J, int no, int B,
-                                 int z_pos_out, std::vector<float> &Sa_f) {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
+void fc_mean_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
+                                std::vector<float> &mb, std::vector<float> &Sb,
+                                std::vector<float> &ma, std::vector<float> &Sa,
+                                int w_pos, int b_pos, int z_pos_in,
+                                int z_pos_out, int m, int n, int k,
+                                unsigned int NUM_THREADS,
+                                std::vector<float> &mz, std::vector<float> &Sz)
+
+{
+    const int tot_ops = m * k;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            fc_mean_var_worker, std::ref(mw), std::ref(Sw), std::ref(mb),
+            std::ref(Sb), std::ref(ma), std::ref(Sa), w_pos, b_pos, z_pos_in,
+            z_pos_out, m, n, k, start_idx, end_idx, std::ref(mz), std::ref(Sz));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void full_cov_worker(std::vector<float> &mw, std::vector<float> &Sa_f,
+                     int w_pos, int no, int ni, int B, int start_idx,
+                     int end_idx, std::vector<float> &Sz_fp) {
+    int tu, col, row, k;
+    float Sa_in;
+    for (int j = start_idx; j < end_idx; j++) {
+        row = j / ((no * B - 1) % no + 1);
+        col = j % ((no * B - 1) % no + 1);
+        float sum = 0.0f;
+        for (int i = 0; i < ni * ni; i++) {
+            if ((i / ni) > (i % ni))  // Upper triangle
+            {
+                tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) + i / ni);
+            } else {
+                tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) + i % ni);
+            }
+            Sa_in = Sa_f[tu + (row / no) * (ni * (ni + 1)) / 2];
+            sum += mw[i % ni + (row % no) * ni + w_pos] * Sa_in *
+                   mw[i / ni + (col % no) * ni + w_pos];
+        }
+        k = no * col - ((col * (col + 1)) / 2) + row % no +
+            (row / no) * (((no + 1) * no) / 2);
+        Sz_fp[k] = sum;
+    }
+}
+
+void fc_full_cov_multithreading(std::vector<float> &mw,
+                                std::vector<float> &Sa_f, int w_pos, int no,
+                                int ni, int B, unsigned int NUM_THREADS,
+                                std::vector<float> &Sz_fp) {
     const int tot_ops = no * B * no;
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
@@ -844,8 +457,8 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(partition_act_full_cov, std::ref(Sz_f), std::ref(J), no,
-                        B, z_pos_out, start_idx, end_idx, std::ref(Sa_f));
+            std::thread(full_cov_worker, std::ref(mw), std::ref(Sa_f), w_pos,
+                        no, ni, B, start_idx, end_idx, std::ref(Sz_fp));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -853,8 +466,204 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
     }
 }
 
-void partition_no_act_full_cov(std::vector<float> &Sz_f, int start_idx,
-                               int end_idx, std::vector<float> &Sa_f) {
+void fc_full_var_worker(std::vector<float> &mw, std::vector<float> &Sw,
+                        std::vector<float> &Sb, std::vector<float> &ma,
+                        std::vector<float> &Sa, std::vector<float> &Sz_fp,
+                        int w_pos, int b_pos, int z_pos_in, int z_pos_out,
+                        int no, int ni, int B, int start_idx, int end_idx,
+                        std::vector<float> &Sz, std::vector<float> &Sz_f) {
+    int col, row, i, k;
+    float final_sum;
+    for (int j = start_idx; j < end_idx; j++) {
+        row = j / B;
+        col = j % B;
+        float sum = 0.0f;
+        for (i = 0; i < ni; i++) {
+            sum += Sw[row * ni + i + w_pos] * Sa[ni * col + i + z_pos_in] +
+                   Sw[row * ni + i + w_pos] * ma[ni * col + i + z_pos_in] *
+                       ma[ni * col + i + z_pos_in];
+        }
+        k = no * row - (row * (row - 1)) / 2 + col * (no * (no + 1)) / 2;
+        final_sum = sum + Sb[row + b_pos] + Sz_fp[k];
+        Sz[col * no + row + z_pos_out] = final_sum;
+        Sz_f[k] = final_sum;
+    }
+}
+
+void fc_full_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
+                                std::vector<float> &Sb, std::vector<float> &ma,
+                                std::vector<float> &Sa,
+                                std::vector<float> &Sz_fp, int w_pos, int b_pos,
+                                int z_pos_in, int z_pos_out, int no, int ni,
+                                int B, unsigned int NUM_THREADS,
+                                std::vector<float> &Sz,
+                                std::vector<float> &Sz_f) {
+    const int tot_ops = no * B;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+
+    for (int j = 0; j < (no * (no + 1) / 2) * B; j++) {
+        Sz_f[j] = Sz_fp[j];
+    }
+    std::thread threads[NUM_THREADS];
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(fc_full_var_worker, std::ref(mw), std::ref(Sw),
+                                 std::ref(Sb), std::ref(ma), std::ref(Sa),
+                                 std::ref(Sz_fp), w_pos, b_pos, z_pos_in,
+                                 z_pos_out, no, ni, B, start_idx, end_idx,
+                                 std::ref(Sz), std::ref(Sz_f));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void no_act_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                            int zpos, int start_idx, int end_idx,
+                            std::vector<float> &ma, std::vector<float> &J,
+                            std::vector<float> &Sa)
+
+{
+    int col;
+    float onePad = 1;
+    for (col = start_idx; col < end_idx; col++) {
+        ma[col + zpos] = mz[col + zpos];
+        J[col + zpos] = onePad;
+        Sa[col + zpos] = Sz[col + zpos];
+    }
+}
+
+void no_act_mean_var_multithreading(std::vector<float> &mz,
+                                    std::vector<float> &Sz, int z_pos, int n,
+                                    unsigned int NUM_THREADS,
+                                    std::vector<float> &ma,
+                                    std::vector<float> &J,
+                                    std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(no_act_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void tanh_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                          int zpos, int start_idx, int end_idx,
+                          std::vector<float> &ma, std::vector<float> &J,
+                          std::vector<float> &Sa) {
+    int col;
+    float tmp = 0;
+    for (col = start_idx; col < end_idx; col++) {
+        tmp = tanhf(mz[col + zpos]);
+        ma[col + zpos] = tmp;
+        J[col + zpos] = (1 - tmp * tmp);
+        Sa[col + zpos] = (1 - tmp * tmp) * Sz[col + zpos] * (1 - tmp * tmp);
+    }
+}
+
+void tanh_mean_var_multithreading(std::vector<float> &mz,
+                                  std::vector<float> &Sz, int z_pos, int n,
+                                  unsigned int NUM_THREADS,
+                                  std::vector<float> &ma, std::vector<float> &J,
+                                  std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(tanh_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void sigmoid_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                             int zpos, int start_idx, int end_idx,
+                             std::vector<float> &ma, std::vector<float> &J,
+                             std::vector<float> &Sa) {
+    int col;
+    float tmp;
+    for (col = start_idx; col < end_idx; col++) {
+        tmp = 1 / (1 + expf(-mz[col + zpos]));
+        ma[col + zpos] = tmp;
+        J[col + zpos] = tmp * (1 - tmp);
+        Sa[col + zpos] = tmp * (1 - tmp) * Sz[col + zpos] * tmp * (1 - tmp);
+    }
+}
+
+void sigmoid_mean_var_multithreading(std::vector<float> &mz,
+                                     std::vector<float> &Sz, int z_pos, int n,
+                                     unsigned int NUM_THREADS,
+                                     std::vector<float> &ma,
+                                     std::vector<float> &J,
+                                     std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(sigmoid_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void no_act_full_cov_worker(std::vector<float> &Sz_f, int start_idx,
+                            int end_idx, std::vector<float> &Sa_f) {
     int col;
     for (col = start_idx; col < end_idx; col++) {
         Sa_f[col] = Sz_f[col];
@@ -862,8 +671,8 @@ void partition_no_act_full_cov(std::vector<float> &Sz_f, int start_idx,
 }
 
 void no_act_full_cov_multithreading(std::vector<float> &Sz_f, int no, int B,
+                                    unsigned int NUM_THREADS,
                                     std::vector<float> &Sa_f) {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
     const int tot_ops = (no * (no + 1)) / 2 * B;
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
@@ -878,8 +687,199 @@ void no_act_full_cov_multithreading(std::vector<float> &Sz_f, int no, int B,
             start_idx = n_batch * i + rem_batch;
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(partition_no_act_full_cov, std::ref(Sz_f),
+        threads[i] = std::thread(no_act_full_cov_worker, std::ref(Sz_f),
                                  start_idx, end_idx, std::ref(Sa_f));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void relu_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                          int zpos, int start_idx, int end_idx,
+                          std::vector<float> &ma, std::vector<float> &J,
+                          std::vector<float> &Sa) {
+    float zeroPad = 0;
+    float onePad = 1;
+    float tmp;
+    int col;
+    for (col = start_idx; col < end_idx; col++) {
+        tmp = std::max(mz[col + zpos], zeroPad);
+        ma[col + zpos] = tmp;
+        if (tmp == 0) {
+            J[col + zpos] = zeroPad;
+            Sa[col + zpos] = zeroPad;
+        } else {
+            J[col + zpos] = onePad;
+            Sa[col + zpos] = Sz[col + zpos];
+        }
+    }
+}
+
+void relu_mean_var_multithreading(std::vector<float> &mz,
+                                  std::vector<float> &Sz, int z_pos, int n,
+                                  unsigned int NUM_THREADS,
+                                  std::vector<float> &ma, std::vector<float> &J,
+                                  std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(relu_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void softplus_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                              int zpos, int start_idx, int end_idx,
+                              std::vector<float> &ma, std::vector<float> &J,
+                              std::vector<float> &Sa) {
+    float tmp;
+    int col;
+    for (col = start_idx; col < end_idx; col++) {
+        ma[col + zpos] = logf(1 + expf(mz[col + zpos]));
+        tmp = 1 / (1 + expf(-mz[col + zpos]));
+        J[col + zpos] = tmp;
+        Sa[col + zpos] = tmp * Sz[col + zpos] * tmp;
+    }
+}
+
+void softplus_mean_var_multithreading(std::vector<float> &mz,
+                                      std::vector<float> &Sz, int z_pos, int n,
+                                      unsigned int NUM_THREADS,
+                                      std::vector<float> &ma,
+                                      std::vector<float> &J,
+                                      std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(softplus_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void leakyrelu_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
+                               float alpha, int zpos, int start_idx,
+                               int end_idx, std::vector<float> &ma,
+                               std::vector<float> &J, std::vector<float> &Sa) {
+    float zeroPad = 0;
+    float onePad = 1;
+    float tmp;
+    int col;
+    for (col = start_idx; col < end_idx; col++) {
+        tmp = std::max(mz[col + zpos], zeroPad);
+        if (tmp == 0) {
+            ma[col + zpos] = alpha * mz[col + zpos];
+            J[col + zpos] = alpha;
+            Sa[col + zpos] = alpha * Sz[col + zpos] * alpha;
+        } else {
+            ma[col + zpos] = tmp;
+            J[col + zpos] = onePad;
+            Sa[col + zpos] = Sz[col + zpos];
+        }
+    }
+}
+
+void leakyrelu_mean_var_multithreading(
+    std::vector<float> &mz, std::vector<float> &Sz, float alpha, int z_pos,
+    int n, unsigned int NUM_THREADS, std::vector<float> &ma,
+    std::vector<float> &J, std::vector<float> &Sa)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(leakyrelu_mean_var_worker, std::ref(mz),
+                                 std::ref(Sz), alpha, z_pos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void act_full_cov_worker(std::vector<float> &Sz_f, std::vector<float> &J,
+                         int no, int B, int z_pos_out, int start_idx,
+                         int end_idx, std::vector<float> &Sa_f) {
+    int col, row, idx;
+    for (int j = start_idx; j < end_idx; j++) {
+        row = j / ((no * B - 1) % no + 1);
+        col = j % ((no * B - 1) % no + 1);
+
+        idx = no * col - ((col * (col + 1)) / 2) + row % no +
+              (row / no) * (((no + 1) * no) / 2);
+
+        Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
+                    J[col + (row / no) * no + z_pos_out];
+    }
+}
+
+void act_full_cov_multithreading(std::vector<float> &Sz_f,
+                                 std::vector<float> &J, int no, int B,
+                                 int z_pos_out, unsigned int NUM_THREADS,
+                                 std::vector<float> &Sa_f) {
+    const int tot_ops = no * B * no;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(act_full_cov_worker, std::ref(Sz_f), std::ref(J), no, B,
+                        z_pos_out, start_idx, end_idx, std::ref(Sa_f));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -932,10 +932,9 @@ void partition_states_init(std::vector<float> &x, std::vector<float> &Sx,
 }
 void initialize_states_multithreading(std::vector<float> &x,
                                       std::vector<float> &Sx, int niB,
-                                      NetState &state)
+                                      unsigned int NUM_THREADS, NetState &state)
 
 {
-    unsigned int NUM_THREADS = std::thread::hardware_concurrency();
     const int n_batch = niB / NUM_THREADS;
     const int rem_batch = niB % NUM_THREADS;
     int start_idx, end_idx;
@@ -996,7 +995,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
-                        ni, B, state.mz, state.Sz);
+                        ni, B, net.num_cpu_threads, state.mz, state.Sz);
 
                 } else {
                     fc_mean_cpu(theta.mw, theta.mb, state.ma, w_pos_in,
@@ -1011,15 +1010,16 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
-                        ni, B, state.mz, state.Sz);
+                        ni, B, net.num_cpu_threads, state.mz, state.Sz);
 
                     fc_full_cov_multithreading(theta.mw, state.Sa_f, w_pos_in,
-                                               no, ni, B, state.Sz_fp);
+                                               no, ni, B, net.num_cpu_threads,
+                                               state.Sz_fp);
 
                     fc_full_var_multithreading(
                         theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa,
                         state.Sz_fp, w_pos_in, b_pos_in, z_pos_in, z_pos_out,
-                        no, ni, B, state.Sz, state.Sz_f);
+                        no, ni, B, net.num_cpu_threads, state.Sz, state.Sz_f);
 
                 } else {
                     fc_mean_cpu(theta.mw, theta.mb, state.ma, w_pos_in,
@@ -1043,7 +1043,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         {
             if (no * B > net.min_operations && net.multithreading) {
                 tanh_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
-                                             no_B, state.ma, state.J, state.Sa);
+                                             no_B, net.num_cpu_threads,
+                                             state.ma, state.J, state.Sa);
             } else {
                 tanh_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B, state.ma,
                                   state.J, state.Sa);
@@ -1052,8 +1053,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         {
             if (no * B > net.min_operations && net.multithreading) {
                 sigmoid_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
-                                                no_B, state.ma, state.J,
-                                                state.Sa);
+                                                no_B, net.num_cpu_threads,
+                                                state.ma, state.J, state.Sa);
 
             } else {
                 sigmoid_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B,
@@ -1063,7 +1064,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         {
             if (no * B > net.min_operations && net.multithreading) {
                 relu_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
-                                             no_B, state.ma, state.J, state.Sa);
+                                             no_B, net.num_cpu_threads,
+                                             state.ma, state.J, state.Sa);
             } else {
                 relu_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B, state.ma,
                                   state.J, state.Sa);
@@ -1072,8 +1074,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         {
             if (no * B > net.min_operations && net.multithreading) {
                 softplus_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
-                                                 no_B, state.ma, state.J,
-                                                 state.Sa);
+                                                 no_B, net.num_cpu_threads,
+                                                 state.ma, state.J, state.Sa);
 
             } else {
                 softplus_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B,
@@ -1082,9 +1084,9 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         } else if (net.activations[j] == 6)  // leaky ReLU
         {
             if (no * B > net.min_operations && net.multithreading) {
-                leakyrelu_mean_var_multithreading(state.mz, state.Sz, net.alpha,
-                                                  z_pos_out, no_B, state.ma,
-                                                  state.J, state.Sa);
+                leakyrelu_mean_var_multithreading(
+                    state.mz, state.Sz, net.alpha, z_pos_out, no_B,
+                    net.num_cpu_threads, state.ma, state.J, state.Sa);
             } else {
                 leakyrelu_mean_var_cpu(state.mz, state.Sz, net.alpha, z_pos_out,
                                        no_B, state.ma, state.J, state.Sa);
@@ -1093,8 +1095,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         {
             if (no * B > net.min_operations && net.multithreading) {
                 no_act_mean_var_multithreading(state.mz, state.Sz, z_pos_out,
-                                               no_B, state.ma, state.J,
-                                               state.Sa);
+                                               no_B, net.num_cpu_threads,
+                                               state.ma, state.J, state.Sa);
             } else {
                 no_act_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B,
                                     state.ma, state.J, state.Sa);
@@ -1105,8 +1107,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         if (net.is_full_cov) {
             if (net.activations[j] == 0) {
                 if (no * B * no > net.min_operations && net.multithreading) {
-                    no_act_full_cov_multithreading(state.Sz_f, no, B,
-                                                   state.Sa_f);
+                    no_act_full_cov_multithreading(
+                        state.Sz_f, no, B, net.num_cpu_threads, state.Sa_f);
                 } else {
                     no_act_full_cov(state.Sz_f, no, B, state.Sa_f);
                 }
@@ -1114,7 +1116,8 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                 if (((no * (no + 1) / 2) * B) > net.min_operations &&
                     net.multithreading) {
                     act_full_cov_multithreading(state.Sz_f, state.J, no, B,
-                                                z_pos_out, state.Sa_f);
+                                                z_pos_out, net.num_cpu_threads,
+                                                state.Sa_f);
                 } else {
                     act_full_cov(state.Sz_f, state.J, no, B, z_pos_out,
                                  state.Sa_f);
@@ -1124,7 +1127,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
 
         // Activaiton derivatives
         if (net.collect_derivative) {
-            compute_activation_derivatives(net, state, j);
+            compute_activation_derivatives_cpu(net, state, j);
         }
     }
     // Split the output layer into output & noise hidden states

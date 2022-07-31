@@ -9,11 +9,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/net_init.h"
 
-void net_init(std::string &net_file, Network &net, Param &theta,
-              NetState &state, IndexOut &idx)
+void net_init(std::string &net_file, std::string &device, Network &net,
+              Param &theta, NetState &state, IndexOut &idx)
 /* Initalize the network
    Args:
     net_file: Filename of the network
+    device: cuda or cpu
     net: Network
     theta: Parameters of the network
     state: Hidden states of the network
@@ -28,18 +29,26 @@ void net_init(std::string &net_file, Network &net, Param &theta,
     net_default(net);
     get_net_props(net);
     get_similar_layer(net);
+    net.device = device;
+
+    // Check feature availability
+    check_feature_availability(net);
+
+    // Indices
     tagi_idx(idx, net);
     index_default(idx);
     theta = initialize_param(net);
     state = initialize_net_states(net);
 }
 
-void reset_net_batchsize(std::string &net_file, Network &net, NetState &state,
-                         IndexOut &idx, int batch_size)
+void reset_net_batchsize(std::string &net_file, std::string &device,
+                         Network &net, NetState &state, IndexOut &idx,
+                         int batch_size)
 /* Reset network's batchsize.
 
 Args:
     net_file: Filename of the network
+    device: cuda or cpu
     net: Network
     state: Hidden states of the network
     idx: Indices of the network
@@ -57,6 +66,12 @@ size of train network is incompatible with the test set.
     net.batch_size = batch_size;
     get_net_props(net);
     get_similar_layer(net);
+    net.device = device;
+
+    // Check feature availability
+    check_feature_availability(net);
+
+    // Indices
     tagi_idx(idx, net);
     index_default(idx);
     state = initialize_net_states(net);
