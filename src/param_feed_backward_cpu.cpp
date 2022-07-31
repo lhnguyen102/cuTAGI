@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      July 30, 2022
+// Updated:      August 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -87,63 +87,6 @@ Args:
     }
 }
 
-void fc_delta_w_worker(std::vector<float> &Sw, std::vector<float> &ma,
-                       std::vector<float> &delta_m, std::vector<float> &delta_S,
-                       int w_pos, int z_pos_in, int z_pos_out, int m, int n,
-                       int k, int start_idx, int end_idx,
-                       std::vector<float> &delta_mw,
-                       std::vector<float> &delta_Sw) {
-    for (int j = start_idx; j < end_idx; j++) {
-        int row = j / k;
-        int col = j % k;
-        float sum_mw = 0.0f;
-        float sum_Sw = 0.0f;
-        for (int i = 0; i < n; i++) {
-            sum_mw +=
-                ma[m * i + row + z_pos_in] * delta_m[col + k * i + z_pos_out];
-            sum_Sw += ma[m * i + row + z_pos_in] * ma[m * i + row + z_pos_in] *
-                      delta_S[col + k * i + z_pos_out];
-        }
-        delta_mw[col * m + row + w_pos] = sum_mw * Sw[col * m + row + w_pos];
-        delta_Sw[col * m + row + w_pos] =
-            sum_Sw * Sw[col * m + row + w_pos] * Sw[col * m + row + w_pos];
-    }
-}
-
-void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
-                               std::vector<float> &delta_m,
-                               std::vector<float> &delta_S, int w_pos,
-                               int z_pos_in, int z_pos_out, int m, int n, int k,
-                               unsigned int NUM_THREADS,
-                               std::vector<float> &delta_mw,
-                               std::vector<float> &delta_Sw)
-
-{
-    const int tot_ops = m * k;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            fc_delta_w_worker, std::ref(Sw), std::ref(ma), std::ref(delta_m),
-            std::ref(delta_S), w_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
-            end_idx, std::ref(delta_mw), std::ref(delta_Sw));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
 // This function computes the update amount for bias mean
 // mb_new = mb_old + deltaMb
 void fc_delta_mb(std::vector<float> &C_bz, std::vector<float> &delta_m,
@@ -205,6 +148,66 @@ Args:
             delta_Sb[col * m + row + b_pos] =
                 sum * C_bz[col * m + row + b_pos] * C_bz[col * m + row + b_pos];
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+/// MULTITHREAD VERSION
+//////////////////////////////////////////////////////////////////////
+void fc_delta_w_worker(std::vector<float> &Sw, std::vector<float> &ma,
+                       std::vector<float> &delta_m, std::vector<float> &delta_S,
+                       int w_pos, int z_pos_in, int z_pos_out, int m, int n,
+                       int k, int start_idx, int end_idx,
+                       std::vector<float> &delta_mw,
+                       std::vector<float> &delta_Sw) {
+    for (int j = start_idx; j < end_idx; j++) {
+        int row = j / k;
+        int col = j % k;
+        float sum_mw = 0.0f;
+        float sum_Sw = 0.0f;
+        for (int i = 0; i < n; i++) {
+            sum_mw +=
+                ma[m * i + row + z_pos_in] * delta_m[col + k * i + z_pos_out];
+            sum_Sw += ma[m * i + row + z_pos_in] * ma[m * i + row + z_pos_in] *
+                      delta_S[col + k * i + z_pos_out];
+        }
+        delta_mw[col * m + row + w_pos] = sum_mw * Sw[col * m + row + w_pos];
+        delta_Sw[col * m + row + w_pos] =
+            sum_Sw * Sw[col * m + row + w_pos] * Sw[col * m + row + w_pos];
+    }
+}
+
+void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
+                               std::vector<float> &delta_m,
+                               std::vector<float> &delta_S, int w_pos,
+                               int z_pos_in, int z_pos_out, int m, int n, int k,
+                               unsigned int NUM_THREADS,
+                               std::vector<float> &delta_mw,
+                               std::vector<float> &delta_Sw)
+
+{
+    const int tot_ops = m * k;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            fc_delta_w_worker, std::ref(Sw), std::ref(ma), std::ref(delta_m),
+            std::ref(delta_S), w_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
+            end_idx, std::ref(delta_mw), std::ref(delta_Sw));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
     }
 }
 
