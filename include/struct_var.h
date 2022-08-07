@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      July 27, 2022
+// Updated:      August 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -150,6 +150,7 @@ struct Network {
     bool multithreading = true;
     bool is_full_cov = false;
     bool collect_derivative = false;
+    int num_seq = 1;
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
     int min_operations = 1000;
@@ -200,6 +201,13 @@ struct DerivativeState {
         md_layer_m, Sd_layer_m, md_layer_m_o, Cdi_zi, Cdo_zi, Cld_zi, Cld_zi_m;
 };
 
+struct LSTMState {
+    /*Memory states for lstm network*/
+    std::vector<float> mha, Sha, mf_ga, Sf_ga, Jf_ga, mi_ga, Si_ga, Ji_ga,
+        mc_ga, Sc_ga, Jc_ga, mo_ga, So_ga, Jo_ga, mc, Sc, Jc, mc_prev, Sc_prev,
+        mh_prev, Sh_prev, Ci_c, Co_tanh_c;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -224,6 +232,7 @@ struct NetState {
     std::vector<float> mra, Sra;
     NoiseState noise_state;
     DerivativeState derv_state;
+    LSTMState lstm_state;
 };
 
 // NETWORK PARAMETERS

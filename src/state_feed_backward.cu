@@ -5,7 +5,7 @@
 // Created:      August 07, 2021
 // Updated:      July 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
 
 #include "../include/state_feed_backward.cuh"
