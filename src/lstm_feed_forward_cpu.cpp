@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      August 07, 2022
+// Updated:      August 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,23 +11,28 @@
 
 void cov_input_cell_states_cpu(std::vector<float> &Sha, std::vector<float> &mw,
                                std::vector<float> &Ji_ga,
-                               std::vector<float> &Jc_ga, int w_pos_i, int ni,
-                               int no, int n_seq, int B,
+                               std::vector<float> &Jc_ga, int w_pos_i,
+                               int w_pos_c, int ni, int no, int n_seq, int B,
                                std::vector<float> &Ci_c)
-/*Compute covariance between input gates and cell states*/
+/*Compute covariance between input gates and cell states. Note that we store the
+   hidden state vector as follows: z = [seq1, seq2, ..., seq n] where seq's
+   shape = [1, no * B]
+*/
 {
     float sum;
-    int k;
-    for (int i = 0; i < no * B; i++) {
-        for (int l = 0; l < n_seq; l++) {
-            sum = 0;
-            for (int j = 0; j < ni * B; j++) {
-                k = j % ni + (i % no) * ni;
-                sum += Sha[j + l * n_seq] * mw[w_pos_i + k + ni * no] *
-                       mw[w_pos_i + k + 2 * ni * no];
+    int k, i, m;
+    for (int x = 0; x < B; x++) {
+        for (int y = 0; y < n_seq; y++) {
+            for (int z = 0; z < no; z++) {
+                sum = 0;
+                for (int j = 0; j < ni + no; j++) {
+                    k = j + z * (ni + no);
+                    m = j + y * (ni + no) + x * (n_seq * (ni + no));
+                    sum += mw[w_pos_i + k] * Sha[m] * mw[w_pos_c + k];
+                }
+                i = z + y * no + x * n_seq * no;
+                Ci_c[i] = Ji_ga[i] * sum * Jc_ga[i];
             }
-            Ci_c[i * n_seq + l] =
-                Ji_ga[i * n_seq + l] * sum * Jc_ga[i * n_seq + l];
         }
     }
 }
@@ -37,21 +42,23 @@ void cell_state_mean_var_cpu(
     std::vector<float> &mi_ga, std::vector<float> &Si_ga,
     std::vector<float> &mc_ga, std::vector<float> &Sc_ga,
     std::vector<float> &mc_prev, std::vector<float> &Sc_prev,
-    std::vector<float> &Ci_c, int no, int n_seq, int B, std::vector<float> &mc,
-    std::vector<float> &Sc)
+    std::vector<float> &Ci_c, int z_pos_o, int no, int n_seq, int B,
+    std::vector<float> &mc, std::vector<float> &Sc)
 /*Compute cell states for the current state*/
 {
     int m;
-    for (int i = 0; i < no * B; i++) {
-        for (int l = 0; l < n_seq; l++) {
-            m = i * n_seq + l;
-            mc_ga[m] = mf_ga[m] * mc_prev[m] + mi_ga[m] * mc_ga[m] + Ci_c[m];
-            Sc_ga[m] = Sc_prev[m] * mf_ga[m] * mf_ga[m] +
-                       Sc_prev[m] * Sf_ga[m] +
-                       Sf_ga[m] * mc_prev[m] * mc_prev[m] +
-                       Sc_ga[m] * mi_ga[m] * mi_ga[m] + Si_ga[m] * Sc_ga[m] +
-                       Si_ga[m] * mc_ga[m] * mc_ga[m] + powf(Ci_c[m], 2) +
-                       2 * Ci_c[m] * mi_ga[m] * mc_ga[m];
+    for (int x = 0; x < B; x++) {
+        for (int y = 0; y < n_seq; y++) {
+            for (int z = 0; z < no; z++) {
+                m = z + y * no + x * no * n_seq + z_pos_o;
+                mc[m] = mf_ga[m] * mc_prev[m] + mi_ga[m] * mc_ga[m] + Ci_c[m];
+                Sc[m] = Sc_prev[m] * mf_ga[m] * mf_ga[m] +
+                        Sc_prev[m] * Sf_ga[m] +
+                        Sf_ga[m] * mc_prev[m] * mc_prev[m] +
+                        Sc_ga[m] * mi_ga[m] * mi_ga[m] + Si_ga[m] * Sc_ga[m] +
+                        Si_ga[m] * mc_ga[m] * mc_ga[m] + powf(Ci_c[m], 2) +
+                        2 * Ci_c[m] * mi_ga[m] * mc_ga[m];
+            }
         }
     }
 }
@@ -65,29 +72,31 @@ void cov_output_tanh_cell_states_cpu(
     std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o,
     int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no,
     int n_seq, int B, std::vector<float> &Co_tanh_c)
-/*Compute convariance between output gate and tanh(cell states)*/
+/*Compute convariance between output gates & tanh(cell states)
+ */
+// TODO. DOUBLE CHECK if prev_mc is hidden state or activation unit
 {
     float sum_fo, sum_io, sum_oc;
-    int k, m;
-    for (int i = 0; i < no * B; i++) {
-        for (int l = 0; l < n_seq; l++) {
-            sum_fo = 0;
-            sum_io = 0;
-            sum_oc = 0;
-            for (int j = 0; j < ni * B; j++) {
-                k = j % ni + (i % no) * ni;
-                sum_fo +=
-                    Sha[j + l * n_seq] * mw[w_pos_f + k] * mw[w_pos_o + k];
-                sum_io +=
-                    Sha[j + l * n_seq] * mw[w_pos_i + k] * mw[w_pos_o + k];
-                sum_oc +=
-                    Sha[j + l * n_seq] * mw[w_pos_c + k] * mw[w_pos_o + k];
+    int k, m, i;
+    for (int x = 0; x < B; x++) {
+        for (int y = 0; y < n_seq; y++) {
+            for (int z = 0; z < no; z++) {
+                sum_fo = 0;
+                sum_io = 0;
+                sum_oc = 0;
+                for (int j = 0; j < ni; j++) {
+                    k = j + z * (ni + no);
+                    m = j + y * (ni + no) + x * (n_seq * (ni + no));
+                    sum_fo += mw[w_pos_f + k] * Sha[m] * mw[w_pos_o + k];
+                    sum_io += mw[w_pos_i + k] * Sha[m] * mw[w_pos_o + k];
+                    sum_oc += mw[w_pos_c + k] * Sha[m] * mw[w_pos_o + k];
+                }
+                i = z + y * no + x * n_seq * no + z_pos_o;
+                Co_tanh_c[i - z_pos_o] =
+                    Jc_a[i] * Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
+                    Jc_a[i] * sum_io * Ji_ga[i] * mc_ga[i] +
+                    Jc_a[i] * sum_oc * Jc_ga[i] * mi_ga[i];
             }
-            m = i * n_seq + l;
-            Co_tanh_c[m] =
-                Jc_a[m] * Jo_ga[m] * sum_fo * Jf_ga[m] * mc_prev[m + z_pos_o] +
-                Jc_a[m] * sum_io * Ji_ga[m] * mc_ga[m] +
-                Jc_a[m] * sum_oc * Jc_ga[m] * mi_ga[m];
         }
     }
 }
@@ -100,14 +109,15 @@ void hidden_state_mean_var_lstm_cpu(
 /*Compute mean and variance for hidden states of the LSTM layer*/
 {
     int m;
-    for (int i = 0; i < no * B; i++) {
-        for (int l = 0; l < n_seq; l++) {
-            m = i * n_seq + l;
-            mz[m + z_pos_o] = mo_ga[m] * mc_a[m] + Co_tanh_c[m];
-            Sz[m + z_pos_o] =
-                Sc_a[m] * mo_ga[m] * mo_ga[m] + Sc_a[m] * So_ga[m] +
-                So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[m], 2) +
-                2 * Co_tanh_c[m] * mo_ga[m] * mc_a[m];
+    for (int x = 0; x < B; x++) {
+        for (int y = 0; y < n_seq; y++) {
+            for (int z = 0; z < no; z++) {
+                m = z + y * no + x * no * n_seq + z_pos_o;
+                mz[m] = mo_ga[m] * mc_a[m] + Co_tanh_c[m - z_pos_o];
+                Sz[m] = Sc_a[m] * mo_ga[m] * mo_ga[m] + Sc_a[m] * So_ga[m] +
+                        So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[m], 2) +
+                        2 * Co_tanh_c[m] * mo_ga[m] * mc_a[m];
+            }
         }
     }
 }
@@ -208,15 +218,15 @@ void lstm_mean_var_cpu(Network &net, NetState &state, Param &theta, int l)
     // Cov(input gate, cell state gate)
     cov_input_cell_states_cpu(state.lstm_state.Sha, theta.mw,
                               state.lstm_state.Ji_ga, state.lstm_state.Jc_ga,
-                              w_pos_i, ni, no, net.num_seq, net.batch_size,
-                              state.lstm_state.Ci_c);
+                              w_pos_i, w_pos_c, ni, no, net.num_seq,
+                              net.batch_size, state.lstm_state.Ci_c);
 
     // Mean and variance for the current cell states
     cell_state_mean_var_cpu(
         state.lstm_state.mf_ga, state.lstm_state.Sf_ga, state.lstm_state.mi_ga,
         state.lstm_state.Si_ga, state.lstm_state.mc_ga, state.lstm_state.Sc_ga,
         state.lstm_state.mc_prev, state.lstm_state.Sc_prev,
-        state.lstm_state.Ci_c, no, net.num_seq, net.batch_size,
+        state.lstm_state.Ci_c, z_pos_o, no, net.num_seq, net.batch_size,
         state.lstm_state.mc, state.lstm_state.Sc);
 
     tanh_mean_var_cpu(state.lstm_state.mc, state.lstm_state.Sc, z_pos_ga,
