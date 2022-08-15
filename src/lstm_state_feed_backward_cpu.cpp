@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      August 14, 2022
+// Updated:      August 15, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,53 +77,61 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
     }
 }
 
-void lstm_delta_mean_var_wb(
-    std::vector<float> &Sw, std::vector<float> &Sb, std::vector<float> &ma,
-    std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
-    std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
-    std::vector<float> &Jc_ga, std::vector<float> &mo_ga,
-    std::vector<float> &Jo_ga, std::vector<float> &mc_prev,
-    std::vector<float> &mc, std::vector<float> &Jc, std::vector<float> &delta_m,
-    std::vector<float> &delta_S, int z_pos_i, int z_pos_o, int w_pos_f,
-    int w_pos_i, int w_pos_c, int w_pos_o, int no, int ni, int n_seq, int B,
-    std::vector<float> &delta_mw, std::vector<float> &delta_Sw)
-/*Update parameters for lstm cell*/
+void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &Sb,
+                           std::vector<float> &ma, std::vector<float> &Jf_ga,
+                           std::vector<float> &mi_ga, std::vector<float> &Ji_ga,
+                           std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
+                           std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
+                           std::vector<float> &mc_prev, std::vector<float> &mc,
+                           std::vector<float> &Jc, std::vector<float> &delta_m,
+                           std::vector<float> &delta_S, int z_pos_i,
+                           int z_pos_o, int w_pos_f, int w_pos_i, int w_pos_c,
+                           int w_pos_o, int no, int ni, int n_seq, int B,
+                           std::vector<float> &delta_mw,
+                           std::vector<float> &delta_Sw)
+/*Compute updating quantities of the weight parameters for lstm layer*/
 {
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
-    int k, m;
-    for (int row = 0; row < ni; row++) {
+    int k, m, l;
+    for (int row = 0; row < (ni + no); row++) {
         for (int col = 0; col < no; col++) {
             sum_mf = 0;
             sum_Sf = 0;
-            for (int i = 0; i < B; i++) {
-                k = col + no * i + z_pos_o;
+            sum_mi = 0;
+            sum_Si = 0;
+            sum_mc = 0;
+            sum_Sc = 0;
+            sum_mo = 0;
+            sum_So = 0;
+            for (int x = 0; x < B; x++) {
+                for (int y = 0; y < n_seq; y++) {
+                    k = col + y * n_seq + no * n_seq * x + z_pos_o;
+                    l = row + y * (ni + no) + (ni + no) * n_seq * x + z_pos_i;
 
-                // Forget gate
-                Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] *
-                        ma[ni * i + row + z_pos_i];
-                sum_mf += Cwa_f * delta_m[k];
-                sum_Sf += Cwa_f * delta_S[k] * Cwa_f;
+                    // Forget gate
+                    Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * ma[l];
+                    sum_mf += Cwa_f * delta_m[k];
+                    sum_Sf += Cwa_f * delta_S[k] * Cwa_f;
 
-                // Input gate
-                Cwa_i = Jc[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k] *
-                        ma[ni * i + row + z_pos_i];
-                sum_mi += Cwa_i * delta_m[k];
-                sum_Si += Cwa_i * delta_S[k] * Cwa_i;
+                    // Input gate
+                    Cwa_i = Jc[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k] * ma[l];
+                    sum_mi += Cwa_i * delta_m[k];
+                    sum_Si += Cwa_i * delta_S[k] * Cwa_i;
 
-                // Cell satte gate
-                Cwa_c = Jc[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k] *
-                        ma[ni * i + row + z_pos_i];
-                sum_mc += Cwa_c * delta_m[k];
-                sum_Sc += Cwa_c * delta_S[k] * Cwa_c;
+                    // Cell state gate
+                    Cwa_c = Jc[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k] * ma[l];
+                    sum_mc += Cwa_c * delta_m[k];
+                    sum_Sc += Cwa_c * delta_S[k] * Cwa_c;
 
-                // Output state
-                Cwa_o = Jc[k] * mc[k] * ma[ni * i + row + z_pos_i];
-                sum_mo = Cwa_o * delta_m[k];
-                sum_So = Cwa_o * delta_S[k] * Cwa_o;
+                    // Output gate
+                    Cwa_o = Jc[k] * mc[k] * ma[l];
+                    sum_mo = Cwa_o * delta_m[k];
+                    sum_So = Cwa_o * delta_S[k] * Cwa_o;
+                }
             }
             // Updating quantities for parameters
-            m = col * ni + row;
+            m = col * (ni + no) + row;
             delta_mw[m + w_pos_f] = sum_mf * Sw[m + w_pos_f];
             delta_Sw[m + w_pos_f] = Sw[m + w_pos_f] * sum_Sf * Sw[m + w_pos_f];
 
@@ -137,4 +145,108 @@ void lstm_delta_mean_var_wb(
             delta_Sw[m + w_pos_o] = Sw[m + w_pos_o] * sum_So * Sw[m + w_pos_o];
         }
     }
+}
+
+void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &delta_m,
+                           std::vector<float> &delta_S, int z_pos_o,
+                           int b_pos_f, int b_pos_i, int b_pos_c, int b_pos_o,
+                           int ni, int no, int n_seq, int B,
+                           std::vector<float> &delta_mb,
+                           std::vector<float> &delta_Sb)
+/*Compute updating quantities of the bias for the lstm layer*/
+{
+    float sum_m, sum_S;
+    int k, m;
+    for (int row = 0; row < (no + ni); row++) {
+        for (int col = 0; col < no; col++) {
+            sum_m = 0;
+            sum_S = 0;
+            for (int x = 0; x < B; x++) {
+                for (int y = 0; y < n_seq; y++) {
+                    k = col + y * n_seq + no * n_seq * x + z_pos_o;
+                    sum_m += delta_m[k];
+                    sum_S += delta_S[k];
+                }
+            }
+            m = col * (ni + no) + row;
+            // Forget gate
+            delta_mb[m + b_pos_f] = sum_m * Sb[m + b_pos_f];
+            delta_Sb[m + b_pos_f] = Sb[m + b_pos_f] * sum_S * Sb[m + b_pos_f];
+
+            // Input gate
+            delta_mb[m + b_pos_i] = sum_m * Sb[m + b_pos_i];
+            delta_Sb[m + b_pos_i] = Sb[m + b_pos_i] * sum_S * Sb[m + b_pos_i];
+
+            // Cell state gate
+            delta_mb[m + b_pos_c] = sum_m * Sb[m + b_pos_c];
+            delta_Sb[m + b_pos_c] = Sb[m + b_pos_c] * sum_S * Sb[m + b_pos_c];
+
+            // output gate
+            delta_mb[m + b_pos_o] = sum_m * Sb[m + b_pos_o];
+            delta_Sb[m + b_pos_o] = Sb[m + b_pos_o] * sum_S * Sb[m + b_pos_o];
+        }
+    }
+}
+
+void lstm_state_update(Network &net, NetState &state, Param &theta,
+                       DeltaState &d_state, int l)
+/*Update lstm's hidden states*/
+{
+    // Initialization
+    int ni = net.nodes[l];
+    int no = net.nodes[l + 1];
+    int z_pos_i = net.z_pos[l];
+    int z_pos_o = net.z_pos[l + 1];
+    int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
+    w_pos_f = net.w_pos[l];
+    b_pos_f = net.b_pos[l];
+    w_pos_i = net.w_pos[l] + ni * no;
+    b_pos_i = net.b_pos[l] + ni * no;
+    w_pos_c = net.w_pos[l] + 2 * ni * no;
+    b_pos_c = net.b_pos[l] + 2 * ni * no;
+    w_pos_o = net.w_pos[l] + 3 * ni * no;
+    b_pos_o = net.b_pos[l] + 3 * ni * no;
+
+    lstm_delta_mean_var_z(
+        state.Sz, theta.mw, state.lstm_state.Jf_ga, state.lstm_state.mi_ga,
+        state.lstm_state.Ji_ga, state.lstm_state.mc_ga, state.lstm_state.Jc_ga,
+        state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
+        state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jc,
+        d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
+        w_pos_c, w_pos_o, no, ni, net.num_seq, net.batch_size, d_state.delta_mz,
+        d_state.delta_Sz);
+}
+
+void lstm_parameter_update(Network &net, NetState &state, Param &theta,
+                           DeltaState &d_state, DeltaParam &d_theta, int l)
+/*Update lstm's parameters*/
+{
+    // Initialization
+    int ni = net.nodes[l];
+    int no = net.nodes[l + 1];
+    int z_pos_i = net.z_pos[l];
+    int z_pos_o = net.z_pos[l + 1];
+    int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
+    w_pos_f = net.w_pos[l];
+    b_pos_f = net.b_pos[l];
+    w_pos_i = net.w_pos[l] + ni * no;
+    b_pos_i = net.b_pos[l] + ni * no;
+    w_pos_c = net.w_pos[l] + 2 * ni * no;
+    b_pos_c = net.b_pos[l] + 2 * ni * no;
+    w_pos_o = net.w_pos[l] + 3 * ni * no;
+    b_pos_o = net.b_pos[l] + 3 * ni * no;
+
+    lstm_delta_mean_var_w(
+        theta.Sw, theta.Sb, state.ma, state.lstm_state.Jf_ga,
+        state.lstm_state.mi_ga, state.lstm_state.Ji_ga, state.lstm_state.mc_ga,
+        state.lstm_state.Jc_ga, state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
+        state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jc,
+        d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
+        w_pos_c, w_pos_o, no, ni, net.num_seq, net.batch_size, d_theta.delta_mw,
+        d_theta.delta_Sw);
+
+    lstm_delta_mean_var_b(theta.Sb, d_state.delta_m, d_state.delta_S, z_pos_o,
+                          b_pos_f, b_pos_i, b_pos_c, b_pos_o, ni, no,
+                          net.num_seq, net.batch_size, d_theta.delta_mb,
+                          d_theta.delta_Sb);
 }
