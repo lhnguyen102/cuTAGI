@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         lstm_state_feed_backward_cpu.cpp
+// File:         lstm_feed_backward_cpu.cpp
 // Description:  Long-Short Term Memory (LSTM) state backward pass in TAGI
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      August 15, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../include/lstm_state_feed_backward_cpu.h"
+#include "../include/lstm_feed_backward_cpu.h"
 
 void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
                            std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
@@ -188,8 +188,8 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &delta_m,
     }
 }
 
-void lstm_state_update(Network &net, NetState &state, Param &theta,
-                       DeltaState &d_state, int l)
+void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
+                           DeltaState &d_state, int l)
 /*Update lstm's hidden states*/
 {
     // Initialization
@@ -217,8 +217,8 @@ void lstm_state_update(Network &net, NetState &state, Param &theta,
         d_state.delta_Sz);
 }
 
-void lstm_parameter_update(Network &net, NetState &state, Param &theta,
-                           DeltaState &d_state, DeltaParam &d_theta, int l)
+void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
+                               DeltaState &d_state, DeltaParam &d_theta, int l)
 /*Update lstm's parameters*/
 {
     // Initialization

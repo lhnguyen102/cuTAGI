@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      August 01, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -958,7 +958,7 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         w_pos_in = net.w_pos[k];
         niB = ni * B;
         //**
-        // 1: Full connected
+        // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
             if (niB > net.min_operations && net.multithreading) {
@@ -976,6 +976,13 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
                             d_state.delta_Sz);
             }
         }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[k] == net.layer_names.lstm) {
+            lstm_state_update_cpu(net, state, theta, d_state, k);
+        }
+
         if (niB > net.min_operations && net.multithreading) {
             inovation_multithreading(state.Sz, d_state.delta_mz,
                                      d_state.delta_Sz, z_pos_in, z_pos_in, niB,

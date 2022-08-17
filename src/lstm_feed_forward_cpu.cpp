@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      August 14, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,9 +11,9 @@
 
 void cov_input_cell_states_cpu(std::vector<float> &Sha, std::vector<float> &mw,
                                std::vector<float> &Ji_ga,
-                               std::vector<float> &Jc_ga, int w_pos_i,
-                               int w_pos_c, int ni, int no, int n_seq, int B,
-                               std::vector<float> &Ci_c)
+                               std::vector<float> &Jc_ga, int z_pos_o,
+                               int w_pos_i, int w_pos_c, int ni, int no,
+                               int n_seq, int B, std::vector<float> &Ci_c)
 /*Compute covariance between input gates and cell states. Note that we store the
    hidden state vector as follows: z = [seq1, seq2, ..., seq n] where seq's
    shape = [1, no * B]
@@ -31,7 +31,7 @@ void cov_input_cell_states_cpu(std::vector<float> &Sha, std::vector<float> &mw,
                     sum += mw[w_pos_i + k] * Sha[m] * mw[w_pos_c + k];
                 }
                 i = z + y * no + x * n_seq * no;
-                Ci_c[i] = Ji_ga[i] * sum * Jc_ga[i];
+                Ci_c[i] = Ji_ga[i + z_pos_o] * sum * Jc_ga[i + z_pos_o];
             }
         }
     }
@@ -65,8 +65,7 @@ void cell_state_mean_var_cpu(
 
 void cov_output_tanh_cell_states_cpu(
     std::vector<float> &mw, std::vector<float> &Sha,
-    std::vector<float> &mc_prev, std::vector<float> &mc_a,
-    std::vector<float> &Sc_a, std::vector<float> &Jc_a,
+    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
     std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
     std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o,
@@ -136,7 +135,7 @@ void cat_states_and_activations(std::vector<float> &a, std::vector<float> &b,
     }
 }
 
-void lstm_mean_var_cpu(Network &net, NetState &state, Param &theta, int l)
+void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
 /*Steps for computing hiiden states mean and covariance for the lstm layer*/
 {
     // Initialization
@@ -218,7 +217,7 @@ void lstm_mean_var_cpu(Network &net, NetState &state, Param &theta, int l)
     // Cov(input gate, cell state gate)
     cov_input_cell_states_cpu(state.lstm_state.Sha, theta.mw,
                               state.lstm_state.Ji_ga, state.lstm_state.Jc_ga,
-                              w_pos_i, w_pos_c, ni, no, net.num_seq,
+                              z_pos_o, w_pos_i, w_pos_c, ni, no, net.num_seq,
                               net.batch_size, state.lstm_state.Ci_c);
 
     // Mean and variance for the current cell states
@@ -230,21 +229,20 @@ void lstm_mean_var_cpu(Network &net, NetState &state, Param &theta, int l)
         state.lstm_state.mc, state.lstm_state.Sc);
 
     tanh_mean_var_cpu(state.lstm_state.mc, state.lstm_state.Sc, z_pos_ga,
-                      no_b_seq, state.lstm_state.mc, state.lstm_state.Jc,
-                      state.lstm_state.Sc);
+                      no_b_seq, state.lstm_state.mca, state.lstm_state.Jca,
+                      state.lstm_state.Sca);
 
     // Cov(output gate, tanh(cell states))
     cov_output_tanh_cell_states_cpu(
         theta.mw, state.lstm_state.Sha, state.lstm_state.mc_prev,
-        state.lstm_state.mc, state.lstm_state.Sc, state.lstm_state.Jc,
-        state.lstm_state.Jf_ga, state.lstm_state.mi_ga, state.lstm_state.Ji_ga,
-        state.lstm_state.mc_ga, state.lstm_state.Jc_ga, state.lstm_state.Jo_ga,
-        z_pos_o, w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni, no, net.num_seq,
-        net.batch_size, state.lstm_state.Co_tanh_c);
+        state.lstm_state.Jca, state.lstm_state.Jf_ga, state.lstm_state.mi_ga,
+        state.lstm_state.Ji_ga, state.lstm_state.mc_ga, state.lstm_state.Jc_ga,
+        state.lstm_state.Jo_ga, z_pos_o, w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni,
+        no, net.num_seq, net.batch_size, state.lstm_state.Co_tanh_c);
 
     // Mean and variance for hidden states
     hidden_state_mean_var_lstm_cpu(
-        state.lstm_state.mo_ga, state.lstm_state.So_ga, state.lstm_state.mc,
-        state.lstm_state.Sc, state.lstm_state.Co_tanh_c, z_pos_o, no,
+        state.lstm_state.mo_ga, state.lstm_state.So_ga, state.lstm_state.mca,
+        state.lstm_state.Sca, state.lstm_state.Co_tanh_c, z_pos_o, no,
         net.num_seq, net.batch_size, state.mz, state.Sz);
 }

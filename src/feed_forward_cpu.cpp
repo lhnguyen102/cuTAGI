@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      July 30, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -987,7 +987,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         no_B = no * B;
 
         //**
-        // 1: Full connected
+        // 1: Fully connected
         //
         if (net.layers[j] == net.layer_names.fc) {
             if (!net.is_full_cov) {
@@ -1034,6 +1034,12 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                                     state.Sz_f);
                 }
             }
+        }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[j] == net.layer_names.lstm) {
+            lstm_state_forward_cpu(net, state, theta, j);
         }
 
         //**

@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      July 29, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -373,8 +373,9 @@ void get_net_props(Network &net)
     std::vector<int> z_pos(num_layers, 0);
     std::vector<int> sc_pos(num_layers, 0);
     std::vector<int> ra_pos(num_layers, 0);
-    net.n_state = net.nodes[0] * net.batch_size;
-    net.n_max_state = net.nodes[0] * net.batch_size;
+    int num_inputs = net.nodes[0] * net.batch_size * net.num_seq;
+    net.n_state = num_inputs;
+    net.n_max_state = num_inputs;
     net.n_ra = 0;
     net.n_state_sc = 0;
     net.init_sc = get_first_shortcut_layer(net.shortcuts);
@@ -496,6 +497,18 @@ void get_net_props(Network &net)
             // Compute number of nodes
             net.nodes[j] = net.widths[j] * net.heights[j] * net.filters[j];
 
+        }
+        // LSTM layer
+        else if (net.layers[j] == net.layer_names.lstm) {
+            if (j == 1) {
+                net.num_lstm_states = num_inputs;
+                net.num_max_lstm_states = num_inputs;
+            }
+            net.num_lstm_states += net.nodes[j] * net.num_seq * net.batch_size;
+            net.num_max_lstm_states =
+                max(net.num_max_lstm_states,
+                    net.nodes[j] * net.num_seq * net.batch_size);
+
         } else {
             throw std::invalid_argument("Layer is not valid");
         }
@@ -539,6 +552,8 @@ void get_net_props(Network &net)
         net.n_state_sc += net.nodes[net.init_sc] * net.batch_size;
         sc_pos[net.init_sc + 1] = net.nodes[net.init_sc] * net.batch_size;
     }
+
+    // LSTM
 
     // Cumsum index position
     net.w_pos = cumsum(net.num_weights);
@@ -1106,6 +1121,9 @@ void load_cfg(std::string net_file, Network &net)
     }
 }
 
+////////////////////////////////////////////////////////////////////////////
+/// LAYER CHECK
+////////////////////////////////////////////////////////////////////////////
 bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
 /* Does network contain the convolutional layer?
 

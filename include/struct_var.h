@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 06, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,6 +21,7 @@ struct LayerLabel {
     int ap = 4;      // Average pooling layer
     int ln = 5;      // Layer normalization layer
     int bn = 6;      // Batch normalization layer
+    int lstm = 7;    // LSTM layer
 };
 struct Network {
     /*Network properties
@@ -102,6 +103,9 @@ struct Network {
         multithreading: Whether or not to run parallel computing using multiple
             threads
         collect_derivative: Whether or not to compute derivative
+        num_seq: Sequence lenth for lstm inputs
+        num_lstm_states: Number of lstm hidden states for all layers
+        num_max_lstm_states: Number of maximum lstm hidden states amongst layers
         num_cpu_threads: Number of threads for gpu
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
@@ -151,6 +155,8 @@ struct Network {
     bool is_full_cov = false;
     bool collect_derivative = false;
     int num_seq = 1;
+    int num_lstm_states = 0;
+    int num_max_lstm_states = 0;
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
     int min_operations = 1000;
@@ -204,8 +210,8 @@ struct DerivativeState {
 struct LSTMState {
     /*Memory states for lstm network*/
     std::vector<float> mha, Sha, mf_ga, Sf_ga, Jf_ga, mi_ga, Si_ga, Ji_ga,
-        mc_ga, Sc_ga, Jc_ga, mo_ga, So_ga, Jo_ga, mc, Sc, Jc, mc_prev, Sc_prev,
-        mh_prev, Sh_prev, Ci_c, Co_tanh_c;
+        mc_ga, Sc_ga, Jc_ga, mo_ga, So_ga, Jo_ga, mca, Sca, Jca, mc, Sc,
+        mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
 struct NetState {

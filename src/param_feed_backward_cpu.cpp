@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      August 01, 2022
+// Updated:      August 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -296,7 +296,7 @@ Returns:
         b_pos_in = net.b_pos[k];
 
         //**
-        // 1: Full connected
+        // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
             if (ni * no > net.min_operations && net.multithreading) {
@@ -324,6 +324,12 @@ Returns:
                 fc_delta_Sb(theta.Sb, d_state.delta_S, b_pos_in, z_pos_out, no,
                             B, 1, d_theta.delta_Sb);
             }
+        }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[k] == net.layer_names.lstm) {
+            lstm_parameter_update_cpu(net, state, theta, d_state, d_theta, k);
         }
     }
 }
