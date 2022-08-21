@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      July 24, 2022
+// Updated:      August 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -177,9 +177,9 @@ void labels_to_hrs(std::vector<int> labels, HrSoftmax &hrs,
     }
 }
 
-//////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 // CIFAR
-//////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
     std::string image_file, int num) {
     std::ifstream data_file(image_file.c_str(),
@@ -330,7 +330,6 @@ Returns:
     if (data_norm) {
         compute_mean_std(db.x, mu_x, sigma_x, nx);
         compute_mean_std(db.y, mu_y, sigma_y, ny);
-        // Normalize dataset
         normalize_data(db.x, mu_x, sigma_x, nx);
         normalize_data(db.y, mu_y, sigma_y, ny);
     }
@@ -516,4 +515,112 @@ Returns:
         }
         sigma[j] = pow(tmp / (num * w * h - 1), 0.5);
     }
+}
+//////////////////////////////////////////////////////////////////////
+// TIME SERIES
+//////////////////////////////////////////////////////////////////////
+void create_rolling_windows(std::vector<float> &data,
+                            std::vector<int> &output_col, int num_input_ts,
+                            int num_output_ts, int num_features, int stride,
+                            std::vector<float> &input_data,
+                            std::vector<float> &output_data)
+/*Convert the raw data into pairs of inputs and outputs for LSTM*/
+{
+    int num_samples =
+        (data.size() / num_features - num_input_ts - num_output_ts) / stride +
+        1;
+    if (num_samples < 0) {
+        throw std::invalid_argument("Could not window time series data");
+    }
+    int num_outputs = output_col.size();
+
+    for (int i = 0; i < num_samples; i++) {
+        // Inputs
+        for (int k = 0; k < num_input_ts; k++) {
+            for (int j = 0; j < num_features; j++) {
+                input_data[i * num_features * num_input_ts + k * num_features +
+                           j] =
+                    data[i * num_features * stride + k * num_features + j];
+            }
+        }
+        // Outputs
+        for (int kk = 0; kk < num_output_ts; kk++) {
+            for (int jj = 0; jj < num_outputs; jj++) {
+                output_data[i * num_outputs * num_output_ts + kk * num_outputs +
+                            jj] =
+                    data[i * num_features * stride + kk * num_features +
+                         num_input_ts * num_features + output_col[jj]];
+            }
+        }
+    }
+}
+
+Dataloader make_time_series_dataloader(std::vector<std::string> &data_file,
+                                       std::vector<int> &output_col, int num,
+                                       int num_input_ts, int num_output_ts,
+                                       int num_features, int stride,
+                                       bool data_norm)
+/* Get dataloader for input and output data.
+
+Args:
+    data_file: File contains time series data (*.csv)
+    output_col: col indices for the output
+    num: Total number of data
+    num_input_ts: Number of input time steps
+    num_output_ts: Number of output time steps
+    num_features: Number of columns in data file i.e., feature and target time
+        series
+    stride: Spacing between rolling windows
+    data_norm: Whether to normalize the data
+
+Returns:
+    dataset: Dataloader
+ */
+{
+    Dataloader db;
+    int num_outputs = output_col.size();
+    std::vector<float> x(num_features * num, 0), cat_x;
+
+    // Load input data from csv file that contains the input & output data.
+    // NOTE: csv file need to have a header for each columns
+    for (int i = 0; i < data_file.size(); i++) {
+        read_csv(data_file[i], x, num_features, true);
+        cat_x.insert(cat_x.end(), x.begin(), x.end());
+    };
+
+    // Compute sample mean and std for dataset
+    std::vector<float> mu_x(num_features, 0);
+    std::vector<float> sigma_x(num_features, 1);
+    std::vector<float> mu_y(num_outputs, 0);
+    std::vector<float> sigma_y(num_outputs, 1);
+    if (data_norm) {
+        compute_mean_std(cat_x, mu_x, sigma_x, num_features);
+        normalize_data(cat_x, mu_x, sigma_x, num_features);
+        for (int i = 0; i < num_outputs; i++) {
+            mu_y[i] = mu_x[output_col[i]];
+            sigma_y[i] = sigma_x[output_col[i]];
+        }
+    }
+    // Create rolling windows
+    int num_samples =
+        (cat_x.size() / num_features - num_input_ts - num_output_ts) / stride +
+        1;
+    std::vector<float> input_data(num_input_ts * num_features * num_samples);
+    std::vector<float> output_data(num_output_ts * num_outputs * num_samples);
+    create_rolling_windows(cat_x, output_col, num_input_ts, num_output_ts,
+                           num_features, stride, input_data, output_data);
+
+    // Set data to output variable
+    db.x = input_data;
+    db.mu_x = mu_x;
+    db.sigma_x = sigma_x;
+    db.nx = num_features;
+
+    db.y = output_data;
+    db.mu_y = mu_y;
+    db.sigma_y = sigma_y;
+    db.ny = num_outputs;
+    db.num_data = num;
+
+    return db;
 }

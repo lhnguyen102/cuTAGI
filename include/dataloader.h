@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      July 24, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -81,3 +81,8 @@ void compute_mean_std_each_channel(std::vector<float> &imgs,
                                    std::vector<float> &mu,
                                    std::vector<float> &sigma, int w, int h,
                                    int d, int num);
+Dataloader make_time_series_dataloader(std::vector<std::string> &data_file,
+                                       std::vector<int> &output_col, int num,
+                                       int num_input_ts, int num_output_ts,
+                                       int num_features, int stride,
+                                       bool data_norm);

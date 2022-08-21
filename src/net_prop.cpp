@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      August 17, 2022
+// Updated:      August 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +169,17 @@ std::tuple<int, int> get_number_param_norm(int n)
     n_w = n;
     n_b = n;
 
+    return {n_w, n_b};
+}
+
+std::tuple<int, int> get_number_param_lstm(int ni, int no, bool use_bias)
+/*Get number of parameters for lstm*/
+{
+    int n_w = 4 * no * (ni + no);
+    int n_b = 0;
+    if (use_bias) {
+        n_b = 4 * no;
+    }
     return {n_w, n_b};
 }
 
@@ -373,7 +384,7 @@ void get_net_props(Network &net)
     std::vector<int> z_pos(num_layers, 0);
     std::vector<int> sc_pos(num_layers, 0);
     std::vector<int> ra_pos(num_layers, 0);
-    int num_inputs = net.nodes[0] * net.batch_size * net.num_seq;
+    int num_inputs = net.nodes[0] * net.batch_size * net.input_seq_len;
     net.n_state = num_inputs;
     net.n_max_state = num_inputs;
     net.n_ra = 0;
@@ -500,14 +511,18 @@ void get_net_props(Network &net)
         }
         // LSTM layer
         else if (net.layers[j] == net.layer_names.lstm) {
+            std::tie(net.num_weights[j], net.num_biases[j]) =
+                get_number_param_lstm(net.nodes[j - 1], net.nodes[j], use_bias);
+
             if (j == 1) {
                 net.num_lstm_states = num_inputs;
                 net.num_max_lstm_states = num_inputs;
             }
-            net.num_lstm_states += net.nodes[j] * net.num_seq * net.batch_size;
+            net.num_lstm_states +=
+                net.nodes[j] * net.input_seq_len * net.batch_size;
             net.num_max_lstm_states =
-                max(net.num_max_lstm_states,
-                    net.nodes[j] * net.num_seq * net.batch_size);
+                std::max(net.num_max_lstm_states,
+                         net.nodes[j] * net.input_seq_len * net.batch_size);
 
         } else {
             throw std::invalid_argument("Layer is not valid");
@@ -552,8 +567,6 @@ void get_net_props(Network &net)
         net.n_state_sc += net.nodes[net.init_sc] * net.batch_size;
         sc_pos[net.init_sc + 1] = net.nodes[net.init_sc] * net.batch_size;
     }
-
-    // LSTM
 
     // Cumsum index position
     net.w_pos = cumsum(net.num_weights);
@@ -690,6 +703,35 @@ NetState initialize_net_states(Network &net) {
     state.Sdsc.resize(net.n_state_sc, 1);  // Variance of residual
     state.mra.resize(net.n_ra, 0);  // Mean of batch and layer normalization
     state.Sra.resize(net.n_ra, 1);  // Variance of batch and layer normalization
+
+    // LSTM state
+    if (net.num_lstm_states > 0) {
+        state.lstm_state.mha.resize(net.num_max_lstm_states, 0);
+        state.lstm_state.Sha.resize(net.num_max_lstm_states, 0);
+        state.lstm_state.mf_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sf_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Jf_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.mi_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Si_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Ji_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.mc_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sc_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Jc_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.mo_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.So_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.Jo_ga.resize(net.num_lstm_states, 0);
+        state.lstm_state.mca.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sca.resize(net.num_lstm_states, 0);
+        state.lstm_state.Jca.resize(net.num_lstm_states, 0);
+        state.lstm_state.mc.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sc.resize(net.num_lstm_states, 0);
+        state.lstm_state.mc_prev.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sc_prev.resize(net.num_lstm_states, 0);
+        state.lstm_state.mh_prev.resize(net.num_lstm_states, 0);
+        state.lstm_state.Sh_prev.resize(net.num_lstm_states, 0);
+        state.lstm_state.Ci_c.resize(net.num_max_lstm_states, 0);
+        state.lstm_state.Co_tanh_c.resize(net.num_max_lstm_states, 0);
+    }
 
     // TODO: Is there a better way to initialize the full covariance matrix?
     if (net.is_full_cov) {
@@ -906,13 +948,7 @@ Param initialize_param(Network &net) {
                                net.b_sc_pos[net.shortcuts[j] - 1]);
         }
 
-        //    if (net.num_biases_sc[j] > 0)
-        //    {
-        //      std::vector<float> mb_sc_j(net.num_biases_sc[j], 0);
-        //      std::vector<float> Sb_sc_j(net.num_biases_sc[j], 1e-6);
-        //      push_back_with_idx(p.mb, mb_j, net.b_sc_pos[j - 1]);
-        //      push_back_with_idx(p.Sb, Sb_j, net.b_sc_pos[j - 1]);
-        //    }
+        // TODO: add bias initalization for resnet
     }
 
     return p;

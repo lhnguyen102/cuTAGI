@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      July 30,  2022
+// Updated:      August 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -238,7 +238,7 @@ Args:
     std::default_random_engine seed_e(seed);
     int derivative_layer = 0;
 
-    // Compute number of data points
+    // Number of data points
     int n_iter = db.num_data / net.batch_size;
     int n_w = theta.mw.size();
     int n_b = theta.mb.size();
@@ -437,6 +437,196 @@ Args:
         if (net.collect_derivative) {
             save_derivatives(path.saved_inference_path, mdy_in, Sdy_in, suffix);
         }
+    }
+}
+
+void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
+                             Param &theta, Dataloader &db, int n_epochs,
+                             SavePath &path, bool train_mode)
+/*Time series forecasting*/
+{
+    // Seed
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
+
+    // Number of data points
+    int n_iter = db.num_data / net.batch_size;
+    int n_w = theta.mw.size();
+    int n_b = theta.mb.size();
+    int n_w_sc = theta.mw_sc.size();
+    int n_b_sc = theta.mb_sc.size();
+    int n_input_ts = net.n_x * net.input_seq_len;
+    int n_output_ts = net.n_y * net.output_seq_len;
+    int n_input_seq_batch = net.batch_size * net.input_seq_len;
+    std::vector<int> data_idx = create_range(db.num_data);
+
+    // Initialize the data's variables
+    std::vector<float> x_batch(n_input_ts * net.batch_size, 0);
+    std::vector<float> Sx_batch(n_input_ts * net.batch_size,
+                                pow(net.sigma_x, 2));
+    std::vector<float> Sx_f_batch;
+    std::vector<float> y_batch(n_output_ts * net.batch_size, 0);
+    std::vector<float> V_batch(n_output_ts * net.batch_size,
+                               pow(net.sigma_v, 2));
+    std::vector<int> batch_idx(net.batch_size);
+    std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
+
+    // Input & output
+    Input ip;
+    Obs op;
+
+    // Updated quantities for state & parameters
+    DeltaState d_state;
+    DeltaParam d_theta;
+    d_state.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
+                       net.n_max_state);
+    d_theta.set_values(n_w, n_b, n_w_sc, n_b_sc);
+
+    if (train_mode) {
+        for (int e = 0; e < n_epochs; e++) {
+            if (e > 0) {
+                // Shuffle data
+                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+
+                // Decay observation noise
+                decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
+                                net.sigma_v_min);
+            }
+
+            std::vector<float> V_batch(net.batch_size * n_output_ts,
+                                       pow(net.sigma_v, 2));
+
+            // Timer
+            std::cout << "################\n";
+            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
+            std::cout << "Training...\n";
+            auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < n_iter; i++) {
+                // Load data
+                get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                              batch_idx);
+                get_batch_data(db.x, batch_idx, n_input_ts, x_batch);
+                get_batch_data(db.y, batch_idx, n_output_ts, y_batch);
+                ip.set_values(x_batch, Sx_batch, Sx_f_batch);
+                op.set_values(y_batch, V_batch, idx_ud_batch);
+
+                // Initialize input
+                initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                      net.n_x, n_input_seq_batch, state);
+
+                // Feed forward
+                feed_forward_cpu(net, theta, idx, state);
+
+                // Feed backward for hidden states
+                state_backward_cpu(net, theta, state, idx, op, d_state);
+
+                // Feed backward for parameters
+                param_backward_cpu(net, theta, state, d_state, idx, d_theta);
+
+                // Update model parameters
+                global_param_update_cpu(d_theta, n_w, n_b, n_w_sc, n_b_sc,
+                                        theta);
+            }
+
+            // Report running time
+            std::cout << std::endl;
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
+                    .count();
+            std::cout << " Time per epoch: ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << run_time * 1e-9 << " sec\n";
+            std::cout << " Time left     : ";
+            std::cout << std::fixed;
+            std::cout << std::setprecision(3);
+            std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
+                      << " mins\n";
+        }
+
+        // Retrieve homocesdastic noise distribution's parameters
+        if (net.noise_type.compare("homosce") == 0) {
+            get_homosce_noise_param(state.noise_state.ma_v2b_prior,
+                                    state.noise_state.Sa_v2b_prior, net.mu_v2b,
+                                    net.sigma_v2b);
+        }
+    } else {
+        std::cout << "Testing...\n";
+
+        // Output results
+        std::vector<float> ma_batch_out(n_output_ts * net.batch_size, 0);
+        std::vector<float> Sa_batch_out(n_output_ts * net.batch_size, 0);
+        std::vector<float> ma_out(db.num_data * n_output_ts, 0);
+        std::vector<float> Sa_out(db.num_data * n_output_ts, 0);
+
+        int mt_idx = 0;
+
+        // Prediction
+        for (int i = 0; i < n_iter; i++) {
+            mt_idx = i * n_output_ts * net.batch_size;
+
+            // Load data
+            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
+                          batch_idx);
+            get_batch_data(db.x, batch_idx, n_input_ts, x_batch);
+            get_batch_data(db.y, batch_idx, n_output_ts, y_batch);
+            ip.set_values(x_batch, Sx_batch, Sx_f_batch);
+            op.set_values(y_batch, V_batch, idx_ud_batch);
+
+            // Initialize input
+            initialize_states_cpu(ip.x_batch, ip.Sx_batch, ip.Sx_f_batch,
+                                  net.n_x, n_input_seq_batch, state);
+
+            // Feed forward
+            feed_forward_cpu(net, theta, idx, state);
+
+            // Get hidden states for output layers
+            output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
+
+            // Update the final hidden state vector for last layer
+            update_vector(ma_out, ma_batch_out, mt_idx, n_output_ts);
+            update_vector(Sa_out, Sa_batch_out, mt_idx, n_output_ts);
+        }
+        // Retrive predictions (i.e., 1st column)
+        std::vector<float> my_1(db.num_data, 0), Sy_1(db.num_data, 0),
+            y_1(db.num_data, 0);
+        get_1st_column_data(ma_out, net.output_seq_len, net.n_y, my_1);
+        get_1st_column_data(Sa_out, net.output_seq_len, net.n_y, Sy_1);
+        get_1st_column_data(db.y, net.output_seq_len, net.n_y, y_1);
+
+        // Unnormalize data
+        std::vector<float> sy_norm(db.y.size(), 0), my(sy_norm.size(), 0),
+            sy(sy_norm.size(), 0), y_test(sy_norm.size(), 0);
+
+        // Compute log-likelihood
+        for (int k = 0; k < db.y.size(); k++) {
+            sy_norm[k] = pow(Sy_1[k] + pow(net.sigma_v, 2), 0.5);
+        }
+        denormalize_mean(my_1, db.mu_y, db.sigma_y, net.n_y, my);
+        denormalize_mean(y_1, db.mu_y, db.sigma_y, net.n_y, y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
+
+        // Compute metrics
+        auto mse = mean_squared_error(my, y_test);
+        auto log_lik = avg_univar_log_lik(my, y_test, sy);
+
+        // Display results
+        std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+        std::cout << "RMSE           : ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << pow(mse, 0.5) << "\n";
+        std::cout << "Log likelihood: ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << log_lik;
+        std::cout << std::endl;
+
+        // Save predictions
+        std::string suffix = "time_series_prediction";
+        save_predictions(path.saved_inference_path, my, sy, suffix);
     }
 }
 

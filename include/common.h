@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      July 24, 2022
+// Updated:      August 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -241,6 +241,9 @@ void get_input_derv_states(std::vector<float> &md, std::vector<float> &Sd,
                            std::vector<float> &Sd_output);
 
 std::vector<float> initialize_upper_triu(float &Sx, int n);
+
+void get_1st_column_data(std::vector<float> &dataset, int seq_len,
+                         int num_outputs, std::vector<float> &sub_dataset);
 
 //////////////////////////////////////////////////////////////////////
 /// NOISE INFERENCE

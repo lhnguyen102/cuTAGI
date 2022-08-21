@@ -145,7 +145,7 @@ void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
     int z_pos_o = net.z_pos[l + 1];
     int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
     int z_pos_ga = 0;
-    int no_b_seq = no * net.batch_size * net.num_seq;
+    int no_b_seq = no * net.batch_size * net.input_seq_len;
 
     // Concatenate the hidden states from the previous time step and activations
     // from the previous layer
@@ -215,17 +215,17 @@ void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
                          state.lstm_state.Jo_ga, state.lstm_state.So_ga);
 
     // Cov(input gate, cell state gate)
-    cov_input_cell_states_cpu(state.lstm_state.Sha, theta.mw,
-                              state.lstm_state.Ji_ga, state.lstm_state.Jc_ga,
-                              z_pos_o, w_pos_i, w_pos_c, ni, no, net.num_seq,
-                              net.batch_size, state.lstm_state.Ci_c);
+    cov_input_cell_states_cpu(
+        state.lstm_state.Sha, theta.mw, state.lstm_state.Ji_ga,
+        state.lstm_state.Jc_ga, z_pos_o, w_pos_i, w_pos_c, ni, no,
+        net.input_seq_len, net.batch_size, state.lstm_state.Ci_c);
 
     // Mean and variance for the current cell states
     cell_state_mean_var_cpu(
         state.lstm_state.mf_ga, state.lstm_state.Sf_ga, state.lstm_state.mi_ga,
         state.lstm_state.Si_ga, state.lstm_state.mc_ga, state.lstm_state.Sc_ga,
         state.lstm_state.mc_prev, state.lstm_state.Sc_prev,
-        state.lstm_state.Ci_c, z_pos_o, no, net.num_seq, net.batch_size,
+        state.lstm_state.Ci_c, z_pos_o, no, net.input_seq_len, net.batch_size,
         state.lstm_state.mc, state.lstm_state.Sc);
 
     tanh_mean_var_cpu(state.lstm_state.mc, state.lstm_state.Sc, z_pos_ga,
@@ -238,11 +238,11 @@ void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
         state.lstm_state.Jca, state.lstm_state.Jf_ga, state.lstm_state.mi_ga,
         state.lstm_state.Ji_ga, state.lstm_state.mc_ga, state.lstm_state.Jc_ga,
         state.lstm_state.Jo_ga, z_pos_o, w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni,
-        no, net.num_seq, net.batch_size, state.lstm_state.Co_tanh_c);
+        no, net.input_seq_len, net.batch_size, state.lstm_state.Co_tanh_c);
 
     // Mean and variance for hidden states
     hidden_state_mean_var_lstm_cpu(
         state.lstm_state.mo_ga, state.lstm_state.So_ga, state.lstm_state.mca,
         state.lstm_state.Sca, state.lstm_state.Co_tanh_c, z_pos_o, no,
-        net.num_seq, net.batch_size, state.mz, state.Sz);
+        net.input_seq_len, net.batch_size, state.mz, state.Sz);
 }

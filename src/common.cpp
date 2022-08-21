@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      July 24, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -241,6 +241,17 @@ void get_input_derv_states(std::vector<float> &md, std::vector<float> &Sd,
     for (int i = 0; i < md_output.size(); i++) {
         md_output[i] = md[i];
         Sd_output[i] = Sd[i];
+    }
+}
+
+void get_1st_column_data(std::vector<float> &dataset, int seq_len,
+                         int num_outputs, std::vector<float> &sub_dataset) {
+    int num_data = dataset.size() / seq_len / num_outputs;
+
+    for (int i = 0; i < num_data; i++) {
+        for (int j = 0; j < num_outputs; j++) {
+            sub_dataset[i * num_outputs + j] = dataset[i * seq_len + j];
+        }
     }
 }
 

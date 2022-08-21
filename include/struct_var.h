@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 17, 2022
+// Updated:      August 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -103,7 +103,9 @@ struct Network {
         multithreading: Whether or not to run parallel computing using multiple
             threads
         collect_derivative: Whether or not to compute derivative
-        num_seq: Sequence lenth for lstm inputs
+        input_seq_len: Sequence lenth for lstm inputs
+        input_seq_len: Sequence lenth for last layer's outputs
+        seq_stride: Spacing between sequences for lstm layer
         num_lstm_states: Number of lstm hidden states for all layers
         num_max_lstm_states: Number of maximum lstm hidden states amongst layers
         num_cpu_threads: Number of threads for gpu
@@ -154,7 +156,9 @@ struct Network {
     bool multithreading = true;
     bool is_full_cov = false;
     bool collect_derivative = false;
-    int num_seq = 1;
+    int input_seq_len = 1;
+    int output_seq_len = 0;
+    int seq_stride = 0;
     int num_lstm_states = 0;
     int num_max_lstm_states = 0;
     unsigned int num_cpu_threads = 4;

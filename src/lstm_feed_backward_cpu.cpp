@@ -213,8 +213,8 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
         state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
         state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jc,
         d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
-        w_pos_c, w_pos_o, no, ni, net.num_seq, net.batch_size, d_state.delta_mz,
-        d_state.delta_Sz);
+        w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
+        d_state.delta_mz, d_state.delta_Sz);
 }
 
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
@@ -242,11 +242,11 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
         state.lstm_state.Jc_ga, state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
         state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jc,
         d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
-        w_pos_c, w_pos_o, no, ni, net.num_seq, net.batch_size, d_theta.delta_mw,
-        d_theta.delta_Sw);
+        w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
+        d_theta.delta_mw, d_theta.delta_Sw);
 
     lstm_delta_mean_var_b(theta.Sb, d_state.delta_m, d_state.delta_S, z_pos_o,
                           b_pos_f, b_pos_i, b_pos_c, b_pos_o, ni, no,
-                          net.num_seq, net.batch_size, d_theta.delta_mb,
+                          net.input_seq_len, net.batch_size, d_theta.delta_mb,
                           d_theta.delta_Sb);
 }
