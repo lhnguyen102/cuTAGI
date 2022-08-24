@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      August 21, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -975,7 +975,9 @@ void load_cfg(std::string net_file, Network &net)
                                "init_method",    "is_full_cov",
                                "noise_type",     "mu_v2b",
                                "sigma_v2b",      "noise_gain",
-                               "multithreading", "collect_derivative"};
+                               "multithreading", "collect_derivative",
+                               "input_seq_len",  "output_seq_len",
+                               "seq_stride"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1133,6 +1135,24 @@ void load_cfg(std::string net_file, Network &net)
                                 "Input must be true or false - "
                                 "collect_derivative");
                         }
+                    }
+                } else if (key_words[k] == "input_seq_len") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> d;
+                        net.input_seq_len = d;
+                    }
+                } else if (key_words[k] == "output_seq_len") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> d;
+                        net.output_seq_len = d;
+                    }
+                } else if (key_words[k] == "seq_stride") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> d;
+                        net.seq_stride = d;
                     }
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));

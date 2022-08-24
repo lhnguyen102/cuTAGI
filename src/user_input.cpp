@@ -3,7 +3,7 @@
 // Description:  Load user input
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 05, 2022
-// Updated:      July 24, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,6 +34,7 @@ UserInput load_userinput(std::string &user_input_file)
                                "y_train_dir",
                                "x_test_dir",
                                "y_test_dir",
+                               "output_col",
                                "data_norm",
                                "debug"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
@@ -189,6 +190,24 @@ UserInput load_userinput(std::string &user_input_file)
                         }
                     }
                     user_input.y_test_dir = v;
+                } else if (key_words[k].compare("output_col") == 0) {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream isd(tmp);
+                        if (isd >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    user_input.output_col = v;
+                } else if (key_words[k] == "num_features") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> d;
+                        user_input.num_features = d;
+                    }
                 } else if (key_words[k] == "data_norm") {
                     std::stringstream ss(line.substr(pos + key.size()));
                     if (ss.good()) {

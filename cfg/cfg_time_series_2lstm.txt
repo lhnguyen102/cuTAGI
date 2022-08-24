@@ -1,0 +1,15 @@
+model_name: lstm_demo
+task_name: time_series
+data_name: traffic_volume
+net_name: 2lstm
+load_param: false
+num_epochs: 1
+num_train_data: 4234
+num_test_data: 100
+device: cuda
+x_train_dir: data/UCI_time_series/train_traffic_data.csv
+y_train_dir: data/UCI_time_series/train_traffic_data.csv
+x_test_dir: data/UCI_time_series/test_traffic_data.csv
+y_test_dir: data/UCI_time_series/test_traffic_data.csv
+output_col: 0
+num_features: 1

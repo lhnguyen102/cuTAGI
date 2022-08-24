@@ -81,8 +81,6 @@ void compute_mean_std_each_channel(std::vector<float> &imgs,
                                    std::vector<float> &mu,
                                    std::vector<float> &sigma, int w, int h,
                                    int d, int num);
-Dataloader make_time_series_dataloader(std::vector<std::string> &data_file,
-                                       std::vector<int> &output_col, int num,
-                                       int num_input_ts, int num_output_ts,
-                                       int num_features, int stride,
-                                       bool data_norm);
+
+Dataloader make_time_series_dataloader(UserInput &user_input, Network &net,
+                                       std::string &data_name);

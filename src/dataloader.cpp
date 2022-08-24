@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      August 21, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -555,66 +555,67 @@ void create_rolling_windows(std::vector<float> &data,
     }
 }
 
-Dataloader make_time_series_dataloader(std::vector<std::string> &data_file,
-                                       std::vector<int> &output_col, int num,
-                                       int num_input_ts, int num_output_ts,
-                                       int num_features, int stride,
-                                       bool data_norm)
+Dataloader make_time_series_dataloader(UserInput &user_input, Network &net,
+                                       std::string &dataloader_name)
 /* Get dataloader for input and output data.
 
 Args:
-    data_file: File contains time series data (*.csv)
-    output_col: col indices for the output
-    num: Total number of data
-    num_input_ts: Number of input time steps
-    num_output_ts: Number of output time steps
-    num_features: Number of columns in data file i.e., feature and target time
-        series
-    stride: Spacing between rolling windows
-    data_norm: Whether to normalize the data
 
 Returns:
     dataset: Dataloader
  */
 {
+    int num;
+    std::vector<std::string> data_file;
+    if (dataloader_name.compare("train") == 0) {
+        num = user_input.num_train_data;
+        data_file = user_input.x_train_dir;
+    } else {
+        num = user_input.num_test_data;
+        data_file = user_input.x_test_dir;
+    }
     Dataloader db;
-    int num_outputs = output_col.size();
-    std::vector<float> x(num_features * num, 0), cat_x;
+    int num_outputs = user_input.output_col.size();
+    std::vector<float> x(user_input.num_features * num, 0), cat_x;
 
     // Load input data from csv file that contains the input & output data.
     // NOTE: csv file need to have a header for each columns
     for (int i = 0; i < data_file.size(); i++) {
-        read_csv(data_file[i], x, num_features, true);
+        read_csv(data_file[i], x, user_input.num_features, true);
         cat_x.insert(cat_x.end(), x.begin(), x.end());
     };
 
     // Compute sample mean and std for dataset
-    std::vector<float> mu_x(num_features, 0);
-    std::vector<float> sigma_x(num_features, 1);
+    std::vector<float> mu_x(user_input.num_features, 0);
+    std::vector<float> sigma_x(user_input.num_features, 1);
     std::vector<float> mu_y(num_outputs, 0);
     std::vector<float> sigma_y(num_outputs, 1);
-    if (data_norm) {
-        compute_mean_std(cat_x, mu_x, sigma_x, num_features);
-        normalize_data(cat_x, mu_x, sigma_x, num_features);
+    if (user_input.data_norm) {
+        compute_mean_std(cat_x, mu_x, sigma_x, user_input.num_features);
+        normalize_data(cat_x, mu_x, sigma_x, user_input.num_features);
         for (int i = 0; i < num_outputs; i++) {
-            mu_y[i] = mu_x[output_col[i]];
-            sigma_y[i] = sigma_x[output_col[i]];
+            mu_y[i] = mu_x[user_input.output_col[i]];
+            sigma_y[i] = sigma_x[user_input.output_col[i]];
         }
     }
     // Create rolling windows
-    int num_samples =
-        (cat_x.size() / num_features - num_input_ts - num_output_ts) / stride +
-        1;
-    std::vector<float> input_data(num_input_ts * num_features * num_samples);
-    std::vector<float> output_data(num_output_ts * num_outputs * num_samples);
-    create_rolling_windows(cat_x, output_col, num_input_ts, num_output_ts,
-                           num_features, stride, input_data, output_data);
+    int num_samples = (cat_x.size() / user_input.num_features -
+                       net.input_seq_len - net.output_seq_len) /
+                          net.seq_stride +
+                      1;
+    std::vector<float> input_data(net.input_seq_len * user_input.num_features *
+                                  num_samples);
+    std::vector<float> output_data(net.output_seq_len * num_outputs *
+                                   num_samples);
+    create_rolling_windows(cat_x, user_input.output_col, net.input_seq_len,
+                           net.output_seq_len, user_input.num_features,
+                           net.seq_stride, input_data, output_data);
 
     // Set data to output variable
     db.x = input_data;
     db.mu_x = mu_x;
     db.sigma_x = sigma_x;
-    db.nx = num_features;
+    db.nx = user_input.num_features;
 
     db.y = output_data;
     db.mu_y = mu_y;

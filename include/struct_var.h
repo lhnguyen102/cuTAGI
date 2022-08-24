@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 21, 2022
+// Updated:      August 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -305,11 +305,13 @@ struct IndexOut {
 struct UserInput {
     std::string model_name, net_name, task_name, data_name, encoder_net_name,
         decoder_net_name;
-    std::string device = "cuda";
+    std::string device = "cpu";
     int num_classes, num_epochs, num_train_data, num_test_data;
     bool load_param = false, debug = false;
     std::vector<float> mu, sigma;
     std::vector<std::string> x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    std::vector<int> output_col;
+    int num_features;
     bool data_norm = true;
 };
 

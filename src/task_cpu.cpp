@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      August 21, 2022
+// Updated:      August 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -745,6 +745,25 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         // Save net's parameters
         save_net_param(user_input.model_name, user_input.net_name,
                        path.saved_param_path, theta);
+    } else if (user_input.task_name == "time_series") {
+        // Train network
+        IndexOut idx;
+        Network net;
+        Param theta;
+        NetState state;
+        net_init(user_input.net_name, user_input.device, net, theta, state,
+                 idx);
+
+        // Train data
+        std::string dataloader_name = "train";
+        auto train_db =
+            make_time_series_dataloader(user_input, net, dataloader_name);
+
+        // Test data
+        std::string dataloader_name = "test";
+        auto test_db =
+            make_time_series_dataloader(user_input, net, dataloader_name);
+
     } else {
         throw std::invalid_argument("Task name does not exist - task_cpu.cpp");
     }
