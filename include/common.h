@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 21, 2022
+// Updated:      August 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -143,6 +143,7 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
     // Set counter
     int count = -1;
     int line_count = 0;
+    int num_data = v.size();
     while (std::getline(myFile, line)) {
         // Create a stringstream of the current line
         std::stringstream ss(line);
@@ -161,6 +162,9 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
             }
         }
         line_count++;
+        if (count + 1 >= num_data) {
+            break;
+        }
     }
 
     // Total number of data
@@ -168,7 +172,7 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
     int ac_num_row = (count + 1) / num_col;
 
     // Check output size
-    if (v.size() != count + 1) {
+    if (num_data != count + 1) {
         std::cout << "\nUser-specified number of data: " << us_num_data << "x"
                   << num_col << "\n";
         std::cout << "Actual number of data        : " << ac_num_row << "x"

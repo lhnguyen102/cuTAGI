@@ -43,12 +43,15 @@ class TimeSeriesPrepocessing:
 
         # Datetime range
         start_dt, end_dt = sub_data_frame.iloc[[0, -1]].values
-        hourly_range = pd.date_range(start_dt[0], end_dt[0], freq="D")
+        hourly_range = pd.date_range(start_dt[0], end_dt[0], freq="H")
         sub_data_frame = pd.DataFrame(hourly_range,
                                       columns=[time_col]).merge(sub_data_frame,
                                                                 on=time_col,
                                                                 how="outer")
         sub_data_frame = sub_data_frame.set_index(time_col)
+
+        # Get a time horizon of 1D
+        sub_data_frame = sub_data_frame.resample("D").sum()
 
         # Drop missing data
         sub_data_frame = sub_data_frame.dropna()
@@ -65,8 +68,8 @@ class TimeSeriesPrepocessing:
         test_data = data_frame[(data_frame.index >= last_date_time)]
 
         # Save data as csv
-        train_data.to_csv("train_data.csv", index=False)
-        test_data.to_csv("test_data.csv", index=False)
+        train_data.to_csv("train_traffic_data.csv", index=False)
+        test_data.to_csv("test_traffic_data.csv", index=False)
 
 
 def main():

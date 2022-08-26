@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      August 23, 2022
+// Updated:      August 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -755,14 +755,32 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
                  idx);
 
         // Train data
-        std::string dataloader_name = "train";
+        std::string train_dataloader_name = "train";
         auto train_db =
-            make_time_series_dataloader(user_input, net, dataloader_name);
+            make_time_series_dataloader(user_input, net, train_dataloader_name);
 
         // Test data
-        std::string dataloader_name = "test";
+        std::string test_dataloader_name = "test";
         auto test_db =
-            make_time_series_dataloader(user_input, net, dataloader_name);
+            make_time_series_dataloader(user_input, net, test_dataloader_name);
+
+        // Load param
+        if (user_input.load_param) {
+            load_net_param(user_input.model_name, user_input.net_name,
+                           path.saved_param_path, theta);
+        }
+
+        // Save network's parameter to debug data
+        if (user_input.debug) {
+            std::string param_path = path.debug_path + "saved_param/";
+            save_net_param(user_input.model_name, user_input.net_name,
+                           param_path, theta);
+        }
+
+        // Training
+        bool train_mode = true;
+        time_series_forecasting(net, idx, state, theta, train_db,
+                                user_input.num_epochs, path, train_mode);
 
     } else {
         throw std::invalid_argument("Task name does not exist - task_cpu.cpp");

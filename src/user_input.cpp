@@ -35,6 +35,7 @@ UserInput load_userinput(std::string &user_input_file)
                                "x_test_dir",
                                "y_test_dir",
                                "output_col",
+                               "num_features",
                                "data_norm",
                                "debug"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
