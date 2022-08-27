@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 24, 2022
+// Updated:      August 26, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,6 +53,8 @@ struct Network {
         b_pos_sc: Biases position for each layer in the vector of biases
                   for resnet
         z_pos: Hidden state's position for each layers in the hidden state
+              vector
+        z_pos_lstm: Hidden state's position for LSTM layers in the hidden state
               vector
         sc_pos: Position of the shortcut's hidden state in the shortcut's hidden
                 state vector
@@ -121,7 +123,7 @@ struct Network {
     LayerLabel layer_names;
     std::string init_method = "Xavier";
     std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
-    std::vector<int> z_pos, sc_pos, ra_pos, overlap;
+    std::vector<int> z_pos, z_pos_lstm, sc_pos, ra_pos, overlap;
 
     // Position for each layer in index vector
     std::vector<int> Fmwa_1_pos, Fmwa_2_pos, FCzwa_1_pos, FCzwa_2_pos,
@@ -242,7 +244,7 @@ struct NetState {
     std::vector<float> mra, Sra;
     NoiseState noise_state;
     DerivativeState derv_state;
-    LSTMState lstm_state;
+    LSTMState lstm;
 };
 
 // NETWORK PARAMETERS

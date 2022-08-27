@@ -208,10 +208,9 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
     b_pos_o = net.b_pos[l] + 3 * ni * no;
 
     lstm_delta_mean_var_z(
-        state.Sz, theta.mw, state.lstm_state.Jf_ga, state.lstm_state.mi_ga,
-        state.lstm_state.Ji_ga, state.lstm_state.mc_ga, state.lstm_state.Jc_ga,
-        state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
-        state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jca,
+        state.Sz, theta.mw, state.lstm.Jf_ga, state.lstm.mi_ga,
+        state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
+        state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mc, state.lstm.Jca,
         d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
         w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
         d_state.delta_mz, d_state.delta_Sz);
@@ -237,10 +236,9 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
     b_pos_o = net.b_pos[l] + 3 * ni * no;
 
     lstm_delta_mean_var_w(
-        theta.Sw, theta.Sb, state.ma, state.lstm_state.Jf_ga,
-        state.lstm_state.mi_ga, state.lstm_state.Ji_ga, state.lstm_state.mc_ga,
-        state.lstm_state.Jc_ga, state.lstm_state.mo_ga, state.lstm_state.Jo_ga,
-        state.lstm_state.mc_prev, state.lstm_state.mc, state.lstm_state.Jca,
+        theta.Sw, theta.Sb, state.ma, state.lstm.Jf_ga, state.lstm.mi_ga,
+        state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
+        state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mc, state.lstm.Jca,
         d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, w_pos_f, w_pos_i,
         w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
         d_theta.delta_mw, d_theta.delta_Sw);

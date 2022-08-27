@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      August 24, 2022
+// Updated:      August 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -239,6 +239,17 @@ int get_first_shortcut_layer(std::vector<int> shortcut) {
     return first_shortcut;
 }
 
+int count_layer(std::vector<int> &layers, int layer_name) {
+    int num_layers = layers.size();
+    int count = 0;
+    for (int i = 0; i < num_layers; i++) {
+        if (layers[i] == layer_name) {
+            count++;
+        }
+    }
+    return count;
+}
+
 /////////////////////////////
 // PARAMETER INITIALIZATION
 /////////////////////////////
@@ -384,7 +395,8 @@ void get_net_props(Network &net)
     std::vector<int> z_pos(num_layers, 0);
     std::vector<int> sc_pos(num_layers, 0);
     std::vector<int> ra_pos(num_layers, 0);
-    int num_inputs = net.nodes[0] * net.batch_size * net.input_seq_len;
+    std::vector<int> z_pos_lstm(num_layers, 0);
+    int num_inputs = net.nodes.front() * net.batch_size * net.input_seq_len;
     net.n_state = num_inputs;
     net.n_max_state = num_inputs;
     net.n_ra = 0;
@@ -518,11 +530,15 @@ void get_net_props(Network &net)
                 net.num_lstm_states = num_inputs;
                 net.num_max_lstm_states = num_inputs;
             }
-            net.num_lstm_states +=
+            int num_lstm_states =
                 net.nodes[j] * net.input_seq_len * net.batch_size;
+            net.num_lstm_states += num_lstm_states;
             net.num_max_lstm_states =
-                std::max(net.num_max_lstm_states,
-                         net.nodes[j] * net.input_seq_len * net.batch_size);
+                std::max(net.num_max_lstm_states, num_lstm_states);
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                z_pos_lstm[j] =
+                    net.nodes[j - 1] * net.input_seq_len * net.batch_size;
+            }
 
         } else {
             throw std::invalid_argument("Layer is not valid");
@@ -574,6 +590,7 @@ void get_net_props(Network &net)
     net.w_sc_pos = cumsum(net.num_weights_sc);
     net.b_sc_pos = cumsum(net.num_biases_sc);
     net.z_pos = cumsum(z_pos);
+    net.z_pos_lstm = cumsum(z_pos_lstm);
     net.sc_pos = cumsum(sc_pos);
     net.ra_pos = cumsum(ra_pos);
 }
@@ -691,6 +708,8 @@ void initialize_derivative_state(Network &net, NetState &state) {
 
 NetState initialize_net_states(Network &net) {
     NetState state;
+    // TODO: Double check why Sz, Sa are initialzied at 1
+
     state.mz.resize(net.n_state, 0);      // Mean of hidden states
     state.Sz.resize(net.n_state, 1);      // Variance of hidden states
     state.ma.resize(net.n_state, 0);      // Mean of activation units
@@ -706,31 +725,33 @@ NetState initialize_net_states(Network &net) {
 
     // LSTM state
     if (net.num_lstm_states > 0) {
-        state.lstm_state.mha.resize(net.num_max_lstm_states, 0);
-        state.lstm_state.Sha.resize(net.num_max_lstm_states, 0);
-        state.lstm_state.mf_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sf_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Jf_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.mi_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Si_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Ji_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.mc_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sc_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Jc_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.mo_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.So_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.Jo_ga.resize(net.num_lstm_states, 0);
-        state.lstm_state.mca.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sca.resize(net.num_lstm_states, 0);
-        state.lstm_state.Jca.resize(net.num_lstm_states, 0);
-        state.lstm_state.mc.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sc.resize(net.num_lstm_states, 0);
-        state.lstm_state.mc_prev.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sc_prev.resize(net.num_lstm_states, 0);
-        state.lstm_state.mh_prev.resize(net.num_lstm_states, 0);
-        state.lstm_state.Sh_prev.resize(net.num_lstm_states, 0);
-        state.lstm_state.Ci_c.resize(net.num_max_lstm_states, 0);
-        state.lstm_state.Co_tanh_c.resize(net.num_max_lstm_states, 0);
+        state.lstm.mha.resize(net.num_max_lstm_states + net.num_max_lstm_states,
+                              0);
+        state.lstm.Sha.resize(net.num_max_lstm_states + net.num_max_lstm_states,
+                              0);
+        state.lstm.mf_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Sf_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Jf_ga.resize(net.num_lstm_states, 0);
+        state.lstm.mi_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Si_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Ji_ga.resize(net.num_lstm_states, 0);
+        state.lstm.mc_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Sc_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Jc_ga.resize(net.num_lstm_states, 0);
+        state.lstm.mo_ga.resize(net.num_lstm_states, 0);
+        state.lstm.So_ga.resize(net.num_lstm_states, 0);
+        state.lstm.Jo_ga.resize(net.num_lstm_states, 0);
+        state.lstm.mca.resize(net.num_lstm_states, 0);
+        state.lstm.Sca.resize(net.num_lstm_states, 0);
+        state.lstm.Jca.resize(net.num_lstm_states, 0);
+        state.lstm.mc.resize(net.num_lstm_states, 0);
+        state.lstm.Sc.resize(net.num_lstm_states, 0);
+        state.lstm.mc_prev.resize(net.num_lstm_states, 0);
+        state.lstm.Sc_prev.resize(net.num_lstm_states, 0);
+        state.lstm.mh_prev.resize(net.num_lstm_states, 0);
+        state.lstm.Sh_prev.resize(net.num_lstm_states, 0);
+        state.lstm.Ci_c.resize(net.num_max_lstm_states, 0);
+        state.lstm.Co_tanh_c.resize(net.num_max_lstm_states, 0);
     }
 
     // TODO: Is there a better way to initialize the full covariance matrix?
@@ -824,8 +845,7 @@ Param initialize_param(Network &net) {
             fan_out = net.nodes[j];
 
             // Compute variance
-            if (net.init_method.compare("Xavier") == 0 ||
-                net.init_method.compare("xavier") == 0) {
+            if (net.init_method.compare("Xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);
@@ -857,7 +877,6 @@ Param initialize_param(Network &net) {
                 }
             }
         }
-
         // Convolutional layer
         else if (net.layers[j] == net.layer_names.conv ||
                  net.layers[j] == net.layer_names.tconv) {
@@ -884,7 +903,6 @@ Param initialize_param(Network &net) {
                                                            net.num_biases[j]);
             }
         }
-
         // Normalization layer
         else if (net.layers[j] == net.layer_names.bn ||
                  net.layers[j] == net.layer_names.ln) {
@@ -898,6 +916,30 @@ Param initialize_param(Network &net) {
             if (net.num_biases[j] > 0) {
                 mb_j.resize(net.num_biases[j], 0);
                 Sb_j.resize(net.num_biases[j], 0.0001f);
+            }
+        }
+        // LSTM layer
+        else if (net.layers[j] == net.layer_names.lstm) {
+            fan_in = net.nodes[j - 1] * net.nodes[j];
+            fan_out = net.nodes[j];
+
+            // Variance
+            if (net.init_method.compare("Xavier") == 0) {
+                scale = xavier_init(fan_in, fan_out);
+            } else {
+                scale = he_init(fan_in);
+            }
+
+            // Weight
+            if (net.num_weights[j] > 0) {
+                std::tie(mw_j, Sw_j) = gaussian_param_init(scale, net.gain_w[j],
+                                                           net.num_weights[j]);
+            }
+
+            // Biases
+            if (net.num_biases[j] > 0) {
+                std::tie(mb_j, Sb_j) = gaussian_param_init(scale, net.gain_b[j],
+                                                           net.num_biases[j]);
             }
         }
 
