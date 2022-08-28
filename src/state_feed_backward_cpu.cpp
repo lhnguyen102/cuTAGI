@@ -979,7 +979,7 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         //**
         // 7: LSTM
         //
-        else if (net.layers[k] == net.layer_names.lstm) {
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
             lstm_state_update_cpu(net, state, theta, d_state, k);
         }
 

@@ -6,3 +6,4 @@ input_seq_len: 1
 output_seq_len: 1
 seq_stride: 1
 sigma_v: 	1
+multiprocessing: false

@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 24, 2022
+// Updated:      August 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,6 +88,21 @@ Args:
     sigma_v = decay_factor * sigma_v;
     if (sigma_v < sigma_v_min) {
         sigma_v = sigma_v_min;
+    }
+}
+
+void cat_activations_and_prev_states(std::vector<float> &a,
+                                     std::vector<float> &b, int n, int m,
+                                     int z_pos_a, int z_pos_b,
+                                     std::vector<float> &c)
+/*Concatenate two vectors*/
+{
+    for (int i = 0; i < n; i++) {
+        c[i] = a[i + z_pos_a];
+    }
+
+    for (int j = 0; j < m; j++) {
+        c[j + n] = b[j + z_pos_b];
     }
 }
 

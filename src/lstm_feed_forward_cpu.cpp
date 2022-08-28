@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      August 26, 2022
+// Updated:      August 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ void cov_output_tanh_cell_states_cpu(
     std::vector<float> &mc_prev, std::vector<float> &Jc_a,
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
     std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
-    std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o,
+    std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
     int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no,
     int n_seq, int B, std::vector<float> &Co_tanh_c)
 /*Compute convariance between output gates & tanh(cell states)
@@ -91,11 +91,11 @@ void cov_output_tanh_cell_states_cpu(
                     sum_io += mw[w_pos_i + k] * Sha[m] * mw[w_pos_o + k];
                     sum_oc += mw[w_pos_c + k] * Sha[m] * mw[w_pos_o + k];
                 }
-                i = z + y * no + x * n_seq * no + z_pos_o;
-                Co_tanh_c[i - z_pos_o] =
-                    Jc_a[i] * Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
-                    Jc_a[i] * sum_io * Ji_ga[i] * mc_ga[i] +
-                    Jc_a[i] * sum_oc * Jc_ga[i] * mi_ga[i];
+                i = z + y * no + x * n_seq * no + z_pos_o_lstm;
+                Co_tanh_c[i - z_pos_o_lstm] =
+                    Jc_a[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
+                               Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
+                               Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
             }
         }
     }
@@ -108,42 +108,28 @@ void hidden_state_mean_var_lstm_cpu(
     int n_seq, int B, std::vector<float> &mz, std::vector<float> &Sz)
 /*Compute mean and variance for hidden states of the LSTM layer*/
 {
-    int m, k;
+    int m, k, j;
     for (int x = 0; x < B; x++) {
         for (int y = 0; y < n_seq; y++) {
             for (int z = 0; z < no; z++) {
-                m = z + y * no + x * no * n_seq + z_pos_o_lstm;
+                j = z + y * no + x * no * n_seq;
+                m = j + z_pos_o_lstm;
                 k = z + y * no + x * no * n_seq + z_pos_o;
-                mz[k] = mo_ga[m] * mc_a[m] + Co_tanh_c[m - z_pos_o];
+                mz[k] = mo_ga[m] * mc_a[m] + Co_tanh_c[j];
                 Sz[k] = Sc_a[m] * mo_ga[m] * mo_ga[m] + Sc_a[m] * So_ga[m] +
-                        So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[m], 2) +
-                        2 * Co_tanh_c[m] * mo_ga[m] * mc_a[m];
+                        So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[j], 2) +
+                        2 * Co_tanh_c[j] * mo_ga[m] * mc_a[m];
             }
         }
     }
 }
 
-void cat_states_and_activations(std::vector<float> &a, std::vector<float> &b,
-                                int n, int m, int z_pos_a, int z_pos_b,
-                                std::vector<float> &c)
-/*Concatenate two vectors*/
-{
-    for (int i = 0; i < n; i++) {
-        c[i] = a[i + z_pos_a];
-    }
-
-    for (int j = 0; j < m; j++) {
-        c[j + n] = b[j + z_pos_b];
-    }
-}
-
-void to_prev_states(std::vector<float> &curr, int z_pos_curr, int z_pos_prev,
-                    int n, std::vector<float> &prev)
+void to_prev_states(std::vector<float> &curr, std::vector<float> &prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
-    for (int i = 0; i < n; i++) {
-        prev[i + z_pos_prev] = curr[i + z_pos_curr];
+    for (int i = 0; i < curr.size(); i++) {
+        prev[i] = curr[i];
     }
 }
 
@@ -167,10 +153,10 @@ NOTE: Weight & bias vector for lstm is defined following
 
     // Concatenate the hidden states from the previous time step and activations
     // from the previous layer
-    cat_states_and_activations(state.ma, state.lstm.mh_prev, ni, no, z_pos_i,
-                               z_pos_o_lstm, state.lstm.mha);
-    cat_states_and_activations(state.Sa, state.lstm.Sh_prev, ni, no, z_pos_i,
-                               z_pos_o_lstm, state.lstm.Sha);
+    cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
+                                    z_pos_i, z_pos_o_lstm, state.lstm.mha);
+    cat_activations_and_prev_states(state.Sa, state.lstm.Sh_prev, ni, no,
+                                    z_pos_i, z_pos_o_lstm, state.lstm.Sha);
 
     // Forget gate
     w_pos_f = net.w_pos[l - 1];
@@ -252,8 +238,8 @@ NOTE: Weight & bias vector for lstm is defined following
     cov_output_tanh_cell_states_cpu(
         theta.mw, state.lstm.Sha, state.lstm.mc_prev, state.lstm.Jca,
         state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga, state.lstm.mc_ga,
-        state.lstm.Jc_ga, state.lstm.Jo_ga, z_pos_o, w_pos_f, w_pos_i, w_pos_c,
-        w_pos_o, ni, no, net.input_seq_len, net.batch_size,
+        state.lstm.Jc_ga, state.lstm.Jo_ga, z_pos_o_lstm, w_pos_f, w_pos_i,
+        w_pos_c, w_pos_o, ni, no, net.input_seq_len, net.batch_size,
         state.lstm.Co_tanh_c);
 
     // Mean and variance for hidden states
@@ -261,14 +247,4 @@ NOTE: Weight & bias vector for lstm is defined following
         state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
         state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
         net.batch_size, state.mz, state.Sz);
-
-    // Save current cell & hidden states for next step
-    if (net.batch_size == 1) {
-        to_prev_states(state.lstm.mc, z_pos_o_lstm, z_pos_o_lstm, no,
-                       state.lstm.mc_prev);
-        to_prev_states(state.lstm.Sc, z_pos_o_lstm, z_pos_o_lstm, no,
-                       state.lstm.Sc_prev);
-        to_prev_states(state.mz, z_pos_o, z_pos_o_lstm, no, state.lstm.mh_prev);
-        to_prev_states(state.Sz, z_pos_o, z_pos_o_lstm, no, state.lstm.Sh_prev);
-    }
 }

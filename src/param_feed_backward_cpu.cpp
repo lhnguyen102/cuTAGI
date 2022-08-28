@@ -328,7 +328,7 @@ Returns:
         //**
         // 7: LSTM
         //
-        else if (net.layers[k] == net.layer_names.lstm) {
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
             lstm_parameter_update_cpu(net, state, theta, d_state, d_theta, k);
         }
     }
