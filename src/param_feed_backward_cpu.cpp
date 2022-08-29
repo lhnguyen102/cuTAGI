@@ -100,9 +100,9 @@ Args:
     b_pos: Bias position for this layer in the bias vector of network
     z_pos_out: Output-hidden-state position for this layer in the weight vector
             of network
-    m: Number of hidden units for input
+    m: Number of hidden units for outputs
     n: Number of batches
-    k: Number of hidden units for output
+    k: 1
     deltaMb: Updated quantities for the mean of biases
 */
 {
@@ -132,9 +132,9 @@ Args:
     b_pos: Bias position for this layer in the bias vector of network
     z_pos_out: Output-hidden-state position for this layer in the weight vector
     of network
-    m: Number of hidden units for input
+    m: Number of hidden units for outputs
     n: Number of batches
-    k: Number of hidden units for output
+    k: 1
     deltaSb: Updated quantities for the variance of biases
 */
 {
