@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 27, 2022
+// Updated:      August 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -222,7 +222,7 @@ void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
 void cat_activations_and_prev_states(std::vector<float> &a,
                                      std::vector<float> &b, int n, int m,
-                                     int z_pos_a, int z_pos_b,
+                                     int seq_len, int z_pos_a, int z_pos_b,
                                      std::vector<float> &c);
 
 //////////////////////////////////////////////////////////////////////

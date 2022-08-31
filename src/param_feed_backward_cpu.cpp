@@ -268,7 +268,7 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
 }
 
 ///////////////////////////////////////////////////////////////////
-/// PARAMETER BACKWARD PASS
+/// PARAMETER BACKWARD
 ///////////////////////////////////////////////////////////////////
 void param_backward_cpu(Network &net, Param &theta, NetState &state,
                         DeltaState &d_state, IndexOut &idx, DeltaParam &d_theta)
@@ -299,6 +299,10 @@ Returns:
         // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
+            // Handle multiple input sequences from LSTM layer
+            if (net.layers[k] == net.layer_names.lstm) {
+                ni = net.nodes[k] * net.input_seq_len;
+            }
             if (ni * no > net.min_operations && net.multithreading) {
                 // Compute updated quantites for weights
                 fc_delta_w_multithreading(

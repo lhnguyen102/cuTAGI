@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      August 27, 2022
+// Updated:      August 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -420,9 +420,17 @@ void get_net_props(Network &net)
 
         // Full connected layer
         if (net.layers[j] == net.layer_names.fc) {
+            int ni = net.nodes[j - 1];
+            int no = net.nodes[j];
+
+            // TODO: Is there any better way to modify number of nodes?
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                ni = net.nodes[j - 1] * net.input_seq_len;
+                no = net.nodes[j];
+            }
             // Compute number of weights and biases
             std::tie(net.num_weights[j], net.num_biases[j]) =
-                get_number_param_fc(net.nodes[j - 1], net.nodes[j], use_bias);
+                get_number_param_fc(ni, no, use_bias);
         }
         // Convolutional layer
         else if (net.layers[j] == net.layer_names.conv) {
@@ -541,7 +549,7 @@ void get_net_props(Network &net)
             }
 
         } else {
-            throw std::invalid_argument("Layer is not valid");
+            throw std::invalid_argument("Layer is not valid - net_prop.cpp");
         }
 
         // Hidden state position
@@ -924,7 +932,8 @@ Param initialize_param(Network &net) {
             fan_out = net.nodes[j];
 
             // Variance
-            if (net.init_method.compare("Xavier") == 0) {
+            if (net.init_method.compare("Xavier") == 0 ||
+                net.init_method.compare("xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);

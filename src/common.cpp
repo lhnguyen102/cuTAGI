@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 27, 2022
+// Updated:      August 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -93,16 +93,18 @@ Args:
 
 void cat_activations_and_prev_states(std::vector<float> &a,
                                      std::vector<float> &b, int n, int m,
-                                     int z_pos_a, int z_pos_b,
+                                     int seq_len, int z_pos_a, int z_pos_b,
                                      std::vector<float> &c)
 /*Concatenate two vectors*/
 {
-    for (int i = 0; i < n; i++) {
-        c[i] = a[i + z_pos_a];
-    }
+    for (int s = 0; s < seq_len; s++) {
+        for (int i = 0; i < n; i++) {
+            c[i + s * (n + m)] = a[i + z_pos_a + s * n];
+        }
 
-    for (int j = 0; j < m; j++) {
-        c[j + n] = b[j + z_pos_b];
+        for (int j = 0; j < m; j++) {
+            c[j + n + s * (n + m)] = b[j + z_pos_b + s * m];
+        }
     }
 }
 

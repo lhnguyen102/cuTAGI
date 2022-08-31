@@ -20,7 +20,7 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
                            std::vector<float> &delta_S, int z_pos_i,
                            int z_pos_o, int z_pos_o_lstm, int w_pos_f,
                            int w_pos_i, int w_pos_c, int w_pos_o, int no,
-                           int ni, int n_seq, int B,
+                           int ni, int seq_len, int B,
                            std::vector<float> &delta_mz,
                            std::vector<float> &delta_Sz)
 /*Compute the updated quatitites of the mean of the hidden states for lstm
@@ -29,9 +29,8 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
     float sum_mf, sum_mi, sum_mc, sum_mo, sum_Sz;
     float Czz_f, Czz_i, Czz_c, Czz_o;
     int k, m, i;
-    // TODO Forget about number of sequences
     for (int x = 0; x < B; x++) {
-        for (int y = 0; y < n_seq; y++) {
+        for (int y = 0; y < seq_len; y++) {
             for (int z = 0; z < ni; z++) {
                 sum_mf = 0;
                 sum_mi = 0;
@@ -39,8 +38,8 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
                 sum_mo = 0;
                 sum_Sz = 0;
                 for (int j = 0; j < no; j++) {
-                    k = j + x * no * n_seq + y * no + z_pos_o_lstm;
-                    i = j + x * no * n_seq + y * no + z_pos_o;
+                    k = j + x * no * seq_len + y * no + z_pos_o_lstm;
+                    i = j + x * no * seq_len + y * no + z_pos_o;
                     // Forget gate
                     Czz_f = Jca[k] * mo_ga[k] * Jf_ga[k] *
                             mw[(ni + no) * j + z + w_pos_f] * mc_prev[k];
@@ -64,7 +63,7 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
                 }
 
                 // Updating quantities
-                m = x * ni * n_seq + y * ni + z;
+                m = x * ni * seq_len + y * ni + z;
                 delta_mz[m] =
                     (sum_mf + sum_mi + sum_mc + sum_mo) * Sz[m + z_pos_i];
                 delta_Sz[m] = Sz[m + z_pos_i] * sum_Sz * Sz[m + z_pos_i];
@@ -82,8 +81,8 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
                            std::vector<float> &Jc, std::vector<float> &delta_m,
                            std::vector<float> &delta_S, int z_pos_o,
                            int z_pos_o_lstm, int w_pos_f, int w_pos_i,
-                           int w_pos_c, int w_pos_o, int no, int ni, int n_seq,
-                           int B, std::vector<float> &delta_mw,
+                           int w_pos_c, int w_pos_o, int no, int ni,
+                           int seq_len, int B, std::vector<float> &delta_mw,
                            std::vector<float> &delta_Sw)
 /*Compute updating quantities of the weight parameters for lstm layer */
 {
@@ -101,10 +100,10 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
             sum_mo = 0;
             sum_So = 0;
             for (int x = 0; x < B; x++) {
-                for (int y = 0; y < n_seq; y++) {
-                    k = col + y * n_seq + no * n_seq * x + z_pos_o_lstm;
-                    i = col + y * n_seq + no * n_seq * x + z_pos_o;
-                    l = row + y * (ni + no) + (ni + no) * n_seq * x;
+                for (int y = 0; y < seq_len; y++) {
+                    k = col + y * seq_len + no * seq_len * x + z_pos_o_lstm;
+                    i = col + y * seq_len + no * seq_len * x + z_pos_o;
+                    l = row + y * (ni + no) + (ni + no) * seq_len * x;
 
                     // Forget gate
                     Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * mha[l];
@@ -152,7 +151,7 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &Jf_ga,
                            std::vector<float> &Jc, std::vector<float> &delta_m,
                            std::vector<float> &delta_S, int z_pos_o,
                            int z_pos_o_lstm, int b_pos_f, int b_pos_i,
-                           int b_pos_c, int b_pos_o, int no, int n_seq, int B,
+                           int b_pos_c, int b_pos_o, int no, int seq_len, int B,
                            std::vector<float> &delta_mb,
                            std::vector<float> &delta_Sb)
 /*Compute updating quantities of the bias for the lstm layer */
@@ -170,9 +169,9 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &Jf_ga,
         sum_mo = 0;
         sum_So = 0;
         for (int x = 0; x < B; x++) {
-            for (int y = 0; y < n_seq; y++) {
-                k = row + y * n_seq + no * n_seq * x + z_pos_o_lstm;
-                i = row + y * n_seq + no * n_seq * x + z_pos_o;
+            for (int y = 0; y < seq_len; y++) {
+                k = row + y * seq_len + no * seq_len * x + z_pos_o_lstm;
+                i = row + y * seq_len + no * seq_len * x + z_pos_o;
 
                 // Forget gate
                 Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];
@@ -270,7 +269,8 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
     // Concatenate the hidden states from the previous time step and activations
     // from the previous layer
     cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
-                                    z_pos_i, z_pos_o_lstm, state.lstm.mha);
+                                    net.input_seq_len, z_pos_i, z_pos_o_lstm,
+                                    state.lstm.mha);
 
     lstm_delta_mean_var_w(
         theta.Sw, state.lstm.mha, state.lstm.Jf_ga, state.lstm.mi_ga,

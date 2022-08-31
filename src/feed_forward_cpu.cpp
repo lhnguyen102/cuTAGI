@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      August 17, 2022
+// Updated:      August 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -959,7 +959,7 @@ void initialize_states_multithreading(std::vector<float> &x,
 }
 
 //////////////////////////////////////////////////////////////////////
-/// FEED FORWARD PASS
+/// FEED FORWARD
 //////////////////////////////////////////////////////////////////////
 void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                       NetState &state)
@@ -990,6 +990,10 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         // 1: Fully connected
         //
         if (net.layers[j] == net.layer_names.fc) {
+            // Handle multiple input sequences from LSTM layer
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                ni = net.nodes[j - 1] * net.input_seq_len;
+            }
             if (!net.is_full_cov) {
                 if (no * B > net.min_operations && net.multithreading) {
                     fc_mean_var_multithreading(
