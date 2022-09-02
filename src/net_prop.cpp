@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      August 31, 2022
+// Updated:      September 01, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -554,12 +554,16 @@ void get_net_props(Network &net)
 
         // Hidden state position
         z_pos[j] = net.batch_size * net.nodes[j - 1];
+        net.n_state += net.nodes[j] * net.batch_size;
+        if (net.nodes[j] * net.batch_size > net.n_max_state) {
+            net.n_max_state = net.nodes[j] * net.batch_size;
+        };
+
+        // Residual networks
         if (net.shortcuts[j] > -1) {
             sc_pos[j + 1] = net.batch_size * net.nodes[j];
             net.n_state_sc += net.batch_size * net.nodes[j];
         }
-
-        // Residual networks
         if (net.shortcuts[j] > -1 &&
             (net.filters[net.shortcuts[j]] != net.filters[j] ||
              net.widths[net.shortcuts[j]] != net.widths[j] ||
@@ -571,12 +575,6 @@ void get_net_props(Network &net)
                 get_number_param_conv(1, net.filters[net.shortcuts[j]],
                                       net.filters[j], use_bias);
         }
-
-        // Count total number of elements for state vector
-        net.n_state += net.nodes[j] * net.batch_size;
-        if (net.nodes[j] * net.batch_size > net.n_max_state) {
-            net.n_max_state = net.nodes[j] * net.batch_size;
-        };
 
         // Compute overlap
         if (net.kernels[j - 1] == net.strides[j - 1] ||

@@ -133,6 +133,23 @@ void to_prev_states(std::vector<float> &curr, std::vector<float> &prev)
     }
 }
 
+void cat_activations_and_prev_states(std::vector<float> &a,
+                                     std::vector<float> &b, int n, int m,
+                                     int seq_len, int z_pos_a, int z_pos_b,
+                                     std::vector<float> &c)
+/*Concatenate two vectors*/
+{
+    for (int s = 0; s < seq_len; s++) {
+        for (int i = 0; i < n; i++) {
+            c[i + s * (n + m)] = a[i + z_pos_a + s * n];
+        }
+
+        for (int j = 0; j < m; j++) {
+            c[j + n + s * (n + m)] = b[j + z_pos_b + s * m];
+        }
+    }
+}
+
 void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
 /*Steps for computing hiiden states mean and covariance for the lstm layer
 
@@ -155,7 +172,7 @@ NOTE: Weight & bias vector for lstm is defined following
     int b_seq = net.batch_size * net.input_seq_len;
 
     // Concatenate the hidden states from the previous time step and activations
-    // from the previous layer
+    // from the previous layer. TODO fix bugs in net.z_pos
     cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
                                     net.input_seq_len, z_pos_i, z_pos_o_lstm,
                                     state.lstm.mha);

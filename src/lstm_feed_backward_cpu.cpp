@@ -242,6 +242,7 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
         d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, z_pos_o_lstm,
         w_pos_f, w_pos_i, w_pos_c, w_pos_o, no, ni, net.input_seq_len,
         net.batch_size, d_state.delta_mz, d_state.delta_Sz);
+    int a = 0;
 }
 
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,

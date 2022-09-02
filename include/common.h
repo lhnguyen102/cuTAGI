@@ -220,11 +220,6 @@ void create_directory(std::string &path);
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
-void cat_activations_and_prev_states(std::vector<float> &a,
-                                     std::vector<float> &b, int n, int m,
-                                     int seq_len, int z_pos_a, int z_pos_b,
-                                     std::vector<float> &c);
-
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES
 //////////////////////////////////////////////////////////////////////

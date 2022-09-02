@@ -91,23 +91,6 @@ Args:
     }
 }
 
-void cat_activations_and_prev_states(std::vector<float> &a,
-                                     std::vector<float> &b, int n, int m,
-                                     int seq_len, int z_pos_a, int z_pos_b,
-                                     std::vector<float> &c)
-/*Concatenate two vectors*/
-{
-    for (int s = 0; s < seq_len; s++) {
-        for (int i = 0; i < n; i++) {
-            c[i + s * (n + m)] = a[i + z_pos_a + s * n];
-        }
-
-        for (int j = 0; j < m; j++) {
-            c[j + n + s * (n + m)] = b[j + z_pos_b + s * m];
-        }
-    }
-}
-
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES
 //////////////////////////////////////////////////////////////////////
