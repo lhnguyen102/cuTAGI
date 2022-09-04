@@ -3,13 +3,84 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      September 01, 2022
+// Updated:      September 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/net_prop.h"
 
 #include "../include/common.h"
+
+////////////////////////////////////////////////////////////////////////////
+/// LAYER CHECK
+////////////////////////////////////////////////////////////////////////////
+bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the convolutional layer?
+
+Args:
+    layers: All layer types of the network
+    layer_names: Code name of each layer
+
+Returns:
+    bool
+*/
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.conv) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_tconv(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the transpose convolutional layer layer?
+ */
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.tconv) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_fc(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the fully-connected layer?
+ */
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.fc) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_lstm(std::vector<int> &layers, LayerLabel &layer_names)
+/* Does network contain the lstm layer?
+ */
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.lstm) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_leakyrelu(std::vector<int> &activations)
+/* Does network contain the leakyrely activation?
+ */
+{
+    for (int i = 0; i < activations.size(); i++) {
+        // TODO: Put label instead of integer for leakyrelu
+        if (activations[i] == 6) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /////////////////////////////
 // NETWORK PROPERTIES
@@ -402,6 +473,11 @@ void get_net_props(Network &net)
     net.n_ra = 0;
     net.n_state_sc = 0;
     net.init_sc = get_first_shortcut_layer(net.shortcuts);
+    int n_state;
+    if (is_lstm(net.layers, net.layer_names)) {
+        net.num_lstm_states = num_inputs;
+        net.num_max_lstm_states = num_inputs;
+    }
 
     for (int j = 1; j < num_layers; j++) {
         // Biases are not used for this layer if the next two layer is
@@ -428,10 +504,19 @@ void get_net_props(Network &net)
                 ni = net.nodes[j - 1] * net.input_seq_len;
                 no = net.nodes[j];
             }
+
             // Compute number of weights and biases
             std::tie(net.num_weights[j], net.num_biases[j]) =
                 get_number_param_fc(ni, no, use_bias);
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * ni;
+            n_state = no * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
+
         }
+
         // Convolutional layer
         else if (net.layers[j] == net.layer_names.conv) {
             // Compute the image size
@@ -447,7 +532,15 @@ void get_net_props(Network &net)
             std::tie(net.num_weights[j], net.num_biases[j]) =
                 get_number_param_conv(net.kernels[j - 1], net.filters[j - 1],
                                       net.filters[j], use_bias);
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
+
         }
+
         // Transpose convolutional layers
         else if (net.layers[j] == net.layer_names.tconv) {
             // Compute the image size
@@ -462,6 +555,12 @@ void get_net_props(Network &net)
             std::tie(net.num_weights[j], net.num_biases[j]) =
                 get_number_param_conv(net.kernels[j - 1], net.filters[j - 1],
                                       net.filters[j], use_bias);
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
         }
         // Pooling layer
         else if (net.layers[j] == net.layer_names.mp ||
@@ -474,6 +573,12 @@ void get_net_props(Network &net)
 
             // Compute number of nodes
             net.nodes[j] = net.widths[j] * net.heights[j] * net.filters[j];
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
 
         }
         // Layernorm layer
@@ -498,6 +603,12 @@ void get_net_props(Network &net)
             // Index position running average
             ra_pos[j] = net.batch_size;
             net.n_ra += net.batch_size;
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
 
         }
 
@@ -528,38 +639,37 @@ void get_net_props(Network &net)
             // Compute number of nodes
             net.nodes[j] = net.widths[j] * net.heights[j] * net.filters[j];
 
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
         }
         // LSTM layer
         else if (net.layers[j] == net.layer_names.lstm) {
             std::tie(net.num_weights[j], net.num_biases[j]) =
                 get_number_param_lstm(net.nodes[j - 1], net.nodes[j], use_bias);
 
-            if (j == 1) {
-                net.num_lstm_states = num_inputs;
-                net.num_max_lstm_states = num_inputs;
-            }
             int num_lstm_states =
                 net.nodes[j] * net.input_seq_len * net.batch_size;
             net.num_lstm_states += num_lstm_states;
             net.num_max_lstm_states =
                 std::max(net.num_max_lstm_states, num_lstm_states);
-            if (net.layers[j - 1] == net.layer_names.lstm) {
-                z_pos_lstm[j] =
-                    net.nodes[j - 1] * net.input_seq_len * net.batch_size;
-            }
+
+            // Hidden state position in state vector
+            z_pos[j] = net.batch_size * net.nodes[j - 1] * net.input_seq_len;
+            n_state = net.nodes[j] * net.batch_size * net.input_seq_len;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
+
+            z_pos_lstm[j] =
+                net.nodes[j - 1] * net.input_seq_len * net.batch_size;
 
         } else {
             throw std::invalid_argument("Layer is not valid - net_prop.cpp");
         }
 
-        // Hidden state position
-        z_pos[j] = net.batch_size * net.nodes[j - 1];
-        net.n_state += net.nodes[j] * net.batch_size;
-        if (net.nodes[j] * net.batch_size > net.n_max_state) {
-            net.n_max_state = net.nodes[j] * net.batch_size;
-        };
-
-        // Residual networks
+        // Residual networks. TODO: it has not support lstm yet
         if (net.shortcuts[j] > -1) {
             sc_pos[j + 1] = net.batch_size * net.nodes[j];
             net.n_state_sc += net.batch_size * net.nodes[j];
@@ -1224,65 +1334,6 @@ void load_cfg(std::string net_file, Network &net)
             }
         }
     }
-}
-
-////////////////////////////////////////////////////////////////////////////
-/// LAYER CHECK
-////////////////////////////////////////////////////////////////////////////
-bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
-/* Does network contain the convolutional layer?
-
-Args:
-    layers: All layer types of the network
-    layer_names: Code name of each layer
-
-Returns:
-    bool
-*/
-{
-    for (int i = 0; i < layers.size(); i++) {
-        if (layers[i] == layer_names.conv) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool is_tconv(std::vector<int> &layers, LayerLabel &layer_names)
-/* Does network contain the transpose convolutional layer layer?
- */
-{
-    for (int i = 0; i < layers.size(); i++) {
-        if (layers[i] == layer_names.tconv) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool is_fc(std::vector<int> &layers, LayerLabel &layer_names)
-/* Does network contain the fully-connected layer?
- */
-{
-    for (int i = 0; i < layers.size(); i++) {
-        if (layers[i] == layer_names.fc) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool is_leakyrelu(std::vector<int> &activations)
-/* Does network contain the leakyrely activation?
- */
-{
-    for (int i = 0; i < activations.size(); i++) {
-        // TODO: Put label instead of integer for leakyrelu
-        if (activations[i] == 6) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void test_get_net_prop() {

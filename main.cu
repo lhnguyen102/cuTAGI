@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      May 29, 2022
+// Updated:      September 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,7 @@
 #include "include/task.cuh"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
+#include "test/test_lstm_cpu.h"
 
 int main(int argc, char* argv[]) {
     // User input file
@@ -37,10 +38,14 @@ int main(int argc, char* argv[]) {
     path.saved_inference_path = path.curr_path + "/saved_results/";
 
     // Run task
-    if (user_input.device == "cuda") {
-        task_command(user_input, path);
+    if (user_input_file.compare("test") == 0) {
+        auto a = test_lstm_cpu();
     } else {
-        task_command_cpu(user_input, path);
+        if (user_input.device == "cuda") {
+            task_command(user_input, path);
+        } else {
+            task_command_cpu(user_input, path);
+        }
     }
     return 0;
 }

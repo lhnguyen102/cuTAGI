@@ -1,5 +1,5 @@
 # CMAKE VERSION
-# *NOTE: We only test this file using CUDA toolkit 10.2
+# *NOTE: We only test this file using CUDA toolkit >=10.2
 cmake_minimum_required(VERSION 3.23)
 
 # ###########################################################################################
@@ -93,6 +93,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
 include_directories("include")
+include_directories("test")
 
 # Sources code for CUDA
 set(GPU_SOURCES
@@ -123,6 +124,8 @@ set(GPU_SOURCES
   src/task_cpu.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+
+  test/test_lstm_cpu.cpp
 )
 
 # Source codes for only CPU
@@ -145,6 +148,8 @@ set(CPU_SOURCES
   src/utils.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+
+  test/test_lstm_cpu.cpp
 )
 
 # Output binary folder der for different mode

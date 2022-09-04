@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 26, 2022
+// Updated:      September 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,16 @@ struct LayerLabel {
     int bn = 6;      // Batch normalization layer
     int lstm = 7;    // LSTM layer
 };
+
+struct ActLabel {
+    int no_act = 0;  // No activaivation
+    int tanh = 1;
+    int sigmoid = 2;
+    int relu = 4;
+    int softplus = 5;
+    int leakyrelu = 6;
+};
+
 struct Network {
     /*Network properties
       Args:
@@ -40,7 +50,8 @@ struct Network {
         num_weights_sc: Number of weights for residual network
         num_biases_sc: Number of biases for residual network
         similar_layers: Index of layers having the smilar indices
-        layer_names: Conventional name for each layer
+        layer_names: Label for each layer
+        act_names: Label for each activation function
         init_method: Initalization method e.g. He and Xavier
         gain_w: Gain for weight parameters when initializing
         gain_b: Gain for biases parameters when initializing
@@ -121,6 +132,7 @@ struct Network {
     std::vector<int> pads, pad_types, shortcuts, num_weights, num_biases;
     std::vector<int> num_weights_sc, num_biases_sc, similar_layers;
     LayerLabel layer_names;
+    ActLabel act_names;
     std::string init_method = "Xavier";
     std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
     std::vector<int> z_pos, z_pos_lstm, sc_pos, ra_pos, overlap;

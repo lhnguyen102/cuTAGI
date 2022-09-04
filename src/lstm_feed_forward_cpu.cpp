@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      August 31, 2022
+// Updated:      September 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,23 +135,261 @@ void to_prev_states(std::vector<float> &curr, std::vector<float> &prev)
 
 void cat_activations_and_prev_states(std::vector<float> &a,
                                      std::vector<float> &b, int n, int m,
-                                     int seq_len, int z_pos_a, int z_pos_b,
-                                     std::vector<float> &c)
+                                     int seq_len, int B, int z_pos_a,
+                                     int z_pos_b, std::vector<float> &c)
 /*Concatenate two vectors*/
 {
-    for (int s = 0; s < seq_len; s++) {
-        for (int i = 0; i < n; i++) {
-            c[i + s * (n + m)] = a[i + z_pos_a + s * n];
-        }
+    for (int k = 0; k < B; k++) {
+        for (int s = 0; s < seq_len; s++) {
+            for (int i = 0; i < n; i++) {
+                c[i + s * (n + m) + k * (n + m) * seq_len] =
+                    a[i + z_pos_a + s * n + k * seq_len * n];
+            }
 
-        for (int j = 0; j < m; j++) {
-            c[j + n + s * (n + m)] = b[j + z_pos_b + s * m];
+            for (int j = 0; j < m; j++) {
+                c[j + n + s * (n + m) + k * (n + m) * seq_len] =
+                    b[j + z_pos_b + s * m + k * m * seq_len];
+            }
         }
     }
 }
 
+//////////////////////////////////////////////////////////////////////
+/// MULTITHREAD VERSION
+//////////////////////////////////////////////////////////////////////
+void cov_input_cell_states_worker(std::vector<float> &Sha,
+                                  std::vector<float> &mw,
+                                  std::vector<float> &Ji_ga,
+                                  std::vector<float> &Jc_ga, int z_pos_o,
+                                  int w_pos_i, int w_pos_c, int ni, int no,
+                                  int seq_len, int B, int start_idx,
+                                  int end_idx, std::vector<float> &Ci_c) {
+    float sum;
+    int k, i, m, x, y, z;
+    for (int t = start_idx; t < end_idx; t++) {
+        x = t / (no * seq_len);
+        y = (t % (no * seq_len)) / no;
+        z = t % no;
+        sum = 0;
+        for (int j = 0; j < ni + no; j++) {
+            k = j + z * (ni + no);
+            m = j + y * (ni + no) + x * (seq_len * (ni + no));
+            sum += mw[w_pos_i + k] * Sha[m] * mw[w_pos_c + k];
+        }
+        i = z + y * no + x * seq_len * no;
+        Ci_c[i] = Ji_ga[i + z_pos_o] * sum * Jc_ga[i + z_pos_o];
+    }
+}
+
+void cov_input_cell_states_mp(std::vector<float> &Sha, std::vector<float> &mw,
+                              std::vector<float> &Ji_ga,
+                              std::vector<float> &Jc_ga, int z_pos_o,
+                              int w_pos_i, int w_pos_c, int ni, int no,
+                              int seq_len, int B, int NUM_THREADS,
+                              std::vector<float> &Ci_c) {
+    const int tot_ops = B * seq_len * no;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = 0;
+            end_idx = n_batch + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(cov_input_cell_states_worker, std::ref(Sha),
+                                 std::ref(mw), std::ref(Ji_ga), std::ref(Jc_ga),
+                                 z_pos_o, w_pos_i, w_pos_c, ni, no, seq_len, B,
+                                 start_idx, end_idx, std::ref(Ci_c));
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void cell_state_mean_var_worker(
+    std::vector<float> &mf_ga, std::vector<float> &Sf_ga,
+    std::vector<float> &mi_ga, std::vector<float> &Si_ga,
+    std::vector<float> &mc_ga, std::vector<float> &Sc_ga,
+    std::vector<float> &mc_prev, std::vector<float> &Sc_prev,
+    std::vector<float> &Ci_c, int z_pos_o, int no, int seq_len, int start_idx,
+    int end_idx, std::vector<float> &mc, std::vector<float> &Sc) {
+    int m, k, x, y, z;
+    for (int t = start_idx; t < end_idx; t++) {
+        x = t / (no * seq_len);
+        y = (t % (no * seq_len)) / no;
+        z = t % no;
+
+        k = z + y * no + x * no * seq_len;
+        m = k + z_pos_o;
+        mc[m] = mf_ga[m] * mc_prev[m] + mi_ga[m] * mc_ga[m] + Ci_c[k];
+        Sc[m] = Sc_prev[m] * mf_ga[m] * mf_ga[m] + Sc_prev[m] * Sf_ga[m] +
+                Sf_ga[m] * mc_prev[m] * mc_prev[m] +
+                Sc_ga[m] * mi_ga[m] * mi_ga[m] + Si_ga[m] * Sc_ga[m] +
+                Si_ga[m] * mc_ga[m] * mc_ga[m] + powf(Ci_c[k], 2) +
+                2 * Ci_c[k] * mi_ga[m] * mc_ga[m];
+    }
+}
+
+void cell_state_mean_var_mp(
+    std::vector<float> &mf_ga, std::vector<float> &Sf_ga,
+    std::vector<float> &mi_ga, std::vector<float> &Si_ga,
+    std::vector<float> &mc_ga, std::vector<float> &Sc_ga,
+    std::vector<float> &mc_prev, std::vector<float> &Sc_prev,
+    std::vector<float> &Ci_c, int z_pos_o, int no, int seq_len, int B,
+    int NUM_THREADS, std::vector<float> &mc, std::vector<float> &Sc) {
+    const int tot_ops = B * seq_len * no;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = 0;
+            end_idx = n_batch + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            cell_state_mean_var_worker, std::ref(mf_ga), std::ref(Sf_ga),
+            std::ref(mi_ga), std::ref(Si_ga), std::ref(mc_ga), std::ref(Sc_ga),
+            std::ref(mc_prev), std::ref(Sc_prev), std::ref(Ci_c), z_pos_o, no,
+            seq_len, start_idx, end_idx, std::ref(mc), std::ref(Sc));
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void cov_output_tanh_cell_states_worker(
+    std::vector<float> &mw, std::vector<float> &Sha,
+    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
+    std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
+    std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
+    std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
+    int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no,
+    int seq_len, int start_idx, int end_idx, std::vector<float> &Co_tanh_c) {
+    float sum_fo, sum_io, sum_oc;
+    int k, m, i, x, y, z;
+    for (int t = start_idx; t < end_idx; t++) {
+        x = t / (no * seq_len);
+        y = (t % (no * seq_len)) / no;
+        z = t % no;
+        sum_fo = 0;
+        sum_io = 0;
+        sum_oc = 0;
+        for (int j = 0; j < ni; j++) {
+            k = j + z * (ni + no);
+            m = j + y * (ni + no) + x * (seq_len * (ni + no));
+            sum_fo += mw[w_pos_f + k] * Sha[m] * mw[w_pos_o + k];
+            sum_io += mw[w_pos_i + k] * Sha[m] * mw[w_pos_o + k];
+            sum_oc += mw[w_pos_c + k] * Sha[m] * mw[w_pos_o + k];
+        }
+        i = z + y * no + x * seq_len * no + z_pos_o_lstm;
+        Co_tanh_c[i - z_pos_o_lstm] =
+            Jc_a[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
+                       Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
+                       Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
+    }
+}
+
+void cov_output_tanh_cell_states_mp(
+    std::vector<float> &mw, std::vector<float> &Sha,
+    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
+    std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
+    std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
+    std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
+    int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no,
+    int seq_len, int B, int NUM_THREADS, std::vector<float> &Co_tanh_c) {
+    const int tot_ops = B * seq_len * no;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = 0;
+            end_idx = n_batch + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            cov_output_tanh_cell_states_worker, std::ref(mw), std::ref(Sha),
+            std::ref(mc_prev), std::ref(Jc_ga), std::ref(Jf_ga),
+            std::ref(mi_ga), std::ref(Ji_ga), std::ref(mc_ga), std::ref(Jc_ga),
+            std::ref(Jo_ga), z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o,
+            ni, no, seq_len, start_idx, end_idx, std::ref(Co_tanh_c));
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void hidden_state_mean_var_lstm_worker(
+    std::vector<float> &mo_ga, std::vector<float> &So_ga,
+    std::vector<float> &mc_a, std::vector<float> &Sc_a,
+    std::vector<float> &Co_tanh_c, int z_pos_o, int z_pos_o_lstm, int no,
+    int seq_len, int start_idx, int end_idx, std::vector<float> &mz,
+    std::vector<float> &Sz) {
+    int m, k, j, x, y, z;
+    for (int t = start_idx; x < end_idx; t++) {
+        x = t / (no * seq_len);
+        y = (t % (no * seq_len)) / no;
+        z = t % no;
+
+        j = z + y * no + x * no * seq_len;
+        m = j + z_pos_o_lstm;
+        k = z + y * no + x * no * seq_len + z_pos_o;
+        mz[k] = mo_ga[m] * mc_a[m] + Co_tanh_c[j];
+        Sz[k] = Sc_a[m] * mo_ga[m] * mo_ga[m] + Sc_a[m] * So_ga[m] +
+                So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[j], 2) +
+                2 * Co_tanh_c[j] * mo_ga[m] * mc_a[m];
+    }
+}
+
+void hidden_state_mean_var_lstm_mp(std::vector<float> &mo_ga,
+                                   std::vector<float> &So_ga,
+                                   std::vector<float> &mc_a,
+                                   std::vector<float> &Sc_a,
+                                   std::vector<float> &Co_tanh_c, int z_pos_o,
+                                   int z_pos_o_lstm, int no, int seq_len, int B,
+                                   int NUM_THREADS, std::vector<float> &mz,
+                                   std::vector<float> &Sz) {
+    const int tot_ops = B * seq_len * no;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = 0;
+            end_idx = n_batch + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(hidden_state_mean_var_lstm_worker, std::ref(mo_ga),
+                        std::ref(So_ga), std::ref(mc_a), std::ref(Sc_a),
+                        std::ref(Co_tanh_c), z_pos_o, z_pos_o_lstm, no, seq_len,
+                        start_idx, end_idx, std::ref(mz), std::ref(Sz));
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
 void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
-/*Steps for computing hiiden states mean and covariance for the lstm layer
+/*Steps for computing hidden states mean and covariance for the lstm layer
 
 NOTE: Weight & bias vector for lstm is defined following
             w = [w_f, w_i, w_c, w_o] & b = [b_f, b_i, b_c, b_o]
@@ -171,14 +409,14 @@ NOTE: Weight & bias vector for lstm is defined following
     int no_seq = no * net.input_seq_len;
     int b_seq = net.batch_size * net.input_seq_len;
 
-    // Concatenate the hidden states from the previous time step and activations
-    // from the previous layer. TODO fix bugs in net.z_pos
+    // Concatenate the hidden states from the previous time step and
+    // activations from the previous layer. TODO fix bugs in net.z_pos
     cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
-                                    net.input_seq_len, z_pos_i, z_pos_o_lstm,
-                                    state.lstm.mha);
+                                    net.input_seq_len, net.batch_size, z_pos_i,
+                                    z_pos_o_lstm, state.lstm.mha);
     cat_activations_and_prev_states(state.Sa, state.lstm.Sh_prev, ni, no,
-                                    net.input_seq_len, z_pos_i, z_pos_o_lstm,
-                                    state.lstm.Sha);
+                                    net.input_seq_len, net.batch_size, z_pos_i,
+                                    z_pos_o_lstm, state.lstm.Sha);
 
     // Forget gate
     w_pos_f = net.w_pos[l - 1];

@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      August 29, 2022
+// Updated:      September 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -270,8 +270,8 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
     // Concatenate the hidden states from the previous time step and activations
     // from the previous layer
     cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
-                                    net.input_seq_len, z_pos_i, z_pos_o_lstm,
-                                    state.lstm.mha);
+                                    net.input_seq_len, net.batch_size, z_pos_i,
+                                    z_pos_o_lstm, state.lstm.mha);
 
     lstm_delta_mean_var_w(
         theta.Sw, state.lstm.mha, state.lstm.Jf_ga, state.lstm.mi_ga,
