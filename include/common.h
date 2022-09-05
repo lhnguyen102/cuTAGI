@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 31, 2022
+// Updated:      September 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -219,6 +219,9 @@ std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
 void create_directory(std::string &path);
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
+
+void get_multithread_indices(int i, int n_batch, int rem_batch, int &start_idx,
+                             int &end_idx);
 
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES

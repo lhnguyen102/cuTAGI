@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      August 27, 2022
+// Updated:      September 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -525,10 +525,10 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
 
                 // Save current cell & hidden states for next step
                 if (net.batch_size == 1) {
-                    to_prev_states(state.lstm.mc, state.lstm.mc_prev);
-                    to_prev_states(state.lstm.Sc, state.lstm.Sc_prev);
-                    to_prev_states(state.mz, state.lstm.mh_prev);
-                    to_prev_states(state.Sz, state.lstm.Sh_prev);
+                    to_prev_states_cpu(state.lstm.mc, state.lstm.mc_prev);
+                    to_prev_states_cpu(state.lstm.Sc, state.lstm.Sc_prev);
+                    to_prev_states_cpu(state.mz, state.lstm.mh_prev);
+                    to_prev_states_cpu(state.Sz, state.lstm.Sh_prev);
                 }
 
                 // Update model parameters

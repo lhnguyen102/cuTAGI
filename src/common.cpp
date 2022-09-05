@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      August 31, 2022
+// Updated:      September 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,6 +88,17 @@ Args:
     sigma_v = decay_factor * sigma_v;
     if (sigma_v < sigma_v_min) {
         sigma_v = sigma_v_min;
+    }
+}
+
+void get_multithread_indices(int i, int n_batch, int rem_batch, int &start_idx,
+                             int &end_idx) {
+    if (i == 0) {
+        start_idx = 0;
+        end_idx = n_batch + rem_batch;
+    } else {
+        start_idx = n_batch * i + rem_batch;
+        end_idx = (n_batch * (i + 1)) + rem_batch;
     }
 }
 

@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      September 04, 2022
+// Updated:      September 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -124,7 +124,7 @@ void hidden_state_mean_var_lstm_cpu(
     }
 }
 
-void to_prev_states(std::vector<float> &curr, std::vector<float> &prev)
+void to_prev_states_cpu(std::vector<float> &curr, std::vector<float> &prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
@@ -133,10 +133,10 @@ void to_prev_states(std::vector<float> &curr, std::vector<float> &prev)
     }
 }
 
-void cat_activations_and_prev_states(std::vector<float> &a,
-                                     std::vector<float> &b, int n, int m,
-                                     int seq_len, int B, int z_pos_a,
-                                     int z_pos_b, std::vector<float> &c)
+void cat_activations_and_prev_states_cpu(std::vector<float> &a,
+                                         std::vector<float> &b, int n, int m,
+                                         int seq_len, int B, int z_pos_a,
+                                         int z_pos_b, std::vector<float> &c)
 /*Concatenate two vectors*/
 {
     for (int k = 0; k < B; k++) {
@@ -194,13 +194,8 @@ void cov_input_cell_states_mp(std::vector<float> &Sha, std::vector<float> &mw,
     std::thread threads[NUM_THREADS];
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = 0;
-            end_idx = n_batch + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
+        get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
+
         threads[i] = std::thread(cov_input_cell_states_worker, std::ref(Sha),
                                  std::ref(mw), std::ref(Ji_ga), std::ref(Jc_ga),
                                  z_pos_o, w_pos_i, w_pos_c, ni, no, seq_len, B,
@@ -249,13 +244,8 @@ void cell_state_mean_var_mp(
     std::thread threads[NUM_THREADS];
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = 0;
-            end_idx = n_batch + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
+        get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
+
         threads[i] = std::thread(
             cell_state_mean_var_worker, std::ref(mf_ga), std::ref(Sf_ga),
             std::ref(mi_ga), std::ref(Si_ga), std::ref(mc_ga), std::ref(Sc_ga),
@@ -314,13 +304,8 @@ void cov_output_tanh_cell_states_mp(
     std::thread threads[NUM_THREADS];
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = 0;
-            end_idx = n_batch + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
+        get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
+
         threads[i] = std::thread(
             cov_output_tanh_cell_states_worker, std::ref(mw), std::ref(Sha),
             std::ref(mc_prev), std::ref(Jc_ga), std::ref(Jf_ga),
@@ -370,18 +355,60 @@ void hidden_state_mean_var_lstm_mp(std::vector<float> &mo_ga,
     std::thread threads[NUM_THREADS];
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = 0;
-            end_idx = n_batch + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
+        get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
+
         threads[i] =
             std::thread(hidden_state_mean_var_lstm_worker, std::ref(mo_ga),
                         std::ref(So_ga), std::ref(mc_a), std::ref(Sc_a),
                         std::ref(Co_tanh_c), z_pos_o, z_pos_o_lstm, no, seq_len,
                         start_idx, end_idx, std::ref(mz), std::ref(Sz));
+    }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
+
+void cat_activations_and_prev_states_worker(std::vector<float> &a,
+                                            std::vector<float> &b, int n, int m,
+                                            int seq_len, int B, int z_pos_a,
+                                            int z_pos_b, int start_idx,
+                                            int end_idx, std::vector<float> &c)
+/*Concatenate two vectors*/
+{
+    int k, s;
+    for (int t = start_idx; t < end_idx; t++) {
+        k = t / seq_len;
+        s = t % seq_len;
+
+        for (int i = 0; i < n; i++) {
+            c[i + s * (n + m) + k * (n + m) * seq_len] =
+                a[i + z_pos_a + s * n + k * seq_len * n];
+        }
+
+        for (int j = 0; j < m; j++) {
+            c[j + n + s * (n + m) + k * (n + m) * seq_len] =
+                b[j + z_pos_b + s * m + k * m * seq_len];
+        }
+    }
+}
+
+void cat_activations_and_prev_states_mp(std::vector<float> &a,
+                                        std::vector<float> &b, int n, int m,
+                                        int seq_len, int B, int z_pos_a,
+                                        int z_pos_b, int NUM_THREADS,
+                                        std::vector<float> &c) {
+    const int tot_ops = B * seq_len;
+    const int n_batch = tot_ops / NUM_THREADS;
+    const int rem_batch = tot_ops % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
+
+        threads[i] = std::thread(
+            cat_activations_and_prev_states_worker, std::ref(a), std::ref(b), n,
+            m, seq_len, B, z_pos_a, z_pos_b, start_idx, end_idx, std::ref(c));
     }
     for (int i = 0; i < NUM_THREADS; i++) {
         threads[i].join();
@@ -394,6 +421,7 @@ void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
 NOTE: Weight & bias vector for lstm is defined following
             w = [w_f, w_i, w_c, w_o] & b = [b_f, b_i, b_c, b_o]
 */
+// TODO: Fix cycle import between feed_forward_cpu and lstm_feed_forward_cpu
 {
     // Initialization
     int ni = net.nodes[l - 1];
@@ -410,13 +438,13 @@ NOTE: Weight & bias vector for lstm is defined following
     int b_seq = net.batch_size * net.input_seq_len;
 
     // Concatenate the hidden states from the previous time step and
-    // activations from the previous layer. TODO fix bugs in net.z_pos
-    cat_activations_and_prev_states(state.ma, state.lstm.mh_prev, ni, no,
-                                    net.input_seq_len, net.batch_size, z_pos_i,
-                                    z_pos_o_lstm, state.lstm.mha);
-    cat_activations_and_prev_states(state.Sa, state.lstm.Sh_prev, ni, no,
-                                    net.input_seq_len, net.batch_size, z_pos_i,
-                                    z_pos_o_lstm, state.lstm.Sha);
+    // activations from the previous layer.
+    cat_activations_and_prev_states_cpu(state.ma, state.lstm.mh_prev, ni, no,
+                                        net.input_seq_len, net.batch_size,
+                                        z_pos_i, z_pos_o_lstm, state.lstm.mha);
+    cat_activations_and_prev_states_cpu(state.Sa, state.lstm.Sh_prev, ni, no,
+                                        net.input_seq_len, net.batch_size,
+                                        z_pos_i, z_pos_o_lstm, state.lstm.Sha);
 
     // Forget gate
     w_pos_f = net.w_pos[l - 1];
