@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) state backward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 05, 2022
+// Updated:      September 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +149,7 @@ __global__ void lstm_delta_mean_var_b(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
-    int k, l, i, t, x, y;
+    int k, l, i, x, y;
     if (col < no) {
         sum_mf = 0;
         sum_Sf = 0;
@@ -203,4 +203,89 @@ __global__ void lstm_delta_mean_var_b(
         delta_Sb[col + b_pos_o] =
             Sb[col + b_pos_o] * sum_So * Sb[col + b_pos_o];
     }
+}
+
+void lstm_state_update(Network &net, StateGPU &state, ParamGPU &theta,
+                       DeltaStateGPU &d_state, int l)
+/*Update lstm's hidden states*/
+{
+    // Initialization
+    int ni = net.nodes[l];
+    int no = net.nodes[l + 1];
+    int z_pos_i = net.z_pos[l];
+    int z_pos_o = net.z_pos[l + 1];
+    int z_pos_o_lstm = net.z_pos_lstm[l + 1];
+    int w_pos_f, w_pos_i, w_pos_c, w_pos_o;
+    int ni_c = ni + no;
+    int b_seq = net.batch_size * net.input_seq_len;
+
+    w_pos_f = net.w_pos[l];
+    w_pos_i = net.w_pos[l] + ni_c * no;
+    w_pos_c = net.w_pos[l] + 2 * ni_c * no;
+    w_pos_o = net.w_pos[l] + 3 * ni_c * no;
+
+    // Launch kernel
+    int THREADS = net.num_gpu_threads;
+    unsigned int gridRow_cov = (b_seq + THREADS - 1) / THREADS;
+    unsigned int gridCol_cov = (ni + THREADS - 1) / THREADS;
+    dim3 dimGrid_cov(gridCol_cov, gridRow_cov);
+    dim3 dimBlock(THREADS, THREADS);
+
+    lstm_delta_mean_var_z<<<dimGrid_cov, dimBlock>>>(
+        state.d_Sz, theta.d_mw, state.lstm.d_Jf_ga, state.lstm.d_mi_ga,
+        state.lstm.d_Si_ga, state.lstm.d_mc_ga, state.lstm.d_Sc_ga,
+        state.lstm.d_mo_ga, state.lstm.d_So_ga, state.lstm.d_mc_prev,
+        state.lstm.d_mca, state.lstm.d_Sca, d_state.d_delta_m,
+        d_state.d_delta_S, z_pos_i, z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i,
+        w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
+        d_state.d_delta_mz, d_state.d_delta_Sz);
+}
+
+void lstm_parameter_update(Network &net, StateGPU &state, ParamGPU &theta,
+                           DeltaStateGPU &d_state, DeltaParamGPU &d_theta,
+                           int l)
+/*Update lstm's parameters*/
+{
+    // Initialization
+    int ni = net.nodes[l];
+    int no = net.nodes[l + 1];
+    int z_pos_i = net.z_pos[l];
+    int z_pos_o = net.z_pos[l + 1];
+    int z_pos_o_lstm = net.z_pos_lstm[l + 1];
+    int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
+    int ni_c = ni + no;
+
+    w_pos_f = net.w_pos[l];
+    b_pos_f = net.b_pos[l];
+    w_pos_i = net.w_pos[l] + ni_c * no;
+    b_pos_i = net.b_pos[l] + no;
+    w_pos_c = net.w_pos[l] + 2 * ni_c * no;
+    b_pos_c = net.b_pos[l] + 2 * no;
+    w_pos_o = net.w_pos[l] + 3 * ni_c * no;
+    b_pos_o = net.b_pos[l] + 3 * no;
+
+    // Launch kernel
+    int THREADS = net.num_gpu_threads;
+    unsigned int BLOCKS = (no + THREADS - 1) / THREADS;
+    unsigned int gridRow = (ni + no + +THREADS - 1) / THREADS;
+    unsigned int gridCol = (no + THREADS - 1) / THREADS;
+    dim3 dimGrid(gridCol, gridRow);
+    dim3 dimBlock(THREADS, THREADS);
+
+    lstm_delta_mean_var_w<<<dimGrid, dimBlock>>>(
+        theta.d_Sw, state.lstm.d_mha, state.lstm.d_Jf_ga, state.lstm.d_mi_ga,
+        state.lstm.d_Ji_ga, state.lstm.d_mc_ga, state.lstm.d_Jc_ga,
+        state.lstm.d_mo_ga, state.lstm.d_Jo_ga, state.lstm.d_mc_prev,
+        state.lstm.d_mca, state.lstm.d_Jca, d_state.d_delta_m,
+        d_state.d_delta_S, z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c,
+        w_pos_o, no, ni, net.input_seq_len, net.batch_size, d_theta.d_delta_mw,
+        d_theta.d_delta_Sw);
+
+    lstm_delta_mean_var_b<<<BLOCKS, THREADS>>>(
+        theta.d_Sb, state.lstm.d_Jf_ga, state.lstm.d_mi_ga, state.lstm.d_Ji_ga,
+        state.lstm.d_mc_ga, state.lstm.d_Jc_ga, state.lstm.d_mo_ga,
+        state.lstm.d_Jo_ga, state.lstm.d_mc_prev, state.lstm.d_mca,
+        state.lstm.d_Jca, d_state.d_delta_m, d_state.d_delta_S, z_pos_o,
+        z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c, b_pos_o, no, net.input_seq_len,
+        net.batch_size, d_theta.d_delta_mb, d_theta.d_delta_Sb);
 }

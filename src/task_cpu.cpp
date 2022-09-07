@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      September 05, 2022
+// Updated:      September 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -440,9 +440,9 @@ Args:
     }
 }
 
-void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
-                             Param &theta, Dataloader &db, int n_epochs,
-                             SavePath &path, bool train_mode)
+void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
+                                 Param &theta, Dataloader &db, int n_epochs,
+                                 SavePath &path, bool train_mode)
 /*Time series forecasting*/
 {
     // Seed
@@ -787,8 +787,8 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Training
         bool train_mode = true;
-        time_series_forecasting(net, idx, state, theta, train_db,
-                                user_input.num_epochs, path, train_mode);
+        time_series_forecasting_cpu(net, idx, state, theta, train_db,
+                                    user_input.num_epochs, path, train_mode);
 
     } else {
         throw std::invalid_argument("Task name does not exist - task_cpu.cpp");

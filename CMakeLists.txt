@@ -111,6 +111,7 @@ set(GPU_SOURCES
   src/derivative_calcul.cu
   src/lstm_feed_forward.cu
   src/lstm_feed_backward.cu
+  src/activation_fun.cu
   src/task.cu
   src/user_input.cpp
   src/utils.cpp

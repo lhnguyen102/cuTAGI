@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 05, 2022
-// Updated:      September 05, 2022
+// Updated:      September 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ __global__ void cov_input_cell_states(float const *Sha, float const *mw,
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
-    int k, i, m, x, y, z;
+    int k, i, m, x, y;
     if (col < no && row < B * seq_len) {
         sum = 0;
         x = row / seq_len;
@@ -111,6 +111,7 @@ __global__ void hidden_state_mean_var_lstm(
     int m, k, j, x, y;
     if (col < no && row < B * seq_len) {
         x = row / seq_len;
+        y = row % seq_len;
         j = col + y * no + x * no * seq_len;
         m = j + z_pos_o_lstm;
         k = col + y * no + x * no * seq_len + z_pos_o;
@@ -171,15 +172,18 @@ NOTE: Weight & bias vector for lstm is defined following
     int z_pos_i_lstm = 0;
     int no_b_seq = no * net.batch_size * net.input_seq_len;
     int ni_c = ni + no;
-    int ni_seq = ni * net.input_seq_len;
-    int no_seq = no * net.input_seq_len;
     int b_seq = net.batch_size * net.input_seq_len;
+
     // Launch kernel
     int THREADS = net.num_gpu_threads;
-    dim3 dimBlock(THREADS, THREADS);
+    unsigned int ACT_BLOCKS = (no_b_seq + THREADS - 1) / THREADS;
     unsigned int gridRow = (no + THREADS - 1) / THREADS;
     unsigned int gridCol = (net.batch_size + THREADS - 1) / THREADS;
+    unsigned int gridRow_cov = (b_seq + THREADS - 1) / THREADS;
+    unsigned int gridCol_cov = (no + THREADS - 1) / THREADS;
     dim3 dimGrid(gridCol, gridRow);
+    dim3 dimGrid_cov(gridCol_cov, gridRow_cov);
+    dim3 dimBlock(THREADS, THREADS);
 
     // Concatenate the hidden states from the previous time step and
     // activations from the previous layer
@@ -196,11 +200,88 @@ NOTE: Weight & bias vector for lstm is defined following
     // Forget gate
     w_pos_f = net.w_pos[l - 1];
     b_pos_f = net.b_pos[l - 1];
-    fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
-                                  state.d_mz, w_pos_f, b_pos_f, z_pos_i_lstm,
-                                  z_pos_o_lstm, no, ni_c, net.batch_size);
-    fcVar<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_Sw, theta.d_Sb,
-                                 state.lstm.d_mha, state.lstm.d_Sha, state.d_Sz,
-                                 w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm,
-                                 no, ni_c, net.batch_size);
+    fcMean<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mf_ga, w_pos_f,
+        b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
+    fcVar<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
+        state.lstm.d_Sf_ga, w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no,
+        ni_c, net.batch_size);
+    sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
+        state.lstm.d_mf_ga, state.lstm.d_Sf_ga, state.lstm.d_mf_ga,
+        state.lstm.d_Jf_ga, state.lstm.d_Sf_ga, z_pos_o_lstm, no_b_seq);
+
+    // Input gate
+    w_pos_i = net.w_pos[l - 1] + ni_c * no;
+    b_pos_i = net.b_pos[l - 1] + no;
+    fcMean<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mi_ga, w_pos_i,
+        b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
+    fcVar<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
+        state.lstm.d_Si_ga, w_pos_i, b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no,
+        ni_c, net.batch_size);
+    sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
+        state.lstm.d_mi_ga, state.lstm.d_Si_ga, state.lstm.d_mi_ga,
+        state.lstm.d_Ji_ga, state.lstm.d_Si_ga, z_pos_o_lstm, no_b_seq);
+
+    // Cell state gate
+    w_pos_c = net.w_pos[l - 1] + 2 * ni_c * no;
+    b_pos_c = net.b_pos[l - 1] + 2 * no;
+    fcMean<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mc_ga, w_pos_c,
+        b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
+    fcVar<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
+        state.lstm.d_Sc_ga, w_pos_c, b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no,
+        ni_c, net.batch_size);
+    tanhMeanVar<<<ACT_BLOCKS, THREADS>>>(
+        state.lstm.d_mc_ga, state.lstm.d_Sc_ga, state.lstm.d_mc_ga,
+        state.lstm.d_Jc_ga, state.lstm.d_Sc_ga, z_pos_o_lstm, no_b_seq);
+
+    // Output gate
+    w_pos_o = net.w_pos[l - 1] + 3 * ni_c * no;
+    b_pos_o = net.b_pos[l - 1] + 3 * no;
+    fcMean<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mo_ga, w_pos_o,
+        b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
+    fcVar<<<dimGrid, dimBlock>>>(
+        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
+        state.lstm.d_So_ga, w_pos_o, b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no,
+        ni_c, net.batch_size);
+    sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
+        state.lstm.d_mo_ga, state.lstm.d_So_ga, state.lstm.d_mo_ga,
+        state.lstm.d_Jo_ga, state.lstm.d_So_ga, z_pos_o_lstm, no_b_seq);
+
+    // Cov(input gate, cell state gate)
+    cov_input_cell_states<<<dimGrid_cov, dimBlock>>>(
+        state.lstm.d_Sha, theta.d_mw, state.lstm.d_Ji_ga, state.lstm.d_Jc_ga,
+        z_pos_o_lstm, w_pos_i, w_pos_c, ni, no, net.input_seq_len,
+        net.batch_size, state.lstm.d_Ci_c);
+
+    // Mean and variance for the current cell states
+    cell_state_mean_var<<<dimGrid_cov, dimBlock>>>(
+        state.lstm.d_mf_ga, state.lstm.d_Sf_ga, state.lstm.d_mi_ga,
+        state.lstm.d_Si_ga, state.lstm.d_mc_ga, state.lstm.d_Sc_ga,
+        state.lstm.d_mc_prev, state.lstm.d_Sc_prev, state.lstm.d_Ci_c,
+        z_pos_o_lstm, no, net.input_seq_len, net.batch_size, state.lstm.d_mc,
+        state.lstm.d_Sc);
+
+    tanhMeanVar<<<ACT_BLOCKS, THREADS>>>(
+        state.lstm.d_mc, state.lstm.d_Sc, state.lstm.d_mca, state.lstm.d_Jca,
+        state.lstm.d_Sca, z_pos_o_lstm, no_b_seq);
+
+    // Cov(output gate, tanh(cell states))
+    cov_output_tanh_cell_states<<<dimGrid_cov, dimBlock>>>(
+        theta.d_mw, state.lstm.d_Sha, state.lstm.d_mc_prev, state.lstm.d_Jca,
+        state.lstm.d_Jf_ga, state.lstm.d_mi_ga, state.lstm.d_Ji_ga,
+        state.lstm.d_mc_ga, state.lstm.d_Jc_ga, state.lstm.d_Jo_ga,
+        z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni, no,
+        net.input_seq_len, net.batch_size, state.lstm.d_Co_tanh_c);
+
+    // Mean and variance for hidden states
+    hidden_state_mean_var_lstm<<<dimGrid_cov, dimBlock>>>(
+        state.lstm.d_mo_ga, state.lstm.d_So_ga, state.lstm.d_mca,
+        state.lstm.d_Sca, state.lstm.d_Co_tanh_c, z_pos_o, z_pos_o_lstm, no,
+        net.input_seq_len, net.batch_size, state.d_mz, state.d_Sz);
 }

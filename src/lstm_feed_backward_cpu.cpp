@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 05, 2022
+// Updated:      September 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -522,17 +522,13 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
     int z_pos_i = net.z_pos[l];
     int z_pos_o = net.z_pos[l + 1];
     int z_pos_o_lstm = net.z_pos_lstm[l + 1];
-    int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
+    int w_pos_f, w_pos_i, w_pos_c, w_pos_o;
     int ni_c = ni + no;
 
     w_pos_f = net.w_pos[l];
-    b_pos_f = net.b_pos[l];
     w_pos_i = net.w_pos[l] + ni_c * no;
-    b_pos_i = net.b_pos[l] + no;
     w_pos_c = net.w_pos[l] + 2 * ni_c * no;
-    b_pos_c = net.b_pos[l] + 2 * no;
     w_pos_o = net.w_pos[l] + 3 * ni_c * no;
-    b_pos_o = net.b_pos[l] + 3 * no;
 
     lstm_delta_mean_var_z(
         state.Sz, theta.mw, state.lstm.Jf_ga, state.lstm.mi_ga,

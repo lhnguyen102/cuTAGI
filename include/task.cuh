@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      July 30, 2022
+// Updated:      September 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,7 @@
 #include "global_param_update.cuh"
 #include "gpu_debug_utils.h"
 #include "indices.h"
+#include "lstm_feed_forward.cuh"
 #include "net_init.h"
 #include "net_prop.h"
 #include "param_feed_backward.cuh"
