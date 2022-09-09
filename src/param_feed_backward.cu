@@ -3,7 +3,7 @@
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2021
-// Updated:      June 12, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1174,6 +1174,11 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
             tconvDeltaSb<<<dimGridB, dimBlock>>>(theta.d_Sb, d_state.d_delta_S,
                                                  bposIn, zposOut, woho, fo, B,
                                                  d_theta.d_delta_Sb);
+        }
+        // 7: LSTM
+        //
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
+            lstm_parameter_update(net, state, theta, d_state, d_theta, k);
         }
     }
 }

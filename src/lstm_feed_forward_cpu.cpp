@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      September 05, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -124,12 +124,13 @@ void hidden_state_mean_var_lstm_cpu(
     }
 }
 
-void to_prev_states_cpu(std::vector<float> &curr, std::vector<float> &prev)
+void to_prev_states_cpu(std::vector<float> &curr, int n, int z_pos,
+                        int z_pos_lstm, std::vector<float> &prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
-    for (int i = 0; i < curr.size(); i++) {
-        prev[i] = curr[i];
+    for (int i = 0; i < n; i++) {
+        prev[i + z_pos_lstm] = curr[i + z_pos];
     }
 }
 
@@ -412,6 +413,27 @@ void cat_activations_and_prev_states_mp(std::vector<float> &a,
     }
     for (int i = 0; i < NUM_THREADS; i++) {
         threads[i].join();
+    }
+}
+
+void save_prev_states_cpu(Network &net, NetState &state)
+/*Save the hidden and cell states of the previous time step*/
+{
+    for (int j = 1; j < net.layers.size(); j++) {
+        if (net.layers[j] == net.layer_names.lstm) {
+            int no_b_seq = net.nodes[j] * net.batch_size * net.input_seq_len;
+            int z_pos_o_lstm = net.z_pos_lstm[j];
+            int z_pos_o = net.z_pos[j];
+            to_prev_states_cpu(state.lstm.mc, no_b_seq, z_pos_o_lstm,
+                               z_pos_o_lstm, state.lstm.mc_prev);
+            to_prev_states_cpu(state.lstm.Sc, no_b_seq, z_pos_o_lstm,
+                               z_pos_o_lstm, state.lstm.Sc_prev);
+
+            to_prev_states_cpu(state.mz, no_b_seq, z_pos_o, z_pos_o_lstm,
+                               state.lstm.mh_prev);
+            to_prev_states_cpu(state.Sz, no_b_seq, z_pos_o, z_pos_o_lstm,
+                               state.lstm.Sh_prev);
+        }
     }
 }
 

@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      September 05, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,7 +20,7 @@
 
 void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l);
 
-void to_prev_states_cpu(std::vector<float> &curr, std::vector<float> &prev);
+void save_prev_states_cpu(Network &net, NetState &state);
 
 void cat_activations_and_prev_states_cpu(std::vector<float> &a,
                                          std::vector<float> &b, int n, int m,

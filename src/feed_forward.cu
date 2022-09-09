@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      July 30, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1240,16 +1240,17 @@ Args:
 */
 {
     int THREADS = net.num_gpu_threads;
-    int niB = net.nodes.front() * net.batch_size;
-    int nf = (net.nodes.front() * (net.nodes.front() + 1)) / 2 * net.batch_size;
+    int niB = net.nodes.front() * net.batch_size * net.input_seq_len;
+    int nf = (net.nodes.front() * (net.nodes.front() + 1)) / 2 *
+             net.batch_size * net.input_seq_len;
     int BLOCK_DIAG = (niB - 1 + THREADS) / THREADS;
-    int BLOCK_FULL = (nf - 1 + THREADS) / THREADS;
 
     initializeDiagCovStates<<<BLOCK_DIAG, THREADS>>>(
         ip.d_x_batch, ip.d_Sx_batch, state.d_mz, state.d_Sz, state.d_ma,
         state.d_Sa, state.d_J, niB);
 
     if (net.is_full_cov) {
+        int BLOCK_FULL = (nf - 1 + THREADS) / THREADS;
         initializeFullCovStates<<<BLOCK_FULL, THREADS>>>(
             ip.d_Sx_f_batch, nf, state.d_Sz_f, state.d_Sa_f);
     }
@@ -1260,7 +1261,7 @@ __global__ void initializeFullStates(float const *mz_0, float const *Sz_0,
                                      float const *J_0, int niB, int zposIn,
                                      float *mz, float *Sz, float *ma, float *Sa,
                                      float *J)
-/* Insert full initial state to network's states. This is commoly used for
+/* Insert full initial state to network's states. This is commonly used for
 multiple networks that connect to each other.
 
 Args:

@@ -83,7 +83,7 @@ __global__ void lstm_delta_mean_var_w(
 
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
-    int k, m, l, i, t, x, y;
+    int k, m, l, i, x, y;
     if (row < (ni + no) && col < no) {
         sum_mf = 0;
         sum_Sf = 0;
@@ -149,7 +149,7 @@ __global__ void lstm_delta_mean_var_b(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
-    int k, l, i, x, y;
+    int k, i, x, y;
     if (col < no) {
         sum_mf = 0;
         sum_Sf = 0;

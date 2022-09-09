@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 05, 2022
-// Updated:      September 07, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,13 +123,41 @@ __global__ void hidden_state_mean_var_lstm(
     }
 }
 
-__global__ void to_prev_states(float const *curr, int n, float *prev)
+__global__ void to_prev_states(float const *curr, int n, int z_pos,
+                               int z_pos_lstm, float *prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < n) {
-        prev[col] = curr[col];
+        prev[col + z_pos_lstm] = curr[col + z_pos];
+    }
+}
+
+void save_prev_states(Network &net, StateGPU &state)
+/*Save the hidden and cell states of the previous time step*/
+{
+    int THREADS = net.num_gpu_threads;
+    for (int j = 1; j < net.layers.size(); j++) {
+        if (net.layers[j] == net.layer_names.lstm) {
+            int no_b_seq = net.nodes[j] * net.batch_size * net.input_seq_len;
+            int BLOCK_PH = (no_b_seq + THREADS - 1) / THREADS;
+            int z_pos_o_lstm = net.z_pos_lstm[j];
+            int z_pos_o = net.z_pos[j];
+            to_prev_states<<<BLOCK_PH, THREADS>>>(state.lstm.d_mc, no_b_seq,
+                                                  z_pos_o_lstm, z_pos_o_lstm,
+                                                  state.lstm.d_mc_prev);
+            to_prev_states<<<BLOCK_PH, THREADS>>>(state.lstm.d_Sc, no_b_seq,
+                                                  z_pos_o_lstm, z_pos_o_lstm,
+                                                  state.lstm.d_Sc_prev);
+
+            to_prev_states<<<BLOCK_PH, THREADS>>>(state.d_mz, no_b_seq, z_pos_o,
+                                                  z_pos_o_lstm,
+                                                  state.lstm.d_mh_prev);
+            to_prev_states<<<BLOCK_PH, THREADS>>>(state.d_Sz, no_b_seq, z_pos_o,
+                                                  z_pos_o_lstm,
+                                                  state.lstm.d_Sh_prev);
+        }
     }
 }
 

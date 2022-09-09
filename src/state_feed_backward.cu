@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      July 01, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1869,6 +1869,12 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
                 idx.d_FCzwa_1, idx.d_Szz_ud, wposIn, zposIn, zposOut,
                 net.FCzwa_1_pos[k], net.Szz_ud_pos[k], woho, fo, wihi, fi, ki,
                 net.FCzwa_1_col[k], B, d_state.d_delta_Sz);
+        }
+        //**
+        // 7: LSTM layer
+        //
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
+            lstm_state_update(net, state, theta, d_state, k);
         }
 
         else {

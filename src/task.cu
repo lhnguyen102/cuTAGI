@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 07, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -859,13 +859,11 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int derivative_layer = 0;
 
     // Compute number of data
     int n_iter = db.num_data / net.batch_size;
     int n_input_ts = net.n_x * net.input_seq_len;
     int n_output_ts = net.n_y * net.output_seq_len;
-    int n_input_seq_batch = net.batch_size * net.input_seq_len;
 
     // Initialize the data's variables
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
@@ -909,7 +907,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
     int bN_sc = theta.mb_sc.size();
 
     int THREADS = net.num_gpu_threads;
-    // unsigned int BLOCKS = (net.batch_size * net.n_x + THREADS - 1) / THREADS;
+    unsigned int BLOCKS = (net.num_lstm_states + THREADS - 1) / THREADS;
 
     /* TRAINING */
     if (train_mode) {
@@ -940,7 +938,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
                 ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
                 op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
 
-                // Initialize input. TODO: add input sequence len
+                // Initialize input
                 initializeStates(state_gpu, ip_gpu, net);
 
                 // Feed forward
@@ -954,18 +952,10 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
                 paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
                               d_theta_gpu);
 
-                // Save current cell & hidden states for next step. TODO fix the
-                // previous hidden state
-                // if (net.batch_size == 1) {
-                //     to_prev_states(state_gpu.lstm.d_mc, net.num_lstm_states,
-                //                    state_gpu.lstm.d_mc_prev);
-                //     to_prev_states(state_gpu.lstm.d_Sc, net.num_lstm_states,
-                //                    state_gpu.lstm.d_Sc_prev);
-                //     to_prev_states(state_gpu.d_mz, net.num_lstm_states,
-                //                    state_gpu.lstm.d_mh_prev);
-                //     to_prev_states(state_gpu.d_Sz, net.num_lstm_states,
-                //                    state_gpu.lstm.d_Sh_prev);
-                // }
+                // Save current cell & hidden states for next step.
+                if (net.batch_size == 1) {
+                    save_prev_states(net, state_gpu);
+                }
 
                 // Update model parameters
                 globalParamUpdate(d_theta_gpu, wN, bN, wN_sc, bN_sc, THREADS,
@@ -1033,9 +1023,9 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
             // Feed forward
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
-            if (net.collect_derivative) {
-                compute_network_derivatives(net, theta_gpu, state_gpu,
-                                            derivative_layer);
+            // Save current cell & hidden states for next step.
+            if (net.batch_size == 1) {
+                save_prev_states(net, state_gpu);
             }
 
             // Get hidden states for output layers
