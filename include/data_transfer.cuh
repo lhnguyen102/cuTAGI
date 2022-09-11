@@ -77,6 +77,7 @@ class StateGPU {
     float *d_mz, *d_Sz, *d_ma, *d_Sa, *d_J, *d_msc, *d_Ssc, *d_mdsc, *d_Sdsc;
     float *d_mra, *d_Sra, *d_mra_prev, *d_Sra_prev, *d_ms, *d_Ss, *d_SsTmp;
     float *d_Sz_f, *d_Sa_f, *d_Sz_fp;
+    NetState *state_cpu;
     NoiseStateGPU noise_state;
     DerivativeStateGPU derv_state;
     LSTMStateGPU lstm;
@@ -85,7 +86,7 @@ class StateGPU {
     void set_values(NetState &state, Network &net);
     void allocate_cuda_memory();
     void copy_host_to_device(NetState &state);
-    void copy_device_to_host(NetState &state);
+    void copy_device_to_host();
 
     ~StateGPU();
 };

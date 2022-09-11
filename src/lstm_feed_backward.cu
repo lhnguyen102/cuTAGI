@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) state backward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 07, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,9 +233,9 @@ void lstm_state_update(Network &net, StateGPU &state, ParamGPU &theta,
 
     lstm_delta_mean_var_z<<<dimGrid_cov, dimBlock>>>(
         state.d_Sz, theta.d_mw, state.lstm.d_Jf_ga, state.lstm.d_mi_ga,
-        state.lstm.d_Si_ga, state.lstm.d_mc_ga, state.lstm.d_Sc_ga,
-        state.lstm.d_mo_ga, state.lstm.d_So_ga, state.lstm.d_mc_prev,
-        state.lstm.d_mca, state.lstm.d_Sca, d_state.d_delta_m,
+        state.lstm.d_Ji_ga, state.lstm.d_mc_ga, state.lstm.d_Jc_ga,
+        state.lstm.d_mo_ga, state.lstm.d_Jo_ga, state.lstm.d_mc_prev,
+        state.lstm.d_mca, state.lstm.d_Jca, d_state.d_delta_m,
         d_state.d_delta_S, z_pos_i, z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i,
         w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
         d_state.d_delta_mz, d_state.d_delta_Sz);
@@ -271,6 +271,15 @@ void lstm_parameter_update(Network &net, StateGPU &state, ParamGPU &theta,
     unsigned int gridCol = (no + THREADS - 1) / THREADS;
     dim3 dimGrid(gridCol, gridRow);
     dim3 dimBlock(THREADS, THREADS);
+
+    // Concatenate the hidden states from the previous time step and
+    // activations from the previous layer
+    unsigned int gridRow_cat = (net.batch_size + THREADS - 1) / THREADS;
+    unsigned int gridCol_cat = (net.input_seq_len + THREADS - 1) / THREADS;
+    dim3 dimGrid_cat(gridCol_cat, gridRow_cat);
+    cat_activations_and_prev_states<<<dimGrid_cat, dimBlock>>>(
+        state.d_ma, state.lstm.d_mh_prev, ni, no, net.input_seq_len,
+        net.batch_size, z_pos_i, z_pos_o_lstm, state.lstm.d_mha);
 
     lstm_delta_mean_var_w<<<dimGrid, dimBlock>>>(
         theta.d_Sw, state.lstm.d_mha, state.lstm.d_Jf_ga, state.lstm.d_mi_ga,

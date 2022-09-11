@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      September 09, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -260,7 +260,7 @@ void cell_state_mean_var_mp(
 
 void cov_output_tanh_cell_states_worker(
     std::vector<float> &mw, std::vector<float> &Sha,
-    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
+    std::vector<float> &mc_prev, std::vector<float> &Jca,
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
     std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
     std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
@@ -284,15 +284,15 @@ void cov_output_tanh_cell_states_worker(
         }
         i = z + y * no + x * seq_len * no + z_pos_o_lstm;
         Co_tanh_c[i - z_pos_o_lstm] =
-            Jc_a[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
-                       Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
-                       Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
+            Jca[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
+                      Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
+                      Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
     }
 }
 
 void cov_output_tanh_cell_states_mp(
     std::vector<float> &mw, std::vector<float> &Sha,
-    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
+    std::vector<float> &mc_prev, std::vector<float> &Jca,
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
     std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
     std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
@@ -309,10 +309,10 @@ void cov_output_tanh_cell_states_mp(
 
         threads[i] = std::thread(
             cov_output_tanh_cell_states_worker, std::ref(mw), std::ref(Sha),
-            std::ref(mc_prev), std::ref(Jc_ga), std::ref(Jf_ga),
-            std::ref(mi_ga), std::ref(Ji_ga), std::ref(mc_ga), std::ref(Jc_ga),
-            std::ref(Jo_ga), z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o,
-            ni, no, seq_len, start_idx, end_idx, std::ref(Co_tanh_c));
+            std::ref(mc_prev), std::ref(Jca), std::ref(Jf_ga), std::ref(mi_ga),
+            std::ref(Ji_ga), std::ref(mc_ga), std::ref(Jc_ga), std::ref(Jo_ga),
+            z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni, no, seq_len,
+            start_idx, end_idx, std::ref(Co_tanh_c));
     }
     for (int i = 0; i < NUM_THREADS; i++) {
         threads[i].join();
@@ -326,7 +326,7 @@ void hidden_state_mean_var_lstm_worker(
     int seq_len, int start_idx, int end_idx, std::vector<float> &mz,
     std::vector<float> &Sz) {
     int m, k, j, x, y, z;
-    for (int t = start_idx; x < end_idx; t++) {
+    for (int t = start_idx; t < end_idx; t++) {
         x = t / (no * seq_len);
         y = (t % (no * seq_len)) / no;
         z = t % no;
@@ -459,98 +459,185 @@ NOTE: Weight & bias vector for lstm is defined following
     int no_seq = no * net.input_seq_len;
     int b_seq = net.batch_size * net.input_seq_len;
 
-    // Concatenate the hidden states from the previous time step and
-    // activations from the previous layer.
-    cat_activations_and_prev_states_cpu(state.ma, state.lstm.mh_prev, ni, no,
-                                        net.input_seq_len, net.batch_size,
-                                        z_pos_i, z_pos_o_lstm, state.lstm.mha);
-    cat_activations_and_prev_states_cpu(state.Sa, state.lstm.Sh_prev, ni, no,
-                                        net.input_seq_len, net.batch_size,
-                                        z_pos_i, z_pos_o_lstm, state.lstm.Sha);
-
     // Forget gate
     w_pos_f = net.w_pos[l - 1];
     b_pos_f = net.b_pos[l - 1];
-    fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_f, b_pos_f,
-                z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq, state.lstm.mf_ga);
 
-    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
-               w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
-               state.lstm.Sf_ga);
-
-    sigmoid_mean_var_cpu(state.lstm.mf_ga, state.lstm.Sf_ga, z_pos_o_lstm,
-                         no_b_seq, state.lstm.mf_ga, state.lstm.Jf_ga,
-                         state.lstm.Sf_ga);
-
-    // Input gate
     w_pos_i = net.w_pos[l - 1] + ni_c * no;
     b_pos_i = net.b_pos[l - 1] + no;
-    fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_i, b_pos_i,
-                z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq, state.lstm.mi_ga);
 
-    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
-               w_pos_i, b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
-               state.lstm.Si_ga);
-
-    sigmoid_mean_var_cpu(state.lstm.mi_ga, state.lstm.Si_ga, z_pos_o_lstm,
-                         no_b_seq, state.lstm.mi_ga, state.lstm.Ji_ga,
-                         state.lstm.Si_ga);
-
-    // Cell state gate
     w_pos_c = net.w_pos[l - 1] + 2 * ni_c * no;
     b_pos_c = net.b_pos[l - 1] + 2 * no;
-    fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_c, b_pos_c,
-                z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq, state.lstm.mc_ga);
 
-    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
-               w_pos_c, b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
-               state.lstm.Sc_ga);
-
-    tanh_mean_var_cpu(state.lstm.mc_ga, state.lstm.Sc_ga, z_pos_o_lstm,
-                      no_b_seq, state.lstm.mc_ga, state.lstm.Jc_ga,
-                      state.lstm.Sc_ga);
-
-    // Output gate
     w_pos_o = net.w_pos[l - 1] + 3 * ni_c * no;
     b_pos_o = net.b_pos[l - 1] + 3 * no;
-    fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_o, b_pos_o,
-                z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq, state.lstm.mo_ga);
 
-    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
-               w_pos_o, b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
-               state.lstm.So_ga);
+    if (net.multithreading && no_b_seq > net.min_operations) {
+        // Concatenate the hidden states from the previous time step and
+        // activations from the previous layer.
+        cat_activations_and_prev_states_mp(state.ma, state.lstm.mh_prev, ni, no,
+                                           net.input_seq_len, net.batch_size,
+                                           z_pos_i, z_pos_o_lstm,
+                                           net.num_cpu_threads, state.lstm.mha);
+        cat_activations_and_prev_states_mp(state.Sa, state.lstm.Sh_prev, ni, no,
+                                           net.input_seq_len, net.batch_size,
+                                           z_pos_i, z_pos_o_lstm,
+                                           net.num_cpu_threads, state.lstm.Sha);
 
-    sigmoid_mean_var_cpu(state.lstm.mo_ga, state.lstm.So_ga, z_pos_o_lstm,
-                         no_b_seq, state.lstm.mo_ga, state.lstm.Jo_ga,
-                         state.lstm.So_ga);
+        // Forget gate
+        fc_mean_var_multithreading(theta.mw, theta.Sw, theta.mb, theta.Sb,
+                                   state.lstm.mha, state.lstm.Sha, w_pos_f,
+                                   b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no,
+                                   ni_c, b_seq, net.num_cpu_threads,
+                                   state.lstm.mf_ga, state.lstm.Sf_ga);
+        sigmoid_mean_var_multithreading(state.lstm.mf_ga, state.lstm.Sf_ga,
+                                        z_pos_o_lstm, no_b_seq,
+                                        net.num_cpu_threads, state.lstm.mf_ga,
+                                        state.lstm.Jf_ga, state.lstm.Sf_ga);
 
-    // Cov(input gate, cell state gate)
-    cov_input_cell_states_cpu(state.lstm.Sha, theta.mw, state.lstm.Ji_ga,
-                              state.lstm.Jc_ga, z_pos_o_lstm, w_pos_i, w_pos_c,
-                              ni, no, net.input_seq_len, net.batch_size,
-                              state.lstm.Ci_c);
+        // Input gate
+        fc_mean_var_multithreading(theta.mw, theta.Sw, theta.mb, theta.Sb,
+                                   state.lstm.mha, state.lstm.Sha, w_pos_i,
+                                   b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no,
+                                   ni_c, b_seq, net.num_cpu_threads,
+                                   state.lstm.mi_ga, state.lstm.Si_ga);
+        sigmoid_mean_var_multithreading(state.lstm.mi_ga, state.lstm.Si_ga,
+                                        z_pos_o_lstm, no_b_seq,
+                                        net.num_cpu_threads, state.lstm.mi_ga,
+                                        state.lstm.Ji_ga, state.lstm.Si_ga);
 
-    // Mean and variance for the current cell states
-    cell_state_mean_var_cpu(
-        state.lstm.mf_ga, state.lstm.Sf_ga, state.lstm.mi_ga, state.lstm.Si_ga,
-        state.lstm.mc_ga, state.lstm.Sc_ga, state.lstm.mc_prev,
-        state.lstm.Sc_prev, state.lstm.Ci_c, z_pos_o_lstm, no,
-        net.input_seq_len, net.batch_size, state.lstm.mc, state.lstm.Sc);
+        // Cell state gate
+        fc_mean_var_multithreading(theta.mw, theta.Sw, theta.mb, theta.Sb,
+                                   state.lstm.mha, state.lstm.Sha, w_pos_c,
+                                   b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no,
+                                   ni_c, b_seq, net.num_cpu_threads,
+                                   state.lstm.mc_ga, state.lstm.Sc_ga);
+        tanh_mean_var_multithreading(state.lstm.mc_ga, state.lstm.Sc_ga,
+                                     z_pos_o_lstm, no_b_seq,
+                                     net.num_cpu_threads, state.lstm.mc_ga,
+                                     state.lstm.Jc_ga, state.lstm.Sc_ga);
 
-    tanh_mean_var_cpu(state.lstm.mc, state.lstm.Sc, z_pos_o_lstm, no_b_seq,
-                      state.lstm.mca, state.lstm.Jca, state.lstm.Sca);
+        // Output gate
+        fc_mean_var_multithreading(theta.mw, theta.Sw, theta.mb, theta.Sb,
+                                   state.lstm.mha, state.lstm.Sha, w_pos_o,
+                                   b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no,
+                                   ni_c, b_seq, net.num_cpu_threads,
+                                   state.lstm.mo_ga, state.lstm.So_ga);
+        sigmoid_mean_var_multithreading(state.lstm.mo_ga, state.lstm.So_ga,
+                                        z_pos_o_lstm, no_b_seq,
+                                        net.num_cpu_threads, state.lstm.mo_ga,
+                                        state.lstm.Jo_ga, state.lstm.So_ga);
 
-    // Cov(output gate, tanh(cell states))
-    cov_output_tanh_cell_states_cpu(
-        theta.mw, state.lstm.Sha, state.lstm.mc_prev, state.lstm.Jca,
-        state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga, state.lstm.mc_ga,
-        state.lstm.Jc_ga, state.lstm.Jo_ga, z_pos_o_lstm, w_pos_f, w_pos_i,
-        w_pos_c, w_pos_o, ni, no, net.input_seq_len, net.batch_size,
-        state.lstm.Co_tanh_c);
+        // Cov(input gate, cell state gate)
+        cov_input_cell_states_mp(
+            state.lstm.Sha, theta.mw, state.lstm.Ji_ga, state.lstm.Jc_ga,
+            z_pos_o_lstm, w_pos_i, w_pos_c, ni, no, net.input_seq_len,
+            net.batch_size, net.num_cpu_threads, state.lstm.Ci_c);
 
-    // Mean and variance for hidden states
-    hidden_state_mean_var_lstm_cpu(
-        state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
-        state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
-        net.batch_size, state.mz, state.Sz);
+        // Mean and variance for the current cell states
+        cell_state_mean_var_mp(
+            state.lstm.mf_ga, state.lstm.Sf_ga, state.lstm.mi_ga,
+            state.lstm.Si_ga, state.lstm.mc_ga, state.lstm.Sc_ga,
+            state.lstm.mc_prev, state.lstm.Sc_prev, state.lstm.Ci_c,
+            z_pos_o_lstm, no, net.input_seq_len, net.batch_size,
+            net.num_cpu_threads, state.lstm.mc, state.lstm.Sc);
+        tanh_mean_var_multithreading(state.lstm.mc, state.lstm.Sc, z_pos_o_lstm,
+                                     no_b_seq, net.num_cpu_threads,
+                                     state.lstm.mca, state.lstm.Jca,
+                                     state.lstm.Sca);
+
+        // Cov(output gate, tanh(cell states))
+        cov_output_tanh_cell_states_mp(
+            theta.mw, state.lstm.Sha, state.lstm.mc_prev, state.lstm.Jca,
+            state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga,
+            state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.Jo_ga, z_pos_o_lstm,
+            w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni, no, net.input_seq_len,
+            net.batch_size, net.num_cpu_threads, state.lstm.Co_tanh_c);
+
+        // Mean and variance for hidden states
+        hidden_state_mean_var_lstm_mp(
+            state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
+            state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
+            net.batch_size, net.num_cpu_threads, state.mz, state.Sz);
+
+    } else {
+        cat_activations_and_prev_states_cpu(
+            state.ma, state.lstm.mh_prev, ni, no, net.input_seq_len,
+            net.batch_size, z_pos_i, z_pos_o_lstm, state.lstm.mha);
+        cat_activations_and_prev_states_cpu(
+            state.Sa, state.lstm.Sh_prev, ni, no, net.input_seq_len,
+            net.batch_size, z_pos_i, z_pos_o_lstm, state.lstm.Sha);
+
+        fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_f, b_pos_f,
+                    z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
+                    state.lstm.mf_ga);
+        fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
+                   w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
+                   b_seq, state.lstm.Sf_ga);
+        sigmoid_mean_var_cpu(state.lstm.mf_ga, state.lstm.Sf_ga, z_pos_o_lstm,
+                             no_b_seq, state.lstm.mf_ga, state.lstm.Jf_ga,
+                             state.lstm.Sf_ga);
+
+        fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_i, b_pos_i,
+                    z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
+                    state.lstm.mi_ga);
+        fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
+                   w_pos_i, b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
+                   b_seq, state.lstm.Si_ga);
+        sigmoid_mean_var_cpu(state.lstm.mi_ga, state.lstm.Si_ga, z_pos_o_lstm,
+                             no_b_seq, state.lstm.mi_ga, state.lstm.Ji_ga,
+                             state.lstm.Si_ga);
+
+        fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_c, b_pos_c,
+                    z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
+                    state.lstm.mc_ga);
+        fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
+                   w_pos_c, b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
+                   b_seq, state.lstm.Sc_ga);
+        tanh_mean_var_cpu(state.lstm.mc_ga, state.lstm.Sc_ga, z_pos_o_lstm,
+                          no_b_seq, state.lstm.mc_ga, state.lstm.Jc_ga,
+                          state.lstm.Sc_ga);
+
+        fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_o, b_pos_o,
+                    z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
+                    state.lstm.mo_ga);
+        fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
+                   w_pos_o, b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
+                   b_seq, state.lstm.So_ga);
+        sigmoid_mean_var_cpu(state.lstm.mo_ga, state.lstm.So_ga, z_pos_o_lstm,
+                             no_b_seq, state.lstm.mo_ga, state.lstm.Jo_ga,
+                             state.lstm.So_ga);
+
+        // Cov(input gate, cell state gate)
+        cov_input_cell_states_cpu(state.lstm.Sha, theta.mw, state.lstm.Ji_ga,
+                                  state.lstm.Jc_ga, z_pos_o_lstm, w_pos_i,
+                                  w_pos_c, ni, no, net.input_seq_len,
+                                  net.batch_size, state.lstm.Ci_c);
+
+        // Mean and variance for the current cell states
+        cell_state_mean_var_cpu(
+            state.lstm.mf_ga, state.lstm.Sf_ga, state.lstm.mi_ga,
+            state.lstm.Si_ga, state.lstm.mc_ga, state.lstm.Sc_ga,
+            state.lstm.mc_prev, state.lstm.Sc_prev, state.lstm.Ci_c,
+            z_pos_o_lstm, no, net.input_seq_len, net.batch_size, state.lstm.mc,
+            state.lstm.Sc);
+
+        tanh_mean_var_cpu(state.lstm.mc, state.lstm.Sc, z_pos_o_lstm, no_b_seq,
+                          state.lstm.mca, state.lstm.Jca, state.lstm.Sca);
+
+        // Cov(output gate, tanh(cell states))
+        cov_output_tanh_cell_states_cpu(
+            theta.mw, state.lstm.Sha, state.lstm.mc_prev, state.lstm.Jca,
+            state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga,
+            state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.Jo_ga, z_pos_o_lstm,
+            w_pos_f, w_pos_i, w_pos_c, w_pos_o, ni, no, net.input_seq_len,
+            net.batch_size, state.lstm.Co_tanh_c);
+
+        // Mean and variance for hidden states
+        hidden_state_mean_var_lstm_cpu(
+            state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
+            state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
+            net.batch_size, state.mz, state.Sz);
+    }
+    int check = 0;
 }

@@ -124,6 +124,7 @@ set(GPU_SOURCES
   src/state_feed_backward_cpu.cpp
   src/lstm_feed_forward_cpu.cpp
   src/lstm_feed_backward_cpu.cpp
+  src/activation_fun_cpu.cpp
   src/task_cpu.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
@@ -146,6 +147,7 @@ set(CPU_SOURCES
   src/state_feed_backward_cpu.cpp
   src/lstm_feed_forward_cpu.cpp
   src/lstm_feed_backward_cpu.cpp
+  src/activation_fun_cpu.cpp
   src/task_cpu.cpp
   src/user_input.cpp
   src/utils.cpp

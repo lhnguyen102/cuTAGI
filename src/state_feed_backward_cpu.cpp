@@ -957,15 +957,15 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         z_pos_in = net.z_pos[k];
         w_pos_in = net.w_pos[k];
         niB = ni * B;
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
+
         //**
         // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
-            // Handle multiple input sequences from LSTM layer
-            if (net.layers[k] == net.layer_names.lstm) {
-                ni = net.nodes[k] * net.input_seq_len;
-            }
-
             if (niB > net.min_operations && net.multithreading) {
                 fc_delta_mzSz_multithreading(
                     theta.mw, state.Sz, state.J, d_state.delta_m,

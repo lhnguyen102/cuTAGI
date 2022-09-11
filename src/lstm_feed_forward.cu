@@ -228,13 +228,13 @@ NOTE: Weight & bias vector for lstm is defined following
     // Forget gate
     w_pos_f = net.w_pos[l - 1];
     b_pos_f = net.b_pos[l - 1];
-    fcMean<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mf_ga, w_pos_f,
-        b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
-    fcVar<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
-        state.lstm.d_Sf_ga, w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no,
-        ni_c, net.batch_size);
+    fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
+                                  state.lstm.d_mf_ga, w_pos_f, b_pos_f,
+                                  z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
+    fcVar<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_Sw, theta.d_Sb,
+                                 state.lstm.d_mha, state.lstm.d_Sha,
+                                 state.lstm.d_Sf_ga, w_pos_f, b_pos_f,
+                                 z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
     sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
         state.lstm.d_mf_ga, state.lstm.d_Sf_ga, state.lstm.d_mf_ga,
         state.lstm.d_Jf_ga, state.lstm.d_Sf_ga, z_pos_o_lstm, no_b_seq);
@@ -242,13 +242,13 @@ NOTE: Weight & bias vector for lstm is defined following
     // Input gate
     w_pos_i = net.w_pos[l - 1] + ni_c * no;
     b_pos_i = net.b_pos[l - 1] + no;
-    fcMean<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mi_ga, w_pos_i,
-        b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
-    fcVar<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
-        state.lstm.d_Si_ga, w_pos_i, b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no,
-        ni_c, net.batch_size);
+    fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
+                                  state.lstm.d_mi_ga, w_pos_i, b_pos_i,
+                                  z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
+    fcVar<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_Sw, theta.d_Sb,
+                                 state.lstm.d_mha, state.lstm.d_Sha,
+                                 state.lstm.d_Si_ga, w_pos_i, b_pos_i,
+                                 z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
     sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
         state.lstm.d_mi_ga, state.lstm.d_Si_ga, state.lstm.d_mi_ga,
         state.lstm.d_Ji_ga, state.lstm.d_Si_ga, z_pos_o_lstm, no_b_seq);
@@ -256,13 +256,13 @@ NOTE: Weight & bias vector for lstm is defined following
     // Cell state gate
     w_pos_c = net.w_pos[l - 1] + 2 * ni_c * no;
     b_pos_c = net.b_pos[l - 1] + 2 * no;
-    fcMean<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mc_ga, w_pos_c,
-        b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
-    fcVar<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
-        state.lstm.d_Sc_ga, w_pos_c, b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no,
-        ni_c, net.batch_size);
+    fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
+                                  state.lstm.d_mc_ga, w_pos_c, b_pos_c,
+                                  z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
+    fcVar<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_Sw, theta.d_Sb,
+                                 state.lstm.d_mha, state.lstm.d_Sha,
+                                 state.lstm.d_Sc_ga, w_pos_c, b_pos_c,
+                                 z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
     tanhMeanVar<<<ACT_BLOCKS, THREADS>>>(
         state.lstm.d_mc_ga, state.lstm.d_Sc_ga, state.lstm.d_mc_ga,
         state.lstm.d_Jc_ga, state.lstm.d_Sc_ga, z_pos_o_lstm, no_b_seq);
@@ -270,13 +270,13 @@ NOTE: Weight & bias vector for lstm is defined following
     // Output gate
     w_pos_o = net.w_pos[l - 1] + 3 * ni_c * no;
     b_pos_o = net.b_pos[l - 1] + 3 * no;
-    fcMean<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mo_ga, w_pos_o,
-        b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no, ni_c, net.batch_size);
-    fcVar<<<dimGrid, dimBlock>>>(
-        theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
-        state.lstm.d_So_ga, w_pos_o, b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no,
-        ni_c, net.batch_size);
+    fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
+                                  state.lstm.d_mo_ga, w_pos_o, b_pos_o,
+                                  z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
+    fcVar<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_Sw, theta.d_Sb,
+                                 state.lstm.d_mha, state.lstm.d_Sha,
+                                 state.lstm.d_So_ga, w_pos_o, b_pos_o,
+                                 z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq);
     sigmoidMeanVar<<<ACT_BLOCKS, THREADS>>>(
         state.lstm.d_mo_ga, state.lstm.d_So_ga, state.lstm.d_mo_ga,
         state.lstm.d_Jo_ga, state.lstm.d_So_ga, z_pos_o_lstm, no_b_seq);

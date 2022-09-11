@@ -931,6 +931,11 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
         hisc = net.heights[xsOut];
         wihisc = wisc * hisc;
 
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
+
         //**
         // Residual connection
         //

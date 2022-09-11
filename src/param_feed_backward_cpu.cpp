@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      August 17, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -294,15 +294,15 @@ Returns:
         z_pos_in = net.z_pos[k];
         w_pos_in = net.w_pos[k];
         b_pos_in = net.b_pos[k];
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
 
         //**
         // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
-            // Handle multiple input sequences from LSTM layer
-            if (net.layers[k] == net.layer_names.lstm) {
-                ni = net.nodes[k] * net.input_seq_len;
-            }
             if (ni * no > net.min_operations && net.multithreading) {
                 // Compute updated quantites for weights
                 fc_delta_w_multithreading(

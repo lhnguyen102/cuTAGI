@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      September 05, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,6 +43,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
     this->sc_bytes = state.msc.size() * sizeof(float);
     this->dsc_bytes = state.mdsc.size() * sizeof(float);
     this->ra_bytes = state.mra.size() * sizeof(float);
+    this->state_cpu = &state;
     if (net.is_full_cov) {
         this->max_full_cov_bytes =
             (net.n_max_state * (net.n_max_state + 1) / 2 * net.batch_size) *
@@ -175,41 +176,51 @@ void StateGPU::copy_host_to_device(NetState &state) {
     }
 }
 
-void StateGPU::copy_device_to_host(NetState &state) {
-    cudaMemcpy(state.mz.data(), d_mz, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sz.data(), d_Sz, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.ma.data(), d_ma, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sa.data(), d_Sa, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.J.data(), d_J, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.msc.data(), d_msc, sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Ssc.data(), d_Ssc, sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.mdsc.data(), d_mdsc, dsc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sdsc.data(), d_Sdsc, dsc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.mra.data(), d_mra, ra_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sra.data(), d_Sra, ra_bytes, cudaMemcpyDeviceToHost);
+void StateGPU::copy_device_to_host() {
+    cudaMemcpy(this->state_cpu->mz.data(), d_mz, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sz.data(), d_Sz, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->ma.data(), d_ma, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sa.data(), d_Sa, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->J.data(), d_J, s_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->msc.data(), d_msc, sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Ssc.data(), d_Ssc, sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->mdsc.data(), d_mdsc, dsc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sdsc.data(), d_Sdsc, dsc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->mra.data(), d_mra, ra_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sra.data(), d_Sra, ra_bytes,
+               cudaMemcpyDeviceToHost);
     if (max_full_cov_bytes > 0) {
-        cudaMemcpy(state.Sz_f.data(), d_Sz_f, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
-        cudaMemcpy(state.Sa_f.data(), d_Sa_f, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
-        cudaMemcpy(state.Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
     }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero
     if (this->noise_state.n_bytes > 0) {
-        this->noise_state.copy_device_to_host(state.noise_state);
+        this->noise_state.copy_device_to_host(this->state_cpu->noise_state);
     }
 
     // Derivative state
     if (this->derv_state.n_state_bytes > 0) {
-        this->derv_state.copy_device_to_host(state.derv_state);
+        this->derv_state.copy_device_to_host(this->state_cpu->derv_state);
     }
 
     // LSTM state
     if (this->lstm.n_state_bytes > 0) {
-        this->lstm.copy_device_to_host(state.lstm);
+        this->lstm.copy_device_to_host(this->state_cpu->lstm);
     }
 
     cudaError_t error = cudaGetLastError();
@@ -1214,10 +1225,11 @@ DeltaParamGPU::~DeltaParamGPU() {
 // INPUT
 //////////////////////////////
 InputGPU::InputGPU(Network &net) {
-    id_bytes = net.batch_size * net.nodes.front() * sizeof(float);
+    id_bytes =
+        net.batch_size * net.nodes.front() * net.input_seq_len * sizeof(float);
     if (net.is_full_cov) {
-        id_f_bytes =
-            (net.n_x * (net.n_x + 1)) / 2 * net.batch_size * sizeof(float);
+        id_f_bytes = (net.n_x * (net.n_x + 1)) / 2 * net.batch_size *
+                     net.input_seq_len * sizeof(float);
     } else {
         id_f_bytes = 0;
     }

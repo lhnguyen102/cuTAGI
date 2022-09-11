@@ -177,7 +177,7 @@ struct Network {
     int num_max_lstm_states = 0;
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
-    int min_operations = 1000;
+    int min_operations = 0;
     std::string device = "cpu";
 };
 

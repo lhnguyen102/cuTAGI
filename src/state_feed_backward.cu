@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      September 09, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1585,6 +1585,11 @@ void stateBackward(Network &net, ParamGPU &theta, StateGPU &state,
         woho = wo * ho;
         niB = ni * B;
         padIdx = woho * fo * B + 1;  // padding index (following TAGI matlab)
+
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
 
         // Hyperparameters for residual networks. Note that current version
         // works only with CNN layer. Future version will include other layers.

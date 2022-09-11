@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      September 09, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1463,6 +1463,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         int wihi = wi * hi;
         int woho = wo * ho;
         int padIdx = wihi * fi * B + 1;  // padding index
+        int MB = M * B;                  // NOTE: all layer excepted LSTM
 
         // Hyperparameters for residual networks. Note that current version
         // works only with CNN layer. Future version will include other layers.
@@ -1472,7 +1473,10 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // 1: Full connected
         //
         if (net.layers[j] == net.layer_names.fc) {
-            int N = net.nodes[j - 1];  // num. of nodes for input
+            int N = net.nodes[j - 1];
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                N = net.nodes[j - 1] * net.input_seq_len;
+            }
             // Launch kernel
             unsigned int gridRows = (M + THREADS - 1) / THREADS;
             unsigned int gridCols = (B + THREADS - 1) / THREADS;
@@ -1733,6 +1737,15 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 idx.d_Fmwa_1, idx.d_Fmwa_2, wposIn, bposIn, zposIn, zposOut,
                 net.Fmwa_1_pos[j - 1], net.Fmwa_2_pos[j - 1], woho, fo, wihi,
                 fi, ki, net.Fmwa_1_col[j - 1], B, state.d_Sz);
+
+        }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[j] == net.layer_names.lstm) {
+            MB = M * B * net.input_seq_len;
+            lstm_state_forward(net, state, theta, j);
+
         } else {
             std::cout << "Layer:" << j << "\n" << std::endl;
             throw std::invalid_argument(
@@ -1823,7 +1836,6 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // Activation
         //
         // Launch kernel
-        int MB = M * B;
         unsigned int BLOCKS = (MB + THREADS - 1) / THREADS;
         // Compute mean, variance, and Jacobian matrix
         if (net.activations[j] == 1)  // tanh

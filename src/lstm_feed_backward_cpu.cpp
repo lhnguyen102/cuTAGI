@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 07, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -530,14 +530,27 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
     w_pos_c = net.w_pos[l] + 2 * ni_c * no;
     w_pos_o = net.w_pos[l] + 3 * ni_c * no;
 
-    lstm_delta_mean_var_z(
-        state.Sz, theta.mw, state.lstm.Jf_ga, state.lstm.mi_ga,
-        state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
-        state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mca, state.lstm.Jca,
-        d_state.delta_m, d_state.delta_S, z_pos_i, z_pos_o, z_pos_o_lstm,
-        w_pos_f, w_pos_i, w_pos_c, w_pos_o, no, ni, net.input_seq_len,
-        net.batch_size, d_state.delta_mz, d_state.delta_Sz);
-    int a = 0;
+    if (net.multithreading &&
+        net.batch_size * net.input_seq_len * ni > net.min_operations) {
+        lstm_delta_mean_var_z_mp(
+            state.Sz, theta.mw, state.lstm.Jf_ga, state.lstm.mi_ga,
+            state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga,
+            state.lstm.mo_ga, state.lstm.Jo_ga, state.lstm.mc_prev,
+            state.lstm.mca, state.lstm.Jca, d_state.delta_m, d_state.delta_S,
+            z_pos_i, z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o,
+            no, ni, net.input_seq_len, net.batch_size, net.num_cpu_threads,
+            d_state.delta_mz, d_state.delta_Sz);
+    } else {
+        lstm_delta_mean_var_z(
+            state.Sz, theta.mw, state.lstm.Jf_ga, state.lstm.mi_ga,
+            state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga,
+            state.lstm.mo_ga, state.lstm.Jo_ga, state.lstm.mc_prev,
+            state.lstm.mca, state.lstm.Jca, d_state.delta_m, d_state.delta_S,
+            z_pos_i, z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o,
+            no, ni, net.input_seq_len, net.batch_size, d_state.delta_mz,
+            d_state.delta_Sz);
+    }
+    int check = 0;
 }
 
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
@@ -562,25 +575,53 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
     w_pos_o = net.w_pos[l] + 3 * ni_c * no;
     b_pos_o = net.b_pos[l] + 3 * no;
 
-    // Concatenate the hidden states from the previous time step and activations
-    // from the previous layer
-    cat_activations_and_prev_states_cpu(state.ma, state.lstm.mh_prev, ni, no,
-                                        net.input_seq_len, net.batch_size,
-                                        z_pos_i, z_pos_o_lstm, state.lstm.mha);
+    if (net.multithreading && ni_c * ni > net.min_operations) {
+        // Concatenate the hidden states from the previous time step and
+        // activations from the previous layer
+        cat_activations_and_prev_states_mp(state.ma, state.lstm.mh_prev, ni, no,
+                                           net.input_seq_len, net.batch_size,
+                                           z_pos_i, z_pos_o_lstm,
+                                           net.num_cpu_threads, state.lstm.mha);
 
-    lstm_delta_mean_var_w(
-        theta.Sw, state.lstm.mha, state.lstm.Jf_ga, state.lstm.mi_ga,
-        state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
-        state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mca, state.lstm.Jca,
-        d_state.delta_m, d_state.delta_S, z_pos_o, z_pos_o_lstm, w_pos_f,
-        w_pos_i, w_pos_c, w_pos_o, no, ni, net.input_seq_len, net.batch_size,
-        d_theta.delta_mw, d_theta.delta_Sw);
+        lstm_delta_mean_var_w_mp(
+            theta.Sw, state.lstm.mha, state.lstm.Jf_ga, state.lstm.mi_ga,
+            state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga,
+            state.lstm.mo_ga, state.lstm.Jo_ga, state.lstm.mc_prev,
+            state.lstm.mca, state.lstm.Jca, d_state.delta_m, d_state.delta_S,
+            z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o, no, ni,
+            net.input_seq_len, net.batch_size, net.num_cpu_threads,
+            d_theta.delta_mw, d_theta.delta_Sw);
 
-    lstm_delta_mean_var_b(
-        theta.Sb, state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga,
-        state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga, state.lstm.Jo_ga,
-        state.lstm.mc_prev, state.lstm.mca, state.lstm.Jca, d_state.delta_m,
-        d_state.delta_S, z_pos_o, z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c,
-        b_pos_o, no, net.input_seq_len, net.batch_size, d_theta.delta_mb,
-        d_theta.delta_Sb);
+        lstm_delta_mean_var_b_mp(
+            theta.Sb, state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga,
+            state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
+            state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mca,
+            state.lstm.Jca, d_state.delta_m, d_state.delta_S, z_pos_o,
+            z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c, b_pos_o, no,
+            net.input_seq_len, net.batch_size, net.num_cpu_threads,
+            d_theta.delta_mb, d_theta.delta_Sb);
+    } else {
+        cat_activations_and_prev_states_cpu(
+            state.ma, state.lstm.mh_prev, ni, no, net.input_seq_len,
+            net.batch_size, z_pos_i, z_pos_o_lstm, state.lstm.mha);
+
+        lstm_delta_mean_var_w(
+            theta.Sw, state.lstm.mha, state.lstm.Jf_ga, state.lstm.mi_ga,
+            state.lstm.Ji_ga, state.lstm.mc_ga, state.lstm.Jc_ga,
+            state.lstm.mo_ga, state.lstm.Jo_ga, state.lstm.mc_prev,
+            state.lstm.mca, state.lstm.Jca, d_state.delta_m, d_state.delta_S,
+            z_pos_o, z_pos_o_lstm, w_pos_f, w_pos_i, w_pos_c, w_pos_o, no, ni,
+            net.input_seq_len, net.batch_size, d_theta.delta_mw,
+            d_theta.delta_Sw);
+
+        lstm_delta_mean_var_b(
+            theta.Sb, state.lstm.Jf_ga, state.lstm.mi_ga, state.lstm.Ji_ga,
+            state.lstm.mc_ga, state.lstm.Jc_ga, state.lstm.mo_ga,
+            state.lstm.Jo_ga, state.lstm.mc_prev, state.lstm.mca,
+            state.lstm.Jca, d_state.delta_m, d_state.delta_S, z_pos_o,
+            z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c, b_pos_o, no,
+            net.input_seq_len, net.batch_size, d_theta.delta_mb,
+            d_theta.delta_Sb);
+    }
+    int check = 0;
 }

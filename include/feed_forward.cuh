@@ -3,7 +3,7 @@
 // Description:  Header file for feed forward in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 22, 2022
-// Updated:      September 07, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,7 @@
 #include "activation_fun.cuh"
 #include "data_transfer.cuh"
 #include "derivative_calcul.cuh"
+#include "lstm_feed_forward.cuh"
 #include "net_prop.h"
 #include "struct_var.h"
 

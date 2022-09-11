@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 09, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -268,8 +268,8 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                 // DEBUG ONLY
                 if (debug) {
                     // Transfer data from device to host
-                    state_e_gpu.copy_device_to_host(state_e);
-                    state_d_gpu.copy_device_to_host(state_d);
+                    state_e_gpu.copy_device_to_host();
+                    state_d_gpu.copy_device_to_host();
                     d_theta_e_gpu.copy_device_to_host();
                     d_theta_d_gpu.copy_device_to_host();
 
@@ -309,8 +309,8 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
 
         // Save results
         if (debug) {
-            state_e_gpu.copy_device_to_host(state_e);
-            state_d_gpu.copy_device_to_host(state_d);
+            state_e_gpu.copy_device_to_host();
+            state_d_gpu.copy_device_to_host();
             d_state_e_gpu.copy_device_to_host();
             d_state_d_gpu.copy_device_to_host();
             std::string res_path_e = path.debug_path + "/saved_result_enc/";
@@ -360,7 +360,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
             feedForward(net_d, theta_d_gpu, idx_d_gpu, state_d_gpu);
 
             // Get hidden states for output layers
-            state_d_gpu.copy_device_to_host(state_d);
+            state_d_gpu.copy_device_to_host();
             output_hidden_states(state_d, net_d, ma_d_batch_out,
                                  Sa_d_batch_out);
 
@@ -518,7 +518,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                               theta_gpu);
 
             // Compute error rate
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
@@ -573,7 +573,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
             // Compute error rate
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             output_hidden_states(state, net, ma_output, Sa_output);
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
@@ -747,7 +747,7 @@ Args:
 
         // Retrieve homocesdastic noise distribution's parameter
         if (net.noise_type.compare("homosce") == 0) {
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             get_homosce_noise_param(state.noise_state.ma_v2b_prior,
                                     state.noise_state.Sa_v2b_prior, net.mu_v2b,
                                     net.sigma_v2b);
@@ -793,7 +793,7 @@ Args:
             }
 
             // Get hidden states for output layers
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
 
             if (net.collect_derivative) {
@@ -907,7 +907,6 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
     int bN_sc = theta.mb_sc.size();
 
     int THREADS = net.num_gpu_threads;
-    unsigned int BLOCKS = (net.num_lstm_states + THREADS - 1) / THREADS;
 
     /* TRAINING */
     if (train_mode) {
@@ -943,6 +942,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
 
                 // Feed forward
                 feedForward(net, theta_gpu, idx_gpu, state_gpu);
+                state_gpu.copy_device_to_host();
 
                 // Feed backward for hidden states
                 stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
@@ -981,7 +981,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
 
         // Retrieve homocesdastic noise distribution's parameter
         if (net.noise_type.compare("homosce") == 0) {
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             get_homosce_noise_param(state.noise_state.ma_v2b_prior,
                                     state.noise_state.Sa_v2b_prior, net.mu_v2b,
                                     net.sigma_v2b);
@@ -1029,7 +1029,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
             }
 
             // Get hidden states for output layers
-            state_gpu.copy_device_to_host(state);
+            state_gpu.copy_device_to_host();
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
 
             // Update the final hidden state vector for last layer
