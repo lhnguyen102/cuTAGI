@@ -330,7 +330,7 @@ void lstm_delta_mean_var_w_worker(
         sum_Sc = 0;
         sum_mo = 0;
         sum_So = 0;
-        for (int j = 0; x < B * seq_len; j++) {
+        for (int j = 0; j < B * seq_len; j++) {
             x = j / seq_len;
             y = j % seq_len;
 
@@ -550,7 +550,6 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
             no, ni, net.input_seq_len, net.batch_size, d_state.delta_mz,
             d_state.delta_Sz);
     }
-    int check = 0;
 }
 
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
@@ -623,5 +622,4 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
             net.input_seq_len, net.batch_size, d_theta.delta_mb,
             d_theta.delta_Sb);
     }
-    int check = 0;
 }

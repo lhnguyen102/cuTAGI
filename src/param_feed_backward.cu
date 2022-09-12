@@ -2,7 +2,7 @@
 // File:         param_feed_backward.cu
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 11, 2021
+// Created:      October 12, 2021
 // Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
@@ -903,6 +903,11 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
         bposIn = net.b_pos[k];       // location of bias in param. vector
         no = net.nodes[k + 1];       // num. of nodes for output
         ni = net.nodes[k];           // num. of nodes for input
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
+
         // Hyperparameters are requried only for CNN.
         ki = net.kernels[k];      // kernel size of input
         fi = net.filters[k];      // num. of filters for input
@@ -930,11 +935,6 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
         wisc = net.widths[xsOut];
         hisc = net.heights[xsOut];
         wihisc = wisc * hisc;
-
-        // Handle multiple input sequences from LSTM layer
-        if (net.layers[k] == net.layer_names.lstm) {
-            ni = net.nodes[k] * net.input_seq_len;
-        }
 
         //**
         // Residual connection

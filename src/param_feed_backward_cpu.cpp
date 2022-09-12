@@ -290,14 +290,14 @@ Returns:
     for (int k = net.layers.size() - 2; k >= 0; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
-        z_pos_out = net.z_pos[k + 1];
-        z_pos_in = net.z_pos[k];
-        w_pos_in = net.w_pos[k];
-        b_pos_in = net.b_pos[k];
         // Handle multiple input sequences from LSTM layer
         if (net.layers[k] == net.layer_names.lstm) {
             ni = net.nodes[k] * net.input_seq_len;
         }
+        z_pos_out = net.z_pos[k + 1];
+        z_pos_in = net.z_pos[k];
+        w_pos_in = net.w_pos[k];
+        b_pos_in = net.b_pos[k];
 
         //**
         // 1: Fully connected

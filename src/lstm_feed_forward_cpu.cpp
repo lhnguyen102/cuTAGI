@@ -443,7 +443,7 @@ void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
 NOTE: Weight & bias vector for lstm is defined following
             w = [w_f, w_i, w_c, w_o] & b = [b_f, b_i, b_c, b_o]
 */
-// TODO: Fix cycle import between feed_forward_cpu and lstm_feed_forward_cpu
+// TODO: Fix cycling import between feed_forward_cpu and lstm_feed_forward_cpu
 {
     // Initialization
     int ni = net.nodes[l - 1];
@@ -559,6 +559,7 @@ NOTE: Weight & bias vector for lstm is defined following
             state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
             state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
             net.batch_size, net.num_cpu_threads, state.mz, state.Sz);
+        int check = 1;
 
     } else {
         cat_activations_and_prev_states_cpu(
@@ -638,6 +639,6 @@ NOTE: Weight & bias vector for lstm is defined following
             state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
             state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
             net.batch_size, state.mz, state.Sz);
+        int check = 1;
     }
-    int check = 0;
 }

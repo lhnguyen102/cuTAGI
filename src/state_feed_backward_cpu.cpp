@@ -953,14 +953,14 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
     for (int k = net.layers.size() - 2; k >= net.last_backward_layer; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
-        z_pos_out = net.z_pos[k + 1];
-        z_pos_in = net.z_pos[k];
-        w_pos_in = net.w_pos[k];
-        niB = ni * B;
         // Handle multiple input sequences from LSTM layer
         if (net.layers[k] == net.layer_names.lstm) {
             ni = net.nodes[k] * net.input_seq_len;
         }
+        z_pos_out = net.z_pos[k + 1];
+        z_pos_in = net.z_pos[k];
+        w_pos_in = net.w_pos[k];
+        niB = ni * B;
 
         //**
         // 1: Fully connected
