@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 11, 2022
+// Updated:      September 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,9 +101,12 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
             sum_So = 0;
             for (int x = 0; x < B; x++) {
                 for (int y = 0; y < seq_len; y++) {
-                    k = col + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-                    i = col + y * seq_len + no * seq_len * x + z_pos_o;
+                    k = col + y * no + no * seq_len * x + z_pos_o_lstm;
+                    i = col + y * no + no * seq_len * x + z_pos_o;
                     l = row + y * (ni + no) + (ni + no) * seq_len * x;
+                    if (y == 4) {
+                        int check = 1;
+                    }
 
                     // Forget gate
                     Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * mha[l];
@@ -170,8 +173,8 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &Jf_ga,
         sum_So = 0;
         for (int x = 0; x < B; x++) {
             for (int y = 0; y < seq_len; y++) {
-                k = row + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-                i = row + y * seq_len + no * seq_len * x + z_pos_o;
+                k = row + y * no + no * seq_len * x + z_pos_o_lstm;
+                i = row + y * no + no * seq_len * x + z_pos_o;
 
                 // Forget gate
                 Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];
@@ -334,8 +337,8 @@ void lstm_delta_mean_var_w_worker(
             x = j / seq_len;
             y = j % seq_len;
 
-            k = col + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-            i = col + y * seq_len + no * seq_len * x + z_pos_o;
+            k = col + y * no + no * seq_len * x + z_pos_o_lstm;
+            i = col + y * no + no * seq_len * x + z_pos_o;
             l = row + y * (ni + no) + (ni + no) * seq_len * x;
 
             // Forget gate
@@ -436,8 +439,8 @@ void lstm_delta_mean_var_b_worker(
         sum_So = 0;
         for (int x = 0; x < B; x++) {
             for (int y = 0; y < seq_len; y++) {
-                k = row + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-                i = row + y * seq_len + no * seq_len * x + z_pos_o;
+                k = row + y * no + no * seq_len * x + z_pos_o_lstm;
+                i = row + y * no + no * seq_len * x + z_pos_o;
 
                 // Forget gate
                 Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];
@@ -621,5 +624,8 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
             z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c, b_pos_o, no,
             net.input_seq_len, net.batch_size, d_theta.delta_mb,
             d_theta.delta_Sb);
+    }
+    if (std::isinf(theta.mw.back())) {
+        int check = 1;
     }
 }

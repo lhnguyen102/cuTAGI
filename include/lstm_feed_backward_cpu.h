@@ -4,11 +4,12 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 05, 2022
+// Updated:      September 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <cmath>
 #include <thread>
 #include <vector>
 

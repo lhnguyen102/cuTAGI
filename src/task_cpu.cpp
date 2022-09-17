@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      September 09, 2022
+// Updated:      September 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -456,7 +456,7 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
     int n_w_sc = theta.mw_sc.size();
     int n_b_sc = theta.mb_sc.size();
     int n_input_ts = net.n_x * net.input_seq_len;
-    int n_output_ts = net.n_y * net.output_seq_len;
+    int n_output_ts = net.n_y;
     int n_input_seq_batch = net.batch_size * net.input_seq_len;
     std::vector<int> data_idx = create_range(db.num_data);
 
@@ -492,7 +492,6 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
                 decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
                                 net.sigma_v_min);
             }
-
             std::vector<float> V_batch(net.batch_size * n_output_ts,
                                        pow(net.sigma_v, 2));
 
@@ -587,10 +586,10 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
 
-            // Save current cell & hidden states for next step
-            if (net.batch_size == 1) {
-                save_prev_states_cpu(net, state);
-            }
+            // // Save current cell & hidden states for next step
+            // if (net.batch_size == 1) {
+            //     save_prev_states_cpu(net, state);
+            // }
 
             // Get hidden states for output layers
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
@@ -600,25 +599,30 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
             update_vector(Sa_out, Sa_batch_out, mt_idx, n_output_ts);
         }
         // Retrive predictions (i.e., 1st column)
-        std::vector<float> my_1(db.num_data, 0), Sy_1(db.num_data, 0),
-            y_1(db.num_data, 0);
-        get_1st_column_data(ma_out, net.output_seq_len, net.n_y, my_1);
-        get_1st_column_data(Sa_out, net.output_seq_len, net.n_y, Sy_1);
-        get_1st_column_data(db.y, net.output_seq_len, net.n_y, y_1);
+        int n_y = net.n_y / net.output_seq_len;
+        std::vector<float> my_1(db.num_data, 0);
+        std::vector<float> Sy_1(db.num_data, 0);
+        std::vector<float> y_1(db.num_data, 0);
+        get_1st_column_data(ma_out, net.output_seq_len, n_y, my_1);
+        get_1st_column_data(Sa_out, net.output_seq_len, n_y, Sy_1);
+        get_1st_column_data(db.y, net.output_seq_len, n_y, y_1);
 
         // Unnormalize data
-        std::vector<float> sy_norm(db.y.size(), 0), my(sy_norm.size(), 0),
-            sy(sy_norm.size(), 0), y_test(sy_norm.size(), 0);
+        std::vector<float> sy_norm(db.num_data, 0);
+        std::vector<float> my(db.num_data, 0);
+        std::vector<float> sy(db.num_data, 0);
+        std::vector<float> y_test(db.num_data, 0);
 
         // Compute log-likelihood
-        for (int k = 0; k < db.y.size(); k++) {
+        for (int k = 0; k < db.num_data; k++) {
             sy_norm[k] = pow(Sy_1[k] + pow(net.sigma_v, 2), 0.5);
         }
-        denormalize_mean(my_1, db.mu_y, db.sigma_y, net.n_y, my);
-        denormalize_mean(y_1, db.mu_y, db.sigma_y, net.n_y, y_test);
-        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
 
-        // Compute metrics
+        denormalize_mean(my_1, db.mu_y, db.sigma_y, n_y, my);
+        denormalize_mean(y_1, db.mu_y, db.sigma_y, n_y, y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, n_y, sy);
+
+        // // Compute metrics
         auto mse = mean_squared_error(my, y_test);
         auto log_lik = avg_univar_log_lik(my, y_test, sy);
 
@@ -761,8 +765,18 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         Network net;
         Param theta;
         NetState state;
+
+        // Test network
+        IndexOut test_idx;
+        Network test_net;
+        NetState test_state;
+        int test_batch_size = 1;
+
         net_init(user_input.net_name, user_input.device, net, theta, state,
                  idx);
+
+        reset_net_batchsize(user_input.net_name, user_input.device, test_net,
+                            test_state, test_idx, test_batch_size);
 
         // Train data
         std::string train_dataloader_name = "train";
@@ -791,6 +805,16 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
         bool train_mode = true;
         time_series_forecasting_cpu(net, idx, state, theta, train_db,
                                     user_input.num_epochs, path, train_mode);
+
+        // Testing
+        train_mode = false;
+        time_series_forecasting_cpu(test_net, test_idx, test_state, theta,
+                                    test_db, user_input.num_epochs, path,
+                                    train_mode);
+
+        // Save net's parameters
+        save_net_param(user_input.model_name, user_input.net_name,
+                       path.saved_param_path, theta);
 
     } else {
         throw std::invalid_argument("Task name does not exist - task_cpu.cpp");

@@ -3,7 +3,7 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      July 24, 2022
+# Updated:      September 14, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -13,13 +13,11 @@ import numpy as np
 import pandas as pd
 import numpy.typing as npt
 
-plt.rcParams.update(
-    {
-        "font.size": 18,
-        "text.usetex": True,
-        "text.latex.preamble": r"\usepackage{amsfonts}",
-    }
-)
+plt.rcParams.update({
+    "font.size": 18,
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{amsfonts}",
+})
 
 
 class ImageViz:
@@ -60,8 +58,8 @@ class ImageViz:
         # Reshape data for plot
         num_imgs = int(len(imgs) / np.prod(self.img_size))
         imgs = np.reshape(
-            imgs, (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2])
-        )
+            imgs,
+            (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2]))
         mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
         sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))
 
@@ -130,7 +128,9 @@ class PredictionViz:
         self.ndiv_x = ndiv_x
         self.ndiv_y = ndiv_y
 
-    def load_dataset(self, file_path: str, header: bool = False) -> npt.NDArray:
+    def load_dataset(self,
+                     file_path: str,
+                     header: bool = False) -> npt.NDArray:
         """Load dataset (*.csv)
         Args:
             file_path: File path to the data file
@@ -235,9 +235,10 @@ class PredictionViz:
         y_ticks = np.linspace(min_y, max_y, self.ndiv_y)
         ax.set_yticks(y_ticks)
         ax.set_xticks(x_ticks)
-        ax.tick_params(
-            axis="both", which="both", direction="inout", labelsize=self.fontsize
-        )
+        ax.tick_params(axis="both",
+                       which="both",
+                       direction="inout",
+                       labelsize=self.fontsize)
         ax.legend(
             loc="upper right",
             edgecolor="black",
@@ -265,9 +266,11 @@ def autoencoder():
     n_row = 10
     n_col = 10
 
-    viz = ImageViz(
-        task_name=task_name, data_name=data_name, mu=mu, sigma=sigma, img_size=img_size
-    )
+    viz = ImageViz(task_name=task_name,
+                   data_name=data_name,
+                   mu=mu,
+                   sigma=sigma,
+                   img_size=img_size)
     viz.plot_images(n_row=n_row, n_col=n_col)
 
 
@@ -353,7 +356,7 @@ def input_uncertainty_prop():
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
 
     # Compute theorical standard deviation for the output
-    sy_test = ((3 * (x_test**2)) ** 2 * (sigma_x**2) + sigma_v**2) ** 0.5
+    sy_test = ((3 * (x_test**2))**2 * (sigma_x**2) + sigma_v**2)**0.5
 
     # Plot
     std_factor = 1
@@ -474,6 +477,17 @@ def derivative():
         x_eq=x_eq,
         y_eq=y_eq,
     )
+
+
+def time_series_forecasting():
+    """Plot time series forecasting"""
+    # User input data
+    task_name = "forecasting"
+    data_name = "traffic_data"
+    x_train_path = "./data/UCI_time_series/train_traffic_data.csv"
+    y_train_path = "./data/UCI_time_series/train_traffic_data.csv"
+    x_test_path = "./data/UCI_time_series/test_traffic_data.csv"
+    y_test_path = "./data/UCI_time_series/test_traffic_data.csv"
 
 
 if __name__ == "__main__":

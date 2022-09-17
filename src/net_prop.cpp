@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      September 03, 2022
+// Updated:      September 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -957,7 +957,11 @@ Param initialize_param(Network &net) {
 
         // Full-connected layer
         if (net.layers[j] == net.layer_names.fc) {
-            fan_in = net.nodes[j - 1];
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                fan_in = net.nodes[j - 1] * net.input_seq_len;
+            } else {
+                fan_in = net.nodes[j - 1];
+            }
             fan_out = net.nodes[j];
 
             // Compute variance

@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      August 24, 2022
+// Updated:      September 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -615,13 +615,13 @@ Returns:
     db.x = input_data;
     db.mu_x = mu_x;
     db.sigma_x = sigma_x;
-    db.nx = user_input.num_features;
+    db.nx = user_input.num_features * net.input_seq_len;
 
     db.y = output_data;
     db.mu_y = mu_y;
     db.sigma_y = sigma_y;
-    db.ny = num_outputs;
-    db.num_data = num;
+    db.ny = num_outputs * net.output_seq_len;
+    db.num_data = num_samples;
 
     return db;
 }
