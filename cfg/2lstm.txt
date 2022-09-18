@@ -1,9 +1,10 @@
 layers: 	[1,     7,       7,       1]
-nodes:		[1,     4,       4,       2]
+nodes:		[5,     16,      5,       1]
 activations:[0,     0,       0,       0]
 batch_size: 1
 input_seq_len: 10
-output_seq_len: 2
+output_seq_len: 1
 seq_stride: 1
-sigma_v: 	1
+sigma_v: 	0.3
+decay_factor_sigma_v: 0.95
 multithreading: false

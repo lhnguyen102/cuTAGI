@@ -639,6 +639,5 @@ NOTE: Weight & bias vector for lstm is defined following
             state.lstm.mo_ga, state.lstm.So_ga, state.lstm.mca, state.lstm.Sca,
             state.lstm.Co_tanh_c, z_pos_o, z_pos_o_lstm, no, net.input_seq_len,
             net.batch_size, state.mz, state.Sz);
-        int check = 1;
     }
 }

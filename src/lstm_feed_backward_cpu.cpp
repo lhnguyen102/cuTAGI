@@ -104,9 +104,6 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
                     k = col + y * no + no * seq_len * x + z_pos_o_lstm;
                     i = col + y * no + no * seq_len * x + z_pos_o;
                     l = row + y * (ni + no) + (ni + no) * seq_len * x;
-                    if (y == 4) {
-                        int check = 1;
-                    }
 
                     // Forget gate
                     Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * mha[l];
@@ -624,8 +621,5 @@ void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
             z_pos_o_lstm, b_pos_f, b_pos_i, b_pos_c, b_pos_o, no,
             net.input_seq_len, net.batch_size, d_theta.delta_mb,
             d_theta.delta_Sb);
-    }
-    if (std::isinf(theta.mw.back())) {
-        int check = 1;
     }
 }

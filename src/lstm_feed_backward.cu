@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) state backward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 11, 2022
+// Updated:      September 18, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,8 +37,8 @@ __global__ void lstm_delta_mean_var_z(
         sum_mo = 0;
         sum_Sz = 0;
         for (int j = 0; j < no; j++) {
-            k = j + x * no * seq_len + y * no + z_pos_o_lstm;
-            i = j + x * no * seq_len + y * no + z_pos_o;
+            k = j + y * no + x * no * seq_len + z_pos_o_lstm;
+            i = j + y * no + x * no * seq_len + z_pos_o;
 
             // Forget gate
             Czz_f = Jca[k] * mo_ga[k] * Jf_ga[k] *
@@ -97,8 +97,8 @@ __global__ void lstm_delta_mean_var_w(
             x = t / seq_len;
             y = t % seq_len;
 
-            k = col + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-            i = col + y * seq_len + no * seq_len * x + z_pos_o;
+            k = col + y * no + no * seq_len * x + z_pos_o_lstm;
+            i = col + y * no + no * seq_len * x + z_pos_o;
             l = row + y * (ni + no) + (ni + no) * seq_len * x;
 
             // Forget gate
@@ -163,8 +163,8 @@ __global__ void lstm_delta_mean_var_b(
             x = t / seq_len;
             y = t % seq_len;
 
-            k = col + y * seq_len + no * seq_len * x + z_pos_o_lstm;
-            i = col + y * seq_len + no * seq_len * x + z_pos_o;
+            k = col + y * no + no * seq_len * x + z_pos_o_lstm;
+            i = col + y * no + no * seq_len * x + z_pos_o;
 
             // Forget gate
             Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];

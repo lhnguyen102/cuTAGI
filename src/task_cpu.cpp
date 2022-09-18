@@ -523,7 +523,7 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
                 param_backward_cpu(net, theta, state, d_state, idx, d_theta);
 
                 // Save current cell & hidden states for next step
-                if (net.batch_size == 1) {
+                if (net.batch_size == 1 && net.input_seq_len == 1) {
                     save_prev_states_cpu(net, state);
                 }
 
@@ -586,10 +586,10 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
             // Feed forward
             feed_forward_cpu(net, theta, idx, state);
 
-            // // Save current cell & hidden states for next step
-            // if (net.batch_size == 1) {
-            //     save_prev_states_cpu(net, state);
-            // }
+            // Save current cell & hidden states for next step
+            if (net.batch_size == 1 && net.input_seq_len == 1) {
+                save_prev_states_cpu(net, state);
+            }
 
             // Get hidden states for output layers
             output_hidden_states(state, net, ma_batch_out, Sa_batch_out);

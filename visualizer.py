@@ -3,7 +3,7 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      September 14, 2022
+# Updated:      September 18, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -161,6 +161,7 @@ class PredictionViz:
         eq: str | None = None,
         x_eq: float | None = None,
         y_eq: float | None = None,
+        time_series: bool = False,
     ) -> None:
         """Compare prediciton distribution with theorical distribution
 
@@ -185,10 +186,17 @@ class PredictionViz:
             std_y = max(sy_test)
         else:
             std_y = 0
-        max_y = max(y_test) + std_y
-        min_y = min(y_test) - std_y
-        max_x = max(x_test)
-        min_x = min(x_test)
+
+        if x_train is not None:
+            max_y = np.maximum(max(y_test), max(y_train)) + std_y
+            min_y = np.minimum(min(y_test), min(y_train)) - std_y
+            max_x = np.maximum(max(x_test), max(x_train))
+            min_x = np.minimum(min(x_test), min(x_train))
+        else:
+            max_y = max(y_test) + std_y
+            min_y = min(y_test) - std_y
+            max_x = max(x_test)
+            min_x = min(x_test)
 
         # Plot figure
         plt.figure(figsize=self.figsize)
@@ -197,7 +205,7 @@ class PredictionViz:
         if eq is not None:
             ax.text(x_eq, y_eq, eq, color="k", fontsize=self.fontsize)
         ax.plot(x_test, y_pred, "r", lw=self.lw, label=r"$\mathbb{E}[Y^{'}]$")
-        ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}^{'}$")
+        ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}$")
 
         ax.fill_between(
             x_test,
@@ -205,7 +213,7 @@ class PredictionViz:
             y_pred + std_factor * sy_pred,
             facecolor="red",
             alpha=0.3,
-            label=r"$\mathbb{E}[Y^{'}]\pm3\sigma$",
+            label=r"$\mathbb{E}[Y^{'}]\pm\sigma$",
         )
         if sy_test is not None:
             ax.fill_between(
@@ -217,21 +225,34 @@ class PredictionViz:
                 label=r"$y_{true}\pm\sigma$",
             )
         if x_train is not None:
+            if time_series:
+                marker = ""
+                line_style = "-"
+            else:
+                marker = "o"
+                line_style = ""
             ax.plot(
                 x_train,
                 y_train,
-                "k",
-                marker="o",
+                "b",
+                marker=marker,
                 mfc="none",
                 lw=self.lw,
                 ms=0.2 * self.ms,
-                linestyle="",
+                linestyle=line_style,
                 label=r"$y_{train}$",
             )
 
         ax.set_xlabel(r"$x$", fontsize=self.fontsize)
         ax.set_ylabel(r"$y$", fontsize=self.fontsize)
-        x_ticks = np.linspace(min_x, max_x, self.ndiv_x)
+        if time_series:
+            x_ticks = pd.date_range(
+                min_x,
+                max_x,
+                periods=self.ndiv_x,
+            ).values
+        else:
+            x_ticks = np.linspace(min_x, max_x, self.ndiv_x)
         y_ticks = np.linspace(min_y, max_y, self.ndiv_y)
         ax.set_yticks(y_ticks)
         ax.set_xticks(x_ticks)
@@ -484,10 +505,42 @@ def time_series_forecasting():
     # User input data
     task_name = "forecasting"
     data_name = "traffic_data"
-    x_train_path = "./data/UCI_time_series/train_traffic_data.csv"
-    y_train_path = "./data/UCI_time_series/train_traffic_data.csv"
-    x_test_path = "./data/UCI_time_series/test_traffic_data.csv"
-    y_test_path = "./data/UCI_time_series/test_traffic_data.csv"
+    x_train_path = "./data/toy_time_series/train_sin_datetime.csv"
+    y_train_path = "./data/toy_time_series/y_train_sin_data.csv"
+    x_test_path = "./data/toy_time_series/test_sin_datetime.csv"
+    y_test_path = "./data/toy_time_series/y_test_sin_data.csv"
+    y_pred_path = "./saved_results/y_time_series_prediction.csv"
+    sy_pred_path = "./saved_results/sy_time_series_prediction.csv"
+
+    viz = PredictionViz(task_name=task_name,
+                        data_name=data_name,
+                        figsize=(18, 6))
+
+    # Load data
+    x_train = viz.load_dataset(file_path=x_train_path, header=True)
+    y_train = viz.load_dataset(file_path=y_train_path, header=True)
+    x_test = viz.load_dataset(file_path=x_test_path, header=True)
+    y_test = viz.load_dataset(file_path=y_test_path, header=True)
+    y_pred = viz.load_dataset(file_path=y_pred_path)
+    sy_pred = viz.load_dataset(file_path=sy_pred_path)
+    x_test = x_test[:y_pred.shape[0]]
+    y_test = y_test[:y_pred.shape[0]]
+
+    x_test = [np.datetime64(date) for date in x_test]
+    x_train = [np.datetime64(date) for date in x_train]
+
+    # Plot
+    std_factor = 1
+    viz.plot_predictions(x_train=x_train,
+                         y_train=y_train,
+                         x_test=x_test,
+                         y_test=y_test,
+                         y_pred=y_pred,
+                         sy_pred=sy_pred,
+                         std_factor=std_factor,
+                         label="forecasting",
+                         title=r"\textbf{Time Series Forecasting}",
+                         time_series=True)
 
 
 if __name__ == "__main__":
@@ -495,4 +548,5 @@ if __name__ == "__main__":
     # autoencoder()
     # input_uncertainty_prop()
     # noise_inference()
-    derivative()
+    #derivative()
+    time_series_forecasting()
