@@ -3,7 +3,7 @@ task_name: time_series
 data_name: traffic_volume
 net_name: 2lstm
 load_param: false
-num_epochs: 10
+num_epochs: 20
 num_train_data: 924
 num_test_data: 232
 device: cpu
@@ -12,4 +12,4 @@ y_train_dir: data/toy_time_series/y_train_sin_data.csv
 x_test_dir: data/toy_time_series/x_test_sin_data.csv
 y_test_dir: data/toy_time_series/y_test_sin_data.csv
 output_col: 0
-num_features: 5
+num_features: 1

@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      September 03, 2022
+// Updated:      September 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -177,7 +177,7 @@ struct Network {
     int num_max_lstm_states = 0;
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
-    int min_operations = 0;
+    int min_operations = 4000;
     std::string device = "cpu";
 };
 

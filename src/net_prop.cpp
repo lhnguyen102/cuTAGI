@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      September 17, 2022
+// Updated:      September 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1040,7 +1040,7 @@ Param initialize_param(Network &net) {
         }
         // LSTM layer
         else if (net.layers[j] == net.layer_names.lstm) {
-            fan_in = net.nodes[j - 1] * net.nodes[j];
+            fan_in = net.nodes[j - 1] + net.nodes[j];
             fan_out = net.nodes[j];
 
             // Variance

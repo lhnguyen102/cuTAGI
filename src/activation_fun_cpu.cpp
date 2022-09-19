@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      September 11, 2022
+// Updated:      September 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -549,6 +549,9 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
     // Handle multiple input sequences from LSTM layer
     if (net.layers[j - 1] == net.layer_names.lstm) {
         ni = net.nodes[j - 1] * net.input_seq_len;
+    }
+    if (net.layers[j] == net.layer_names.lstm) {
+        no_B = no * B * net.input_seq_len;
     }
     if (net.activations[j] == net.act_names.tanh)  // tanh
     {

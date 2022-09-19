@@ -112,7 +112,8 @@ class DataGeneration:
 def main():
     """Generate time series"""
     date_time = ["2019-01-01", "2022-03-01"]
-    col_name = ["sin", "week_sin", "week_cos", "year_sin", "year_cos"]
+    # col_name = ["sin", "week_sin", "week_cos", "year_sin", "year_cos"]
+    col_name = ["sin"]
     ratio = 0.8
 
     dg = DataGeneration(date_time)

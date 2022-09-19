@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      September 16, 2022
+// Updated:      September 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -485,8 +485,8 @@ void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
     if (train_mode) {
         for (int e = 0; e < n_epochs; e++) {
             if (e > 0) {
-                // Shuffle data
-                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+                // // Shuffle data
+                // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
 
                 // Decay observation noise
                 decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
@@ -808,6 +808,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Testing
         train_mode = false;
+        test_net.sigma_v = net.sigma_v;
         time_series_forecasting_cpu(test_net, test_idx, test_state, theta,
                                     test_db, user_input.num_epochs, path,
                                     train_mode);
