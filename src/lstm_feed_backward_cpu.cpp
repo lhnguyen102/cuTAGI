@@ -4,7 +4,7 @@
 //               (cpu version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2022
-// Updated:      September 17, 2022
+// Updated:      September 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,43 @@ void lstm_delta_mean_var_z(std::vector<float> &Sz, std::vector<float> &mw,
                            std::vector<float> &delta_mz,
                            std::vector<float> &delta_Sz)
 /*Compute the updated quatitites of the mean of the hidden states for lstm
-   layer*/
+   layer
+
+Args:
+    Sz: Variance of hidden states
+    mw: Mean of weights
+    Jf_ga: Jacobian matrix (diagonal) of forget gates
+    mi_ga: Mean of the input gate
+    Ji_ga: Jacobian matrix (diagonal) of input gates
+    mc_ga: Mean of the cell state gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gates
+    mo_ga: Mean of the output gate
+    Jo_ga: Jacobian matrix (diagonal) of output gates
+    mc_prev: Mean of cell state (i.e., hidden state) of the previous step
+    mca: Mean of the activated cell states
+    Sca: Variance of the activated cell states
+    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
+    delta_S: Inovation vector for variance i.e. (M_observation - M_prediction)
+    z_pos_i: Input-hidden-state position for this layer in the weight vector
+        of network
+    z_pos_o: Output-hidden-state position for this layer in the weight vector
+        of network
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    w_pos_f: Weight position for forget gate in the weight vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    w_pos_o: Weight position for output gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    delta_mz: Updated quantities for the mean of output's hidden states
+    delta_Sz: Updated quantities for the varaince of output's hidden states
+
+NOTE: All LSTM states excepted mc_prev are from the next layer e.g., mi_ga(l+1)
+
+*/
 {
     float sum_mf, sum_mi, sum_mc, sum_mo, sum_Sz;
     float Czz_f, Czz_i, Czz_c, Czz_o;
@@ -78,13 +114,46 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
                            std::vector<float> &Jc_ga, std::vector<float> &mo_ga,
                            std::vector<float> &Jo_ga,
                            std::vector<float> &mc_prev, std::vector<float> &mca,
-                           std::vector<float> &Jc, std::vector<float> &delta_m,
+                           std::vector<float> &Jca, std::vector<float> &delta_m,
                            std::vector<float> &delta_S, int z_pos_o,
                            int z_pos_o_lstm, int w_pos_f, int w_pos_i,
                            int w_pos_c, int w_pos_o, int no, int ni,
                            int seq_len, int B, std::vector<float> &delta_mw,
                            std::vector<float> &delta_Sw)
-/*Compute updating quantities of the weight parameters for lstm layer */
+/*Compute updating quantities of the weight parameters for lstm layer
+
+Args:
+    Sw: Variance of weights
+    mha: Mean of the activations + previous hidden states of lstm layer
+    Jf_ga: Jacobian matrix (diagonal) of forget gates
+    mi_ga: Mean of the input gate
+    Ji_ga: Jacobian matrix (diagonal) of input gates
+    mc_ga: Mean of the cell state gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gates
+    mo_ga: Mean of the output gate
+    Jo_ga: Jacobian matrix (diagonal) of output gates
+    mc_prev: Mean of cell state (i.e., hidden state) of the previous step
+    mca: Mean of the activated cell states
+    Jca: Jacobian matrix (diagonal) of cell states
+    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
+    delta_S: Inovation vector for variance i.e. (M_observation - M_prediction)
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    w_pos_f: Weight position for forget gate in the weight vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    w_pos_o: Weight position for output gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    delta_mw: Updated quantities for the mean of weights
+    deltaSw: Updated quantities for the variance of weights
+
+NOTE: All LSTM states are from the next layer e.g., mi_ga(l+1)
+*/
 {
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
@@ -106,17 +175,17 @@ void lstm_delta_mean_var_w(std::vector<float> &Sw, std::vector<float> &mha,
                     l = row + y * (ni + no) + (ni + no) * seq_len * x;
 
                     // Forget gate
-                    Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * mha[l];
+                    Cwa_f = Jca[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k] * mha[l];
                     sum_mf += Cwa_f * delta_m[i];
                     sum_Sf += Cwa_f * delta_S[i] * Cwa_f;
 
                     // Input gate
-                    Cwa_i = Jc[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k] * mha[l];
+                    Cwa_i = Jca[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k] * mha[l];
                     sum_mi += Cwa_i * delta_m[i];
                     sum_Si += Cwa_i * delta_S[i] * Cwa_i;
 
                     // Cell state gate
-                    Cwa_c = Jc[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k] * mha[l];
+                    Cwa_c = Jca[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k] * mha[l];
                     sum_mc += Cwa_c * delta_m[i];
                     sum_Sc += Cwa_c * delta_S[i] * Cwa_c;
 
@@ -148,13 +217,45 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &Jf_ga,
                            std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
                            std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
                            std::vector<float> &mc_prev, std::vector<float> &mca,
-                           std::vector<float> &Jc, std::vector<float> &delta_m,
+                           std::vector<float> &Jca, std::vector<float> &delta_m,
                            std::vector<float> &delta_S, int z_pos_o,
                            int z_pos_o_lstm, int b_pos_f, int b_pos_i,
                            int b_pos_c, int b_pos_o, int no, int seq_len, int B,
                            std::vector<float> &delta_mb,
                            std::vector<float> &delta_Sb)
-/*Compute updating quantities of the bias for the lstm layer */
+/*Compute updating quantities of the bias for the lstm layer
+
+Args:
+    Sb: Variance of biases
+    Jf_ga: Jacobian matrix (diagonal) of forget gates
+    mi_ga: Mean of the input gate
+    Ji_ga: Jacobian matrix (diagonal) of input gates
+    mc_ga: Mean of the cell state gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gates
+    mo_ga: Mean of the output gate
+    Jo_ga: Jacobian matrix (diagonal) of output gates
+    mc_prev: Mean of cell state (i.e., hidden state) of the previous step
+    mca: Mean of the activated cell states
+    Jca: Jacobian matrix (diagonal) of cell states
+    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
+    delta_S: Inovation vector for variance i.e. (M_observation - M_prediction)
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    b_pos_f: Bias position for forget gate in the bias vector of network
+    b_pos_i: Bias position for input gate in the weight vector of network
+    b_pos_c: Bias position for cell state gate in the bias vector of network
+    b_pos_o: Bias position for output gate in the bias vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    deltaMb: Updated quantities for the mean of biases
+    deltaSb: Updated quantities for the variance of biases
+
+NOTE: All LSTM states are from the next layer e.g., mi_ga(l+1)
+*/
 {
     float sum_mf, sum_Sf, Cwa_f, sum_mi, sum_Si, Cwa_i, sum_mc, sum_Sc, Cwa_c,
         sum_mo, sum_So, Cwa_o;
@@ -174,17 +275,17 @@ void lstm_delta_mean_var_b(std::vector<float> &Sb, std::vector<float> &Jf_ga,
                 i = row + y * no + no * seq_len * x + z_pos_o;
 
                 // Forget gate
-                Cwa_f = Jc[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];
+                Cwa_f = Jca[k] * Jf_ga[k] * mc_prev[k] * mo_ga[k];
                 sum_mf += Cwa_f * delta_m[i];
                 sum_Sf += Cwa_f * delta_S[i] * Cwa_f;
 
                 // Input gate
-                Cwa_i = Jc[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k];
+                Cwa_i = Jca[k] * Ji_ga[k] * mc_ga[k] * mo_ga[k];
                 sum_mi += Cwa_i * delta_m[i];
                 sum_Si += Cwa_i * delta_S[i] * Cwa_i;
 
                 // Cell state gate
-                Cwa_c = Jc[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k];
+                Cwa_c = Jca[k] * Jc_ga[k] * mi_ga[k] * mo_ga[k];
                 sum_mc += Cwa_c * delta_m[i];
                 sum_Sc += Cwa_c * delta_S[i] * Cwa_c;
 
@@ -514,7 +615,15 @@ void lstm_delta_mean_var_b_mp(
 
 void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
                            DeltaState &d_state, int l)
-/*Update lstm's hidden states*/
+/*Update lstm's hidden states
+
+Args:
+    net: Network architecture and properties
+    state: Network states
+    theta: Network parameters
+    d_state: Updated quantities for network's hidden states
+    l: Index of the current layer
+*/
 {
     // Initialization
     int ni = net.nodes[l];
@@ -554,7 +663,16 @@ void lstm_state_update_cpu(Network &net, NetState &state, Param &theta,
 
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
                                DeltaState &d_state, DeltaParam &d_theta, int l)
-/*Update lstm's parameters*/
+/*Update lstm's parameters
+
+Args:
+    net: Network architecture and properties
+    state: Network states
+    theta: Network parameters
+    d_state: Updated quantities for network's hidden states
+    d_theta: Updated quantities for weights and biases
+    l: Index of the current layer
+*/
 {
     // Initialization
     int ni = net.nodes[l];

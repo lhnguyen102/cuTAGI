@@ -443,7 +443,18 @@ Args:
 void time_series_forecasting_cpu(Network &net, IndexOut &idx, NetState &state,
                                  Param &theta, Dataloader &db, int n_epochs,
                                  SavePath &path, bool train_mode)
-/*Time series forecasting*/
+/*Time series forecasting
+
+Args:
+    Net: Network architecture
+    idx: Indices of network
+    theta: Weights & biases of network
+    db: database
+    n_epochs: Number of epochs
+    path: Directory stored the final results
+    path: Directory stored the final results
+    train_mode: Whether to train the network
+*/
 {
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();

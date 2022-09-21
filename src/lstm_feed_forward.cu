@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 05, 2022
-// Updated:      September 09, 2022
+// Updated:      September 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,6 +18,21 @@ __global__ void cov_input_cell_states(float const *Sha, float const *mw,
 /*Compute covariance between input gates and cell states. Note that we store the
    hidden state vector as follows: z = [seq1, seq2, ..., seq n] where seq's
    shape = [1, no * B]
+
+Args:
+    Sha: Variance of the activations + previous hidden states of lstm layer
+    mw: Mean of weights
+    Ji_ga: Jacobian matrix (diagonal) of input gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gate
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    Ci_c: Convariance between input and cell state gates
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -44,7 +59,26 @@ __global__ void cell_state_mean_var(float const *mf_ga, float const *Sf_ga,
                                     float const *mc_prev, float const *Sc_prev,
                                     float const *Ci_c, int z_pos_o, int no,
                                     int seq_len, int B, float *mc, float *Sc)
-/*Compute cell states for the current state*/
+/*Compute cell states for the current state
+
+Args:
+    mf_ga: Mean of the forget gate
+    Sf_ga: Variance of the forget gate
+    mi_ga: Mean of the input gate
+    Si_ga: Variance of the input gate
+    mc_ga: Mean of the cell state gate
+    Sc_ga: Variance of the cell state gate
+    mc_prev: Mean of the cell state of the previous states
+    Sc_prev: Variance of the cell state of the previous states
+    Ci_c: Covariance of input and cell state gates
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch siz
+    mc: Mean of the cell state
+    Sc: Variance of the cell state
+*/
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -71,6 +105,29 @@ __global__ void cov_output_tanh_cell_states(
     int z_pos_o_lstm, int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o,
     int ni, int no, int seq_len, int B, float *Co_tanh_c)
 /*Compute convariance between output gates & tanh(cell states)
+
+Args:
+    mw: Mean of weights
+    Sha: Variance of the activations + previous hidden states of lstm layer
+    mc_prev: Mean of cell state (i.e., hidden state) of the previous step
+    Jca: Jacobian matrix (diagonal) of cell states
+    Jf_ga: Jacobian matrix (diagonal) of forget gates
+    mi_ga: Mean of the input gate
+    Ji_ga: Jacobian matrix (diagonal) of input gates
+    mc_ga: Mean of the cell state gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gates
+    Jo_ga: Jacobian matrix (diagonal) of output gates
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    w_pos_f: Weight position for forget gate in the weight vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    w_pos_o: Weight position for output gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    Co_tanh_c: Covariance between outputs and tanh of cell states
  */
 // TODO: DOUBLE CHECK if prev_mc is hidden state or activation unit
 {
@@ -104,7 +161,24 @@ __global__ void hidden_state_mean_var_lstm(
     float const *mo_ga, float const *So_ga, float const *mc_a,
     float const *Sc_a, float const *Co_tanh_c, int z_pos_o, int z_pos_o_lstm,
     int no, int seq_len, int B, float *mz, float *Sz)
-/*Compute mean and variance for hidden states of the LSTM layer*/
+/*Compute mean and variance for hidden states of the LSTM layer
+
+Args:
+    mo_ga: Mean of the output gate
+    So_ga: Variance of the output gate
+    mca: Mean of the activated cell states
+    Sca: Variance of the activated cell states
+    Co_tanh_c: Covariance between outputs and tanh of cell states
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    mz: Mean of hidden states
+    Sz: Variance of hidden states
+*/
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -184,6 +258,12 @@ __global__ void cat_activations_and_prev_states(float const *a, float const *b,
 
 void lstm_state_forward(Network &net, StateGPU &state, ParamGPU &theta, int l)
 /*Steps for computing hidden states mean and covariance for the lstm layer
+
+Args:
+    net: Network architecture and properties
+    state: Network states
+    theta: Network parameters
+    l: Index for current layer
 
 NOTE: Weight & bias vector for lstm is defined following
             w = [w_f, w_i, w_c, w_o] & b = [b_f, b_i, b_c, b_o]

@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 11, 2022
+// Updated:      September 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
                                   DeltaParamGPU &d_theta_gpu)
 /*Send network's data to device
 
-  Args:
+Args:
     net: Network properties on CPU
     idx: Indices of network on CPU
     state: Hidden states of network on CPU
@@ -83,7 +83,7 @@ void autoencoder(Network &net_e, IndexOut &idx_e, NetState &state_e,
                  bool debug)
 /* Autoencoder network for generating images
 
-   Args:
+Args:
     net_e: Network properties for encoder
     idx_e: Indices of network for encoder
     state_e: Hidden states of network for encoder
@@ -384,7 +384,7 @@ void classification(Network &net, IndexOut &idx, NetState &state, Param &theta,
                     int n_classes, SavePath &path, bool train_mode, bool debug)
 /*Classification task
 
-  Args:
+Args:
     Net: Network architecture
     idx: Indices of network
     theta: Weights & biases of network
@@ -854,7 +854,19 @@ Args:
 void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
                              Param &theta, Dataloader &db, int n_epochs,
                              SavePath &path, bool train_mode, bool debug)
-/* Time series forecasting*/
+/* Time series forecasting
+
+Args:
+    Net: Network architecture
+    idx: Indices of network
+    theta: Weights & biases of network
+    db: database
+    n_epochs: Number of epochs
+    path: Directory stored the final results
+    path: Directory stored the final results
+    train_mode: Whether to train the network
+    debug: Debugging mode allows saving inference data
+*/
 {
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -863,7 +875,7 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
     // Compute number of data
     int n_iter = db.num_data / net.batch_size;
     int n_input_ts = net.n_x * net.input_seq_len;
-    int n_output_ts = net.n_y * net.output_seq_len;
+    int n_output_ts = net.n_y;
 
     // Initialize the data's variables
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
@@ -913,8 +925,9 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
         for (int e = 0; e < n_epochs; e++) {
             // Shufle data
             if (e > 0) {
-                // Shufle data
-                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+                // TODO: Figure out why shuffle data does not work well
+                // // Shufle data
+                // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
 
                 // Decay observation noise
                 decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
@@ -942,7 +955,6 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
 
                 // Feed forward
                 feedForward(net, theta_gpu, idx_gpu, state_gpu);
-                state_gpu.copy_device_to_host();
 
                 // Feed backward for hidden states
                 stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
@@ -996,15 +1008,6 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
         std::vector<float> Sa_out(db.num_data * n_output_ts, 0);
         int mt_idx = 0;
 
-        // Derivative results for the input layers
-        std::vector<float> mdy_batch_in, Sdy_batch_in, mdy_in, Sdy_in;
-        if (net.collect_derivative) {
-            mdy_batch_in.resize(net.batch_size * net.n_x, 0);
-            Sdy_batch_in.resize(net.batch_size * net.n_x, 0);
-            mdy_in.resize(db.num_data * net.n_x, 0);
-            Sdy_in.resize(db.num_data * net.n_x, 0);
-        }
-
         // Prediction
         for (int i = 0; i < n_iter; i++) {
             mt_idx = i * net.batch_size * n_output_ts;
@@ -1037,23 +1040,24 @@ void time_series_forecasting(Network &net, IndexOut &idx, NetState &state,
             update_vector(Sa_out, Sa_batch_out, mt_idx, n_output_ts);
         }
         // Retrive predictions (i.e., 1st column)
+        int n_y = net.n_y / net.output_seq_len;
         std::vector<float> my_1(db.num_data, 0), Sy_1(db.num_data, 0),
             y_1(db.num_data, 0);
-        get_1st_column_data(ma_out, net.output_seq_len, net.n_y, my_1);
-        get_1st_column_data(Sa_out, net.output_seq_len, net.n_y, Sy_1);
-        get_1st_column_data(db.y, net.output_seq_len, net.n_y, y_1);
+        get_1st_column_data(ma_out, net.output_seq_len, n_y, my_1);
+        get_1st_column_data(Sa_out, net.output_seq_len, n_y, Sy_1);
+        get_1st_column_data(db.y, net.output_seq_len, n_y, y_1);
 
         // Unnormalize data
-        std::vector<float> sy_norm(db.y.size(), 0), my(sy_norm.size(), 0),
-            sy(sy_norm.size(), 0), y_test(sy_norm.size(), 0);
+        std::vector<float> sy_norm(db.num_data, 0), my(db.num_data, 0),
+            sy(db.num_data, 0), y_test(db.num_data, 0);
 
         // Compute log-likelihood
-        for (int k = 0; k < db.y.size(); k++) {
+        for (int k = 0; k < db.num_data; k++) {
             sy_norm[k] = pow(Sy_1[k] + pow(net.sigma_v, 2), 0.5);
         }
-        denormalize_mean(my_1, db.mu_y, db.sigma_y, net.n_y, my);
-        denormalize_mean(y_1, db.mu_y, db.sigma_y, net.n_y, y_test);
-        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
+        denormalize_mean(my_1, db.mu_y, db.sigma_y, n_y, my);
+        denormalize_mean(y_1, db.mu_y, db.sigma_y, n_y, y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, n_y, sy);
 
         // Compute metrics
         auto mse = mean_squared_error(my, y_test);
@@ -1262,8 +1266,17 @@ void task_command(UserInput &user_input, SavePath &path) {
         Network net;
         Param theta;
         NetState state;
+
+        // Test network
+        IndexOut test_idx;
+        Network test_net;
+        NetState test_state;
+        int test_batch_size = 1;
+
         net_init(user_input.net_name, user_input.device, net, theta, state,
                  idx);
+        reset_net_batchsize(user_input.net_name, user_input.device, test_net,
+                            test_state, test_idx, test_batch_size);
 
         // Train data
         std::string train_dataloader_name = "train";
@@ -1293,6 +1306,15 @@ void task_command(UserInput &user_input, SavePath &path) {
         time_series_forecasting(net, idx, state, theta, train_db,
                                 user_input.num_epochs, path, train_mode,
                                 user_input.debug);
+
+        train_mode = false;
+        test_net.sigma_v = net.sigma_v;
+        time_series_forecasting(test_net, test_idx, test_state, theta, train_db,
+                                user_input.num_epochs, path, train_mode,
+                                user_input.debug);
+        // // Save net's parameters
+        // save_net_param(user_input.model_name, user_input.net_name,
+        //                path.saved_param_path, theta);
 
     } else {
         throw std::invalid_argument("Task name does not exist - task.cu");

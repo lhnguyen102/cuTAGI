@@ -53,7 +53,7 @@ __global__ void sigmoidMeanVar(float const *mz, float const *Sz, float *ma,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp = 0;
     if (col < n) {
-        tmp = 1 / (1 + expf(-mz[col + zpos]));
+        tmp = 1.0 / (1.0 + expf(-mz[col + zpos]));
         ma[col + zpos] = tmp;
         J[col + zpos] = tmp * (1 - tmp);
         Sa[col + zpos] = tmp * (1 - tmp) * Sz[col + zpos] * tmp * (1 - tmp);

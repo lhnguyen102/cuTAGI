@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 03, 2022
-// Updated:      September 11, 2022
+// Updated:      September 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,21 @@ void cov_input_cell_states_cpu(std::vector<float> &Sha, std::vector<float> &mw,
 /*Compute covariance between input gates and cell states. Note that we store the
    hidden state vector as follows: z = [seq1, seq2, ..., seq n] where seq's
    shape = [1, no * B]
+
+Args:
+    Sha: Variance of the activations + previous hidden states of lstm layer
+    mw: Mean of weights
+    Ji_ga: Jacobian matrix (diagonal) of input gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gate
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    Ci_c: Convariance between input and cell state gates
 */
 {
     float sum;
@@ -44,7 +59,27 @@ void cell_state_mean_var_cpu(
     std::vector<float> &mc_prev, std::vector<float> &Sc_prev,
     std::vector<float> &Ci_c, int z_pos_o, int no, int seq_len, int B,
     std::vector<float> &mc, std::vector<float> &Sc)
-/*Compute cell states for the current state*/
+/*Compute mean and variance cell states
+
+Args:
+    mf_ga: Mean of the forget gate
+    Sf_ga: Variance of the forget gate
+    mi_ga: Mean of the input gate
+    Si_ga: Variance of the input gate
+    mc_ga: Mean of the cell state gate
+    Sc_ga: Variance of the cell state gate
+    mc_prev: Mean of the cell state of the previous states
+    Sc_prev: Variance of the cell state of the previous states
+    Ci_c: Covariance of input and cell state gates
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch siz
+    mc: Mean of the cell state
+    Sc: Variance of the cell state
+
+*/
 {
     int m, k;
     for (int x = 0; x < B; x++) {
@@ -66,15 +101,38 @@ void cell_state_mean_var_cpu(
 
 void cov_output_tanh_cell_states_cpu(
     std::vector<float> &mw, std::vector<float> &Sha,
-    std::vector<float> &mc_prev, std::vector<float> &Jc_a,
+    std::vector<float> &mc_prev, std::vector<float> &Jca,
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
     std::vector<float> &Ji_ga, std::vector<float> &mc_ga,
     std::vector<float> &Jc_ga, std::vector<float> &Jo_ga, int z_pos_o_lstm,
     int w_pos_f, int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no,
     int seq_len, int B, std::vector<float> &Co_tanh_c)
 /*Compute convariance between output gates & tanh(cell states)
+
+Args:
+    mw: Mean of weights
+    Sha: Variance of the activations + previous hidden states of lstm layer
+    mc_prev: Mean of cell state (i.e., hidden state) of the previous step
+    Jca: Jacobian matrix (diagonal) of cell states
+    Jf_ga: Jacobian matrix (diagonal) of forget gates
+    mi_ga: Mean of the input gate
+    Ji_ga: Jacobian matrix (diagonal) of input gates
+    mc_ga: Mean of the cell state gate
+    Jc_ga: Jacobian matrix (diagonal) of cell state gates
+    Jo_ga: Jacobian matrix (diagonal) of output gates
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    w_pos_f: Weight position for forget gate in the weight vector of network
+    w_pos_i: Weight position for input gate in the weight vector of network
+    w_pos_c: Weight position for cell state gate in the weight vector of network
+    w_pos_o: Weight position for output gate in the weight vector of network
+    ni: Input node
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    Co_tanh_c: Covariance between outputs and tanh of cell states
+
  */
-// TODO: DOUBLE CHECK if prev_mc is hidden state or activation unit
 {
     float sum_fo, sum_io, sum_oc;
     int k, m, i;
@@ -93,9 +151,9 @@ void cov_output_tanh_cell_states_cpu(
                 }
                 i = z + y * no + x * seq_len * no + z_pos_o_lstm;
                 Co_tanh_c[i - z_pos_o_lstm] =
-                    Jc_a[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
-                               Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
-                               Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
+                    Jca[i] * (Jo_ga[i] * sum_fo * Jf_ga[i] * mc_prev[i] +
+                              Jo_ga[i] * sum_io * Ji_ga[i] * mc_ga[i] +
+                              Jo_ga[i] * sum_oc * Jc_ga[i] * mi_ga[i]);
             }
         }
     }
@@ -103,10 +161,28 @@ void cov_output_tanh_cell_states_cpu(
 
 void hidden_state_mean_var_lstm_cpu(
     std::vector<float> &mo_ga, std::vector<float> &So_ga,
-    std::vector<float> &mc_a, std::vector<float> &Sc_a,
+    std::vector<float> &mca, std::vector<float> &Sca,
     std::vector<float> &Co_tanh_c, int z_pos_o, int z_pos_o_lstm, int no,
     int seq_len, int B, std::vector<float> &mz, std::vector<float> &Sz)
-/*Compute mean and variance for hidden states of the LSTM layer*/
+/*Compute mean and variance for hidden states of the LSTM layer
+
+Args:
+    mo_ga: Mean of the output gate
+    So_ga: Variance of the output gate
+    mca: Mean of the activated cell states
+    Sca: Variance of the activated cell states
+    Co_tanh_c: Covariance between outputs and tanh of cell states
+    z_pos_o: Output-hidden-state position for this layer in the hidden-state
+        vector of network
+    z_pos_o_lstm: Output-hidden-state position for LSTM layer in the
+        LSTM hidden-state vector of network
+    no: Output node
+    seq_len: Input sequence length
+    B: Batch size
+    mz: Mean of hidden states
+    Sz: Variance of hidden states
+
+*/
 {
     int m, k, j;
     for (int x = 0; x < B; x++) {
@@ -115,10 +191,10 @@ void hidden_state_mean_var_lstm_cpu(
                 j = z + y * no + x * no * seq_len;
                 m = j + z_pos_o_lstm;
                 k = z + y * no + x * no * seq_len + z_pos_o;
-                mz[k] = mo_ga[m] * mc_a[m] + Co_tanh_c[j];
-                Sz[k] = Sc_a[m] * mo_ga[m] * mo_ga[m] + Sc_a[m] * So_ga[m] +
-                        So_ga[m] * mc_a[m] * mc_a[m] + powf(Co_tanh_c[j], 2) +
-                        2 * Co_tanh_c[j] * mo_ga[m] * mc_a[m];
+                mz[k] = mo_ga[m] * mca[m] + Co_tanh_c[j];
+                Sz[k] = Sca[m] * mo_ga[m] * mo_ga[m] + Sca[m] * So_ga[m] +
+                        So_ga[m] * mca[m] * mca[m] + powf(Co_tanh_c[j], 2) +
+                        2 * Co_tanh_c[j] * mo_ga[m] * mca[m];
             }
         }
     }
@@ -138,7 +214,7 @@ void cat_activations_and_prev_states_cpu(std::vector<float> &a,
                                          std::vector<float> &b, int n, int m,
                                          int seq_len, int B, int z_pos_a,
                                          int z_pos_b, std::vector<float> &c)
-/*Concatenate two vectors*/
+/*Concatenate two vectors a and b*/
 {
     for (int k = 0; k < B; k++) {
         for (int s = 0; s < seq_len; s++) {
@@ -439,6 +515,12 @@ void save_prev_states_cpu(Network &net, NetState &state)
 
 void lstm_state_forward_cpu(Network &net, NetState &state, Param &theta, int l)
 /*Steps for computing hidden states mean and covariance for the lstm layer
+
+Args:
+    net: Network architecture and properties
+    state: Network states
+    theta: Network parameters
+    l: Index for current layer
 
 NOTE: Weight & bias vector for lstm is defined following
             w = [w_f, w_i, w_c, w_o] & b = [b_f, b_i, b_c, b_o]
