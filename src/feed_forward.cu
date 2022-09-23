@@ -3,9 +3,9 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      July 30, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/feed_forward.cuh"
@@ -1181,158 +1181,6 @@ __global__ void duplicateMeanVarWithIndex(float const *m1, float const *S1,
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// ACTIVATION
-////////////////////////////////////////////////////////////////////////////////
-__global__ void noActMeanVar(float const *mz, float const *Sz, float *ma,
-                             float *J, float *Sa, int zpos, int n)
-/* No activation function
-
-Args:
-    mz: Mean of hidden states
-    Sz: Variance of hidden states
-    ma: Mean of activation units
-    Sa: Variance of activation units
-    J: Jacobian matrix
-    zpos: Input-hidden-state position for this layer in the weight vector
-          of network
-    n: Number of hidden units for this layer
-*/
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float onePad = 1;
-    if (col < n && row < 1) {
-        ma[col + zpos] = mz[col + zpos];
-        J[col + zpos] = onePad;
-        Sa[col + zpos] = Sz[col + zpos];
-    }
-}
-
-__global__ void tanhMeanVar(float const *mz, float const *Sz, float *ma,
-                            float *J, float *Sa, int zpos, int n) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp = 0;
-    if (col < n) {
-        tmp = tanhf(mz[col + zpos]);
-        ma[col + zpos] = tmp;
-        J[col + zpos] = (1 - powf(tmp, 2));
-        Sa[col + zpos] =
-            (1 - powf(tmp, 2)) * Sz[col + zpos] * (1 - powf(tmp, 2));
-    }
-}
-
-__global__ void sigmoidMeanVar(float const *mz, float const *Sz, float *ma,
-                               float *J, float *Sa, int zpos, int n) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp = 0;
-    if (col < n) {
-        tmp = 1 / (1 + expf(-mz[col + zpos]));
-        ma[col + zpos] = tmp;
-        J[col + zpos] = tmp * (1 - tmp);
-        Sa[col + zpos] = tmp * (1 - tmp) * Sz[col + zpos] * tmp * (1 - tmp);
-    }
-}
-
-__global__ void reluMeanVar(float const *mz, float const *Sz, float *ma,
-                            float *J, float *Sa, int zpos, int n) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float zeroPad = 0;
-    float onePad = 1;
-    float tmp = 0;
-    if (col < n) {
-        tmp = max(mz[col + zpos], zeroPad);
-        ma[col + zpos] = tmp;
-        if (tmp == 0) {
-            J[col + zpos] = zeroPad;
-            Sa[col + zpos] = zeroPad;
-        } else {
-            J[col + zpos] = onePad;
-            Sa[col + zpos] = Sz[col + zpos];
-        }
-    }
-}
-
-__global__ void softplusMeanVar(float const *mz, float const *Sz, float *ma,
-                                float *J, float *Sa, int zpos, int n) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp = 0;
-    if (col < n) {
-        ma[col + zpos] = logf(1 + expf(mz[col + zpos]));
-        tmp = 1 / (1 + expf(-mz[col + zpos]));
-        J[col + zpos] = tmp;
-        Sa[col + zpos] = tmp * Sz[col + zpos] * tmp;
-    }
-}
-
-__global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
-                                 float *ma, float *J, float *Sa, int zpos,
-                                 int n) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float zeroPad = 0;
-    float onePad = 1;
-    float tmp = 0;
-    if (col < n) {
-        tmp = max(mz[col + zpos], zeroPad);
-        if (tmp == 0) {
-            ma[col + zpos] = alpha * mz[col + zpos];
-            J[col + zpos] = alpha;
-            Sa[col + zpos] = alpha * Sz[col + zpos] * alpha;
-        } else {
-            ma[col + zpos] = tmp;
-            J[col + zpos] = onePad;
-            Sa[col + zpos] = Sz[col + zpos];
-        }
-    }
-}
-
-__global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
-                        float *Sa, float *Cza) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp_m = 0.0f;
-    float tmp_S = 0.0f;
-    if (col < n) {
-        tmp_m = mz[col];
-        tmp_S = Sz[col];
-        ma[col] = expf(tmp_m + 0.5 * tmp_S);
-        Sa[col] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1.0f);
-        Cza[col] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
-    }
-}
-
-__global__ void actFullCov(float const *Szf, float const *J, int no, int B,
-                           int zposOut, float *Saf)
-/*Activate the full covariance.
-
-Args:
-    Szf: Full-covariance matrix for hidden states
-    J: Jacobian matrix
-    no: Output node
-    B: Number of batches
-    zposOut: Output-hidden-state position for this layer in the weight vector
-        of network
-    Saf: Full-covariance matrix for activation units
-
-*/
-
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx = 0;
-    if (col <= (row % no) && row < no * B) {
-        idx = no * col - ((col * (col + 1)) / 2) + row % no +
-              (row / no) * (((no + 1) * no) / 2);
-        Saf[idx] = Szf[idx] * J[row % no + (row / no) * no + zposOut] *
-                   J[col + (row / no) * no + zposOut];
-    }
-}
-__global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < Nf) {
-        Saf[col] = Szf[col];
-    }
-}
-
 //////////////////////////////////////////////////////////////////////
 /// INITIALIZE STATES
 //////////////////////////////////////////////////////////////////////
@@ -1392,16 +1240,17 @@ Args:
 */
 {
     int THREADS = net.num_gpu_threads;
-    int niB = net.nodes.front() * net.batch_size;
-    int nf = (net.nodes.front() * (net.nodes.front() + 1)) / 2 * net.batch_size;
+    int niB = net.nodes.front() * net.batch_size * net.input_seq_len;
+    int nf = (net.nodes.front() * (net.nodes.front() + 1)) / 2 *
+             net.batch_size * net.input_seq_len;
     int BLOCK_DIAG = (niB - 1 + THREADS) / THREADS;
-    int BLOCK_FULL = (nf - 1 + THREADS) / THREADS;
 
     initializeDiagCovStates<<<BLOCK_DIAG, THREADS>>>(
         ip.d_x_batch, ip.d_Sx_batch, state.d_mz, state.d_Sz, state.d_ma,
         state.d_Sa, state.d_J, niB);
 
     if (net.is_full_cov) {
+        int BLOCK_FULL = (nf - 1 + THREADS) / THREADS;
         initializeFullCovStates<<<BLOCK_FULL, THREADS>>>(
             ip.d_Sx_f_batch, nf, state.d_Sz_f, state.d_Sa_f);
     }
@@ -1412,7 +1261,7 @@ __global__ void initializeFullStates(float const *mz_0, float const *Sz_0,
                                      float const *J_0, int niB, int zposIn,
                                      float *mz, float *Sz, float *ma, float *Sa,
                                      float *J)
-/* Insert full initial state to network's states. This is commoly used for
+/* Insert full initial state to network's states. This is commonly used for
 multiple networks that connect to each other.
 
 Args:
@@ -1614,6 +1463,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         int wihi = wi * hi;
         int woho = wo * ho;
         int padIdx = wihi * fi * B + 1;  // padding index
+        int MB = M * B;                  // NOTE: all layer excepted LSTM
 
         // Hyperparameters for residual networks. Note that current version
         // works only with CNN layer. Future version will include other layers.
@@ -1623,7 +1473,10 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // 1: Full connected
         //
         if (net.layers[j] == net.layer_names.fc) {
-            int N = net.nodes[j - 1];  // num. of nodes for input
+            int N = net.nodes[j - 1];
+            if (net.layers[j - 1] == net.layer_names.lstm) {
+                N = net.nodes[j - 1] * net.input_seq_len;
+            }
             // Launch kernel
             unsigned int gridRows = (M + THREADS - 1) / THREADS;
             unsigned int gridCols = (B + THREADS - 1) / THREADS;
@@ -1884,6 +1737,15 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 idx.d_Fmwa_1, idx.d_Fmwa_2, wposIn, bposIn, zposIn, zposOut,
                 net.Fmwa_1_pos[j - 1], net.Fmwa_2_pos[j - 1], woho, fo, wihi,
                 fi, ki, net.Fmwa_1_col[j - 1], B, state.d_Sz);
+
+        }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[j] == net.layer_names.lstm) {
+            MB = M * B * net.input_seq_len;
+            lstm_state_forward(net, state, theta, j);
+
         } else {
             std::cout << "Layer:" << j << "\n" << std::endl;
             throw std::invalid_argument(
@@ -1974,7 +1836,6 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // Activation
         //
         // Launch kernel
-        int MB = M * B;
         unsigned int BLOCKS = (MB + THREADS - 1) / THREADS;
         // Compute mean, variance, and Jacobian matrix
         if (net.activations[j] == 1)  // tanh

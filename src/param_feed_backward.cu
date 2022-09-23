@@ -2,10 +2,10 @@
 // File:         param_feed_backward.cu
 // Description:  backward pass for parametes in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 11, 2021
-// Updated:      June 12, 2022
+// Created:      October 12, 2021
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. All rights reserved.
+// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
 
 #include "../include/param_feed_backward.cuh"
@@ -903,6 +903,11 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
         bposIn = net.b_pos[k];       // location of bias in param. vector
         no = net.nodes[k + 1];       // num. of nodes for output
         ni = net.nodes[k];           // num. of nodes for input
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
+
         // Hyperparameters are requried only for CNN.
         ki = net.kernels[k];      // kernel size of input
         fi = net.filters[k];      // num. of filters for input
@@ -1174,6 +1179,11 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
             tconvDeltaSb<<<dimGridB, dimBlock>>>(theta.d_Sb, d_state.d_delta_S,
                                                  bposIn, zposOut, woho, fo, B,
                                                  d_theta.d_delta_Sb);
+        }
+        // 7: LSTM
+        //
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
+            lstm_parameter_update(net, state, theta, d_state, d_theta, k);
         }
     }
 }

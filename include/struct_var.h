@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      July 27, 2022
+// Updated:      September 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,7 +21,18 @@ struct LayerLabel {
     int ap = 4;      // Average pooling layer
     int ln = 5;      // Layer normalization layer
     int bn = 6;      // Batch normalization layer
+    int lstm = 7;    // LSTM layer
 };
+
+struct ActLabel {
+    int no_act = 0;  // No activaivation
+    int tanh = 1;
+    int sigmoid = 2;
+    int relu = 4;
+    int softplus = 5;
+    int leakyrelu = 6;
+};
+
 struct Network {
     /*Network properties
       Args:
@@ -39,7 +50,8 @@ struct Network {
         num_weights_sc: Number of weights for residual network
         num_biases_sc: Number of biases for residual network
         similar_layers: Index of layers having the smilar indices
-        layer_names: Conventional name for each layer
+        layer_names: Label for each layer
+        act_names: Label for each activation function
         init_method: Initalization method e.g. He and Xavier
         gain_w: Gain for weight parameters when initializing
         gain_b: Gain for biases parameters when initializing
@@ -52,6 +64,8 @@ struct Network {
         b_pos_sc: Biases position for each layer in the vector of biases
                   for resnet
         z_pos: Hidden state's position for each layers in the hidden state
+              vector
+        z_pos_lstm: Hidden state's position for LSTM layers in the hidden state
               vector
         sc_pos: Position of the shortcut's hidden state in the shortcut's hidden
                 state vector
@@ -102,6 +116,11 @@ struct Network {
         multithreading: Whether or not to run parallel computing using multiple
             threads
         collect_derivative: Whether or not to compute derivative
+        input_seq_len: Sequence lenth for lstm inputs
+        input_seq_len: Sequence lenth for last layer's outputs
+        seq_stride: Spacing between sequences for lstm layer
+        num_lstm_states: Number of lstm hidden states for all layers
+        num_max_lstm_states: Number of maximum lstm hidden states amongst layers
         num_cpu_threads: Number of threads for gpu
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
@@ -113,9 +132,10 @@ struct Network {
     std::vector<int> pads, pad_types, shortcuts, num_weights, num_biases;
     std::vector<int> num_weights_sc, num_biases_sc, similar_layers;
     LayerLabel layer_names;
+    ActLabel act_names;
     std::string init_method = "Xavier";
     std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
-    std::vector<int> z_pos, sc_pos, ra_pos, overlap;
+    std::vector<int> z_pos, z_pos_lstm, sc_pos, ra_pos, overlap;
 
     // Position for each layer in index vector
     std::vector<int> Fmwa_1_pos, Fmwa_2_pos, FCzwa_1_pos, FCzwa_2_pos,
@@ -150,6 +170,11 @@ struct Network {
     bool multithreading = true;
     bool is_full_cov = false;
     bool collect_derivative = false;
+    int input_seq_len = 1;
+    int output_seq_len = 0;
+    int seq_stride = 0;
+    int num_lstm_states = 0;
+    int num_max_lstm_states = 0;
     unsigned int num_cpu_threads = 4;
     int num_gpu_threads = 16;
     int min_operations = 1000;
@@ -200,6 +225,13 @@ struct DerivativeState {
         md_layer_m, Sd_layer_m, md_layer_m_o, Cdi_zi, Cdo_zi, Cld_zi, Cld_zi_m;
 };
 
+struct LSTMState {
+    /*Memory states for lstm network*/
+    std::vector<float> mha, Sha, mf_ga, Sf_ga, Jf_ga, mi_ga, Si_ga, Ji_ga,
+        mc_ga, Sc_ga, Jc_ga, mo_ga, So_ga, Jo_ga, mca, Sca, Jca, mc, Sc,
+        mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -224,6 +256,7 @@ struct NetState {
     std::vector<float> mra, Sra;
     NoiseState noise_state;
     DerivativeState derv_state;
+    LSTMState lstm;
 };
 
 // NETWORK PARAMETERS
@@ -286,11 +319,13 @@ struct IndexOut {
 struct UserInput {
     std::string model_name, net_name, task_name, data_name, encoder_net_name,
         decoder_net_name;
-    std::string device = "cuda";
+    std::string device = "cpu";
     int num_classes, num_epochs, num_train_data, num_test_data;
     bool load_param = false, debug = false;
     std::vector<float> mu, sigma;
     std::vector<std::string> x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    std::vector<int> output_col;
+    int num_features;
     bool data_norm = true;
 };
 

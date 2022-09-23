@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      July 29, 2022
+// Updated:      September 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,23 @@
 #include "indices.h"
 #include "net_prop.h"
 #include "struct_var.h"
+
+class LSTMStateGPU {
+   public:
+    size_t n_state_bytes, n_max_state_bytes;
+    float *d_mha, *d_Sha, *d_mf_ga, *d_Sf_ga, *d_Jf_ga, *d_mi_ga, *d_Si_ga,
+        *d_Ji_ga, *d_mc_ga, *d_Sc_ga, *d_Jc_ga, *d_mo_ga, *d_So_ga, *d_Jo_ga,
+        *d_mca, *d_Sca, *d_Jca, *d_mc, *d_Sc, *d_mc_prev, *d_Sc_prev,
+        *d_mh_prev, *d_Sh_prev, *d_Ci_c, *d_Co_tanh_c;
+    LSTMState *lstm;
+    LSTMStateGPU();
+    void set_values(LSTMState &_lstm);
+    void compute_bytes(int n_state, int n_max_state);
+    void allocate_cuda_memory();
+    void copy_host_to_device();
+    void copy_device_to_host();
+    ~LSTMStateGPU();
+};
 
 class NoiseStateGPU {
    public:
@@ -62,14 +79,16 @@ class StateGPU {
     float *d_mz, *d_Sz, *d_ma, *d_Sa, *d_J, *d_msc, *d_Ssc, *d_mdsc, *d_Sdsc;
     float *d_mra, *d_Sra, *d_mra_prev, *d_Sra_prev, *d_ms, *d_Ss, *d_SsTmp;
     float *d_Sz_f, *d_Sa_f, *d_Sz_fp;
+    NetState *state_cpu;
     NoiseStateGPU noise_state;
     DerivativeStateGPU derv_state;
+    LSTMStateGPU lstm;
 
     StateGPU();
     void set_values(NetState &state, Network &net);
     void allocate_cuda_memory();
-    void copy_host_to_device(NetState &state);
-    void copy_device_to_host(NetState &state);
+    void copy_host_to_device();
+    void copy_device_to_host();
 
     ~StateGPU();
 };

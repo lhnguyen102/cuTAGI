@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      July 24, 2022
+// Updated:      September 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -143,6 +143,7 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
     // Set counter
     int count = -1;
     int line_count = 0;
+    int num_data = v.size();
     while (std::getline(myFile, line)) {
         // Create a stringstream of the current line
         std::stringstream ss(line);
@@ -161,6 +162,9 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
             }
         }
         line_count++;
+        if (count + 1 >= num_data) {
+            break;
+        }
     }
 
     // Total number of data
@@ -168,7 +172,7 @@ void read_csv(std::string &filename, std::vector<T> &v, int num_col,
     int ac_num_row = (count + 1) / num_col;
 
     // Check output size
-    if (v.size() != count + 1) {
+    if (num_data != count + 1) {
         std::cout << "\nUser-specified number of data: " << us_num_data << "x"
                   << num_col << "\n";
         std::cout << "Actual number of data        : " << ac_num_row << "x"
@@ -216,6 +220,9 @@ void create_directory(std::string &path);
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
+void get_multithread_indices(int i, int n_batch, int rem_batch, int &start_idx,
+                             int &end_idx);
+
 //////////////////////////////////////////////////////////////////////
 /// OUTPUT HIDDEN STATES
 //////////////////////////////////////////////////////////////////////
@@ -241,6 +248,9 @@ void get_input_derv_states(std::vector<float> &md, std::vector<float> &Sd,
                            std::vector<float> &Sd_output);
 
 std::vector<float> initialize_upper_triu(float &Sx, int n);
+
+void get_1st_column_data(std::vector<float> &dataset, int seq_len,
+                         int num_outputs, std::vector<float> &sub_dataset);
 
 //////////////////////////////////////////////////////////////////////
 /// NOISE INFERENCE

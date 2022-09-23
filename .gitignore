@@ -2,3 +2,4 @@
 */.vscode/**
 *.json
 debug_data/
+*.csv

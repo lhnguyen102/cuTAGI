@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      August 01, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -100,9 +100,9 @@ Args:
     b_pos: Bias position for this layer in the bias vector of network
     z_pos_out: Output-hidden-state position for this layer in the weight vector
             of network
-    m: Number of hidden units for input
+    m: Number of hidden units for outputs
     n: Number of batches
-    k: Number of hidden units for output
+    k: 1
     deltaMb: Updated quantities for the mean of biases
 */
 {
@@ -132,9 +132,9 @@ Args:
     b_pos: Bias position for this layer in the bias vector of network
     z_pos_out: Output-hidden-state position for this layer in the weight vector
     of network
-    m: Number of hidden units for input
+    m: Number of hidden units for outputs
     n: Number of batches
-    k: Number of hidden units for output
+    k: 1
     deltaSb: Updated quantities for the variance of biases
 */
 {
@@ -268,7 +268,7 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
 }
 
 ///////////////////////////////////////////////////////////////////
-/// PARAMETER BACKWARD PASS
+/// PARAMETER BACKWARD
 ///////////////////////////////////////////////////////////////////
 void param_backward_cpu(Network &net, Param &theta, NetState &state,
                         DeltaState &d_state, IndexOut &idx, DeltaParam &d_theta)
@@ -290,13 +290,17 @@ Returns:
     for (int k = net.layers.size() - 2; k >= 0; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
+        // Handle multiple input sequences from LSTM layer
+        if (net.layers[k] == net.layer_names.lstm) {
+            ni = net.nodes[k] * net.input_seq_len;
+        }
         z_pos_out = net.z_pos[k + 1];
         z_pos_in = net.z_pos[k];
         w_pos_in = net.w_pos[k];
         b_pos_in = net.b_pos[k];
 
         //**
-        // 1: Full connected
+        // 1: Fully connected
         //
         if (net.layers[k + 1] == net.layer_names.fc) {
             if (ni * no > net.min_operations && net.multithreading) {
@@ -324,6 +328,12 @@ Returns:
                 fc_delta_Sb(theta.Sb, d_state.delta_S, b_pos_in, z_pos_out, no,
                             B, 1, d_theta.delta_Sb);
             }
+        }
+        //**
+        // 7: LSTM
+        //
+        else if (net.layers[k + 1] == net.layer_names.lstm) {
+            lstm_parameter_update_cpu(net, state, theta, d_state, d_theta, k);
         }
     }
 }

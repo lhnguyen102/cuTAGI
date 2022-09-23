@@ -59,8 +59,18 @@
         "bit": "cpp",
         "bitset": "cpp",
         "codecvt": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "forward_list": "cpp",
+        "future": "cpp",
+        "buffer": "cpp",
+        "executor": "cpp",
+        "internet": "cpp",
+        "io_context": "cpp",
+        "netfwd": "cpp",
+        "socket": "cpp",
+        "timer": "cpp"
     },
     "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
     "editor.formatOnSave": true,
+    "python.formatting.provider": "yapf",
 }

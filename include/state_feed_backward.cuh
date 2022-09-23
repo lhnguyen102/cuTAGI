@@ -3,7 +3,7 @@
 // Description:  Header file for state feed backward  in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 22, 2022
-// Updated:      March 20, 2022
+// Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -13,6 +13,7 @@
 #include <cmath>
 
 #include "data_transfer.cuh"
+#include "lstm_feed_backward.cuh"
 #include "net_prop.h"
 #include "struct_var.h"
 

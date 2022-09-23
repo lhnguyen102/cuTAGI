@@ -1,5 +1,5 @@
 # CMAKE VERSION
-# *NOTE: We only test this file using CUDA toolkit 10.2
+# *NOTE: We only test this file using CUDA toolkit >=10.2
 cmake_minimum_required(VERSION 3.23)
 
 # ###########################################################################################
@@ -93,6 +93,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
 include_directories("include")
+include_directories("test")
 
 # Sources code for CUDA
 set(GPU_SOURCES
@@ -108,6 +109,9 @@ set(GPU_SOURCES
   src/param_feed_backward.cu
   src/state_feed_backward.cu
   src/derivative_calcul.cu
+  src/lstm_feed_forward.cu
+  src/lstm_feed_backward.cu
+  src/activation_fun.cu
   src/task.cu
   src/user_input.cpp
   src/utils.cpp
@@ -118,9 +122,14 @@ set(GPU_SOURCES
   src/feed_forward_cpu.cpp
   src/param_feed_backward_cpu.cpp
   src/state_feed_backward_cpu.cpp
+  src/lstm_feed_forward_cpu.cpp
+  src/lstm_feed_backward_cpu.cpp
+  src/activation_fun_cpu.cpp
   src/task_cpu.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+
+  test/test_lstm_cpu.cpp
 )
 
 # Source codes for only CPU
@@ -136,11 +145,16 @@ set(CPU_SOURCES
   src/feed_forward_cpu.cpp
   src/param_feed_backward_cpu.cpp
   src/state_feed_backward_cpu.cpp
+  src/lstm_feed_forward_cpu.cpp
+  src/lstm_feed_backward_cpu.cpp
+  src/activation_fun_cpu.cpp
   src/task_cpu.cpp
   src/user_input.cpp
   src/utils.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+
+  test/test_lstm_cpu.cpp
 )
 
 # Output binary folder der for different mode

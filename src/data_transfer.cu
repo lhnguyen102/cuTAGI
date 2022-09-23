@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      July 29, 2022
+// Updated:      September 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -35,6 +35,7 @@ StateGPU::StateGPU() {
     this->d_Sz_fp = nullptr;
     this->noise_state = NoiseStateGPU();
     this->derv_state = DerivativeStateGPU();
+    this->lstm = LSTMStateGPU();
 }
 
 void StateGPU::set_values(NetState &state, Network &net) {
@@ -42,6 +43,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
     this->sc_bytes = state.msc.size() * sizeof(float);
     this->dsc_bytes = state.mdsc.size() * sizeof(float);
     this->ra_bytes = state.mra.size() * sizeof(float);
+    this->state_cpu = &state;
     if (net.is_full_cov) {
         this->max_full_cov_bytes =
             (net.n_max_state * (net.n_max_state + 1) / 2 * net.batch_size) *
@@ -67,6 +69,12 @@ void StateGPU::set_values(NetState &state, Network &net) {
         int num_max_nodes = net.n_max_state / net.batch_size;
         this->derv_state.compute_bytes(net.n_state, num_max_nodes,
                                        net.batch_size);
+    }
+
+    // LSTM state
+    if (net.num_max_lstm_states > 0) {
+        this->lstm.set_values(this->state_cpu->lstm);
+        this->lstm.compute_bytes(net.num_lstm_states, net.num_max_lstm_states);
     }
 }
 
@@ -103,6 +111,11 @@ void StateGPU::allocate_cuda_memory() {
         this->derv_state.allocate_cuda_memory();
     }
 
+    // LSTM state
+    if (this->lstm.n_state_bytes > 0) {
+        this->lstm.allocate_cuda_memory();
+    }
+
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -112,42 +125,57 @@ void StateGPU::allocate_cuda_memory() {
     }
 }
 
-void StateGPU::copy_host_to_device(NetState &state) {
+void StateGPU::copy_host_to_device() {
     // Initialize normalization parameters
-    cudaMemcpy(d_mz, state.mz.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sz, state.Sz.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ma, state.ma.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sa, state.Sa.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_J, state.J.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_msc, state.msc.data(), sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Ssc, state.Ssc.data(), sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mdsc, state.mdsc.data(), dsc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sdsc, state.Sdsc.data(), dsc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mra, state.mra.data(), ra_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sra, state.Sra.data(), ra_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mz, this->state_cpu->mz.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sz, this->state_cpu->Sz.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ma, this->state_cpu->ma.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa, this->state_cpu->Sa.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J, this->state_cpu->J.data(), s_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_msc, this->state_cpu->msc.data(), sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Ssc, this->state_cpu->Ssc.data(), sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mdsc, this->state_cpu->mdsc.data(), dsc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sdsc, this->state_cpu->Sdsc.data(), dsc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mra, this->state_cpu->mra.data(), ra_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sra, this->state_cpu->Sra.data(), ra_bytes,
+               cudaMemcpyHostToDevice);
     cudaMemcpy(d_mra_prev, mra_prev.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_Sra_prev, Sra_prev.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_ms, ms.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_Ss, Ss.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_SsTmp, SsTmp.data(), ra_bytes, cudaMemcpyHostToDevice);
     if (max_full_cov_bytes > 0) {
-        cudaMemcpy(d_Sz_f, state.Sz_f.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sz_f, this->state_cpu->Sz_f.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
-        cudaMemcpy(d_Sa_f, state.Sa_f.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sa_f, this->state_cpu->Sa_f.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
-        cudaMemcpy(d_Sz_fp, state.Sz_fp.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sz_fp, this->state_cpu->Sz_fp.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
     }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero
     if (this->noise_state.n_bytes > 0) {
-        this->noise_state.copy_host_to_device(state.noise_state);
+        this->noise_state.copy_host_to_device(this->state_cpu->noise_state);
     }
 
     // Derivative state
     if (this->derv_state.n_state_bytes > 0) {
-        this->derv_state.copy_host_to_device(state.derv_state);
+        this->derv_state.copy_host_to_device(this->state_cpu->derv_state);
+    }
+
+    // LSTM state
+    if (this->lstm.n_state_bytes > 0) {
+        this->lstm.copy_host_to_device();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -159,36 +187,51 @@ void StateGPU::copy_host_to_device(NetState &state) {
     }
 }
 
-void StateGPU::copy_device_to_host(NetState &state) {
-    cudaMemcpy(state.mz.data(), d_mz, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sz.data(), d_Sz, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.ma.data(), d_ma, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sa.data(), d_Sa, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.J.data(), d_J, s_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.msc.data(), d_msc, sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Ssc.data(), d_Ssc, sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.mdsc.data(), d_mdsc, dsc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sdsc.data(), d_Sdsc, dsc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.mra.data(), d_mra, ra_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(state.Sra.data(), d_Sra, ra_bytes, cudaMemcpyDeviceToHost);
+void StateGPU::copy_device_to_host() {
+    cudaMemcpy(this->state_cpu->mz.data(), d_mz, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sz.data(), d_Sz, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->ma.data(), d_ma, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sa.data(), d_Sa, s_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->J.data(), d_J, s_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->msc.data(), d_msc, sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Ssc.data(), d_Ssc, sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->mdsc.data(), d_mdsc, dsc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sdsc.data(), d_Sdsc, dsc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->mra.data(), d_mra, ra_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->state_cpu->Sra.data(), d_Sra, ra_bytes,
+               cudaMemcpyDeviceToHost);
     if (max_full_cov_bytes > 0) {
-        cudaMemcpy(state.Sz_f.data(), d_Sz_f, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
-        cudaMemcpy(state.Sa_f.data(), d_Sa_f, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
-        cudaMemcpy(state.Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
+        cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
                    cudaMemcpyDeviceToHost);
     }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero
     if (this->noise_state.n_bytes > 0) {
-        this->noise_state.copy_device_to_host(state.noise_state);
+        this->noise_state.copy_device_to_host(this->state_cpu->noise_state);
     }
 
     // Derivative state
     if (this->derv_state.n_state_bytes > 0) {
-        this->derv_state.copy_device_to_host(state.derv_state);
+        this->derv_state.copy_device_to_host(this->state_cpu->derv_state);
+    }
+
+    // LSTM state
+    if (this->lstm.n_state_bytes > 0) {
+        this->lstm.copy_device_to_host();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -219,6 +262,230 @@ StateGPU::~StateGPU() {
     cudaFree(d_SsTmp);
     cudaFree(d_Sz_f);
     cudaFree(d_Sa_f);
+}
+
+////////////////////////
+// LSTM STATE GPU
+///////////////////////
+LSTMStateGPU::LSTMStateGPU() {
+    this->n_state_bytes = 0 * sizeof(float);
+    this->n_max_state_bytes = 0 * sizeof(float);
+    this->d_mha = nullptr;
+    this->d_Sha = nullptr;
+    this->d_mf_ga = nullptr;
+    this->d_Sf_ga = nullptr;
+    this->d_Jf_ga = nullptr;
+    this->d_mi_ga = nullptr;
+    this->d_Si_ga = nullptr;
+    this->d_Ji_ga = nullptr;
+    this->d_mc_ga = nullptr;
+    this->d_Sc_ga = nullptr;
+    this->d_Jc_ga = nullptr;
+    this->d_mo_ga = nullptr;
+    this->d_So_ga = nullptr;
+    this->d_Jo_ga = nullptr;
+    this->d_mca = nullptr;
+    this->d_Sca = nullptr;
+    this->d_Jca = nullptr;
+    this->d_mc = nullptr;
+    this->d_Sc = nullptr;
+    this->d_mc_prev = nullptr;
+    this->d_Sc_prev = nullptr;
+    this->d_mh_prev = nullptr;
+    this->d_Sh_prev = nullptr;
+    this->d_Ci_c = nullptr;
+    this->d_Co_tanh_c = nullptr;
+}
+void LSTMStateGPU::set_values(LSTMState &_lstm) { this->lstm = &_lstm; }
+void LSTMStateGPU::compute_bytes(int n_state, int n_max_state) {
+    this->n_state_bytes = n_state * sizeof(float);
+    this->n_max_state_bytes = n_max_state * sizeof(float);
+}
+
+void LSTMStateGPU::allocate_cuda_memory() {
+    cudaMalloc(&d_mha, n_state_bytes);
+    cudaMalloc(&d_Sha, n_state_bytes);
+    cudaMalloc(&d_mf_ga, n_state_bytes);
+    cudaMalloc(&d_Sf_ga, n_state_bytes);
+    cudaMalloc(&d_Jf_ga, n_state_bytes);
+    cudaMalloc(&d_mi_ga, n_state_bytes);
+    cudaMalloc(&d_Si_ga, n_state_bytes);
+    cudaMalloc(&d_Ji_ga, n_state_bytes);
+    cudaMalloc(&d_mc_ga, n_state_bytes);
+    cudaMalloc(&d_Sc_ga, n_state_bytes);
+    cudaMalloc(&d_Jc_ga, n_state_bytes);
+    cudaMalloc(&d_mo_ga, n_state_bytes);
+    cudaMalloc(&d_So_ga, n_state_bytes);
+    cudaMalloc(&d_Jo_ga, n_state_bytes);
+    cudaMalloc(&d_mca, n_state_bytes);
+    cudaMalloc(&d_Sca, n_state_bytes);
+    cudaMalloc(&d_Jca, n_state_bytes);
+    cudaMalloc(&d_mc, n_state_bytes);
+    cudaMalloc(&d_Sc, n_state_bytes);
+    cudaMalloc(&d_mc_prev, n_state_bytes);
+    cudaMalloc(&d_Sc_prev, n_state_bytes);
+    cudaMalloc(&d_mh_prev, n_state_bytes);
+    cudaMalloc(&d_Sh_prev, n_state_bytes);
+    cudaMalloc(&d_Ci_c, n_max_state_bytes);
+    cudaMalloc(&d_Co_tanh_c, n_max_state_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for LSTM state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void LSTMStateGPU::copy_host_to_device() {
+    cudaMemcpy(d_mha, this->lstm->mha.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sha, this->lstm->Sha.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mf_ga, this->lstm->mf_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sf_ga, this->lstm->Sf_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Jf_ga, this->lstm->Jf_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mi_ga, this->lstm->mi_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Si_ga, this->lstm->Si_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Ji_ga, this->lstm->Ji_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mc_ga, this->lstm->mc_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sc_ga, this->lstm->Sc_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Jc_ga, this->lstm->Jc_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mo_ga, this->lstm->mo_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_So_ga, this->lstm->So_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Jo_ga, this->lstm->Jo_ga.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mca, this->lstm->mca.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sca, this->lstm->Sca.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Jca, this->lstm->Jca.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mc, this->lstm->mc.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sc, this->lstm->Sc.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mc_prev, this->lstm->mc_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sc_prev, this->lstm->Sc_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mh_prev, this->lstm->mh_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sh_prev, this->lstm->Sh_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Ci_c, this->lstm->Ci_c.data(), n_max_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Co_tanh_c, this->lstm->Co_tanh_c.data(), n_max_state_bytes,
+               cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to device for LSTM state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void LSTMStateGPU::copy_device_to_host() {
+    cudaMemcpy(this->lstm->mha.data(), d_mha, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sha.data(), d_Sha, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mf_ga.data(), d_mf_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sf_ga.data(), d_Sf_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Jf_ga.data(), d_Jf_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mi_ga.data(), d_mi_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Si_ga.data(), d_Si_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Ji_ga.data(), d_Ji_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mc_ga.data(), d_mc_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sc_ga.data(), d_Sc_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Jc_ga.data(), d_Jc_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mo_ga.data(), d_mo_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->So_ga.data(), d_So_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Jo_ga.data(), d_Jo_ga, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mca.data(), d_mca, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sca.data(), d_Sca, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Jca.data(), d_Jca, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mc.data(), d_mc, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sc.data(), d_Sc, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mc_prev.data(), d_mc_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sc_prev.data(), d_Sc_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mh_prev.data(), d_mh_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sh_prev.data(), d_Sh_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Ci_c.data(), d_Ci_c, n_max_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Co_tanh_c.data(), d_Co_tanh_c, n_max_state_bytes,
+               cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data transfer to host for LSTM state - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+LSTMStateGPU::~LSTMStateGPU() {
+    cudaFree(d_mha);
+    cudaFree(d_Sha);
+    cudaFree(d_mf_ga);
+    cudaFree(d_Sf_ga);
+    cudaFree(d_Jf_ga);
+    cudaFree(d_mi_ga);
+    cudaFree(d_Si_ga);
+    cudaFree(d_Ji_ga);
+    cudaFree(d_mc_ga);
+    cudaFree(d_Sc_ga);
+    cudaFree(d_Jc_ga);
+    cudaFree(d_mo_ga);
+    cudaFree(d_So_ga);
+    cudaFree(d_Jo_ga);
+    cudaFree(d_mca);
+    cudaFree(d_Sca);
+    cudaFree(d_Jca);
+    cudaFree(d_mc);
+    cudaFree(d_Sc);
+    cudaFree(d_mc_prev);
+    cudaFree(d_Sc_prev);
+    cudaFree(d_mh_prev);
+    cudaFree(d_Sh_prev);
+    cudaFree(d_Ci_c);
+    cudaFree(d_Co_tanh_c);
 }
 
 ////////////////////////
@@ -393,7 +660,6 @@ NoiseStateGPU::~NoiseStateGPU() {
 ////////////////////////
 // DERIVATIVE STATE GPU
 ///////////////////////
-
 DerivativeStateGPU::DerivativeStateGPU() {
     this->n_state_bytes = 0 * sizeof(float);
     this->n_tmp_bytes = 0 * sizeof(float);
@@ -984,10 +1250,11 @@ DeltaParamGPU::~DeltaParamGPU() {
 // INPUT
 //////////////////////////////
 InputGPU::InputGPU(Network &net) {
-    id_bytes = net.batch_size * net.nodes.front() * sizeof(float);
+    id_bytes =
+        net.batch_size * net.nodes.front() * net.input_seq_len * sizeof(float);
     if (net.is_full_cov) {
-        id_f_bytes =
-            (net.n_x * (net.n_x + 1)) / 2 * net.batch_size * sizeof(float);
+        id_f_bytes = (net.n_x * (net.n_x + 1)) / 2 * net.batch_size *
+                     net.input_seq_len * sizeof(float);
     } else {
         id_f_bytes = 0;
     }
