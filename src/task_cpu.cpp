@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      September 19, 2022
+// Updated:      September 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -205,7 +205,6 @@ void classification_cpu(Network &net, IndexOut &idx, NetState &state,
         std::cout << std::fixed;
         std::cout << std::setprecision(3);
         std::cout << test_avg_error << "\n";
-        std::cout << state.noise_state.ma_v2b_prior[0] << "\n" << std::endl;
     }
 
     // Save error rate

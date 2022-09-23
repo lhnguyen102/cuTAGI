@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      September 05, 2022
+// Updated:      September 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -28,11 +28,13 @@ class LSTMStateGPU {
         *d_Ji_ga, *d_mc_ga, *d_Sc_ga, *d_Jc_ga, *d_mo_ga, *d_So_ga, *d_Jo_ga,
         *d_mca, *d_Sca, *d_Jca, *d_mc, *d_Sc, *d_mc_prev, *d_Sc_prev,
         *d_mh_prev, *d_Sh_prev, *d_Ci_c, *d_Co_tanh_c;
+    LSTMState *lstm;
     LSTMStateGPU();
+    void set_values(LSTMState &_lstm);
     void compute_bytes(int n_state, int n_max_state);
     void allocate_cuda_memory();
-    void copy_host_to_device(LSTMState &lstm);
-    void copy_device_to_host(LSTMState &lstm);
+    void copy_host_to_device();
+    void copy_device_to_host();
     ~LSTMStateGPU();
 };
 
@@ -85,7 +87,7 @@ class StateGPU {
     StateGPU();
     void set_values(NetState &state, Network &net);
     void allocate_cuda_memory();
-    void copy_host_to_device(NetState &state);
+    void copy_host_to_device();
     void copy_device_to_host();
 
     ~StateGPU();

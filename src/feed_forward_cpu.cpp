@@ -454,6 +454,9 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
     for (int j = 1; j < net.layers.size(); j++) {
         no = net.nodes[j];
         ni = net.nodes[j - 1];
+        if (net.layers[j - 1] == net.layer_names.lstm) {
+            ni = net.nodes[j - 1] * net.input_seq_len;
+        }
         z_pos_out = net.z_pos[j];
         z_pos_in = net.z_pos[j - 1];
         w_pos_in = net.w_pos[j - 1];

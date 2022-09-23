@@ -73,6 +73,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
 
     // LSTM state
     if (net.num_max_lstm_states > 0) {
+        this->lstm.set_values(this->state_cpu->lstm);
         this->lstm.compute_bytes(net.num_lstm_states, net.num_max_lstm_states);
     }
 }
@@ -124,47 +125,57 @@ void StateGPU::allocate_cuda_memory() {
     }
 }
 
-void StateGPU::copy_host_to_device(NetState &state) {
+void StateGPU::copy_host_to_device() {
     // Initialize normalization parameters
-    cudaMemcpy(d_mz, state.mz.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sz, state.Sz.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ma, state.ma.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sa, state.Sa.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_J, state.J.data(), s_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_msc, state.msc.data(), sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Ssc, state.Ssc.data(), sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mdsc, state.mdsc.data(), dsc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sdsc, state.Sdsc.data(), dsc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mra, state.mra.data(), ra_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sra, state.Sra.data(), ra_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mz, this->state_cpu->mz.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sz, this->state_cpu->Sz.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ma, this->state_cpu->ma.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa, this->state_cpu->Sa.data(), s_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J, this->state_cpu->J.data(), s_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_msc, this->state_cpu->msc.data(), sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Ssc, this->state_cpu->Ssc.data(), sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mdsc, this->state_cpu->mdsc.data(), dsc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sdsc, this->state_cpu->Sdsc.data(), dsc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mra, this->state_cpu->mra.data(), ra_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sra, this->state_cpu->Sra.data(), ra_bytes,
+               cudaMemcpyHostToDevice);
     cudaMemcpy(d_mra_prev, mra_prev.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_Sra_prev, Sra_prev.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_ms, ms.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_Ss, Ss.data(), ra_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_SsTmp, SsTmp.data(), ra_bytes, cudaMemcpyHostToDevice);
     if (max_full_cov_bytes > 0) {
-        cudaMemcpy(d_Sz_f, state.Sz_f.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sz_f, this->state_cpu->Sz_f.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
-        cudaMemcpy(d_Sa_f, state.Sa_f.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sa_f, this->state_cpu->Sa_f.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
-        cudaMemcpy(d_Sz_fp, state.Sz_fp.data(), max_full_cov_bytes,
+        cudaMemcpy(d_Sz_fp, this->state_cpu->Sz_fp.data(), max_full_cov_bytes,
                    cudaMemcpyHostToDevice);
     }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero
     if (this->noise_state.n_bytes > 0) {
-        this->noise_state.copy_host_to_device(state.noise_state);
+        this->noise_state.copy_host_to_device(this->state_cpu->noise_state);
     }
 
     // Derivative state
     if (this->derv_state.n_state_bytes > 0) {
-        this->derv_state.copy_host_to_device(state.derv_state);
+        this->derv_state.copy_host_to_device(this->state_cpu->derv_state);
     }
 
     // LSTM state
     if (this->lstm.n_state_bytes > 0) {
-        this->lstm.copy_host_to_device(state.lstm);
+        this->lstm.copy_host_to_device();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -220,7 +231,7 @@ void StateGPU::copy_device_to_host() {
 
     // LSTM state
     if (this->lstm.n_state_bytes > 0) {
-        this->lstm.copy_device_to_host(this->state_cpu->lstm);
+        this->lstm.copy_device_to_host();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -285,7 +296,7 @@ LSTMStateGPU::LSTMStateGPU() {
     this->d_Ci_c = nullptr;
     this->d_Co_tanh_c = nullptr;
 }
-
+void LSTMStateGPU::set_values(LSTMState &_lstm) { this->lstm = &_lstm; }
 void LSTMStateGPU::compute_bytes(int n_state, int n_max_state) {
     this->n_state_bytes = n_state * sizeof(float);
     this->n_max_state_bytes = n_max_state * sizeof(float);
@@ -327,49 +338,56 @@ void LSTMStateGPU::allocate_cuda_memory() {
     }
 }
 
-void LSTMStateGPU::copy_host_to_device(LSTMState &lstm) {
-    cudaMemcpy(d_mha, lstm.mha.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sha, lstm.Sha.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mf_ga, lstm.mf_ga.data(), n_state_bytes,
+void LSTMStateGPU::copy_host_to_device() {
+    cudaMemcpy(d_mha, this->lstm->mha.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sf_ga, lstm.Sf_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Sha, this->lstm->Sha.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Jf_ga, lstm.Jf_ga.data(), n_state_bytes,
+    cudaMemcpy(d_mf_ga, this->lstm->mf_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mi_ga, lstm.mi_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Sf_ga, this->lstm->Sf_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Si_ga, lstm.Si_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Jf_ga, this->lstm->Jf_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Ji_ga, lstm.Ji_ga.data(), n_state_bytes,
+    cudaMemcpy(d_mi_ga, this->lstm->mi_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mc_ga, lstm.mc_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Si_ga, this->lstm->Si_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sc_ga, lstm.Sc_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Ji_ga, this->lstm->Ji_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Jc_ga, lstm.Jc_ga.data(), n_state_bytes,
+    cudaMemcpy(d_mc_ga, this->lstm->mc_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mo_ga, lstm.mo_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Sc_ga, this->lstm->Sc_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_So_ga, lstm.So_ga.data(), n_state_bytes,
+    cudaMemcpy(d_Jc_ga, this->lstm->Jc_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Jo_ga, lstm.Jo_ga.data(), n_state_bytes,
+    cudaMemcpy(d_mo_ga, this->lstm->mo_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mca, lstm.mca.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sca, lstm.Sca.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Jca, lstm.Jca.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mc, lstm.mc.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sc, lstm.Sc.data(), n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mc_prev, lstm.mc_prev.data(), n_state_bytes,
+    cudaMemcpy(d_So_ga, this->lstm->So_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sc_prev, lstm.Sc_prev.data(), n_state_bytes,
+    cudaMemcpy(d_Jo_ga, this->lstm->Jo_ga.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mh_prev, lstm.mh_prev.data(), n_state_bytes,
+    cudaMemcpy(d_mca, this->lstm->mca.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sh_prev, lstm.Sh_prev.data(), n_state_bytes,
+    cudaMemcpy(d_Sca, this->lstm->Sca.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Ci_c, lstm.Ci_c.data(), n_max_state_bytes,
+    cudaMemcpy(d_Jca, this->lstm->Jca.data(), n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Co_tanh_c, lstm.Co_tanh_c.data(), n_max_state_bytes,
+    cudaMemcpy(d_mc, this->lstm->mc.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sc, this->lstm->Sc.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mc_prev, this->lstm->mc_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sc_prev, this->lstm->Sc_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mh_prev, this->lstm->mh_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sh_prev, this->lstm->Sh_prev.data(), n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Ci_c, this->lstm->Ci_c.data(), n_max_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Co_tanh_c, this->lstm->Co_tanh_c.data(), n_max_state_bytes,
                cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
@@ -381,49 +399,56 @@ void LSTMStateGPU::copy_host_to_device(LSTMState &lstm) {
     }
 }
 
-void LSTMStateGPU::copy_device_to_host(LSTMState &lstm) {
-    cudaMemcpy(lstm.mha.data(), d_mha, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sha.data(), d_Sha, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mf_ga.data(), d_mf_ga, n_state_bytes,
+void LSTMStateGPU::copy_device_to_host() {
+    cudaMemcpy(this->lstm->mha.data(), d_mha, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sf_ga.data(), d_Sf_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Sha.data(), d_Sha, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Jf_ga.data(), d_Jf_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->mf_ga.data(), d_mf_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mi_ga.data(), d_mi_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Sf_ga.data(), d_Sf_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Si_ga.data(), d_Si_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Jf_ga.data(), d_Jf_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Ji_ga.data(), d_Ji_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->mi_ga.data(), d_mi_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mc_ga.data(), d_mc_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Si_ga.data(), d_Si_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sc_ga.data(), d_Sc_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Ji_ga.data(), d_Ji_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Jc_ga.data(), d_Jc_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->mc_ga.data(), d_mc_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mo_ga.data(), d_mo_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Sc_ga.data(), d_Sc_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.So_ga.data(), d_So_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->Jc_ga.data(), d_Jc_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Jo_ga.data(), d_Jo_ga, n_state_bytes,
+    cudaMemcpy(this->lstm->mo_ga.data(), d_mo_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mca.data(), d_mca, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sca.data(), d_Sca, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Jca.data(), d_Jca, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mc.data(), d_mc, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sc.data(), d_Sc, n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mc_prev.data(), d_mc_prev, n_state_bytes,
+    cudaMemcpy(this->lstm->So_ga.data(), d_So_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sc_prev.data(), d_Sc_prev, n_state_bytes,
+    cudaMemcpy(this->lstm->Jo_ga.data(), d_Jo_ga, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.mh_prev.data(), d_mh_prev, n_state_bytes,
+    cudaMemcpy(this->lstm->mca.data(), d_mca, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Sh_prev.data(), d_Sh_prev, n_state_bytes,
+    cudaMemcpy(this->lstm->Sca.data(), d_Sca, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Ci_c.data(), d_Ci_c, n_max_state_bytes,
+    cudaMemcpy(this->lstm->Jca.data(), d_Jca, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(lstm.Co_tanh_c.data(), d_Co_tanh_c, n_max_state_bytes,
+    cudaMemcpy(this->lstm->mc.data(), d_mc, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sc.data(), d_Sc, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mc_prev.data(), d_mc_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sc_prev.data(), d_Sc_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->mh_prev.data(), d_mh_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Sh_prev.data(), d_Sh_prev, n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Ci_c.data(), d_Ci_c, n_max_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->lstm->Co_tanh_c.data(), d_Co_tanh_c, n_max_state_bytes,
                cudaMemcpyDeviceToHost);
 
     cudaError_t error = cudaGetLastError();

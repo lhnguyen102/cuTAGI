@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 21, 2022
+// Updated:      September 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ Args:
     // Data transfer for states
     state_gpu.set_values(state, net);
     state_gpu.allocate_cuda_memory();
-    state_gpu.copy_host_to_device(state);
+    state_gpu.copy_host_to_device();
 
     // Data transfer for parameters
     theta_gpu.set_values(theta.mw.size(), theta.mb.size(), theta.mw_sc.size(),
@@ -925,9 +925,8 @@ Args:
         for (int e = 0; e < n_epochs; e++) {
             // Shufle data
             if (e > 0) {
-                // TODO: Figure out why shuffle data does not work well
-                // // Shufle data
-                // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+                // Shufle data
+                std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
 
                 // Decay observation noise
                 decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
@@ -965,7 +964,7 @@ Args:
                               d_theta_gpu);
 
                 // Save current cell & hidden states for next step.
-                if (net.batch_size == 1) {
+                if (net.batch_size == 1 && net.input_seq_len == 1) {
                     save_prev_states(net, state_gpu);
                 }
 
@@ -1027,7 +1026,7 @@ Args:
             feedForward(net, theta_gpu, idx_gpu, state_gpu);
 
             // Save current cell & hidden states for next step.
-            if (net.batch_size == 1) {
+            if (net.batch_size == 1 && net.input_seq_len == 1) {
                 save_prev_states(net, state_gpu);
             }
 
@@ -1309,12 +1308,12 @@ void task_command(UserInput &user_input, SavePath &path) {
 
         train_mode = false;
         test_net.sigma_v = net.sigma_v;
-        time_series_forecasting(test_net, test_idx, test_state, theta, train_db,
+        time_series_forecasting(test_net, test_idx, test_state, theta, test_db,
                                 user_input.num_epochs, path, train_mode,
                                 user_input.debug);
-        // // Save net's parameters
-        // save_net_param(user_input.model_name, user_input.net_name,
-        //                path.saved_param_path, theta);
+        // Save net's parameters
+        save_net_param(user_input.model_name, user_input.net_name,
+                       path.saved_param_path, theta);
 
     } else {
         throw std::invalid_argument("Task name does not exist - task.cu");
