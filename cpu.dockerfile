@@ -4,7 +4,6 @@
 FROM ubuntu:20.04 As builder
 
 ARG DEBIAN_FRONTEND=noninteractive # ignore user input required
-
 # Install essential packages
 RUN apt-get -y update && \
     apt-get install -y --no-install-recommends \

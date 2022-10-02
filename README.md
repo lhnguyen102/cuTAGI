@@ -273,16 +273,25 @@ All above-mentioned tasks can be run in docker container using the following com
 ├── saved_param                       # Saved network's parameters (.csv)
 ├── saved_results                     # Saved network's inference (.csv)
 ├── src                               # Source files
+│   ├── activation_fun.cu             # Activations functions
+│   ├── activation_fun_cpu.cpp         # CPU version for activations functions
 │   ├── common.cpp                    # Common functionalities 
 │   ├── cost.cpp                      # Performance metric
 │   ├── dataloader.cpp                # Load train and test data
 │   ├── data_transfer.cu              # Transfer data host from/to device
 │   ├── data_transfer_cpu.cpp         # Transfer data within cpus
+│   ├── derivative_calcul.cu          # Derivative calculation for fully-connected layer
+│   ├── derivative_calcul_cpu.cpp     # CPU version for computing derivatives of fully-connected layer
+│   ├── feature_availability.cpp      # Feature verification
 │   ├── feed_forward.cu               # Prediction 
 │   ├── feed_forward_cpu.cpp          # CPU version for prediction
 │   ├── global_param_update.cu        # Update network's parameters
 │   ├── global_param_update_cpu.cpp   # CPU version for updating network's parameters
 │   ├── indices.cpp                   # Pre-compute indices for network
+│   ├── lstm_feed_backward.cu         # Feed backward of lstm layer
+│   ├── lstm_feed_backward_cpu.cpp    # CPU version for feed backward of lstm layer
+│   ├── lstm_feed_forward.cu          # Feed foreward of lstm layer
+│   ├── lstm_feed_forward_cpu.cpp     # CPU version for feed forward of lstm layer
 │   ├── net_init.cpp                  # Initialize the network
 │   ├── net_prop.cpp                  # Network's properties
 │   ├── param_feed_backward.cu        # Learn network's parameters
