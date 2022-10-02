@@ -14,8 +14,12 @@
 cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised learning, unsupervised learning, and reinforcement learning. The library includes some of the advanced features such as the capacity to propagate uncertainties from the input to the output layer using the the [full covariance mode for hidden layers](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf), the capacity to estimate the [derivative](https://www.jmlr.org/papers/volume23/21-0758/21-0758.pdf) of a neural network, and the capacity to quantify heteroscedastic aleatory uncertainty. 
 
 cuTAGI is under development and new features will be added as they are ready. Currently supported tasks are:
-* Supervised learning: Regression, long short-term memory (LSTM), and classification using fully-connected, convolutional and residual architectures
-* Unsupervised learning: autoencoders
+* Supervised learning
+  * Regression
+  * Long Short-Term Memory (LSTM)
+  * Classification using fully-connected, convolutional and residual architectures
+* Unsupervised learning
+  * Autoencoders
  
 Coming soon...
 * Unsupervised learning: GANs
