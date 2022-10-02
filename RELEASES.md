@@ -1,6 +1,6 @@
 # Version 0.1.3 (2022-10-02)
 * Add derivative computation for fully-connected layer (CPU & CUDA)
-* Add Long Short-Term Memory (LSTM) with TAGI (CPU and CUDA)
+* Add Long Short-Term Memory (LSTM) with TAGI (CPU & CUDA)
 * Add dataloader for time series
 
 
