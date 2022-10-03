@@ -3,7 +3,7 @@
 // Description:  Header for Network initialization
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 07, 2021
-// Updated:      July 30, 2022
+// Updated:      October 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,6 +18,7 @@
 
 void net_init(std::string &net_input, std::string &device, Network &net,
               Param &theta, NetState &state, IndexOut &idx);
+void map_config_to_prop(NetConfig &config, Network &net);
 
 void reset_net_batchsize(std::string &net_file, std::string &device,
                          Network &net, NetState &state, IndexOut &idx,
