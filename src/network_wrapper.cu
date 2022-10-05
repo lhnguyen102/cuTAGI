@@ -1,15 +1,15 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         network_wrapper_cpu.cpp
-// Description:  Python binding of cutagi code (CPU version)
+// File:         network_wrapper.cpp
+// Description:  Python binding of cutagi code
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 03, 2022
+// Created:      October 05, 2022
 // Updated:      October 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-#include "../include/network_wrapper_cpu.h"
+#include "../include/network_wrapper.cuh"
 
-NetworkWrapperCPU::NetworkWrapperCPU(Network &net) {
+NetworkWrapper::NetworkWrapper(Network &net) {
     this->net = net;
     net_default(this->net);
     get_net_props(this->net);
@@ -25,23 +25,56 @@ NetworkWrapperCPU::NetworkWrapperCPU(Network &net) {
     this->state = initialize_net_states(net);
 
     // Update quantities
-    this->d_state.set_values(this->net.n_state, this->state.msc.size(),
-                             this > state.mdsc.size(), this->net.n_max_state);
-    this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
-                             this->theta.mw_sc.size(),
-                             this->theta.mb_sc.size());
+    if (net.device.compare("cpu") == 0) {
+        this->d_state.set_values(this->net.n_state, this->state.msc.size(),
+                                 this > state.mdsc.size(),
+                                 this->net.n_max_state);
+        this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
+                                 this->theta.mw_sc.size(),
+                                 this->theta.mb_sc.size());
+    } else if (net.device.compare("cuda") == 0) {
+        // Data transfer for indices
+        idx_gpu.set_values(idx);
+        idx_gpu.allocate_cuda_memory();
+        idx_gpu.copy_host_to_device(idx);
 
+        // Data transfer for states
+        state_gpu.set_values(state, net);
+        state_gpu.allocate_cuda_memory();
+        state_gpu.copy_host_to_device();
+
+        // Data transfer for parameters
+        theta_gpu.set_values(theta.mw.size(), theta.mb.size(),
+                             theta.mw_sc.size(), theta.mb_sc.size());
+        theta_gpu.allocate_cuda_memory();
+        theta_gpu.copy_host_to_device(theta);
+
+        // Data transfer for delta state
+        d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
+                               net.n_max_state);
+        d_state_gpu.allocate_cuda_memory();
+        d_state_gpu.copy_host_to_device();
+
+        // Data transfer for delta parameters
+        d_theta_gpu.set_values(theta.mw.size(), theta.mb.size(),
+                               theta.mw_sc.size(), theta.mb_sc.size());
+        d_theta_gpu.allocate_cuda_memory();
+        d_theta_gpu.copy_host_to_device();
+    } else {
+        throw std::invalid_argument(
+            "Device is invalid. Device can be either cpu or cuda")
+    }
     this->num_weights = theta.mw.size();
     this->num_biases = theta.mb.size();
     this->num_weights_sc = theta.mw_sc.size();
     this->num_biases_sc = theta.mb_sc.size();
 }
 
-NetworkWrapperCPU::~NetworkWrapperCPU() {}
+NetworkWrapper::~NetworkWrapper() {}
 
-std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                                std::vector<float> &Sx_f) {
+void NetworkWrapper::feed_forward_cpu(std::vector<float> &x,
+                                      std::vector<float> &Sx,
+                                      std::vector<float> &Sx_f) {
     // Set input data
     this->ip.set_values(x, Sx, Sx_f);
 
@@ -52,22 +85,11 @@ NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
 
     // Feed forward
     feed_forward_cpu(this->net, this->theta, this->idx, this->state);
-
-    // Last layer's hidden state
-    int n_last_hidden = this->net.nodes.back() * this->net.batch_size;
-    std::vector<float> ma(n_last_hidden, 0);
-    std::vector<float> Sa(n_last_hidden, 0);
-    for (int i = 0; i < n_last_hidden; i++) {
-        ma[i] = this->state.ma[this->net.z_pos.back() + i];
-        Sa[i] = this->state.Sa[this->net.z_pos.back() + i];
-    }
-
-    return {ma, Sa};
 }
 
-NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
-                                       std::vector<float> &Sy,
-                                       std::vector<int> &idx_ud) {
+NetworkWrapper::state_feed_backward_cpu(std::vector<float> &y,
+                                        std::vector<float> &Sy,
+                                        std::vector<int> &idx_ud_batch) {
     // Set output data
     this->op.set_values(y, Sy, idx_ud);
 
@@ -76,7 +98,7 @@ NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
                         this->op, this->d_state);
 }
 
-NetworkWrapperCPU::param_feed_backward() {
+NetworkWrapper::param_feed_backward_cpu() {
     // Feed backward for parameters
     param_backward_cpu(this->net, this->theta, this->state, this->d_state,
                        this->idx, this->d_theta);
@@ -85,6 +107,40 @@ NetworkWrapperCPU::param_feed_backward() {
     global_param_update_cpu(this->d_theta, this->num_weights, this->num_biases,
                             this->num_weights_sc, this->num_biases_sc,
                             this->theta);
+}
+
+void NetworkWrapper::feed_forward_cuda(std::vector<float> &x,
+                                       std::vector<float> &Sx,
+                                       std::vector<float> &Sx_f) {
+    this->ip_gpu.copy_host_to_device(x, Sx, Sx_f);
+
+    // Initialize input
+    initializeStates(this->state_gpu, this->ip_gpu, net);
+
+    // Feed forward
+    feedForward(this->net, this->theta_gpu, this->idx_gpu, this->state_gpu);
+}
+
+NetworkWrapper::state_feed_backward_cuda(std::vector<float> &y,
+                                         std::vector<float> &Sy,
+                                         std::vector<int> &idx_ud) {
+    // Set output data
+    this->op_gpu.copy_host_to_device(y, idx_ud, Sy);
+
+    // Feed backward for hidden states
+    stateBackward(this->net, this->theta_gpu, this->state_gpu, this->idx_gpu,
+                  this->op_gpu, this->d_state_gpu);
+}
+
+NetworkWrapper::param_feed_backward_cuda() {
+    // Feed backward for parameters
+    paramBackward(this->net, this->theta_gpu, this->state_gpu,
+                  this->d_state_gpu, this->idx_gpu, this->d_theta_gpu);
+
+    // Update model parameters.
+    globalParamUpdate(this->d_theta_gpu, this->num_weights, this->num_biases,
+                      this->num_weights_sc, this->num_biases_sc,
+                      this->net.num_gpu_threads, this->theta_gpu);
 }
 
 PYBIND11_MODULE(cutagi, m) {
