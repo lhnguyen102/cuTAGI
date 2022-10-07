@@ -1,0 +1,96 @@
+///////////////////////////////////////////////////////////////////////////////
+// File:         tagi_network.cu
+// Description:  TAGI network including feed forward & backward
+// Authors:      Luong-Ha Nguyen & James-A. Goulet
+// Created:      October 05, 2022
+// Updated:      October 07, 2022
+// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+///////////////////////////////////////////////////////////////////////////////
+#include "../include/tagi_network.cuh"
+
+TagiNetwork::TagiNetwork(Network &net) {
+    this->net = net;
+    init_net();
+}
+
+TagiNetwork::~TagiNetwork() {}
+void TagiNetwork::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
+                               std::vector<float> &Sx_f) {
+    this->ip_gpu.copy_host_to_device(x, Sx, Sx_f);
+
+    // Initialize input
+    initializeStates(this->state_gpu, this->ip_gpu, net);
+
+    // Feed forward
+    feedForward(this->net, this->theta_gpu, this->idx_gpu, this->state_gpu);
+}
+
+TagiNetwork::state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,
+                                 std::vector<int> &idx_ud) {
+    // Set output data
+    this->op_gpu.copy_host_to_device(y, idx_ud, Sy);
+
+    // Feed backward for hidden states
+    stateBackward(this->net, this->theta_gpu, this->state_gpu, this->idx_gpu,
+                  this->op_gpu, this->d_state_gpu);
+}
+
+TagiNetwork::param_feed_backward() {
+    // Feed backward for parameters
+    paramBackward(this->net, this->theta_gpu, this->state_gpu,
+                  this->d_state_gpu, this->idx_gpu, this->d_theta_gpu);
+
+    // Update model parameters.
+    globalParamUpdate(this->d_theta_gpu, this->num_weights, this->num_biases,
+                      this->num_weights_sc, this->num_biases_sc,
+                      this->net.num_gpu_threads, this->theta_gpu);
+}
+
+void TagiNetwork::init_net() {
+    net_default(this->net);
+    get_net_props(this->net);
+    get_similar_layer(this->net);
+
+    // Check feature availability
+    check_feature_availability(this->net);
+
+    tagi_idx(this->idx, this->net);
+    index_default(this->idx);  // TODO: To be removed
+    this->theta = initialize_param(this->net);
+    this->state = initialize_net_states(this->net);
+
+    this->num_weights = this->theta.mw.size();
+    this->num_biases = this->theta.mb.size();
+    this->num_weights_sc = this->theta.mw_sc.size();
+    this->num_biases_sc = this->theta.mb_sc.size();
+
+    // Data transfer for indices
+    this->idx_gpu.set_values(this->idx);
+    this->idx_gpu.allocate_cuda_memory();
+    this->idx_gpu.copy_host_to_device(this->idx);
+
+    // Data transfer for states
+    this->state_gpu.set_values(this->state, this->net);
+    this->state_gpu.allocate_cuda_memory();
+    this->state_gpu.copy_host_to_device();
+
+    // Data transfer for parameters
+    this->theta_gpu.set_values(this->num_weights, this->num_biases,
+                               this->num_weights_sc, this->num_biases_sc);
+    this->theta_gpu.allocate_cuda_memory();
+    this->theta_gpu.copy_host_to_device(this->theta);
+
+    // Data transfer for delta state
+    this->d_state_gpu.set_values(this->net.n_state, this->state.msc.size(),
+                                 this->state.mdsc.size(),
+                                 this->net.n_max_state);
+    this->d_state_gpu.allocate_cuda_memory();
+    this->d_state_gpu.copy_host_to_device();
+
+    // Data transfer for delta parameters
+    this->d_theta_gpu.set_values(this->num_weights, this->num_biases,
+                                 this->num_weights_sc, this->num_biases_sc);
+    this->d_theta_gpu.allocate_cuda_memory();
+    this->d_theta_gpu.copy_host_to_device();
+}

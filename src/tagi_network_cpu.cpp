@@ -1,47 +1,23 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         network_wrapper_cpu.cpp
-// Description:  Python binding of cutagi code (CPU version)
+// File:         tagi_network_cpu.cpp
+// Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 05, 2022
+// Updated:      October 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-#include "../include/network_wrapper_cpu.h"
+#include "../include/tagi_network_cpu.h"
 
-NetworkWrapperCPU::NetworkWrapperCPU(Network &net) {
+TagiNetworkCPU::TagiNetworkCPU(Network &net) {
     this->net = net;
-    net_default(this->net);
-    get_net_props(this->net);
-    get_similar_layer(this->net);
-
-    // Check feature availability
-    check_feature_availability(net);
-
-    // Indices
-    tagi_idx(this->idx, net);
-    index_default(this->idx);  // TODO: To be removed
-    this->theta = initialize_param(net);
-    this->state = initialize_net_states(net);
-
-    // Update quantities
-    this->d_state.set_values(this->net.n_state, this->state.msc.size(),
-                             this > state.mdsc.size(), this->net.n_max_state);
-    this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
-                             this->theta.mw_sc.size(),
-                             this->theta.mb_sc.size());
-
-    this->num_weights = theta.mw.size();
-    this->num_biases = theta.mb.size();
-    this->num_weights_sc = theta.mw_sc.size();
-    this->num_biases_sc = theta.mb_sc.size();
+    init_net();
 }
 
-NetworkWrapperCPU::~NetworkWrapperCPU() {}
+TagiNetworkCPU::~TagiNetworkCPU() {}
 
-std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                                std::vector<float> &Sx_f) {
+std::tuple<std::vector<float>, std::vector<float>> TagiNetworkCPU::feed_forward(
+    std::vector<float> &x, std::vector<float> &Sx, std::vector<float> &Sx_f) {
     // Set input data
     this->ip.set_values(x, Sx, Sx_f);
 
@@ -65,9 +41,9 @@ NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
     return {ma, Sa};
 }
 
-NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
-                                       std::vector<float> &Sy,
-                                       std::vector<int> &idx_ud) {
+TagiNetworkCPU::state_feed_backward(std::vector<float> &y,
+                                    std::vector<float> &Sy,
+                                    std::vector<int> &idx_ud) {
     // Set output data
     this->op.set_values(y, Sy, idx_ud);
 
@@ -76,7 +52,7 @@ NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
                         this->op, this->d_state);
 }
 
-NetworkWrapperCPU::param_feed_backward() {
+TagiNetworkCPU::param_feed_backward() {
     // Feed backward for parameters
     param_backward_cpu(this->net, this->theta, this->state, this->d_state,
                        this->idx, this->d_theta);
@@ -85,6 +61,33 @@ NetworkWrapperCPU::param_feed_backward() {
     global_param_update_cpu(this->d_theta, this->num_weights, this->num_biases,
                             this->num_weights_sc, this->num_biases_sc,
                             this->theta);
+}
+
+void TagiNetworkCPU::init_net() {
+    net_default(this->net);
+    get_net_props(this->net);
+    get_similar_layer(this->net);
+
+    // Check feature availability
+    check_feature_availability(this->net);
+
+    // Indices
+    tagi_idx(this->idx, this->net);
+    index_default(this->idx);  // TODO: To be removed
+    this->theta = initialize_param(this->net);
+    this->state = initialize_net_states(this->net);
+
+    // Update quantities
+    this->d_state.set_values(this->net.n_state, this->state.msc.size(),
+                             this > state.mdsc.size(), this->net.n_max_state);
+    this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
+                             this->theta.mw_sc.size(),
+                             this->theta.mb_sc.size());
+
+    this->num_weights = theta.mw.size();
+    this->num_biases = theta.mb.size();
+    this->num_weights_sc = theta.mw_sc.size();
+    this->num_biases_sc = theta.mb_sc.size();
 }
 
 PYBIND11_MODULE(cutagi, m) {
@@ -120,9 +123,9 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    pybind11::class_<NetworkWrapperCPU>(m, "NetworkWrapperCPU")
+    pybind11::class_<TagiNetworkCPU>(m, "TagiNetworkCPU")
         .def(pybind11::init<>(Network &))
-        .def("feed_forward", &NetworkWrapperCPU::feed_forward)
-        .def("state_feed_backward", &NetworkWrapperCPU::state_feed_backward)
-        .def("param_feed_backward", &NetworkWrapperCPU::param_feed_backward);
+        .def("feed_forward", &TagiNetworkCPU::feed_forward)
+        .def("state_feed_backward", &TagiNetworkCPU::state_feed_backward)
+        .def("param_feed_backward", &TagiNetworkCPU::param_feed_backward);
 }
