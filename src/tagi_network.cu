@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 07, 2022
+// Updated:      October 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,32 +11,34 @@
 
 TagiNetwork::TagiNetwork(Network &net) {
     this->net = net;
-    init_net();
+    this->init_net();
 }
 
 TagiNetwork::~TagiNetwork() {}
+
 void TagiNetwork::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                std::vector<float> &Sx_f) {
-    this->ip_gpu.copy_host_to_device(x, Sx, Sx_f);
+    this->net_input_gpu.copy_host_to_device(x, Sx, Sx_f);
 
     // Initialize input
-    initializeStates(this->state_gpu, this->ip_gpu, net);
+    initializeStates(this->state_gpu, this->net_input_gpu, net);
 
     // Feed forward
     feedForward(this->net, this->theta_gpu, this->idx_gpu, this->state_gpu);
 }
 
-TagiNetwork::state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,
-                                 std::vector<int> &idx_ud) {
+void TagiNetwork::state_feed_backward(std::vector<float> &y,
+                                      std::vector<float> &Sy,
+                                      std::vector<int> &idx_ud) {
     // Set output data
-    this->op_gpu.copy_host_to_device(y, idx_ud, Sy);
+    this->obs_gpu.copy_host_to_device(y, idx_ud, Sy);
 
     // Feed backward for hidden states
     stateBackward(this->net, this->theta_gpu, this->state_gpu, this->idx_gpu,
-                  this->op_gpu, this->d_state_gpu);
+                  this->obs_gpu, this->d_state_gpu);
 }
 
-TagiNetwork::param_feed_backward() {
+void TagiNetwork::param_feed_backward() {
     // Feed backward for parameters
     paramBackward(this->net, this->theta_gpu, this->state_gpu,
                   this->d_state_gpu, this->idx_gpu, this->d_theta_gpu);
@@ -93,4 +95,62 @@ void TagiNetwork::init_net() {
                                  this->num_weights_sc, this->num_biases_sc);
     this->d_theta_gpu.allocate_cuda_memory();
     this->d_theta_gpu.copy_host_to_device();
+
+    // Output layer
+    this->num_output_bytes =
+        this->net.batch_size * this->net.nodes.back() * sizeof(float);
+    this->allocate_output_memory();
+    this->output_to_device();
+}
+void TagiNetwork::get_network_outputs() {
+    int n = this->net.batch_size * this->net.nodes.back();
+    std::vector<float> ma(n, 0);
+    std::vector<float> Sa(n, 0);
+    unsigned int THREADS = this->net.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_ma, this->net.z_pos.back(), n, this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sa, this->net.z_pos.back(), n, this->d_Sa);
+    this->output_to_host();
+}
+
+void TagiNetwork::allocate_output_memory() {
+    cudaMalloc(&d_ma, this->num_output_bytes);
+    cudaMalloc(&d_Sa, this->num_output_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for output's hidden states - "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+void TagiNetwork::output_to_device() {
+    cudaMemcpy(d_ma, this->ma.data(), this->num_output_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ma, this->Sa.data(), this->num_output_bytes,
+               cudaMemcpyHostToDevice);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to device for output's hidden states "
+            "- "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+void TagiNetwork::output_to_host() {
+    cudaMemcpy(this->ma.data(), d_ma, num_output_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sa.data(), d_Sa, num_output_bytes, cudaMemcpyDeviceToHost);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to host for output's hidden states "
+            "- "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
 }

@@ -3,7 +3,7 @@
 // Description:  Python wrapper for C++/CUDA code
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 07, 2022
-// Updated:      October 07, 2022
+// Updated:      October 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,14 +11,30 @@
 
 NetworkWrapper::NetworkWrapper(Network &net) {
     if (net.device.compare("cuda") == 0) {
-        TagiNetwork tagi_net(net);
+        this->tagi_net = std::make_unique<TagiNetwork>(net);
     } else if (net.device.compare("cpu") == 0) {
-        TagiNetworkCPU tagi_net(net);
+        this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
     } else {
-        throw std::invalid_argument("Device is either cpu or cuda");
+        throw std::invalid_argument(
+            "Device is invalid. Device is either cpu or cuda");
     }
 }
 NetworkWrapper::~NetworkWrapper();
+
+std::tuple<std::vector<float>, std::vector<float>> NetworkWrapper::feed_forward(
+    std::vector<float> &x, std::vector<float> &Sx, std::vector<float> &Sx_f) {
+    this->tagi_net.feed_forward(x, Sx, Sx_f);
+}
+
+void NetworkWrapper::state_feed_backward(std::vector<float> &y,
+                                         std::vector<float> &Sy,
+                                         std::vector<int> &idx_ud) {
+    this->tagi_net.state_feed_backward(y, Sy, idx_ud);
+}
+
+void NetworkWrapper::param_feed_backward() {
+    this->tagi_net.param_feed_backward();
+}
 
 PYBIND11_MODULE(cutagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
@@ -53,9 +69,10 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    pybind11::class_<NetworkWrapperCPU>(m, "NetworkWrapperCPU")
+    pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<>(Network &))
-        .def("feed_forward", &NetworkWrapperCPU::feed_forward)
-        .def("state_feed_backward", &NetworkWrapperCPU::state_feed_backward)
-        .def("param_feed_backward", &NetworkWrapperCPU::param_feed_backward);
+        .def("feed_forward", &NetworkWrapper::feed_forward)
+        .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
+        .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
+        .def("get_output_outputs", &NetworkWrapper::get_output_outputs);
 }

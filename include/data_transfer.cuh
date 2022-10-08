@@ -168,7 +168,7 @@ class InputGPU {
     float *d_x_batch, *d_Sx_batch, *d_Sx_f_batch;
 
     InputGPU(Network &net);
-    InputGPU();
+    InputGPU(){};
     void allocate_cuda_memory();
     void copy_host_to_device(std::vector<float> &x_batch,
                              std::vector<float> &Sx_batch,
@@ -188,7 +188,7 @@ class ObsGPU {
     int *d_idx_ud_batch;
 
     ObsGPU(int ny, int nye, int B);
-    ObsGPU();
+    ObsGPU(){};
     void allocate_cuda_memory();
 
     void copy_host_to_device(std::vector<float> &y_batch,

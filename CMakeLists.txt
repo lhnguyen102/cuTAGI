@@ -128,6 +128,9 @@ set(GPU_SOURCES
   src/task_cpu.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+  src/tagi_network.cu
+  src/tagi_network_cpu.cpp
+  src/tagi_network_base.cpp
 
   test/test_lstm_cpu.cpp
 )

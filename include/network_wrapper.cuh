@@ -11,12 +11,16 @@
 #include <third_party/pybind11/pybind11.h>
 #include <third_party/pybind11/stl.h>
 
+#include <memory>
+
 #include "struct_var.h"
 #include "tagi_network.cuh"
+#include "tagi_network_base.h"
 #include "tagi_network_cpu.h"
 
 class NetworkWrapper {
    public:
+    std::unique_ptr<TagiNetworkBase> tagi_net;
     NetworkWrapper(Network &net);
     ~NetworkWrapper();
     std::tuple<std::vector<float>, std::vector<float>> feed_forward(

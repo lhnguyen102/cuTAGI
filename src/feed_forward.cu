@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      September 11, 2022
+// Updated:      October 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1332,21 +1332,14 @@ Args:
 //////////////////////////////////////////////////////////////////////
 /// GET OUTPUT HIDDEN STATE
 //////////////////////////////////////////////////////////////////////
-__global__ void getOutputHiddenStates(float const *mz, float const *Sz,
-                                      float const *ma, float const *Sa,
-                                      float const *J, int zpos, int N,
-                                      float *mz_op, float *Sz_op, float *ma_op,
-                                      float *Sa_op, float *J_op)
+__global__ void getOutputHiddenStates(float const *z, int zpos, int N,
+                                      float *z_op)
 /*Get states for the output layers.
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < N) {
-        mz_op[col] = mz[col + zpos];
-        Sz_op[col] = Sz[col + zpos];
-        ma_op[col] = ma[col + zpos];
-        Sa_op[col] = Sa[col + zpos];
-        J_op[col] = J[col + zpos];
+        z_op[col] = z[col + zpos];
     }
 }
 

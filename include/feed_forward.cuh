@@ -3,7 +3,7 @@
 // Description:  Header file for feed forward in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 22, 2022
-// Updated:      September 11, 2022
+// Updated:      October 08, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,6 +33,9 @@ __global__ void initializeFullStates(float const *mz_0, float const *Sz_0,
                                      float *J);
 __global__ void updateMraSra(float const *mra, float const *Sra, int N,
                              float *mra_prev, float *Sra_prev);
+
+__global__ void get_output_hidden_states(float const *z, int z_pos, int n,
+                                         float *z_mu);
 
 void initializeStates(StateGPU &state, InputGPU &ip, Network &net);
 
