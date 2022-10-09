@@ -14,7 +14,6 @@
 
 class TagiNetworkCPU : public TagiNetworkBase {
    public:
-    std::vector<float> ma, Sa;
     TagiNetworkCPU(Network &net);
     ~TagiNetworkCPU();
     void feed_forward(std::vector<float> &x, std::vector<float> &Sx,

@@ -19,31 +19,31 @@ NetworkWrapper::NetworkWrapper(Network &net) {
             "Device is invalid. Device is either cpu or cuda");
     }
 }
-NetworkWrapper::~NetworkWrapper();
+NetworkWrapper::~NetworkWrapper(){};
 
 void NetworkWrapper::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                   std::vector<float> &Sx_f) {
-    this->tagi_net.feed_forward(x, Sx, Sx_f);
+    this->tagi_net->feed_forward(x, Sx, Sx_f);
 }
 
 void NetworkWrapper::state_feed_backward(std::vector<float> &y,
                                          std::vector<float> &Sy,
                                          std::vector<int> &idx_ud) {
-    this->tagi_net.state_feed_backward(y, Sy, idx_ud);
+    this->tagi_net->state_feed_backward(y, Sy, idx_ud);
 }
 
 void NetworkWrapper::param_feed_backward() {
-    this->tagi_net.param_feed_backward();
+    this->tagi_net->param_feed_backward();
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
 NetworkWrapper::get_network_outputs() {
-    this->tagi_network.get_network_outputs();
+    this->tagi_net->get_network_outputs();
 
-    return {this->tagi_net.ma, this->tagi_net.Sa};
+    return {this->tagi_net->ma, this->tagi_net->Sa};
 }
 
-PYBIND11_MODULE(cutagi, m) {
+PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
     pybind11::class_<Network>(m, "Network")
         .def(pybind11::init<>())
@@ -56,7 +56,7 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("filters", &Network::filters)
         .def_readwrite("pads", &Network::pads)
         .def_readwrite("pad_types", &Network::pad_types)
-        .def_read_write("shortcuts", &Network::shortcuts)
+        .def_readwrite("shortcuts", &Network::shortcuts)
         .def_readwrite("activations", &Network::activations)
         .def_readwrite("mu_v2b", &Network::mu_v2b)
         .def_readwrite("sigma_v2b", &Network::sigma_v2b)
@@ -77,7 +77,7 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("device", &Network::device);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
-        .def(pybind11::init<>(Network &))
+        .def(pybind11::init<Network &>())
         .def("feed_forward", &NetworkWrapper::feed_forward)
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)

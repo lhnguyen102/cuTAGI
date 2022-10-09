@@ -8,33 +8,35 @@
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "network_wrapper_cpu.h"
+#include "../include/network_wrapper_cpu.h"
 
-NetworkWrapperCPU::NetworkWrapper(Network &net) {
-    this->target_net = std::make_unique<TagiNetworkCPU>(net);
+NetworkWrapperCPU::NetworkWrapperCPU(Network &net) {
+    this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
 }
+NetworkWrapperCPU::~NetworkWrapperCPU(){};
 
-NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                                std::vector<float> &Sx_f) {
-    this->tagi_net.feed_forward(x, Sx, Sx_f);
+void NetworkWrapperCPU::feed_forward(std::vector<float> &x,
+                                     std::vector<float> &Sx,
+                                     std::vector<float> &Sx_f) {
+    this->tagi_net->feed_forward(x, Sx, Sx_f);
 }
-NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
-                                       std::vector<float> &Sy,
-                                       std::vector<int> &idx_ud) {
-    this->tagi_net.state_feed_backward(y, Sy, idx_ud);
+void NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
+                                            std::vector<float> &Sy,
+                                            std::vector<int> &idx_ud) {
+    this->tagi_net->state_feed_backward(y, Sy, idx_ud);
 }
-NetworkWrapperCPU::param_feed_forward() {
-    this->tagi_net.param_feed_backward();
+void NetworkWrapperCPU::param_feed_backward() {
+    this->tagi_net->param_feed_backward();
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapper::get_network_outputs() {
-    this->tagi_network.get_network_outputs();
+NetworkWrapperCPU::get_network_outputs() {
+    this->tagi_net->get_network_outputs();
 
-    return {this->tagi_net.ma, this->tagi_net.Sa};
+    return {this->tagi_net->ma, this->tagi_net->Sa};
 }
 
-PYBIND11_MODULE(cutagi, m) {
+PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
     pybind11::class_<Network>(m, "Network")
         .def(pybind11::init<>())
@@ -47,7 +49,7 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("filters", &Network::filters)
         .def_readwrite("pads", &Network::pads)
         .def_readwrite("pad_types", &Network::pad_types)
-        .def_read_write("shortcuts", &Network::shortcuts)
+        .def_readwrite("shortcuts", &Network::shortcuts)
         .def_readwrite("activations", &Network::activations)
         .def_readwrite("mu_v2b", &Network::mu_v2b)
         .def_readwrite("sigma_v2b", &Network::sigma_v2b)
@@ -67,9 +69,10 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
-        .def(pybind11::init<>(Network &))
-        .def("feed_forward", &NetworkWrapper::feed_forward)
-        .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
-        .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
-        .def("get_network_outputs", &NetworkWrapper::get_network_outputs);
+    pybind11::class_<NetworkWrapperCPU>(m, "NetworkWrapperCPU")
+        .def(pybind11::init<Network &>())
+        .def("feed_forward", &NetworkWrapperCPU::feed_forward)
+        .def("state_feed_backward", &NetworkWrapperCPU::state_feed_backward)
+        .def("param_feed_backward", &NetworkWrapperCPU::param_feed_backward)
+        .def("get_network_outputs", &NetworkWrapperCPU::get_network_outputs);
+}

@@ -42,6 +42,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 set(CMAKE_CXX_STANDARD 14) # C++ version
 set(CMAKE_CXX_EXTENSIONS OFF) # Disable GNU extenstions
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
+
 # ###########################################################################################
 # # CUDA COMPILER SETUP
 # ###########################################################################################
@@ -89,7 +91,7 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
 # CUDA debug (-g) & device debug (- G)
-# set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
@@ -129,12 +131,10 @@ set(GPU_SOURCES
   src/task_cpu.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+
   src/tagi_network.cu
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
-
-  # src/network_wrapper.cu
-  src/network_wrapper_cpu.cpp
   test/test_lstm_cpu.cpp
 )
 
@@ -159,6 +159,8 @@ set(CPU_SOURCES
   src/utils.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
+  src/tagi_network_cpu.cpp
+  src/tagi_network_base.cpp
 
   test/test_lstm_cpu.cpp
 )
@@ -179,14 +181,17 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
-  # Executable code i.e. application
+  # Executablecode i.e. application
   add_executable(main main.cu)
+  pybind11_add_module(pytagi "src/network_wrapper.cu")
 else()
   add_library(cutagi STATIC ${CPU_SOURCES})
 
   # Executable code i.e. application
   add_executable(main main.cpp)
+  pybind11_add_module(pytagi "src/network_wrapper_cpu.cpp")
 endif()
 
-# pybind11_add_module(cuda_example "main.cpp")
 target_link_libraries(main PUBLIC cutagi)
+
+target_link_libraries(pytagi PRIVATE cutagi)
