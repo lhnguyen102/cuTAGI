@@ -89,9 +89,10 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
 # CUDA debug (-g) & device debug (- G)
-set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+# set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
+add_subdirectory(third_party/pybind11)
 include_directories("include")
 include_directories("test")
 
@@ -132,6 +133,8 @@ set(GPU_SOURCES
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
 
+  # src/network_wrapper.cu
+  src/network_wrapper_cpu.cpp
   test/test_lstm_cpu.cpp
 )
 

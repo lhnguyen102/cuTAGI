@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 08, 2022
+// Updated:      October 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -97,6 +97,8 @@ void TagiNetwork::init_net() {
     this->d_theta_gpu.copy_host_to_device();
 
     // Output layer
+    this->ma.resize(this->net.nodes.back() * this->net.batch_size, 0);
+    this->Sa.resize(this->net.nodes.back() * this->net.batch_size, 0);
     this->num_output_bytes =
         this->net.batch_size * this->net.nodes.back() * sizeof(float);
     this->allocate_output_memory();
@@ -104,8 +106,6 @@ void TagiNetwork::init_net() {
 }
 void TagiNetwork::get_network_outputs() {
     int n = this->net.batch_size * this->net.nodes.back();
-    std::vector<float> ma(n, 0);
-    std::vector<float> Sa(n, 0);
     unsigned int THREADS = this->net.num_gpu_threads;
     unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
 

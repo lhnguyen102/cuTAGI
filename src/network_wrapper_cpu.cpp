@@ -1,38 +1,29 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         network_wrapper.cu
-// Description:  Python wrapper for C++/CUDA code
+// File:         network_wrapper_cpu.cpp
+// Description:  Python wrapper for C++ code
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 07, 2022
+// Created:      October 09, 2022
 // Updated:      October 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-#include "../include/network_wrapper.cuh"
 
-NetworkWrapper::NetworkWrapper(Network &net) {
-    if (net.device.compare("cuda") == 0) {
-        this->tagi_net = std::make_unique<TagiNetwork>(net);
-    } else if (net.device.compare("cpu") == 0) {
-        this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
-    } else {
-        throw std::invalid_argument(
-            "Device is invalid. Device is either cpu or cuda");
-    }
+#include "../include/network_wrapper_cpu.h"
+
+NetworkWrapperCPU::NetworkWrapper(Network &net) {
+    this->target_net = std::make_unique<TagiNetworkCPU>(net);
 }
-NetworkWrapper::~NetworkWrapper();
 
-void NetworkWrapper::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                                  std::vector<float> &Sx_f) {
+NetworkWrapperCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
+                                std::vector<float> &Sx_f) {
     this->tagi_net.feed_forward(x, Sx, Sx_f);
 }
-
-void NetworkWrapper::state_feed_backward(std::vector<float> &y,
-                                         std::vector<float> &Sy,
-                                         std::vector<int> &idx_ud) {
+NetworkWrapperCPU::state_feed_backward(std::vector<float> &y,
+                                       std::vector<float> &Sy,
+                                       std::vector<int> &idx_ud) {
     this->tagi_net.state_feed_backward(y, Sy, idx_ud);
 }
-
-void NetworkWrapper::param_feed_backward() {
+NetworkWrapperCPU::param_feed_forward() {
     this->tagi_net.param_feed_backward();
 }
 
@@ -82,4 +73,3 @@ PYBIND11_MODULE(cutagi, m) {
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
         .def("get_network_outputs", &NetworkWrapper::get_network_outputs);
-}

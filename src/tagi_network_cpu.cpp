@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 07, 2022
+// Updated:      October 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,22 +23,11 @@ void TagiNetworkCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
 
     // Initialize input
     initialize_states_cpu(this->net_input.x_batch, this->net_input.Sx_batch,
-                          this->net_input.Sx_f, this->net.n_x,
+                          this->net_input.Sx_f_batch, this->net.n_x,
                           this->net.batch_size, this->state);
 
     // Feed forward
     feed_forward_cpu(this->net, this->theta, this->idx, this->state);
-
-    // // Last layer's hidden state
-    // int n_last_hidden = this->net.nodes.back() * this->net.batch_size;
-    // std::vector<float> ma(n_last_hidden, 0);
-    // std::vector<float> Sa(n_last_hidden, 0);
-    // for (int i = 0; i < n_last_hidden; i++) {
-    //     ma[i] = this->state.ma[this->net.z_pos.back() + i];
-    //     Sa[i] = this->state.Sa[this->net.z_pos.back() + i];
-    // }
-
-    // return {ma, Sa};
 }
 
 void TagiNetworkCPU::state_feed_backward(std::vector<float> &y,
@@ -88,44 +77,15 @@ void TagiNetworkCPU::init_net() {
     this->num_biases = theta.mb.size();
     this->num_weights_sc = theta.mw_sc.size();
     this->num_biases_sc = theta.mb_sc.size();
+    this->ma.resize(this->net.nodes.back() * this->net.batch_size, 0);
+    this->Sa.resize(this->net.nodes.back() * this->net.batch_size, 0);
 }
 
-// PYBIND11_MODULE(cutagi, m) {
-//     m.doc() = "Tractable Approximate Gaussian Inference";
-//     pybind11::class_<Network>(m, "Network")
-//         .def(pybind11::init<>())
-//         .def_readwrite("layers", &Network::layers)
-//         .def_readwrite("nodes", &Network::nodes)
-//         .def_readwrite("kernels", &Network::kernels)
-//         .def_readwrite("strides", &Network::strides)
-//         .def_readwrite("widths", &Network::widths)
-//         .def_readwrite("heights", &Network::heights)
-//         .def_readwrite("filters", &Network::filters)
-//         .def_readwrite("pads", &Network::pads)
-//         .def_readwrite("pad_types", &Network::pad_types)
-//         .def_read_write("shortcuts", &Network::shortcuts)
-//         .def_readwrite("activations", &Network::activations)
-//         .def_readwrite("mu_v2b", &Network::mu_v2b)
-//         .def_readwrite("sigma_v2b", &Network::sigma_v2b)
-//         .def_readwrite("sigma_v", &Network::sigma_v)
-//         .def_readwrite("sigma_v_min", &Network::sigma_v_min)
-//         .def_readwrite("sigma_x", &Network::sigma_x)
-//         .def_readwrite("decay_factor_sigma_v",
-//         &Network::decay_factor_sigma_v) .def_readwrite("noise_gain",
-//         &Network::noise_gain) .def_readwrite("batch_size",
-//         &Network::batch_size) .def_readwrite("input_seq_len",
-//         &Network::input_seq_len) .def_readwrite("output_seq_len",
-//         &Network::output_seq_len) .def_readwrite("seq_stride",
-//         &Network::seq_stride) .def_readwrite("multithreading",
-//         &Network::multithreading) .def_readwrite("collect_derivative",
-//         &Network::collect_derivative) .def_readwrite("is_full_cov",
-//         &Network::is_full_cov) .def_readwrite("init_method",
-//         &Network::init_method) .def_readwrite("noise_type",
-//         &Network::noise_type) .def_readwrite("device", &Network::device);
-
-//     pybind11::class_<TagiNetworkCPU>(m, "TagiNetworkCPU")
-//         .def(pybind11::init<>(Network &))
-//         .def("feed_forward", &TagiNetworkCPU::feed_forward)
-//         .def("state_feed_backward", &TagiNetworkCPU::state_feed_backward)
-//         .def("param_feed_backward", &TagiNetworkCPU::param_feed_backward);
-// }
+void TagiNetworkCPU::get_network_outputs() {
+    // Last layer's hidden state
+    int num_outputs = this->net.nodes.back() * this->net.batch_size;
+    for (int i = 0; i < num_outputs; i++) {
+        this->ma[i] = this->state.ma[this->net.z_pos.back() + i];
+        this->Sa[i] = this->state.Sa[this->net.z_pos.back() + i];
+    }
+}
