@@ -25,7 +25,7 @@
 class TagiNetworkBase {
    public:
     std::vector<float> ma, Sa;
-    Network net;
+    Network prop;
     IndexOut idx;
     NetState state;
     Param theta;

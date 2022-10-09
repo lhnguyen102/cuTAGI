@@ -31,7 +31,7 @@ class TagiNetwork : public TagiNetworkBase {
     std::vector<float> ma, Sa;
     size_t num_output_bytes;
 
-    TagiNetwork(Network &net);
+    TagiNetwork(Network &net_prop);
     ~TagiNetwork();
     void feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                       std::vector<float> &Sx_f);

@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Updated:      May 20, 2022
-// Updated:      July 30, 2022
+// Updated:      October 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,6 +30,7 @@
 #include "param_feed_backward_cpu.h"
 #include "state_feed_backward_cpu.h"
 #include "struct_var.h"
+#include "tagi_network_cpu.h"
 #include "user_input.h"
 #include "utils.h"
 

@@ -64,7 +64,7 @@ DeltaParam::~DeltaParam() {}
 //////////////////////////////
 Input::Input() {}
 void Input::set_values(std::vector<float> &x, std::vector<float> &Sx,
-                       std::vector<float> &Sx_f) {
+                       const std::vector<float> &Sx_f) {
     this->x_batch = x;
     this->Sx_batch = Sx;
     this->Sx_f_batch = Sx_f;

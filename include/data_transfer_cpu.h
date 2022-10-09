@@ -56,7 +56,7 @@ class Input {
     std::vector<float> x_batch, Sx_batch, Sx_f_batch;
     Input();
     void set_values(std::vector<float> &x, std::vector<float> &Sx,
-                    std::vector<float> &Sx_f);
+                    const std::vector<float> &Sx_f);
     ~Input();
 };
 

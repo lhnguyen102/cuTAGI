@@ -165,7 +165,8 @@ class DeltaParamGPU {
 class InputGPU {
    public:
     size_t id_bytes, id_f_bytes;
-    float *d_x_batch, *d_Sx_batch, *d_Sx_f_batch;
+    float *d_x_batch, *d_Sx_batch;
+    float *d_Sx_f_batch;
 
     InputGPU(Network &net);
     InputGPU(){};

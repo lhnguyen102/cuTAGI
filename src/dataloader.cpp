@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      September 18, 2022
+// Updated:      October 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,8 +42,10 @@ void get_batch_idx(std::vector<int> &idx, int iter, int B,
  *    batch_idx: Batch of indices
  *    */
 {
+    int j;
     for (int i = 0; i < B; i++) {
-        batch_idx[i] = idx[iter + i];
+        j = (iter + i) % idx.size();
+        batch_idx[i] = idx[j];
     }
 }
 

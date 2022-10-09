@@ -9,8 +9,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include "tagi_network.cuh"
 
-TagiNetwork::TagiNetwork(Network &net) {
-    this->net = net;
+TagiNetwork::TagiNetwork(Network &net_prop) {
+    this->prop = net_prop;
     this->init_net();
 }
 
@@ -21,10 +21,10 @@ void TagiNetwork::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
     this->net_input_gpu.copy_host_to_device(x, Sx, Sx_f);
 
     // Initialize input
-    initializeStates(this->state_gpu, this->net_input_gpu, net);
+    initializeStates(this->state_gpu, this->net_input_gpu, this->prop);
 
     // Feed forward
-    feedForward(this->net, this->theta_gpu, this->idx_gpu, this->state_gpu);
+    feedForward(this->prop, this->theta_gpu, this->idx_gpu, this->state_gpu);
 }
 
 void TagiNetwork::state_feed_backward(std::vector<float> &y,
@@ -34,85 +34,85 @@ void TagiNetwork::state_feed_backward(std::vector<float> &y,
     this->obs_gpu.copy_host_to_device(y, idx_ud, Sy);
 
     // Feed backward for hidden states
-    stateBackward(this->net, this->theta_gpu, this->state_gpu, this->idx_gpu,
+    stateBackward(this->prop, this->theta_gpu, this->state_gpu, this->idx_gpu,
                   this->obs_gpu, this->d_state_gpu);
 }
 
 void TagiNetwork::param_feed_backward() {
     // Feed backward for parameters
-    paramBackward(this->net, this->theta_gpu, this->state_gpu,
+    paramBackward(this->prop, this->theta_gpu, this->state_gpu,
                   this->d_state_gpu, this->idx_gpu, this->d_theta_gpu);
 
     // Update model parameters.
     globalParamUpdate(this->d_theta_gpu, this->num_weights, this->num_biases,
                       this->num_weights_sc, this->num_biases_sc,
-                      this->net.num_gpu_threads, this->theta_gpu);
+                      this->prop.num_gpu_threads, this->theta_gpu);
 }
 
 void TagiNetwork::init_net() {
-    net_default(this->net);
-    get_net_props(this->net);
-    get_similar_layer(this->net);
+    net_default(this->prop);
+    get_net_props(this->prop);
+    get_similar_layer(this->prop);
 
     // Check feature availability
-    check_feature_availability(this->net);
+    check_feature_availability(this->prop);
 
-    tagi_idx(this->idx, this->net);
+    tagi_idx(this->idx, this->prop);
     index_default(this->idx);  // TODO: To be removed
-    this->theta = initialize_param(this->net);
-    this->state = initialize_net_states(this->net);
+    this->theta = initialize_param(this->prop);
+    this->state = initialize_net_states(this->prop);
 
     this->num_weights = this->theta.mw.size();
     this->num_biases = this->theta.mb.size();
     this->num_weights_sc = this->theta.mw_sc.size();
     this->num_biases_sc = this->theta.mb_sc.size();
 
-    // Data transfer for indices
+    // Send indices to device
     this->idx_gpu.set_values(this->idx);
     this->idx_gpu.allocate_cuda_memory();
     this->idx_gpu.copy_host_to_device(this->idx);
 
-    // Data transfer for states
-    this->state_gpu.set_values(this->state, this->net);
+    // Send states to device
+    this->state_gpu.set_values(this->state, this->prop);
     this->state_gpu.allocate_cuda_memory();
     this->state_gpu.copy_host_to_device();
 
-    // Data transfer for parameters
+    // Send parameters to device
     this->theta_gpu.set_values(this->num_weights, this->num_biases,
                                this->num_weights_sc, this->num_biases_sc);
     this->theta_gpu.allocate_cuda_memory();
     this->theta_gpu.copy_host_to_device(this->theta);
 
-    // Data transfer for delta state
-    this->d_state_gpu.set_values(this->net.n_state, this->state.msc.size(),
+    // Send delta state to device
+    this->d_state_gpu.set_values(this->prop.n_state, this->state.msc.size(),
                                  this->state.mdsc.size(),
-                                 this->net.n_max_state);
+                                 this->prop.n_max_state);
     this->d_state_gpu.allocate_cuda_memory();
     this->d_state_gpu.copy_host_to_device();
 
-    // Data transfer for delta parameters
+    // Send delta parameters to device
     this->d_theta_gpu.set_values(this->num_weights, this->num_biases,
                                  this->num_weights_sc, this->num_biases_sc);
     this->d_theta_gpu.allocate_cuda_memory();
     this->d_theta_gpu.copy_host_to_device();
 
     // Output layer
-    this->ma.resize(this->net.nodes.back() * this->net.batch_size, 0);
-    this->Sa.resize(this->net.nodes.back() * this->net.batch_size, 0);
+    this->ma.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->Sa.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
     this->num_output_bytes =
-        this->net.batch_size * this->net.nodes.back() * sizeof(float);
+        this->prop.batch_size * this->prop.nodes.back() * sizeof(float);
     this->allocate_output_memory();
     this->output_to_device();
 }
 void TagiNetwork::get_network_outputs() {
-    int n = this->net.batch_size * this->net.nodes.back();
-    unsigned int THREADS = this->net.num_gpu_threads;
+    int n = this->prop.batch_size * this->prop.nodes.back();
+    unsigned int THREADS = this->prop.num_gpu_threads;
     unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
 
     get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_ma, this->net.z_pos.back(), n, this->d_ma);
+        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
     get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_Sa, this->net.z_pos.back(), n, this->d_Sa);
+        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
     this->output_to_host();
 }
 
