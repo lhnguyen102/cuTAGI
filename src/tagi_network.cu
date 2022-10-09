@@ -7,7 +7,7 @@
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-#include "../include/tagi_network.cuh"
+#include "tagi_network.cuh"
 
 TagiNetwork::TagiNetwork(Network &net) {
     this->net = net;

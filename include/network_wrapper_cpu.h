@@ -11,6 +11,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <iostream>
+
 #include "tagi_network_base.h"
 #include "tagi_network_cpu.h"
 

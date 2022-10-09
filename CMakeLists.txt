@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.23)
 # ###########################################################################################
 PROJECT(
   cuTAGI
-  VERSION 0.1.0
+  VERSION 0.1.3
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX
 )
@@ -92,7 +92,7 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 # set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
 # Header files for source code
-add_subdirectory(third_party/pybind11)
+add_subdirectory(extern/pybind11)
 include_directories("include")
 include_directories("test")
 
@@ -188,4 +188,5 @@ else()
   add_executable(main main.cpp)
 endif()
 
+# pybind11_add_module(cuda_example "main.cpp")
 target_link_libraries(main PUBLIC cutagi)

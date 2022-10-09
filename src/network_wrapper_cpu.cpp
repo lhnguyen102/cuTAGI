@@ -8,7 +8,7 @@
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "../include/network_wrapper_cpu.h"
+#include "network_wrapper_cpu.h"
 
 NetworkWrapperCPU::NetworkWrapper(Network &net) {
     this->target_net = std::make_unique<TagiNetworkCPU>(net);
