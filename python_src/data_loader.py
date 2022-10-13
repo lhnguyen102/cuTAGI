@@ -3,7 +3,7 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 12, 2022
+# Updated:      October 13, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -34,20 +34,11 @@ class RegressionDataLoader:
 
         # Dataloader
         data_loader = {}
-        data_loader["train"] = self.create_data_loader(raw_input=x_train,
-                                                       raw_output=y_train)
+        data_loader["train"] = (x_train, y_train)
         data_loader["test"] = self.create_data_loader(raw_input=x_test,
                                                       raw_output=y_test)
 
         return data_loader
-
-    @staticmethod
-    def load_data_from_csv(data_file: str) -> pd.DataFrame:
-        """Load data from csv file"""
-
-        data = pd.read_csv(data_file, delimiter=",", skiprows=1)
-
-        return data
 
     def create_data_loader(self, raw_input: np.ndarray,
                            raw_output: np.ndarray) -> list:
@@ -60,7 +51,7 @@ class RegressionDataLoader:
         even_indices = self.split_evenly(num_input_data, self.batch_size)
 
         # Remider indices
-        rem_indices = self.split_evenly(num_input_data, self.batch_size)
+        rem_indices = self.split_reminder(num_input_data, self.batch_size)
 
         # Concat indices
         indices = np.concatenate((even_indices, rem_indices), axis=1)
@@ -70,8 +61,8 @@ class RegressionDataLoader:
 
         return list(zip(input_data, output_data))
 
-    def split_data(self,
-                   data: int,
+    @staticmethod
+    def split_data(data: int,
                    test_ratio: float = 0.2,
                    val_ratio: float = 0.0) -> dict:
         """Split data into training, validation, and test sets"""
@@ -90,6 +81,14 @@ class RegressionDataLoader:
             splited_data["test"] = data[end_train_idx:]
 
         return splited_data
+
+    @staticmethod
+    def load_data_from_csv(data_file: str) -> pd.DataFrame:
+        """Load data from csv file"""
+
+        data = pd.read_csv(data_file, delimiter=",", skiprows=1)
+
+        return data
 
     @staticmethod
     def split_evenly(num_data, chunk_size: int):

@@ -3,13 +3,16 @@
 # Description:  Example of regression task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 12, 2022
+# Updated:      October 13, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-import pytagi
-from python_src.model import RegressionMLP
 import numpy as np
+from tqdm import tqdm
+
+import python_src.metric as metric
+from python_src.model import RegressionMLP
+from python_src.tagi_network import TagiNetwork
 
 
 class Regression:
@@ -20,26 +23,47 @@ class Regression:
     def __init__(self, num_epochs: int, data_loader: dict) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
-        self.network = pytagi.NetworkWrapperCPU(self.net_prop)
+        self.network = TagiNetwork(self.net_prop)
 
     def train(self) -> None:
         """Train the network using TAGI"""
+        # Inputs
         x_init, y_init = self.data_loader["train"][0]
         Sx_batch = np.zeros(x_init.shape, dtype=np.float32)
         Sx_f_batch = np.zeros(x_init.shape, dtype=np.float32)
+
+        # Outputs
         V_batch = np.zeros(y_init.shape,
                            dtype=np.float32) + self.net_prop.prop.sigma_v**2
         ud_idx_batch = np.zeros(y_init.shape, dtype=np.int32)
 
-        for x_batch, y_batch in self.data_loader["train"]:
-            # Feed forward
-            self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+        input_data, output_data = self.data_loader["train"]
+        num_data = input_data.shape[1]
+        num_iter = int(num_data / self.batch_size)
+        pbar = tqdm(range(self.num_epochs))
+        for epoch in pbar:
+            for i in range(num_iter):
+                # Get data
+                idx = np.random.choice(num_data, size=self.batch_size)
+                x_batch = input_data[idx, :]
+                y_batch = output_data[idx, :]
 
-            # State feed backward
-            self.network.state_feed_backward(y_batch, V_batch, ud_idx_batch)
+                # Feed forward
+                self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
 
-            # Update parameters
-            self.network.param_feed_backward()
+                # Update hidden states
+                self.network.state_feed_backward(y_batch, V_batch,
+                                                 ud_idx_batch)
+
+                # Update parameters
+                self.network.param_feed_backward()
+
+                # Loss
+                pred, _ = self.network.get_network_outputs()
+                mse = metric.mse(pred, y_batch)
+                pbar.set_description(
+                    f"Epoch# {epoch: 0} | {i * self.batch_size + len(x_batch): 1:>5}|{num_data: 2}\t mse: {mse: 0.2f}"
+                )
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
@@ -47,11 +71,28 @@ class Regression:
         Sx_batch = np.zeros(x_init.shape, dtype=np.float32)
         Sx_f_batch = np.zeros(x_init.shape, dtype=np.float32)
 
+        mean_predictions = []
+        variance_predictions = []
+        observations = []
         for x_batch, y_batch in self.data_loader["test"]:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
             ma, Sa = self.network.get_network_outputs()
 
-            # Compute log-likelihood
+            mean_predictions.append(ma)
+            variance_predictions.append(Sa)
+            observations.append(y_batch)
 
-            return ma, Sa
+        mean_predictions = np.stack(mean_predictions)
+        std_predictions = np.stack(variance_predictions)**0.5
+        observations = np.stack(observations)
+
+        # Compute log-likelihood
+        mse = metric.mse(mean_predictions, observations)
+        log_lik = metric.log_likelihood(prediction=mean_predictions,
+                                        observation=observations,
+                                        std=std_predictions)
+
+        print("#############")
+        print(f"MSE           : {mse: 0.2f}")
+        print(f"Log-likelihood: {log_lik: 0.2f}")
