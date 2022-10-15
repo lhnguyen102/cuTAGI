@@ -4,3 +4,6 @@
 debug_data/
 *.csv
 *.DS_Store
+*.pyc
+pytagi.egg-info
+dist

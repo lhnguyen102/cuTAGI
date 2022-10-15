@@ -3,7 +3,7 @@
 // Description:  Header file for Python wrapper for C++ code
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2022
-// Updated:      October 09, 2022
+// Updated:      October 15, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -14,11 +14,11 @@
 #include "tagi_network_base.h"
 #include "tagi_network_cpu.h"
 
-class NetworkWrapperCPU {
+class NetworkWrapper {
    public:
     std::unique_ptr<TagiNetworkBase> tagi_net;
-    NetworkWrapperCPU(Network &net);
-    ~NetworkWrapperCPU();
+    NetworkWrapper(Network &net);
+    ~NetworkWrapper();
     void feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                       std::vector<float> &Sx_f);
     void state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,

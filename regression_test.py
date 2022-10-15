@@ -26,7 +26,7 @@ def main():
     # Train and test
     reg_task = Regression(num_epochs=num_epochs, data_loader=data_loader)
     reg_task.train()
-    reg_task.predict()
+    # reg_task.predict()
 
 
 if __name__ == "__main__":

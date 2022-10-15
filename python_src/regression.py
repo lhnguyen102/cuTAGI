@@ -27,24 +27,25 @@ class Regression:
 
     def train(self) -> None:
         """Train the network using TAGI"""
+        batch_size = self.net_prop.batch_size
         # Inputs
-        x_init, y_init = self.data_loader["train"][0]
-        Sx_batch = np.zeros(x_init.shape, dtype=np.float32)
-        Sx_f_batch = np.zeros(x_init.shape, dtype=np.float32)
+        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
+                            dtype=np.float32)
+        Sx_f_batch = np.array([], dtype=np.float32)
 
         # Outputs
-        V_batch = np.zeros(y_init.shape,
-                           dtype=np.float32) + self.net_prop.prop.sigma_v**2
-        ud_idx_batch = np.zeros(y_init.shape, dtype=np.int32)
+        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
+                           dtype=np.float32) + self.net_prop.sigma_v**2
+        ud_idx_batch = np.array([], dtype=np.float32)
 
         input_data, output_data = self.data_loader["train"]
-        num_data = input_data.shape[1]
-        num_iter = int(num_data / self.batch_size)
+        num_data = input_data.shape[0]
+        num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
             for i in range(num_iter):
                 # Get data
-                idx = np.random.choice(num_data, size=self.batch_size)
+                idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
 

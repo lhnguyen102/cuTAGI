@@ -7,6 +7,7 @@
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
+import chunk
 import numpy as np
 import pandas as pd
 import math
@@ -50,16 +51,21 @@ class RegressionDataLoader:
         # Even indices
         even_indices = self.split_evenly(num_input_data, self.batch_size)
 
-        # Remider indices
-        rem_indices = self.split_reminder(num_input_data, self.batch_size)
+        if np.mod(num_input_data, self.batch_size) != 0:
+            # Remider indices
+            rem_indices = self.split_reminder(num_input_data, self.batch_size)
 
-        # Concat indices
-        indices = np.concatenate((even_indices, rem_indices), axis=1)
+            # Concat indices
+            indices = np.concatenate((even_indices, rem_indices), axis=1)
+        else:
+            indices = np.stack(even_indices)
 
         input_data = raw_input[indices]
         output_data = raw_output[indices]
-
-        return list(zip(input_data, output_data))
+        dataset = []
+        for x_batch, y_batch in zip(input_data, output_data):
+            dataset.append((x_batch, y_batch))
+        return dataset
 
     @staticmethod
     def split_data(data: int,
@@ -86,14 +92,14 @@ class RegressionDataLoader:
     def load_data_from_csv(data_file: str) -> pd.DataFrame:
         """Load data from csv file"""
 
-        data = pd.read_csv(data_file, delimiter=",", skiprows=1)
+        data = pd.read_csv(data_file, skiprows=1, header=None)
 
-        return data
+        return data.values
 
     @staticmethod
     def split_evenly(num_data, chunk_size: int):
         """split data evenly"""
-        indices = np.arange(num_data)
+        indices = np.arange(int(num_data - np.mod(num_data, chunk_size)))
         return np.split(indices, math.ceil(num_data / chunk_size))
 
     @staticmethod

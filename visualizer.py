@@ -261,7 +261,7 @@ class PredictionViz:
                        direction="inout",
                        labelsize=self.fontsize)
         ax.legend(
-            loc="upper right",
+            loc="upper left",
             edgecolor="black",
             fontsize=1 * self.fontsize,
             ncol=1,
@@ -414,8 +414,8 @@ def noise_inference():
     x_test_path = "./data/toy_example/x_test_1D_noise_inference.csv"
     y_test_path = "./data/toy_example/y_test_1D_noise_inference.csv"
     sigma_v_test_path = "./data/toy_example/noise_test_1D_noise_inference.csv"
-    y_pred_path = "./saved_results/y_prediction.csv"
-    sy_pred_path = "./saved_results/sy_prediction.csv"
+    y_pred_path = "./saved_results/y_prediction_hete.csv"
+    sy_pred_path = "./saved_results/sy_prediction_hete.csv"
 
     viz = PredictionViz(task_name=task_name, data_name=data_name)
 
@@ -440,11 +440,8 @@ def noise_inference():
         sy_pred=sy_pred,
         std_factor=std_factor,
         sy_test=sy_test,
-        label="hete",
+        label="hete_2",
         title=r"\textbf{Heteroscedastic Nosie Inference}",
-        eq=eq,
-        x_eq=x_eq,
-        y_eq=y_eq,
     )
 
 
@@ -544,9 +541,9 @@ def time_series_forecasting():
 
 
 if __name__ == "__main__":
-    regression()
+    #regression()
     # autoencoder()
     # input_uncertainty_prop()
-    # noise_inference()
+    noise_inference()
     #derivative()
     #time_series_forecasting()
