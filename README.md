@@ -129,7 +129,7 @@ sigma_v:    1
 We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
 ### Python API
-1. Download this repo
+1. Clone this repository
 2. Create a conda environment 
 3. `pip install -r requirements.txt`
 4. Install `pytagi`
