@@ -10,7 +10,14 @@
 from pytagi import Network
 
 
-class RegressionMLP(Network):
+class NetProp(Network):
+    """Multi-layer perceptron for regression task"""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+class RegressionMLP(NetProp):
     """Multi-layer perceptron for regression task"""
 
     def __init__(self) -> None:
@@ -19,3 +26,4 @@ class RegressionMLP(Network):
         self.nodes = [1, 50, 1]
         self.activations = [0, 4, 0]
         self.batch_size = 4
+        self.sigma_v = 0.06

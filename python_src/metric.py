@@ -12,7 +12,6 @@ import numpy as np
 
 def mse(prediction: np.ndarray, observation: np.ndarray) -> float:
     """ Mean squared error"""
-
     return np.nanmean((prediction - observation)**2)
 
 

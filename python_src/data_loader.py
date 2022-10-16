@@ -3,19 +3,82 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 13, 2022
+# Updated:      October 16, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-import chunk
+import math
+from typing import Tuple, Union
+
 import numpy as np
 import pandas as pd
-import math
+
+
+class Normalizer:
+    """Different method to normalize the data before feeding
+    to neural networks"""
+
+    def __init__(self, method: Union[str, None] = None) -> None:
+        self.method = method
+
+    def standardize(self, data: np.ndarray, mu: np.ndarray,
+                    std: np.ndarray) -> np.ndarray:
+        """Z-score normalization where 
+        data_norm = (data - data_mean) / data_std """
+
+        return (data - mu) / (std + 1e-10)
+
+    @staticmethod
+    def unstandardize(norm_data: np.ndarray, mu: np.ndarray,
+                      std: np.ndarray) -> np.ndarray:
+        """Transform standardized data to original space"""
+
+        return norm_data * (std + 1e-10) + mu
+
+    @staticmethod
+    def unstandardize_std(norm_std: np.ndarray, std: np.ndarray) -> np.ndarray:
+        """Transform standardized std to original space"""
+
+        return norm_std * (std + 1e-10)
+
+    def max_min_norm(self, data: np.ndarray, max_value: np.ndarray,
+                     min_value: np.ndarray) -> np.ndarray:
+        """Normalize the data between 0 and 1"""
+        assert np.all(max_value > min_value)
+        return (data - min_value) / (max_value - min_value + 1e-10)
+
+    @staticmethod
+    def max_min_unnorm(norm_data: np.ndarray, max_value: np.ndarray,
+                       min_value: np.ndarray) -> np.ndarray:
+        """Transform max-min normalized data to original space"""
+
+        return (norm_data * (max_value - min_value + 1e-10)) + min_value
+
+    @staticmethod
+    def max_min_unnorm_std(norm_std: np.ndarray, max_value: np.ndarray,
+                           min_value: np.ndarray) -> np.ndarray:
+        """Transform max-min normalized std to original space"""
+
+        return (norm_std * (max_value - min_value + 1e-10))
+
+    @staticmethod
+    def compute_mean_std(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute sample mean and standard deviation"""
+
+        return (np.nanmean(data, axis=0), np.nanstd(data, axis=0))
+
+    @staticmethod
+    def compute_max_min(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute max min values"""
+
+        return (np.nanmax(data, axis=0), np.nanmin(data, axis=0))
 
 
 class RegressionDataLoader:
     """Load and format data that is feeded to the neural network.
      The user must provide the input and output data file in *csv"""
+
+    normalizer: Normalizer = Normalizer()
 
     def __init__(self, num_inputs: int, num_outputs: int,
                  batch_size: int) -> None:
@@ -33,11 +96,34 @@ class RegressionDataLoader:
         x_test = self.load_data_from_csv(x_test_file)
         y_test = self.load_data_from_csv(y_test_file)
 
+        # Normalizer
+        x_mean, x_std = self.normalizer.compute_mean_std(
+            np.concatenate((x_train, x_test)))
+        y_mean, y_std = self.normalizer.compute_mean_std(
+            np.concatenate((y_train, y_test)))
+
+        x_train = self.normalizer.standardize(data=x_train,
+                                              mu=x_mean,
+                                              std=x_std)
+        y_train = self.normalizer.standardize(data=y_train,
+                                              mu=y_mean,
+                                              std=y_std)
+        x_test = self.normalizer.standardize(data=x_test,
+                                              mu=x_mean,
+                                              std=x_std)
+        y_test = self.normalizer.standardize(data=y_test,
+                                              mu=y_mean,
+                                              std=y_std)
+
         # Dataloader
         data_loader = {}
         data_loader["train"] = (x_train, y_train)
         data_loader["test"] = self.create_data_loader(raw_input=x_test,
                                                       raw_output=y_test)
+        data_loader["x_norm_param_1"] = x_mean
+        data_loader["x_norm_param_2"] = x_std
+        data_loader["y_norm_param_1"] = y_mean
+        data_loader["y_norm_param_2"] = y_std
 
         return data_loader
 
@@ -104,7 +190,7 @@ class RegressionDataLoader:
 
     @staticmethod
     def split_reminder(num_data: int, chunk_size: int):
-        """Pad the remider"""
+        """Pad the reminder"""
         indices = np.arange(num_data)
         reminder_start = math.ceil(num_data / chunk_size)
         random_idx = np.random.choice(indices,
