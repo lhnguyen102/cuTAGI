@@ -58,3 +58,11 @@ class TagiNetwork:
         ma, Sa = self.network.get_network_outputs()
 
         return np.array(ma), np.array(Sa)
+
+    def set_parameters(self, param: tagi.Param) -> None:
+        """Set parameter values to network"""
+        self.network.set_parameters(param)
+
+    def get_parameters(self) -> tagi.Param:
+        """Get parameters of network"""
+        return self.network.get_parameters()

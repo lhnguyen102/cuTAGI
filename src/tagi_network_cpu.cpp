@@ -89,3 +89,36 @@ void TagiNetworkCPU::get_network_outputs() {
         this->Sa[i] = this->state.Sa[this->prop.z_pos.back() + i];
     }
 }
+
+void TagiNetworkCPU::set_parameters(Param &init_theta)
+/*Set parameters to network*/
+{
+    // Weights
+    for (int i = 0; i < this->num_weights; i++) {
+        this->theta.mw[i] = init_theta.mw[i];
+        this->theta.Sw[i] = init_theta.Sw[i];
+    }
+
+    // Biases
+    for (int j = 0; j < this->num_biases; j++) {
+        this->theta.mb[j] = init_theta.mb[j];
+        this->theta.Sb[j] = init_theta.Sb[j];
+    }
+
+    // Residual network
+    if (this->num_weights_sc > 0) {
+        // Weights
+        for (int i = 0; i < this->num_weights_sc; i++) {
+            this->theta.mw_sc[i] = init_theta.mw_sc[i];
+            this->theta.Sw_sc[i] = init_theta.Sw_sc[i];
+        }
+
+        // Biases
+        for (int j = 0; j < this->num_biases_sc; j++) {
+            this->theta.mb_sc[j] = init_theta.mb_sc[j];
+            this->theta.Sb_sc[j] = init_theta.Sb_sc[j];
+        }
+    }
+}
+
+Param TagiNetworkCPU::get_parameters() { return this->theta; }

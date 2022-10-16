@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 09, 2022
+// Updated:      October 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,10 +78,9 @@ void TagiNetwork::init_net() {
     this->state_gpu.copy_host_to_device();
 
     // Send parameters to device
-    this->theta_gpu.set_values(this->num_weights, this->num_biases,
-                               this->num_weights_sc, this->num_biases_sc);
+    this->theta_gpu.set_values(this->theta);
     this->theta_gpu.allocate_cuda_memory();
-    this->theta_gpu.copy_host_to_device(this->theta);
+    this->theta_gpu.copy_host_to_device();
 
     // Send delta state to device
     this->d_state_gpu.set_values(this->prop.n_state, this->state.msc.size(),
@@ -103,6 +102,13 @@ void TagiNetwork::init_net() {
         this->prop.batch_size * this->prop.nodes.back() * sizeof(float);
     this->allocate_output_memory();
     this->output_to_device();
+
+    // IO
+    this->net_input_gpu.set_values(this->prop);
+    this->obs_gpu.set_values(this->prop.n_y, this->prop.nye,
+                             this->prop.batch_size);
+    this->net_input_gpu.allocate_cuda_memory();
+    this->obs_gpu.allocate_cuda_memory();
 }
 void TagiNetwork::get_network_outputs() {
     int n = this->prop.batch_size * this->prop.nodes.back();
@@ -114,6 +120,43 @@ void TagiNetwork::get_network_outputs() {
     get_output_hidden_states<<<BLOCKS, THREADS>>>(
         this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
     this->output_to_host();
+}
+
+void TagiNetwork::set_parameters(Param &init_theta)
+/*Set parameters to network*/
+{
+    // Weights
+    for (int i = 0; i < this->num_weights; i++) {
+        this->theta.mw[i] = init_theta.mw[i];
+        this->theta.Sw[i] = init_theta.Sw[i];
+    }
+
+    // Biases
+    for (int j = 0; j < this->num_biases; j++) {
+        this->theta.mb[j] = init_theta.mb[j];
+        this->theta.Sb[j] = init_theta.Sb[j];
+    }
+
+    // Residual network
+    if (this->num_weights_sc > 0) {
+        // Weights
+        for (int i = 0; i < this->num_weights_sc; i++) {
+            this->theta.mw_sc[i] = init_theta.mw_sc[i];
+            this->theta.Sw_sc[i] = init_theta.Sw_sc[i];
+        }
+
+        // Biases
+        for (int j = 0; j < this->num_biases_sc; j++) {
+            this->theta.mb_sc[j] = init_theta.mb_sc[j];
+            this->theta.Sb_sc[j] = init_theta.Sb_sc[j];
+        }
+    }
+    this->theta_gpu.copy_host_to_device();
+}
+
+Param TagiNetwork::get_parameters() {
+    this->theta_gpu.copy_device_to_host();
+    return this->theta;
 }
 
 void TagiNetwork::allocate_output_memory() {
@@ -131,7 +174,7 @@ void TagiNetwork::allocate_output_memory() {
 void TagiNetwork::output_to_device() {
     cudaMemcpy(d_ma, this->ma.data(), this->num_output_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ma, this->Sa.data(), this->num_output_bytes,
+    cudaMemcpy(d_Sa, this->Sa.data(), this->num_output_bytes,
                cudaMemcpyHostToDevice);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -143,8 +186,10 @@ void TagiNetwork::output_to_device() {
     }
 }
 void TagiNetwork::output_to_host() {
-    cudaMemcpy(this->ma.data(), d_ma, num_output_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->Sa.data(), d_Sa, num_output_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->ma.data(), d_ma, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sa.data(), d_Sa, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =

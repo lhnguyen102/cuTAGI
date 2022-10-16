@@ -4,7 +4,7 @@
 //               (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 08, 2022
+// Updated:      October 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,8 @@ class TagiNetworkCPU : public TagiNetworkBase {
                              std::vector<int> &idx_ud);
     void param_feed_backward();
     void get_network_outputs();
+    void set_parameters(Param &init_theta);
+    Param get_parameters();
 
    private:
     void init_net();

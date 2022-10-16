@@ -44,7 +44,7 @@ class Regression:
         # Outputs
         V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
                            dtype=np.float32) + self.net_prop.sigma_v**2
-        ud_idx_batch = np.array([], dtype=np.float32)
+        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
         input_data, output_data = self.data_loader["train"]
         num_data = input_data.shape[0]

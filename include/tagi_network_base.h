@@ -3,7 +3,7 @@
 // Description:  header file for tagi network base
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 08, 2022
-// Updated:      October 09, 2022
+// Updated:      October 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,4 +47,6 @@ class TagiNetworkBase {
     virtual void param_feed_backward();
 
     virtual void get_network_outputs();
+    virtual void set_parameters(Param &init_theta);
+    virtual Param get_parameters();
 };

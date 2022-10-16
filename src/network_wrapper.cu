@@ -3,7 +3,7 @@
 // Description:  Python wrapper for C++/CUDA code
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 07, 2022
-// Updated:      October 09, 2022
+// Updated:      October 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,8 +43,25 @@ NetworkWrapper::get_network_outputs() {
     return {this->tagi_net->ma, this->tagi_net->Sa};
 }
 
+void NetworkWrapper::set_parameters(Param &init_theta) {
+    this->tagi_net->set_parameters(init_theta);
+}
+
+Param NetworkWrapper::get_parameters() { return this->tagi_net->theta; }
+
 PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
+    pybind11::class_<Param>(m, "Param")
+        .def(pybind11::init<>())
+        .def_readwrite("mw", &Param::mw)
+        .def_readwrite("Sw", &Param::Sw)
+        .def_readwrite("mb", &Param::mb)
+        .def_readwrite("Sb", &Param::Sb)
+        .def_readwrite("mw_sc", &Param::mw_sc)
+        .def_readwrite("Sw_sc", &Param::Sw_sc)
+        .def_readwrite("mb_sc", &Param::mb_sc)
+        .def_readwrite("Sb_sc", &Param::Sb_sc);
+
     pybind11::class_<Network>(m, "Network")
         .def(pybind11::init<>())
         .def_readwrite("layers", &Network::layers)
@@ -81,5 +98,7 @@ PYBIND11_MODULE(pytagi, m) {
         .def("feed_forward", &NetworkWrapper::feed_forward)
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
-        .def("get_network_outputs", &NetworkWrapper::get_network_outputs);
+        .def("get_network_outputs", &NetworkWrapper::get_network_outputs)
+        .def("set_parameters", &NetworkWrapper::set_parameters)
+        .def("get_parameters", &NetworkWrapper::get_parameters);
 }

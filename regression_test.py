@@ -9,7 +9,7 @@ def main():
     # User-input
     num_inputs = 1
     num_outputs = 1
-    num_epochs = 50
+    num_epochs = 1
     x_train_file = "./data/toy_example/x_train_1D.csv"
     y_train_file = "./data/toy_example/y_train_1D.csv"
     x_test_file = "./data/toy_example/x_test_1D.csv"

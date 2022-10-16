@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 23, 2022
+// Updated:      October 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -55,10 +55,9 @@ Args:
     state_gpu.copy_host_to_device();
 
     // Data transfer for parameters
-    theta_gpu.set_values(theta.mw.size(), theta.mb.size(), theta.mw_sc.size(),
-                         theta.mb_sc.size());
+    theta_gpu.set_values(theta);
     theta_gpu.allocate_cuda_memory();
-    theta_gpu.copy_host_to_device(theta);
+    theta_gpu.copy_host_to_device();
 
     // Data transfer for delta state
     d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
@@ -157,13 +156,16 @@ Args:
                                  d_theta_d_gpu);
 
     // Transfer data for input and output
-    InputGPU ip_gpu(net_e);
+    InputGPU ip_gpu;
+    ip_gpu.set_values(net_e);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_e_gpu(net_e.n_y, net_e.nye, net_e.batch_size);
+    ObsGPU op_e_gpu;
+    op_e_gpu.set_values(net_e.n_y, net_e.nye, net_e.batch_size);
     op_e_gpu.allocate_cuda_memory();
 
-    ObsGPU op_d_gpu(net_d.n_y, net_d.nye, net_d.batch_size);
+    ObsGPU op_d_gpu;
+    op_d_gpu.set_values(net_d.n_y, net_d.nye, net_d.batch_size);
     op_d_gpu.allocate_cuda_memory();
 
     // Loop initialization
@@ -304,8 +306,8 @@ Args:
             std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60
                       << " mins\n";
         }
-        theta_e_gpu.copy_device_to_host(theta_e);
-        theta_d_gpu.copy_device_to_host(theta_d);
+        theta_e_gpu.copy_device_to_host();
+        theta_d_gpu.copy_device_to_host();
 
         // Save results
         if (debug) {
@@ -439,10 +441,12 @@ Args:
                                  theta_gpu, d_state_gpu, d_theta_gpu);
 
     // Data transfer for input and output data
-    InputGPU ip_gpu(net);
+    InputGPU ip_gpu;
+    ip_gpu.set_values(net);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_gpu(net.n_y, net.nye, net.batch_size);
+    ObsGPU op_gpu;
+    op_gpu.set_values(net.n_y, net.nye, net.batch_size);
     op_gpu.allocate_cuda_memory();
 
     // Initialization
@@ -591,7 +595,7 @@ Args:
         std::cout << std::setprecision(3);
         std::cout << test_avg_error << "\n" << std::endl;
     }
-    theta_gpu.copy_device_to_host(theta);
+    theta_gpu.copy_device_to_host();
 
     // Save error rate
     std::string suffix = "test";
@@ -607,15 +611,12 @@ Args:
 ///////////////////////////////////////////////////////////////////////
 // REGRESSION
 ///////////////////////////////////////////////////////////////////////
-void regression(Network &net, IndexOut &idx, NetState &state, Param &theta,
-                Dataloader &db, int n_epochs, SavePath &path, bool train_mode,
-                bool debug)
+void regression(TagiNetwork &net, Dataloader &db, int n_epochs, SavePath &path,
+                bool train_mode, bool debug)
 /* Regression task
 
 Args:
-    Net: Network architecture
-    idx: Indices of network
-    theta: Weights & biases of network
+    net: Tagi network
     db: database
     n_epochs: Number of epochs
     path: Directory stored the final results
@@ -629,56 +630,27 @@ Args:
     std::default_random_engine seed_e(seed);
     int derivative_layer = 0;
 
-    // Compute number of data
-    int n_iter = db.num_data / net.batch_size;
-
-    // Number of bytes
-    size_t id_bytes, od_bytes, ode_bytes, max_n_s_bytes;
-    compute_net_memory(net, id_bytes, od_bytes, ode_bytes, max_n_s_bytes);
+    // Number of data points
+    int n_iter = db.num_data / net.prop.batch_size;
+    std::vector<int> data_idx = create_range(db.num_data);
 
     // Initialize the data's variables
-    std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
-    std::vector<int> data_idx = create_range(db.num_data);
-    std::vector<int> batch_idx(net.batch_size);
-    std::vector<int> idx_ud_batch(net.nye * net.batch_size, 0);
-
-    x_batch.resize(net.batch_size * net.n_x, 0);
-    Sx_batch.resize(net.batch_size * net.n_x, powf(net.sigma_x, 2));
-    y_batch.resize(net.batch_size * net.n_y, 0);
-    V_batch.resize(net.batch_size * net.n_y, powf(net.sigma_v, 2));
+    std::vector<float> x_batch(net.prop.batch_size * net.prop.n_x, 0);
+    std::vector<float> Sx_batch(net.prop.batch_size * net.prop.n_x,
+                                pow(net.prop.sigma_x, 2));
+    std::vector<float> Sx_f_batch;
+    std::vector<float> y_batch(net.prop.batch_size * net.prop.n_y, 0);
+    std::vector<float> V_batch(net.prop.batch_size * net.prop.n_y,
+                               pow(net.prop.sigma_v, 2));
+    std::vector<int> batch_idx(net.prop.batch_size);
+    std::vector<int> idx_ud_batch(net.prop.nye * net.prop.batch_size, 0);
 
     // *TODO: Is there any better way?
-    std::vector<float> Sx_f_batch;
-    if (net.is_full_cov) {
-        float var_x = powf(net.sigma_x, 2);
-        auto Sx_f = initialize_upper_triu(var_x, net.n_x);
-        Sx_f_batch = repmat_vector(Sx_f, net.batch_size);
+    if (net.prop.is_full_cov) {
+        float var_x = powf(net.prop.sigma_x, 2);
+        auto Sx_f = initialize_upper_triu(var_x, net.prop.n_x);
+        Sx_f_batch = repmat_vector(Sx_f, net.prop.batch_size);
     }
-
-    // Data transfer
-    StateGPU state_gpu;
-    ParamGPU theta_gpu;
-    IndexGPU idx_gpu;
-    DeltaStateGPU d_state_gpu;
-    DeltaParamGPU d_theta_gpu;
-
-    initialize_network_to_device(net, idx, state, theta, idx_gpu, state_gpu,
-                                 theta_gpu, d_state_gpu, d_theta_gpu);
-
-    // Data transfer for input and output data
-    InputGPU ip_gpu(net);
-    ip_gpu.allocate_cuda_memory();
-
-    ObsGPU op_gpu(net.n_y, net.nye, net.batch_size);
-    op_gpu.allocate_cuda_memory();
-
-    int wN = theta.mw.size();
-    int bN = theta.mb.size();
-    int wN_sc = theta.mw_sc.size();
-    int bN_sc = theta.mb_sc.size();
-
-    int THREADS = net.num_gpu_threads;
-    // unsigned int BLOCKS = (net.batch_size * net.n_x + THREADS - 1) / THREADS;
 
     /* TRAINING */
     if (train_mode) {
@@ -689,11 +661,11 @@ Args:
                 std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
 
                 // Decay observation noise
-                decay_obs_noise(net.sigma_v, net.decay_factor_sigma_v,
-                                net.sigma_v_min);
+                decay_obs_noise(net.prop.sigma_v, net.prop.decay_factor_sigma_v,
+                                net.prop.sigma_v_min);
             }
-            std::vector<float> V_batch(net.batch_size * net.n_y,
-                                       powf(net.sigma_v, 2));
+            std::vector<float> V_batch(net.prop.batch_size * net.prop.n_y,
+                                       powf(net.prop.sigma_v, 2));
 
             // Timer
             std::cout << "################\n";
@@ -702,30 +674,21 @@ Args:
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
                 // Load data
-                get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
-                              batch_idx);
-                get_batch_data(db.x, batch_idx, net.n_x, x_batch);
-                get_batch_data(db.y, batch_idx, net.n_y, y_batch);
-                ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
-                op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
-
-                // Initialize input
-                initializeStates(state_gpu, ip_gpu, net);
+                get_batch_idx(data_idx, i * net.prop.batch_size,
+                              net.prop.batch_size, batch_idx);
+                get_batch_data(db.x, batch_idx, net.prop.n_x, x_batch);
+                get_batch_data(db.y, batch_idx, net.prop.n_y, y_batch);
 
                 // Feed forward
-                feedForward(net, theta_gpu, idx_gpu, state_gpu);
+                net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
+
+                net.get_network_outputs();
 
                 // Feed backward for hidden states
-                stateBackward(net, theta_gpu, state_gpu, idx_gpu, op_gpu,
-                              d_state_gpu);
+                net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
 
                 // Feed backward for parameters
-                paramBackward(net, theta_gpu, state_gpu, d_state_gpu, idx_gpu,
-                              d_theta_gpu);
-
-                // Update model parameters
-                globalParamUpdate(d_theta_gpu, wN, bN, wN_sc, bN_sc, THREADS,
-                                  theta_gpu);
+                net.param_feed_backward();
             }
 
             // Report running time
@@ -743,71 +706,67 @@ Args:
                       << " mins\n";
         }
         // state_gpu.copy_device_to_host(state);
-        theta_gpu.copy_device_to_host(theta);
+        net.theta_gpu.copy_device_to_host();
 
         // Retrieve homocesdastic noise distribution's parameter
-        if (net.noise_type.compare("homosce") == 0) {
-            state_gpu.copy_device_to_host();
-            get_homosce_noise_param(state.noise_state.ma_v2b_prior,
-                                    state.noise_state.Sa_v2b_prior, net.mu_v2b,
-                                    net.sigma_v2b);
+        if (net.prop.noise_type.compare("homosce") == 0) {
+            net.state_gpu.copy_device_to_host();
+            get_homosce_noise_param(net.state.noise_state.ma_v2b_prior,
+                                    net.state.noise_state.Sa_v2b_prior,
+                                    net.prop.mu_v2b, net.prop.sigma_v2b);
         }
 
     } else {
         /* TESTING */
         std::cout << "Testing...\n";
-        std::vector<float> ma_batch_out(net.batch_size * net.n_y, 0);
-        std::vector<float> Sa_batch_out(net.batch_size * net.n_y, 0);
-        std::vector<float> ma_out(db.num_data * net.n_y, 0);
-        std::vector<float> Sa_out(db.num_data * net.n_y, 0);
+        std::vector<float> ma_batch_out(net.prop.batch_size * net.prop.n_y, 0);
+        std::vector<float> Sa_batch_out(net.prop.batch_size * net.prop.n_y, 0);
+        std::vector<float> ma_out(db.num_data * net.prop.n_y, 0);
+        std::vector<float> Sa_out(db.num_data * net.prop.n_y, 0);
         int mt_idx = 0;
 
         // Derivative results for the input layers
         std::vector<float> mdy_batch_in, Sdy_batch_in, mdy_in, Sdy_in;
-        if (net.collect_derivative) {
-            mdy_batch_in.resize(net.batch_size * net.n_x, 0);
-            Sdy_batch_in.resize(net.batch_size * net.n_x, 0);
-            mdy_in.resize(db.num_data * net.n_x, 0);
-            Sdy_in.resize(db.num_data * net.n_x, 0);
+        if (net.prop.collect_derivative) {
+            mdy_batch_in.resize(net.prop.batch_size * net.prop.n_x, 0);
+            Sdy_batch_in.resize(net.prop.batch_size * net.prop.n_x, 0);
+            mdy_in.resize(db.num_data * net.prop.n_x, 0);
+            Sdy_in.resize(db.num_data * net.prop.n_x, 0);
         }
 
         // Prediction
         for (int i = 0; i < n_iter; i++) {
             // Load data
-            get_batch_idx(data_idx, i * net.batch_size, net.batch_size,
-                          batch_idx);
-            get_batch_data(db.x, batch_idx, net.n_x, x_batch);
-            get_batch_data(db.y, batch_idx, net.n_y, y_batch);
-            ip_gpu.copy_host_to_device(x_batch, Sx_batch, Sx_f_batch);
-            op_gpu.copy_host_to_device(y_batch, idx_ud_batch, V_batch);
-
-            // Initialize input
-            initializeStates(state_gpu, ip_gpu, net);
+            get_batch_idx(data_idx, i * net.prop.batch_size,
+                          net.prop.batch_size, batch_idx);
+            get_batch_data(db.x, batch_idx, net.prop.n_x, x_batch);
+            get_batch_data(db.y, batch_idx, net.prop.n_y, y_batch);
 
             // Feed forward
-            feedForward(net, theta_gpu, idx_gpu, state_gpu);
+            net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
-            if (net.collect_derivative) {
-                compute_network_derivatives(net, theta_gpu, state_gpu,
-                                            derivative_layer);
+            if (net.prop.collect_derivative) {
+                compute_network_derivatives(net.prop, net.theta_gpu,
+                                            net.state_gpu, derivative_layer);
             }
 
             // Get hidden states for output layers
-            state_gpu.copy_device_to_host();
-            output_hidden_states(state, net, ma_batch_out, Sa_batch_out);
+            net.state_gpu.copy_device_to_host();
+            output_hidden_states(net.state, net.prop, ma_batch_out,
+                                 Sa_batch_out);
 
-            if (net.collect_derivative) {
-                get_input_derv_states(state.derv_state.md_layer,
-                                      state.derv_state.Sd_layer, mdy_batch_in,
-                                      Sdy_batch_in);
-                update_vector(mdy_in, mdy_batch_in, mt_idx, net.n_x);
-                update_vector(Sdy_in, Sdy_batch_in, mt_idx, net.n_x);
+            if (net.prop.collect_derivative) {
+                get_input_derv_states(net.state.derv_state.md_layer,
+                                      net.state.derv_state.Sd_layer,
+                                      mdy_batch_in, Sdy_batch_in);
+                update_vector(mdy_in, mdy_batch_in, mt_idx, net.prop.n_x);
+                update_vector(Sdy_in, Sdy_batch_in, mt_idx, net.prop.n_x);
             }
 
             // Update the final hidden state vector for last layer
-            mt_idx = i * net.batch_size * net.n_y;
-            update_vector(ma_out, ma_batch_out, mt_idx, net.n_y);
-            update_vector(Sa_out, Sa_batch_out, mt_idx, net.n_y);
+            mt_idx = i * net.prop.batch_size * net.prop.n_y;
+            update_vector(ma_out, ma_batch_out, mt_idx, net.prop.n_y);
+            update_vector(Sa_out, Sa_batch_out, mt_idx, net.prop.n_y);
         }
         // Denormalize data
         std::vector<float> sy_norm(db.y.size(), 0);
@@ -817,11 +776,11 @@ Args:
 
         // Compute log-likelihood
         for (int k = 0; k < db.y.size(); k++) {
-            sy_norm[k] = powf(Sa_out[k] + powf(net.sigma_v, 2), 0.5);
+            sy_norm[k] = powf(Sa_out[k] + powf(net.prop.sigma_v, 2), 0.5);
         }
-        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.n_y, my);
-        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.n_y, y_test);
-        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.n_y, sy);
+        denormalize_mean(ma_out, db.mu_y, db.sigma_y, net.prop.n_y, my);
+        denormalize_mean(db.y, db.mu_y, db.sigma_y, net.prop.n_y, y_test);
+        denormalize_std(sy_norm, db.mu_y, db.sigma_y, net.prop.n_y, sy);
 
         // Compute metrics
         auto mse = mean_squared_error(my, y_test);
@@ -842,7 +801,7 @@ Args:
         // Save predictions
         std::string suffix = "prediction";
         save_predictions(path.saved_inference_path, my, sy, suffix);
-        if (net.collect_derivative) {
+        if (net.prop.collect_derivative) {
             save_derivatives(path.saved_inference_path, mdy_in, Sdy_in, suffix);
         }
     }
@@ -907,10 +866,12 @@ Args:
                                  theta_gpu, d_state_gpu, d_theta_gpu);
 
     // Data transfer for input and output data
-    InputGPU ip_gpu(net);
+    InputGPU ip_gpu;
+    ip_gpu.set_values(net);
     ip_gpu.allocate_cuda_memory();
 
-    ObsGPU op_gpu(net.n_y, net.nye, net.batch_size);
+    ObsGPU op_gpu;
+    op_gpu.set_values(net.n_y, net.nye, net.batch_size);
     op_gpu.allocate_cuda_memory();
 
     int wN = theta.mw.size();
@@ -988,7 +949,7 @@ Args:
                       << " mins\n";
         }
         // state_gpu.copy_device_to_host(state);
-        theta_gpu.copy_device_to_host(theta);
+        theta_gpu.copy_device_to_host();
 
         // Retrieve homocesdastic noise distribution's parameter
         if (net.noise_type.compare("homosce") == 0) {
@@ -1201,64 +1162,54 @@ void task_command(UserInput &user_input, SavePath &path) {
 
     } else if (user_input.task_name == "regression") {
         // Train network
-        IndexOut idx;
-        Network net;
-        Param theta;
-        NetState state;
+        Network net_prop;
 
-        // Test network
-        IndexOut test_idx;
-        Network test_net;
-        NetState test_state;
-        int test_batch_size = 1;
+        // Add extestion to file name
+        std::string net_file_ext = user_input.net_name + ".txt";
 
-        net_init(user_input.net_name, user_input.device, net, theta, state,
-                 idx);
-        reset_net_batchsize(user_input.net_name, user_input.device, test_net,
-                            test_state, test_idx, test_batch_size);
+        // Initialize network
+        load_cfg(net_file_ext, net_prop);
+        TagiNetwork tagi_net(net_prop);
 
-        // Train data
+        // Train data. TODO: refactor the dataloader
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
-        auto train_db =
-            get_dataloader(user_input.x_train_dir, user_input.y_train_dir, mu_x,
-                           sigma_x, mu_y, sigma_y, user_input.num_train_data,
-                           net.n_x, net.n_y, user_input.data_norm);
+        auto train_db = get_dataloader(
+            user_input.x_train_dir, user_input.y_train_dir, mu_x, sigma_x, mu_y,
+            sigma_y, user_input.num_train_data, tagi_net.prop.n_x,
+            tagi_net.prop.n_y, user_input.data_norm);
+
         // Test data
         auto test_db = get_dataloader(
             user_input.x_test_dir, user_input.y_test_dir, train_db.mu_x,
             train_db.sigma_x, train_db.mu_y, train_db.sigma_y,
-            user_input.num_test_data, net.n_x, net.n_y, user_input.data_norm);
+            user_input.num_test_data, tagi_net.prop.n_x, tagi_net.prop.n_y,
+            user_input.data_norm);
 
         // Load param
         if (user_input.load_param) {
             load_net_param(user_input.model_name, user_input.net_name,
-                           path.saved_param_path, theta);
+                           path.saved_param_path, tagi_net.theta);
         }
 
         // Save network's parameter to debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param/";
-            save_param(param_path, theta);
+            std::string param_path = path.debug_path + "saved_param/";
+            save_net_param(user_input.model_name, user_input.net_name,
+                           param_path, tagi_net.theta);
         }
 
         // Training
         bool train_mode = true;
-        regression(net, idx, state, theta, train_db, user_input.num_epochs,
-                   path, train_mode, user_input.debug);
+        regression(tagi_net, train_db, user_input.num_epochs, path, train_mode,
+                   user_input.debug);
 
-        // Testing
-        if (net.noise_type.compare("homosce") == 0) {
-            test_net.mu_v2b = net.mu_v2b;
-            test_net.sigma_v2b = net.sigma_v2b;
-        }
-        test_net.sigma_v = net.sigma_v;
         train_mode = false;
-        regression(test_net, test_idx, test_state, theta, test_db,
-                   user_input.num_epochs, path, train_mode, user_input.debug);
+        regression(tagi_net, test_db, user_input.num_epochs, path, train_mode,
+                   user_input.debug);
 
         // Save net's parameters
         save_net_param(user_input.model_name, user_input.net_name,
-                       path.saved_param_path, theta);
+                       path.saved_param_path, tagi_net.theta);
     } else if (user_input.task_name == "time_series") {
         // Train network
         IndexOut idx;
