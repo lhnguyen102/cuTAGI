@@ -130,7 +130,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
 
 ### Python API
 1. Clone this repository
-2. Create a conda environment 
+2. Create and activate a [conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 3. `pip install -r requirements.txt`
 4. Install `pytagi`
     ```sh
