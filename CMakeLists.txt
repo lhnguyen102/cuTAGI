@@ -167,7 +167,6 @@ if(CMAKE_CUDA_COMPILER)
   if(Python_FOUND)
     pybind11_add_module(pytagi "src/network_wrapper.cu")
   endif()
-
 else()
   add_library(cutagi STATIC ${CPU_SOURCES})
 

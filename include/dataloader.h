@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      August 24, 2022
+// Updated:      October 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -49,6 +49,9 @@ void get_batch_data(std::vector<T> &data, std::vector<int> &batch_idx, int w,
         }
     }
 };
+
+void labels_to_hrs(std::vector<int> labels, HrSoftmax &hrs,
+                   std::vector<float> &obs, std::vector<int> &obs_idx);
 
 ImageData get_images(std::string data_name,
                      std::vector<std::string> &image_file,

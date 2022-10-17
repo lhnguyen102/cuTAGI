@@ -103,7 +103,7 @@ void TagiNetwork::init_net() {
     this->allocate_output_memory();
     this->output_to_device();
 
-    // IO
+    // IO data
     this->net_input_gpu.set_values(this->prop);
     this->obs_gpu.set_values(this->prop.n_y, this->prop.nye,
                              this->prop.batch_size);
@@ -112,7 +112,7 @@ void TagiNetwork::init_net() {
 }
 void TagiNetwork::get_network_outputs() {
     int n = this->prop.batch_size * this->prop.nodes.back();
-    unsigned int THREADS = this->prop.num_gpu_threads;
+    int THREADS = this->prop.num_gpu_threads;
     unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
 
     get_output_hidden_states<<<BLOCKS, THREADS>>>(
@@ -186,9 +186,9 @@ void TagiNetwork::output_to_device() {
     }
 }
 void TagiNetwork::output_to_host() {
-    cudaMemcpy(this->ma.data(), d_ma, this->num_output_bytes,
+    cudaMemcpy(this->ma.data(), this->d_ma, this->num_output_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->Sa.data(), d_Sa, this->num_output_bytes,
+    cudaMemcpy(this->Sa.data(), this->d_Sa, this->num_output_bytes,
                cudaMemcpyDeviceToHost);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {

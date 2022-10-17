@@ -28,7 +28,7 @@ class NetworkWrapper {
     void state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,
                              std::vector<int> &idx_ud);
     void param_feed_backward();
-    std::tuple<std::vector<float>, std::vector<float>> get_network_outputs();
+    std::tuple<std::vector<float>, std::vector<float>> get_network_outputs_2();
     void set_parameters(Param &init_theta);
     Param get_parameters();
 };

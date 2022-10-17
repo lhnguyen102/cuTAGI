@@ -28,7 +28,6 @@ class TagiNetwork : public TagiNetworkBase {
     InputGPU net_input_gpu;
     ObsGPU obs_gpu;
     float *d_ma, *d_Sa;
-    std::vector<float> ma, Sa;
     size_t num_output_bytes;
 
     TagiNetwork(Network &net_prop);

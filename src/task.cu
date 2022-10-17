@@ -1170,6 +1170,9 @@ void task_command(UserInput &user_input, SavePath &path) {
         // Initialize network
         load_cfg(net_file_ext, net_prop);
         TagiNetwork tagi_net(net_prop);
+        // NetworkWrapper net_wrapper(net_prop);
+        // std::vector<float> ma, Sa;
+        // std::tie(ma, Sa) = net_wrapper.get_network_outputs();
 
         // Train data. TODO: refactor the dataloader
         std::vector<float> mu_x, sigma_x, mu_y, sigma_y;

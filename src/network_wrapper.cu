@@ -37,10 +37,15 @@ void NetworkWrapper::param_feed_backward() {
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapper::get_network_outputs() {
+NetworkWrapper::get_network_outputs_2() {
     this->tagi_net->get_network_outputs();
+    std::vector<float> ma(4, 0), Sa(4, 0);
+    for (int i = 0; i < this->tagi_net->ma.size(); i++) {
+        ma[i] = this->tagi_net->ma[i];
+        Sa[i] = this->tagi_net->Sa[i];
+    }
 
-    return {this->tagi_net->ma, this->tagi_net->Sa};
+    return {ma, Sa};
 }
 
 void NetworkWrapper::set_parameters(Param &init_theta) {
@@ -98,7 +103,7 @@ PYBIND11_MODULE(pytagi, m) {
         .def("feed_forward", &NetworkWrapper::feed_forward)
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
-        .def("get_network_outputs", &NetworkWrapper::get_network_outputs)
+        .def("get_network_outputs", &NetworkWrapper::get_network_outputs_2)
         .def("set_parameters", &NetworkWrapper::set_parameters)
         .def("get_parameters", &NetworkWrapper::get_parameters);
 }
