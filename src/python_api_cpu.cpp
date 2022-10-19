@@ -1,23 +1,17 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         network_wrapper.cu
-// Description:  Python wrapper for C++/CUDA code
+// File:         python_api_cpu.cpp
+// Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 07, 2022
-// Updated:      October 16, 2022
+// Created:      October 19, 2022
+// Updated:      October 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-#include "../include/network_wrapper.cuh"
+
+#include "../include/python_api_cpu.h"
 
 NetworkWrapper::NetworkWrapper(Network &net) {
-    if (net.device.compare("cuda") == 0) {
-        this->tagi_net = std::make_unique<TagiNetwork>(net);
-    } else if (net.device.compare("cpu") == 0) {
-        this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
-    } else {
-        throw std::invalid_argument(
-            "Device is invalid. Device is either cpu or cuda");
-    }
+    this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
 }
 NetworkWrapper::~NetworkWrapper(){};
 
@@ -25,27 +19,20 @@ void NetworkWrapper::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                   std::vector<float> &Sx_f) {
     this->tagi_net->feed_forward(x, Sx, Sx_f);
 }
-
 void NetworkWrapper::state_feed_backward(std::vector<float> &y,
                                          std::vector<float> &Sy,
                                          std::vector<int> &idx_ud) {
     this->tagi_net->state_feed_backward(y, Sy, idx_ud);
 }
-
 void NetworkWrapper::param_feed_backward() {
     this->tagi_net->param_feed_backward();
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapper::get_network_outputs_2() {
+NetworkWrapper::get_network_outputs() {
     this->tagi_net->get_network_outputs();
-    std::vector<float> ma(4, 0), Sa(4, 0);
-    for (int i = 0; i < this->tagi_net->ma.size(); i++) {
-        ma[i] = this->tagi_net->ma[i];
-        Sa[i] = this->tagi_net->Sa[i];
-    }
 
-    return {ma, Sa};
+    return {this->tagi_net->ma, this->tagi_net->Sa};
 }
 
 void NetworkWrapper::set_parameters(Param &init_theta) {
@@ -56,6 +43,7 @@ Param NetworkWrapper::get_parameters() { return this->tagi_net->theta; }
 
 PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
+
     pybind11::class_<Param>(m, "Param")
         .def(pybind11::init<>())
         .def_readwrite("mw", &Param::mw)
@@ -98,12 +86,18 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
+    pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
+        .def(pybind11::init<>())
+        .def("hierarchical_softmax", &UtilityWrapper::hierarchical_softmax)
+        .def("load_mnist_dataset", &UtilityWrapper::load_mnist_dataset)
+        .def("load_cifar_dataset", &UtilityWrapper::load_cifar_dataset);
+
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())
         .def("feed_forward", &NetworkWrapper::feed_forward)
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
-        .def("get_network_outputs", &NetworkWrapper::get_network_outputs_2)
+        .def("get_network_outputs", &NetworkWrapper::get_network_outputs)
         .def("set_parameters", &NetworkWrapper::set_parameters)
         .def("get_parameters", &NetworkWrapper::get_parameters);
 }

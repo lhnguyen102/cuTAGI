@@ -165,7 +165,7 @@ if(CMAKE_CUDA_COMPILER)
 
   # Python wrapper for C++/CUDA code
   if(Python_FOUND)
-    pybind11_add_module(pytagi "src/network_wrapper.cu")
+    pybind11_add_module(pytagi "src/python_api.cu")
   endif()
 else()
   add_library(cutagi STATIC ${CPU_SOURCES})
@@ -175,7 +175,7 @@ else()
 
   # Python wrapper for C++/CUDA code
   if(Python_FOUND)
-    pybind11_add_module(pytagi "src/network_wrapper_cpu.cpp")
+    pybind11_add_module(pytagi "src/python_api_cpu.cpp")
   endif()
 endif()
 

@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 17, 2022
+// Updated:      October 19, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@
 
 UtilityWrapper::UtilityWrapper(){};
 UtilityWrapper::~UtilityWrapper(){};
-std::tuple<std::vector<float>, std::vector<int>>
+std::tuple<std::vector<float>, std::vector<int>, int>
 UtilityWrapper::hierarchical_softmax(std::vector<int> &labels,
                                      int num_classes) {
     // Create tree
@@ -23,7 +23,7 @@ UtilityWrapper::hierarchical_softmax(std::vector<int> &labels,
     std::vector<int> obs_idx(hrs.n_obs * num);
     labels_to_hrs(labels, hrs, obs, obs_idx);
 
-    return { obs, obs_idx }
+    return { obs, obs_idx, hrs.n_obs }
 }
 
 std::tuple<std::vector<float>, std::vector<int>>

@@ -3,7 +3,7 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 16, 2022
+# Updated:      October 19, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -12,6 +12,7 @@ from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
+import python_src.tagi_utils as utils
 
 
 class Normalizer:
@@ -75,7 +76,7 @@ class Normalizer:
 
 
 class RegressionDataLoader:
-    """Load and format data that is feeded to the neural network.
+    """Load and format data that are feeded to the neural network.
      The user must provide the input and output data file in *csv"""
 
     normalizer: Normalizer = Normalizer()
@@ -108,12 +109,8 @@ class RegressionDataLoader:
         y_train = self.normalizer.standardize(data=y_train,
                                               mu=y_mean,
                                               std=y_std)
-        x_test = self.normalizer.standardize(data=x_test,
-                                              mu=x_mean,
-                                              std=x_std)
-        y_test = self.normalizer.standardize(data=y_test,
-                                              mu=y_mean,
-                                              std=y_std)
+        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
+        y_test = self.normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
 
         # Dataloader
         data_loader = {}
@@ -199,3 +196,81 @@ class RegressionDataLoader:
         reminder_idx = indices[reminder_start:]
 
         return np.concatenate((random_idx, reminder_idx), axis=0)
+
+
+class MnistDataloader:
+    """Data loader for mnist dataset"""
+
+    def __init__(self, train_image_file: str, train_label_file: str,
+                 test_image_file: str, test_label_file: str) -> None:
+        self.train_image_file = train_image_file
+        self.test_label_file = train_label_file
+        self.test_image_file = test_image_file
+        self.test_label_file = test_label_file
+
+    def process_data(self, num_train_images: int,
+                     num_test_images: int) -> dict:
+        """Process mnist images"""
+
+        # Traininng set
+        train_images, train_labels = utils.load_mnist_images(
+            image_file=self.train_image_file,
+            label_file=self.train_label_file,
+            num_images=num_train_images)
+        y_train, y_train_idx, num_enc_obs = utils.hierarchial_softmax(
+            labels=train_labels, num_classes=10)
+        x_mean, x_std = self.normalizer.compute_mean_std(train_images)
+
+        # Test set
+        test_images, test_labels = utils.load_mnist_images(
+            image_file=self.test_image_file,
+            label_file=self.test_label_file,
+            num_images=num_train_images)
+
+        # Normalizer
+        x_train = self.normalizer.standardize(data=train_images,
+                                              mu=x_mean,
+                                              std=x_std)
+        x_test = self.normalizer.standardize(data=test_images,
+                                             mu=x_mean,
+                                             std=x_std)
+
+        y_train = y_train.reshape((num_train_images, num_enc_obs))
+        y_train_idx = y_train_idx.reshape((num_train_images, num_enc_obs))
+        x_train = x_train.reshape((num_train_images, 28, 28))
+        x_test = x_train.reshape((num_test_images, 28, 28))
+
+        # Data loader
+        data_loader = {}
+        data_loader["train"] = (x_train, y_train, y_train_idx, train_labels)
+        data_loader["test"] = self.create_data_loader(raw_input=x_test,
+                                                      raw_output=test_labels)
+        data_loader["x_norm_param_1"] = x_mean
+        data_loader["x_norm_param_2"] = x_std
+
+    def create_data_loader(self, raw_input: np.ndarray,
+                           raw_output: np.ndarray) -> list:
+        """Create dataloader based on batch size"""
+        num_input_data = raw_input.shape[0]
+        num_output_data = raw_output.shape[0]
+        assert num_input_data == num_output_data
+
+        # Even indices
+        even_indices = self.split_evenly(num_input_data, self.batch_size)
+
+        if np.mod(num_input_data, self.batch_size) != 0:
+            # Remider indices
+            rem_indices = self.split_reminder(num_input_data, self.batch_size)
+
+            # Concat indices
+            indices = np.concatenate((even_indices, rem_indices), axis=1)
+        else:
+            indices = np.stack(even_indices)
+
+        input_data = raw_input[indices]
+        output_data = raw_output[indices]
+        dataset = []
+        for x_batch, y_batch in zip(input_data, output_data):
+            dataset.append((x_batch, y_batch))
+
+        return dataset
