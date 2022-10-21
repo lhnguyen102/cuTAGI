@@ -3,15 +3,17 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 19, 2022
+# Updated:      October 21, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 import math
+from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
+
 import python_src.tagi_utils as utils
 
 
@@ -75,54 +77,18 @@ class Normalizer:
         return (np.nanmax(data, axis=0), np.nanmin(data, axis=0))
 
 
-class RegressionDataLoader:
-    """Load and format data that are feeded to the neural network.
-     The user must provide the input and output data file in *csv"""
+class DataloaderBase(ABC):
+    """Dataloader template"""
 
     normalizer: Normalizer = Normalizer()
 
-    def __init__(self, num_inputs: int, num_outputs: int,
-                 batch_size: int) -> None:
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.batch_size = batch_size
+    def __init__(self) -> None:
+        pass
 
-    def process_data(self, x_train_file: str, y_train_file: str,
-                     x_test_file: str, y_test_file: str) -> dict:
-        """Process data from the csv file"""
+    @abstractmethod
+    def process_data(self) -> dict:
 
-        # Load data
-        x_train = self.load_data_from_csv(x_train_file)
-        y_train = self.load_data_from_csv(y_train_file)
-        x_test = self.load_data_from_csv(x_test_file)
-        y_test = self.load_data_from_csv(y_test_file)
-
-        # Normalizer
-        x_mean, x_std = self.normalizer.compute_mean_std(
-            np.concatenate((x_train, x_test)))
-        y_mean, y_std = self.normalizer.compute_mean_std(
-            np.concatenate((y_train, y_test)))
-
-        x_train = self.normalizer.standardize(data=x_train,
-                                              mu=x_mean,
-                                              std=x_std)
-        y_train = self.normalizer.standardize(data=y_train,
-                                              mu=y_mean,
-                                              std=y_std)
-        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
-        y_test = self.normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
-
-        # Dataloader
-        data_loader = {}
-        data_loader["train"] = (x_train, y_train)
-        data_loader["test"] = self.create_data_loader(raw_input=x_test,
-                                                      raw_output=y_test)
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
-        data_loader["y_norm_param_1"] = y_mean
-        data_loader["y_norm_param_2"] = y_std
-
-        return data_loader
+        raise NotImplementedError
 
     def create_data_loader(self, raw_input: np.ndarray,
                            raw_output: np.ndarray) -> list:
@@ -198,11 +164,61 @@ class RegressionDataLoader:
         return np.concatenate((random_idx, reminder_idx), axis=0)
 
 
-class MnistDataloader:
+class RegressionDataLoader(DataloaderBase):
+    """Load and format data that are feeded to the neural network.
+     The user must provide the input and output data file in *csv"""
+
+    def __init__(self, num_inputs: int, num_outputs: int,
+                 batch_size: int) -> None:
+        super.__init__()
+        self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
+        self.batch_size = batch_size
+
+    def process_data(self, x_train_file: str, y_train_file: str,
+                     x_test_file: str, y_test_file: str) -> dict:
+        """Process data from the csv file"""
+
+        # Load data
+        x_train = self.load_data_from_csv(x_train_file)
+        y_train = self.load_data_from_csv(y_train_file)
+        x_test = self.load_data_from_csv(x_test_file)
+        y_test = self.load_data_from_csv(y_test_file)
+
+        # Normalizer
+        x_mean, x_std = self.normalizer.compute_mean_std(
+            np.concatenate((x_train, x_test)))
+        y_mean, y_std = self.normalizer.compute_mean_std(
+            np.concatenate((y_train, y_test)))
+
+        x_train = self.normalizer.standardize(data=x_train,
+                                              mu=x_mean,
+                                              std=x_std)
+        y_train = self.normalizer.standardize(data=y_train,
+                                              mu=y_mean,
+                                              std=y_std)
+        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
+        y_test = self.normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
+
+        # Dataloader
+        data_loader = {}
+        data_loader["train"] = (x_train, y_train)
+        data_loader["test"] = self.create_data_loader(raw_input=x_test,
+                                                      raw_output=y_test)
+        data_loader["x_norm_param_1"] = x_mean
+        data_loader["x_norm_param_2"] = x_std
+        data_loader["y_norm_param_1"] = y_mean
+        data_loader["y_norm_param_2"] = y_std
+
+        return data_loader
+
+
+class MnistDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
     def __init__(self, train_image_file: str, train_label_file: str,
                  test_image_file: str, test_label_file: str) -> None:
+        super.__init__()
         self.train_image_file = train_image_file
         self.test_label_file = train_label_file
         self.test_image_file = test_image_file
@@ -217,7 +233,7 @@ class MnistDataloader:
             image_file=self.train_image_file,
             label_file=self.train_label_file,
             num_images=num_train_images)
-        y_train, y_train_idx, num_enc_obs = utils.hierarchial_softmax(
+        y_train, y_train_idx, num_enc_obs = utils.get_hierarchial_softmax(
             labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
 
@@ -247,30 +263,3 @@ class MnistDataloader:
                                                       raw_output=test_labels)
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
-
-    def create_data_loader(self, raw_input: np.ndarray,
-                           raw_output: np.ndarray) -> list:
-        """Create dataloader based on batch size"""
-        num_input_data = raw_input.shape[0]
-        num_output_data = raw_output.shape[0]
-        assert num_input_data == num_output_data
-
-        # Even indices
-        even_indices = self.split_evenly(num_input_data, self.batch_size)
-
-        if np.mod(num_input_data, self.batch_size) != 0:
-            # Remider indices
-            rem_indices = self.split_reminder(num_input_data, self.batch_size)
-
-            # Concat indices
-            indices = np.concatenate((even_indices, rem_indices), axis=1)
-        else:
-            indices = np.stack(even_indices)
-
-        input_data = raw_input[indices]
-        output_data = raw_output[indices]
-        dataset = []
-        for x_batch, y_batch in zip(input_data, output_data):
-            dataset.append((x_batch, y_batch))
-
-        return dataset

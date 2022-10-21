@@ -3,7 +3,7 @@
 # Description:  Measure the accuracy of the prediction
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      October 13, 2022
+# Updated:      October 21, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -30,3 +30,13 @@ def rmse(prediction: np.ndarray, observation: np.ndarray) -> None:
     mse = mse(prediction, observation)
 
     return mse**0.5
+
+
+def classification_error(prediction: np.ndarray, label: np.ndarray) -> None:
+    """Compute the classification error"""
+    count = 0
+    for pred, lab in zip(prediction, label):
+        if pred == lab:
+            count += 1
+
+    return count / len(pred)

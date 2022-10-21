@@ -3,11 +3,10 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      October 19, 2022
+// Updated:      October 21, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/python_api_cpu.h"
 
 NetworkWrapper::NetworkWrapper(Network &net) {
@@ -86,11 +85,22 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
+    pybind11::class_<HrSoftmax>(m, "HrSoftmax")
         .def(pybind11::init<>())
-        .def("hierarchical_softmax", &UtilityWrapper::hierarchical_softmax)
-        .def("load_mnist_dataset", &UtilityWrapper::load_mnist_dataset)
-        .def("load_cifar_dataset", &UtilityWrapper::load_cifar_dataset);
+        .def_readwrite("obs", &HrSoftmax::obs)
+        .def_readwrite("idx", &HrSoftmax::idx)
+        .def_readwrite("num_obs", &HrSoftmax::n_obs)
+        .def_readwrite("length", &HrSoftmax::len);
+
+    pybind11::class_<UtilityWrapper>(m, "HrSoftmax")
+        .def(pybind11::init<>())
+        .def("hierarchical_softmax",
+             &UtilityWrapper::hierarchical_softmax_wrapper)
+        .def("load_mnist_dataset", &UtilityWrapper::load_mnist_dataset_wrapper)
+        .def("load_cifar_dataset", &UtilityWrapper::load_cifar_dataset_wrapper)
+        .def("get_labels", &UtilityWrapper::get_labels_wrapper)
+        .def("label_to_obs", &UtilityWrapper::label_to_obs_wrapper)
+        .def("obs_to_label_prob", &UtilityWrapper::obs_to_label_prob_wrapper);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())

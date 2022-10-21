@@ -11,6 +11,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "struct_var.h"
 #include "tagi_network_base.h"
 #include "tagi_network_cpu.h"
 #include "utility_wrapper.h"
