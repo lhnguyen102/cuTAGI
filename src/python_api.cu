@@ -93,14 +93,14 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    pybind11::class_<HrSoftmax>(m, "HierarchicalSoftmax")
+    pybind11::class_<HrSoftmax>(m, "HrSoftmax")
         .def(pybind11::init<>())
         .def_readwrite("obs", &HrSoftmax::obs)
         .def_readwrite("idx", &HrSoftmax::idx)
         .def_readwrite("num_obs", &HrSoftmax::n_obs)
         .def_readwrite("length", &HrSoftmax::len);
 
-    pybind11::class_<UtilityWrapper>(m, "HrSoftmax")
+    pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
         .def(pybind11::init<>())
         .def("hierarchical_softmax",
              &UtilityWrapper::hierarchical_softmax_wrapper)

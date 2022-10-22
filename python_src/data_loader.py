@@ -82,8 +82,8 @@ class DataloaderBase(ABC):
 
     normalizer: Normalizer = Normalizer()
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, batch_size: int) -> None:
+        self.batch_size = batch_size
 
     @abstractmethod
     def process_data(self) -> dict:
@@ -168,12 +168,10 @@ class RegressionDataLoader(DataloaderBase):
     """Load and format data that are feeded to the neural network.
      The user must provide the input and output data file in *csv"""
 
-    def __init__(self, num_inputs: int, num_outputs: int,
-                 batch_size: int) -> None:
+    def __init__(self, num_inputs: int, num_outputs: int) -> None:
         super.__init__()
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
-        self.batch_size = batch_size
 
     def process_data(self, x_train_file: str, y_train_file: str,
                      x_test_file: str, y_test_file: str) -> dict:
@@ -216,31 +214,29 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
-    def __init__(self, train_image_file: str, train_label_file: str,
-                 test_image_file: str, test_label_file: str) -> None:
+    def __init__(self) -> None:
         super.__init__()
-        self.train_image_file = train_image_file
-        self.test_label_file = train_label_file
-        self.test_image_file = test_image_file
-        self.test_label_file = test_label_file
 
-    def process_data(self, num_train_images: int,
-                     num_test_images: int) -> dict:
+    def process_data(self, x_train_file: str, y_train_file: str,
+                     x_test_file: str, y_test_file: str) -> dict:
         """Process mnist images"""
+        num_train_images = 60000
+        num_test_images = 10000
 
         # Traininng set
         train_images, train_labels = utils.load_mnist_images(
-            image_file=self.train_image_file,
-            label_file=self.train_label_file,
+            image_file=x_train_file,
+            label_file=y_train_file,
             num_images=num_train_images)
         y_train, y_train_idx, num_enc_obs = utils.get_hierarchial_softmax(
             labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
+        breakpoint()
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
-            image_file=self.test_image_file,
-            label_file=self.test_label_file,
+            image_file=x_test_file,
+            label_file=y_test_file,
             num_images=num_train_images)
 
         # Normalizer
