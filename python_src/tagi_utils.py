@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 21, 2022
+# Updated:      October 22, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -26,8 +26,7 @@ def get_hierarchial_softmax(
     """Get observations and observation indices of the binary tree for
         classification"""
 
-    obs, obs_idx, num_obs = utils.hierarchical_softmax_wrapper(
-        labels, num_classes)
+    obs, obs_idx, num_obs = utils.hierarchical_softmax(labels, num_classes)
 
     return obs, obs_idx, num_obs
 
@@ -36,8 +35,8 @@ def load_mnist_images(image_file: str, label_file: str,
                       num_images: int) -> Tuple[np.ndarray, np.ndarray]:
     """Load mnist dataset"""
 
-    images, labels = utils.load_mnist_dataset_wrapper(image_file, label_file,
-                                                      num_images)
+    images, labels = utils.load_mnist_dataset(image_file, label_file,
+                                              num_images)
 
     return images, labels
 
@@ -46,7 +45,7 @@ def load_cifar_images(image_file: str,
                       num: int) -> Tuple[np.ndarray, np.ndarray]:
     """Load cifar dataset"""
 
-    images, labels = utils.load_cifar_dataset_wrapper(image_file, num)
+    images, labels = utils.load_cifar_dataset(image_file, num)
 
     return images, labels
 
@@ -55,15 +54,14 @@ def get_labels(ma: np.ndarray, Sa: np.ndarray, hr_softmax: HierarchicalSoftmax,
                num_classes: int,
                batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
     """Convert last layer's hidden state to labels"""
-    pred, prob = utils.get_labels_wrapper(ma, Sa, hr_softmax, num_classes,
-                                          batch_size)
+    pred, prob = utils.get_labels(ma, Sa, hr_softmax, num_classes, batch_size)
 
     return pred, prob
 
 
 def label_to_obs(num_classes: int) -> HierarchicalSoftmax:
     """Convert labels to binary tree"""
-    hr_softmax = utils.class_to_label_wrapper(num_classes)
+    hr_softmax = utils.class_to_label(num_classes)
 
     return hr_softmax
 
