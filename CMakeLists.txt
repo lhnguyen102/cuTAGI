@@ -124,8 +124,8 @@ set(CPU_SOURCES
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
   src/gpu_debug_utils.cpp
-  src/utility_wrapper.cpp
 
+  src/utility_wrapper.cpp
   test/test_lstm_cpu.cpp
 )
 

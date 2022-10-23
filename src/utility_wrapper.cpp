@@ -35,6 +35,21 @@ UtilityWrapper::load_mnist_dataset_wrapper(std::string &image_file,
     return {images, labels};
 }
 
+std::vector<float> UtilityWrapper::load_mnist_images_wrapper(
+    std::string &image_file, int num) {
+    // auto images = load_mnist_images(image_file, num);
+    std::vector<float> images(60000 * 784, 0);
+
+    return images;
+}
+
+std::vector<int> UtilityWrapper::load_mnist_labels_wrapper(
+    std::string &label_file, int num) {
+    auto labels = load_mnist_labels(label_file, num);
+
+    return labels;
+}
+
 std::tuple<std::vector<float>, std::vector<int>>
 UtilityWrapper::load_cifar_dataset_wrapper(std::string &image_file, int num) {
     std::vector<float> images;

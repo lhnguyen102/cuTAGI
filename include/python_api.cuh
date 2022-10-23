@@ -35,3 +35,4 @@ class NetworkWrapper {
     void set_parameters(Param &init_theta);
     Param get_parameters();
 };
+// std::vector<float> load_mnist_images_wrapper_2();

@@ -85,24 +85,26 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device);
 
-    // pybind11::class_<HrSoftmax>(m, "HrSoftmax")
-    //     .def(pybind11::init<>())
-    //     .def_readwrite("obs", &HrSoftmax::obs)
-    //     .def_readwrite("idx", &HrSoftmax::idx)
-    //     .def_readwrite("num_obs", &HrSoftmax::n_obs)
-    //     .def_readwrite("length", &HrSoftmax::len);
+    pybind11::class_<HrSoftmax>(m, "HrSoftmax")
+        .def(pybind11::init<>())
+        .def_readwrite("obs", &HrSoftmax::obs)
+        .def_readwrite("idx", &HrSoftmax::idx)
+        .def_readwrite("num_obs", &HrSoftmax::n_obs)
+        .def_readwrite("length", &HrSoftmax::len);
 
-    // pybind11::class_<UtilityWrapper>(m, "HrSoftmax")
-    //     .def(pybind11::init<>())
-    //     .def("hierarchical_softmax",
-    //          &UtilityWrapper::hierarchical_softmax_wrapper)
-    //     .def("load_mnist_dataset",
-    //     &UtilityWrapper::load_mnist_dataset_wrapper)
-    //     .def("load_cifar_dataset",
-    //     &UtilityWrapper::load_cifar_dataset_wrapper) .def("get_labels",
-    //     &UtilityWrapper::get_labels_wrapper) .def("label_to_obs",
-    //     &UtilityWrapper::label_to_obs_wrapper) .def("obs_to_label_prob",
-    //     &UtilityWrapper::obs_to_label_prob_wrapper);
+    pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
+        .def(pybind11::init<>())
+        .def("hierarchical_softmax_wrapper",
+             &UtilityWrapper::hierarchical_softmax_wrapper)
+        .def("load_mnist_dataset_wrapper",
+             &UtilityWrapper::load_mnist_dataset_wrapper)
+        .def("load_cifar_dataset_wrapper",
+             &UtilityWrapper::load_cifar_dataset_wrapper)
+        .def("get_labels_wrapper", &UtilityWrapper::get_labels_wrapper)
+        .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
+        .def("obs_to_label_prob_wrapper",
+             &UtilityWrapper::obs_to_label_prob_wrapper)
+        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())

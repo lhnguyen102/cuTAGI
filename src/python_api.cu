@@ -48,6 +48,12 @@ void NetworkWrapper::set_parameters(Param &init_theta) {
 }
 
 Param NetworkWrapper::get_parameters() { return this->tagi_net->theta; }
+std::vector<float> load_mnist_images_wrapper_2() {
+    // auto images = load_mnist_images(image_file, num);
+    std::vector<float> images(60000 * 784, 0);
+
+    return images;
+}
 
 PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";

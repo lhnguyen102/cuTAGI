@@ -96,7 +96,7 @@ class Classifier:
                 error_rate = metric.classification_error(prediction=pred,
                                                          label=label)
                 error_rates.append(error_rate)
-                if i % 100 == 0 and i > 0:
+                if i % 1000 == 0 and i > 0:
                     extracted_error_rate = np.hstack(error_rates)
                     avg_error_rate = np.mean(extracted_error_rate[-100:])
                     pbar.set_description(
