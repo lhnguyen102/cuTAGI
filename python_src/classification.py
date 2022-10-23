@@ -3,7 +3,7 @@
 # Description:  Example of classification task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 21, 2022
+# Updated:      October 23, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -14,22 +14,22 @@ from tqdm import tqdm
 import python_src.metric as metric
 from python_src.model import NetProp
 from python_src.tagi_network import TagiNetwork
-from python_src.tagi_utils import (HierarchicalSoftmax,
-                                   get_hierarchial_softmax, get_labels)
+from python_src.tagi_utils import (HierarchicalSoftmax, Utils)
 
 
 class Classifier:
     """Classifier images"""
 
     hr_softmax: HierarchicalSoftmax
+    utils: Utils = Utils()
 
     def __init__(self, num_epochs: int, data_loader: dict, net_prop: NetProp,
                  num_classes: int) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.net_prop = net_prop
-        self.network = TagiNetwork(self.net_prop)
         self.num_classes = num_classes
+        self.network = TagiNetwork(self.net_prop)
 
     @property
     def num_classes(self) -> int:
@@ -41,7 +41,9 @@ class Classifier:
     def num_classes(self, value: int) -> None:
         """Set number of classes"""
         self._num_classes = value
-        self.hr_softmax = get_hierarchial_softmax(self._num_classes)
+        self.hr_softmax = self.utils.get_hierarchical_softmax(
+            self._num_classes)
+        self.net_prop.nye = self.hr_softmax.num_obs
 
     def train(self) -> None:
         """Train the network using TAGI"""
@@ -60,10 +62,14 @@ class Classifier:
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
+        error_rates = []
         for epoch in pbar:
             for i in range(num_iter):
                 # Get data
-                idx = np.random.choice(num_data, size=batch_size)
+                if i == 0:
+                    idx = np.arange(batch_size)
+                else:
+                    idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
                 ud_idx_batch = output_idx[idx, :]
@@ -81,16 +87,23 @@ class Classifier:
 
                 # Loss
                 ma_pred, Sa_pred = self.network.get_network_outputs()
-                pred, _ = get_labels(ma=ma_pred,
-                                     Sa=Sa_pred,
-                                     hr_softmax=self.hr_softmax,
-                                     num_classes=self.num_classes,
-                                     batch_size=batch_size)
+                pred, _ = self.utils.get_labels(ma=ma_pred,
+                                                Sa=Sa_pred,
+                                                hr_softmax=self.hr_softmax,
+                                                num_classes=self.num_classes,
+                                                batch_size=batch_size)
+
                 error_rate = metric.classification_error(prediction=pred,
                                                          label=label)
-                pbar.set_description(
-                    f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {error_rate * 100:>7.2f}%"
-                )
+                error_rates.append(error_rate)
+                if i % 100 == 0 and i > 0:
+                    extracted_error_rate = np.hstack(error_rates)
+                    avg_error_rate = np.mean(extracted_error_rate[-100:])
+                    pbar.set_description(
+                        f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {avg_error_rate * 100:>7.2f}%"
+                    )
+
+            self.predict()
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
@@ -107,11 +120,11 @@ class Classifier:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
             ma, Sa = self.network.get_network_outputs()
-            pred, _ = get_labels(ma=ma,
-                                 Sa=Sa,
-                                 hr_softmax=self.hr_softmax,
-                                 num_classes=self.num_classes,
-                                 batch_size=batch_size)
+            pred, _ = self.utils.get_labels(ma=ma,
+                                            Sa=Sa,
+                                            hr_softmax=self.hr_softmax,
+                                            num_classes=self.num_classes,
+                                            batch_size=batch_size)
 
             # Store data
             preds.append(pred)

@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 21, 2022
+// Updated:      October 23, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -12,8 +12,8 @@
 UtilityWrapper::UtilityWrapper(){};
 UtilityWrapper::~UtilityWrapper(){};
 std::tuple<std::vector<float>, std::vector<int>, int>
-UtilityWrapper::hierarchical_softmax_wrapper(std::vector<int> &labels,
-                                             int num_classes) {
+UtilityWrapper::label_to_obs_wrapper(std::vector<int> &labels,
+                                     int num_classes) {
     // Create tree
     int num = labels.size();
     auto hrs = class_to_obs(num_classes);
@@ -78,7 +78,7 @@ UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
     return {pred, prob};
 }
 
-HrSoftmax UtilityWrapper::label_to_obs_wrapper(int num_classes) {
+HrSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
     auto hs = class_to_obs(num_classes);
 
     return hs;
@@ -88,4 +88,15 @@ std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
     int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;
+}
+std::tuple<std::vector<int>, std::vector<float>>
+UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
+                                  std::vector<float> &Sz,
+                                  std::vector<int> &labels, HrSoftmax &hs,
+                                  int n_classes, int B) {
+    std::vector<int> er;
+    std::vector<float> prob;
+    std::tie(er, prob) = get_error(mz, Sz, labels, hs, n_classes, B);
+
+    return {er, prob};
 }

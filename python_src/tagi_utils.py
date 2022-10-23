@@ -9,7 +9,7 @@
 ###############################################################################
 from typing import Tuple
 import numpy as np
-import pytagi.UtilityWrapper as utils
+from pytagi import UtilityWrapper
 from pytagi import HrSoftmax
 
 
@@ -20,57 +20,77 @@ class HierarchicalSoftmax(HrSoftmax):
         super().__init__()
 
 
-def get_hierarchial_softmax(
-        labels: np.ndarray,
-        num_classes: int) -> Tuple[np.ndarray, np.ndarray, int]:
-    """Get observations and observation indices of the binary tree for
-        classification"""
+class Utils:
+    """Frontend for utility functions from C++/CUDA backend"""
 
-    obs, obs_idx, num_obs = utils.hierarchical_softmax(labels, num_classes)
+    backend_utils = UtilityWrapper()
 
-    return obs, obs_idx, num_obs
+    def __init__(self) -> None:
+        pass
 
+    def label_to_obs(self, labels: np.ndarray,
+                     num_classes: int) -> Tuple[np.ndarray, np.ndarray, int]:
+        """Get observations and observation indices of the binary tree for
+            classification"""
 
-def load_mnist_images(image_file: str, label_file: str,
-                      num_images: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Load mnist dataset"""
+        obs, obs_idx, num_obs = self.backend_utils.label_to_obs_wrapper(
+            labels, num_classes)
 
-    images, labels = utils.load_mnist_dataset(image_file, label_file,
-                                              num_images)
+        return np.array(obs), np.array(obs_idx), np.array(num_obs)
 
-    return images, labels
+    def load_mnist_images(self, image_file: str, label_file: str,
+                          num_images: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Load mnist dataset"""
 
+        images, labels = self.backend_utils.load_mnist_dataset_wrapper(
+            image_file, label_file, num_images)
 
-def load_cifar_images(image_file: str,
-                      num: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Load cifar dataset"""
+        return np.array(images, dtype=np.float32), np.array(labels).reshape(
+            (num_images, 1))
 
-    images, labels = utils.load_cifar_dataset(image_file, num)
+    def load_cifar_images(self, image_file: str,
+                          num: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Load cifar dataset"""
 
-    return images, labels
+        images, labels = self.backend_utils.load_cifar_dataset_wrapper(
+            image_file, num)
 
+        return np.array(images), np.array(labels)
 
-def get_labels(ma: np.ndarray, Sa: np.ndarray, hr_softmax: HierarchicalSoftmax,
-               num_classes: int,
-               batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Convert last layer's hidden state to labels"""
-    pred, prob = utils.get_labels(ma, Sa, hr_softmax, num_classes, batch_size)
+    def get_labels(self, ma: np.ndarray, Sa: np.ndarray,
+                   hr_softmax: HierarchicalSoftmax, num_classes: int,
+                   batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Convert last layer's hidden state to labels"""
 
-    return pred, prob
+        pred, prob = self.backend_utils.get_labels_wrapper(
+            ma, Sa, hr_softmax, num_classes, batch_size)
 
+        return np.array(pred), np.array(prob)
 
-def label_to_obs(num_classes: int) -> HierarchicalSoftmax:
-    """Convert labels to binary tree"""
-    hr_softmax = utils.class_to_label(num_classes)
+    def get_errors(self, ma: np.ndarray, Sa: np.ndarray, labels: np.ndarray,
+                   hr_softmax: HierarchicalSoftmax, num_classes: int,
+                   batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Convert last layer's hidden state to labels"""
 
-    return hr_softmax
+        pred, prob = self.backend_utils.get_error_wrapper(
+            ma, Sa, labels, hr_softmax, num_classes, batch_size)
 
+        return np.array(pred), np.array(prob)
 
-def obs_to_label_prob(ma: np.ndarray, Sa: np.ndarray,
-                      hr_softmax: HierarchicalSoftmax,
-                      num_classes: int) -> np.ndarray:
-    """Convert observation to label probabilities"""
+    def get_hierarchical_softmax(self,
+                                 num_classes: int) -> HierarchicalSoftmax:
+        """Convert labels to binary tree"""
+        hr_softmax = self.backend_utils.hierarchical_softmax_wrapper(
+            num_classes)
 
-    prob = utils.obs_to_label_prob(ma, Sa, hr_softmax, num_classes)
+        return hr_softmax
 
-    return prob
+    def obs_to_label_prob(self, ma: np.ndarray, Sa: np.ndarray,
+                          hr_softmax: HierarchicalSoftmax,
+                          num_classes: int) -> np.ndarray:
+        """Convert observation to label probabilities"""
+
+        prob = self.backend_utils.obs_to_label_prob_wrapper(
+            ma, Sa, hr_softmax, num_classes)
+
+        return np.array(prob)

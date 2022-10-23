@@ -80,6 +80,8 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("sigma_v", &Network::sigma_v)
         .def_readwrite("sigma_v_min", &Network::sigma_v_min)
         .def_readwrite("sigma_x", &Network::sigma_x)
+        .def_readwrite("is_idx_ud", &Network::is_idx_ud)
+        .def_readwrite("nye", &Network::nye)
         .def_readwrite("decay_factor_sigma_v", &Network::decay_factor_sigma_v)
         .def_readwrite("noise_gain", &Network::noise_gain)
         .def_readwrite("batch_size", &Network::batch_size)
@@ -102,13 +104,17 @@ PYBIND11_MODULE(pytagi, m) {
 
     pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
         .def(pybind11::init<>())
-        .def("hierarchical_softmax",
+        .def("hierarchical_softmax_wrapper",
              &UtilityWrapper::hierarchical_softmax_wrapper)
-        .def("load_mnist_dataset", &UtilityWrapper::load_mnist_dataset_wrapper)
-        .def("load_cifar_dataset", &UtilityWrapper::load_cifar_dataset_wrapper)
-        .def("get_labels", &UtilityWrapper::get_labels_wrapper)
-        .def("label_to_obs", &UtilityWrapper::label_to_obs_wrapper)
-        .def("obs_to_label_prob", &UtilityWrapper::obs_to_label_prob_wrapper);
+        .def("load_mnist_dataset_wrapper",
+             &UtilityWrapper::load_mnist_dataset_wrapper)
+        .def("load_cifar_dataset_wrapper",
+             &UtilityWrapper::load_cifar_dataset_wrapper)
+        .def("get_labels_wrapper", &UtilityWrapper::get_labels_wrapper)
+        .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
+        .def("obs_to_label_prob_wrapper",
+             &UtilityWrapper::obs_to_label_prob_wrapper)
+        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())

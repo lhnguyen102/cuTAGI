@@ -3,7 +3,7 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 21, 2022
+# Updated:      October 23, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -11,10 +11,11 @@ import math
 from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import python_src.tagi_utils as utils
+from python_src.tagi_utils import Utils
 
 
 class Normalizer:
@@ -168,8 +169,9 @@ class RegressionDataLoader(DataloaderBase):
     """Load and format data that are feeded to the neural network.
      The user must provide the input and output data file in *csv"""
 
-    def __init__(self, num_inputs: int, num_outputs: int) -> None:
-        super.__init__()
+    def __init__(self, batch_size: int, num_inputs: int,
+                 num_outputs: int) -> None:
+        super().__init__(batch_size)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
 
@@ -214,12 +216,11 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
-    def __init__(self) -> None:
-        super.__init__()
-
     def process_data(self, x_train_file: str, y_train_file: str,
                      x_test_file: str, y_test_file: str) -> dict:
         """Process mnist images"""
+        # Initalization
+        utils = Utils()
         num_train_images = 60000
         num_test_images = 10000
 
@@ -228,18 +229,19 @@ class MnistDataloader(DataloaderBase):
             image_file=x_train_file,
             label_file=y_train_file,
             num_images=num_train_images)
-        y_train, y_train_idx, num_enc_obs = utils.get_hierarchial_softmax(
+        y_train, y_train_idx, num_enc_obs = utils.label_to_obs(
             labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
-        breakpoint()
+        x_std = 1
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
             image_file=x_test_file,
             label_file=y_test_file,
-            num_images=num_train_images)
+            num_images=num_test_images)
 
         # Normalizer
+
         x_train = self.normalizer.standardize(data=train_images,
                                               mu=x_mean,
                                               std=x_std)
@@ -250,7 +252,7 @@ class MnistDataloader(DataloaderBase):
         y_train = y_train.reshape((num_train_images, num_enc_obs))
         y_train_idx = y_train_idx.reshape((num_train_images, num_enc_obs))
         x_train = x_train.reshape((num_train_images, 28, 28))
-        x_test = x_train.reshape((num_test_images, 28, 28))
+        x_test = x_test.reshape((num_test_images, 28, 28))
 
         # Data loader
         data_loader = {}
@@ -259,3 +261,5 @@ class MnistDataloader(DataloaderBase):
                                                       raw_output=test_labels)
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
+
+        return data_loader

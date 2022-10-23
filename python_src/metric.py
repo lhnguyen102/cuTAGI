@@ -35,8 +35,8 @@ def rmse(prediction: np.ndarray, observation: np.ndarray) -> None:
 def classification_error(prediction: np.ndarray, label: np.ndarray) -> None:
     """Compute the classification error"""
     count = 0
-    for pred, lab in zip(prediction, label):
-        if pred == lab:
+    for pred, lab in zip(prediction.T, label):
+        if pred != lab:
             count += 1
 
-    return count / len(pred)
+    return count / len(prediction)

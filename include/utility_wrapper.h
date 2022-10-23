@@ -18,8 +18,8 @@ class UtilityWrapper {
    public:
     UtilityWrapper();
     ~UtilityWrapper();
-    std::tuple<std::vector<float>, std::vector<int>, int>
-    hierarchical_softmax_wrapper(std::vector<int> &labels, int num_classes);
+    std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
+        std::vector<int> &labels, int num_classes);
 
     std::tuple<std::vector<float>, std::vector<int>> load_mnist_dataset_wrapper(
         std::string &image_file, std::string &label_file, int num);
@@ -31,10 +31,13 @@ class UtilityWrapper {
         std::vector<float> &mz, std::vector<float> &Sz, HrSoftmax &hs,
         int num_classes, int B);
 
-    HrSoftmax label_to_obs_wrapper(int num_classes);
+    HrSoftmax hierarchical_softmax_wrapper(int num_classes);
 
     std::vector<float> obs_to_label_prob_wrapper(std::vector<float> &mz,
                                                  std::vector<float> &Sz,
                                                  HrSoftmax &hs,
                                                  int num_classes);
+    std::tuple<std::vector<int>, std::vector<float>> get_error_wrapper(
+        std::vector<float> &mz, std::vector<float> &Sz,
+        std::vector<int> &labels, HrSoftmax &hs, int n_classes, int B);
 };

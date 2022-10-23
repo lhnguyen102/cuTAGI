@@ -42,8 +42,9 @@ class MnistMLP(NetProp):
     def __init__(self) -> None:
         super().__init__()
         self.layers = [1, 1, 1, 1]
-        self.nodes = [1, 100, 100, 11]
+        self.nodes = [784, 100, 100, 11]
         self.activations = [0, 4, 4, 0]
         self.batch_size = 10
         self.sigma_v = 1
+        self.is_idx_ud = True
         self.device = "cpu"
