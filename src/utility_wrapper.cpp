@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 23, 2022
+// Updated:      October 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -114,4 +114,25 @@ UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
     std::tie(er, prob) = get_error(mz, Sz, labels, hs, n_classes, B);
 
     return {er, prob};
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
+                                              std::vector<int> &output_col,
+                                              int input_seq_len,
+                                              int output_seq_len,
+                                              int num_features, int stride) {
+    int num_samples =
+        (data.size() / num_features - input_seq_len - output_seq_len) /
+        (stride + 1);
+    int num_outputs = output_col.size();
+    std::vector<float> input_data(input_seq_len * num_features * num_samples,
+                                  0);
+    std::vector<float> output_data(
+        output_seq_len * output_col.size() * num_samples, 0);
+
+    create_rolling_windows(data, output_col, input_seq_len, output_seq_len,
+                           num_features, stride, input_data, output_data);
+
+    return {input_data, output_data};
 }

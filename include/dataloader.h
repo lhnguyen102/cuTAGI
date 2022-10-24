@@ -94,3 +94,9 @@ void compute_mean_std_each_channel(std::vector<float> &imgs,
 
 Dataloader make_time_series_dataloader(UserInput &user_input, Network &net,
                                        std::string &data_name);
+
+void create_rolling_windows(std::vector<float> &data,
+                            std::vector<int> &output_col, int num_input_ts,
+                            int num_output_ts, int num_features, int stride,
+                            std::vector<float> &input_data,
+                            std::vector<float> &output_data);

@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 22, 2022
+# Updated:      October 24, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -41,7 +41,6 @@ class Utils:
     def load_mnist_images(self, image_file: str, label_file: str,
                           num_images: int) -> Tuple[np.ndarray, np.ndarray]:
         """Load mnist dataset"""
-
         images, labels = self.backend_utils.load_mnist_dataset_wrapper(
             image_file, label_file, num_images)
 
@@ -94,3 +93,18 @@ class Utils:
             ma, Sa, hr_softmax, num_classes)
 
         return np.array(prob)
+
+    def create_rolling_window(self, data: np.ndarray, output_col: np.ndarray,
+                              input_seq_len: int, output_seq_len: int,
+                              num_features: int,
+                              stride: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Create rolling window for time series data"""
+        num_data = (len(data) / num_features - input_seq_len -
+                    output_seq_len) / (stride + 1)
+        input_data, output_data = self.backend_utils.create_rolling_window_wrapper(
+            data, output_col, input_seq_len, output_seq_len, num_features,
+            stride)
+        input_data = np.array(input_data).reshape((num_data, input_seq_len))
+        output_data = np.array(output_data).reshape((num_data, output_seq_len))
+
+        return input_data, output_data

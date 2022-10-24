@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 23, 2022
+// Updated:      October 24, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,4 +47,10 @@ class UtilityWrapper {
     std::tuple<std::vector<int>, std::vector<float>> get_error_wrapper(
         std::vector<float> &mz, std::vector<float> &Sz,
         std::vector<int> &labels, HrSoftmax &hs, int n_classes, int B);
+
+    std::tuple<std::vector<float>, std::vector<float>>
+    create_rolling_window_wrapper(std::vector<float> &data,
+                                  std::vector<int> &output_col,
+                                  int input_seq_len, int output_seq_len,
+                                  int num_features, int stride);
 };

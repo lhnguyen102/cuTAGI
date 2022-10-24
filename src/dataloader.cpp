@@ -603,8 +603,7 @@ Returns:
     // Create rolling windows
     int num_samples = (cat_x.size() / user_input.num_features -
                        net.input_seq_len - net.output_seq_len) /
-                          net.seq_stride +
-                      1;
+                      (net.seq_stride + 1);
     std::vector<float> input_data(net.input_seq_len * user_input.num_features *
                                   num_samples);
     std::vector<float> output_data(net.output_seq_len * num_outputs *

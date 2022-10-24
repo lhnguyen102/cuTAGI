@@ -48,15 +48,18 @@ void NetworkWrapper::set_parameters(Param &init_theta) {
 }
 
 Param NetworkWrapper::get_parameters() { return this->tagi_net->theta; }
-std::vector<float> load_mnist_images_wrapper_2() {
+
+pybind11::array load_mnist_images_wrapper_2() {
     // auto images = load_mnist_images(image_file, num);
     std::vector<float> images(60000 * 784, 0);
+    pybind11::array ret = pybind11::cast(images);
 
-    return images;
+    return ret;
 }
 
 PYBIND11_MODULE(pytagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference";
+    m.def("load_mnist_images_wrapper_2", load_mnist_images_wrapper_2);
     pybind11::class_<Param>(m, "Param")
         .def(pybind11::init<>())
         .def_readwrite("mw", &Param::mw)
@@ -120,7 +123,9 @@ PYBIND11_MODULE(pytagi, m) {
         .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
         .def("obs_to_label_prob_wrapper",
              &UtilityWrapper::obs_to_label_prob_wrapper)
-        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper);
+        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper)
+        .def("create_rolling_window_wrapper",
+             &UtilityWrapper::create_rolling_window_wrapper);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())

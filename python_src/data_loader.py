@@ -3,7 +3,7 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 23, 2022
+# Updated:      October 24, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -11,7 +11,6 @@ import math
 from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -219,7 +218,7 @@ class MnistDataloader(DataloaderBase):
     def process_data(self, x_train_file: str, y_train_file: str,
                      x_test_file: str, y_test_file: str) -> dict:
         """Process mnist images"""
-        # Initalization
+        # Initialization
         utils = Utils()
         num_train_images = 60000
         num_test_images = 10000
@@ -229,10 +228,10 @@ class MnistDataloader(DataloaderBase):
             image_file=x_train_file,
             label_file=y_train_file,
             num_images=num_train_images)
+
         y_train, y_train_idx, num_enc_obs = utils.label_to_obs(
             labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
-        x_std = 1
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
@@ -241,7 +240,6 @@ class MnistDataloader(DataloaderBase):
             num_images=num_test_images)
 
         # Normalizer
-
         x_train = self.normalizer.standardize(data=train_images,
                                               mu=x_mean,
                                               std=x_std)
@@ -259,6 +257,63 @@ class MnistDataloader(DataloaderBase):
         data_loader["train"] = (x_train, y_train, y_train_idx, train_labels)
         data_loader["test"] = self.create_data_loader(raw_input=x_test,
                                                       raw_output=test_labels)
+        data_loader["x_norm_param_1"] = x_mean
+        data_loader["x_norm_param_2"] = x_std
+
+        return data_loader
+
+
+class TimeSeriesDataloader(DataloaderBase):
+    """Data loader for time series"""
+
+    def __init__(self, batch_size: int, output_col: np.ndarray,
+                 input_seq_len: int, output_seq_len: int, num_features: int,
+                 stride: int) -> None:
+        super().__init__(batch_size)
+        self.output_col = output_col
+        self.input_seq_len = input_seq_len
+        self.output_seq_len = output_seq_len
+        self.num_features = num_features
+        self.stride = stride
+
+    def process_data(self, x_train_file: str, x_test_file: str) -> dict:
+        """Process time series"""
+        # Initialization
+        utils = Utils()
+
+        # Load data
+        x_train = self.load_data_from_csv(x_train_file)
+        x_test = self.load_data_from_csv(x_test_file)
+
+        # Normalizer
+        x_mean, x_std = self.normalizer.compute_mean_std(x_train)
+        x_train = self.normalizer.standardize(data=x_train,
+                                              mu=x_mean,
+                                              std=x_std)
+        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
+
+        # Create rolling windows
+        x_train_rolled, y_train_rolled = utils.create_rolling_window(
+            data=x_train,
+            output_col=self.output_col,
+            input_seq_len=self.input_seq_len,
+            output_seq_len=self.output_seq_len,
+            num_features=self.num_features,
+            stride=self.stride)
+
+        x_test_rolled, y_test_rolled = utils.create_rolling_window(
+            data=x_test,
+            output_col=self.output_col,
+            input_seq_len=self.input_seq_len,
+            output_seq_len=self.output_seq_len,
+            num_features=self.num_features,
+            stride=self.stride)
+
+        # Dataloader
+        data_loader = {}
+        data_loader["train"] = (x_train_rolled, y_train_rolled)
+        data_loader["test"] = self.create_data_loader(raw_input=x_test_rolled,
+                                                      raw_output=y_test_rolled)
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
 

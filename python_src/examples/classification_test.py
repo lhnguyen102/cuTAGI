@@ -28,7 +28,7 @@ def main():
                           net_prop=net_prop,
                           num_classes=10)
     reg_task.train()
-    reg_task.predict()
+    # reg_task.predict()
 
 
 if __name__ == "__main__":

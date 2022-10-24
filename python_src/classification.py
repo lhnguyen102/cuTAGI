@@ -14,7 +14,7 @@ from tqdm import tqdm
 import python_src.metric as metric
 from python_src.model import NetProp
 from python_src.tagi_network import TagiNetwork
-from python_src.tagi_utils import (HierarchicalSoftmax, Utils)
+from python_src.tagi_utils import HierarchicalSoftmax, Utils
 
 
 class Classifier:
@@ -66,10 +66,7 @@ class Classifier:
         for epoch in pbar:
             for i in range(num_iter):
                 # Get data
-                if i == 0:
-                    idx = np.arange(batch_size)
-                else:
-                    idx = np.random.choice(num_data, size=batch_size)
+                idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
                 ud_idx_batch = output_idx[idx, :]
@@ -85,7 +82,7 @@ class Classifier:
                 # Update parameters
                 self.network.param_feed_backward()
 
-                # Loss
+                # Error rate
                 ma_pred, Sa_pred = self.network.get_network_outputs()
                 pred, _ = self.utils.get_labels(ma=ma_pred,
                                                 Sa=Sa_pred,
@@ -103,6 +100,7 @@ class Classifier:
                         f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {avg_error_rate * 100:>7.2f}%"
                     )
 
+            # Validate on test set after each epoch
             self.predict()
 
     def predict(self) -> None:
