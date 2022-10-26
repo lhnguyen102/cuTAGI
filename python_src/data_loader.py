@@ -103,9 +103,10 @@ class DataloaderBase(ABC):
         if np.mod(num_input_data, self.batch_size) != 0:
             # Remider indices
             rem_indices = self.split_reminder(num_input_data, self.batch_size)
+            even_indices.append(rem_indices)
 
             # Concat indices
-            indices = np.concatenate((even_indices, rem_indices), axis=1)
+            indices = np.stack(even_indices)
         else:
             indices = np.stack(even_indices)
 
@@ -149,19 +150,19 @@ class DataloaderBase(ABC):
     def split_evenly(num_data, chunk_size: int):
         """split data evenly"""
         indices = np.arange(int(num_data - np.mod(num_data, chunk_size)))
-        return np.split(indices, math.ceil(num_data / chunk_size))
+
+        return np.split(indices, int(np.floor(num_data / chunk_size)))
 
     @staticmethod
     def split_reminder(num_data: int, chunk_size: int):
         """Pad the reminder"""
         indices = np.arange(num_data)
-        reminder_start = math.ceil(num_data / chunk_size)
-        random_idx = np.random.choice(indices,
-                                      size=num_data - reminder_start,
-                                      replace=False)
+        reminder_start = int(num_data - np.mod(num_data, chunk_size))
+        num_samples = chunk_size - (num_data - reminder_start)
+        random_idx = np.random.choice(indices, size=num_samples, replace=False)
         reminder_idx = indices[reminder_start:]
 
-        return np.concatenate((random_idx, reminder_idx), axis=0)
+        return np.concatenate((random_idx, reminder_idx))
 
 
 class RegressionDataLoader(DataloaderBase):
@@ -276,14 +277,17 @@ class TimeSeriesDataloader(DataloaderBase):
         self.num_features = num_features
         self.stride = stride
 
-    def process_data(self, x_train_file: str, x_test_file: str) -> dict:
+    def process_data(self, x_train_file: str, datetime_train_file: str,
+                     x_test_file: str, datetime_test_file: str) -> dict:
         """Process time series"""
         # Initialization
         utils = Utils()
 
         # Load data
         x_train = self.load_data_from_csv(x_train_file)
+        datetime_train = self.load_data_from_csv(datetime_train_file)
         x_test = self.load_data_from_csv(x_test_file)
+        datetime_test = self.load_data_from_csv(datetime_test_file)
 
         # Normalizer
         x_mean, x_std = self.normalizer.compute_mean_std(x_train)
@@ -316,5 +320,13 @@ class TimeSeriesDataloader(DataloaderBase):
                                                       raw_output=y_test_rolled)
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
+        data_loader["y_norm_param_1"] = x_mean[self.output_col]
+        data_loader["y_norm_param_2"] = x_std[self.output_col]
+        data_loader["datetime_train"] = [
+            np.datetime64(date) for date in datetime_train
+        ]
+        data_loader["datetime_test"] = [
+            np.datetime64(date) for date in datetime_test
+        ]
 
         return data_loader

@@ -658,6 +658,7 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
     } else if (user_input.task_name == "time_series") {
         // Train network
         Network net_prop;
+
         // Add extestion to file name
         std::string net_file_ext = user_input.net_name + ".txt";
 

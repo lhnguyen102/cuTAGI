@@ -99,11 +99,12 @@ class Utils:
                               num_features: int,
                               stride: int) -> Tuple[np.ndarray, np.ndarray]:
         """Create rolling window for time series data"""
-        num_data = (len(data) / num_features - input_seq_len -
-                    output_seq_len) / (stride + 1)
+        num_data = int((len(data) / num_features - input_seq_len -
+                        output_seq_len) / stride + 1)
+
         input_data, output_data = self.backend_utils.create_rolling_window_wrapper(
-            data, output_col, input_seq_len, output_seq_len, num_features,
-            stride)
+            data.flatten(), output_col, input_seq_len, output_seq_len,
+            num_features, stride)
         input_data = np.array(input_data).reshape((num_data, input_seq_len))
         output_data = np.array(output_data).reshape((num_data, output_seq_len))
 

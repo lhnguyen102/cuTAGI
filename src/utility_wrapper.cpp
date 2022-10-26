@@ -123,8 +123,8 @@ UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
                                               int output_seq_len,
                                               int num_features, int stride) {
     int num_samples =
-        (data.size() / num_features - input_seq_len - output_seq_len) /
-        (stride + 1);
+        (data.size() / num_features - input_seq_len - output_seq_len) / stride +
+        1;
     int num_outputs = output_col.size();
     std::vector<float> input_data(input_seq_len * num_features * num_samples,
                                   0);
