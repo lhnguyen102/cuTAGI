@@ -1,7 +1,7 @@
 layers: 	[1,     7,       7,       1]
 nodes:		[1,     5,       5,       1]
 activations:[0,     0,       0,       0]
-batch_size: 10
+batch_size: 1
 input_seq_len: 5
 output_seq_len: 1
 seq_stride: 1

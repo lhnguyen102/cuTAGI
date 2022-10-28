@@ -7,7 +7,7 @@ from visualizer import PredictionViz
 def main():
     """Training and testing API"""
     # User-input
-    num_epochs = 10
+    num_epochs = 20
     output_col = [0]
     num_features = 1
     input_seq_len = 5
@@ -16,7 +16,7 @@ def main():
     x_train_file = "./data/toy_time_series/x_train_sin_data.csv"
     datetime_train_file = "./data/toy_time_series/train_sin_datetime.csv"
     x_test_file = "./data/toy_time_series/x_test_sin_data.csv"
-    datetime_test_file = "./data/toy_time_series/y_test_sin_data.csv"
+    datetime_test_file = "./data/toy_time_series/test_sin_datetime.csv"
 
     # Model
     net_prop = TimeSeriesLSTM(input_seq_len=input_seq_len,

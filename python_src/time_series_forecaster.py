@@ -3,7 +3,7 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      October 26, 2022
+# Updated:      October 28, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -45,19 +45,28 @@ class TimeSeriesForecaster:
         # Outputs
         V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
                            dtype=np.float32) + self.net_prop.sigma_v**2
-        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+        ud_idx_batch = np.zeros([(batch_size, 0)], dtype=np.int32)
 
         input_data, output_data = self.data_loader["train"]
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
+            if epoch > 0:
+                self.net_prop.sigma_v = np.maximum(
+                    self.net_prop.sigma_v_min,
+                    self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)
+                V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
+                                   dtype=np.float32) + self.net_prop.sigma_v**2
+
             for i in range(num_iter):
                 # Get data
-                idx = np.random.choice(num_data, size=batch_size)
+                if i == 0:
+                    idx = np.arange(batch_size)
+                else:
+                    idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
-                breakpoint()
 
                 # Feed forward
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
@@ -136,14 +145,14 @@ class TimeSeriesForecaster:
             self.viz.plot_predictions(
                 x_train=None,
                 y_train=None,
-                x_test=self.data_loader["datetime_test"],
+                x_test=self.data_loader["datetime_test"][:len(y_test)],
                 y_test=y_test,
                 y_pred=mean_predictions,
                 sy_pred=std_predictions,
-                std_factor=3,
+                std_factor=1,
                 label="time_series_forecasting",
                 title=r"\textbf{Time Series Forecasting}",
-            )
+                time_series=True)
 
         print("#############")
         print(f"MSE           : {mse: 0.2f}")

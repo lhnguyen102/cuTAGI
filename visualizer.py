@@ -272,6 +272,7 @@ class PredictionViz:
         ax.set_xlim([min_x, max_x])
 
         # Save figure
+        plt.show()
         saving_path = f"saved_results/pred_{label}_{self.data_name}.png"
         plt.savefig(saving_path, bbox_inches="tight")
         plt.close()
@@ -520,6 +521,7 @@ def time_series_forecasting():
     y_test = viz.load_dataset(file_path=y_test_path, header=True)
     y_pred = viz.load_dataset(file_path=y_pred_path)
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
+    breakpoint()
     x_test = x_test[:y_pred.shape[0]]
     y_test = y_test[:y_pred.shape[0]]
 
@@ -544,6 +546,6 @@ if __name__ == "__main__":
     #regression()
     # autoencoder()
     # input_uncertainty_prop()
-    noise_inference()
+    #noise_inference()
     #derivative()
-    #time_series_forecasting()
+    time_series_forecasting()

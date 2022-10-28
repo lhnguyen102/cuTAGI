@@ -64,12 +64,12 @@ class TimeSeriesLSTM(NetProp):
         self.layers: list = [1, 7, 7, 1]
         self.nodes: list = [1, 5, 5, 1]
         self.activations: list = [0, 0, 0, 0]
-        self.batch_size: int = 10
+        self.batch_size: int = 5
         self.input_seq_len: int = input_seq_len
         self.output_seq_len: int = output_seq_len
         self.seq_stride: int = seq_stride
         self.sigma_v: float = 2
         self.sigma_v_min: float = 0.3
         self.decay_factor_sigma_v: float = 0.95
-        self.multithreading: bool = True
+        self.multithreading: bool = False
         self.device: str = "cpu"

@@ -35,7 +35,6 @@ class Normalizer:
     def unstandardize(norm_data: np.ndarray, mu: np.ndarray,
                       std: np.ndarray) -> np.ndarray:
         """Transform standardized data to original space"""
-
         return norm_data * (std + 1e-10) + mu
 
     @staticmethod
@@ -105,11 +104,7 @@ class DataloaderBase(ABC):
             rem_indices = self.split_reminder(num_input_data, self.batch_size)
             even_indices.append(rem_indices)
 
-            # Concat indices
-            indices = np.stack(even_indices)
-        else:
-            indices = np.stack(even_indices)
-
+        indices = np.stack(even_indices)
         input_data = raw_input[indices]
         output_data = raw_output[indices]
         dataset = []
@@ -142,7 +137,7 @@ class DataloaderBase(ABC):
     def load_data_from_csv(data_file: str) -> pd.DataFrame:
         """Load data from csv file"""
 
-        data = pd.read_csv(data_file, skiprows=1, header=None)
+        data = pd.read_csv(data_file, skiprows=1, delimiter=",", header=None)
 
         return data.values
 
@@ -286,6 +281,7 @@ class TimeSeriesDataloader(DataloaderBase):
         # Load data
         x_train = self.load_data_from_csv(x_train_file)
         datetime_train = self.load_data_from_csv(datetime_train_file)
+
         x_test = self.load_data_from_csv(x_test_file)
         datetime_test = self.load_data_from_csv(datetime_test_file)
 
@@ -323,10 +319,10 @@ class TimeSeriesDataloader(DataloaderBase):
         data_loader["y_norm_param_1"] = x_mean[self.output_col]
         data_loader["y_norm_param_2"] = x_std[self.output_col]
         data_loader["datetime_train"] = [
-            np.datetime64(date) for date in datetime_train
+            np.datetime64(date) for date in np.squeeze(datetime_train)
         ]
         data_loader["datetime_test"] = [
-            np.datetime64(date) for date in datetime_test
+            np.datetime64(date) for date in np.squeeze(datetime_test)
         ]
 
         return data_loader
