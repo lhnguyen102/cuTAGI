@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 16, 2022
+// Updated:      October 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -125,6 +125,16 @@ void TagiNetwork::get_network_outputs() {
 void TagiNetwork::set_parameters(Param &init_theta)
 /*Set parameters to network*/
 {
+    // Check if parameters are valids
+    if ((init_theta.mw.size() != this->num_weights) ||
+        (init_theta.Sw.size() != this->num_weights)) {
+        throw std::invalid_argument("Length of weight parameters is invalide");
+    }
+    if ((init_theta.mb.size() != this->num_biases) ||
+        (init_theta.Sb.size() != this->num_biases)) {
+        throw std::invalid_argument("Length of biases parameters is invalide");
+    }
+
     // Weights
     for (int i = 0; i < this->num_weights; i++) {
         this->theta.mw[i] = init_theta.mw[i];

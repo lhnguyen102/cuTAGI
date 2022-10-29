@@ -3,17 +3,15 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 24, 2022
+# Updated:      October 29, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-import math
 from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
-
 from python_src.tagi_utils import Utils
 
 

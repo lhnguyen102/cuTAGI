@@ -521,7 +521,6 @@ def time_series_forecasting():
     y_test = viz.load_dataset(file_path=y_test_path, header=True)
     y_pred = viz.load_dataset(file_path=y_pred_path)
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
-    breakpoint()
     x_test = x_test[:y_pred.shape[0]]
     y_test = y_test[:y_pred.shape[0]]
 

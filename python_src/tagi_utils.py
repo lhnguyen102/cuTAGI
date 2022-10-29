@@ -3,14 +3,17 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 24, 2022
+# Updated:      October 29, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Tuple
+
 import numpy as np
-from pytagi import UtilityWrapper
-from pytagi import HrSoftmax
+import pandas as pd
+from pytagi import HrSoftmax, UtilityWrapper
+
+from python_src.tagi_network import Param
 
 
 class HierarchicalSoftmax(HrSoftmax):
@@ -109,3 +112,33 @@ class Utils:
         output_data = np.array(output_data).reshape((num_data, output_seq_len))
 
         return input_data, output_data
+
+
+def load_param_from_files(mw_file: str, Sw_file: str, mb_file: str,
+                          Sb_file: str, mw_sc_file: str, Sw_sc_file: str,
+                          mb_sc_file: str, Sb_sc_file: str) -> Param:
+    """Load parameter from csv file"""
+    mw_df = pd.read_csv(mw_file, header=None)
+    Sw_df = pd.read_csv(Sw_file, header=None)
+    mb_df = pd.read_csv(mb_file, header=None)
+    Sb_df = pd.read_csv(Sb_file, header=None)
+
+    try:
+        mw_sc_df = pd.read_csv(mw_sc_file, header=None)
+        Sw_sc_df = pd.read_csv(Sw_sc_file, header=None)
+        mb_sc_df = pd.read_csv(mb_sc_file, header=None)
+        Sb_sc_df = pd.read_csv(Sb_sc_file, header=None)
+    except ValueError:
+        mw_sc_df = pd.DataFrame()
+        Sw_sc_df = pd.DataFrame()
+        mb_sc_df = pd.DataFrame()
+        Sb_sc_df = pd.DataFrame()
+
+    return Param(mw=mw_df.values,
+                 Sw=Sw_df.values,
+                 mb=mb_df.values,
+                 Sb=Sb_df.values,
+                 mw_sc=mw_sc_df.values,
+                 Sw_sc=Sw_sc_df.values,
+                 mb_sc=mb_sc_df.values,
+                 Sb_sc=Sb_sc_df.values)

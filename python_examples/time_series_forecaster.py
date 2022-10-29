@@ -1,41 +1,44 @@
 ###############################################################################
-# File:         regression.py
-# Description:  Example of regression task using pytagi
+# File:         time_series_forecaster.py
+# Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
-# Created:      October 12, 2022
-# Updated:      October 16, 2022
+# Created:      October 26, 2022
+# Updated:      October 29, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Union
 
 import numpy as np
+import python_src.metric as metric
+from python_src.tagi_network import NetProp, TagiNetwork, Param
 from tqdm import tqdm
 from visualizer import PredictionViz
 
-import python_src.metric as metric
-from python_src.data_loader import Normalizer as normalizer
-from python_src.model import NetProp
-from python_src.tagi_network import TagiNetwork
+from python_examples.data_loader import Normalizer as normalizer
 
 
-class Regression:
-    """Regression task using TAGI"""
+class TimeSeriesForecaster:
+    """Time series forecaster using TAGI"""
 
     def __init__(self,
                  num_epochs: int,
                  data_loader: dict,
                  net_prop: NetProp,
+                 param: Union[Param, None] = None,
                  viz: Union[PredictionViz, None] = None) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.net_prop = net_prop
         self.network = TagiNetwork(self.net_prop)
         self.viz = viz
+        if param is not None:
+            self.network.set_parameters(param=param)
 
     def train(self) -> None:
-        """Train the network using TAGI"""
+        """Train LSTM network"""
         batch_size = self.net_prop.batch_size
+
         # Inputs
         Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
                             dtype=np.float32)
@@ -51,9 +54,19 @@ class Regression:
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
+            if epoch > 0:
+                self.net_prop.sigma_v = np.maximum(
+                    self.net_prop.sigma_v_min,
+                    self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)
+                V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
+                                   dtype=np.float32) + self.net_prop.sigma_v**2
+
             for i in range(num_iter):
                 # Get data
-                idx = np.random.choice(num_data, size=batch_size)
+                if i == 0:
+                    idx = np.arange(batch_size)
+                else:
+                    idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
 
@@ -83,8 +96,9 @@ class Regression:
                 )
 
     def predict(self) -> None:
-        """Make prediction using TAGI"""
+        """Make prediction for time series using TAGI"""
         batch_size = self.net_prop.batch_size
+
         # Inputs
         Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
                             dtype=np.float32)
@@ -133,14 +147,14 @@ class Regression:
             self.viz.plot_predictions(
                 x_train=None,
                 y_train=None,
-                x_test=x_test,
+                x_test=self.data_loader["datetime_test"][:len(y_test)],
                 y_test=y_test,
                 y_pred=mean_predictions,
                 sy_pred=std_predictions,
-                std_factor=3,
-                label="diag",
-                title=r"\textbf{Diagonal covariance}",
-            )
+                std_factor=1,
+                label="time_series_forecasting",
+                title=r"\textbf{Time Series Forecasting}",
+                time_series=True)
 
         print("#############")
         print(f"MSE           : {mse: 0.2f}")

@@ -1,6 +1,6 @@
-from python_src.data_loader import MnistDataloader
-from python_src.model import MnistMLP
-from python_src.classification import Classifier
+from python_examples.classification import Classifier
+from python_examples.data_loader import MnistDataloader
+from python_examples.model import MnistMLP
 
 
 def main():

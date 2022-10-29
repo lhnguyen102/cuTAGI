@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 09, 2022
+// Updated:      October 29, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,11 +20,12 @@ void TagiNetworkCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                   std::vector<float> &Sx_f) {
     // Set input data
     this->net_input.set_values(x, Sx, Sx_f);
+    int input_size = this->prop.batch_size * this->prop.input_seq_len;
 
     // Initialize input
     initialize_states_cpu(this->net_input.x_batch, this->net_input.Sx_batch,
                           this->net_input.Sx_f_batch, this->prop.n_x,
-                          this->prop.batch_size, this->state);
+                          input_size, this->state);
 
     // Feed forward
     feed_forward_cpu(this->prop, this->theta, this->idx, this->state);
@@ -93,6 +94,16 @@ void TagiNetworkCPU::get_network_outputs() {
 void TagiNetworkCPU::set_parameters(Param &init_theta)
 /*Set parameters to network*/
 {
+    // Check if parameters are valids
+    if ((init_theta.mw.size() != this->num_weights) ||
+        (init_theta.Sw.size() != this->num_weights)) {
+        throw std::invalid_argument("Length of weight parameters is invalide");
+    }
+    if ((init_theta.mb.size() != this->num_biases) ||
+        (init_theta.Sb.size() != this->num_biases)) {
+        throw std::invalid_argument("Length of biases parameters is invalide");
+    }
+
     // Weights
     for (int i = 0; i < this->num_weights; i++) {
         this->theta.mw[i] = init_theta.mw[i];

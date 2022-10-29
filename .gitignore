@@ -2,7 +2,7 @@
 *.vscode
 *.json
 debug_data/
-*.csv
+# *.csv
 *.DS_Store
 *.pyc
 pytagi.egg-info

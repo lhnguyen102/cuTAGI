@@ -1,7 +1,9 @@
-from python_src.data_loader import TimeSeriesDataloader
-from python_src.model import TimeSeriesLSTM
-from python_src.time_series_forecaster import TimeSeriesForecaster
 from visualizer import PredictionViz
+
+from python_examples.data_loader import TimeSeriesDataloader
+from python_examples.model import TimeSeriesLSTM
+from python_examples.time_series_forecaster import TimeSeriesForecaster
+from python_src.tagi_utils import load_param_from_files
 
 
 def main():
@@ -17,6 +19,24 @@ def main():
     datetime_train_file = "./data/toy_time_series/train_sin_datetime.csv"
     x_test_file = "./data/toy_time_series/x_test_sin_data.csv"
     datetime_test_file = "./data/toy_time_series/test_sin_datetime.csv"
+
+    # Load pretrained weights and biases
+    mw_file = "./saved_param/lstm_demo_2lstm_1_mw.csv"
+    Sw_file = "./saved_param/lstm_demo_2lstm_2_Sw.csv"
+    mb_file = "./saved_param/lstm_demo_2lstm_3_mb.csv"
+    Sb_file = "./saved_param/lstm_demo_2lstm_4_Sb.csv"
+    mw_sc_file = "./saved_param/lstm_demo_2lstm_5_mw_sc.csv"
+    Sw_sc_file = "./saved_param/lstm_demo_2lstm_6_Sw_sc.csv"
+    mb_sc_file = "./saved_param/lstm_demo_2lstm_7_mb_sc.csv"
+    Sb_sc_file = "./saved_param/lstm_demo_2lstm_8_Sb_sc.csv"
+    param = load_param_from_files(mw_file=mw_file,
+                                  Sw_file=Sw_file,
+                                  mb_file=mb_file,
+                                  Sb_file=Sb_file,
+                                  mw_sc_file=mw_sc_file,
+                                  Sw_sc_file=Sw_sc_file,
+                                  mb_sc_file=mb_sc_file,
+                                  Sb_sc_file=Sb_sc_file)
 
     # Model
     net_prop = TimeSeriesLSTM(input_seq_len=input_seq_len,
@@ -43,6 +63,7 @@ def main():
     reg_task = TimeSeriesForecaster(num_epochs=num_epochs,
                                     data_loader=data_loader,
                                     net_prop=net_prop,
+                                    param=param,
                                     viz=viz)
     reg_task.train()
     reg_task.predict()

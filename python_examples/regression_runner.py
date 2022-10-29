@@ -1,7 +1,8 @@
-from python_src.data_loader import RegressionDataLoader
-from python_src.model import RegressionMLP
-from python_src.regression import Regression
 from visualizer import PredictionViz
+
+from python_examples.data_loader import RegressionDataLoader
+from python_examples.model import RegressionMLP
+from python_examples.regression import Regression
 
 
 def main():

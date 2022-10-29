@@ -3,18 +3,11 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 24, 2022
+# Updated:      October 29, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-from pytagi import Network
-
-
-class NetProp(Network):
-    """Base class for network properties"""
-
-    def __init__(self) -> None:
-        super().__init__()
+from python_src.tagi_network import NetProp
 
 
 class RegressionMLP(NetProp):
@@ -64,7 +57,7 @@ class TimeSeriesLSTM(NetProp):
         self.layers: list = [1, 7, 7, 1]
         self.nodes: list = [1, 5, 5, 1]
         self.activations: list = [0, 0, 0, 0]
-        self.batch_size: int = 5
+        self.batch_size: int = 10
         self.input_seq_len: int = input_seq_len
         self.output_seq_len: int = output_seq_len
         self.seq_stride: int = seq_stride

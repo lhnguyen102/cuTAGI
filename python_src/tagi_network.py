@@ -3,13 +3,38 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      October 16, 2022
+# Updated:      October 29, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Tuple
+
 import numpy as np
 import pytagi as tagi
+
+
+class NetProp(tagi.Network):
+    """Base class for network properties"""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+class Param(tagi.Param):
+    """Front-end apt for weight and biases"""
+
+    def __init__(self, mw: np.ndarray, Sw: np.ndarray, mb: np.ndarray,
+                 Sb: np.ndarray, mw_sc: np.ndarray, Sw_sc: np.ndarray,
+                 mb_sc: np.ndarray, Sb_sc: np.ndarray) -> None:
+        super().__init__()
+        self.mw = mw
+        self.Sw = Sw
+        self.mb = mb
+        self.Sb = Sb
+        self.mw_sc = mw_sc
+        self.Sw_sc = Sw_sc
+        self.mb_sc = mb_sc
+        self.Sb_sc = Sb_sc
 
 
 class TagiNetwork:
@@ -59,7 +84,7 @@ class TagiNetwork:
 
         return np.array(ma), np.array(Sa)
 
-    def set_parameters(self, param: tagi.Param) -> None:
+    def set_parameters(self, param: Param) -> None:
         """Set parameter values to network"""
         self.network.set_parameters(param)
 

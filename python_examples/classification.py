@@ -7,14 +7,11 @@
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-
 import numpy as np
-from tqdm import tqdm
-
 import python_src.metric as metric
-from python_src.model import NetProp
-from python_src.tagi_network import TagiNetwork
+from python_src.tagi_network import NetProp, TagiNetwork
 from python_src.tagi_utils import HierarchicalSoftmax, Utils
+from tqdm import tqdm
 
 
 class Classifier:
