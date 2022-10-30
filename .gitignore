@@ -2,6 +2,7 @@
 *.vscode
 *.json
 debug_data/
+__pycache__/
 # *.csv
 *.DS_Store
 *.pyc
