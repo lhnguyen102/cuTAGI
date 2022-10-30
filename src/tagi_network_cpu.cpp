@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 29, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -26,6 +26,20 @@ void TagiNetworkCPU::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
     initialize_states_cpu(this->net_input.x_batch, this->net_input.Sx_batch,
                           this->net_input.Sx_f_batch, this->prop.n_x,
                           input_size, this->state);
+
+    // Feed forward
+    feed_forward_cpu(this->prop, this->theta, this->idx, this->state);
+}
+
+void TagiNetworkCPU::connected_feed_forward(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    // Initialize input
+    initialize_full_states_cpu(mz, Sz, ma, Sa, J, this->state.mz,
+                               this->state.Sz, this->state.ma, this->state.Sa,
+                               this->state.J);
 
     // Feed forward
     feed_forward_cpu(this->prop, this->theta, this->idx, this->state);
@@ -78,8 +92,22 @@ void TagiNetworkCPU::init_net() {
     this->num_biases = theta.mb.size();
     this->num_weights_sc = theta.mw_sc.size();
     this->num_biases_sc = theta.mb_sc.size();
+
+    // Input layer
+    int input_size =
+        this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    this->ma_init.resize(input_size, 0);
+    this->Sa_init.resize(input_size, 0);
+    this->mz_init.resize(input_size, 0);
+    this->Sz_init.resize(input_size, 0);
+    this->J_init.resize(input_size, 1);
+
+    // Output layer
     this->ma.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
     this->Sa.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->mz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->Sz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->J.resize(this->prop.nodes.back() * this->prop.batch_size, 1);
 }
 
 void TagiNetworkCPU::get_network_outputs() {
@@ -88,6 +116,31 @@ void TagiNetworkCPU::get_network_outputs() {
     for (int i = 0; i < num_outputs; i++) {
         this->ma[i] = this->state.ma[this->prop.z_pos.back() + i];
         this->Sa[i] = this->state.Sa[this->prop.z_pos.back() + i];
+    }
+}
+
+void TagiNetworkCPU::get_all_network_outputs() {
+    // Last layer's hidden state
+    int num_outputs = this->prop.nodes.back() * this->prop.batch_size;
+    for (int i = 0; i < num_outputs; i++) {
+        this->ma[i] = this->state.ma[this->prop.z_pos.back() + i];
+        this->Sa[i] = this->state.Sa[this->prop.z_pos.back() + i];
+        this->mz[i] = this->state.mz[this->prop.z_pos.back() + i];
+        this->Sz[i] = this->state.Sz[this->prop.z_pos.back() + i];
+        this->J[i] = this->state.J[this->prop.z_pos.back() + i];
+    }
+}
+
+void TagiNetworkCPU::get_all_network_inputs() {
+    // Last layer's hidden state
+    int input_size =
+        this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    for (int i = 0; i < input_size; i++) {
+        this->ma_init[i] = this->state.ma[i];
+        this->Sa_init[i] = this->state.Sa[i];
+        this->mz_init[i] = this->state.mz[i];
+        this->Sz_init[i] = this->state.Sz[i];
+        this->J_init[i] = this->state.J[i];
     }
 }
 

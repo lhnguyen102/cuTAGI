@@ -23,10 +23,25 @@ class NetworkWrapper {
     ~NetworkWrapper();
     void feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                       std::vector<float> &Sx_f);
+    void connected_feed_forward(std::vector<float> &ma, std::vector<float> &Sa,
+                                std::vector<float> &mz, std::vector<float> &Sz,
+                                std::vector<float> &J);
+
     void state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,
                              std::vector<int> &idx_ud);
     void param_feed_backward();
+
     std::tuple<std::vector<float>, std::vector<float>> get_network_outputs();
+
+    std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+               std::vector<float>, std::vector<float>>
+    get_all_network_outputs();
+
+    std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+               std::vector<float>, std::vector<float>>
+    get_all_network_inputs();
+
     void set_parameters(Param &init_theta);
+
     Param get_parameters();
 };

@@ -3,11 +3,11 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 29, 2022
+# Updated:      October 30, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -112,6 +112,65 @@ class Utils:
         output_data = np.array(output_data).reshape((num_data, output_seq_len))
 
         return input_data, output_data
+
+
+class Normalizer:
+    """Different method to normalize the data before feeding
+    to neural networks"""
+
+    def __init__(self, method: Union[str, None] = None) -> None:
+        self.method = method
+
+    def standardize(self, data: np.ndarray, mu: np.ndarray,
+                    std: np.ndarray) -> np.ndarray:
+        """Z-score normalization where 
+        data_norm = (data - data_mean) / data_std """
+
+        return (data - mu) / (std + 1e-10)
+
+    @staticmethod
+    def unstandardize(norm_data: np.ndarray, mu: np.ndarray,
+                      std: np.ndarray) -> np.ndarray:
+        """Transform standardized data to original space"""
+        return norm_data * (std + 1e-10) + mu
+
+    @staticmethod
+    def unstandardize_std(norm_std: np.ndarray, std: np.ndarray) -> np.ndarray:
+        """Transform standardized std to original space"""
+
+        return norm_std * (std + 1e-10)
+
+    def max_min_norm(self, data: np.ndarray, max_value: np.ndarray,
+                     min_value: np.ndarray) -> np.ndarray:
+        """Normalize the data between 0 and 1"""
+        assert np.all(max_value > min_value)
+        return (data - min_value) / (max_value - min_value + 1e-10)
+
+    @staticmethod
+    def max_min_unnorm(norm_data: np.ndarray, max_value: np.ndarray,
+                       min_value: np.ndarray) -> np.ndarray:
+        """Transform max-min normalized data to original space"""
+
+        return (norm_data * (max_value - min_value + 1e-10)) + min_value
+
+    @staticmethod
+    def max_min_unnorm_std(norm_std: np.ndarray, max_value: np.ndarray,
+                           min_value: np.ndarray) -> np.ndarray:
+        """Transform max-min normalized std to original space"""
+
+        return (norm_std * (max_value - min_value + 1e-10))
+
+    @staticmethod
+    def compute_mean_std(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute sample mean and standard deviation"""
+
+        return (np.nanmean(data, axis=0), np.nanstd(data, axis=0))
+
+    @staticmethod
+    def compute_max_min(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute max min values"""
+
+        return (np.nanmax(data, axis=0), np.nanmin(data, axis=0))
 
 
 def load_param_from_files(mw_file: str, Sw_file: str, mb_file: str,

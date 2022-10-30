@@ -472,6 +472,9 @@ Args:
         std::vector<float> ma_out(db.num_data * n_output_ts, 0);
         std::vector<float> Sa_out(db.num_data * n_output_ts, 0);
 
+        float n_iter_round = static_cast<float>(db.num_data) /
+                             static_cast<float>(net.prop.batch_size);
+        n_iter = ceil(n_iter_round);
         int mt_idx = 0;
 
         // Prediction

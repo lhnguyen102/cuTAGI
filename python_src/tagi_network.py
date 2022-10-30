@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      October 29, 2022
+# Updated:      October 30, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -65,6 +65,14 @@ class TagiNetwork:
         self.network.feed_forward(x_batch.flatten(), Sx_batch.flatten(),
                                   Sx_f_batch.flatten())
 
+    def connected_feed_forward(self, ma: np.ndarray, va: np.ndarray,
+                               mz: np.ndarray, vz: np.ndarray,
+                               jcb: np.ndarray) -> None:
+        """Forward pass for the network that is connected to the other 
+        network e.g. decoder network in autoencoder taks"""
+
+        self.network.connected_feed_forward(ma, va, mz, vz, jcb)
+
     def state_feed_backward(self, y_batch: np.ndarray, V_batch: np.ndarray,
                             ud_idx_batch: np.ndarray) -> None:
         """Update hidden states
@@ -83,6 +91,40 @@ class TagiNetwork:
         ma, Sa = self.network.get_network_outputs()
 
         return np.array(ma), np.array(Sa)
+
+    def get_all_network_outputs(
+        self
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Get all hidden states of the output layers
+
+        Returns:
+            ma: Mean of activations for the output layer
+            va: Variance of activations for the output layer
+            mz: Mean of hidden states for the output layer
+            vz: Variance of hidden states for the output layer       
+            jcb: Jacobian matrix for the output layer
+        """
+        ma, va, mz, vz, jcb = self.network.get_all_network_outputs()
+
+        return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
+                np.array(jcb))
+
+    def get_all_network_inputs(
+        self
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Get all hidden states of the output layers
+
+        Returns:
+            ma: Mean of activations for the input layer
+            va: Variance of activations for the input layer
+            mz: Mean of hidden states for the input layer
+            vz: Variance of hidden states for the input layer     
+            jcb: Jacobian matrix for the input layer
+        """
+        ma, Sa, mz, Sz, jcb = self.network.get_all_network_inputs()
+
+        return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
+                np.array(jcb))
 
     def set_parameters(self, param: Param) -> None:
         """Set parameter values to network"""

@@ -9,7 +9,7 @@ from python_src.tagi_utils import load_param_from_files
 def main():
     """Training and testing API"""
     # User-input
-    num_epochs = 20
+    num_epochs = 50
     output_col = [0]
     num_features = 1
     input_seq_len = 5
@@ -63,7 +63,6 @@ def main():
     reg_task = TimeSeriesForecaster(num_epochs=num_epochs,
                                     data_loader=data_loader,
                                     net_prop=net_prop,
-                                    param=param,
                                     viz=viz)
     reg_task.train()
     reg_task.predict()

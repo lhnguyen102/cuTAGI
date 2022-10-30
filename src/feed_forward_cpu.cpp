@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      September 11, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -389,6 +389,20 @@ Args:
             state.Sz_f[col] = Sx_f[col];
             state.Sa_f[col] = Sx_f[col];
         }
+    }
+}
+
+void initialize_full_states_cpu(
+    std::vector<float> &mz_init, std::vector<float> &Sz_init,
+    std::vector<float> &ma_init, std::vector<float> &Sa_init,
+    std::vector<float> &J_init, std::vector<float> &mz, std::vector<float> &Sz,
+    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &J) {
+    for (int i = 0; i < mz_init.size(); i++) {
+        mz[i] = mz_init[i];
+        Sz[i] = Sz_init[i];
+        ma[i] = ma_init[i];
+        Sa[i] = Sa_init[i];
+        J[i] = J_init[i];
     }
 }
 

@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 29, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,30 @@ void TagiNetwork::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
 
     // Initialize input
     initializeStates(this->state_gpu, this->net_input_gpu, this->prop);
+
+    // Feed forward
+    feedForward(this->prop, this->theta_gpu, this->idx_gpu, this->state_gpu);
+}
+
+void TagiNetwork::connected_feed_forward(std::vector<float> &ma,
+                                         std::vector<float> &Sa,
+                                         std::vector<float> &mz,
+                                         std::vector<float> &Sz,
+                                         std::vector<float> &J) {
+    this->connected_input_gpu.copy_host_to_device(ma, Sa, mz, Sz, J);
+
+    // Initialize input. TODO: Find a proper way (see taks.cu)
+    int input_size =
+        this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (input_size - THREADS + 1) / THREADS;
+
+    initializeFullStates<<<BLOCKS, THREADS>>>(
+        connected_input_gpu.d_mz, connected_input_gpu.d_Sz,
+        connected_input_gpu.d_ma, connected_input_gpu.d_Sa,
+        connected_input_gpu.d_J, input_size, 0, this->state_gpu.d_mz,
+        this->state_gpu.d_Sz, this->state_gpu.d_ma, this->state_gpu.d_Sa,
+        this->state_gpu.d_J);
 
     // Feed forward
     feedForward(this->prop, this->theta_gpu, this->idx_gpu, this->state_gpu);
@@ -95,9 +119,22 @@ void TagiNetwork::init_net() {
     this->d_theta_gpu.allocate_cuda_memory();
     this->d_theta_gpu.copy_host_to_device();
 
+    // Input layers
+    int input_size =
+        this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    this->ma_init.resize(input_size, 0);
+    this->Sa_init.resize(input_size, 0);
+    this->mz_init.resize(input_size, 0);
+    this->Sz_init.resize(input_size, 0);
+    this->J_init.resize(input_size, 1);
+    this->num_input_bytes = input_size * sizeof(float);
+
     // Output layer
     this->ma.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
     this->Sa.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->mz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->Sz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
+    this->J.resize(this->prop.nodes.back() * this->prop.batch_size, 1);
     this->num_output_bytes =
         this->prop.batch_size * this->prop.nodes.back() * sizeof(float);
     this->allocate_output_memory();
@@ -105,9 +142,13 @@ void TagiNetwork::init_net() {
 
     // IO data
     this->net_input_gpu.set_values(this->prop);
+    this->net_input_gpu.allocate_cuda_memory();
+    // TODO: This should be an option
+    this->connected_input_gpu.set_values(input_size);
+    this->connected_input_gpu.allocate_cuda_memory();
+
     this->obs_gpu.set_values(this->prop.n_y, this->prop.nye,
                              this->prop.batch_size);
-    this->net_input_gpu.allocate_cuda_memory();
     this->obs_gpu.allocate_cuda_memory();
 }
 void TagiNetwork::get_network_outputs() {
@@ -120,6 +161,42 @@ void TagiNetwork::get_network_outputs() {
     get_output_hidden_states<<<BLOCKS, THREADS>>>(
         this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
     this->output_to_host();
+}
+
+void TagiNetwork::get_all_network_outputs() {
+    int n = this->prop.batch_size * this->prop.nodes.back();
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_mz, this->prop.z_pos.back(), n, this->d_mz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sz, this->prop.z_pos.back(), n, this->d_Sz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_J, this->prop.z_pos.back(), n, this->d_J);
+    this->all_outputs_to_host();
+}
+
+void TagiNetwork::get_all_network_inputs() {
+    int n = this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_ma, 0, n,
+                                                  this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sa, 0, n,
+                                                  this->d_Sa);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_mz, 0, n,
+                                                  this->d_mz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sz, 0, n,
+                                                  this->d_Sz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_J, 0, n,
+                                                  this->d_J);
+    this->all_inputs_to_host();
 }
 
 void TagiNetwork::set_parameters(Param &init_theta)
@@ -172,7 +249,9 @@ Param TagiNetwork::get_parameters() {
 void TagiNetwork::allocate_output_memory() {
     cudaMalloc(&d_ma, this->num_output_bytes);
     cudaMalloc(&d_Sa, this->num_output_bytes);
-
+    cudaMalloc(&d_mz, this->num_output_bytes);
+    cudaMalloc(&d_Sz, this->num_output_bytes);
+    cudaMalloc(&d_J, this->num_output_bytes);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -186,10 +265,17 @@ void TagiNetwork::output_to_device() {
                cudaMemcpyHostToDevice);
     cudaMemcpy(d_Sa, this->Sa.data(), this->num_output_bytes,
                cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mz, this->mz.data(), this->num_output_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sz, this->Sz.data(), this->num_output_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J, this->J.data(), this->num_output_bytes,
+               cudaMemcpyHostToDevice);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
-            "Failed to make data tranfer to device for output's hidden states "
+            "Failed to make data tranfer to device for all output's hidden "
+            "states "
             "- "
             "tagi_network.cu";
         std::cerr << error << ": " << err_msg << "\n";
@@ -204,6 +290,85 @@ void TagiNetwork::output_to_host() {
     if (error != cudaSuccess) {
         std::string err_msg =
             "Failed to make data tranfer to host for output's hidden states "
+            "- "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+void TagiNetwork::all_outputs_to_host() {
+    cudaMemcpy(this->ma.data(), this->d_ma, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sa.data(), this->d_Sa, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mz.data(), this->d_mz, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sz.data(), this->d_Sz, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->J.data(), this->d_J, this->num_output_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to host for ALL output's hidden "
+            "states "
+            "- "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+
+void TagiNetwork::allocate_input_memory() {
+    cudaMalloc(&d_ma_init, this->num_input_bytes);
+    cudaMalloc(&d_Sa_init, this->num_input_bytes);
+    cudaMalloc(&d_mz_init, this->num_input_bytes);
+    cudaMalloc(&d_Sz_init, this->num_input_bytes);
+    cudaMalloc(&d_J_init, this->num_input_bytes);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for input's hidden states - "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+
+void TagiNetwork::input_to_device() {
+    cudaMemcpy(d_ma_init, this->ma_init.data(), this->num_input_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sa_init, this->Sa_init.data(), this->num_input_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mz_init, this->mz_init.data(), this->num_input_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sz_init, this->Sz_init.data(), this->num_input_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J_init, this->J_init.data(), this->num_input_bytes,
+               cudaMemcpyHostToDevice);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to device for ALL input's hidden "
+            "states "
+            "- "
+            "tagi_network.cu";
+        std::cerr << error << ": " << err_msg << "\n";
+    }
+}
+
+void TagiNetwork::all_inputs_to_host() {
+    cudaMemcpy(this->ma_init.data(), this->d_ma_init, this->num_input_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sa_init.data(), this->d_Sa_init, this->num_input_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mz_init.data(), this->d_mz_init, this->num_input_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->Sz_init.data(), this->d_Sz_init, this->num_input_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->J_init.data(), this->d_J_init, this->num_input_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to host for input's hidden states "
             "- "
             "tagi_network.cu";
         std::cerr << error << ": " << err_msg << "\n";

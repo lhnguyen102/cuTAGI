@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      October 08, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,8 +29,8 @@ Args:
         vector of network
     zposOut: Output-hidden-state position for this layer in the hidden-state
         vector of network
-    n: Input node
     m: Output node
+    n: Input node
     k: Number of batches
  */
 {

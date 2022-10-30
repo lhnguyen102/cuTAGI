@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      October 16, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -181,6 +181,25 @@ class InputGPU {
                              std::vector<float> &Sx_f_batch);
 
     ~InputGPU();
+};
+
+class ConnectorInputGPU {
+   public:
+    size_t num_input_bytes;
+    float *d_ma, *d_Sa, *d_mz, *d_Sz, *d_J;
+
+    ConnectorInputGPU();
+    void set_values(int input_size);
+    void allocate_cuda_memory();
+    void copy_host_to_device(std::vector<float> &ma, std::vector<float> &Sa,
+                             std::vector<float> &mz, std::vector<float> &Sz,
+                             std::vector<float> &J);
+
+    void copy_device_to_host(std::vector<float> &ma, std::vector<float> &Sa,
+                             std::vector<float> &mz, std::vector<float> &Sz,
+                             std::vector<float> &J);
+
+    ~ConnectorInputGPU();
 };
 
 class ObsGPU {

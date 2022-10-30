@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      October 21, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,13 @@ NetworkWrapper::~NetworkWrapper(){};
 void NetworkWrapper::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                   std::vector<float> &Sx_f) {
     this->tagi_net->feed_forward(x, Sx, Sx_f);
+}
+void NetworkWrapper::connected_feed_forward(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    this->tagi_net->connected_feed_forward(ma, Sa, mz, Sz, J);
 }
 void NetworkWrapper::state_feed_backward(std::vector<float> &y,
                                          std::vector<float> &Sy,
@@ -32,6 +39,25 @@ NetworkWrapper::get_network_outputs() {
     this->tagi_net->get_network_outputs();
 
     return {this->tagi_net->ma, this->tagi_net->Sa};
+}
+
+std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+           std::vector<float>, std::vector<float>>
+NetworkWrapper::get_all_network_outputs() {
+    this->tagi_net->get_all_network_outputs();
+
+    return {this->tagi_net->ma, this->tagi_net->Sa, this->tagi_net->mz,
+            this->tagi_net->Sz, this->tagi_net->J};
+}
+
+std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+           std::vector<float>, std::vector<float>>
+NetworkWrapper::get_all_network_inputs() {
+    this->tagi_net->get_all_network_inputs();
+
+    return {this->tagi_net->ma_init, this->tagi_net->Sa_init,
+            this->tagi_net->mz_init, this->tagi_net->Sz_init,
+            this->tagi_net->J_init};
 }
 
 void NetworkWrapper::set_parameters(Param &init_theta) {
@@ -109,9 +135,13 @@ PYBIND11_MODULE(pytagi, m) {
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())
         .def("feed_forward", &NetworkWrapper::feed_forward)
+        .def("connected_feed_forward", &NetworkWrapper::connected_feed_forward)
         .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
         .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
         .def("get_network_outputs", &NetworkWrapper::get_network_outputs)
+        .def("get_all_network_outputs",
+             &NetworkWrapper::get_all_network_outputs)
+        .def("get_all_network_inputs", &NetworkWrapper::get_all_network_inputs)
         .def("set_parameters", &NetworkWrapper::set_parameters)
         .def("get_parameters", &NetworkWrapper::get_parameters);
 }

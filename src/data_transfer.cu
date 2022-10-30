@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      October 16, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -1340,6 +1340,81 @@ InputGPU::~InputGPU() {
     cudaFree(d_x_batch);
     cudaFree(d_Sx_batch);
     cudaFree(d_Sx_f_batch);
+}
+
+///////////////////////////////
+// CONNECTOR INPUT GPU
+//////////////////////////////
+ConnectorInputGPU::ConnectorInputGPU(){};
+ConnectorInputGPU::~ConnectorInputGPU() {
+    cudaFree(d_ma);
+    cudaFree(d_Sa);
+    cudaFree(d_mz);
+    cudaFree(d_Sz);
+    cudaFree(d_J);
+};
+void ConnectorInputGPU::set_values(int input_size) {
+    this->num_input_bytes = input_size * sizeof(float);
+}
+
+void ConnectorInputGPU::allocate_cuda_memory() {
+    cudaMalloc(&d_ma, num_input_bytes);
+    cudaMalloc(&d_Sa, num_input_bytes);
+    cudaMalloc(&d_mz, num_input_bytes);
+    cudaMalloc(&d_Sz, num_input_bytes);
+    cudaMalloc(&d_J, num_input_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for  connected inputs - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void ConnectorInputGPU::copy_host_to_device(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    cudaMemcpy(this->d_ma, ma.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_Sa, Sa.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mz, mz.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_Sz, Sz.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_J, J.data(), num_input_bytes, cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        if (error != cudaSuccess) {
+            std::string err_msg =
+                "Failed to make data transfer to device for connected inputs - "
+                "data_transfer.cu\n";
+            std::cerr << error << ": " << err_msg;
+        }
+    }
+}
+
+void ConnectorInputGPU::copy_device_to_host(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    cudaMemcpy(ma.data(), this->d_ma, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(Sa.data(), this->d_Sa, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(mz.data(), this->d_mz, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(Sz.data(), this->d_Sz, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(J.data(), this->d_J, num_input_bytes, cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        if (error != cudaSuccess) {
+            std::string err_msg =
+                "Failed to make data transfer to host for connected inputs - "
+                "data_transfer.cu\n";
+            std::cerr << error << ": " << err_msg;
+        }
+    }
 }
 
 ///////////////////////////////

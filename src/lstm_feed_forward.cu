@@ -3,7 +3,7 @@
 // Description:  Long-Short Term Memory (LSTM) forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 05, 2022
-// Updated:      September 21, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -286,7 +286,7 @@ NOTE: Weight & bias vector for lstm is defined following
     int THREADS = net.num_gpu_threads;
     unsigned int ACT_BLOCKS = (no_b_seq + THREADS - 1) / THREADS;
     unsigned int gridRow = (no + THREADS - 1) / THREADS;
-    unsigned int gridCol = (net.batch_size + THREADS - 1) / THREADS;
+    unsigned int gridCol = (b_seq + THREADS - 1) / THREADS;
     unsigned int gridRow_cov = (b_seq + THREADS - 1) / THREADS;
     unsigned int gridCol_cov = (no + THREADS - 1) / THREADS;
     dim3 dimGrid(gridCol, gridRow);

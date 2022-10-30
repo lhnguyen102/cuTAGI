@@ -3,7 +3,7 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      October 29, 2022
+# Updated:      October 30, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -11,11 +11,12 @@ from typing import Union
 
 import numpy as np
 import python_src.metric as metric
-from python_src.tagi_network import NetProp, TagiNetwork, Param
+from python_src.tagi_network import NetProp, Param, TagiNetwork
+from python_src.tagi_utils import Normalizer as normalizer
 from tqdm import tqdm
 from visualizer import PredictionViz
 
-from python_examples.data_loader import Normalizer as normalizer
+np.random.seed(0)
 
 
 class TimeSeriesForecaster:
@@ -47,7 +48,7 @@ class TimeSeriesForecaster:
         # Outputs
         V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
                            dtype=np.float32) + self.net_prop.sigma_v**2
-        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+        ud_idx_batch = np.zeros([], dtype=np.int32)
 
         input_data, output_data = self.data_loader["train"]
         num_data = input_data.shape[0]
@@ -58,15 +59,11 @@ class TimeSeriesForecaster:
                 self.net_prop.sigma_v = np.maximum(
                     self.net_prop.sigma_v_min,
                     self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)
-                V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                                   dtype=np.float32) + self.net_prop.sigma_v**2
+                V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
 
             for i in range(num_iter):
                 # Get data
-                if i == 0:
-                    idx = np.arange(batch_size)
-                else:
-                    idx = np.random.choice(num_data, size=batch_size)
+                idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
 
@@ -91,6 +88,8 @@ class TimeSeriesForecaster:
                     mu=self.data_loader["y_norm_param_1"],
                     std=self.data_loader["y_norm_param_2"])
                 mse = metric.mse(pred, obs)
+
+                # Progress bar
                 pbar.set_description(
                     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t mse: {mse:>7.2f}"
                 )
