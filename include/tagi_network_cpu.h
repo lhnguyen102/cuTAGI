@@ -4,7 +4,7 @@
 //               (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 30, 2022
+// Updated:      October 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,10 @@ class TagiNetworkCPU : public TagiNetworkBase {
     void get_network_outputs();
     void get_all_network_outputs();
     void get_all_network_inputs();
+    std::tuple<std::vector<float>, std::vector<float>> get_inovation_mean_var(
+        int layer);
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_state_delta_mean_var();
     void set_parameters(Param &init_theta);
     Param get_parameters();
 

@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 05, 2022
-// Updated:      October 30, 2022
+// Updated:      October 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -71,6 +71,151 @@ void TagiNetwork::param_feed_backward() {
     globalParamUpdate(this->d_theta_gpu, this->num_weights, this->num_biases,
                       this->num_weights_sc, this->num_biases_sc,
                       this->prop.num_gpu_threads, this->theta_gpu);
+}
+
+void TagiNetwork::get_network_outputs() {
+    int n = this->prop.batch_size * this->prop.nodes.back();
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
+    this->output_to_host();
+}
+
+void TagiNetwork::get_all_network_outputs() {
+    int n = this->prop.batch_size * this->prop.nodes.back();
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_mz, this->prop.z_pos.back(), n, this->d_mz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_Sz, this->prop.z_pos.back(), n, this->d_Sz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(
+        this->state_gpu.d_J, this->prop.z_pos.back(), n, this->d_J);
+    this->all_outputs_to_host();
+}
+
+void TagiNetwork::get_all_network_inputs() {
+    int n = this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
+    int THREADS = this->prop.num_gpu_threads;
+    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
+
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_ma, 0, n,
+                                                  this->d_ma);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sa, 0, n,
+                                                  this->d_Sa);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_mz, 0, n,
+                                                  this->d_mz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sz, 0, n,
+                                                  this->d_Sz);
+    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_J, 0, n,
+                                                  this->d_J);
+    this->all_inputs_to_host();
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetwork::get_inovation_mean_var(int layer) {
+    // Transfer data from device to host. TODO: find a way to only the portion
+    // of data requested
+    this->d_state_gpu.copy_device_to_host();
+
+    // Get data for requested layer
+    int num_data;
+    if (layer == 0) {  // input layer
+        num_data = this->prop.nodes[layer] * this->prop.batch_size *
+                   this->prop.input_seq_len;
+
+    } else {
+        num_data = this->prop.nodes[layer] * this->prop.batch_size;
+    }
+    int z_pos = this->prop.z_pos[layer];
+    std::vector<float> delta_m(num_data, 0);
+    std::vector<float> delta_S(num_data, 0);
+    for (int i = 0; i < num_data; i++) {
+        delta_m[i] = this->d_state_gpu.delta_m[z_pos + i];
+        delta_S[i] = this->d_state_gpu.delta_S[z_pos + i];
+    }
+
+    return {delta_m, delta_S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetwork::get_state_delta_mean_var()
+/*Get updating quantites (delta_mz, delta_Sz) of the input layer for the hidden
+states. NOTE: delta_mz and delta_Sz are overridable vector during the backward
+pass in order to save memory allocation on the device.
+*/
+{
+    // Transfer data from device to host. TODO: find a way to only the portion
+    // of data requested
+    this->d_state_gpu.copy_device_to_host();
+
+    // Get data for input layer
+    int num_data =
+        this->prop.nodes[0] * this->prop.batch_size * this->prop.input_seq_len;
+    std::vector<float> delta_mz(num_data, 0);
+    std::vector<float> delta_Sz(num_data, 0);
+    for (int i = 0; i < num_data; i++) {
+        delta_mz[i] = this->d_state_gpu.delta_mz[i];
+        delta_Sz[i] = this->d_state_gpu.delta_Sz[i];
+    }
+
+    return {delta_mz, delta_Sz};
+}
+
+void TagiNetwork::set_parameters(Param &init_theta)
+/*Set parameters to network*/
+{
+    // Check if parameters are valids
+    if ((init_theta.mw.size() != this->num_weights) ||
+        (init_theta.Sw.size() != this->num_weights)) {
+        throw std::invalid_argument("Length of weight parameters is invalid");
+    }
+    if ((init_theta.mb.size() != this->num_biases) ||
+        (init_theta.Sb.size() != this->num_biases)) {
+        throw std::invalid_argument("Length of biases parameters is invalid");
+    }
+
+    // Weights
+    for (int i = 0; i < this->num_weights; i++) {
+        this->theta.mw[i] = init_theta.mw[i];
+        this->theta.Sw[i] = init_theta.Sw[i];
+    }
+
+    // Biases
+    for (int j = 0; j < this->num_biases; j++) {
+        this->theta.mb[j] = init_theta.mb[j];
+        this->theta.Sb[j] = init_theta.Sb[j];
+    }
+
+    // Residual network
+    if (this->num_weights_sc > 0) {
+        // Weights
+        for (int i = 0; i < this->num_weights_sc; i++) {
+            this->theta.mw_sc[i] = init_theta.mw_sc[i];
+            this->theta.Sw_sc[i] = init_theta.Sw_sc[i];
+        }
+
+        // Biases
+        for (int j = 0; j < this->num_biases_sc; j++) {
+            this->theta.mb_sc[j] = init_theta.mb_sc[j];
+            this->theta.Sb_sc[j] = init_theta.Sb_sc[j];
+        }
+    }
+    this->theta_gpu.copy_host_to_device();
+}
+
+Param TagiNetwork::get_parameters() {
+    this->theta_gpu.copy_device_to_host();
+    return this->theta;
 }
 
 void TagiNetwork::init_net() {
@@ -150,100 +295,6 @@ void TagiNetwork::init_net() {
     this->obs_gpu.set_values(this->prop.n_y, this->prop.nye,
                              this->prop.batch_size);
     this->obs_gpu.allocate_cuda_memory();
-}
-void TagiNetwork::get_network_outputs() {
-    int n = this->prop.batch_size * this->prop.nodes.back();
-    int THREADS = this->prop.num_gpu_threads;
-    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
-
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
-    this->output_to_host();
-}
-
-void TagiNetwork::get_all_network_outputs() {
-    int n = this->prop.batch_size * this->prop.nodes.back();
-    int THREADS = this->prop.num_gpu_threads;
-    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
-
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_ma, this->prop.z_pos.back(), n, this->d_ma);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_Sa, this->prop.z_pos.back(), n, this->d_Sa);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_mz, this->prop.z_pos.back(), n, this->d_mz);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_Sz, this->prop.z_pos.back(), n, this->d_Sz);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(
-        this->state_gpu.d_J, this->prop.z_pos.back(), n, this->d_J);
-    this->all_outputs_to_host();
-}
-
-void TagiNetwork::get_all_network_inputs() {
-    int n = this->prop.n_x * this->prop.batch_size * this->prop.input_seq_len;
-    int THREADS = this->prop.num_gpu_threads;
-    unsigned int BLOCKS = (n + THREADS - 1) / THREADS;
-
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_ma, 0, n,
-                                                  this->d_ma);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sa, 0, n,
-                                                  this->d_Sa);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_mz, 0, n,
-                                                  this->d_mz);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_Sz, 0, n,
-                                                  this->d_Sz);
-    get_output_hidden_states<<<BLOCKS, THREADS>>>(this->state_gpu.d_J, 0, n,
-                                                  this->d_J);
-    this->all_inputs_to_host();
-}
-
-void TagiNetwork::set_parameters(Param &init_theta)
-/*Set parameters to network*/
-{
-    // Check if parameters are valids
-    if ((init_theta.mw.size() != this->num_weights) ||
-        (init_theta.Sw.size() != this->num_weights)) {
-        throw std::invalid_argument("Length of weight parameters is invalide");
-    }
-    if ((init_theta.mb.size() != this->num_biases) ||
-        (init_theta.Sb.size() != this->num_biases)) {
-        throw std::invalid_argument("Length of biases parameters is invalide");
-    }
-
-    // Weights
-    for (int i = 0; i < this->num_weights; i++) {
-        this->theta.mw[i] = init_theta.mw[i];
-        this->theta.Sw[i] = init_theta.Sw[i];
-    }
-
-    // Biases
-    for (int j = 0; j < this->num_biases; j++) {
-        this->theta.mb[j] = init_theta.mb[j];
-        this->theta.Sb[j] = init_theta.Sb[j];
-    }
-
-    // Residual network
-    if (this->num_weights_sc > 0) {
-        // Weights
-        for (int i = 0; i < this->num_weights_sc; i++) {
-            this->theta.mw_sc[i] = init_theta.mw_sc[i];
-            this->theta.Sw_sc[i] = init_theta.Sw_sc[i];
-        }
-
-        // Biases
-        for (int j = 0; j < this->num_biases_sc; j++) {
-            this->theta.mb_sc[j] = init_theta.mb_sc[j];
-            this->theta.Sb_sc[j] = init_theta.Sb_sc[j];
-        }
-    }
-    this->theta_gpu.copy_host_to_device();
-}
-
-Param TagiNetwork::get_parameters() {
-    this->theta_gpu.copy_device_to_host();
-    return this->theta;
 }
 
 void TagiNetwork::allocate_output_memory() {

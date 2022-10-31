@@ -122,12 +122,13 @@ void TagiNetworkCPU::get_network_outputs() {
 void TagiNetworkCPU::get_all_network_outputs() {
     // Last layer's hidden state
     int num_outputs = this->prop.nodes.back() * this->prop.batch_size;
+    int z_pos = this->prop.z_pos.back();
     for (int i = 0; i < num_outputs; i++) {
-        this->ma[i] = this->state.ma[this->prop.z_pos.back() + i];
-        this->Sa[i] = this->state.Sa[this->prop.z_pos.back() + i];
-        this->mz[i] = this->state.mz[this->prop.z_pos.back() + i];
-        this->Sz[i] = this->state.Sz[this->prop.z_pos.back() + i];
-        this->J[i] = this->state.J[this->prop.z_pos.back() + i];
+        this->ma[i] = this->state.ma[z_pos + i];
+        this->Sa[i] = this->state.Sa[z_pos + i];
+        this->mz[i] = this->state.mz[z_pos + i];
+        this->Sz[i] = this->state.Sz[z_pos + i];
+        this->J[i] = this->state.J[z_pos + i];
     }
 }
 
@@ -144,17 +145,57 @@ void TagiNetworkCPU::get_all_network_inputs() {
     }
 }
 
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetworkCPU::get_inovation_mean_var(int layer) {
+    int num_data;
+    if (layer == 0) {  // input layer
+        num_data = this->prop.nodes[layer] * this->prop.batch_size *
+                   this->prop.input_seq_len;
+
+    } else {
+        num_data = this->prop.nodes[layer] * this->prop.batch_size;
+    }
+    int z_pos = this->prop.z_pos[layer];
+    std::vector<float> delta_m(num_data, 0);
+    std::vector<float> delta_S(num_data, 0);
+    for (int i = 0; i < num_data; i++) {
+        delta_m[i] = this->d_state.delta_m[z_pos + i];
+        delta_S[i] = this->d_state.delta_S[z_pos + i];
+    }
+
+    return {delta_m, delta_S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetworkCPU::get_state_delta_mean_var()
+/*Get updating quantites (delta_mz, delta_Sz) of the input layer for the hidden
+states. NOTE: delta_mz and delta_Sz are overridable vector during the backward
+pass in order to save memory allocation on the device.
+*/
+{
+    int num_data =
+        this->prop.nodes[0] * this->prop.batch_size * this->prop.input_seq_len;
+    std::vector<float> delta_mz(num_data, 0);
+    std::vector<float> delta_Sz(num_data, 0);
+    for (int i = 0; i < num_data; i++) {
+        delta_mz[i] = this->d_state.delta_mz[i];
+        delta_Sz[i] = this->d_state.delta_Sz[i];
+    }
+
+    return {delta_mz, delta_Sz};
+}
+
 void TagiNetworkCPU::set_parameters(Param &init_theta)
 /*Set parameters to network*/
 {
     // Check if parameters are valids
     if ((init_theta.mw.size() != this->num_weights) ||
         (init_theta.Sw.size() != this->num_weights)) {
-        throw std::invalid_argument("Length of weight parameters is invalide");
+        throw std::invalid_argument("Length of weight parameters is invalid");
     }
     if ((init_theta.mb.size() != this->num_biases) ||
         (init_theta.Sb.size() != this->num_biases)) {
-        throw std::invalid_argument("Length of biases parameters is invalide");
+        throw std::invalid_argument("Length of bias parameters is invalid");
     }
 
     // Weights

@@ -3,7 +3,7 @@
 // Description:  tagi network base
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 08, 2022
-// Updated:      October 30, 2022
+// Updated:      October 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -26,8 +26,20 @@ void TagiNetworkBase::state_feed_backward(std::vector<float> &y,
                                           std::vector<int> &idx_ud) {}
 
 void TagiNetworkBase::param_feed_backward() {}
-void TagiNetworkBase::get_network_outputs(){};
-void TagiNetworkBase::get_all_network_outputs(){};
-void TagiNetworkBase::get_all_network_inputs(){};
+void TagiNetworkBase::get_network_outputs() {}
+void TagiNetworkBase::get_all_network_outputs() {}
+void TagiNetworkBase::get_all_network_inputs() {}
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetworkBase::get_inovation_mean_var(int layer) {
+    std::vector<float> delta_m(1, 0);
+    std::vector<float> delta_S(1, 0);
+    return {delta_m, delta_S};
+}
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetworkBase::get_state_delta_mean_var() {
+    std::vector<float> delta_mz(1, 0);
+    std::vector<float> delta_Sz(1, 0);
+    return {delta_mz, delta_Sz};
+}
 void TagiNetworkBase::set_parameters(Param &init_theta){};
 Param TagiNetworkBase::get_parameters() { return this->theta; }

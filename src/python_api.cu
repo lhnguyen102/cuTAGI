@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      October 30, 2022
+// Updated:      October 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,31 +21,32 @@ NetworkWrapper::NetworkWrapper(Network &net) {
 }
 NetworkWrapper::~NetworkWrapper(){};
 
-void NetworkWrapper::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                                  std::vector<float> &Sx_f) {
+void NetworkWrapper::feed_forward_wrapper(std::vector<float> &x,
+                                          std::vector<float> &Sx,
+                                          std::vector<float> &Sx_f) {
     this->tagi_net->feed_forward(x, Sx, Sx_f);
 }
 
-void NetworkWrapper::connected_feed_forward(std::vector<float> &ma,
-                                            std::vector<float> &Sa,
-                                            std::vector<float> &mz,
-                                            std::vector<float> &Sz,
-                                            std::vector<float> &J) {
+void NetworkWrapper::connected_feed_forward_wrapper(std::vector<float> &ma,
+                                                    std::vector<float> &Sa,
+                                                    std::vector<float> &mz,
+                                                    std::vector<float> &Sz,
+                                                    std::vector<float> &J) {
     this->tagi_net->connected_feed_forward(ma, Sa, mz, Sz, J);
 }
 
-void NetworkWrapper::state_feed_backward(std::vector<float> &y,
-                                         std::vector<float> &Sy,
-                                         std::vector<int> &idx_ud) {
+void NetworkWrapper::state_feed_backward_wrapper(std::vector<float> &y,
+                                                 std::vector<float> &Sy,
+                                                 std::vector<int> &idx_ud) {
     this->tagi_net->state_feed_backward(y, Sy, idx_ud);
 }
 
-void NetworkWrapper::param_feed_backward() {
+void NetworkWrapper::param_feed_backward_wrapper() {
     this->tagi_net->param_feed_backward();
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
-NetworkWrapper::get_network_outputs() {
+NetworkWrapper::get_network_outputs_wrapper() {
     this->tagi_net->get_network_outputs();
 
     return {this->tagi_net->ma, this->tagi_net->Sa};
@@ -53,7 +54,7 @@ NetworkWrapper::get_network_outputs() {
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>, std::vector<float>>
-NetworkWrapper::get_all_network_outputs() {
+NetworkWrapper::get_all_network_outputs_wrapper() {
     this->tagi_net->get_all_network_outputs();
 
     return {this->tagi_net->ma, this->tagi_net->Sa, this->tagi_net->mz,
@@ -62,7 +63,7 @@ NetworkWrapper::get_all_network_outputs() {
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>, std::vector<float>>
-NetworkWrapper::get_all_network_inputs() {
+NetworkWrapper::get_all_network_inputs_wrapper() {
     this->tagi_net->get_all_network_inputs();
 
     return {this->tagi_net->ma_init, this->tagi_net->Sa_init,
@@ -70,11 +71,25 @@ NetworkWrapper::get_all_network_inputs() {
             this->tagi_net->J_init};
 }
 
-void NetworkWrapper::set_parameters(Param &init_theta) {
+std::tuple<std::vector<float>, std::vector<float>>
+NetworkWrapper::get_inovation_mean_var_wrapper(int layer) {
+    std::vector<float> delta_m, delta_S;
+    std::tie(delta_m, delta_S) = this->tagi_net->get_inovation_mean_var(layer);
+    return {delta_m, delta_S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+NetworkWrapper::get_state_delta_mean_var_wrapper() {
+    std::vector<float> delta_mz, delta_Sz;
+    std::tie(delta_mz, delta_Sz) = this->tagi_net->get_state_delta_mean_var();
+    return {delta_mz, delta_Sz};
+}
+
+void NetworkWrapper::set_parameters_wrapper(Param &init_theta) {
     this->tagi_net->set_parameters(init_theta);
 }
 
-Param NetworkWrapper::get_parameters() { return this->tagi_net->theta; }
+Param NetworkWrapper::get_parameters_wrapper() { return this->tagi_net->theta; }
 
 pybind11::array load_mnist_images_wrapper_2() {
     // auto images = load_mnist_images(image_file, num);
@@ -157,14 +172,21 @@ PYBIND11_MODULE(pytagi, m) {
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())
-        .def("feed_forward", &NetworkWrapper::feed_forward)
-        .def("connected_feed_forward", &NetworkWrapper::connected_feed_forward)
-        .def("state_feed_backward", &NetworkWrapper::state_feed_backward)
-        .def("param_feed_backward", &NetworkWrapper::param_feed_backward)
-        .def("get_network_outputs", &NetworkWrapper::get_network_outputs)
-        .def("get_all_network_outputs",
-             &NetworkWrapper::get_all_network_outputs)
-        .def("get_all_network_inputs", &NetworkWrapper::get_all_network_inputs)
-        .def("set_parameters", &NetworkWrapper::set_parameters)
-        .def("get_parameters", &NetworkWrapper::get_parameters);
+        .def("feed_forward_wrapper", &NetworkWrapper::feed_forward_wrapper)
+        .def("connected_feed_forward_wrapper",
+             &NetworkWrapper::connected_feed_forward_wrapper)
+        .def("state_feed_backward_wrapper",
+             &NetworkWrapper::state_feed_backward_wrapper)
+        .def("param_feed_backward_wrapper",
+             &NetworkWrapper::param_feed_backward_wrapper)
+        .def("get_network_outputs_wrapper",
+             &NetworkWrapper::get_network_outputs_wrapper)
+        .def("get_all_network_outputs_wrapper",
+             &NetworkWrapper::get_all_network_outputs_wrapper)
+        .def("get_all_network_inputs_wrapper",
+             &NetworkWrapper::get_all_network_inputs_wrapper)
+        .def("get_inovation_mean_var_wrapper",
+             &NetworkWrapper::get_inovation_mean_var_wrapper)
+        .def("set_parameters_wrapper", &NetworkWrapper::set_parameters_wrapper)
+        .def("get_parameters_wrapper", &NetworkWrapper::get_parameters_wrapper);
 }

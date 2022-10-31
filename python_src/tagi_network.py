@@ -62,8 +62,9 @@ class TagiNetwork:
         the size of x_batch, Sx_batch (B, N) where B is the batch size and N
         is the data dimension
         """
-        self.network.feed_forward(x_batch.flatten(), Sx_batch.flatten(),
-                                  Sx_f_batch.flatten())
+        self.network.feed_forward_wrapper(x_batch.flatten(),
+                                          Sx_batch.flatten(),
+                                          Sx_f_batch.flatten())
 
     def connected_feed_forward(self, ma: np.ndarray, va: np.ndarray,
                                mz: np.ndarray, vz: np.ndarray,
@@ -71,7 +72,7 @@ class TagiNetwork:
         """Forward pass for the network that is connected to the other 
         network e.g. decoder network in autoencoder taks"""
 
-        self.network.connected_feed_forward(ma, va, mz, vz, jcb)
+        self.network.connected_feed_forward_wrapper(ma, va, mz, vz, jcb)
 
     def state_feed_backward(self, y_batch: np.ndarray, V_batch: np.ndarray,
                             ud_idx_batch: np.ndarray) -> None:
@@ -79,16 +80,17 @@ class TagiNetwork:
         the size of y_batch, V_batch (B, N) where B is the batch size and N
         is the data dimension
         """
-        self.network.state_feed_backward(y_batch.flatten(), V_batch.flatten(),
-                                         ud_idx_batch.flatten())
+        self.network.state_feed_backward_wrapper(y_batch.flatten(),
+                                                 V_batch.flatten(),
+                                                 ud_idx_batch.flatten())
 
     def param_feed_backward(self) -> None:
         """Update parameters"""
-        self.network.param_feed_backward()
+        self.network.param_feed_backward_wrapper()
 
     def get_network_outputs(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get last layer's hidden state distribution"""
-        ma, Sa = self.network.get_network_outputs()
+        ma, Sa = self.network.get_network_outputs_wrapper()
 
         return np.array(ma), np.array(Sa)
 
@@ -104,7 +106,7 @@ class TagiNetwork:
             vz: Variance of hidden states for the output layer       
             jcb: Jacobian matrix for the output layer
         """
-        ma, va, mz, vz, jcb = self.network.get_all_network_outputs()
+        ma, va, mz, vz, jcb = self.network.get_all_network_outputs_wrapper()
 
         return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
                 np.array(jcb))
@@ -121,15 +123,23 @@ class TagiNetwork:
             vz: Variance of hidden states for the input layer     
             jcb: Jacobian matrix for the input layer
         """
-        ma, Sa, mz, Sz, jcb = self.network.get_all_network_inputs()
+        ma, va, mz, vz, jcb = self.network.get_all_network_inputs_wrapper()
 
         return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
                 np.array(jcb))
 
+    def get_inovation_mean_var(self,
+                               layer: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Get updating quantities for the inovation"""
+
+        delta_m, delta_v = self.network.get_inovation_mean_var_wrapper(layer)
+
+        return np.array(delta_m), np.array(delta_v)
+
     def set_parameters(self, param: Param) -> None:
         """Set parameter values to network"""
-        self.network.set_parameters(param)
+        self.network.set_parameters_wrapper(param)
 
     def get_parameters(self) -> tagi.Param:
         """Get parameters of network"""
-        return self.network.get_parameters()
+        return self.network.get_parameters_wrapper()

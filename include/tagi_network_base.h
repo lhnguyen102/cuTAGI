@@ -3,7 +3,7 @@
 // Description:  header file for tagi network base
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 08, 2022
-// Updated:      October 30, 2022
+// Updated:      October 31, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -54,6 +54,10 @@ class TagiNetworkBase {
     virtual void get_network_outputs();
     virtual void get_all_network_outputs();
     virtual void get_all_network_inputs();
+    virtual std::tuple<std::vector<float>, std::vector<float>>
+    get_inovation_mean_var(int layer);
+    virtual std::tuple<std::vector<float>, std::vector<float>>
+    get_state_delta_mean_var();
     virtual void set_parameters(Param &init_theta);
     virtual Param get_parameters();
 };

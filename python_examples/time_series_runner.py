@@ -63,6 +63,7 @@ def main():
     reg_task = TimeSeriesForecaster(num_epochs=num_epochs,
                                     data_loader=data_loader,
                                     net_prop=net_prop,
+                                    param=param,
                                     viz=viz)
     reg_task.train()
     reg_task.predict()

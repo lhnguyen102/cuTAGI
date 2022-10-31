@@ -3,7 +3,7 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      October 30, 2022
+# Updated:      October 31, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -16,8 +16,6 @@ from python_src.tagi_utils import Normalizer as normalizer
 from tqdm import tqdm
 from visualizer import PredictionViz
 
-np.random.seed(0)
-
 
 class TimeSeriesForecaster:
     """Time series forecaster using TAGI"""
@@ -27,12 +25,14 @@ class TimeSeriesForecaster:
                  data_loader: dict,
                  net_prop: NetProp,
                  param: Union[Param, None] = None,
-                 viz: Union[PredictionViz, None] = None) -> None:
+                 viz: Union[PredictionViz, None] = None,
+                 dtype=np.float32) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.net_prop = net_prop
         self.network = TagiNetwork(self.net_prop)
         self.viz = viz
+        self.dtype = dtype
         if param is not None:
             self.network.set_parameters(param=param)
 
@@ -41,13 +41,14 @@ class TimeSeriesForecaster:
         batch_size = self.net_prop.batch_size
 
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=np.float32)
-        Sx_f_batch = np.array([], dtype=np.float32)
+        Sx_batch = np.zeros(
+            (batch_size * self.net_prop.input_seq_len, self.net_prop.nodes[0]),
+            dtype=self.dtype)
+        Sx_f_batch = np.array([], dtype=self.dtype)
 
         # Outputs
         V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                           dtype=np.float32) + self.net_prop.sigma_v**2
+                           dtype=self.dtype) + self.net_prop.sigma_v**2
         ud_idx_batch = np.zeros([], dtype=np.int32)
 
         input_data, output_data = self.data_loader["train"]
@@ -100,8 +101,8 @@ class TimeSeriesForecaster:
 
         # Inputs
         Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=np.float32)
-        Sx_f_batch = np.array([], dtype=np.float32)
+                            dtype=self.dtype)
+        Sx_f_batch = np.array([], dtype=self.dtype)
 
         mean_predictions = []
         variance_predictions = []

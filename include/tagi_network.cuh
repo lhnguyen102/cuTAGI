@@ -46,6 +46,10 @@ class TagiNetwork : public TagiNetworkBase {
     void get_network_outputs();
     void get_all_network_outputs();
     void get_all_network_inputs();
+    std::tuple<std::vector<float>, std::vector<float>> get_inovation_mean_var(
+        int layer);
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_state_delta_mean_var();
     void set_parameters(Param &init_theta);
     Param get_parameters();
 

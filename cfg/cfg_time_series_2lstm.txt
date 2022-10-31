@@ -2,7 +2,7 @@ model_name: lstm_demo
 task_name: time_series
 data_name: traffic_volume
 net_name: 2lstm
-load_param: false
+load_param: true
 num_epochs: 50
 num_train_data: 924
 num_test_data: 232
