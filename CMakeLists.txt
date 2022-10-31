@@ -123,7 +123,6 @@ set(CPU_SOURCES
   src/derivative_calcul_cpu.cpp
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
-  src/gpu_debug_utils.cpp
 
   src/utility_wrapper.cpp
   test/test_lstm_cpu.cpp
@@ -143,6 +142,7 @@ set(GPU_SOURCES
   src/activation_fun.cu
   src/task.cu
   src/tagi_network.cu
+  src/gpu_debug_utils.cpp
 )
 
 # Output binary folder der for different mode
