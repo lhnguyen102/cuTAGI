@@ -17,7 +17,7 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
                         SavePath &path, bool train_mode, bool debug)
 /*Classification task
 
-  Args:
+  Args:-
     net: Tagi network class
     imdb: Image database
     n_epochs: Number of epochs
