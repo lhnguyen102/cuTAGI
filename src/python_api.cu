@@ -132,6 +132,8 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("sigma_v_min", &Network::sigma_v_min)
         .def_readwrite("sigma_x", &Network::sigma_x)
         .def_readwrite("is_idx_ud", &Network::is_idx_ud)
+        .def_readwrite("is_output_ud", &Network::is_output_ud)
+        .def_readwrite("last_backward_layer", &Network::last_backward_layer)
         .def_readwrite("nye", &Network::nye)
         .def_readwrite("decay_factor_sigma_v", &Network::decay_factor_sigma_v)
         .def_readwrite("noise_gain", &Network::noise_gain)
@@ -187,6 +189,8 @@ PYBIND11_MODULE(pytagi, m) {
              &NetworkWrapper::get_all_network_inputs_wrapper)
         .def("get_inovation_mean_var_wrapper",
              &NetworkWrapper::get_inovation_mean_var_wrapper)
+        .def("get_state_delta_mean_var_wrapper",
+             &NetworkWrapper::get_state_delta_mean_var_wrapper)
         .def("set_parameters_wrapper", &NetworkWrapper::set_parameters_wrapper)
         .def("get_parameters_wrapper", &NetworkWrapper::get_parameters_wrapper);
 }

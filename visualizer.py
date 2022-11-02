@@ -3,11 +3,12 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      September 18, 2022
+# Updated:      November 02, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 import os
+from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -55,20 +56,12 @@ class ImageViz:
         df = pd.read_csv(file_name, skiprows=0, delimiter=",", header=None)
         imgs = df[0].values
 
-        # Reshape data for plot
-        num_imgs = int(len(imgs) / np.prod(self.img_size))
-        imgs = np.reshape(
-            imgs,
-            (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2]))
-        mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
-        sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))
-
-        imgs = (imgs * sigma + mu) * 255.0
-        imgs = imgs.transpose(0, 2, 3, 1)
-
         return imgs
 
-    def plot_images(self, n_row: int, n_col: int) -> None:
+    def plot_images(self,
+                    n_row: int,
+                    n_col: int,
+                    imgs: Union[None, np.ndarray] = None) -> None:
         """Plot and save figure
         Args:
             n_row: Number of rows for exported image
@@ -76,8 +69,18 @@ class ImageViz:
         """
 
         # Load images
-        imgs = self.load_generated_images()
-        (num, _, _, _) = imgs.shape
+        if imgs is None:
+            imgs = self.load_generated_images()
+
+        # Reshape data for plot
+        num_imgs = int(len(imgs) / np.prod(self.img_size))
+        imgs = np.reshape(imgs, (num_imgs, self.img_size[0],
+                                    self.img_size[1], self.img_size[2]))
+        mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
+        sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))
+
+        imgs = (imgs * sigma + mu) * 255.0
+        imgs = imgs.transpose(0, 2, 3, 1)
 
         # Plot images
         path_dir = "./saved_results"
@@ -87,7 +90,7 @@ class ImageViz:
         fig_path = f"{path_dir}/{self.data_name}_{self.task_name}.png"
 
         _, axes = plt.subplots(n_row, n_col, figsize=((10, 10)))
-        for i in range(num):
+        for i in range(num_imgs):
             ax = axes[i // n_col, i % n_col]
             ax.imshow(imgs[i], cmap="gray")
             ax.set_axis_off()

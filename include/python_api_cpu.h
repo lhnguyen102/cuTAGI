@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      October 19, 2022
+// Updated:      November 02, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -21,27 +21,36 @@ class NetworkWrapper {
     std::unique_ptr<TagiNetworkBase> tagi_net;
     NetworkWrapper(Network &net);
     ~NetworkWrapper();
-    void feed_forward(std::vector<float> &x, std::vector<float> &Sx,
-                      std::vector<float> &Sx_f);
-    void connected_feed_forward(std::vector<float> &ma, std::vector<float> &Sa,
-                                std::vector<float> &mz, std::vector<float> &Sz,
-                                std::vector<float> &J);
+    void feed_forward_wrapper(std::vector<float> &x, std::vector<float> &Sx,
+                              std::vector<float> &Sx_f);
+    void connected_feed_forward_wrapper(std::vector<float> &ma,
+                                        std::vector<float> &Sa,
+                                        std::vector<float> &mz,
+                                        std::vector<float> &Sz,
+                                        std::vector<float> &J);
 
-    void state_feed_backward(std::vector<float> &y, std::vector<float> &Sy,
-                             std::vector<int> &idx_ud);
-    void param_feed_backward();
+    void state_feed_backward_wrapper(std::vector<float> &y,
+                                     std::vector<float> &Sy,
+                                     std::vector<int> &idx_ud);
+    void param_feed_backward_wrapper();
 
     std::tuple<std::vector<float>, std::vector<float>> get_network_outputs();
 
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
-    get_all_network_outputs();
+    get_all_network_outputs_wrapper();
 
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
-    get_all_network_inputs();
+    get_all_network_inputs_wrapper();
 
-    void set_parameters(Param &init_theta);
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_inovation_mean_var_wrapper(int layer);
 
-    Param get_parameters();
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_state_delta_mean_var_wrapper();
+
+    void set_parameters_wrapper(Param &init_theta);
+
+    Param get_parameters_wrapper();
 };

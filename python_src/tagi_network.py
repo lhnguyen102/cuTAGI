@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      October 30, 2022
+# Updated:      November 02, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -135,6 +135,12 @@ class TagiNetwork:
         delta_m, delta_v = self.network.get_inovation_mean_var_wrapper(layer)
 
         return np.array(delta_m), np.array(delta_v)
+
+    def get_state_delta_mean_var(self) -> None:
+        """Get updating quatities for the first layer"""
+        delta_mz, delta_vz = self.network.get_state_delta_mean_var_wrapper()
+
+        return np.array(delta_mz), np.array(delta_vz)
 
     def set_parameters(self, param: Param) -> None:
         """Set parameter values to network"""
