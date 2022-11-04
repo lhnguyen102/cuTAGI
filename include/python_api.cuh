@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      October 31, 2022
+// Updated:      November 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,7 +20,12 @@
 #include "tagi_network_cpu.h"
 #include "utility_wrapper.h"
 
-class NetworkWrapper {
+class NetworkWrapper
+/* Python wrapper for C+/CUDA backend
+Attributes:
+    tagi_net. Tagi network including backward and forward passes
+ */
+{
    public:
     std::unique_ptr<TagiNetworkBase> tagi_net;
     NetworkWrapper(Network &net);
@@ -59,4 +64,3 @@ class NetworkWrapper {
 
     Param get_parameters_wrapper();
 };
-// std::vector<float> load_mnist_images_wrapper_2();

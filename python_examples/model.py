@@ -3,7 +3,7 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      November 02, 2022
+# Updated:      November 04, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -84,7 +84,7 @@ class MnistEncoder(NetProp):
         self.pad_types: list = [1, 0, 2, 1, 0, 2, 0, 0, 0]
         self.activations: list = [0, 4, 0, 0, 4, 0, 0, 4, 0]
         self.batch_size: int = 10
-        self.is_outout_ud: bool = False
+        self.is_output_ud: bool = False
         self.init_method: str = "He"
         self.device: str = "cuda"
 

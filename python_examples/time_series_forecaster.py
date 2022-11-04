@@ -3,7 +3,7 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      October 31, 2022
+# Updated:      November 04, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -57,6 +57,7 @@ class TimeSeriesForecaster:
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
             if epoch > 0:
+                # Decaying observation's variance
                 self.net_prop.sigma_v = np.maximum(
                     self.net_prop.sigma_v_min,
                     self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)

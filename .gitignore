@@ -2,8 +2,9 @@
 *.vscode
 *.json
 debug_data/
+saved_param/
 __pycache__/
-# *.csv
+*.csv
 *.DS_Store
 *.pyc
 pytagi.egg-info

@@ -3,7 +3,7 @@
 # Description:  Example of autoencoder task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 30, 2022
-# Updated:      November 02, 2022
+# Updated:      November 04, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -70,12 +70,20 @@ class Autoencoder:
 
         for epoch in pbar:
             if epoch > 0:
+                # Decaying observation's variance
                 self.decoder_prop.sigma_v = np.maximum(
                     self.decoder_prop.sigma_v_min, self.decoder_prop.sigma_v *
                     self.decoder_prop.decay_factor_sigma_v)
                 V_batch = V_batch * 0.0 + self.decoder_prop.sigma_v**2
 
             for i in range(num_iter):
+                # Momentum for batch norm layer
+                if (i == 0 and epoch == 0):
+                    self.encoder.net_prop.ra_mt = 0.0
+                    self.decoder.net_prop.ra_mt = 0.0
+                else:
+                    self.encoder.net_prop.ra_mt = 0.9
+                    self.decoder.net_prop.ra_mt = 0.9
                 # Get data
                 idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
@@ -123,6 +131,10 @@ class Autoencoder:
 
         generated_images = []
         for count, (x_batch, y_batch) in enumerate(self.data_loader["test"]):
+            # Disable average running for batch norm layer
+            self.encoder.net_prop.ra_mt = 1.0
+            self.decoder.net_prop.ra_mt = 1.0
+
             # Encoder's feed forward
             self.encoder.feed_forward(x_batch, Sx_batch, Sx_f_batch)
 

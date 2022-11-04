@@ -74,8 +74,9 @@ class ImageViz:
 
         # Reshape data for plot
         num_imgs = int(len(imgs) / np.prod(self.img_size))
-        imgs = np.reshape(imgs, (num_imgs, self.img_size[0],
-                                    self.img_size[1], self.img_size[2]))
+        imgs = np.reshape(
+            imgs,
+            (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2]))
         mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
         sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))
 
@@ -546,8 +547,8 @@ def time_series_forecasting():
 
 if __name__ == "__main__":
     #regression()
-    # autoencoder()
+    autoencoder()
     # input_uncertainty_prop()
     #noise_inference()
     #derivative()
-    time_series_forecasting()
+    #time_series_forecasting()

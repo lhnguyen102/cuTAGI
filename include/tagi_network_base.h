@@ -3,7 +3,7 @@
 // Description:  header file for tagi network base
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 08, 2022
-// Updated:      October 31, 2022
+// Updated:      November 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,26 @@
 #include "state_feed_backward_cpu.h"
 #include "struct_var.h"
 
-class TagiNetworkBase {
+class TagiNetworkBase
+/* Base class for TAGI network
+
+Attribtues:
+    ma: Mean of activation units
+    Sa: Variance of activation units
+    mz: Mean of hidden states
+    Sz: Variance of hidden states
+    J: Jacobian matrix (da/dz)
+    _init: Input layer
+    prop: Network properties
+    idx: Network's indices
+    state: Network's hidden states
+    theta: Network's parameters i.e., weights and bias
+    d_state: Updating quantities for hidden states
+    d_theta: Updating quantities for parameters
+    net_input: Input structure for tagi network
+    obs: Observation structure for tagi network
+ */
+{
    public:
     std::vector<float> ma, Sa, mz, Sz, J, ma_init, Sa_init, mz_init, Sz_init,
         J_init;

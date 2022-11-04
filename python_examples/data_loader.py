@@ -166,6 +166,7 @@ class MnistDataloader(DataloaderBase):
         y_train, y_train_idx, num_enc_obs = utils.label_to_obs(
             labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
+        x_std = 1
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
