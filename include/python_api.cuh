@@ -42,9 +42,14 @@ Attributes:
     void state_feed_backward_wrapper(std::vector<float> &y,
                                      std::vector<float> &Sy,
                                      std::vector<int> &idx_ud);
+
     void param_feed_backward_wrapper();
+
     std::tuple<std::vector<float>, std::vector<float>>
     get_network_outputs_wrapper();
+
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_network_prediction_wrapper();
 
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
@@ -53,6 +58,9 @@ Attributes:
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
     get_all_network_inputs_wrapper();
+
+    std::tuple<std::vector<float>, std::vector<float>> get_derivative_wrapper(
+        int layer);
 
     std::tuple<std::vector<float>, std::vector<float>>
     get_inovation_mean_var_wrapper(int layer);

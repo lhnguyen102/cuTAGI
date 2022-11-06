@@ -136,3 +136,13 @@ UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
 
     return {input_data, output_data};
 }
+
+std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
+                                                              int num_data,
+                                                              float &sigma) {
+    float var_x = powf(sigma, 2);
+    auto Sx_f = initialize_upper_triu(var_x, num_data);
+    auto Sx_f_batch = repmat_vector(Sx_f, batch_size);
+
+    return Sx_f_batch;
+}

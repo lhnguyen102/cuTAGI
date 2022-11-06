@@ -209,14 +209,15 @@ void StateGPU::copy_device_to_host() {
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->state_cpu->Sra.data(), d_Sra, ra_bytes,
                cudaMemcpyDeviceToHost);
-    if (max_full_cov_bytes > 0) {
-        cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-    }
+    // if (max_full_cov_bytes > 0) {
+    //     cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    //     cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    //     cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp,
+    //     max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    // }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero

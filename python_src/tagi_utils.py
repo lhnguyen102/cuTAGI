@@ -196,6 +196,15 @@ class Utils:
 
         return input_data, output_data
 
+    def get_upper_triu_cov(self, batch_size: int, num_data: int,
+                           sigma: float) -> np.ndarray:
+        """Create an upper triangle covriance matrix for inputs"""
+
+        vx_f = self.backend_utils.get_upper_triu_cov_wrapper(
+            batch_size, num_data, sigma)
+
+        return np.array(vx_f)
+
 
 class Normalizer:
     """Different method to normalize the data before feeding

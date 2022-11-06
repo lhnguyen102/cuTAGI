@@ -3,7 +3,7 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      November 04, 2022
+# Updated:      November 06, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -21,6 +21,60 @@ class RegressionMLP(NetProp):
         self.batch_size = 4
         self.sigma_v = 0.06
         self.device = "cpu"
+
+
+class HeterosMLP(NetProp):
+    """Multi-layer preceptron for regression task where the
+    output's noise varies overtime"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers: list = [1, 1, 1, 1]
+        self.nodes: list = [1, 100, 100, 2]  # output layer = [mean, std]
+        self.activations: list = [0, 4, 4, 0]
+        self.batch_size: int = 10
+        self.sigma_v: float = 0
+        self.sigma_v_min: float = 0
+        self.noise_type: str = "heteros"
+        self.noise_gain: float = 1.0
+        self.init_method: str = "He"
+        self.device: str = "cpu"
+
+
+class DervMLP(NetProp):
+    """Multi-layer perceptron for computing the derivative of a 
+    regression task"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers: list = [1, 1, 1, 1]
+        self.nodes: list = [1, 64, 64, 1]
+        self.activations: list = [0, 1, 4, 0]
+        self.batch_size: int = 10
+        self.sigma_v: float = 0.3
+        self.sigma_v_min: float = 0.1
+        self.decay_factor_sigma_v: float = 0.99
+        self.collect_derivative: bool = True
+        self.init_method: str = "He"
+
+
+class FullCovMLP(NetProp):
+    """Multi-layer perceptron for performing full-covariance prediction and
+     inference"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers: list = [1, 1, 1, 1]
+        self.nodes: list = [1, 30, 30, 1]
+        self.activations: list = [0, 4, 4, 0]
+        self.batch_size: int = 10
+        self.sigma_v: float = 0.5
+        self.sigma_v_min: float = 0.065
+        self.decay_factor_sigma_v: float = 0.95
+        self.sigma_x: float = 0.3485
+        self.is_full_cov: bool = True
+        self.multithreading: bool = True
+        self.device: str = "cpu"
 
 
 class MnistMLP(NetProp):

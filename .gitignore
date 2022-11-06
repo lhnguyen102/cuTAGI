@@ -1,10 +1,10 @@
 *build
 *.vscode
 *.json
+*.csv
 debug_data/
 saved_param/
 __pycache__/
-*.csv
 *.DS_Store
 *.pyc
 pytagi.egg-info

@@ -80,7 +80,7 @@ class TimeSeriesForecaster:
                 self.network.param_feed_backward()
 
                 # Loss
-                norm_pred, _ = self.network.get_network_outputs()
+                norm_pred, _ = self.network.get_network_predictions()
                 pred = normalizer.unstandardize(
                     norm_data=norm_pred,
                     mu=self.data_loader["y_norm_param_1"],
@@ -112,7 +112,7 @@ class TimeSeriesForecaster:
         for x_batch, y_batch in self.data_loader["test"]:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
-            ma, Sa = self.network.get_network_outputs()
+            ma, Sa = self.network.get_network_predictions()
 
             mean_predictions.append(ma)
             variance_predictions.append(Sa + self.net_prop.sigma_v**2)

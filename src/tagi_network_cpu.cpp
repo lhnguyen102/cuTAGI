@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      October 30, 2022
+// Updated:      November 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -108,6 +108,8 @@ void TagiNetworkCPU::init_net() {
     this->mz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
     this->Sz.resize(this->prop.nodes.back() * this->prop.batch_size, 0);
     this->J.resize(this->prop.nodes.back() * this->prop.batch_size, 1);
+    this->m_pred.resize(this->prop.n_y * this->prop.batch_size, 0);
+    this->v_pred.resize(this->prop.n_y * this->prop.batch_size, 0);
 }
 
 void TagiNetworkCPU::get_network_outputs() {
@@ -116,6 +118,31 @@ void TagiNetworkCPU::get_network_outputs() {
     for (int i = 0; i < num_outputs; i++) {
         this->ma[i] = this->state.ma[this->prop.z_pos.back() + i];
         this->Sa[i] = this->state.Sa[this->prop.z_pos.back() + i];
+    }
+}
+void TagiNetworkCPU::get_predictions()
+/*Get prediction distributions. Note that the predictions might be different to
+   output values of a network e.g., heteroscedastic noise inference where output
+   layer includes the mean and std of the prediction of an outcome */
+{
+    int num_preds = this->prop.n_y * this->prop.batch_size;
+    this->get_network_outputs();
+    if (this->prop.noise_type.compare("heteros") != 0) {
+        this->m_pred = this->ma;
+        this->v_pred = this->Sa;
+        if (this->prop.noise_type.compare("homosce") == 0) {
+            for (int i = 0; i < num_preds; i++) {
+                this->v_pred[i] += this->state.noise_state.ma_v2b_prior[i];
+            }
+        }
+    } else {
+        get_output_hidden_states_ni_cpu(this->ma, this->prop.nodes.back(), 0,
+                                        this->m_pred);
+        get_output_hidden_states_ni_cpu(this->Sa, this->prop.nodes.back(), 0,
+                                        this->v_pred);
+        for (int i = 0; i < num_preds; i++) {
+            this->v_pred[i] += this->state.noise_state.ma_v2b_prior[i];
+        }
     }
 }
 
@@ -143,6 +170,27 @@ void TagiNetworkCPU::get_all_network_inputs() {
         this->Sz_init[i] = this->state.Sz[i];
         this->J_init[i] = this->state.J[i];
     }
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+TagiNetworkCPU::get_derivatives(int layer)
+/*Compute derivative of neural network using TAGI. NOTE: current version only
+   support the fully-connected layer*/
+{
+    if (!this->prop.collect_derivative) {
+        throw std::invalid_argument(
+            "Set collect_derivative model in network properties to True");
+    }
+    int num_derv = this->prop.batch_size * this->prop.nodes[layer];
+    std::vector<float> mdy_batch_in(num_derv, 0);
+    std::vector<float> Sdy_batch_in(num_derv, 0);
+    compute_network_derivatives_cpu(this->prop, this->theta, this->state,
+                                    layer);
+    get_input_derv_states(this->state.derv_state.md_layer,
+                          this->state.derv_state.Sd_layer, mdy_batch_in,
+                          Sdy_batch_in);
+
+    return {mdy_batch_in, Sdy_batch_in};
 }
 
 std::tuple<std::vector<float>, std::vector<float>>

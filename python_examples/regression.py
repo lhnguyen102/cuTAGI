@@ -3,23 +3,27 @@
 # Description:  Example of regression task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      October 30, 2022
+# Updated:      November 06, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Union
 
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
 import python_src.metric as metric
 from python_src.tagi_network import NetProp, TagiNetwork
-from tqdm import tqdm
-from visualizer import PredictionViz
-
 from python_src.tagi_utils import Normalizer as normalizer
+from python_src.tagi_utils import Utils
+from visualizer import PredictionViz
 
 
 class Regression:
     """Regression task using TAGI"""
+
+    utils: Utils = Utils()
 
     def __init__(self,
                  num_epochs: int,
@@ -38,7 +42,14 @@ class Regression:
         # Inputs
         Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
                             dtype=np.float32)
+
         Sx_f_batch = np.array([], dtype=np.float32)
+        if self.net_prop.is_full_cov:
+            Sx_f_batch = self.utils.get_upper_triu_cov(
+                batch_size=batch_size,
+                num_data=self.net_prop.nodes[0],
+                sigma=self.net_prop.sigma_x)
+            Sx_batch = Sx_batch + self.net_prop.sigma_x**2
 
         # Outputs
         V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
@@ -50,6 +61,12 @@ class Regression:
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
+            if epoch > 0:
+                # Decaying observation's variance
+                self.net_prop.sigma_v = np.maximum(
+                    self.net_prop.sigma_v_min,
+                    self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)
+                V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
             for i in range(num_iter):
                 # Get data
                 idx = np.random.choice(num_data, size=batch_size)
@@ -67,7 +84,7 @@ class Regression:
                 self.network.param_feed_backward()
 
                 # Loss
-                norm_pred, _ = self.network.get_network_outputs()
+                norm_pred, _ = self.network.get_network_predictions()
                 pred = normalizer.unstandardize(
                     norm_data=norm_pred,
                     mu=self.data_loader["y_norm_param_1"],
@@ -81,13 +98,19 @@ class Regression:
                     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t mse: {mse:>7.2f}"
                 )
 
-    def predict(self) -> None:
+    def predict(self, std_factor: int = 1) -> None:
         """Make prediction using TAGI"""
         batch_size = self.net_prop.batch_size
         # Inputs
         Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
                             dtype=np.float32)
         Sx_f_batch = np.array([], dtype=np.float32)
+        if self.net_prop.is_full_cov:
+            Sx_f_batch = self.utils.get_upper_triu_cov(
+                batch_size=batch_size,
+                num_data=self.net_prop.nodes[0],
+                sigma=self.net_prop.sigma_x)
+            Sx_batch = Sx_batch + self.net_prop.sigma_x**2
 
         mean_predictions = []
         variance_predictions = []
@@ -96,7 +119,7 @@ class Regression:
         for x_batch, y_batch in self.data_loader["test"]:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
-            ma, Sa = self.network.get_network_outputs()
+            ma, Sa = self.network.get_network_predictions()
 
             mean_predictions.append(ma)
             variance_predictions.append(Sa + self.net_prop.sigma_v**2)
@@ -112,10 +135,13 @@ class Regression:
             norm_data=mean_predictions,
             mu=self.data_loader["y_norm_param_1"],
             std=self.data_loader["y_norm_param_2"])
-
         std_predictions = normalizer.unstandardize_std(
             norm_std=std_predictions, std=self.data_loader["y_norm_param_2"])
 
+        x_test = normalizer.unstandardize(
+            norm_data=x_test,
+            mu=self.data_loader["x_norm_param_1"],
+            std=self.data_loader["x_norm_param_2"])
         y_test = normalizer.unstandardize(
             norm_data=y_test,
             mu=self.data_loader["y_norm_param_1"],
@@ -136,11 +162,58 @@ class Regression:
                 y_test=y_test,
                 y_pred=mean_predictions,
                 sy_pred=std_predictions,
-                std_factor=3,
+                std_factor=std_factor,
                 label="diag",
-                title=r"\textbf{Diagonal covariance}",
+                title="Diagonal covariance",
             )
 
         print("#############")
         print(f"MSE           : {mse: 0.2f}")
         print(f"Log-likelihood: {log_lik: 0.2f}")
+
+    def compute_derivatives(self,
+                            layer: int = 0,
+                            truth_derv_file: Union[None, str] = None) -> None:
+        """Compute dervative of a given layer"""
+        batch_size = self.net_prop.batch_size
+        # Inputs
+        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
+                            dtype=np.float32)
+        Sx_f_batch = np.array([], dtype=np.float32)
+
+        mean_derv = []
+        variance_derv = []
+        x_test = []
+        for x_batch, _ in self.data_loader["test"]:
+            # Predicitons
+            self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+            mdy, vdy = self.network.get_derivatives(layer)
+
+            mean_derv.append(mdy)
+            variance_derv.append(vdy)
+            x_test.append(x_batch)
+
+        mean_derv = np.stack(mean_derv).flatten()
+        std_derv = (np.stack(variance_derv).flatten())**0.5
+        x_test = np.stack(x_test).flatten()
+        x_test = normalizer.unstandardize(
+            norm_data=x_test,
+            mu=self.data_loader["x_norm_param_1"],
+            std=self.data_loader["x_norm_param_2"])
+
+        if truth_derv_file is not None:
+            truth_dev_test = pd.read_csv(truth_derv_file,
+                                         skiprows=1,
+                                         delimiter=",",
+                                         header=None)
+            self.viz.plot_predictions(
+                x_train=None,
+                y_train=None,
+                x_test=x_test,
+                y_test=truth_dev_test.values,
+                y_pred=mean_derv,
+                sy_pred=std_derv,
+                std_factor=3,
+                label="deriv",
+                title="Neural Network's Derivative",
+            )

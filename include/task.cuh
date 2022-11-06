@@ -26,7 +26,6 @@
 #include "lstm_feed_forward.cuh"
 #include "net_init.h"
 #include "net_prop.h"
-// #include "network_wrapper.cuh"
 #include "param_feed_backward.cuh"
 #include "state_feed_backward.cuh"
 #include "struct_var.h"

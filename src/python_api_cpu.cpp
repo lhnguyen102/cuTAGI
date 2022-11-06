@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      November 02, 2022
+// Updated:      November 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,6 +42,13 @@ NetworkWrapper::get_network_outputs_wrapper() {
     return {this->tagi_net->ma, this->tagi_net->Sa};
 }
 
+std::tuple<std::vector<float>, std::vector<float>>
+NetworkWrapper::get_network_prediction_wrapper() {
+    this->tagi_net->get_predictions();
+
+    return {this->tagi_net->m_pred, this->tagi_net->v_pred};
+}
+
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>, std::vector<float>>
 NetworkWrapper::get_all_network_outputs_wrapper() {
@@ -59,6 +66,14 @@ NetworkWrapper::get_all_network_inputs_wrapper() {
     return {this->tagi_net->ma_init, this->tagi_net->Sa_init,
             this->tagi_net->mz_init, this->tagi_net->Sz_init,
             this->tagi_net->J_init};
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+NetworkWrapper::get_derivative_wrapper(int layer) {
+    std::vector<float> mdy, Sdy;
+    std::tie(mdy, Sdy) = this->tagi_net->get_derivatives(layer);
+
+    return {mdy, Sdy};
 }
 
 std::tuple<std::vector<float>, std::vector<float>>
@@ -145,7 +160,9 @@ PYBIND11_MODULE(pytagi, m) {
         .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
         .def("obs_to_label_prob_wrapper",
              &UtilityWrapper::obs_to_label_prob_wrapper)
-        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper);
+        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper)
+        .def("get_upper_triu_cov_wrapper",
+             &UtilityWrapper::get_upper_triu_cov_wrapper);
 
     pybind11::class_<NetworkWrapper>(m, "NetworkWrapper")
         .def(pybind11::init<Network &>())
@@ -158,10 +175,13 @@ PYBIND11_MODULE(pytagi, m) {
              &NetworkWrapper::param_feed_backward_wrapper)
         .def("get_network_outputs_wrapper",
              &NetworkWrapper::get_network_outputs_wrapper)
+        .def("get_network_prediction_wrapper",
+             &NetworkWrapper::get_network_prediction_wrapper)
         .def("get_all_network_outputs_wrapper",
              &NetworkWrapper::get_all_network_outputs_wrapper)
         .def("get_all_network_inputs_wrapper",
              &NetworkWrapper::get_all_network_inputs_wrapper)
+        .def("get_derivative_wrapper", &NetworkWrapper::get_derivative_wrapper)
         .def("get_inovation_mean_var_wrapper",
              &NetworkWrapper::get_inovation_mean_var_wrapper)
         .def("get_state_delta_mean_var_wrapper",

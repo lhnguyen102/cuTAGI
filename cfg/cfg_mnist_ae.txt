@@ -3,7 +3,7 @@ task_name: autoencoder
 data_name: mnist
 encoder_net_name: encoder
 decoder_net_name: decoder
-load_param: false
+load_param: true
 num_epochs: 1
 num_classes: 10
 num_train_data: 60000

@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      November 04, 2022
+# Updated:      November 06, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -14,7 +14,58 @@ import pytagi as tagi
 
 
 class NetProp(tagi.Network):
-    """Base class for network properties defined in the backend C++/CUDA"""
+    """Base class for network properties defined in the backend C++/CUDA
+    Layer code:
+        1: Fully-connected layer
+        2: Convolutional layer
+        21: Transpose convolutional layer
+        3: Max pooling layer (currently not supported)
+        4: Average pooling
+        5: Layer normalization
+        6: Batch normalization
+        7: LSTM layer
+
+    Activation code:
+        0: No activation 
+        1: Tanh
+        2: Sigmoid
+        4: ReLU
+        5: Softplus
+        6: Leakyrelu
+    """
+    layers: list
+    nodes: list
+    kernels: list
+    strides: list
+    widths: list
+    heights: list
+    filters: list
+    pads: list
+    pad_types: list
+    shortcuts: list
+    activation: list
+    mu_v2b: np.ndarray
+    sigma_v2b: np.ndarray
+    sigma_v: float
+    sigma_v_min: float
+    sigma_x: float
+    is_idx_ud: bool
+    is_output_ud: bool
+    last_backward_layer: int
+    nye: int
+    decay_factor_sigma_v: float
+    noise_gain: float
+    batch_size: int
+    input_seq_len: int
+    output_seq_len: int
+    seq_stride: int
+    multithreading: bool
+    collect_derivative: bool
+    is_full_cov: bool
+    init_method: str
+    noise_type: str
+    device: str
+    ra_mt: float
 
     def __init__(self) -> None:
         super().__init__()
@@ -136,6 +187,17 @@ class TagiNetwork:
 
         return np.array(ma), np.array(va)
 
+    def get_network_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get distribution of the predictions
+        
+        Returns:
+            m_pred: Mean of predictions
+            v_pred: Variance of predictions
+        """
+        m_pred, v_pred = self.network.get_network_prediction_wrapper()
+
+        return np.array(m_pred), np.array(v_pred)
+
     def get_all_network_outputs(
         self
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -169,6 +231,18 @@ class TagiNetwork:
 
         return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
                 np.array(jcb))
+
+    def get_derivatives(self, layer: int = 0) -> Tuple[np.ndarray, np.ndarray]:
+        """ Compute derivatives of the output layer w.r.t a given layer using TAGI
+        
+        Args:
+            layer: Layer index of the network
+        Returns:
+            mdy: Mean values of derivatives
+            vdy: Variance values of derivatives
+        """
+        mdy, vdy = self.network.get_derivative_wrapper(layer)
+        return mdy, vdy
 
     def get_inovation_mean_var(self,
                                layer: int) -> Tuple[np.ndarray, np.ndarray]:

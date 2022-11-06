@@ -3,7 +3,7 @@
 # Description:  Example of autoencoder task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 30, 2022
-# Updated:      November 04, 2022
+# Updated:      November 06, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -130,7 +130,7 @@ class Autoencoder:
         Sx_f_batch = np.array([], dtype=self.dtype)
 
         generated_images = []
-        for count, (x_batch, y_batch) in enumerate(self.data_loader["test"]):
+        for count, (x_batch, _) in enumerate(self.data_loader["test"]):
             # Disable average running for batch norm layer
             self.encoder.net_prop.ra_mt = 1.0
             self.decoder.net_prop.ra_mt = 1.0
@@ -147,14 +147,15 @@ class Autoencoder:
                                                 jcb=jcb)
 
             # Get images
-            norm_pred, _ = self.decoder.get_network_outputs()
+            norm_pred, _ = self.decoder.get_network_predictions()
             generated_images.append(norm_pred)
 
             # Only first 100 images
-            if count > 8:
+            if count * batch_size > 100:
                 break
 
         generated_images = np.stack(generated_images).flatten()
+        generated_images = generated_images[:self.encoder_prop.nodes[0] * 100]
 
         # Visualization
         if self.viz is not None:

@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 24, 2022
+// Updated:      November 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "common.h"
 #include "cost.h"
 #include "dataloader.h"
 #include "struct_var.h"
@@ -53,4 +54,7 @@ class UtilityWrapper {
                                   std::vector<int> &output_col,
                                   int input_seq_len, int output_seq_len,
                                   int num_features, int stride);
+
+    std::vector<float> get_upper_triu_cov_wrapper(int batch_size, int num_data,
+                                                  float &sigma);
 };

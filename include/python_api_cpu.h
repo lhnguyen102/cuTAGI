@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      November 02, 2022
+// Updated:      November 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,6 +36,9 @@ class NetworkWrapper {
 
     std::tuple<std::vector<float>, std::vector<float>> get_network_outputs();
 
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_network_prediction_wrapper();
+
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
     get_all_network_outputs_wrapper();
@@ -43,6 +46,9 @@ class NetworkWrapper {
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>, std::vector<float>>
     get_all_network_inputs_wrapper();
+
+    std::tuple<std::vector<float>, std::vector<float>> get_derivative_wrapper(
+        int layer);
 
     std::tuple<std::vector<float>, std::vector<float>>
     get_inovation_mean_var_wrapper(int layer);
