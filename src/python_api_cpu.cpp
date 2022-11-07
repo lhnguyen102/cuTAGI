@@ -128,6 +128,10 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("sigma_v", &Network::sigma_v)
         .def_readwrite("sigma_v_min", &Network::sigma_v_min)
         .def_readwrite("sigma_x", &Network::sigma_x)
+        .def_readwrite("is_idx_ud", &Network::is_idx_ud)
+        .def_readwrite("is_output_ud", &Network::is_output_ud)
+        .def_readwrite("last_backward_layer", &Network::last_backward_layer)
+        .def_readwrite("nye", &Network::nye)
         .def_readwrite("decay_factor_sigma_v", &Network::decay_factor_sigma_v)
         .def_readwrite("noise_gain", &Network::noise_gain)
         .def_readwrite("batch_size", &Network::batch_size)
@@ -139,7 +143,8 @@ PYBIND11_MODULE(pytagi, m) {
         .def_readwrite("is_full_cov", &Network::is_full_cov)
         .def_readwrite("init_method", &Network::init_method)
         .def_readwrite("noise_type", &Network::noise_type)
-        .def_readwrite("device", &Network::device);
+        .def_readwrite("device", &Network::device)
+        .def_readwrite("ra_mt", &Network::ra_mt);
 
     pybind11::class_<HrSoftmax>(m, "HrSoftmax")
         .def(pybind11::init<>())

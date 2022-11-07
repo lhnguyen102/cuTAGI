@@ -116,7 +116,7 @@ class PredictionViz:
         self,
         task_name: str,
         data_name: str,
-        figsize: tuple = (12, 12),
+        figsize: tuple = (8, 6),
         fontsize: int = 28,
         lw: int = 3,
         ms: int = 10,

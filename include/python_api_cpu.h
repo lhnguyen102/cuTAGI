@@ -34,7 +34,8 @@ class NetworkWrapper {
                                      std::vector<int> &idx_ud);
     void param_feed_backward_wrapper();
 
-    std::tuple<std::vector<float>, std::vector<float>> get_network_outputs();
+    std::tuple<std::vector<float>, std::vector<float>>
+    get_network_outputs_wrapper();
 
     std::tuple<std::vector<float>, std::vector<float>>
     get_network_prediction_wrapper();
