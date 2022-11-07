@@ -3,16 +3,17 @@
 # Description:  Example of autoencoder task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 30, 2022
-# Updated:      November 06, 2022
+# Updated:      November 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-from typing import Union
+from typing import Tuple, Union
 
 import numpy as np
-from python_src.tagi_network import NetProp, Param, TagiNetwork
-from python_src.tagi_utils import Utils
 from tqdm import tqdm
+
+from python_src.tagi_network import NetProp, Param, TagiNetwork
+from python_src.tagi_utils import Utils, exponential_scheduler
 from visualizer import ImageViz
 
 
@@ -51,30 +52,26 @@ class Autoencoder:
         """Train encoder and decoder"""
         # Initialziation
         assert self.encoder_prop.batch_size == self.decoder_prop.batch_size
-        batch_size = self.encoder_prop.batch_size
 
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.encoder_prop.nodes[0]),
-                            dtype=self.dtype)
-        Sx_f_batch = np.array([], dtype=self.dtype)
+        batch_size = self.encoder_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         # Outputs
-        V_batch = np.zeros((batch_size, self.decoder_prop.nodes[-1]),
-                           dtype=self.dtype) + self.decoder_prop.sigma_v**2
-        empty_ud_idx_batch = np.zeros([], self.dtype)
+        V_batch, empty_ud_idx_batch = self.init_outputs(batch_size)
 
         input_data, _, _, _ = self.data_loader["train"]
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
-
         for epoch in pbar:
-            if epoch > 0:
-                # Decaying observation's variance
-                self.decoder_prop.sigma_v = np.maximum(
-                    self.decoder_prop.sigma_v_min, self.decoder_prop.sigma_v *
-                    self.decoder_prop.decay_factor_sigma_v)
-                V_batch = V_batch * 0.0 + self.decoder_prop.sigma_v**2
+            # Decaying observation's variance
+            self.decoder_prop.sigma_v = exponential_scheduler(
+                curr_v=self.decoder_prop.sigma_v,
+                min_v=self.decoder_prop.sigma_v_min,
+                decaying_factor=self.decoder_prop.decay_factor_sigma_v,
+                curr_iter=epoch)
+            V_batch = V_batch * 0.0 + self.decoder_prop.sigma_v**2
 
             for i in range(num_iter):
                 # Momentum for batch norm layer
@@ -84,6 +81,7 @@ class Autoencoder:
                 else:
                     self.encoder.net_prop.ra_mt = 0.9
                     self.decoder.net_prop.ra_mt = 0.9
+
                 # Get data
                 idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
@@ -113,6 +111,7 @@ class Autoencoder:
                                                  enc_delta_vz_init,
                                                  empty_ud_idx_batch)
                 self.encoder.param_feed_backward()
+
                 # Progress bar
                 pbar.set_description(
                     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}"
@@ -122,12 +121,9 @@ class Autoencoder:
 
     def predict(self) -> None:
         """Generate images"""
-        batch_size = self.encoder_prop.batch_size
-
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.encoder_prop.nodes[0]),
-                            dtype=self.dtype)
-        Sx_f_batch = np.array([], dtype=self.dtype)
+        batch_size = self.encoder_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         generated_images = []
         for count, (x_batch, _) in enumerate(self.data_loader["test"]):
@@ -164,3 +160,21 @@ class Autoencoder:
             self.viz.plot_images(n_row=n_row,
                                  n_col=n_col,
                                  imgs=generated_images)
+
+    def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for inputs"""
+        Sx_batch = np.zeros((batch_size, self.encoder_prop.nodes[0]),
+                            dtype=self.dtype)
+
+        Sx_f_batch = np.array([], dtype=self.dtype)
+
+        return Sx_batch, Sx_f_batch
+
+    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for outputs"""
+        # Outputs
+        V_batch = np.zeros((batch_size, self.decoder_prop.nodes[-1]),
+                           dtype=self.dtype) + self.decoder_prop.sigma_v**2
+        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+
+        return V_batch, ud_idx_batch

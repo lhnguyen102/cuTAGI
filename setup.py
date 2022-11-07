@@ -148,7 +148,7 @@ setup(
         "Programming Language :: C++",
         "Programming Language :: CUDA",
         "Programming Language :: Python :: 3 :: Only",
-        "Topic :: Scientific/Engineering :: Probabilistic Machine Leanring",
+        "Topic :: Scientific/Engineering :: Probabilistic Machine Learning",
     ],
     author="Luong-Ha Nguyen & James-A. Goulet",
     author_email="luongha.nguyen@gmail.com & james.goulet@polymtl.ca",

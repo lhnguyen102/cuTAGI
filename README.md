@@ -125,17 +125,30 @@ batch_size: 10
 sigma_v:    1
 ```
 
-## Installation
-We highly recommend installing cuTAGI using Docker method to facilitate the installation.
-
-### Python API
+## `pytagi` Installation 
 1. Clone this repository
-2. Create and activate a [conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
-3. `pip install -r requirements.txt`
-4. Install `pytagi`
+2. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
+3. Create a conda environment
+    ```
+    conda create --name your_env_name python=3.10
+    ```
+4. Install requirements
+    ```
+    conda activate your_env_name
+    pip install -r requirements.txt
+    ```
+5. Install `pytagi`
     ```sh
     pip install .
     ```
+6. Test `pytagi` package
+    ```sh
+    python -m python_examples.regression_runner
+    ```
+
+## `cutagi` Installation
+We highly recommend installing cuTAGI using Docker method to facilitate the installation.
+
 
 ### Docker build
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
@@ -219,8 +232,8 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
 * C++ extension for VS Code
 * CMake Tools extension for VS Code
 
-## API
-### Classification task for MNIST
+### API
+#### Classification task for MNIST
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
   ```sh
   build/main cfg_mnist_2fc.txt
@@ -236,7 +249,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
   build/main cfg_mnist_2conv_bn.txt
   ```
 
-### Autoencoder task for MNIST
+#### Autoencoder task for MNIST
  ```sh
  build/main cfg_mnist_ae.txt
  ```
@@ -264,7 +277,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
   build/main cfg_toy_ni_fc.txt
   ```
 
-### Docker run
+#### Docker run
 All above-mentioned tasks can be run in docker container using the following commands 
 
 * Docker with CPU build 

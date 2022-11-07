@@ -45,6 +45,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
     this->ra_bytes = state.mra.size() * sizeof(float);
     this->state_cpu = &state;
     if (net.is_full_cov) {
+        // TODO: n_max_state is not correct
         this->max_full_cov_bytes =
             (net.n_max_state * (net.n_max_state + 1) / 2 * net.batch_size) *
             sizeof(float);

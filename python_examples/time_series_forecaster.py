@@ -3,16 +3,17 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      November 04, 2022
+# Updated:      November 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 import python_src.metric as metric
 from python_src.tagi_network import NetProp, Param, TagiNetwork
 from python_src.tagi_utils import Normalizer as normalizer
+from python_src.tagi_utils import exponential_scheduler
 from tqdm import tqdm
 from visualizer import PredictionViz
 
@@ -38,30 +39,25 @@ class TimeSeriesForecaster:
 
     def train(self) -> None:
         """Train LSTM network"""
-        batch_size = self.net_prop.batch_size
-
         # Inputs
-        Sx_batch = np.zeros(
-            (batch_size * self.net_prop.input_seq_len, self.net_prop.nodes[0]),
-            dtype=self.dtype)
-        Sx_f_batch = np.array([], dtype=self.dtype)
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         # Outputs
-        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                           dtype=self.dtype) + self.net_prop.sigma_v**2
-        ud_idx_batch = np.zeros([], dtype=np.int32)
+        V_batch, ud_idx_batch = self.init_outputs(batch_size)
 
         input_data, output_data = self.data_loader["train"]
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
-            if epoch > 0:
-                # Decaying observation's variance
-                self.net_prop.sigma_v = np.maximum(
-                    self.net_prop.sigma_v_min,
-                    self.net_prop.sigma_v * self.net_prop.decay_factor_sigma_v)
-                V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
+            # Decaying observation's variance
+            self.net_prop.sigma_v = exponential_scheduler(
+                curr_v=self.net_prop.sigma_v,
+                min_v=self.net_prop.sigma_v_min,
+                decaying_factor=self.net_prop.decay_factor_sigma_v,
+                curr_iter=epoch)
+            V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
 
             for i in range(num_iter):
                 # Get data
@@ -98,12 +94,9 @@ class TimeSeriesForecaster:
 
     def predict(self) -> None:
         """Make prediction for time series using TAGI"""
-        batch_size = self.net_prop.batch_size
-
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=self.dtype)
-        Sx_f_batch = np.array([], dtype=self.dtype)
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         mean_predictions = []
         variance_predictions = []
@@ -160,3 +153,22 @@ class TimeSeriesForecaster:
         print("#############")
         print(f"MSE           : {mse: 0.2f}")
         print(f"Log-likelihood: {log_lik: 0.2f}")
+
+    def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for inputs"""
+        Sx_batch = np.zeros(
+            (batch_size * self.net_prop.input_seq_len, self.net_prop.nodes[0]),
+            dtype=self.dtype)
+
+        Sx_f_batch = np.array([], dtype=self.dtype)
+
+        return Sx_batch, Sx_f_batch
+
+    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for outputs"""
+        # Outputs
+        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
+                           dtype=self.dtype) + self.net_prop.sigma_v**2
+        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+
+        return V_batch, ud_idx_batch

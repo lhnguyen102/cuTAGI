@@ -3,7 +3,7 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      November 06, 2022
+# Updated:      November 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -20,6 +20,7 @@ class RegressionMLP(NetProp):
         self.activations = [0, 4, 0]
         self.batch_size = 4
         self.sigma_v = 0.06
+        self.sigma_v_min: float = 0.06
         self.device = "cpu"
 
 

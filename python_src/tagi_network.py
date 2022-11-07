@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      November 06, 2022
+# Updated:      November 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -32,6 +32,43 @@ class NetProp(tagi.Network):
         4: ReLU
         5: Softplus
         6: Leakyrelu
+
+    Attributes:
+        layers: A vector contains different layers of network architecture
+        nodes: Number of hidden units
+        kernels: Kernel size fo convolutional layer
+        widths: Width of image
+        heights: Heights of image
+        filters: Number of filters i.e. depth of image for each layer
+        activations: Activation function
+        pads: Padding that applied to image
+        pad_types: Type of padding
+        shortcuts: Layer index for residual network 
+        mu_v2b: Mean of the observation noise squared
+        sigma_v2b: Standard deviation of the observation noise squared
+        sigma_v: Observation noise
+        decay_factor_sigma_v: Decaying factor for sigma v (default value: 0.99)
+        sigma_v_min: Minimum value of observation noise (default value: 0.3)
+        sigma_x: Input noise noise
+        is_output_ud: Whether or not to update output layer
+        is_idx_ud: Wheher or not to update only hidden units in the output
+                   layers
+        last_backward_layer: Index of last layer whose hidden states are updated
+        nye: Number of observation for hierarchical softmax
+        noise_gain : Gain fof biases parameters relating to noise's hidden
+            states
+        noise_type: homosce or heteros
+        batch_size: Number of batches of data
+        input_seq_len: Sequence lenth for lstm inputs
+        input_seq_len: Sequence lenth for last layer's outputs
+        seq_stride: Spacing between sequences for lstm layer
+        multithreading: Whether or not to run parallel computing using multiple
+            threads
+        collect_derivative: Enable the derivative computation mode
+        is_full_cov: Enable full covariance mode
+        init_method: Initalization method e.g. He and Xavier
+        device: Either cpu or cuda
+        ra_mt: Momentum for the normalization layer
     """
     layers: list
     nodes: list
@@ -40,21 +77,22 @@ class NetProp(tagi.Network):
     widths: list
     heights: list
     filters: list
+    activation: list
     pads: list
     pad_types: list
     shortcuts: list
-    activation: list
     mu_v2b: np.ndarray
     sigma_v2b: np.ndarray
     sigma_v: float
+    decay_factor_sigma_v: float
     sigma_v_min: float
     sigma_x: float
     is_idx_ud: bool
     is_output_ud: bool
     last_backward_layer: int
     nye: int
-    decay_factor_sigma_v: float
     noise_gain: float
+    noise_type: str
     batch_size: int
     input_seq_len: int
     output_seq_len: int
@@ -63,7 +101,6 @@ class NetProp(tagi.Network):
     collect_derivative: bool
     is_full_cov: bool
     init_method: str
-    noise_type: str
     device: str
     ra_mt: float
 
@@ -84,6 +121,14 @@ class Param(tagi.Param):
         mb_sc: Mean of bias parameters for the residual network
         Sb_sc: Variance of bias parameters for the residual network
     """
+    mw: np.ndarray
+    Sw: np.ndarray
+    mb: np.ndarray
+    Sb: np.ndarray
+    mw_sc: np.ndarray
+    Sw_sc: np.ndarray
+    mb_sc: np.ndarray
+    Sb_sc: np.ndarray
 
     def __init__(self, mw: np.ndarray, Sw: np.ndarray, mb: np.ndarray,
                  Sb: np.ndarray, mw_sc: np.ndarray, Sw_sc: np.ndarray,
@@ -110,16 +155,16 @@ class TagiNetwork:
 
     network: tagi.NetworkWrapper
 
-    def __init__(self, net_prop: tagi.Network) -> None:
+    def __init__(self, net_prop: NetProp) -> None:
         self.net_prop = net_prop
 
     @property
-    def net_prop(self) -> tagi.Network():
+    def net_prop(self) -> NetProp():
         """"Get network properties"""
         return self._net_prop
 
     @net_prop.setter
-    def net_prop(self, value: tagi.Network) -> None:
+    def net_prop(self, value: NetProp) -> None:
         """Set network properties"""
         self._net_prop = value
         self.network = tagi.NetworkWrapper(self._net_prop)

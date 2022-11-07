@@ -3,15 +3,18 @@
 # Description:  Example of classification task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      October 23, 2022
+# Updated:      November 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
+from typing import Tuple
+
 import numpy as np
+from tqdm import tqdm
+
 import python_src.metric as metric
 from python_src.tagi_network import NetProp, TagiNetwork
 from python_src.tagi_utils import HierarchicalSoftmax, Utils
-from tqdm import tqdm
 
 
 class Classifier:
@@ -44,16 +47,13 @@ class Classifier:
 
     def train(self) -> None:
         """Train the network using TAGI"""
-        batch_size = self.net_prop.batch_size
 
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=np.float32)
-        Sx_f_batch = np.array([], dtype=np.float32)
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         # Outputs
-        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                           dtype=np.float32) + self.net_prop.sigma_v**2
+        V_batch, _ = self.init_outputs(batch_size)
 
         input_data, output_data, output_idx, labels = self.data_loader["train"]
         num_data = input_data.shape[0]
@@ -102,12 +102,9 @@ class Classifier:
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
-
-        batch_size = self.net_prop.batch_size
         # Inputs
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=np.float32)
-        Sx_f_batch = np.array([], dtype=np.float32)
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
 
         preds = []
         labels = []
@@ -134,3 +131,21 @@ class Classifier:
 
         print("#############")
         print(f"Error rate    : {error_rate * 100: 0.2f}%")
+
+    def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for inputs"""
+        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
+                            dtype=np.float32)
+
+        Sx_f_batch = np.array([], dtype=np.float32)
+
+        return Sx_batch, Sx_f_batch
+
+    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for outputs"""
+        # Outputs
+        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
+                           dtype=np.float32) + self.net_prop.sigma_v**2
+        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+
+        return V_batch, ud_idx_batch
