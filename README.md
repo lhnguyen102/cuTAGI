@@ -126,6 +126,7 @@ sigma_v:    1
 ```
 
 ## `pytagi` Installation 
+`pytagi` is a Python wrapper of C++/CUDA backend of TAGI method
 1. Clone this repository
 2. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
 3. Create a conda environment
@@ -147,7 +148,7 @@ sigma_v:    1
     ```
 
 ## `cutagi` Installation
-We highly recommend installing cuTAGI using Docker method to facilitate the installation.
+`cutagi` is the native version implemented in C++/CUDA for TAGI method. We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
 
 ### Docker build
