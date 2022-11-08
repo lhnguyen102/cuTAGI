@@ -260,10 +260,10 @@ sigma_v:    1
  build/main cfg_mnist_ae.txt
  ```
 <p align="center">
-<img src="./saved_results/mnist_autoencoder.png" width="350px">
+<img src="./saved_results/mnist_autoencoder_disp.png" width="350px">
 </p>
 
-### Regression task
+#### Regression task
 * UCI dataset
   ```sh
   build/main cfg_bh_2fc.txt
