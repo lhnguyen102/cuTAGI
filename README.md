@@ -31,6 +31,8 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
   <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_2_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
 
+(In the image of Neural Network's Derivative, Y' should be 3x^2-3)
+
 ## User Input
 The user inputs are stored as `.txt` that has to be located in the folder `cfg`. User-inputs for cuTAGI are following:
 ```
