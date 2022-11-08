@@ -8,4 +8,4 @@ seq_stride: 1
 sigma_v: 	2
 sigma_v_min: 0.3
 decay_factor_sigma_v: 0.95
-multithreading: true
+multithreading: false

@@ -39,6 +39,12 @@ void fc_mean_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
 void initialize_states_cpu(std::vector<float> &x, std::vector<float> &Sx,
                            std::vector<float> &Sx_f, int ni, int B,
                            NetState &state);
+void initialize_full_states_cpu(
+    std::vector<float> &mz_init, std::vector<float> &Sz_init,
+    std::vector<float> &ma_init, std::vector<float> &Sa_init,
+    std::vector<float> &J_init, std::vector<float> &mz, std::vector<float> &Sz,
+    std::vector<float> &ma, std::vector<float> &Sa, std::vector<float> &J);
+
 void initialize_states_multithreading(std::vector<float> &x,
                                       std::vector<float> &Sx, int niB,
                                       unsigned int NUM_THREADS,

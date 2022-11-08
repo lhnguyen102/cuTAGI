@@ -1,5 +1,11 @@
 *build
 *.vscode
 *.json
-debug_data/
 *.csv
+debug_data/
+saved_param/
+__pycache__/
+*.DS_Store
+*.pyc
+pytagi.egg-info
+dist

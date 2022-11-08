@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      September 19, 2022
+// Updated:      November 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -98,24 +98,25 @@ struct Network {
         n_state_sc: Number of states for residual network
         n_ra: Number of statistical mean and variances for the normalization
         layer init_sc: First shortcut layer for residual network
-        n_nye: Number of observation for hierarchical softmax
+        nye: Number of observation for hierarchical softmax
         last_backward_layer: Index of last layer whose hidden states are updated
         sigma_v: Observation noise
+        decay_factor_sigma_v: Decaying factor for sigma v (default value: 0.99)
+        sigma_v_min: Minimum value of observation noise (default value: 0.3)
+        is_output_ud: Whether or not to update output layer
+        is_idx_ud: Wheher or not to update only hidden units in the output
+                   layers
         sigma_x: Input noise noise
         noise_type: homosce or heteros
         mu_v2b: Mean of the observation noise squared
         sigma_v2b: Standard deviation of the observation noise squared
-        alpha: alpha in leakylu
+        alpha: alpha in leakyrelu
         epsilon: Constant for normalization layer to avoid zero-division
         ra_mt: Momentum for the normalization layer
-        is_output_ud: Whether or not to update output layer
-        is_idx_ud: Wheher or not to update only hidden units in the output
-                   layers
-        decay_factor: Decreasing percentage (default value: 0.99)
-        sigma_v_min: Minimum value of observation noise (default value: 0.3)
         multithreading: Whether or not to run parallel computing using multiple
             threads
-        collect_derivative: Whether or not to compute derivative
+        collect_derivative: Enable the derivative computation mode
+        is_full_cov: Enable full covariance mode
         input_seq_len: Sequence lenth for lstm inputs
         input_seq_len: Sequence lenth for last layer's outputs
         seq_stride: Spacing between sequences for lstm layer
@@ -314,8 +315,18 @@ struct IndexOut {
     std::vector<int> Fmwa_2_sc, FCzwa_1_sc, FCzwa_2_sc, Szz_ud_sc;
 };
 
-// USER INPUT
+// NETWORK CONFIGURATION USER-SPECIFIED
+struct NetConfig {
+    std::vector<int> layers, nodes, kernels, strides, widths, heights, filters,
+        pads, pad_types, shortcuts, activations;
+    std::vector<float> mu_v2b, sigma_v2b;
+    float sigma_v, sigma_v_min, sigma_x, decay_factor_sigma_v, noise_gain;
+    int batch_size, input_seq_len, output_seq_len, seq_stride;
+    bool multithreading = true, collect_derivative = false, is_full_cov = false;
+    std::string init_method = "Xavier", noise_type = "none", device = "cpu";
+};
 
+// USER INPUT
 struct UserInput {
     std::string model_name, net_name, task_name, data_name, encoder_net_name,
         decoder_net_name;

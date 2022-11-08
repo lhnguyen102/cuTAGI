@@ -28,7 +28,7 @@ Coming soon...
 
 Examples of [regression task](#regression-task) using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
 <p align="center">
-  <img  align="left", src="./saved_results/pred_diag_toy_example.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_best.png" width="335px">
+  <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_2_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
 
 ## User Input
@@ -125,8 +125,36 @@ batch_size: 10
 sigma_v:    1
 ```
 
-## Installation
-We highly recommend installing cuTAGI using Docker method to facilitate the installation.
+## `pytagi` Installation 
+`pytagi` is a Python wrapper of C++/CUDA backend of TAGI method
+1. Clone this repository. Note that `git submodule` command allows downloading [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
+    ```
+    git clone https://github.com/lhnguyen102/cuTAGI.git
+    cd cutagi
+    git submodule update --init --recursive
+    ```
+2. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
+3. Create a conda environment
+    ```
+    conda create --name your_env_name python=3.10
+    ```
+4. Install requirements
+    ```
+    conda activate your_env_name
+    pip install -r requirements.txt
+    ```
+5. Install `pytagi` package
+    ```sh
+    pip install .
+    ```
+6. Test `pytagi` package
+    ```sh
+    python -m python_examples.regression_runner
+    ```
+
+## `cutagi` Installation
+`cutagi` is the native version implemented in C++/CUDA for TAGI method. We highly recommend installing cuTAGI using Docker method to facilitate the installation.
+
 
 ### Docker build
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
@@ -210,8 +238,8 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
 * C++ extension for VS Code
 * CMake Tools extension for VS Code
 
-## API
-### Classification task for MNIST
+### API
+#### Classification task for MNIST
 * Two fully connected layer [`cfg/2fc.txt`](https://github.com/lhnguyen102/cuTAGI/blob/main/cfg/2fc.txt) 
   ```sh
   build/main cfg_mnist_2fc.txt
@@ -227,15 +255,15 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
   build/main cfg_mnist_2conv_bn.txt
   ```
 
-### Autoencoder task for MNIST
+#### Autoencoder task for MNIST
  ```sh
  build/main cfg_mnist_ae.txt
  ```
 <p align="center">
-<img src="./saved_results/mnist_autoencoder.png" width="350px">
+<img src="./saved_results/mnist_autoencoder_disp.png" width="350px">
 </p>
 
-### Regression task
+#### Regression task
 * UCI dataset
   ```sh
   build/main cfg_bh_2fc.txt
@@ -255,7 +283,7 @@ We highly recommend installing cuTAGI using Docker method to facilitate the inst
   build/main cfg_toy_ni_fc.txt
   ```
 
-### Docker run
+#### Docker run
 All above-mentioned tasks can be run in docker container using the following commands 
 
 * Docker with CPU build 

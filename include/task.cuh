@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      September 07, 2022
+// Updated:      October 17, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,7 @@
 #include "param_feed_backward.cuh"
 #include "state_feed_backward.cuh"
 #include "struct_var.h"
+#include "tagi_network.cuh"
 #include "user_input.h"
 #include "utils.h"
 

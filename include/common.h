@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      September 05, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -113,11 +113,11 @@ Args:
     idx: Indices of new value in vector v
 */
 {
-    int N = new_values.size() / w;
-    if (v.size() - idx < new_values.size()) {
-        throw std::invalid_argument(
-            "Vector capacity is insufficient - task.cu");
-    }
+    int N = std::min(new_values.size(), v.size() - idx) / w;
+    // if (v.size() - idx < new_values.size()) {
+    //     throw std::invalid_argument(
+    //         "Vector capacity is insufficient - task.cu");
+    // }
     for (int i = 0; i < N; i++) {
         for (int c = 0; c < w; c++) {
             v[idx + i * w + c] = new_values[w * i + c];

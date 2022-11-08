@@ -3,7 +3,7 @@
 // Description:  Network initialization
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 07, 2021
-// Updated:      July 03, 2022
+// Updated:      October 03, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,6 +39,37 @@ void net_init(std::string &net_file, std::string &device, Network &net,
     index_default(idx);
     theta = initialize_param(net);
     state = initialize_net_states(net);
+}
+
+void map_config_to_prop(NetConfig &config, Network &net) {
+    net.layers = config.layers;
+    net.nodes = config.nodes;
+    net.kernels = config.kernels;
+    net.strides = config.strides;
+    net.widths = config.widths;
+    net.heights = config.heights;
+    net.filters = config.filters;
+    net.pads = config.pads;
+    net.pad_types = config.pad_types;
+    net.shortcuts = config.shortcuts;
+    net.activations = config.activations;
+    net.sigma_v = config.sigma_v;
+    net.sigma_v_min = config.sigma_v_min;
+    net.sigma_x = config.sigma_x;
+    net.decay_factor_sigma_v = config.decay_factor_sigma_v;
+    net.mu_v2b = config.mu_v2b;
+    net.sigma_v2b = config.sigma_v2b;
+    net.noise_gain = config.noise_gain;
+    net.batch_size = config.batch_size;
+    net.input_seq_len = config.input_seq_len;
+    net.output_seq_len = config.output_seq_len;
+    net.seq_stride = config.seq_stride;
+    net.multithreading = config.multithreading;
+    net.collect_derivative = config.collect_derivative;
+    net.is_full_cov = config.is_full_cov;
+    net.init_method = config.init_method;
+    net.noise_type = config.noise_type;
+    net.device = config.device;
 }
 
 void reset_net_batchsize(std::string &net_file, std::string &device,

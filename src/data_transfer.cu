@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      September 11, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -45,6 +45,7 @@ void StateGPU::set_values(NetState &state, Network &net) {
     this->ra_bytes = state.mra.size() * sizeof(float);
     this->state_cpu = &state;
     if (net.is_full_cov) {
+        // TODO: n_max_state is not correct
         this->max_full_cov_bytes =
             (net.n_max_state * (net.n_max_state + 1) / 2 * net.batch_size) *
             sizeof(float);
@@ -209,14 +210,15 @@ void StateGPU::copy_device_to_host() {
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->state_cpu->Sra.data(), d_Sra, ra_bytes,
                cudaMemcpyDeviceToHost);
-    if (max_full_cov_bytes > 0) {
-        cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp, max_full_cov_bytes,
-                   cudaMemcpyDeviceToHost);
-    }
+    // if (max_full_cov_bytes > 0) {
+    //     cudaMemcpy(this->state_cpu->Sz_f.data(), d_Sz_f, max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    //     cudaMemcpy(this->state_cpu->Sa_f.data(), d_Sa_f, max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    //     cudaMemcpy(this->state_cpu->Sz_fp.data(), d_Sz_fp,
+    //     max_full_cov_bytes,
+    //                cudaMemcpyDeviceToHost);
+    // }
 
     // If the noise inference is disable, the default value for n_bytes is set
     // zero
@@ -819,11 +821,12 @@ ParamGPU::ParamGPU() {
     this->d_Sb_sc = nullptr;
 }
 
-void ParamGPU::set_values(int w, int b, int w_sc, int b_sc) {
-    this->w_bytes = w * sizeof(float);
-    this->b_bytes = b * sizeof(float);
-    this->w_sc_bytes = w_sc * sizeof(float);
-    this->b_sc_bytes = b_sc * sizeof(float);
+void ParamGPU::set_values(Param &theta) {
+    this->w_bytes = theta.mw.size() * sizeof(float);
+    this->b_bytes = theta.mb.size() * sizeof(float);
+    this->w_sc_bytes = theta.mw_sc.size() * sizeof(float);
+    this->b_sc_bytes = theta.mb_sc.size() * sizeof(float);
+    this->theta_cpu = &theta;
 }
 
 void ParamGPU::allocate_cuda_memory() {
@@ -845,15 +848,23 @@ void ParamGPU::allocate_cuda_memory() {
     }
 }
 
-void ParamGPU::copy_host_to_device(Param &theta) {
-    cudaMemcpy(d_mw, theta.mw.data(), w_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sw, theta.Sw.data(), w_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mb, theta.mb.data(), b_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sb, theta.Sb.data(), b_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mw_sc, theta.mw_sc.data(), w_sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sw_sc, theta.Sw_sc.data(), w_sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mb_sc, theta.mb_sc.data(), b_sc_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Sb_sc, theta.Sb_sc.data(), b_sc_bytes, cudaMemcpyHostToDevice);
+void ParamGPU::copy_host_to_device() {
+    cudaMemcpy(d_mw, this->theta_cpu->mw.data(), w_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sw, this->theta_cpu->Sw.data(), w_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mb, this->theta_cpu->mb.data(), b_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sb, this->theta_cpu->Sb.data(), b_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mw_sc, this->theta_cpu->mw_sc.data(), w_sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sw_sc, this->theta_cpu->Sw_sc.data(), w_sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mb_sc, this->theta_cpu->mb_sc.data(), b_sc_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sb_sc, this->theta_cpu->Sb_sc.data(), b_sc_bytes,
+               cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -864,15 +875,23 @@ void ParamGPU::copy_host_to_device(Param &theta) {
     }
 }
 
-void ParamGPU::copy_device_to_host(Param &theta) {
-    cudaMemcpy(theta.mw.data(), d_mw, w_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.Sw.data(), d_Sw, w_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.mb.data(), d_mb, b_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.Sb.data(), d_Sb, b_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.mw_sc.data(), d_mw_sc, w_sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.Sw_sc.data(), d_Sw_sc, w_sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.mb_sc.data(), d_mb_sc, b_sc_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(theta.Sb_sc.data(), d_Sb_sc, b_sc_bytes, cudaMemcpyDeviceToHost);
+void ParamGPU::copy_device_to_host() {
+    cudaMemcpy(this->theta_cpu->mw.data(), d_mw, w_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->Sw.data(), d_Sw, w_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->mb.data(), d_mb, b_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->Sb.data(), d_Sb, b_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->mw_sc.data(), d_mw_sc, w_sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->Sw_sc.data(), d_Sw_sc, w_sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->mb_sc.data(), d_mb_sc, b_sc_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->theta_cpu->Sb_sc.data(), d_Sb_sc, b_sc_bytes,
+               cudaMemcpyDeviceToHost);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1249,19 +1268,21 @@ DeltaParamGPU::~DeltaParamGPU() {
 ///////////////////////////////
 // INPUT
 //////////////////////////////
-InputGPU::InputGPU(Network &net) {
-    id_bytes =
+InputGPU::InputGPU() {}
+
+void InputGPU::set_values(Network &net) {
+    this->id_bytes =
         net.batch_size * net.nodes.front() * net.input_seq_len * sizeof(float);
     if (net.is_full_cov) {
-        id_f_bytes = (net.n_x * (net.n_x + 1)) / 2 * net.batch_size *
-                     net.input_seq_len * sizeof(float);
+        this->id_f_bytes = (net.n_x * (net.n_x + 1)) / 2 * net.batch_size *
+                           net.input_seq_len * sizeof(float);
     } else {
-        id_f_bytes = 0;
+        this->id_f_bytes = 0;
     }
 
-    d_x_batch = nullptr;
-    d_Sx_batch = nullptr;
-    d_Sx_f_batch = nullptr;
+    this->d_x_batch = nullptr;
+    this->d_Sx_batch = nullptr;
+    this->d_Sx_f_batch = nullptr;
 }
 
 void InputGPU::allocate_cuda_memory() {
@@ -1324,15 +1345,91 @@ InputGPU::~InputGPU() {
 }
 
 ///////////////////////////////
+// CONNECTOR INPUT GPU
+//////////////////////////////
+ConnectorInputGPU::ConnectorInputGPU(){};
+ConnectorInputGPU::~ConnectorInputGPU() {
+    cudaFree(d_ma);
+    cudaFree(d_Sa);
+    cudaFree(d_mz);
+    cudaFree(d_Sz);
+    cudaFree(d_J);
+};
+void ConnectorInputGPU::set_values(int input_size) {
+    this->num_input_bytes = input_size * sizeof(float);
+}
+
+void ConnectorInputGPU::allocate_cuda_memory() {
+    cudaMalloc(&d_ma, num_input_bytes);
+    cudaMalloc(&d_Sa, num_input_bytes);
+    cudaMalloc(&d_mz, num_input_bytes);
+    cudaMalloc(&d_Sz, num_input_bytes);
+    cudaMalloc(&d_J, num_input_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for  connected inputs - "
+            "data_transfer.cu\n";
+        std::cerr << error << ": " << err_msg;
+    }
+}
+
+void ConnectorInputGPU::copy_host_to_device(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    cudaMemcpy(this->d_ma, ma.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_Sa, Sa.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mz, mz.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_Sz, Sz.data(), num_input_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_J, J.data(), num_input_bytes, cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        if (error != cudaSuccess) {
+            std::string err_msg =
+                "Failed to make data transfer to device for connected inputs - "
+                "data_transfer.cu\n";
+            std::cerr << error << ": " << err_msg;
+        }
+    }
+}
+
+void ConnectorInputGPU::copy_device_to_host(std::vector<float> &ma,
+                                            std::vector<float> &Sa,
+                                            std::vector<float> &mz,
+                                            std::vector<float> &Sz,
+                                            std::vector<float> &J) {
+    cudaMemcpy(ma.data(), this->d_ma, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(Sa.data(), this->d_Sa, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(mz.data(), this->d_mz, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(Sz.data(), this->d_Sz, num_input_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(J.data(), this->d_J, num_input_bytes, cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        if (error != cudaSuccess) {
+            std::string err_msg =
+                "Failed to make data transfer to host for connected inputs - "
+                "data_transfer.cu\n";
+            std::cerr << error << ": " << err_msg;
+        }
+    }
+}
+
+///////////////////////////////
 // OUTPUT
 //////////////////////////////
-ObsGPU::ObsGPU(int ny, int nye, int B) {
-    od_bytes = B * ny * sizeof(float);
-    ode_bytes = B * nye * sizeof(int);
+ObsGPU::ObsGPU(){};
+void ObsGPU::set_values(int ny, int nye, int B) {
+    this->od_bytes = B * ny * sizeof(float);
+    this->ode_bytes = B * nye * sizeof(int);
 
-    d_y_batch = nullptr;
-    d_V_batch = nullptr;
-    d_idx_ud_batch = nullptr;
+    this->d_y_batch = nullptr;
+    this->d_V_batch = nullptr;
+    this->d_idx_ud_batch = nullptr;
 }
 
 void ObsGPU::allocate_cuda_memory() {

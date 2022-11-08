@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.23)
 # ###########################################################################################
 PROJECT(
   cuTAGI
-  VERSION 0.1.0
+  VERSION 0.1.3
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX
 )
@@ -32,8 +32,7 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
 else()
-  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -I/${CUDA_TOOLKIT_ROOT_DIR}/include")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
 endif()
 
 find_package(Threads REQUIRED)
@@ -91,46 +90,15 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 # CUDA debug (-g) & device debug (- G)
 set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 
+# ###########################################################################################
+# # PYTHON SETUP
+# ###########################################################################################
+find_package(Python COMPONENTS Interpreter Development)
+
 # Header files for source code
+add_subdirectory(extern/pybind11)
 include_directories("include")
 include_directories("test")
-
-# Sources code for CUDA
-set(GPU_SOURCES
-  src/common.cpp
-  src/cost.cpp
-  src/dataloader.cpp
-  src/data_transfer.cu
-  src/global_param_update.cu
-  src/indices.cpp
-  src/net_init.cpp
-  src/net_prop.cpp
-  src/feed_forward.cu
-  src/param_feed_backward.cu
-  src/state_feed_backward.cu
-  src/derivative_calcul.cu
-  src/lstm_feed_forward.cu
-  src/lstm_feed_backward.cu
-  src/activation_fun.cu
-  src/task.cu
-  src/user_input.cpp
-  src/utils.cpp
-  src/gpu_debug_utils.cpp
-
-  src/data_transfer_cpu.cpp
-  src/global_param_update_cpu.cpp
-  src/feed_forward_cpu.cpp
-  src/param_feed_backward_cpu.cpp
-  src/state_feed_backward_cpu.cpp
-  src/lstm_feed_forward_cpu.cpp
-  src/lstm_feed_backward_cpu.cpp
-  src/activation_fun_cpu.cpp
-  src/task_cpu.cpp
-  src/feature_availability.cpp
-  src/derivative_calcul_cpu.cpp
-
-  test/test_lstm_cpu.cpp
-)
 
 # Source codes for only CPU
 set(CPU_SOURCES
@@ -153,8 +121,27 @@ set(CPU_SOURCES
   src/utils.cpp
   src/feature_availability.cpp
   src/derivative_calcul_cpu.cpp
-
+  src/tagi_network_cpu.cpp
+  src/tagi_network_base.cpp
+  src/utility_wrapper.cpp
   test/test_lstm_cpu.cpp
+)
+
+# Sources code for CUDA
+set(GPU_SOURCES
+  ${CPU_SOURCES}
+  src/data_transfer.cu
+  src/global_param_update.cu
+  src/feed_forward.cu
+  src/param_feed_backward.cu
+  src/state_feed_backward.cu
+  src/derivative_calcul.cu
+  src/lstm_feed_forward.cu
+  src/lstm_feed_backward.cu
+  src/activation_fun.cu
+  src/task.cu
+  src/tagi_network.cu
+  src/gpu_debug_utils.cpp
 )
 
 # Output binary folder der for different mode
@@ -173,13 +160,27 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
-  # Executable code i.e. application
+  # Executablecode i.e. application
   add_executable(main main.cu)
+
+  # Python wrapper for C++/CUDA code
+  if(Python_FOUND)
+    pybind11_add_module(pytagi "src/python_api.cu")
+  endif()
 else()
   add_library(cutagi STATIC ${CPU_SOURCES})
 
   # Executable code i.e. application
   add_executable(main main.cpp)
+
+  # Python wrapper for C++/CUDA code
+  if(Python_FOUND)
+    pybind11_add_module(pytagi "src/python_api_cpu.cpp")
+  endif()
 endif()
 
 target_link_libraries(main PUBLIC cutagi)
+
+if(Python_FOUND)
+  target_link_libraries(pytagi PRIVATE cutagi)
+endif()

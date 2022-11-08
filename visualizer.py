@@ -3,11 +3,12 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      September 18, 2022
+# Updated:      November 02, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 import os
+from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -55,6 +56,22 @@ class ImageViz:
         df = pd.read_csv(file_name, skiprows=0, delimiter=",", header=None)
         imgs = df[0].values
 
+        return imgs
+
+    def plot_images(self,
+                    n_row: int,
+                    n_col: int,
+                    imgs: Union[None, np.ndarray] = None) -> None:
+        """Plot and save figure
+        Args:
+            n_row: Number of rows for exported image
+            n_col: Number of colums for exported image
+        """
+
+        # Load images
+        if imgs is None:
+            imgs = self.load_generated_images()
+
         # Reshape data for plot
         num_imgs = int(len(imgs) / np.prod(self.img_size))
         imgs = np.reshape(
@@ -66,19 +83,6 @@ class ImageViz:
         imgs = (imgs * sigma + mu) * 255.0
         imgs = imgs.transpose(0, 2, 3, 1)
 
-        return imgs
-
-    def plot_images(self, n_row: int, n_col: int) -> None:
-        """Plot and save figure
-        Args:
-            n_row: Number of rows for exported image
-            n_col: Number of colums for exported image
-        """
-
-        # Load images
-        imgs = self.load_generated_images()
-        (num, _, _, _) = imgs.shape
-
         # Plot images
         path_dir = "./saved_results"
         if not os.path.exists(path_dir):
@@ -87,7 +91,7 @@ class ImageViz:
         fig_path = f"{path_dir}/{self.data_name}_{self.task_name}.png"
 
         _, axes = plt.subplots(n_row, n_col, figsize=((10, 10)))
-        for i in range(num):
+        for i in range(num_imgs):
             ax = axes[i // n_col, i % n_col]
             ax.imshow(imgs[i], cmap="gray")
             ax.set_axis_off()
@@ -112,7 +116,7 @@ class PredictionViz:
         self,
         task_name: str,
         data_name: str,
-        figsize: tuple = (12, 12),
+        figsize: tuple = (8, 6),
         fontsize: int = 28,
         lw: int = 3,
         ms: int = 10,
@@ -261,7 +265,7 @@ class PredictionViz:
                        direction="inout",
                        labelsize=self.fontsize)
         ax.legend(
-            loc="upper right",
+            loc="upper left",
             edgecolor="black",
             fontsize=1 * self.fontsize,
             ncol=1,
@@ -272,6 +276,7 @@ class PredictionViz:
         ax.set_xlim([min_x, max_x])
 
         # Save figure
+        plt.show()
         saving_path = f"saved_results/pred_{label}_{self.data_name}.png"
         plt.savefig(saving_path, bbox_inches="tight")
         plt.close()
@@ -414,8 +419,8 @@ def noise_inference():
     x_test_path = "./data/toy_example/x_test_1D_noise_inference.csv"
     y_test_path = "./data/toy_example/y_test_1D_noise_inference.csv"
     sigma_v_test_path = "./data/toy_example/noise_test_1D_noise_inference.csv"
-    y_pred_path = "./saved_results/y_prediction.csv"
-    sy_pred_path = "./saved_results/sy_prediction.csv"
+    y_pred_path = "./saved_results/y_prediction_hete.csv"
+    sy_pred_path = "./saved_results/sy_prediction_hete.csv"
 
     viz = PredictionViz(task_name=task_name, data_name=data_name)
 
@@ -440,11 +445,8 @@ def noise_inference():
         sy_pred=sy_pred,
         std_factor=std_factor,
         sy_test=sy_test,
-        label="hete",
+        label="hete_2",
         title=r"\textbf{Heteroscedastic Nosie Inference}",
-        eq=eq,
-        x_eq=x_eq,
-        y_eq=y_eq,
     )
 
 
@@ -544,9 +546,9 @@ def time_series_forecasting():
 
 
 if __name__ == "__main__":
-    # regression()
-    # autoencoder()
-    # input_uncertainty_prop()
-    # noise_inference()
+    #regression()
+    #autoencoder()
+    input_uncertainty_prop()
+    #noise_inference()
     #derivative()
-    time_series_forecasting()
+    #time_series_forecasting()

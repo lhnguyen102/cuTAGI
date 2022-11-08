@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      September 23, 2022
+// Updated:      October 30, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -97,12 +97,13 @@ class ParamGPU {
    public:
     size_t w_bytes, b_bytes, w_sc_bytes, b_sc_bytes;
     float *d_mw, *d_Sw, *d_mb, *d_Sb, *d_mw_sc, *d_Sw_sc, *d_mb_sc, *d_Sb_sc;
+    Param *theta_cpu;
 
     ParamGPU();
-    void set_values(int w, int b, int w_sc, int b_sc);
+    void set_values(Param &theta);
     void allocate_cuda_memory();
-    void copy_host_to_device(Param &theta);
-    void copy_device_to_host(Param &theta);
+    void copy_host_to_device();
+    void copy_device_to_host();
 
     ~ParamGPU();
 };
@@ -165,9 +166,11 @@ class DeltaParamGPU {
 class InputGPU {
    public:
     size_t id_bytes, id_f_bytes;
-    float *d_x_batch, *d_Sx_batch, *d_Sx_f_batch;
+    float *d_x_batch, *d_Sx_batch;
+    float *d_Sx_f_batch;
 
-    InputGPU(Network &net);
+    InputGPU();
+    void set_values(Network &net);
     void allocate_cuda_memory();
     void copy_host_to_device(std::vector<float> &x_batch,
                              std::vector<float> &Sx_batch,
@@ -180,13 +183,32 @@ class InputGPU {
     ~InputGPU();
 };
 
+class ConnectorInputGPU {
+   public:
+    size_t num_input_bytes;
+    float *d_ma, *d_Sa, *d_mz, *d_Sz, *d_J;
+
+    ConnectorInputGPU();
+    void set_values(int input_size);
+    void allocate_cuda_memory();
+    void copy_host_to_device(std::vector<float> &ma, std::vector<float> &Sa,
+                             std::vector<float> &mz, std::vector<float> &Sz,
+                             std::vector<float> &J);
+
+    void copy_device_to_host(std::vector<float> &ma, std::vector<float> &Sa,
+                             std::vector<float> &mz, std::vector<float> &Sz,
+                             std::vector<float> &J);
+
+    ~ConnectorInputGPU();
+};
+
 class ObsGPU {
    public:
     size_t od_bytes, ode_bytes;
     float *d_y_batch, *d_V_batch;
     int *d_idx_ud_batch;
-
-    ObsGPU(int ny, int nye, int B);
+    ObsGPU();
+    void set_values(int ny, int nye, int B);
     void allocate_cuda_memory();
 
     void copy_host_to_device(std::vector<float> &y_batch,
