@@ -143,7 +143,7 @@ sigma_v:    1
     conda activate your_env_name
     pip install -r requirements.txt
     ```
-5. Install `pytagi`
+5. Install `pytagi` package
     ```sh
     pip install .
     ```
