@@ -28,7 +28,7 @@ Coming soon...
 
 Examples of [regression task](#regression-task) using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
 <p align="center">
-  <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_2_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
+  <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
 
 ## User Input
@@ -126,11 +126,11 @@ sigma_v:    1
 ```
 
 ## `pytagi` Installation 
-`pytagi` is a Python wrapper of C++/CUDA backend of TAGI method
+`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method
 1. Clone this repository. Note that `git submodule` command allows downloading [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
     ```
     git clone https://github.com/lhnguyen102/cuTAGI.git
-    cd cutagi
+    cd cuTAGI
     git submodule update --init --recursive
     ```
 2. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 

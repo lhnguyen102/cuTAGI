@@ -116,7 +116,7 @@ class PredictionViz:
         self,
         task_name: str,
         data_name: str,
-        figsize: tuple = (8, 6),
+        figsize: tuple = (12, 12),
         fontsize: int = 28,
         lw: int = 3,
         ms: int = 10,
@@ -265,7 +265,7 @@ class PredictionViz:
                        direction="inout",
                        labelsize=self.fontsize)
         ax.legend(
-            loc="upper left",
+            loc="upper right",
             edgecolor="black",
             fontsize=1 * self.fontsize,
             ncol=1,
@@ -276,7 +276,7 @@ class PredictionViz:
         ax.set_xlim([min_x, max_x])
 
         # Save figure
-        plt.show()
+        # plt.show()
         saving_path = f"saved_results/pred_{label}_{self.data_name}.png"
         plt.savefig(saving_path, bbox_inches="tight")
         plt.close()
@@ -453,7 +453,7 @@ def noise_inference():
 def derivative():
     """The analytical formulation for output is defined following"""
     # Equation
-    eq = r"$\begin{array}{rcl}Y &=& x^3 - 3x, ~V\sim\mathcal{N}(0, 0.1^{2})\\[4pt]Y^{'} &=& 3x^2 - 3x\end{array}$"
+    eq = r"$\begin{array}{rcl}Y &=& x^3 - 3x, ~V\sim\mathcal{N}(0, 0.1^{2})\\[4pt]Y^{'} &=& 3x^2 - 3\end{array}$"
     x_eq = -1.6
     y_eq = 8
 
@@ -548,7 +548,7 @@ def time_series_forecasting():
 if __name__ == "__main__":
     #regression()
     #autoencoder()
-    input_uncertainty_prop()
+    #input_uncertainty_prop()
     #noise_inference()
-    #derivative()
+    derivative()
     #time_series_forecasting()
