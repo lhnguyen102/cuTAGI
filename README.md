@@ -127,7 +127,7 @@ sigma_v:    1
 
 ## `pytagi` Installation 
 `pytagi` is a Python wrapper of C++/CUDA backend for TAGI method
-1. Clone this repository. Note that `git submodule` command allows downloading [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
+1. Clone this repository. Note that `git submodule` command allows cloning [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
     ```
     git clone https://github.com/lhnguyen102/cuTAGI.git
     cd cuTAGI
