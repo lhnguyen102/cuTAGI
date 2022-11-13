@@ -3,7 +3,7 @@
 # Description:  Example of classification task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      November 07, 2022
+# Updated:      November 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -12,9 +12,9 @@ from typing import Tuple
 import numpy as np
 from tqdm import tqdm
 
-import python_src.metric as metric
-from python_src.tagi_network import NetProp, TagiNetwork
-from python_src.tagi_utils import HierarchicalSoftmax, Utils
+import pytagi.metric as metric
+from pytagi import NetProp, TagiNetwork
+from pytagi import HierarchicalSoftmax, Utils
 
 
 class Classifier:

@@ -3,7 +3,7 @@ from visualizer import PredictionViz
 from python_examples.data_loader import TimeSeriesDataloader
 from python_examples.model import TimeSeriesLSTM
 from python_examples.time_series_forecaster import TimeSeriesForecaster
-from python_src.tagi_utils import load_param_from_files
+from pytagi  import load_param_from_files
 
 
 def main():

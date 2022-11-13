@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import python_src.metric as metric
-from python_src.tagi_network import NetProp, TagiNetwork
-from python_src.tagi_utils import Normalizer as normalizer
-from python_src.tagi_utils import Utils, exponential_scheduler
+import pytagi.metric as metric
+from pytagi import NetProp, TagiNetwork
+from pytagi import Normalizer as normalizer
+from pytagi import Utils, exponential_scheduler
 from visualizer import PredictionViz
 
 
