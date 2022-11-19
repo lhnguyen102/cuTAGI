@@ -3,28 +3,6 @@ name: Build
 on: [push, pull_request]
 
 jobs:
-  build_sdist:
-    name: Build SDist
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macOS-11]
-        
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-
-    - name: Build SDist
-      run: pipx run build --sdist
-
-    - name: Check metadata
-      run: pipx run twine check dist/*
-
-    - uses: actions/upload-artifact@v3
-      with:
-        path: dist/*.tar.gz
-
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -34,6 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
 
       # Used to host cibuildwheel
       - uses: actions/setup-python@v3
@@ -50,3 +30,24 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
+  build_sdist:
+    name: Build SDist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macOS-11]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Build SDist
+      run: pipx run build --sdist
+
+    - name: Check metadata
+      run: pipx run twine check dist/*
+
+    - uses: actions/upload-artifact@v3
+      with:
+        path: dist/*.tar.gz
