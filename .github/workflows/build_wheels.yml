@@ -32,7 +32,6 @@ jobs:
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux1
           CIBW_SKIP: "*musllinux*"
-          CIBW_BUILD: ${{ matrix.python-version }}
         # to supply options, put them in 'env', like:
         # env:
         #   CIBW_SOME_OPTION: value
