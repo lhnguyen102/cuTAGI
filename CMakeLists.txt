@@ -5,9 +5,10 @@ cmake_minimum_required(VERSION 3.23)
 # ###########################################################################################
 # # PPROJECT
 # ###########################################################################################
+file(READ "pytagi/version.txt" ver)
 PROJECT(
   cuTAGI
-  VERSION 0.1.2
+  VERSION ${ver}
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX
 )
@@ -94,7 +95,6 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 # # PYTHON SETUP
 # ###########################################################################################
 find_package(Python COMPONENTS Interpreter Development)
-find_package(pybind11 CONFIG)
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
@@ -165,9 +165,7 @@ if(CMAKE_CUDA_COMPILER)
   add_executable(main main.cu)
 
   # Python wrapper for C++/CUDA code
-  if(Python_FOUND)
-    pybind11_add_module(cutagi "src/python_api.cu")
-  endif()
+  pybind11_add_module(cutagi "src/python_api.cu")
 else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
 
@@ -175,13 +173,8 @@ else()
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
-  if(Python_FOUND)
-    pybind11_add_module(cutagi "src/python_api_cpu.cpp")
-  endif()
+  pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 endif()
 
 target_link_libraries(main PUBLIC cutagi_lib)
-
-if(Python_FOUND)
-  target_link_libraries(cutagi PRIVATE cutagi_lib)
-endif()
+target_link_libraries(cutagi PRIVATE cutagi_lib)
