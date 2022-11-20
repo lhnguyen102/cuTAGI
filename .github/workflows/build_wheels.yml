@@ -15,13 +15,13 @@ jobs:
             python_version: "3.10" 
 
     steps:
-      # - name: Setup cmake
-      #   uses: jwlawson/actions-setup-cmake@v1.13
-      #   with:
-      #     cmake-version: '3.23.x'
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.23.x'
 
-      # - name: Use cmake
-      #   run: cmake --version
+      - name: Use cmake
+        run: cmake --version
 
       - uses: actions/checkout@v3
         with:
