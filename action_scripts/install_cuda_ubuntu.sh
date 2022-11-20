@@ -145,8 +145,8 @@ fi
 ## Install
 ## -----------------
 echo "Adding CUDA Repository"
-&USE_SUDO apt-get update
-&USE_SUDO apt-get -y install wget
+$USE_SUDO apt-get update
+$USE_SUDO apt-get -y install wget
 wget ${PIN_URL}
 $USE_SUDO mv ${PIN_FILENAME} /etc/apt/preferences.d/cuda-repository-pin-600
 $USE_SUDO apt-key adv --fetch-keys ${APT_KEY_URL}
