@@ -2,8 +2,7 @@
 requires=[
     "setuptools>=42",
     "wheel",
-    "ninja",
-    "cmake>=3.23",
+    "ninja"
 ]
 build-backend = "setuptools.build_meta"
 
