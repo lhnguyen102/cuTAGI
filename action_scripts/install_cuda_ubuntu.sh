@@ -165,7 +165,7 @@ fi
 ## Set environment vars / vars to be propagated
 ## -----------------
 
-CUDA_PATH=/usr/local/cuda-${CUDA_MAJOR}.${CUDA_MINOR}
+CUDA_PATH=/usr/local/cuda
 echo "CUDA_PATH=${CUDA_PATH}"
 export CUDA_PATH=${CUDA_PATH}
 
@@ -184,9 +184,12 @@ export CUDA_PATH=${CUDA_PATH}
 #     echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 # fi
 
-export PATH="$CUDA_PATH/bin:$PATH"
+# export PATH="$CUDA_PATH/bin:$PATH"
+export PATH=$PATH:$CUDA_PATH/bin
 export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+
 # Check nvcc is now available.
 nvcc -V
 
