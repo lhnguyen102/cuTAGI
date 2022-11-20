@@ -86,10 +86,10 @@ jobs:
 
   build_sdist:
     name: Build SDist
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
+      os: [ubuntu-20.04, macos-11]
         python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v3
@@ -115,7 +115,7 @@ jobs:
         path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build_linux, build_macos, build_sdist]
     runs-on: ubuntu-latest
 
     # upload to PyPI on every tag starting with 'v'
