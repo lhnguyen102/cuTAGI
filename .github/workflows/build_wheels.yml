@@ -15,33 +15,13 @@ jobs:
             python_version: "3.10" 
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get -y update && sudo apt-get install \
-              build-essential \
-              autoconf \
-              automake \
-              libtool \
-              pkg-config \
-              apt-transport-https \
-              ca-certificates \
-              software-properties-common \
-              g++ \
-              git \
-              wget \
-              gdb \
-              valgrind \
-              locales \
-              locales-all &&\
-              sudo apt-get clean
-      
-      - name: Set env
-        run: echo "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1" >> $GITHUB_ENV
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.23.x'
 
-      - name: Install cmake
-        run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add - &&\
-             apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
-             apt-get update &&\
-             apt-get install -y cmake 
+      - name: Use cmake
+        run: cmake --version
 
       - uses: actions/checkout@v3
         with:
