@@ -1,8 +1,16 @@
-################################################################
-#SOURCE: https://github.com/ptheywood/cuda-cmake-github-actions
-#https://github.com/NVlabs/instant-ngp
-################################################################
-# @todo - better / more robust parsing of inputs from env vars.
+#!/bin/bash
+#
+# Installation script for relevant CUDA packages
+# On Ubuntu, and possibly other Linux systems
+#
+# Adapted from the version at : https://github.com/ptheywood
+#
+# Original version Copyright (c) 2021 Peter Heywood
+# Licensed under the terms of the MIT License; see:
+# https://github.com/ptheywood/cuda-cmake-github-actions/blob/master/LICENSE
+#
+
+
 ## -------------------
 ## Constants
 ## -------------------
@@ -12,13 +20,14 @@
 # @todo - GCC support matrix?
 
 # List of sub-packages to install.
-# @todo - pass this in from outside the script?
+# @todo - pass this in from outside the script? 
 # @todo - check the specified subpackages exist via apt pre-install?  apt-rdepends cuda-9-0 | grep "^cuda-"?
 
 # Ideally choose from the list of meta-packages to minimise variance between cuda versions (although it does change too)
 CUDA_PACKAGES_IN=(
     "command-line-tools"
-    "libraries-dev"
+    "nvrtc-dev"
+    "cudart-dev"
 )
 
 ## -------------------
@@ -92,9 +101,10 @@ fi
 ## -------------------------------
 ## Select CUDA packages to install
 ## -------------------------------
+
 CUDA_PACKAGES=""
 for package in "${CUDA_PACKAGES_IN[@]}"
-do :
+do : 
     # @todo This is not perfect. Should probably provide a separate list for diff versions
     # cuda-compiler-X-Y if CUDA >= 9.1 else cuda-nvcc-X-Y
     if [[ "${package}" == "nvcc" ]] && version_ge "$CUDA_VERSION_MAJOR_MINOR" "9.1" ; then
@@ -102,8 +112,18 @@ do :
     elif [[ "${package}" == "compiler" ]] && version_lt "$CUDA_VERSION_MAJOR_MINOR" "9.1" ; then
         package="nvcc"
     fi
+	# The curand library used to be prefixed with cuda-, and this changed. I'm trying to provide
+	# maximum flexibility here for whatever variant was specified in CUDA_PACKAGES_IN
+	if [[ "${package}" =~ ^(lib|cuda-)?curand ]] && version_ge "$CUDA_VERSION_MAJOR_MINOR" "11.0" ; then
+		package="$(echo "$package" | sed 's/^(lib|cuda-)?/cuda-/')"
+	elif [[ "${package}" =~ ^(lib|cuda-)?curand ]] && version_lt "$CUDA_VERSION_MAJOR_MINOR" "11.0" ; then
+		package="$(echo "$package" | sed 's/^(lib|cuda-)?/lib/')"
+    fi
+	[[ "${package}" =~ ^(lib[^-]|cuda-|nvidia-|xserver-|python3-|nsight-).* ]] || package="cuda-${package}"
+	[[ "${package}" =~ ^libraries ]] && package="cuda-${package}"
+	[[ "${package}" =~ ^cuda1- ]] && package="lib-${package}"
     # Build the full package name and append to the string.
-    CUDA_PACKAGES+=" cuda-${package}-${CUDA_MAJOR}-${CUDA_MINOR}"
+    CUDA_PACKAGES+=" ${package}-${CUDA_MAJOR}-${CUDA_MINOR}"
 done
 echo "CUDA_PACKAGES ${CUDA_PACKAGES}"
 
@@ -147,6 +167,7 @@ fi
 ## -----------------
 ## Install
 ## -----------------
+
 echo "Adding CUDA Repository"
 wget ${PIN_URL}
 $USE_SUDO mv ${PIN_FILENAME} /etc/apt/preferences.d/cuda-repository-pin-600
@@ -161,57 +182,26 @@ if [[ $? -ne 0 ]]; then
     echo "CUDA Installation Error."
     exit 1
 fi
+
 ## -----------------
 ## Set environment vars / vars to be propagated
 ## -----------------
 
-CUDA_PATH=/usr/local/cuda
-export PATH="/usr/local/cuda/bin:$PATH"
+CUDA_PATH=/usr/local/cuda-${CUDA_MAJOR}.${CUDA_MINOR}
 echo "CUDA_PATH=${CUDA_PATH}"
 export CUDA_PATH=${CUDA_PATH}
 
 
-# # Quick test. @temp
-# export PATH="$CUDA_PATH/bin:$PATH"
-# export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
-# nvcc -V
-
-# # If executed on github actions, make the appropriate echo statements to update the environment
-# if [[ $GITHUB_ACTIONS ]]; then
-#     # Set paths for subsequent steps, using ${CUDA_PATH}
-#     echo "Adding CUDA to CUDA_PATH, PATH and LD_LIBRARY_PATH"
-#     echo "CUDA_PATH=${CUDA_PATH}" >> $GITHUB_ENV
-#     echo "${CUDA_PATH}/bin" >> $GITHUB_PATH
-#     echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-# fi
-
-# export PATH="$CUDA_PATH/bin:$PATH"
-# export PATH=$PATH:$CUDA_PATH/bin
-# export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
-# export LD_LIBRARY_PATH="$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
-
-export PATH=$PATH:$CUDA_PATH/bin
-export LD_LIBRARY_PATH="$CUDA_PATH/lib"
-export LD_LIBRARY_PATH="$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="usr/lib/nvidia:$LD_LIBRARY_PATH"
-export CPLUS_INCLUDE_PATH=/usr/local/cuda/include
-export CFLAGS=-I/usr/local/cuda/include
-export LDFLAGS=-L/usr/local/cuda/lib64
-
-
-# Check nvcc is now available.
+# Quick test. @temp
+export PATH="$CUDA_PATH/bin:$PATH"
+export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
 nvcc -V
-
 
 # If executed on github actions, make the appropriate echo statements to update the environment
 if [[ $GITHUB_ACTIONS ]]; then
     # Set paths for subsequent steps, using ${CUDA_PATH}
     echo "Adding CUDA to CUDA_PATH, PATH and LD_LIBRARY_PATH"
-    # echo "CUDA_PATH=/usr/local/cuda" >> $GITHUB_ENV
-    echo "/usr/local/cuda/bin" >> $GITHUB_PATH
-    echo "LD_LIBRARY_PATH=/usr/local/cuda/lib:usr/lib/nvidia:LD_LIBRARY_PATH" >> $GITHUB_ENV
-    echo "CPLUS_INCLUDE_PATH=/usr/local/cuda/include" >> $GITHUB_ENV
-    echo "CFLAGS=-I/usr/local/cuda/include" >> $GITHUB_ENV
-    echo "LDFLAGS=-L/usr/local/cuda/lib64" >> $GITHUB_ENV
+    echo "CUDA_PATH=${CUDA_PATH}" >> $GITHUB_ENV
+    echo "${CUDA_PATH}/bin" >> $GITHUB_PATH
+    echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 fi
