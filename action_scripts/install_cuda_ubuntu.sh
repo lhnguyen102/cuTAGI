@@ -145,6 +145,7 @@ fi
 ## Install
 ## -----------------
 echo "Adding CUDA Repository"
+$USE_SUDO apt install libpng-dev
 $USE_SUDO apt-get update
 $USE_SUDO apt-get -y install wget
 wget ${PIN_URL}
