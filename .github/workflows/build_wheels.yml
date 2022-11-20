@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Get latest CMake and Ninja
-        uses: lukka/get-cmake@lates
+        uses: lukka/get-cmake@latest
 
       - uses: actions/checkout@v3
         with:
