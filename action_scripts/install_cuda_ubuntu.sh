@@ -146,14 +146,15 @@ fi
 ## -----------------
 echo "Adding CUDA Repository"
 $USE_SUDO yum install -y wget 
+wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
 wget ${PIN_URL}
 $USE_SUDO mv ${PIN_FILENAME} /etc/apt/preferences.d/cuda-repository-pin-600
-$USE_SUDO yum adv --fetch-keys ${APT_KEY_URL}
-$USE_SUDO yum-config-manager --add-repo "deb ${REPO_URL} /"
-# $USE_SUDO apt-get update
+$USE_SUDO apt-key adv --fetch-keys ${APT_KEY_URL}
+$USE_SUDO add-apt-repository "deb ${REPO_URL} /"
+$USE_SUDO apt-get update
 
 echo "Installing CUDA packages ${CUDA_PACKAGES}"
-$USE_SUDO yum install ${CUDA_PACKAGES}
+$USE_SUDO apt-get -y install ${CUDA_PACKAGES}
 
 if [[ $? -ne 0 ]]; then
     echo "CUDA Installation Error."
