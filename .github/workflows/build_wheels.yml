@@ -12,19 +12,21 @@ jobs:
           - os: ubuntu-20.04
             cuda: "11.6"
             arch: 86
-            python_version: "3.10"
-    env:
-      APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: 1     
+            python_version: "3.10"   
 
     steps:
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install build-essential gcc g++ apt-transport-https ca-certificates wget
-
-      - name: Install cmake
-        run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
-             apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
-             apt-get update &&\
-             apt-get install -y cmake 
+        run: apt-get update \
+            && apt-get -y install build-essential \
+            && apt-get install -y wget \
+            && rm -rf /var/lib/apt/lists/* \
+            && wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-Linux-x86_64.sh \
+                -q -O /tmp/cmake-install.sh \
+                && chmod u+x /tmp/cmake-install.sh \
+                && mkdir /opt/cmake-3.24.1 \
+                && /tmp/cmake-install.sh --skip-license --prefix=/opt/cmake-3.24.1 \
+                && rm /tmp/cmake-install.sh \
+                && ln -s /opt/cmake-3.24.1/bin/* /usr/local/bin
 
       - uses: actions/checkout@v3
         with:
