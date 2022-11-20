@@ -17,14 +17,6 @@ jobs:
       config: "Release"
 
     steps:
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
-        with:
-          cmake-version: '3.23.x'
-
-      - name: Use cmake
-        run: cmake --version
-
       - uses: actions/checkout@v3
         with:
           submodules: recursive
@@ -46,9 +38,11 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.6.1
+        with:
+          package-dir: action_scripts/
         env:
           cuda: ${{ matrix.cuda }}
-          CIBW_BEFORE_ALL_LINUX: ./action_scripts/install_cuda_ubuntu.sh
+          CIBW_BEFORE_ALL_LINUX: action_scripts/install_cuda_ubuntu.sh
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_SKIP: "*musllinux*"
           CIBW_BUILD_VERBOSITY: 1
