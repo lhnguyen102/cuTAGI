@@ -14,7 +14,7 @@ jobs:
             arch: 86
             python_version: "3.10"
     env:
-      - APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: {1}     
+      - APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: 1     
 
     steps:
       - name: Install dependencies
