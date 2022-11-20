@@ -14,15 +14,7 @@ jobs:
             arch: 86
             python_version: "3.10"
 
-    env:
-      build_dir: "build"
-      config: "Release"
-      TCNN_CUDA_ARCHITECTURES: ${{ matrix.arch }}
-
     steps:
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install build-essential python3-dev libglfw3-dev libglew-dev libxinerama-dev libxcursor-dev libxi-dev
-
       - uses: actions/checkout@v3
         with:
           submodules: recursive
@@ -57,7 +49,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11]
+        os: [macos-12]
         python_version: [3.10]
 
     steps:
@@ -89,7 +81,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11]
+        os: [ubuntu-20.04, macos-12]
         python-version: ["3.10"]
 
     steps:
