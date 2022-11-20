@@ -1,8 +1,7 @@
-set -e
-set -x
-yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
-yum install --setopt=obsoletes=0 -y cuda-nvcc-11-2-11.2.152-1 cuda-cudart-devel-11-2-11.2.152-1
-ln -s cuda-11.2 /usr/local/cuda
+sudo yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
+sudo yum clean all
+sudo yum -y install nvidia-driver-latest-dkms cuda
+sudo yum -y install cuda-drive
 
 CUDA_PATH=/usr/local/cuda
 echo "CUDA_PATH=${CUDA_PATH}"
