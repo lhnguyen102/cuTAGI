@@ -8,30 +8,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        python_version: ["3.10"]
+        include:
+          - os: ubuntu-20.04
+            cuda: "11.6"
+            arch: 86
+            python_version: "3.10"
 
     steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install cmake gcc g++
+        
       - uses: actions/checkout@v3
         with:
           submodules: recursive
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install CUDA
-        uses: Jimver/cuda-toolkit@v0.2.8
-        id: cuda-toolkit
-        with:
-          cuda: '11.6.0'
-
-      # - name: Install CUDA
-      #   env:
-      #     cuda: ${{ matrix.cuda }}
-      #   run: ./action_scripts/install_cuda_ubuntu.sh
-      #   shell: bash
+        env:
+          cuda: ${{ matrix.cuda }}
+        run: ./action_scripts/install_cuda_ubuntu.sh
+        shell: bash
       
       # Used to host cibuildwheel
       - name: Install cibuildwheel
@@ -63,7 +63,7 @@ jobs:
 
       # Used to host cibuildwheel
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
 
