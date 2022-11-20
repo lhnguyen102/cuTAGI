@@ -185,10 +185,19 @@ export CUDA_PATH=${CUDA_PATH}
 # fi
 
 # export PATH="$CUDA_PATH/bin:$PATH"
+# export PATH=$PATH:$CUDA_PATH/bin
+# export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
+# export LD_LIBRARY_PATH="$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+
 export PATH=$PATH:$CUDA_PATH/bin
-export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$CUDA_PATH/lib"
 export LD_LIBRARY_PATH="$CUDA_PATH/lib64:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+export LD_LIBRARY_PATH="usr/lib/nvidia:$LD_LIBRARY_PATH"
+export CPLUS_INCLUDE_PATH=/usr/local/cuda/include
+export CFLAGS=-I/usr/local/cuda/include
+export LDFLAGS=-L/usr/local/cuda/lib64
+
 
 # Check nvcc is now available.
 nvcc -V
@@ -202,4 +211,7 @@ if [[ $GITHUB_ACTIONS ]]; then
     echo "${CUDA_PATH}/bin" >> $GITHUB_PATH
     echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
     echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+    echo "CPLUS_INCLUDE_PATH=$/usr/local/cuda/include" >> $GITHUB_ENV
+    echo "CFLAGS=-I/usr/local/cuda/include" >> $GITHUB_ENV
+    echo "LDFLAGS=-L/usr/local/cuda/lib64" >> $GITHUB_ENV
 fi

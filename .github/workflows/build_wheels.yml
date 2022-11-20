@@ -15,9 +15,6 @@ jobs:
             python_version: "3.10"
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install cmake gcc g++
-        
       - uses: actions/checkout@v3
         with:
           submodules: recursive
