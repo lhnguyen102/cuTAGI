@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include
+        include:
           - os: ubuntu-20.04
             cuda: "11.6"
             arch: 86
