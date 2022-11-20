@@ -42,7 +42,7 @@ jobs:
           CIBW_ENVIRONMENT: cuda="11.3" ubuntu_ver="20.04"
           # CIBW_ENVIRONMENT_PASS_LINUX: cuda ub
           CIBW_BEFORE_ALL_LINUX: ./action_scripts/install_cuda_ubuntu.sh
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_24
           CIBW_SKIP: "*musllinux*"
           CIBW_BUILD_VERBOSITY: 1
 
