@@ -26,15 +26,15 @@ jobs:
       - name: Use cmake
         run: cmake --version
 
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
       - name: Install CUDA
         env:
           cuda: ${{ matrix.cuda }}
         run: ./action_scripts/install_cuda_ubuntu.sh
         shell: bash
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
