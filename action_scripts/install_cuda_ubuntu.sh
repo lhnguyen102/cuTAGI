@@ -166,6 +166,7 @@ fi
 ## -----------------
 
 CUDA_PATH=/usr/local/cuda
+export PATH="/usr/local/cuda/bin:$PATH"
 echo "CUDA_PATH=${CUDA_PATH}"
 export CUDA_PATH=${CUDA_PATH}
 
@@ -207,11 +208,10 @@ nvcc -V
 if [[ $GITHUB_ACTIONS ]]; then
     # Set paths for subsequent steps, using ${CUDA_PATH}
     echo "Adding CUDA to CUDA_PATH, PATH and LD_LIBRARY_PATH"
-    echo "CUDA_PATH=${CUDA_PATH}" >> $GITHUB_ENV
-    echo "${CUDA_PATH}/bin" >> $GITHUB_PATH
-    echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-    echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-    echo "CPLUS_INCLUDE_PATH=$/usr/local/cuda/include" >> $GITHUB_ENV
+    # echo "CUDA_PATH=/usr/local/cuda" >> $GITHUB_ENV
+    echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+    echo "LD_LIBRARY_PATH=/usr/local/cuda/lib:usr/lib/nvidia:LD_LIBRARY_PATH" >> $GITHUB_ENV
+    echo "CPLUS_INCLUDE_PATH=/usr/local/cuda/include" >> $GITHUB_ENV
     echo "CFLAGS=-I/usr/local/cuda/include" >> $GITHUB_ENV
     echo "LDFLAGS=-L/usr/local/cuda/lib64" >> $GITHUB_ENV
 fi
