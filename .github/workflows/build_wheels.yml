@@ -16,8 +16,7 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: sudo apt-get -y update && \
-              sudo apt-get install -y --no-install-recommends \
+        run: sudo apt-get -y update && sudo apt-get install -y --no-install-recommends \
               build-essential \
               autoconf \
               automake \
@@ -33,7 +32,7 @@ jobs:
               valgrind \
               locales \
               locales-all &&\
-              apt-get clean
+              sudo apt-get clean
       
       - name: Set env
         run: echo "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1" >> $GITHUB_ENV
