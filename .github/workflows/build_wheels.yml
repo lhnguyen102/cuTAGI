@@ -15,12 +15,14 @@ jobs:
             python_version: "3.10"
 
     steps:
-      - name: Install cmake
+      - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install build-essential gcc g++ wget
+
+      - name: Install cmake 
         run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
-            apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
-            apt-get update &&\
-            apt-get install -y cmake 
+             apt-add-repository "deb https://apt.kitware.com/ubuntu/ bionic main" &&\
+             apt-get update &&\
+             apt-get install -y cmake 
       - uses: actions/checkout@v3
         with:
           submodules: recursive
