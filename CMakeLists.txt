@@ -10,7 +10,7 @@ PROJECT(
   cuTAGI
   VERSION ${ver}
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
-  LANGUAGES CXX CUDA
+  LANGUAGES CXX
 )
 
 set(CUTAGI_VERSION "${CMAKE_PROJECT_VERSION}")
