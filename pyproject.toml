@@ -7,14 +7,3 @@ requires=[
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.mypy]
-files = "setup.py"
-python_version = "3.8"
-strict = true
-show_error_codes = true
-enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
-warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["ninja"]
-ignore_missing_imports = true
