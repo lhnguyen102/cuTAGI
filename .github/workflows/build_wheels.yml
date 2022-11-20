@@ -10,11 +10,14 @@ jobs:
       matrix:
         include:
           - os: ubuntu-20.04
-            cuda: "11.6"
+            cuda: "11.3"
             arch: 86
             python_version: "3.10" 
 
     steps:
+      - name: Install dependencies
+          run: sudo apt-get update && sudo apt-get install cmake gcc g++
+          
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.13
         with:
