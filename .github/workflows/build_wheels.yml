@@ -16,23 +16,24 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: sudo apt-get -y update && sudo apt-get install -y --no-install-recommends &&\
-          build-essential &&\
-          autoconf &&\
-          automake &&\
-          libtool &&\
-          pkg-config &&\
-          gcc &&\
-          g++ &&\
-          software-properties-common &&\
-          apt-transport-https &&\
-          ca-certificates &&\
-          wget &&\
-          gdb &&\
-          valgrind &&\
-          locales &&\
-          locales-all &&\
-          sudo apt-get clean 
+        run: sudo apt-get -y update && \
+              sudo apt-get install -y --no-install-recommends \
+              build-essential \
+              autoconf \
+              automake \
+              libtool \
+              pkg-config \
+              apt-transport-https \
+              ca-certificates \
+              software-properties-common \
+              g++ \
+              git \
+              wget \
+              gdb \
+              valgrind \
+              locales \
+              locales-all &&\
+              apt-get clean
       
       - name: Set env
         run: echo "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1" >> $GITHUB_ENV
