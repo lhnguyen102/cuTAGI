@@ -34,11 +34,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install CUDA
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./action_scripts/install_cuda_ubuntu.sh
-        shell: bash
+      # - name: Install CUDA
+      #   env:
+      #     cuda: ${{ matrix.cuda }}
+      #   run: ./action_scripts/install_cuda_ubuntu.sh
+      #   shell: bash
       
       # # Used to host cibuildwheel
       # - name: Install cibuildwheel
@@ -47,6 +47,8 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.6.1
         env:
+          cuda: ${{ matrix.cuda }}
+          CIBW_BEFORE_ALL_LINUX: ./action_scripts/install_cuda_ubuntu.sh
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_SKIP: "*musllinux*"
           CIBW_BUILD_VERBOSITY: 1
