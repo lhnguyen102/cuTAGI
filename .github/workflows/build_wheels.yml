@@ -40,6 +40,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.6.1
         with:
           package-dir: action_scripts
+          output-dir: action_scripts/wheelhouse
         env:
           cuda: ${{ matrix.cuda }}
           CIBW_BEFORE_ALL_LINUX: action_scripts/install_cuda_ubuntu.sh
@@ -49,7 +50,8 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          path: ./wheelhouse/*.whl
+          name: python-wheels
+          path: action_scripts/wheelhouse
 
   # build_macos:
   #   name: Build wheels on ${{ matrix.os }}
