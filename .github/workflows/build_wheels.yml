@@ -39,6 +39,7 @@ jobs:
         env:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_SKIP: "*musllinux*"
+          CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v3
         with:
@@ -49,8 +50,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-12]
-        python_version: [3.10]
+        os: [macos-11]
+        python_version: ["3.10"]
 
     steps:
       - uses: actions/checkout@v3
@@ -81,7 +82,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-12]
+        os: [ubuntu-20.04, macos-11]
         python-version: ["3.10"]
 
     steps:

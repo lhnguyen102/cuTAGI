@@ -5,6 +5,8 @@ prune debug_data/*
 exclude cfg/*
 graft extern/pybind11/include
 graft extern/pybind11/tools
+graft src
+graft include
 include LICENSE README.md RELEASES.md pyproject.toml setup.py setup.cfg
 include pytagi/version.txt
 include action_scripts/install_cuda_ubuntu.sh
