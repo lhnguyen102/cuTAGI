@@ -12,13 +12,14 @@ jobs:
           - os: ubuntu-20.04
             cuda: "11.6"
             arch: 86
-            python_version: "3.10"
-    env:
-      - APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: 1     
+            python_version: "3.10" 
 
     steps:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install build-essential gcc g++ apt-transport-https ca-certificates wget
+      
+      - name: Ser env
+        run: echo "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1" >> $GITHUB_ENV
 
       - name: Install cmake
         run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add - &&\
