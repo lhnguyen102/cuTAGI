@@ -14,10 +14,6 @@ jobs:
             arch: 86
             python_version: "3.10" 
 
-    env:
-      build_dir: "build"
-      config: "Release"
-
     steps:
       # - name: Setup cmake
       #   uses: jwlawson/actions-setup-cmake@v1.13
@@ -41,9 +37,6 @@ jobs:
           cuda: ${{ matrix.cuda }}
         run: ./action_scripts/install_cuda_ubuntu.sh
         shell: bash
-      
-      - name: CMake
-        run: cmake . -B ${{ env.build_dir }} -DCMAKE_BUILD_TYPE=${{ env.config }}
       
       # Used to host cibuildwheel
       - name: Install cibuildwheel
