@@ -16,21 +16,21 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: sudo apt-get -y update && sudo apt-get install -y --no-install-recommends \
-          build-essential \
-          autoconf \
-          automake \
-          libtool \
-          pkg-config \
-          gcc \
-          g++ \
-          software-properties-common \
-          apt-transport-https \
-          ca-certificates \
-          wget \
-          gdb \
-          valgrind \
-          locales \
+        run: sudo apt-get -y update && sudo apt-get install -y --no-install-recommends &&\
+          build-essential &&\
+          autoconf &&\
+          automake &&\
+          libtool &&\
+          pkg-config &&\
+          gcc &&\
+          g++ &&\
+          software-properties-common &&\
+          apt-transport-https &&\
+          ca-certificates &&\
+          wget &&\
+          gdb &&\
+          valgrind &&\
+          locales &&\
           locales-all &&\
           sudo apt-get clean 
       
