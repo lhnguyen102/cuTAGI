@@ -40,7 +40,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.6.1
         env:
           cuda: ${{ matrix.cuda }}
-          UBUNTU_VERSION: ${{ matrix.os }}
+          ubuntu_ver: ${{ matrix.os }}
           CIBW_BEFORE_ALL_LINUX: ./action_scripts/install_cuda_ubuntu.sh
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_SKIP: "*musllinux*"
