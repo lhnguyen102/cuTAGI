@@ -1,16 +1,16 @@
 set -e
 set -x 
 yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
-yum --enablerepo=epel -y install cuda-11-8
+yum install cuda-11.8
 
-CUDA_PATH=/usr/local/cuda.11.8
+CUDA_PATH=/usr/local/cuda-11.8
 echo "CUDA_PATH=${CUDA_PATH}"
 export CUDA_PATH=${CUDA_PATH}
 
 # Quick test. @temp
 export PATH="$CUDA_PATH/bin:$PATH"
 export LD_LIBRARY_PATH="$CUDA_PATH/lib:$LD_LIBRARY_PATH"
-nvcc -V
+nvcc --version
 
 # If executed on github actions, make the appropriate echo statements to update the environment
 if [[ $GITHUB_ACTIONS ]]; then
