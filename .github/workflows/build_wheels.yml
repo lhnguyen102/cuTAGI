@@ -35,9 +35,12 @@ jobs:
           cuda: ${{ matrix.cuda }}
         run: ./action_scripts/install_cuda_ubuntu.sh
         shell: bash
-        
+      
+      - name: Install dependencies
+        run: pip install wheel 
+
       - name: Build wheels
-        run: python3 setup.py bdist_wheel --plat-name=manylinux2014_x86_64
+        run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
       
       # # Used to host cibuildwheel
       # - name: Install cibuildwheel
