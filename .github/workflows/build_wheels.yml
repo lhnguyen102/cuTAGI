@@ -53,6 +53,7 @@ jobs:
       matrix:
         os: [macos-11]
         python_version: ["3.10"]
+        python_cibuildwheel: [310]
 
     steps:
       - uses: actions/checkout@v3
@@ -71,7 +72,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_BUILD: ${{ matrix.python_version }}
+          CIBW_BUILD: cp${{ matrix.python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
 
