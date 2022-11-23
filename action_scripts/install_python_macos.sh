@@ -3,10 +3,14 @@
 export PATH="/usr/local/opt/python/libexec/bin:$PATH"
 export PATH=/usr/local/bin:/usr/local/sbin:$PATH
 brew install pyenv
-pyenv install ${PYTHON_VERSION_MACOS}
+pyenv init
+pyenv install -v ${PYTHON_VERSION_MACOS}
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+echo $PYENV_ROOT
 if [[ $GITHUB_ACTIONS ]]; then
     # Set paths for subsequent steps, using ${CUDA_PATH}
     echo "Adding PYTHON to PATH"
-    echo "$/usr/local/opt/python/libexec/bin" >> $GITHUB_PATH
-    echo "$/usr/local/bin:/usr/local/sbin" >> $GITHUB_PATH
+    echo "$PYENV_ROOT/bin" >> $GITHUB_PATH
 fi
