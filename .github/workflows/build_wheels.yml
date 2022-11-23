@@ -52,7 +52,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11]
-        python_version: "3.10"
+        python_version: ["3.10"]
 
     steps:
       - uses: actions/checkout@v3
@@ -71,7 +71,7 @@ jobs:
       - name: Build wheels
         run: python3 -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_ENVIRONMENT: ${{ matrix.python_version }}
+          CIBW_ENVIRONMENT: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
           CIBW_BEFORE_BUILS: action_scripts/install_python_macos.sh
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
