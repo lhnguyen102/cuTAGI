@@ -3,48 +3,48 @@ name: Build
 on: [push, pull_request]
 
 jobs:
-  build_linux:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-20.04
-            cuda: "11.3"
-            python_version: "3.10" 
-    steps:
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
-        with:
-          cmake-version: '3.23.x'
+  # build_linux:
+  #   name: Build wheels on ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - os: ubuntu-20.04
+  #           cuda: "11.3"
+  #           python_version: "3.10" 
+  #   steps:
+  #     - name: Setup cmake
+  #       uses: jwlawson/actions-setup-cmake@v1.13
+  #       with:
+  #         cmake-version: '3.23.x'
 
-      - name: Use cmake
-        run: cmake --version
+  #     - name: Use cmake
+  #       run: cmake --version
 
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         submodules: recursive
 
-      - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v3
-        with:
-          python-version: ${{ matrix.python_version }}
+  #     - name: Set up Python ${{ matrix.python_version }}
+  #       uses: actions/setup-python@v3
+  #       with:
+  #         python-version: ${{ matrix.python_version }}
 
-      - name: Install CUDA
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./action_scripts/install_cuda_ubuntu.sh
-        shell: bash
+  #     - name: Install CUDA
+  #       env:
+  #         cuda: ${{ matrix.cuda }}
+  #       run: ./action_scripts/install_cuda_ubuntu.sh
+  #       shell: bash
       
-      - name: Install dependencies
-        run: pip install wheel 
+  #     - name: Install dependencies
+  #       run: pip install wheel 
 
-      - name: Build wheels
-        run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
+  #     - name: Build wheels
+  #       run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
 
-      - uses: actions/upload-artifact@v3
-        with:
-          path: dist/*.whl
+  #     - uses: actions/upload-artifact@v3
+  #       with:
+  #         path: dist/*.whl
 
   build_macos:
     name: Build wheels on ${{ matrix.os }}
@@ -52,7 +52,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-11]
-        python_version: ["3.10"]
+        python_version: "3.10"
 
     steps:
       - uses: actions/checkout@v3
@@ -66,12 +66,13 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.11.2
+        run: python3 -m pip install cibuildwheel==2.11.2
 
       - name: Build wheels
-        run: python -m cibuildwheel --output-dir wheelhouse
+        run: python3 -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_PROJECT_REQUIRES_PYTHON: ${{ matrix.python_version }}
+          CIBW_ENVIRONMENT: ${{ matrix.python_version }}
+          CIBW_BEFORE_BUILS: action_scripts/install_python_macos.sh
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
 
@@ -80,57 +81,57 @@ jobs:
           path: ./wheelhouse/*.whl
 
 
-  build_sdist:
-    name: Build SDist
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04]
-        python_version: ["3.10"]
+  # build_sdist:
+  #   name: Build SDist
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-20.04]
+  #       python_version: ["3.10"]
 
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       submodules: recursive
 
-    - name: Set up Python ${{ matrix.python_version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python_version }}
+  #   - name: Set up Python ${{ matrix.python_version }}
+  #     uses: actions/setup-python@v3
+  #     with:
+  #       python-version: ${{ matrix.python_version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
+  #   - name: Install dependencies
+  #     run: |
+  #       python -m pip install --upgrade pip
 
-    - name: Build SDist
-      run: |
-        python -m pip install setuptools wheel twine
-        python setup.py sdist
+  #   - name: Build SDist
+  #     run: |
+  #       python -m pip install setuptools wheel twine
+  #       python setup.py sdist
 
-    - uses: actions/upload-artifact@v3
-      with:
-        path: dist/*.tar.gz
+  #   - uses: actions/upload-artifact@v3
+  #     with:
+  #       path: dist/*.tar.gz
 
-  upload_pypi:
-    needs: [build_linux, build_macos, build_sdist]
-    runs-on: ubuntu-latest
+  # upload_pypi:
+  #   needs: [build_linux, build_macos, build_sdist]
+  #   runs-on: ubuntu-latest
 
-    # upload to PyPI on every tag starting with 'v'
-    #if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    # alternatively, to publish when a GitHub Release is created, use the following rule:
-    # if: github.event_name == 'release' && github.event.action == 'published'
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          # unpacks default artifact into dist/
-          # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
-          path: dist
+  #   # upload to PyPI on every tag starting with 'v'
+  #   #if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+  #   # alternatively, to publish when a GitHub Release is created, use the following rule:
+  #   # if: github.event_name == 'release' && github.event.action == 'published'
+  #   steps:
+  #     - uses: actions/download-artifact@v3
+  #       with:
+  #         # unpacks default artifact into dist/
+  #         # if `name: artifact` is omitted, the action will create extra parent dir
+  #         name: artifact
+  #         path: dist
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
-        with:
-          user: __token__
-          password: ${{ secrets.TEST_PYPI_PASSWORD }}
-          repository_url: https://test.pypi.org/legacy/
-          skip_existing: true
-          verbose: true
+  #     - uses: pypa/gh-action-pypi-publish@v1.5.0
+  #       with:
+  #         user: __token__
+  #         password: ${{ secrets.TEST_PYPI_PASSWORD }}
+  #         repository_url: https://test.pypi.org/legacy/
+  #         skip_existing: true
+  #         verbose: true
