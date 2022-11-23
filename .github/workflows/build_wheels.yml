@@ -66,20 +66,14 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Install Python
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./action_scripts/install_python_macos.sh
-        shell: bash
-
       - name: Install cibuildwheel
         run: python3 -m pip install cibuildwheel==2.11.2
 
       - name: Build wheels
         run: python3 -m cibuildwheel --output-dir wheelhouse
         env:
-          # CIBW_ENVIRONMENT: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
-          # CIBW_BEFORE_BUILD: ./action_scripts/install_python_macos.sh
+          CIBW_ENVIRONMENT_MACOS: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
+          CIBW_BEFORE_ALL_MACOS: ./action_scripts/install_python_macos.sh
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
