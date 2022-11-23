@@ -53,8 +53,14 @@ jobs:
       matrix:
         os: [macos-11]
         python_version: ["3.10"]
+        cibuildwheel_python: ["cp310-*"]
 
     steps:
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.23.x'
+
       - uses: actions/checkout@v3
         with:
           submodules: recursive
@@ -72,7 +78,8 @@ jobs:
         run: python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_ENVIRONMENT: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
-          CIBW_BEFORE_BUILS: action_scripts/install_python_macos.sh
+          CIBW_BEFORE_BUILD: action_scripts/install_python_macos.sh
+          CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
 
