@@ -66,6 +66,12 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
+      - name: Install Python
+        env:
+          cuda: ${{ matrix.cuda }}
+        run: ./action_scripts/install_python_macos.sh
+        shell: bash
+
       - name: Install cibuildwheel
         run: python3 -m pip install cibuildwheel==2.11.2
 
