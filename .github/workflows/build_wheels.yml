@@ -72,8 +72,8 @@ jobs:
       - name: Build wheels
         run: python3 -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_ENVIRONMENT: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
-          CIBW_BEFORE_BUILD: ./action_scripts/install_python_macos.sh
+          # CIBW_ENVIRONMENT: PYTHON_VERSION_MACOS=${{ matrix.python_version }}
+          # CIBW_BEFORE_BUILD: ./action_scripts/install_python_macos.sh
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
