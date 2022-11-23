@@ -6,9 +6,9 @@
 set -e
 set -x
 
--c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-export PATH="/usr/local/opt/python/libexec/bin:$PATH"
-export PATH=/usr/local/bin:/usr/local/sbin:$PATH
+# -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# export PATH="/usr/local/opt/python/libexec/bin:$PATH"
+# export PATH=/usr/local/bin:/usr/local/sbin:$PATH
 brew install pyenv
 pyenv init
 pyenv install -v ${PYTHON_VERSION_MACOS}
