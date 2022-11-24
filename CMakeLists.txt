@@ -94,7 +94,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 # ###########################################################################################
 # # PYTHON SETUP
 # ###########################################################################################
-find_package(Python COMPONENTS Interpreter Development)
+# find_package(Python COMPONENTS Interpreter Development)
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
