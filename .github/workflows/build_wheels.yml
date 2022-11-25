@@ -62,7 +62,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-         include
+         include:
           - os: macos-11
             python_version: "3.9"
             cibuildwheel_python: "cp39-*"
