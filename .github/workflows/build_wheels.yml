@@ -12,7 +12,7 @@ jobs:
           - os: ubuntu-20.04
             cuda: "11.3"
             python_version: "3.10" 
-            
+
           - os: ubuntu-20.04
             cuda: "11.3"
             python_version: "3.9" 
@@ -37,7 +37,7 @@ jobs:
       - name: Install CUDA
         env:
           cuda: ${{ matrix.cuda }}
-        run: .extern/action_scripts/install_cuda_ubuntu.sh
+        run: ./extern/action_scripts/install_cuda_ubuntu.sh
         shell: bash
       
       - name: Install dependencies
@@ -91,7 +91,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04]
-        python_version: ["3.9", "3.10", "3.11"]
+        python_version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
