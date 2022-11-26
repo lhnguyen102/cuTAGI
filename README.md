@@ -28,7 +28,7 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
   <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
 
-## Prerequisites
+## Prerequisites for Local Installation
 * Compiler with C++14 support
 * CMake>=3.23
 * CUDA toolkit (optional)
