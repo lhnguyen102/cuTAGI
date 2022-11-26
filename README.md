@@ -36,8 +36,8 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
 ## `pytagi` Installation 
 `pytagi` is a Python wrapper of C++/CUDA backend for TAGI method
 
-### Create Conda Environment
-We recommend installing conda for managing Python environment, yet `pytagi` works with other Python environment manager.
+### Create MiniConda Environment
+We recommend installing miniconda for managing Python environment, yet `pytagi` works well with other alternatives.
 1. Install conda by following these [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
 2. Create a conda environment
     ```
