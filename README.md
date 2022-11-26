@@ -43,7 +43,7 @@ We recommend installing miniconda for managing Python environment, yet `pytagi` 
     ```
     conda create --name your_env_name python=3.10
     ```
-3. Install requirements
+3. Activate conda environment
     ```
     conda activate your_env_name
     ```
@@ -57,6 +57,10 @@ We recommend installing miniconda for managing Python environment, yet `pytagi` 
 3. Install `pytagi`
     ```
     pip install pytagi
+    ```
+4. Test `pytagi` package
+    ```sh
+    python -m python_examples.regression_runner
     ```
 NOTE: This PyPI distributed version does not require the codebase in this repository. The developers can create their own applications (see [python_examples](python_examples)).
 
@@ -85,7 +89,7 @@ NOTE: This PyPI distributed version does not require the codebase in this reposi
 `cutagi` is the native version implemented in C++/CUDA for TAGI method. We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
 
-### Docker build
+### Docker Build
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
 2. Build docker image
   * CPU build
