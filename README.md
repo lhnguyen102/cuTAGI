@@ -34,7 +34,7 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
 * CUDA toolkit (optional)
 
 ## `pytagi` Installation 
-`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method
+`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method. The developers can install either  [distributed](#pypi-installation) or [local](#local-installation) versions of `pytagi` 
 
 ### Create Miniconda Environment
 We recommend installing miniconda for managing Python environment, yet `pytagi` works well with other alternatives.
@@ -58,7 +58,7 @@ We recommend installing miniconda for managing Python environment, yet `pytagi` 
     ```
     pip install pytagi
     ```
-NOTE: This distributed version does not require the codebase in this repository. The developers can create their own applications (see [python_examples](python_examples)).
+NOTE: This PyPI distributed version does not require the codebase in this repository. The developers can create their own applications (see [python_examples](python_examples)).
 
 ### Local Installation
 1. Clone this repository. Note that `git submodule` command allows cloning [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
