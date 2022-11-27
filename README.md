@@ -34,7 +34,7 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
 * CUDA toolkit (optional)
 
 ## `pytagi` Installation 
-`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method. The developers can install either  [distributed](#pypi-installation) or [local](#local-installation) versions of `pytagi` 
+`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method. The developers can install either  [distributed](#pypi-installation) or [local](#local-installation) versions of `pytagi`. Currently `pytagi` only supports Python version >=3.9 on both MacOS and Ubuntu. 
 
 ### Create Miniconda Environment
 We recommend installing miniconda for managing Python environment, yet `pytagi` works well with other alternatives.

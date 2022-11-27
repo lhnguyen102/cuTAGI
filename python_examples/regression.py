@@ -59,7 +59,6 @@ class Regression:
                 decaying_factor=self.net_prop.decay_factor_sigma_v,
                 curr_iter=epoch)
             V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
-            breakpoint()
 
             for i in range(num_iter):
                 # Get data
