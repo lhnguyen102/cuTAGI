@@ -3,16 +3,17 @@ import os
 import re
 import subprocess
 import sys
+import io
 
-from setuptools import Extension, setup
+from setuptools import Extension, setup, find_packages
 from setuptools.command.build_ext import build_ext
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-with open(os.path.join(ROOT_DIR, "CMakeLists.txt"), "r") as cmakelists:
-    for line in cmakelists.readlines():
-        if line.strip().startswith("VERSION"):
-            VERSION = line.split("VERSION")[-1].strip()
-            break
+def read():
+    """Read a text file and return the content as a string."""
+    with open(os.path.join(ROOT_DIR, "pytagi/version.txt"), "r") as f:
+        version = f.readlines()
+    return version[0]
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -138,28 +139,9 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name="pytagi",
-    version=VERSION,
-    description="Tractable Approximate Gaussian Inference",
-    long_description="Bayesian neural network library",
-    classifiers=[
-        "Development Status :: Alpha",
-        "License :: MIT License",
-        "Programming Language :: C++",
-        "Programming Language :: CUDA",
-        "Programming Language :: Python :: 3 :: Only",
-        "Topic :: Scientific/Engineering :: Probabilistic Machine Learning",
-    ],
-    author="Luong-Ha Nguyen & James-A. Goulet",
-    author_email="luongha.nguyen@gmail.com & james.goulet@polymtl.ca",
-    maintainer="Luong-Ha Nguyen",
-    maintainer_email="luongha.nguyen@gmail.com",
-    keywords="Bayesian, machine learning, neural networks, tractable, cuda",
-    url="https://github.com/lhnguyen102/cuTAGI",
-    download_url="https://github.com/lhnguyen102/cuTAGI",
-    license="MIT License",
+    version=read(),
+    long_description_content_type="text/markdown",
     ext_modules=[CMakeExtension("build")],
     cmdclass={"build_ext": CMakeBuild},
-    zip_safe=False,
-    python_requires=">=3.8",
 )
+

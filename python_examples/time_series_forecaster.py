@@ -3,17 +3,17 @@
 # Description:  Example of the time series forecasting
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 26, 2022
-# Updated:      November 07, 2022
+# Updated:      November 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Union, Tuple
 
 import numpy as np
-import python_src.metric as metric
-from python_src.tagi_network import NetProp, Param, TagiNetwork
-from python_src.tagi_utils import Normalizer as normalizer
-from python_src.tagi_utils import exponential_scheduler
+import pytagi.metric as metric
+from pytagi import NetProp, Param, TagiNetwork
+from pytagi import Normalizer as normalizer
+from pytagi import exponential_scheduler
 from tqdm import tqdm
 from visualizer import PredictionViz
 

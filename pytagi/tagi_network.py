@@ -3,14 +3,14 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      November 07, 2022
+# Updated:      November 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
 from typing import Tuple
 
 import numpy as np
-import pytagi as tagi
+import cutagi as tagi
 
 
 class NetProp(tagi.Network):

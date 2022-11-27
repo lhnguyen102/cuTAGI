@@ -5,9 +5,10 @@ cmake_minimum_required(VERSION 3.23)
 # ###########################################################################################
 # # PPROJECT
 # ###########################################################################################
+file(READ "pytagi/version.txt" ver)
 PROJECT(
   cuTAGI
-  VERSION 0.1.3
+  VERSION ${ver}
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX
 )
@@ -93,7 +94,8 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 # ###########################################################################################
 # # PYTHON SETUP
 # ###########################################################################################
-find_package(Python COMPONENTS Interpreter Development)
+# find_package(Python COMPONENTS Interpreter Development)
+find_package(PythonInterp)
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
@@ -153,34 +155,27 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 
 if(CMAKE_CUDA_COMPILER)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-  add_library(cutagi STATIC ${GPU_SOURCES})
-  set_target_properties(cutagi PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-  set_target_properties(cutagi PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+  add_library(cutagi_lib STATIC ${GPU_SOURCES})
+  set_target_properties(cutagi_lib PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+  set_target_properties(cutagi_lib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
-  target_compile_options(cutagi PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
+  target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
   # Executablecode i.e. application
   add_executable(main main.cu)
 
   # Python wrapper for C++/CUDA code
-  if(Python_FOUND)
-    pybind11_add_module(pytagi "src/python_api.cu")
-  endif()
+  pybind11_add_module(cutagi "src/python_api.cu")
 else()
-  add_library(cutagi STATIC ${CPU_SOURCES})
+  add_library(cutagi_lib STATIC ${CPU_SOURCES})
 
   # Executable code i.e. application
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
-  if(Python_FOUND)
-    pybind11_add_module(pytagi "src/python_api_cpu.cpp")
-  endif()
+  pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 endif()
 
-target_link_libraries(main PUBLIC cutagi)
-
-if(Python_FOUND)
-  target_link_libraries(pytagi PRIVATE cutagi)
-endif()
+target_link_libraries(main PUBLIC cutagi_lib)
+target_link_libraries(cutagi PRIVATE cutagi_lib)

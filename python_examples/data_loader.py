@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from python_src.tagi_utils import Normalizer, Utils
+from pytagi  import Normalizer, Utils
 
 
 class DataloaderBase(ABC):

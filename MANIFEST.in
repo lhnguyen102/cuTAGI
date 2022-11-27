@@ -1,0 +1,13 @@
+prune data/*
+exclude saved_param/*
+exclude saved_results/*
+prune debug_data/*
+exclude cfg/*
+graft extern/pybind11/include
+graft extern/pybind11/tools
+include LICENSE README.md RELEASES.md pyproject.toml setup.py setup.cfg
+include pytagi/version.txt
+include extern/action_scripts/install_cuda_ubuntu.sh
+include extern/action_scripts/LICENSE
+include extern/pybind11/LICENSE
+global-include CMakeLists.txt *.cmake

@@ -28,27 +28,52 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
   <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
 
-## Prerequisites
+## Prerequisites for Local Installation
 * Compiler with C++14 support
 * CMake>=3.23
 * CUDA toolkit (optional)
 
 ## `pytagi` Installation 
-`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method
+`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method. The developers can install either  [distributed](#pypi-installation) or [local](#local-installation) versions of `pytagi` 
+
+### Create Miniconda Environment
+We recommend installing miniconda for managing Python environment, yet `pytagi` works well with other alternatives.
+1. Install miniconda by following these [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
+2. Create a conda environment
+    ```
+    conda create --name your_env_name python=3.10
+    ```
+3. Activate conda environment
+    ```
+    conda activate your_env_name
+    ```
+
+### PyPI Installation
+1. [Create conda environment](#create-conda-environment)
+2. Install requirements
+    ```
+    pip install -r requirements.txt
+    ```
+3. Install `pytagi`
+    ```
+    pip install pytagi
+    ```
+4. Test `pytagi` package
+    ```sh
+    python -m python_examples.regression_runner
+    ```
+NOTE: This PyPI distributed version does not require the codebase in this repository. The developers can create their own applications (see [python_examples](python_examples)).
+
+### Local Installation
 1. Clone this repository. Note that `git submodule` command allows cloning [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
     ```
     git clone https://github.com/lhnguyen102/cuTAGI.git
     cd cuTAGI
     git submodule update --init --recursive
     ```
-2. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements) 
-3. Create a conda environment
-    ```
-    conda create --name your_env_name python=3.10
-    ```
+2. [Create conda environment](#create-conda-environment)
 4. Install requirements
     ```
-    conda activate your_env_name
     pip install -r requirements.txt
     ```
 5. Install `pytagi` package
@@ -64,7 +89,7 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
 `cutagi` is the native version implemented in C++/CUDA for TAGI method. We highly recommend installing cuTAGI using Docker method to facilitate the installation.
 
 
-### Docker build
+### Docker Build
 1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
 2. Build docker image
   * CPU build

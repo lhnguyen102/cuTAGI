@@ -96,8 +96,8 @@ void NetworkWrapper::set_parameters_wrapper(Param &init_theta) {
 
 Param NetworkWrapper::get_parameters_wrapper() { return this->tagi_net->theta; }
 
-PYBIND11_MODULE(pytagi, m) {
-    m.doc() = "Tractable Approximate Gaussian Inference";
+PYBIND11_MODULE(cutagi, m) {
+    m.doc() = "Tractable Approximate Gaussian Inference - Backend C++/CUDA";
 
     pybind11::class_<Param>(m, "Param")
         .def(pybind11::init<>())

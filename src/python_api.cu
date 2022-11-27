@@ -114,8 +114,8 @@ pybind11::array load_mnist_images_wrapper_2() {
     return ret;
 }
 
-PYBIND11_MODULE(pytagi, m) {
-    m.doc() = "Tractable Approximate Gaussian Inference";
+PYBIND11_MODULE(cutagi, m) {
+    m.doc() = "Tractable Approximate Gaussian Inference - Backend C++/CUDA";
     m.def("load_mnist_images_wrapper_2", load_mnist_images_wrapper_2);
     pybind11::class_<Param>(m, "Param")
         .def(pybind11::init<>())

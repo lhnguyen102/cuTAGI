@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import python_src.metric as metric
-from python_src.tagi_network import NetProp, TagiNetwork
-from python_src.tagi_utils import Normalizer as normalizer
-from python_src.tagi_utils import Utils, exponential_scheduler
+import pytagi.metric as metric
+from pytagi import NetProp, TagiNetwork
+from pytagi import Normalizer as normalizer
+from pytagi import Utils, exponential_scheduler
 from visualizer import PredictionViz
 
 
@@ -59,6 +59,7 @@ class Regression:
                 decaying_factor=self.net_prop.decay_factor_sigma_v,
                 curr_iter=epoch)
             V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
+            breakpoint()
 
             for i in range(num_iter):
                 # Get data

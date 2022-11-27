@@ -3,7 +3,7 @@
 # Description:  Visualization tool for images data
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      May 10, 2022
-# Updated:      November 11, 2022
+# Updated:      November 12, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -144,21 +144,21 @@ class PredictionViz:
         return df[0].values
 
     def plot_predictions(self,
-                         x_train: npt.NDArray | None,
-                         y_train: npt.NDArray | None,
+                         x_train: Union[np.ndarray, None],
+                         y_train: Union[np.ndarray, None],
                          x_test: npt.NDArray,
                          y_test: npt.NDArray,
                          y_pred: npt.NDArray,
                          sy_pred: npt.NDArray,
                          std_factor: int,
-                         sy_test: npt.NDArray | None = None,
+                         sy_test: Union[np.ndarray, None] = None,
                          label: str = "diag",
-                         title: str | None = None,
-                         eq: str | None = None,
-                         x_eq: float | None = None,
-                         y_eq: float | None = None,
+                         title: Union[str, None] = None,
+                         eq: Union[str, None] = None,
+                         x_eq: Union[float, None] = None,
+                         y_eq: Union[float, None] = None,
                          time_series: bool = False,
-                         save_folder: str | None = None) -> None:
+                         save_folder: Union[str, None] = None) -> None:
         """Compare prediciton distribution with theorical distribution
 
         x_train: Input train data
