@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      November 04, 2022
+// Updated:      December 02, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -177,6 +177,8 @@ PYBIND11_MODULE(cutagi, m) {
              &UtilityWrapper::hierarchical_softmax_wrapper)
         .def("load_mnist_dataset_wrapper",
              &UtilityWrapper::load_mnist_dataset_wrapper)
+        .def("load_mnist_dataset_wrapper_v2",
+             &UtilityWrapper::load_mnist_dataset_wrapper_v2)
         .def("load_cifar_dataset_wrapper",
              &UtilityWrapper::load_cifar_dataset_wrapper)
         .def("get_labels_wrapper", &UtilityWrapper::get_labels_wrapper)

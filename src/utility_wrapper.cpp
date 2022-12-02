@@ -3,7 +3,7 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      October 24, 2022
+// Updated:      December 02, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -33,6 +33,28 @@ UtilityWrapper::load_mnist_dataset_wrapper(std::string &image_file,
     auto labels = load_mnist_labels(label_file, num);
 
     return {images, labels};
+}
+
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+UtilityWrapper::load_mnist_dataset_wrapper_v2(std::string &image_file,
+                                              std::string &label_file,
+                                              int num) {
+    auto images = load_mnist_images(image_file, num);
+    auto labels = load_mnist_labels(label_file, num);
+    py::array_t<float> py_images = py::array_t<float>(images.size());
+    py::array_t<float> py_labels = py::array_t<float>(labels.size());
+    auto img_data = images.data();
+    auto label_data = labels.data();
+    auto py_img_out = py_images.mutable_data();
+    auto py_label_out = py_labels.mutable_data();
+    for (int i = 0; i < images.size(); i++) {
+        py_image_out[i] = img_data[i];
+    }
+    for (int j = 0; j < labels.size(); j++) {
+        py_label_out[i] = label_data[i];
+    }
+
+    return {py_images, py_labels};
 }
 
 std::vector<float> UtilityWrapper::load_mnist_images_wrapper(

@@ -3,11 +3,13 @@
 // Description:  Python wrapper for utility functions in C++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 17, 2022
-// Updated:      November 06, 2022
+// Updated:      December 02, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <vector>
 
@@ -25,6 +27,10 @@ class UtilityWrapper {
 
     std::tuple<std::vector<float>, std::vector<int>> load_mnist_dataset_wrapper(
         std::string &image_file, std::string &label_file, int num);
+
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+    load_mnist_dataset_wrapper_v2(std::string &image_file,
+                                  std::string &label_file, int num);
 
     std::vector<float> load_mnist_images_wrapper(std::string &image_file,
                                                  int num);
