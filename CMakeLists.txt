@@ -125,7 +125,6 @@ set(CPU_SOURCES
   src/derivative_calcul_cpu.cpp
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
-  src/utility_wrapper.cpp
   test/test_lstm_cpu.cpp
 )
 

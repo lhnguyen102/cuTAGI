@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      November 12, 2022
+# Updated:      December 03, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -72,8 +72,8 @@ class Utils:
         images, labels = self.backend_utils.load_mnist_dataset_wrapper(
             image_file, label_file, num_images)
 
-        return np.array(images, dtype=np.float32), np.array(labels).reshape(
-            (num_images, 1))
+        return images, labels
+
 
     def load_cifar_images(self, image_file: str,
                           num: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -90,7 +90,7 @@ class Utils:
         images, labels = self.backend_utils.load_cifar_dataset_wrapper(
             image_file, num)
 
-        return np.array(images), np.array(labels)
+        return images, labels
 
     def get_labels(self, ma: np.ndarray, Sa: np.ndarray,
                    hr_softmax: HierarchicalSoftmax, num_classes: int,
