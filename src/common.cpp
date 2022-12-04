@@ -339,3 +339,25 @@ Returns:
     }
     return Sx_tu;
 }
+
+///////////////////////////////////////////////////////
+// DISTRIBUTION
+///////////////////////////////////////////////////////
+float normcdf_cpu(float x)
+/* Normal cumulative distribution */
+{
+    return std::erfc(-x / std::sqrt(2)) / 2;
+}
+
+float normpdf_cpu(float x, float mu, float sigma)
+/*Probability density function of Normal distribution*/
+{
+    if (sigma < 0.0f) {
+        throw std::invalid_argument("Sigma value is negative");
+    }
+    float pi = 3.141592;  // pi number
+    float prob_pdf = (1 / (sigma * pow(2 * pi, 0.5))) *
+                     exp(-pow(x - mu, 2) / (2 * pow(sigma, 2)));
+
+    return prob_pdf;
+}

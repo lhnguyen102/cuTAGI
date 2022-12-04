@@ -111,6 +111,61 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
+void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int n, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa) {
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    for (int i = 0; i < n; i++) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mz[zpos + i] / pow(Sz[zpos + i], 0.5);
+        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
+        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
+        kappa = 1 + alpha * beta - pow(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] + beta * pow(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] = omega * mz_til;
+        Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * pow(mz_til, 2);
+        J[zpos + i] = pow(omega * kappa, 0.5);
+    }
+}
+
+void mixture_bounded_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                              float upper_bnd, float lower_bnd, float omega_tol,
+                              int zpos, int n, std::vector<float> &ma,
+                              std::vector<float> &J, std::vector<float> &Sa) {
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til;
+    for (int i = 0; i < n; i++) {
+        alpha_lower = (lower_bnd - mz[zpos + i]) / pow(Sz[zpos + i], 0.5);
+        alpha_upper = (upper_bnd - mz[zpos + i]) / pow(Sz[zpos + i], 0.5);
+        omega = std::max(normcdf_cpu(alpha_upper) - normcdf_cpu(alpha_lower),
+                         omega_tol);
+        beta = normpdf_cpu(alpha_upper, 0.0f, 1.0f) -
+               normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        kappa = 1 -
+                (normpdf_cpu(alpha_upper, 0.0f, 1.0f) * alpha_upper -
+                 normpdf_cpu(alpha_lower, 0.0f, 1.0f) * alpha_lower) /
+                    omega -
+                pow(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] = omega * mz_til - normcdf_cpu(alpha_lower) +
+                       (1 - normcdf_cpu(alpha_upper));
+        Sa[zpos + i] =
+            omega * Sz_til + omega * pow(mz_til - ma[zpos + i], 2) +
+            normcdf_cpu(alpha_upper) * pow(1 + ma[zpos + i], 2) +
+            (1 - normcdf_cpu(alpha_lower)) * pow(1 - ma[zpos + i], 2);
+        J[zpos + i] = pow(omega * kappa, 0.5);
+    }
+}
+
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,
                  std::vector<float> &Cza)
@@ -584,6 +639,11 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
             relu_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B, state.ma,
                               state.J, state.Sa);
         }
+    } else if (net.activations[j] == net.act_names.mrelu)  // mixture ReLU
+    {
+        mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
+                         state.ma, state.J, state.Sa);
+
     } else if (net.activations[j] == net.act_names.softplus)  // softplus
     {
         if (no * B > net.min_operations && net.multithreading) {

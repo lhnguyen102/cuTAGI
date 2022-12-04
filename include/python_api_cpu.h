@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 03, 2022
+// Updated:      December 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -33,9 +33,9 @@ class UtilityWrapper {
     std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
     load_cifar_dataset_wrapper(std::string &image_file, int num);
 
-    std::tuple<std::vector<int>, std::vector<float>> get_labels_wrapper(
-        std::vector<float> &mz, std::vector<float> &Sz, HrSoftmax &hs,
-        int num_classes, int B);
+    std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
+    get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
+                       HrSoftmax &hs, int num_classes, int B);
 
     HrSoftmax hierarchical_softmax_wrapper(int num_classes);
 
@@ -43,11 +43,12 @@ class UtilityWrapper {
                                                  std::vector<float> &Sz,
                                                  HrSoftmax &hs,
                                                  int num_classes);
-    std::tuple<std::vector<int>, std::vector<float>> get_error_wrapper(
-        std::vector<float> &mz, std::vector<float> &Sz,
-        std::vector<int> &labels, HrSoftmax &hs, int n_classes, int B);
+    std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
+    get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
+                      std::vector<int> &labels, HrSoftmax &hs, int n_classes,
+                      int B);
 
-    std::tuple<std::vector<float>, std::vector<float>>
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
     create_rolling_window_wrapper(std::vector<float> &data,
                                   std::vector<int> &output_col,
                                   int input_seq_len, int output_seq_len,

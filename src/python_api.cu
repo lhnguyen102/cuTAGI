@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 03, 2022
+// Updated:      December 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ UtilityWrapper::load_cifar_dataset_wrapper(std::string &image_file, int num) {
     return {py_images, py_labels};
 }
 
-std::tuple<std::vector<int>, std::vector<float>>
+std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
                                    std::vector<float> &Sz, HrSoftmax &hs,
                                    int num_classes, int B) {
@@ -78,8 +78,10 @@ UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
         pred[r] = std::distance(tmp.begin(),
                                 std::max_element(tmp.begin(), tmp.end()));
     }
+    auto py_pred = pybind11::array_t<int>(pred.size(), pred.data());
+    auto py_prob = pybind11::array_t<float>(prob.size(), prob.data());
 
-    return {pred, prob};
+    return {py_pred, py_prob};
 }
 
 HrSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
@@ -87,13 +89,14 @@ HrSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
 
     return hs;
 }
+
 std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
     std::vector<float> &mz, std::vector<float> &Sz, HrSoftmax &hs,
     int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;
 }
-std::tuple<std::vector<int>, std::vector<float>>
+std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
                                   std::vector<float> &Sz,
                                   std::vector<int> &labels, HrSoftmax &hs,
@@ -101,11 +104,13 @@ UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
     std::vector<int> er;
     std::vector<float> prob;
     std::tie(er, prob) = get_error(mz, Sz, labels, hs, n_classes, B);
+    auto py_er = pybind11::array_t<int>(er.size(), er.data());
+    auto py_prob = pybind11::array_t<float>(prob.size(), prob.data());
 
-    return {er, prob};
+    return {py_er, py_prob};
 }
 
-std::tuple<std::vector<float>, std::vector<float>>
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
 UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
                                               std::vector<int> &output_col,
                                               int input_seq_len,
@@ -123,7 +128,12 @@ UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
     create_rolling_windows(data, output_col, input_seq_len, output_seq_len,
                            num_features, stride, input_data, output_data);
 
-    return {input_data, output_data};
+    auto py_input_data =
+        pybind11::array_t<float>(input_data.size(), input_data.data());
+    auto py_output_data =
+        pybind11::array_t<float>(output_data.size(), output_data.data());
+
+    return {py_input_data, py_output_data};
 }
 
 std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
@@ -136,6 +146,9 @@ std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
     return Sx_f_batch;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// NETWORK WRAPPER
+///////////////////////////////////////////////////////////////////////////////
 NetworkWrapper::NetworkWrapper(Network &net) {
     if (net.device.compare("cuda") == 0) {
         this->tagi_net = std::make_unique<TagiNetwork>(net);

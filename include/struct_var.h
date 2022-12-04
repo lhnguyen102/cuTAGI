@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      November 07, 2022
+// Updated:      December 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -31,6 +31,7 @@ struct ActLabel {
     int relu = 4;
     int softplus = 5;
     int leakyrelu = 6;
+    int mrelu = 7;
 };
 
 struct Network {
@@ -180,6 +181,7 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
+    float omega_tol = 0.001;
 };
 
 // NETWORK STATE

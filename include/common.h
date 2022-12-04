@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      October 30, 2022
+// Updated:      December 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -264,3 +264,9 @@ void get_homosce_noise_param(std::vector<float> &ma_v2b_prior,
                              std::vector<float> &Sa_v2b_prior,
                              std::vector<float> &mu_v2b,
                              std::vector<float> &sigma_v2b);
+
+//////////////////////////////////////////////////////////////////////
+/// DISTRIBUTION
+//////////////////////////////////////////////////////////////////////
+float normcdf_cpu(float x);
+float normpdf_cpu(float x, float mu, float sigma);
