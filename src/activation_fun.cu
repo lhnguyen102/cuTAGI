@@ -113,19 +113,17 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
 }
 
 __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
-                             int zpos, int n, float *ma, float *Sa, float *J) {
+                             int zpos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha, beta, omega, kappa, mz_til, Sz_til, alpha_pdf;
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
     float pi = 3.141592;  // pi number
     if (col < n) {
         // Hyper-parameters for Gaussian mixture
         alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
-        omega = max(1 - normcdff(alpha), omega_tol);
-        // TODO: merge alpha_pdf with beta into one operation
-        alpha_pdf =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 0.5) / 2.0f);
-        beta = alpha_pdf / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
+        omega = max(1.0f - normcdff(alpha), omega_tol);
+        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
+               omega;
+        kappa = 1.0f + alpha * beta - powf(beta, 2);
 
         // Gaussian mixture's parameters
         mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);

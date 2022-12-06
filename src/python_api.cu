@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 04, 2022
+// Updated:      December 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -150,9 +150,13 @@ std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
 // NETWORK WRAPPER
 ///////////////////////////////////////////////////////////////////////////////
 NetworkWrapper::NetworkWrapper(Network &net) {
-    if (net.device.compare("cuda") == 0) {
+    if (net.device.compare("cuda") == 0 && is_cuda_available()) {
         this->tagi_net = std::make_unique<TagiNetwork>(net);
-    } else if (net.device.compare("cpu") == 0) {
+    } else if ((net.device.compare("cpu") == 0) ||
+               (!is_cuda_available() && net.device.compare("cuda") == 0)) {
+        std::cout << "CUDA is not available. Defaulting to CPU "
+                     "version."
+                  << "\n";
         this->tagi_net = std::make_unique<TagiNetworkCPU>(net);
     } else {
         throw std::invalid_argument(
@@ -281,17 +285,8 @@ void NetworkWrapper::set_parameters_wrapper(Param &init_theta) {
 
 Param NetworkWrapper::get_parameters_wrapper() { return this->tagi_net->theta; }
 
-pybind11::array load_mnist_images_wrapper_2() {
-    // auto images = load_mnist_images(image_file, num);
-    std::vector<float> images(60000 * 784, 0);
-    pybind11::array ret = pybind11::cast(images);
-
-    return ret;
-}
-
 PYBIND11_MODULE(cutagi, m) {
     m.doc() = "Tractable Approximate Gaussian Inference - Backend C++/CUDA";
-    m.def("load_mnist_images_wrapper_2", load_mnist_images_wrapper_2);
     pybind11::class_<Param>(m, "Param")
         .def(pybind11::init<>())
         .def_readwrite("mw", &Param::mw)
