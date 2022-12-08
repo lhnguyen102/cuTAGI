@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      December 04, 2022
+// Updated:      December 07, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,6 +32,7 @@ struct ActLabel {
     int softplus = 5;
     int leakyrelu = 6;
     int mrelu = 7;
+    int mbrelu = 8;
 };
 
 struct Network {

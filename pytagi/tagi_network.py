@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      December 03, 2022
+# Updated:      December 07, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -188,8 +188,8 @@ class TagiNetwork:
                                mz: np.ndarray, vz: np.ndarray,
                                jcb: np.ndarray) -> None:
         """Forward pass for the network that is connected to the other 
-        network e.g. decoder network in autoencoder task where its inputs 
-        are the output of the encoder network.
+        network e.g., decoder network in autoencoder task where its inputs 
+        are the outputs of the encoder network.
 
         Args:
             ma: Mean of activation units

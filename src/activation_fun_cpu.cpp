@@ -117,52 +117,54 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     float alpha, beta, omega, kappa, mz_til, Sz_til;
     for (int i = 0; i < n; i++) {
         // Hyper-parameters for Gaussian mixture
-        alpha = -mz[zpos + i] / pow(Sz[zpos + i], 0.5);
+        alpha = -mz[zpos + i] / powf(Sz[zpos + i], 0.5);
         omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
         beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - pow(beta, 2);
+        kappa = 1 + alpha * beta - powf(beta, 2);
 
         // Gaussian mixture's paramters
-        mz_til = mz[zpos + i] + beta * pow(Sz[zpos + i], 0.5);
+        mz_til = mz[zpos + i] + beta * powf(Sz[zpos + i], 0.5);
         Sz_til = kappa * Sz[zpos + i];
 
         // Activation distribution
         ma[zpos + i] = omega * mz_til;
-        Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * pow(mz_til, 2);
-        J[zpos + i] = pow(omega * kappa, 0.5);
+        Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
 void mixture_bounded_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                              float upper_bnd, float lower_bnd, float omega_tol,
-                              int zpos, int n, std::vector<float> &ma,
-                              std::vector<float> &J, std::vector<float> &Sa) {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til;
+                              float omega_tol, int zpos, int n,
+                              std::vector<float> &ma, std::vector<float> &J,
+                              std::vector<float> &Sa) {
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
     for (int i = 0; i < n; i++) {
-        alpha_lower = (lower_bnd - mz[zpos + i]) / pow(Sz[zpos + i], 0.5);
-        alpha_upper = (upper_bnd - mz[zpos + i]) / pow(Sz[zpos + i], 0.5);
-        omega = std::max(normcdf_cpu(alpha_upper) - normcdf_cpu(alpha_lower),
-                         omega_tol);
-        beta = normpdf_cpu(alpha_upper, 0.0f, 1.0f) -
-               normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
         kappa = 1 -
-                (normpdf_cpu(alpha_upper, 0.0f, 1.0f) * alpha_upper -
-                 normpdf_cpu(alpha_lower, 0.0f, 1.0f) * alpha_lower) /
-                    omega -
-                pow(beta, 2);
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
 
         // Gaussian mixture's paramters
         mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
         Sz_til = kappa * Sz[zpos + i];
 
         // Activation distribution
-        ma[zpos + i] = omega * mz_til - normcdf_cpu(alpha_lower) +
-                       (1 - normcdf_cpu(alpha_upper));
-        Sa[zpos + i] =
-            omega * Sz_til + omega * pow(mz_til - ma[zpos + i], 2) +
-            normcdf_cpu(alpha_upper) * pow(1 + ma[zpos + i], 2) +
-            (1 - normcdf_cpu(alpha_lower)) * pow(1 - ma[zpos + i], 2);
-        J[zpos + i] = pow(omega * kappa, 0.5);
+        ma[zpos + i] = omega * mz_til - cdf_lower + (1 - cdf_upper);
+        Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
+                       cdf_lower * powf(1 + ma[zpos + i], 2) +
+                       (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -639,10 +641,15 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
             relu_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B, state.ma,
                               state.J, state.Sa);
         }
-    } else if (net.activations[j] == net.act_names.mrelu)  // mixture ReLU
+    } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
         mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
                          state.ma, state.J, state.Sa);
+
+    } else if (net.activations[j] == net.act_names.mbrelu)  // mbReLU
+    {
+        mixture_bounded_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out,
+                                 no_B, state.ma, state.J, state.Sa);
 
     } else if (net.activations[j] == net.act_names.softplus)  // softplus
     {
