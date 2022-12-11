@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      December 07, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1866,6 +1866,12 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         } else if (net.activations[j] == net.act_names.mbrelu)  // mbReLU
         {
             mixture_bounded_relu<<<BLOCKS, THREADS>>>(
+                state.d_mz, state.d_Sz, net.omega_tol, zposOut, MB, state.d_ma,
+                state.d_J, state.d_Sa);
+
+        } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
+        {
+            mixture_sigmoid<<<BLOCKS, THREADS>>>(
                 state.d_mz, state.d_Sz, net.omega_tol, zposOut, MB, state.d_ma,
                 state.d_J, state.d_Sa);
 

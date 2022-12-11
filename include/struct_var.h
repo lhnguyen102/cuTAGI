@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      December 07, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -33,6 +33,7 @@ struct ActLabel {
     int leakyrelu = 6;
     int mrelu = 7;
     int mbrelu = 8;
+    int msigmoid = 9;
 };
 
 struct Network {
@@ -137,7 +138,8 @@ struct Network {
     LayerLabel layer_names;
     ActLabel act_names;
     std::string init_method = "Xavier";
-    std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
+    std::vector<float> gain_w, gain_b;
+    std::vector<int> w_pos, b_pos, w_sc_pos, b_sc_pos;
     std::vector<int> z_pos, z_pos_lstm, sc_pos, ra_pos, overlap;
 
     // Position for each layer in index vector

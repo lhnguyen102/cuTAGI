@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      December 05, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,11 +43,10 @@ int main(int argc, char* argv[]) {
         auto a = test_lstm_cpu();
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
+            std::cout << "Run on CUDA device "
+                      << "\n";
             task_command(user_input, path);
         } else {
-            std::cout << "CUDA is not available. Defaulting to CPU "
-                         "version."
-                      << "\n";
             task_command_cpu(user_input, path);
         }
     }

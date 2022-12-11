@@ -1,5 +1,5 @@
 model_name: test
-task_name: classification_2
+task_name: classification
 data_name: mnist
 net_name: 2fc
 load_param: false
@@ -9,7 +9,7 @@ num_train_data: 60000
 num_test_data: 10000
 mu: 0.1309
 sigma: 1
-device: cuda
+device: cpu
 x_train_dir: data/mnist/train-images-idx3-ubyte
 y_train_dir: data/mnist/train-labels-idx1-ubyte
 x_test_dir: data/mnist/t10k-images-idx3-ubyte

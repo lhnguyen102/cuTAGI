@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      September 19, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +129,8 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         // Activation distribution
         ma[zpos + i] = omega * mz_til;
         Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-        J[zpos + i] = powf(omega * kappa, 0.5);
+        // J[zpos + i] = powf(omega * kappa, 0.5);
+        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
     }
 }
 
@@ -164,7 +165,47 @@ void mixture_bounded_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
                        cdf_lower * powf(1 + ma[zpos + i], 2) +
                        (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
-        J[zpos + i] = powf(omega * kappa, 0.5);
+        // J[zpos + i] = powf(omega * kappa, 0.5);
+        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
+    }
+}
+
+void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                         float omega_tol, int zpos, int n,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa) {
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    for (int i = 0; i < n; i++) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] =
+            (omega * mz_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
+        Sa[zpos + i] =
+            (omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
+             cdf_lower * powf(1 + ma[zpos + i], 2) +
+             (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
+            4.0f;
+        // J[zpos + i] = powf(omega * kappa, 0.5);
+        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
     }
 }
 
@@ -643,13 +684,21 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
         }
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
+        // TODO: Build multithreading for mReLU
         mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
                          state.ma, state.J, state.Sa);
 
     } else if (net.activations[j] == net.act_names.mbrelu)  // mbReLU
     {
+        // TODO: Build multithreading for mbReLU
         mixture_bounded_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out,
                                  no_B, state.ma, state.J, state.Sa);
+
+    } else if (net.activations[j] == net.act_names.msigmoid)  // mbReLU
+    {
+        // TODO: Build multithreading for msigmoid
+        mixture_sigmoid_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
+                            state.ma, state.J, state.Sa);
 
     } else if (net.activations[j] == net.act_names.softplus)  // softplus
     {
