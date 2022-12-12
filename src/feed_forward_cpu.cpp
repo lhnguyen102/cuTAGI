@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      December 04, 2022
+// Updated:      December 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -252,23 +252,27 @@ void full_cov_worker(std::vector<float> &mw, std::vector<float> &Sa_f,
     int tu, col, row, k;
     float Sa_in;
     for (int j = start_idx; j < end_idx; j++) {
-        row = j / ((no * B - 1) % no + 1);
-        col = j % ((no * B - 1) % no + 1);
-        float sum = 0.0f;
-        for (int i = 0; i < ni * ni; i++) {
-            if ((i / ni) > (i % ni))  // Upper triangle
-            {
-                tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) + i / ni);
-            } else {
-                tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) + i % ni);
+        row = j / no;
+        col = j % no;
+        if (col <= (row % no)) {
+            float sum = 0.0f;
+            for (int i = 0; i < ni * ni; i++) {
+                if ((i / ni) > (i % ni))  // Upper triangle
+                {
+                    tu = (ni * (i % ni) - (((i % ni) * (i % ni + 1)) / 2) +
+                          i / ni);
+                } else {
+                    tu = (ni * (i / ni) - (((i / ni) * (i / ni + 1)) / 2) +
+                          i % ni);
+                }
+                Sa_in = Sa_f[tu + (row / no) * (ni * (ni + 1)) / 2];
+                sum += mw[i % ni + (row % no) * ni + w_pos] * Sa_in *
+                       mw[i / ni + (col % no) * ni + w_pos];
             }
-            Sa_in = Sa_f[tu + (row / no) * (ni * (ni + 1)) / 2];
-            sum += mw[i % ni + (row % no) * ni + w_pos] * Sa_in *
-                   mw[i / ni + (col % no) * ni + w_pos];
+            k = no * col - ((col * (col + 1)) / 2) + row % no +
+                (row / no) * (((no + 1) * no) / 2);
+            Sz_fp[k] = sum;
         }
-        k = no * col - ((col * (col + 1)) / 2) + row % no +
-            (row / no) * (((no + 1) * no) / 2);
-        Sz_fp[k] = sum;
     }
 }
 

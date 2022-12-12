@@ -313,7 +313,7 @@ def regression():
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
 
     # Plot
-    std_factor = 3
+    std_factor = 1
     viz.plot_predictions(x_train=x_train,
                          y_train=y_train,
                          x_test=x_test,
@@ -326,7 +326,7 @@ def regression():
                          eq=eq,
                          x_eq=x_eq,
                          y_eq=y_eq,
-                         save_folder=save_folder)
+                         save_folder=None)
 
 
 def input_uncertainty_prop():
@@ -533,9 +533,9 @@ def time_series_forecasting():
 
 
 if __name__ == "__main__":
-    regression()
+    #regression()
     #autoencoder()
-    #input_uncertainty_prop()
+    input_uncertainty_prop()
     #noise_inference()
     #derivative()
     #time_series_forecasting()

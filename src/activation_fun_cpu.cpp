@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 11, 2022
+// Updated:      December 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,8 +129,7 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         // Activation distribution
         ma[zpos + i] = omega * mz_til;
         Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-        // J[zpos + i] = powf(omega * kappa, 0.5);
-        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -165,8 +164,7 @@ void mixture_bounded_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
                        cdf_lower * powf(1 + ma[zpos + i], 2) +
                        (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
-        // J[zpos + i] = powf(omega * kappa, 0.5);
-        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -204,8 +202,7 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
              cdf_lower * powf(1 + ma[zpos + i], 2) +
              (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
             4.0f;
-        // J[zpos + i] = powf(omega * kappa, 0.5);
-        J[zpos + i] = powf(Sa[zpos + i], 0.5) / powf(Sz[zpos + i], 0.5);
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -595,14 +592,15 @@ void act_full_cov_worker(std::vector<float> &Sz_f, std::vector<float> &J,
                          int end_idx, std::vector<float> &Sa_f) {
     int col, row, idx;
     for (int j = start_idx; j < end_idx; j++) {
-        row = j / ((no * B - 1) % no + 1);
-        col = j % ((no * B - 1) % no + 1);
+        row = j / no;
+        col = j % no;
+        if (col <= (row % no)) {
+            idx = no * col - ((col * (col + 1)) / 2) + row % no +
+                  (row / no) * (((no + 1) * no) / 2);
 
-        idx = no * col - ((col * (col + 1)) / 2) + row % no +
-              (row / no) * (((no + 1) * no) / 2);
-
-        Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
-                    J[col + (row / no) * no + z_pos_out];
+            Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
+                        J[col + (row / no) * no + z_pos_out];
+        }
     }
 }
 

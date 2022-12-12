@@ -133,8 +133,7 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
         ma[zpos + col] = omega * mz_til;
         Sa[zpos + col] =
             omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-        // J[zpos + col] = powf(omega * kappa, 0.5);
-        J[zpos + col] = powf(Sa[zpos + col], 0.5) / powf(Sz[zpos + col], 0.5);
+        J[zpos + col] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -173,8 +172,7 @@ __global__ void mixture_bounded_relu(float const *mz, float const *Sz,
                          omega * powf(mz_til - ma[zpos + col], 2) +
                          cdf_lower * powf(1 + ma[zpos + col], 2) +
                          (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
-        // J[zpos + col] = powf(omega * kappa, 0.5);
-        J[zpos + col] = powf(Sa[zpos + col], 0.5) / powf(Sz[zpos + col], 0.5);
+        J[zpos + col] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -214,8 +212,6 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
                          cdf_lower * powf(1 + ma[zpos + col], 2) +
                          (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
         J[zpos + col] = powf(omega * kappa, 0.5);
-        // J[zpos + col] = powf(Sa[zpos + col], 0.5) / powf(Sz[zpos + col],
-        // 0.5);
     }
 }
 
