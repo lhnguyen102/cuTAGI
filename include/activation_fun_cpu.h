@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 04, 2022
+// Updated:      December 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,6 +45,15 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                       float omega_tol, int zpos, int n, std::vector<float> &ma,
                       std::vector<float> &J, std::vector<float> &Sa);
+
+void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int n, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa);
+
+void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                         float omega_tol, int zpos, int n,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa);
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,

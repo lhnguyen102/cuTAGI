@@ -32,7 +32,7 @@ struct ActLabel {
     int softplus = 5;
     int leakyrelu = 6;
     int mrelu = 7;
-    int mbrelu = 8;
+    int mtanh = 8;
     int msigmoid = 9;
 };
 

@@ -656,9 +656,13 @@ NOTE: Weight & bias vector for lstm is defined following
         fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
                    w_pos_f, b_pos_f, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
                    b_seq, state.lstm.Sf_ga);
-        sigmoid_mean_var_cpu(state.lstm.mf_ga, state.lstm.Sf_ga, z_pos_o_lstm,
-                             no_b_seq, state.lstm.mf_ga, state.lstm.Jf_ga,
-                             state.lstm.Sf_ga);
+        mixture_sigmoid_cpu(state.lstm.mf_ga, state.lstm.Sf_ga, net.omega_tol,
+                            z_pos_o_lstm, no_b_seq, state.lstm.mf_ga,
+                            state.lstm.Jf_ga, state.lstm.Sf_ga);
+        // sigmoid_mean_var_cpu(state.lstm.mf_ga, state.lstm.Sf_ga,
+        // z_pos_o_lstm,
+        //                      no_b_seq, state.lstm.mf_ga, state.lstm.Jf_ga,
+        //                      state.lstm.Sf_ga);
 
         fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_i, b_pos_i,
                     z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
@@ -666,9 +670,13 @@ NOTE: Weight & bias vector for lstm is defined following
         fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
                    w_pos_i, b_pos_i, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
                    b_seq, state.lstm.Si_ga);
-        sigmoid_mean_var_cpu(state.lstm.mi_ga, state.lstm.Si_ga, z_pos_o_lstm,
-                             no_b_seq, state.lstm.mi_ga, state.lstm.Ji_ga,
-                             state.lstm.Si_ga);
+        mixture_sigmoid_cpu(state.lstm.mi_ga, state.lstm.Si_ga, net.omega_tol,
+                            z_pos_o_lstm, no_b_seq, state.lstm.mi_ga,
+                            state.lstm.Ji_ga, state.lstm.Si_ga);
+        // sigmoid_mean_var_cpu(state.lstm.mi_ga, state.lstm.Si_ga,
+        // z_pos_o_lstm,
+        //                      no_b_seq, state.lstm.mi_ga, state.lstm.Ji_ga,
+        //                      state.lstm.Si_ga);
 
         fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_c, b_pos_c,
                     z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
@@ -676,9 +684,12 @@ NOTE: Weight & bias vector for lstm is defined following
         fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
                    w_pos_c, b_pos_c, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
                    b_seq, state.lstm.Sc_ga);
-        tanh_mean_var_cpu(state.lstm.mc_ga, state.lstm.Sc_ga, z_pos_o_lstm,
-                          no_b_seq, state.lstm.mc_ga, state.lstm.Jc_ga,
-                          state.lstm.Sc_ga);
+        mixture_tanh_cpu(state.lstm.mc_ga, state.lstm.Sc_ga, net.omega_tol,
+                         z_pos_o_lstm, no_b_seq, state.lstm.mc_ga,
+                         state.lstm.Jc_ga, state.lstm.Sc_ga);
+        // tanh_mean_var_cpu(state.lstm.mc_ga, state.lstm.Sc_ga, z_pos_o_lstm,
+        //                   no_b_seq, state.lstm.mc_ga, state.lstm.Jc_ga,
+        //                   state.lstm.Sc_ga);
 
         fc_mean_cpu(theta.mw, theta.mb, state.lstm.mha, w_pos_o, b_pos_o,
                     z_pos_i_lstm, z_pos_o_lstm, no, ni_c, b_seq,
@@ -686,9 +697,13 @@ NOTE: Weight & bias vector for lstm is defined following
         fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.lstm.mha, state.lstm.Sha,
                    w_pos_o, b_pos_o, z_pos_i_lstm, z_pos_o_lstm, no, ni_c,
                    b_seq, state.lstm.So_ga);
-        sigmoid_mean_var_cpu(state.lstm.mo_ga, state.lstm.So_ga, z_pos_o_lstm,
-                             no_b_seq, state.lstm.mo_ga, state.lstm.Jo_ga,
-                             state.lstm.So_ga);
+        mixture_sigmoid_cpu(state.lstm.mo_ga, state.lstm.So_ga, net.omega_tol,
+                            z_pos_o_lstm, no_b_seq, state.lstm.mo_ga,
+                            state.lstm.Jo_ga, state.lstm.So_ga);
+        // sigmoid_mean_var_cpu(state.lstm.mo_ga, state.lstm.So_ga,
+        // z_pos_o_lstm,
+        //                      no_b_seq, state.lstm.mo_ga, state.lstm.Jo_ga,
+        //                      state.lstm.So_ga);
 
         // Cov(input gate, cell state gate)
         cov_input_cell_states_cpu(state.lstm.Sha, theta.mw, state.lstm.Ji_ga,
@@ -703,9 +718,12 @@ NOTE: Weight & bias vector for lstm is defined following
             state.lstm.mc_prev, state.lstm.Sc_prev, state.lstm.Ci_c,
             z_pos_o_lstm, no, net.input_seq_len, net.batch_size, state.lstm.mc,
             state.lstm.Sc);
-
-        tanh_mean_var_cpu(state.lstm.mc, state.lstm.Sc, z_pos_o_lstm, no_b_seq,
-                          state.lstm.mca, state.lstm.Jca, state.lstm.Sca);
+        mixture_tanh_cpu(state.lstm.mc, state.lstm.Sc, net.omega_tol,
+                         z_pos_o_lstm, no_b_seq, state.lstm.mca, state.lstm.Jca,
+                         state.lstm.Sca);
+        // tanh_mean_var_cpu(state.lstm.mc, state.lstm.Sc, z_pos_o_lstm,
+        // no_b_seq,
+        //                   state.lstm.mca, state.lstm.Jca, state.lstm.Sca);
 
         // Cov(output gate, tanh(cell states))
         cov_output_tanh_cell_states_cpu(

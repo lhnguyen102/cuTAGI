@@ -3,7 +3,7 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      December 11, 2022
+// Updated:      December 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,9 +33,8 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
 __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
                              int zpos, int n, float *ma, float *J, float *Sa);
 
-__global__ void mixture_bounded_relu(float const *mz, float const *Sz,
-                                     float omega_tol, int zpos, int n,
-                                     float *ma, float *J, float *Sa);
+__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+                             int zpos, int n, float *ma, float *J, float *Sa);
 
 __global__ void mixture_sigmoid(float const *mz, float const *Sz,
                                 float omega_tol, int zpos, int n, float *ma,

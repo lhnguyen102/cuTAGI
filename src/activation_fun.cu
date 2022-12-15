@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      December 11, 2022
+// Updated:      December 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,9 +137,8 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
     }
 }
 
-__global__ void mixture_bounded_relu(float const *mz, float const *Sz,
-                                     float omega_tol, int zpos, int n,
-                                     float *ma, float *J, float *Sa) {
+__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+                             int zpos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
         cdf_lower, cdf_upper, pdf_lower, pdf_upper;

@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 12, 2022
+// Updated:      December 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,10 +133,9 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
-void mixture_bounded_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                              float omega_tol, int zpos, int n,
-                              std::vector<float> &ma, std::vector<float> &J,
-                              std::vector<float> &Sa) {
+void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int n, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa) {
     float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
         cdf_lower, cdf_upper, pdf_lower, pdf_upper;
     for (int i = 0; i < n; i++) {
@@ -686,13 +685,13 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
         mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
                          state.ma, state.J, state.Sa);
 
-    } else if (net.activations[j] == net.act_names.mbrelu)  // mbReLU
+    } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {
         // TODO: Build multithreading for mbReLU
-        mixture_bounded_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out,
-                                 no_B, state.ma, state.J, state.Sa);
+        mixture_tanh_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,
+                         state.ma, state.J, state.Sa);
 
-    } else if (net.activations[j] == net.act_names.msigmoid)  // mbReLU
+    } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
     {
         // TODO: Build multithreading for msigmoid
         mixture_sigmoid_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, no_B,

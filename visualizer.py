@@ -535,7 +535,7 @@ def time_series_forecasting():
 if __name__ == "__main__":
     #regression()
     #autoencoder()
-    input_uncertainty_prop()
+    #input_uncertainty_prop()
     #noise_inference()
     #derivative()
-    #time_series_forecasting()
+    time_series_forecasting()
