@@ -2,4 +2,5 @@ layers: 	[1,     1,       1]
 nodes:		[1,     50,      1]
 activations:[0,     7,       0]
 batch_size: 4
+init_method: He
 sigma_v: 	0.06

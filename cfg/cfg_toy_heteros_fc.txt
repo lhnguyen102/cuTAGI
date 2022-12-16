@@ -6,7 +6,7 @@ load_param: false
 num_epochs: 50
 num_train_data: 400
 num_test_data: 200
-device: cuda
+device: cpu
 x_train_dir: data/toy_example/x_train_1D_noise_inference.csv
 y_train_dir: data/toy_example/y_train_1D_noise_inference.csv
 x_test_dir: data/toy_example/x_test_1D_noise_inference.csv

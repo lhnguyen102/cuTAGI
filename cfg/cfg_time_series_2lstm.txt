@@ -6,7 +6,7 @@ load_param: true
 num_epochs: 50
 num_train_data: 924
 num_test_data: 232
-device: cuda
+device: cpu
 x_train_dir: data/toy_time_series/x_train_sin_data.csv
 y_train_dir: data/toy_time_series/y_train_sin_data.csv
 x_test_dir: data/toy_time_series/x_test_sin_data.csv

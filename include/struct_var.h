@@ -180,7 +180,7 @@ struct Network {
     int seq_stride = 0;
     int num_lstm_states = 0;
     int num_max_lstm_states = 0;
-    unsigned int num_cpu_threads = 4;
+    unsigned int num_cpu_threads = 4;  // TODO: Automatic selection
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";

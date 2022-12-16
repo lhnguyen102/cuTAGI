@@ -402,11 +402,8 @@ NOTE: Weight & bias vector for lstm is defined following
     // Launch kernel
     int THREADS = net.num_gpu_threads;
     unsigned int ACT_BLOCKS = (no_b_seq + THREADS - 1) / THREADS;
-    unsigned int gridRow = (no + THREADS - 1) / THREADS;
-    unsigned int gridCol = (b_seq + THREADS - 1) / THREADS;
     unsigned int gridRow_cov = (b_seq + THREADS - 1) / THREADS;
     unsigned int gridCol_cov = (no + THREADS - 1) / THREADS;
-    dim3 dimGrid(gridCol, gridRow);
     dim3 dimGrid_cov(gridCol_cov, gridRow_cov);
     dim3 dimBlock(THREADS, THREADS);
 
