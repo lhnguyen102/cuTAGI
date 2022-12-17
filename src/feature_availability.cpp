@@ -3,12 +3,36 @@
 // Description:  Check the feature availability
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 05, 2022
-// Updated:      July 30 2022
+// Updated:      December 05 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/feature_availability.h"
+#ifdef WINDOWS
+#include <Windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
+void *loadCudaLibrary() {
+#ifdef WINDOWS
+    return LoadLibraryA("nvcuda.dll");
+#else
+    return dlopen("libcuda.so", RTLD_NOW);
+#endif
+}
+
+bool is_cuda_available()
+/*Source:
+   https://stackoverflow.com/questions/12828468/detecting-nvidia-gpus-without-cuda*/
+{
+    void *cu_lib;
+    if ((cu_lib = loadCudaLibrary()) == NULL) {
+        return false;
+    }
+    return true;
+}
 
 void conv_cpu_support(Network &net)
 /*CPU version does not support conv

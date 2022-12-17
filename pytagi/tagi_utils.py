@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      November 12, 2022
+# Updated:      December 04, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -72,8 +72,8 @@ class Utils:
         images, labels = self.backend_utils.load_mnist_dataset_wrapper(
             image_file, label_file, num_images)
 
-        return np.array(images, dtype=np.float32), np.array(labels).reshape(
-            (num_images, 1))
+        return images, labels
+
 
     def load_cifar_images(self, image_file: str,
                           num: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -90,7 +90,7 @@ class Utils:
         images, labels = self.backend_utils.load_cifar_dataset_wrapper(
             image_file, num)
 
-        return np.array(images), np.array(labels)
+        return images, labels
 
     def get_labels(self, ma: np.ndarray, Sa: np.ndarray,
                    hr_softmax: HierarchicalSoftmax, num_classes: int,
@@ -111,7 +111,7 @@ class Utils:
         pred, prob = self.backend_utils.get_labels_wrapper(
             ma, Sa, hr_softmax, num_classes, batch_size)
 
-        return np.array(pred), np.array(prob)
+        return pred, prob
 
     def get_errors(self, ma: np.ndarray, Sa: np.ndarray, labels: np.ndarray,
                    hr_softmax: HierarchicalSoftmax, num_classes: int,
@@ -133,7 +133,7 @@ class Utils:
         pred, prob = self.backend_utils.get_error_wrapper(
             ma, Sa, labels, hr_softmax, num_classes, batch_size)
 
-        return np.array(pred), np.array(prob)
+        return pred, prob
 
     def get_hierarchical_softmax(self,
                                  num_classes: int) -> HierarchicalSoftmax:
@@ -191,8 +191,8 @@ class Utils:
         input_data, output_data = self.backend_utils.create_rolling_window_wrapper(
             data.flatten(), output_col, input_seq_len, output_seq_len,
             num_features, stride)
-        input_data = np.array(input_data).reshape((num_data, input_seq_len))
-        output_data = np.array(output_data).reshape((num_data, output_seq_len))
+        input_data = input_data.reshape((num_data, input_seq_len))
+        output_data = output_data.reshape((num_data, output_seq_len))
 
         return input_data, output_data
 

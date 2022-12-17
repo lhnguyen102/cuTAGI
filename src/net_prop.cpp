@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      September 19, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1125,6 +1125,7 @@ void load_cfg(std::string net_file, Network &net)
  *    net: Network architecture such as layers, nodes, activation function
  *      etc.
  **/
+// TODO: Reduce repeated code
 {
     // Dictionary for the cfg file
     std::string key_words[] = {"layers",         "nodes",
@@ -1140,7 +1141,7 @@ void load_cfg(std::string net_file, Network &net)
                                "sigma_v2b",      "noise_gain",
                                "multithreading", "collect_derivative",
                                "input_seq_len",  "output_seq_len",
-                               "seq_stride"};
+                               "seq_stride",     "gain_w"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1317,6 +1318,21 @@ void load_cfg(std::string net_file, Network &net)
                         ss >> d;
                         net.seq_stride = d;
                     }
+                } else if (key_words[k] == "gain_w") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<float> vf;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> f) {
+                            vf.push_back(f);
+                        }
+                    }
+                    net.gain_w = vf;
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;

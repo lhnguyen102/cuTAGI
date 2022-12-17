@@ -3,7 +3,7 @@
 // Description:  Cost functions for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 01, 2022
-// Updated:      May 16, 2022
+// Updated:      December 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,11 +148,11 @@ HrSoftmax class_to_obs(int n_classes)
 //////////////////////////////////////////////////////////////////////////////
 // CONVERT OBSERVATION TO CLASS
 /////////////////////////////////////////////////////////////////////////////
-float normalCDF(float x)
-/* Normal cumulative distribution */
-{
-    return std::erfc(-x / std::sqrt(2)) / 2;
-}
+// float normalCDF(float x)
+// /* Normal cumulative distribution */
+// {
+//     return std::erfc(-x / std::sqrt(2)) / 2;
+// }
 
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
                                 HrSoftmax &hs, int n_classes)
@@ -177,7 +177,7 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
 
     // Compute probability for each observation
     for (int i = 0; i < hs.len; i++) {
-        P_z[i] = normalCDF(mz[i] / pow(pow(1 / alpha, 2) + Sz[i], 0.5));
+        P_z[i] = normcdf_cpu(mz[i] / pow(pow(1 / alpha, 2) + Sz[i], 0.5));
     }
 
     // Compute probability for the class

@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      November 07, 2022
+// Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -31,6 +31,9 @@ struct ActLabel {
     int relu = 4;
     int softplus = 5;
     int leakyrelu = 6;
+    int mrelu = 7;
+    int mtanh = 8;
+    int msigmoid = 9;
 };
 
 struct Network {
@@ -135,7 +138,8 @@ struct Network {
     LayerLabel layer_names;
     ActLabel act_names;
     std::string init_method = "Xavier";
-    std::vector<int> gain_w, gain_b, w_pos, b_pos, w_sc_pos, b_sc_pos;
+    std::vector<float> gain_w, gain_b;
+    std::vector<int> w_pos, b_pos, w_sc_pos, b_sc_pos;
     std::vector<int> z_pos, z_pos_lstm, sc_pos, ra_pos, overlap;
 
     // Position for each layer in index vector
@@ -176,10 +180,11 @@ struct Network {
     int seq_stride = 0;
     int num_lstm_states = 0;
     int num_max_lstm_states = 0;
-    unsigned int num_cpu_threads = 4;
+    unsigned int num_cpu_threads = 4;  // TODO: Automatic selection
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
+    float omega_tol = 0.001;
 };
 
 // NETWORK STATE

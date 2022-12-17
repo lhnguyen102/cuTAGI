@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      September 07, 2022
+// Updated:      December 14, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,6 +109,108 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
             J[col + zpos] = onePad;
             Sa[col + zpos] = Sz[col + zpos];
         }
+    }
+}
+
+__global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
+                             int zpos, int n, float *ma, float *J, float *Sa) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    float pi = 3.141592;  // pi number
+    if (col < n) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
+        omega = max(1.0f - normcdff(alpha), omega_tol);
+        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
+               omega;
+        kappa = 1.0f + alpha * beta - powf(beta, 2);
+
+        // Gaussian mixture's parameters
+        mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);
+        Sz_til = kappa * Sz[zpos + col];
+
+        // Activation distribution
+        ma[zpos + col] = omega * mz_til;
+        Sa[zpos + col] =
+            omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
+        J[zpos + col] = powf(omega * kappa, 0.5);
+    }
+}
+
+__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+                             int zpos, int n, float *ma, float *J, float *Sa) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float pi = 3.141592;  // pi number
+    if (col < n) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        alpha_upper = (1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        cdf_lower = normcdff(alpha_lower);
+        cdf_upper = normcdff(alpha_upper);
+        pdf_lower =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
+        pdf_upper =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+
+        // Truncated distribution's parameters
+        omega = max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + col] - beta * powf(Sz[zpos + col], 0.5);
+        Sz_til = kappa * Sz[zpos + col];
+
+        // Activation distribution
+        ma[zpos + col] = omega * mz_til - cdf_lower + (1 - cdf_upper);
+        Sa[zpos + col] = omega * Sz_til +
+                         omega * powf(mz_til - ma[zpos + col], 2) +
+                         cdf_lower * powf(1 + ma[zpos + col], 2) +
+                         (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
+        J[zpos + col] = powf(omega * kappa, 0.5);
+    }
+}
+
+__global__ void mixture_sigmoid(float const *mz, float const *Sz,
+                                float omega_tol, int zpos, int n, float *ma,
+                                float *J, float *Sa) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float pi = 3.141592;  // pi number
+    if (col < n) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        alpha_upper = (1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        cdf_lower = normcdff(alpha_lower);
+        cdf_upper = normcdff(alpha_upper);
+        pdf_lower =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
+        pdf_upper =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+
+        // Truncated distribution's parameters
+        omega = max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + col] - beta * powf(Sz[zpos + col], 0.5);
+        Sz_til = kappa * Sz[zpos + col];
+
+        // Activation distribution
+        ma[zpos + col] = omega * mz_til - cdf_lower + (1 - cdf_upper);
+        Sa[zpos + col] = omega * Sz_til +
+                         omega * powf(mz_til - ma[zpos + col], 2) +
+                         cdf_lower * powf(1 + ma[zpos + col], 2) +
+                         (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
+        J[zpos + col] = powf(omega * kappa, 0.5);
     }
 }
 

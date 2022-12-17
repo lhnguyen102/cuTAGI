@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      November 12, 2022
+# Updated:      December 11, 2022
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -32,6 +32,8 @@ class NetProp(tagi.Network):
         4: ReLU
         5: Softplus
         6: Leakyrelu
+        7: Mixture ReLU
+        8: Mixture bounded ReLU i.e., [-1.0, 1.0]
 
     Attributes:
         layers: A vector contains different layers of network architecture
@@ -188,8 +190,8 @@ class TagiNetwork:
                                mz: np.ndarray, vz: np.ndarray,
                                jcb: np.ndarray) -> None:
         """Forward pass for the network that is connected to the other 
-        network e.g. decoder network in autoencoder task where its inputs 
-        are the output of the encoder network.
+        network e.g., decoder network in autoencoder task where its inputs 
+        are the outputs of the encoder network.
 
         Args:
             ma: Mean of activation units
@@ -230,7 +232,7 @@ class TagiNetwork:
         """
         ma, va = self.network.get_network_outputs_wrapper()
 
-        return np.array(ma), np.array(va)
+        return ma, va
 
     def get_network_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get distribution of the predictions
@@ -241,7 +243,7 @@ class TagiNetwork:
         """
         m_pred, v_pred = self.network.get_network_prediction_wrapper()
 
-        return np.array(m_pred), np.array(v_pred)
+        return m_pred, v_pred
 
     def get_all_network_outputs(
         self
@@ -257,8 +259,7 @@ class TagiNetwork:
         """
         ma, va, mz, vz, jcb = self.network.get_all_network_outputs_wrapper()
 
-        return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
-                np.array(jcb))
+        return (ma, va, mz, vz, jcb)
 
     def get_all_network_inputs(
         self
@@ -274,8 +275,7 @@ class TagiNetwork:
         """
         ma, va, mz, vz, jcb = self.network.get_all_network_inputs_wrapper()
 
-        return (np.array(ma), np.array(va), np.array(mz), np.array(vz),
-                np.array(jcb))
+        return (ma, va, mz, vz, jcb)
 
     def get_derivatives(self, layer: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         """ Compute derivatives of the output layer w.r.t a given layer using TAGI
@@ -303,7 +303,7 @@ class TagiNetwork:
 
         delta_m, delta_v = self.network.get_inovation_mean_var_wrapper(layer)
 
-        return np.array(delta_m), np.array(delta_v)
+        return delta_m, delta_v
 
     def get_state_delta_mean_var(self) -> None:
         """Get updating quatities for the first layer
@@ -316,7 +316,7 @@ class TagiNetwork:
         """
         delta_mz, delta_vz = self.network.get_state_delta_mean_var_wrapper()
 
-        return np.array(delta_mz), np.array(delta_vz)
+        return delta_mz, delta_vz
 
     def set_parameters(self, param: Param) -> None:
         """Set parameter values to network"""

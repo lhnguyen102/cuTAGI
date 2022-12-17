@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      September 19, 2022
+// Updated:      December 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +108,102 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
             J[col + zpos] = onePad;
             Sa[col + zpos] = Sz[col + zpos];
         }
+    }
+}
+
+void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int start_idx, int end_idx,
+                      std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sa) {
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    for (int i = start_idx; i < end_idx; i++) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mz[zpos + i] / powf(Sz[zpos + i], 0.5);
+        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
+        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
+        kappa = 1 + alpha * beta - powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] + beta * powf(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] = omega * mz_til;
+        Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
+        J[zpos + i] = powf(omega * kappa, 0.5);
+    }
+}
+
+void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int start_idx, int end_idx,
+                      std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sa) {
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    for (int i = start_idx; i < end_idx; i++) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] = omega * mz_til - cdf_lower + (1 - cdf_upper);
+        Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
+                       cdf_lower * powf(1 + ma[zpos + i], 2) +
+                       (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
+        J[zpos + i] = powf(omega * kappa, 0.5);
+    }
+}
+
+void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                         float omega_tol, int zpos, int start_idx, int end_idx,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa) {
+    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    for (int i = start_idx; i < end_idx; i++) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[zpos + i] =
+            (omega * mz_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
+        Sa[zpos + i] =
+            (omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
+             cdf_lower * powf(1 + ma[zpos + i], 2) +
+             (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
+            4.0f;
+        J[zpos + i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -492,19 +588,102 @@ void leakyrelu_mean_var_multithreading(
     }
 }
 
+void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
+                                 float omega_tol, int zpos, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &ma, std::vector<float> &J,
+                                 std::vector<float> &Sa) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(mixture_relu_cpu, std::ref(mz), std::ref(Sz),
+                                 omega_tol, zpos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
+                                 float omega_tol, int zpos, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &ma, std::vector<float> &J,
+                                 std::vector<float> &Sa) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(mixture_tanh_cpu, std::ref(mz), std::ref(Sz),
+                                 omega_tol, zpos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
+void mixture_sigmoid_multithreading(std::vector<float> &mz,
+                                    std::vector<float> &Sz, float omega_tol,
+                                    int zpos, int n, unsigned int num_threads,
+                                    std::vector<float> &ma,
+                                    std::vector<float> &J,
+                                    std::vector<float> &Sa) {
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_idx, end_idx;
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(
+            mixture_sigmoid_cpu, std::ref(mz), std::ref(Sz), omega_tol, zpos,
+            start_idx, end_idx, std::ref(ma), std::ref(J), std::ref(Sa));
+    }
+    for (int i = 0; i < num_threads; i++) {
+        threads[i].join();
+    }
+}
+
 void act_full_cov_worker(std::vector<float> &Sz_f, std::vector<float> &J,
                          int no, int B, int z_pos_out, int start_idx,
                          int end_idx, std::vector<float> &Sa_f) {
     int col, row, idx;
     for (int j = start_idx; j < end_idx; j++) {
-        row = j / ((no * B - 1) % no + 1);
-        col = j % ((no * B - 1) % no + 1);
+        row = j / no;
+        col = j % no;
+        if (col <= (row % no)) {
+            idx = no * col - ((col * (col + 1)) / 2) + row % no +
+                  (row / no) * (((no + 1) * no) / 2);
 
-        idx = no * col - ((col * (col + 1)) / 2) + row % no +
-              (row / no) * (((no + 1) * no) / 2);
-
-        Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
-                    J[col + (row / no) * no + z_pos_out];
+            Sa_f[idx] = Sz_f[idx] * J[row % no + (row / no) * no + z_pos_out] *
+                        J[col + (row / no) * no + z_pos_out];
+        }
     }
 }
 
@@ -584,6 +763,39 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
             relu_mean_var_cpu(state.mz, state.Sz, z_pos_out, no_B, state.ma,
                               state.J, state.Sa);
         }
+    } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
+    {
+        if (no * B > net.min_operations && net.multithreading) {
+            mixture_relu_multithreading(state.mz, state.Sz, net.omega_tol,
+                                        z_pos_out, no_B, net.num_cpu_threads,
+                                        state.ma, state.J, state.Sa);
+        } else {
+            mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, 0,
+                             no_B, state.ma, state.J, state.Sa);
+        }
+
+    } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
+    {
+        if (no * B > net.min_operations && net.multithreading) {
+            mixture_tanh_multithreading(state.mz, state.Sz, net.omega_tol,
+                                        z_pos_out, no_B, net.num_cpu_threads,
+                                        state.ma, state.J, state.Sa);
+        } else {
+            mixture_tanh_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, 0,
+                             no_B, state.ma, state.J, state.Sa);
+        }
+
+    } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
+    {
+        if (no * B > net.min_operations && net.multithreading) {
+            mixture_sigmoid_multithreading(state.mz, state.Sz, net.omega_tol,
+                                           z_pos_out, no_B, net.num_cpu_threads,
+                                           state.ma, state.J, state.Sa);
+        } else {
+            mixture_sigmoid_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out, 0,
+                                no_B, state.ma, state.J, state.Sa);
+        }
+
     } else if (net.activations[j] == net.act_names.softplus)  // softplus
     {
         if (no * B > net.min_operations && net.multithreading) {

@@ -1,9 +1,10 @@
 layers: 	[1,     1,       1,     1]
 nodes:		[1,     30,      30,    1]
-activations:[0,     4,       4,     0]
-batch_size: 10
+activations:[0,     7,       7,     0]
+batch_size: 5
 sigma_v: 0.5
 sigma_v_min: 0.065
+init_method: He
 decay_factor_sigma_v: 0.95
 sigma_x: 0.3485
 is_full_cov: true

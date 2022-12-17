@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      September 11, 2022
+// Updated:      December 16, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,7 @@
 #include <thread>
 #include <vector>
 
+#include "common.h"
 #include "struct_var.h"
 
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
@@ -40,6 +41,21 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                             float alpha, int zpos, int n,
                             std::vector<float> &ma, std::vector<float> &J,
                             std::vector<float> &Sa);
+
+void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int start_idx, int end_idx,
+                      std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sa);
+
+void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int zpos, int start_idx, int end_idx,
+                      std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sa);
+
+void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                         float omega_tol, int zpos, int start_idx, int end_idx,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa);
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,
@@ -92,6 +108,31 @@ void leakyrelu_mean_var_multithreading(
     std::vector<float> &mz, std::vector<float> &Sz, float alpha, int z_pos,
     int n, unsigned int NUM_THREADS, std::vector<float> &ma,
     std::vector<float> &J, std::vector<float> &Sa);
+
+void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
+                                 float omega_tol, int zpos, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &ma, std::vector<float> &J,
+                                 std::vector<float> &Sa);
+
+void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
+                                 float omega_tol, int zpos, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &ma, std::vector<float> &J,
+                                 std::vector<float> &Sa);
+
+void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
+                                 float omega_tol, int zpos, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &ma, std::vector<float> &J,
+                                 std::vector<float> &Sa);
+
+void mixture_sigmoid_multithreading(std::vector<float> &mz,
+                                    std::vector<float> &Sz, float omega_tol,
+                                    int zpos, int n, unsigned int num_threads,
+                                    std::vector<float> &ma,
+                                    std::vector<float> &J,
+                                    std::vector<float> &Sa);
 
 void act_full_cov_multithreading(std::vector<float> &Sz_f,
                                  std::vector<float> &J, int no, int B,
