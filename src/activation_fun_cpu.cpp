@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 16, 2022
+// Updated:      December 27, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -204,6 +204,41 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
              (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
             4.0f;
         J[zpos + i] = powf(omega * kappa, 0.5);
+    }
+}
+
+void softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
+                 int start_idx, int end_idx, std::vector<float> &ma,
+                 std::vector<float> &J, std::vector<float> &Sa) {
+    float sum = 0;
+    for (int i = start_idx; i < end_idx; i++) {
+        ma[zpos + i] = exp(mz[zpos + i]);
+        sum += ma[zpos + i];
+    }
+
+    for (int i = start_idx; i < end_idx; i++) {
+        ma[zpos + i] = ma[zpos + i] / sum;
+        J[zpos + i] = ma[zpos + i] * (1 - ma[zpos + i]);
+        Sa[zpos + i] = J[zpos + i] * Sz[zpos + i] * J[zpos + i];
+    }
+}
+
+void statble_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                         int zpos, int start_idx, int end_idx,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa) {
+    auto max_m = std::max_element(mz.begin() + zpos, mz.end()) - mz.begin();
+    int max_idx = mz[zpos + max_idx];
+    float max_v = Sz[zpos + max_idx];
+    float sum = 0;
+    for (int i = start_idx; i < end_idx; i++) {
+        ma[zpos + i] = exp(mz[zpos + i] - max_m);
+        sum += ma[zpos + i];
+    }
+    for (int i = start_idx; i < end_idx; i++) {
+        ma[zpos + i] = ma[zpos + i] / sum;
+        J[zpos + i] = ma[zpos + i] * (1 - ma[zpos + i]);
+        Sa[zpos + i] = J[zpos + i] * (Sz[zpos + i] + max_v) * J[zpos + i];
     }
 }
 
