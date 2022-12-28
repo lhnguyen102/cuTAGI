@@ -3,7 +3,7 @@
 // Description:  Cost functions for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 01, 2022
-// Updated:      December 05, 2022
+// Updated:      December 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
 ////////////////////////////////////////////////////////////////////////////////
@@ -251,6 +251,24 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
     }
 
     return {er, P};
+}
+
+std::vector<int> get_class_error(std::vector<float> &ma,
+                                 std::vector<int> &labels, int n_classes,
+                                 int B) {
+    std::vector<int> er(B, 0);
+    int idx;
+    for (int i = 0; i < B; i++) {
+        idx = i * n_classes;
+        int pred =
+            std::max_element(ma.begin() + idx, ma.begin() + idx + n_classes) -
+            ma.begin() - idx;
+
+        if (pred != labels[i]) {
+            er[i] = 1;
+        }
+    }
+    return er;
 }
 
 float mean_squared_error(std::vector<float> &pred, std::vector<float> &obs)

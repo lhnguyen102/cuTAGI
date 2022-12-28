@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      October 09, 2022
+// Updated:      December 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -112,9 +112,14 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() != net.prop.act_names.softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    ma_output, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
@@ -159,9 +164,14 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() != net.prop.act_names.softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    ma_output, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
         }

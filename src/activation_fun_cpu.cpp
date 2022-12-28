@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 27, 2022
+// Updated:      December 28, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -208,37 +208,47 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 }
 
 void softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
-                 int start_idx, int end_idx, std::vector<float> &ma,
-                 std::vector<float> &J, std::vector<float> &Sa) {
-    float sum = 0;
-    for (int i = start_idx; i < end_idx; i++) {
-        ma[zpos + i] = exp(mz[zpos + i]);
-        sum += ma[zpos + i];
-    }
-
-    for (int i = start_idx; i < end_idx; i++) {
-        ma[zpos + i] = ma[zpos + i] / sum;
-        J[zpos + i] = ma[zpos + i] * (1 - ma[zpos + i]);
-        Sa[zpos + i] = J[zpos + i] * Sz[zpos + i] * J[zpos + i];
+                 int no, int B, std::vector<float> &ma, std::vector<float> &J,
+                 std::vector<float> &Sa) {
+    float sum;
+    int idx;
+    for (int i = 0; i < B; i++) {
+        sum = 0.0f;
+        idx = zpos + i * no;
+        for (int j = 0; j < no; j++) {
+            ma[idx + j] = exp(mz[idx + j]);
+            sum += ma[idx + j];
+        }
+        for (int j = 0; j < no; j++) {
+            ma[idx + j] = ma[idx + j] / sum;
+            J[idx + j] = ma[idx + j] * (1 - ma[idx + j]);
+            Sa[idx + j] = J[idx + j] * Sz[idx + j] * J[idx + j];
+        }
     }
 }
 
-void statble_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                         int zpos, int start_idx, int end_idx,
-                         std::vector<float> &ma, std::vector<float> &J,
-                         std::vector<float> &Sa) {
-    auto max_m = std::max_element(mz.begin() + zpos, mz.end()) - mz.begin();
-    int max_idx = mz[zpos + max_idx];
-    float max_v = Sz[zpos + max_idx];
-    float sum = 0;
-    for (int i = start_idx; i < end_idx; i++) {
-        ma[zpos + i] = exp(mz[zpos + i] - max_m);
-        sum += ma[zpos + i];
-    }
-    for (int i = start_idx; i < end_idx; i++) {
-        ma[zpos + i] = ma[zpos + i] / sum;
-        J[zpos + i] = ma[zpos + i] * (1 - ma[zpos + i]);
-        Sa[zpos + i] = J[zpos + i] * (Sz[zpos + i] + max_v) * J[zpos + i];
+void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                        int zpos, int no, int B, std::vector<float> &ma,
+                        std::vector<float> &J, std::vector<float> &Sa) {
+    float sum, max_m, max_v;
+    int idx;
+    for (int i = 0; i < B; i++) {
+        sum = 0.0f;
+        idx = zpos + i * no;
+        auto max_idx =
+            std::max_element(mz.begin() + idx, mz.begin() + idx + no) -
+            mz.begin();
+        max_m = mz[max_idx];
+        max_v = Sz[max_idx];
+        for (int j = 0; j < no; j++) {
+            ma[idx + j] = exp(mz[idx + j] - max_m);
+            sum += ma[idx + j];
+        }
+        for (int j = 0; j < no; j++) {
+            ma[idx + j] = ma[idx + j] / sum;
+            J[idx + j] = ma[idx + j] * (1 - ma[idx + j]);
+            Sa[idx + j] = J[idx + j] * (Sz[idx + j] + max_v) * J[idx + j];
+        }
     }
 }
 
@@ -852,6 +862,12 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
             leakyrelu_mean_var_cpu(state.mz, state.Sz, net.alpha, z_pos_out,
                                    no_B, state.ma, state.J, state.Sa);
         }
+    } else if (net.activations[j] == net.act_names.softmax)  // softmax
+    {
+        softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma, state.J,
+                    state.Sa);
+        // stable_softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma,
+        //                    state.J, state.Sa);
     } else  // no activation
     {
         if (no * B > net.min_operations && net.multithreading) {
