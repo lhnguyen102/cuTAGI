@@ -34,6 +34,7 @@ struct ActLabel {
     int mrelu = 7;
     int mtanh = 8;
     int msigmoid = 9;
+    int softmax = 10;
 };
 
 struct Network {
