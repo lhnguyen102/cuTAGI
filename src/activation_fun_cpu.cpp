@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 28, 2022
+// Updated:      January 01, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -248,6 +248,97 @@ void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
             ma[idx + j] = ma[idx + j] / sum;
             J[idx + j] = ma[idx + j] * (1 - ma[idx + j]);
             Sa[idx + j] = J[idx + j] * (Sz[idx + j] + max_v) * J[idx + j];
+        }
+    }
+}
+
+void sum_exp(std::vector<float> &me, std::vector<float> &ve, int no, int B,
+             std::vector<float> &me_tilde, std::vector<float> &ve_tilde) {
+    float sum_m, sum_v;
+    for (int i = 0; i < B; i++) {
+        sum_m = 0;
+        sum_v = 0;
+        for (int j = 0; j < no; j++) {
+            sum_m += me[i * no + j];
+            sum_v += ve[i * no + j];
+            me_tilde[i] = sum_m;
+            ve_tilde[i] = sum_v;
+        }
+    }
+}
+
+void coeff_cov_z_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
+                         int B, int no, int z_pos, std::vector<float> &me,
+                         std::vector<float> &rho_z_e_tilde)
+/*Covariance between the hidden states (Z) and the sim of exp(Z)
+ */
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            rho_z_e_tilde[i * no + j] =
+                (powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
+                powf(ve_tilde[i], 0.5);
+        }
+    }
+}
+
+void coeff_cov_e_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
+                         int B, int no, int z_pos, std::vector<float> &me,
+                         std::vector<float> &ve,
+                         std::vector<float> &rho_e_e_tilde)
+/*Covariance between exp(Z) and the sum of exp(Z)*/
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            rho_e_e_tilde[i * no + j] =
+                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
+                 powf(ve_tilde[i], 0.5)) *
+                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
+                 powf(ve[i * no + j], 0.5));
+        }
+    }
+}
+
+void log_sum_exp(std::vector<float> &me_tilde, std::vector<float> &ve_tilde,
+                 int B, std::vector<float> &me_check,
+                 std::vector<float> &ve_check)
+/*Mean and variance of log(sum(exp(Z)))*/
+{
+    float tmp;
+    for (int i = 0; i < B; i++) {
+        tmp = logf(1 + ve_tilde[i] / powf(me_tilde[i], 2));
+        me_check[i] = logf(me_tilde[i]) - 0.5 * tmp;
+        ve_check[i] = tmp;
+    }
+}
+
+void cov_z_e_check(std::vector<float> &rho_e_e_check, std::vector<float> &me,
+                   std::vector<float> &ve, std::vector<float> &me_tilde,
+                   std::vector<float> &ve_tilde, int no, int B,
+                   std::vector<float> &cov)
+/*Covariance between hidden states (Z) and log(sum(exp(Z)))*/
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov[i * no + j] =
+                logf(1 + rho_e_e_check[i] *
+                             (powf(ve[i * no + j], 0.5) / me[i * no + j]) *
+                             (powf(ve_tilde[i], 0.5) / me_tilde[i]));
+        }
+    }
+}
+
+void exp_log_softmax(std::vector<float> &mz, std::vector<float> &vz,
+                     std::vector<float> &me_check, std::vector<float> &ve_check,
+                     std::vector<float> &c_z_e_check, int no, int B, int z_pos,
+                     std::vector<float> &ma, std::vector<float> &va)
+/*Convert log of softmax to softmax space*/
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            ma[z_pos + i * no + j] = mz[z_pos + i * no + j] - me_check[i];
+            va[z_pos + i * no + j] = vz[z_pos + i * no + j] + ve_check[i] -
+                                     2 * c_z_e_check[i * no + j];
         }
     }
 }
