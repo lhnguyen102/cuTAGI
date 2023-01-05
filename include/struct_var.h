@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      January 01, 2023
+// Updated:      January 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -240,6 +240,12 @@ struct LSTMState {
         mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
+struct CfSoftmax {
+    std::vector<float> mu_e, var_e, mu_e_tilde, var_e_tilde, mu_e_check,
+        var_e_check, rho_e_e_tilde, cov_z_e, cov_z_e_check, cov_y_y_check,
+        cov_z_y_check;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -265,6 +271,7 @@ struct NetState {
     NoiseState noise_state;
     DerivativeState derv_state;
     LSTMState lstm;
+    CfSoftmax cf_softmax;
 };
 
 // NETWORK PARAMETERS
