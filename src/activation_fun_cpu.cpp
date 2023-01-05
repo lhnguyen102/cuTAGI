@@ -252,8 +252,33 @@ void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
-void sum_exp(std::vector<float> &me, std::vector<float> &ve, int no, int B,
-             std::vector<float> &me_tilde, std::vector<float> &ve_tilde) {
+void exp_fn_cpu(std::vector<float> &mu_z, std::vector<float> &var_z, int z_pos,
+                std::vector<float> &mu_e, std::vector<float> &var_e,
+                std::vector<float> &cov_e_z)
+/* Compute the mean, variance, and cov(e, z) for the exponential function e =
+exp(x).
+
+Args:
+    mu_z: Mean of hidden states
+    var_z: Variance of hidden states
+    mu_e: Mean of activation units
+    var_e: Variance of activation units
+    cov_e_z: Covariance between hidden states and activation units
+*/
+{
+    float tmp_m, tmp_S;
+    for (int i = 0; i < mu_z.size(); i++) {
+        tmp_m = mu_z[i];
+        tmp_S = var_z[i];
+        mu_e[i] = expf(mu_z[i] + 0.5 * var_z[i]);
+        var_e[i] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1);
+        cov_e_z[i] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
+    }
+}
+
+void compute_sum_exp_cpu(std::vector<float> &me, std::vector<float> &ve, int no,
+                         int B, std::vector<float> &me_tilde,
+                         std::vector<float> &ve_tilde) {
     float sum_m, sum_v;
     for (int i = 0; i < B; i++) {
         sum_m = 0;
@@ -267,9 +292,10 @@ void sum_exp(std::vector<float> &me, std::vector<float> &ve, int no, int B,
     }
 }
 
-void coeff_cov_z_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
-                         int B, int no, int z_pos, std::vector<float> &me,
-                         std::vector<float> &rho_z_e_tilde)
+void compute_cov_coeff_z_e_tilde_cpu(std::vector<float> &ve_tilde,
+                                     std::vector<float> &vz, int no, int B,
+                                     int z_pos, std::vector<float> &me,
+                                     std::vector<float> &rho_z_e_tilde)
 /*Covariance between the hidden states (Z) and the sim of exp(Z)
  */
 {
@@ -282,10 +308,11 @@ void coeff_cov_z_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
     }
 }
 
-void coeff_cov_e_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
-                         int B, int no, int z_pos, std::vector<float> &me,
-                         std::vector<float> &ve,
-                         std::vector<float> &rho_e_e_tilde)
+void compute_cov_coeff_e_e_tilde_cpu(std::vector<float> &ve_tilde,
+                                     std::vector<float> &vz, int no, int B,
+                                     int z_pos, std::vector<float> &me,
+                                     std::vector<float> &ve,
+                                     std::vector<float> &rho_e_e_tilde)
 /*Covariance between exp(Z) and the sum of exp(Z)*/
 {
     for (int i = 0; i < B; i++) {
@@ -299,9 +326,10 @@ void coeff_cov_e_e_tilde(std::vector<float> &ve_tilde, std::vector<float> &vz,
     }
 }
 
-void log_sum_exp(std::vector<float> &me_tilde, std::vector<float> &ve_tilde,
-                 int B, std::vector<float> &me_check,
-                 std::vector<float> &ve_check)
+void compute_log_sum_exp_cpu(std::vector<float> &me_tilde,
+                             std::vector<float> &ve_tilde, int B,
+                             std::vector<float> &me_check,
+                             std::vector<float> &ve_check)
 /*Mean and variance of log(sum(exp(Z)))*/
 {
     float tmp;
@@ -312,35 +340,117 @@ void log_sum_exp(std::vector<float> &me_tilde, std::vector<float> &ve_tilde,
     }
 }
 
-void cov_z_e_check(std::vector<float> &rho_e_e_check, std::vector<float> &me,
-                   std::vector<float> &ve, std::vector<float> &me_tilde,
-                   std::vector<float> &ve_tilde, int no, int B,
-                   std::vector<float> &cov)
+void compute_cov_z_e_check_cpu(std::vector<float> &rho_e_e_tilde,
+                               std::vector<float> &me, std::vector<float> &ve,
+                               std::vector<float> &me_tilde,
+                               std::vector<float> &ve_tilde, int no, int B,
+                               std::vector<float> &cov_z_e_check)
 /*Covariance between hidden states (Z) and log(sum(exp(Z)))*/
 {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            cov[i * no + j] =
-                logf(1 + rho_e_e_check[i] *
+            cov_z_e_check[i * no + j] =
+                logf(1 + rho_e_e_tilde[i] *
                              (powf(ve[i * no + j], 0.5) / me[i * no + j]) *
                              (powf(ve_tilde[i], 0.5) / me_tilde[i]));
         }
     }
 }
 
-void exp_log_softmax(std::vector<float> &mz, std::vector<float> &vz,
-                     std::vector<float> &me_check, std::vector<float> &ve_check,
-                     std::vector<float> &c_z_e_check, int no, int B, int z_pos,
-                     std::vector<float> &ma, std::vector<float> &va)
+void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
+                         std::vector<float> &me_check,
+                         std::vector<float> &ve_check,
+                         std::vector<float> &cov_z_e_check, int no, int B,
+                         int z_pos, std::vector<float> &ma,
+                         std::vector<float> &va)
 /*Convert log of softmax to softmax space*/
+{
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mz[z_pos + i * no + j] - me_check[i];
+            tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
+                      2 * cov_z_e_check[i * no + j];
+            ma[z_pos + i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
+            va[z_pos + i * no + j] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
+        }
+    }
+}
+
+void compute_cov_y_y_check(std::vector<float> &mz, std::vector<float> &vz,
+                           std::vector<float> &me_check,
+                           std::vector<float> &ve_check,
+                           std::vector<float> &cov_z_e_check, int no, int B,
+                           int z_pos, std::vector<float> cov_y_y_check)
+/*Covariance betwee y and \check{y}. The observation equation is defined
+following
+            y = exp(\check{y}) + V, v~N(0, \sigma_{2}^{2}),
+where \hat{y} = exp(\check{y}).
+*/
+{
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mz[z_pos + i * no + j] - me_check[i];
+            tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
+                      2 * cov_z_e_check[i * no + j];
+            cov_y_y_check[i * no + j] = expf(tmp_mu + 0.5 * tmp_var) * tmp_var;
+        }
+    }
+}
+
+void compute_cov_z_y_check(std::vector<float> &var_z,
+                           std::vector<float> &cov_z_e_check, int no, int B,
+                           int z_pos, std::vector<float> cov_z_y_check)
+/* Covariance between hidden state z and \check{y}. See function
+   `compute_cov_y_y_check`*/
 {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            ma[z_pos + i * no + j] = mz[z_pos + i * no + j] - me_check[i];
-            va[z_pos + i * no + j] = vz[z_pos + i * no + j] + ve_check[i] -
-                                     2 * c_z_e_check[i * no + j];
+            cov_z_y_check[i * no + j] =
+                var_z[z_pos + i * no + j] + cov_z_e_check[i * no + j];
         }
     }
+}
+
+void closed_form_softmax_cpu(Network &net, NetState &state, int l)
+/*Closed-form softmax function*/
+{
+    int z_pos = net.z_pos[l];
+    int no = net.nodes[l];
+    int B = net.batch_size;
+
+    // Transform to exponential space
+    exp_fn_cpu(state.mz, state.Sz, z_pos, state.cf_softmax.mu_e,
+               state.cf_softmax.var_e, state.cf_softmax.cov_z_e);
+
+    // Compute sum of the exponential of all hidden states
+    compute_sum_exp_cpu(state.cf_softmax.mu_e, state.cf_softmax.var_e, no, B,
+                        state.cf_softmax.mu_e_tilde,
+                        state.cf_softmax.var_e_tilde);
+
+    // Compute covariance coefficient between epx(z) and sum(exp(z))
+    compute_cov_coeff_e_e_tilde_cpu(state.cf_softmax.var_e_tilde, state.Sz, no,
+                                    B, z_pos, state.cf_softmax.mu_e,
+                                    state.cf_softmax.var_e,
+                                    state.cf_softmax.rho_e_e_tilde);
+
+    // Transform sum(exp(z)) in log space
+    compute_log_sum_exp_cpu(
+        state.cf_softmax.mu_e_tilde, state.cf_softmax.var_e_tilde, B,
+        state.cf_softmax.mu_e_check, state.cf_softmax.var_e_check);
+
+    // Covariance between z and log(sum(exp(z)))
+    compute_cov_z_e_check_cpu(
+        state.cf_softmax.rho_e_e_tilde, state.cf_softmax.mu_e,
+        state.cf_softmax.var_e, state.cf_softmax.mu_e_tilde,
+        state.cf_softmax.var_e_tilde, no, B, state.cf_softmax.cov_z_e_check);
+
+    // Convert to softmax probability
+    exp_log_softmax_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+                        state.cf_softmax.var_e_check,
+                        state.cf_softmax.cov_z_e_check, no, B, z_pos, state.ma,
+                        state.Sa);
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
