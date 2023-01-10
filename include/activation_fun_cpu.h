@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 16, 2022
+// Updated:      January 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,6 +56,24 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          float omega_tol, int zpos, int start_idx, int end_idx,
                          std::vector<float> &ma, std::vector<float> &J,
                          std::vector<float> &Sa);
+
+void compute_y_check(std::vector<float> &mz, std::vector<float> &vz,
+                     std::vector<float> &me_check, std::vector<float> &ve_check,
+                     std::vector<float> &cov_z_e_check, int no, int B,
+                     int z_pos, std::vector<float> &my_y_check,
+                     std::vector<float> &var_y_check);
+
+void compute_cov_y_y_check(std::vector<float> &mz, std::vector<float> &vz,
+                           std::vector<float> &me_check,
+                           std::vector<float> &ve_check,
+                           std::vector<float> &cov_z_e_check, int no, int B,
+                           int z_pos, std::vector<float> cov_y_y_check);
+
+void compute_cov_z_y_check(std::vector<float> &var_z,
+                           std::vector<float> &cov_z_e_check, int no, int B,
+                           int z_pos, std::vector<float> cov_z_y_check);
+
+void closed_form_softmax_cpu(Network &net, NetState &state, int l);
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,

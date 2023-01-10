@@ -3,12 +3,32 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      July 01, 2022
+// Updated:      January 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/data_transfer_cpu.h"
+//////////////////////////////
+// SOFTMAX DELTA STATE
+//////////////////////////////
+DeltaStateSoftmax::DeltaStateSoftmax() {}
+DeltaStateSoftmax::~DeltaStateSoftmax() {}
+void DeltaStateSoftmax::set_values(int n) {
+    this->n = n;
+    this->delta_mu_y_check.resize(n, 0);
+    this->delta_var_y_check.resize(n, 0);
+    this->delta_mu_zy_check.resize(n, 0);
+    this->delta_var_zy_check.resize(n, 0);
+}
+void DeltaStateSoftmax::reset_delta() {
+    for (int i = 0; i < this->n; i++) {
+        this->delta_mu_y_check[i] = 0;
+        this->delta_var_y_check[i] = 0;
+        this->delta_mu_zy_check[i] = 0;
+        this->delta_var_zy_check[i] = 0;
+    }
+}
 
 //////////////////////////////
 // DELTA STATE
@@ -30,6 +50,11 @@ void DeltaState::set_values(int s, int sc, int dsc, int max_n_s) {
     this->delta_S.resize(s, 0);
     this->delta_mx.resize(dsc, 0);
     this->delta_Sx.resize(dsc, 0);
+    this->delta_state_softmax = DeltaStateSoftmax();
+}
+
+void DeltaState::set_softmax_delta(int n) {
+    this->delta_state_softmax.set_values(n);
 }
 
 void DeltaState::reset_updated_values(int n) {

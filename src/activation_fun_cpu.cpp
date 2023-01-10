@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      January 01, 2023
+// Updated:      January 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -373,6 +373,28 @@ void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
                       2 * cov_z_e_check[i * no + j];
             ma[z_pos + i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
             va[z_pos + i * no + j] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
+        }
+    }
+}
+
+void compute_y_check(std::vector<float> &mz, std::vector<float> &vz,
+                     std::vector<float> &me_check, std::vector<float> &ve_check,
+                     std::vector<float> &cov_z_e_check, int no, int B,
+                     int z_pos, std::vector<float> &mu_y_check,
+                     std::vector<float> &var_y_check)
+/*Compute the \check{y} mean and variance
+    \check{y} = Z - \check{E},
+where \check{E} = log(sum(exp(z)))
+*/
+{
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mz[z_pos + i * no + j] - me_check[i];
+            tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
+                      2 * cov_z_e_check[i * no + j];
+            mu_y_check[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
+            var_y_check[i * no + j] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
         }
     }
 }
@@ -916,6 +938,17 @@ void mixture_sigmoid_multithreading(std::vector<float> &mz,
     }
 }
 
+void softmax_worker(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
+                    int no, int B, int start_idx, int end_idx,
+                    std::vector<float> &ma, std::vector<float> &J,
+                    std::vector<float> &Sa) {
+    int row, col;
+    for (int i = start_idx; i < end_idx; i++) {
+        row = i / no;
+        col = i % no;
+    }
+}
+
 void act_full_cov_worker(std::vector<float> &Sz_f, std::vector<float> &J,
                          int no, int B, int z_pos_out, int start_idx,
                          int end_idx, std::vector<float> &Sa_f) {
@@ -1069,6 +1102,9 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
                     state.Sa);
         // stable_softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma,
         //                    state.J, state.Sa);
+    } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
+    {
+        closed_form_softmax_cpu(net, state, j);
     } else  // no activation
     {
         if (no * B > net.min_operations && net.multithreading) {
