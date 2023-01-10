@@ -243,7 +243,7 @@ struct LSTMState {
 struct CfSoftmax {
     std::vector<float> mu_e, var_e, mu_e_tilde, var_e_tilde, mu_e_check,
         var_e_check, rho_e_e_tilde, cov_z_e, cov_z_e_check, cov_y_y_check,
-        cov_z_y_check;
+        cov_z_y_check, mu_y_check, var_y_check;
 };
 
 struct NetState {
