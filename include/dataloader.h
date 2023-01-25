@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      October 22, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,18 @@ void get_batch_data(std::vector<T> &data, std::vector<int> &batch_idx, int w,
     }
 };
 
-void labels_to_hrs(std::vector<int> labels, HrSoftmax &hrs,
+void get_batch_images_labels(ImageData &imdb, std::vector<int> &data_idx,
+                             int batch_size, int iter,
+                             std::vector<float> &x_batch,
+                             std::vector<float> &y_batch,
+                             std::vector<int> &idx_ud_batch,
+                             std::vector<int> &label_batch);
+
+void get_batch_images(ImageData &imdb, std::vector<int> &data_idx,
+                      int batch_size, int iter, std::vector<float> &x_batch,
+                      std::vector<int> &label_batch);
+
+void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx);
 
 std::vector<float> load_mnist_images(std::string image_file, int num);
@@ -64,7 +75,8 @@ ImageData get_images(std::string data_name,
                      std::vector<std::string> &image_file,
                      std::vector<std::string> &label_file,
                      std::vector<float> &mu, std::vector<float> &sigma, int w,
-                     int h, int d, HrSoftmax &hrs, int num);
+                     int h, int d, int num_classes, int num,
+                     bool is_one_hot = false);
 
 Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,

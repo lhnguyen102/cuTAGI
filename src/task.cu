@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      November 11, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -393,9 +393,8 @@ Args:
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(net.ma, net.Sa, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            std::tie(error_rate_batch, prob_class_batch) = get_error(
+                net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
             mt_idx = i * net.prop.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
@@ -442,9 +441,8 @@ Args:
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(net.ma, net.Sa, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            std::tie(error_rate_batch, prob_class_batch) = get_error(
+                net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
         }
