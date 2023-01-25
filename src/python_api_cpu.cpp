@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 04, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -98,11 +98,11 @@ std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
                                   std::vector<float> &Sz,
-                                  std::vector<int> &labels, HrSoftmax &hs,
-                                  int n_classes, int B) {
+                                  std::vector<int> &labels, int n_classes,
+                                  int B) {
     std::vector<int> er;
     std::vector<float> prob;
-    std::tie(er, prob) = get_error(mz, Sz, labels, hs, n_classes, B);
+    std::tie(er, prob) = get_error(mz, Sz, labels, n_classes, B);
     auto py_er = pybind11::array_t<int>(er.size(), er.data());
     auto py_prob = pybind11::array_t<float>(prob.size(), prob.data());
 

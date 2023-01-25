@@ -29,7 +29,7 @@ def main():
                                                y_test_file=y_test_file)
 
     # Train and test
-    viz = PredictionViz(task_name="regression", data_name="toy1D")
+    viz = None #PredictionViz(task_name="regression", data_name="toy1D")
     reg_task = Regression(num_epochs=num_epochs,
                           data_loader=data_loader,
                           net_prop=net_prop,
