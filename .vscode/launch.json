@@ -14,6 +14,16 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             }
+        },
+        {
+            "name": "Launch (lldb)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "args": [
+                "cfg_mnist_2fc.txt"
+            ],
+            "cwd": "${workspaceFolder}",
         }
     ]
 }

@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      December 11, 2022
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -822,66 +822,69 @@ void initialize_derivative_state(Network &net, NetState &state) {
         num_max_nodes * num_max_nodes * net.batch_size, 0);
 }
 
-NetState initialize_net_states(Network &net) {
+NetState initialize_net_states(Network &net_prop) {
     NetState state;
     // TODO: Double check why Sz, Sa are initialzied at 1
 
-    state.mz.resize(net.n_state, 0);      // Mean of hidden states
-    state.Sz.resize(net.n_state, 1);      // Variance of hidden states
-    state.ma.resize(net.n_state, 0);      // Mean of activation units
-    state.Sa.resize(net.n_state, 1);      // Variance of activation units
-    state.J.resize(net.n_state, 1);       // Diagonal Jacobian matrix
-    state.msc.resize(net.n_state_sc, 0);  // Mean of identity's hidden states
-    state.Ssc.resize(net.n_state_sc,
-                     1);  // Variance of identity's hidden states
-    state.mdsc.resize(net.n_state_sc, 0);  // Mean of residual
-    state.Sdsc.resize(net.n_state_sc, 1);  // Variance of residual
-    state.mra.resize(net.n_ra, 0);  // Mean of batch and layer normalization
-    state.Sra.resize(net.n_ra, 1);  // Variance of batch and layer normalization
+    state.mz.resize(net_prop.n_state, 0);  // Mean of hidden states
+    state.Sz.resize(net_prop.n_state, 1);  // Variance of hidden states
+    state.ma.resize(net_prop.n_state, 0);  // Mean of activation units
+    state.Sa.resize(net_prop.n_state, 1);  // Variance of activation units
+    state.J.resize(net_prop.n_state, 1);   // Diagonal Jacobian matrix
+    // Mean of identity's hidden states
+    state.msc.resize(net_prop.n_state_sc, 0);
+    // Variance of identity's hidden states
+    state.Ssc.resize(net_prop.n_state_sc, 1);
+    state.mdsc.resize(net_prop.n_state_sc, 0);  // Mean of residual
+    state.Sdsc.resize(net_prop.n_state_sc, 1);  // Variance of residual
+    // Mean of batch and layer normalization
+    state.mra.resize(net_prop.n_ra, 0);
+    // Variance of batch and layer normalization
+    state.Sra.resize(net_prop.n_ra, 1);
 
     // LSTM state
-    if (net.num_lstm_states > 0) {
-        state.lstm.mha.resize(net.num_max_lstm_states + net.num_max_lstm_states,
-                              0);
-        state.lstm.Sha.resize(net.num_max_lstm_states + net.num_max_lstm_states,
-                              0);
-        state.lstm.mf_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Sf_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Jf_ga.resize(net.num_lstm_states, 0);
-        state.lstm.mi_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Si_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Ji_ga.resize(net.num_lstm_states, 0);
-        state.lstm.mc_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Sc_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Jc_ga.resize(net.num_lstm_states, 0);
-        state.lstm.mo_ga.resize(net.num_lstm_states, 0);
-        state.lstm.So_ga.resize(net.num_lstm_states, 0);
-        state.lstm.Jo_ga.resize(net.num_lstm_states, 0);
-        state.lstm.mca.resize(net.num_lstm_states, 0);
-        state.lstm.Sca.resize(net.num_lstm_states, 0);
-        state.lstm.Jca.resize(net.num_lstm_states, 0);
-        state.lstm.mc.resize(net.num_lstm_states, 0);
-        state.lstm.Sc.resize(net.num_lstm_states, 0);
-        state.lstm.mc_prev.resize(net.num_lstm_states, 0);
-        state.lstm.Sc_prev.resize(net.num_lstm_states, 0);
-        state.lstm.mh_prev.resize(net.num_lstm_states, 0);
-        state.lstm.Sh_prev.resize(net.num_lstm_states, 0);
-        state.lstm.Ci_c.resize(net.num_max_lstm_states, 0);
-        state.lstm.Co_tanh_c.resize(net.num_max_lstm_states, 0);
+    if (net_prop.num_lstm_states > 0) {
+        state.lstm.mha.resize(
+            net_prop.num_max_lstm_states + net_prop.num_max_lstm_states, 0);
+        state.lstm.Sha.resize(
+            net_prop.num_max_lstm_states + net_prop.num_max_lstm_states, 0);
+        state.lstm.mf_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sf_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Jf_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mi_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Si_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Ji_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mc_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sc_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Jc_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mo_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.So_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Jo_ga.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mca.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sca.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Jca.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mc.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sc.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mc_prev.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sc_prev.resize(net_prop.num_lstm_states, 0);
+        state.lstm.mh_prev.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Sh_prev.resize(net_prop.num_lstm_states, 0);
+        state.lstm.Ci_c.resize(net_prop.num_max_lstm_states, 0);
+        state.lstm.Co_tanh_c.resize(net_prop.num_max_lstm_states, 0);
     }
 
     // TODO: Is there a better way to initialize the full covariance matrix?
-    if (net.is_full_cov) {
-        int n = net.n_max_state / net.batch_size;
-        state.Sz_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
-        state.Sa_f.resize((n * (n + 1) / 2) * net.batch_size, 0);
-        state.Sz_fp.resize((n * (n + 1) / 2) * net.batch_size, 0);
+    if (net_prop.is_full_cov) {
+        int n = net_prop.n_max_state / net_prop.batch_size;
+        state.Sz_f.resize((n * (n + 1) / 2) * net_prop.batch_size, 0);
+        state.Sa_f.resize((n * (n + 1) / 2) * net_prop.batch_size, 0);
+        state.Sz_fp.resize((n * (n + 1) / 2) * net_prop.batch_size, 0);
     }
 
     // Noise inference
-    if (net.noise_type.compare("homosce") == 0 ||
-        net.noise_type.compare("heteros") == 0) {
-        int n_noise = net.n_y * net.batch_size;
+    if (net_prop.noise_type.compare("homosce") == 0 ||
+        net_prop.noise_type.compare("heteros") == 0) {
+        int n_noise = net_prop.n_y * net_prop.batch_size;
         state.noise_state.ma_mu.resize(n_noise, 0);
         state.noise_state.Sa_mu.resize(n_noise, 0);
         state.noise_state.Sz_mu.resize(n_noise, 0);
@@ -901,15 +904,33 @@ NetState initialize_net_states(Network &net) {
         state.noise_state.delta_mz_v2b.resize(n_noise, 0);
         state.noise_state.delta_Sz_v2b.resize(n_noise, 0);
     }
-    if (net.noise_type.compare("homosce") == 0) {
-        set_homosce_noise_param(net.mu_v2b, net.sigma_v2b,
+    if (net_prop.noise_type.compare("homosce") == 0) {
+        set_homosce_noise_param(net_prop.mu_v2b, net_prop.sigma_v2b,
                                 state.noise_state.ma_v2b_prior,
                                 state.noise_state.Sa_v2b_prior);
     }
 
     // Derivative state
-    if (net.collect_derivative) {
-        initialize_derivative_state(net, state);
+    if (net_prop.collect_derivative) {
+        initialize_derivative_state(net_prop, state);
+    }
+
+    // Closed-form softmax
+    if (net_prop.activations.back() == net_prop.act_names.cf_softmax) {
+        int n_output = net_prop.nodes.back() * net_prop.batch_size;
+        state.cf_softmax.mu_e.resize(n_output, 0);
+        state.cf_softmax.var_e.resize(n_output, 0);
+        state.cf_softmax.mu_e_tilde.resize(n_output, 0);
+        state.cf_softmax.var_e_tilde.resize(n_output, 0);
+        state.cf_softmax.mu_e_check.resize(n_output, 0);
+        state.cf_softmax.var_e_check.resize(n_output, 0);
+        state.cf_softmax.rho_e_e_tilde.resize(n_output, 0);
+        state.cf_softmax.cov_z_e.resize(n_output, 0);
+        state.cf_softmax.cov_z_e_check.resize(n_output, 0);
+        state.cf_softmax.cov_y_y_check.resize(n_output, 0);
+        state.cf_softmax.cov_z_y_check.resize(n_output, 0);
+        state.cf_softmax.mu_y_check.resize(n_output, 0);
+        state.cf_softmax.var_y_check.resize(n_output, 0);
     }
 
     return state;

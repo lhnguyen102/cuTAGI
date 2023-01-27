@@ -3,7 +3,7 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      November 26, 2022
+# Updated:      January 27, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -95,6 +95,20 @@ class MnistMLP(NetProp):
         self.batch_size = 10
         self.sigma_v = 1
         self.is_idx_ud = True
+        self.multithreading = True
+        self.device = "cpu"
+
+class SoftmaxMnistMLP(NetProp):
+    """Multi-layer perceptron for mnist classificaiton."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers = [1, 1, 1, 1]
+        self.nodes = [784, 100, 100, 10]
+        self.activations = [0, 4, 4, 11]
+        self.batch_size = 10
+        self.sigma_v = 2
+        self.is_idx_ud = False
         self.multithreading = True
         self.device = "cpu"
 

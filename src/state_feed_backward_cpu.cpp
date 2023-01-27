@@ -169,17 +169,17 @@ void delta_z_softmax_from_y_check(std::vector<float> &mu_y_check,
                                   std::vector<float> &cov_z_y_check,
                                   std::vector<float> &y,
                                   std::vector<float> &var_noise, int no, int B,
-                                  int z_pos, std::vector<float> &delta_mu_z,
+                                  std::vector<float> &delta_mu_z,
                                   std::vector<float> &delta_var_z) {
     float tmp = 0, zero_pad = 0;
     for (int i = 0; i < no * B; i++) {
         tmp = cov_z_y_check[i] / (var_noise[i] + var_y_check[i]);
         if (isnan(tmp) || isinf(tmp)) {
-            delta_mu_z[z_pos + i] = 0.0f;
-            delta_var_z[z_pos + i] = 0.0f;
+            delta_mu_z[i] = 0.0f;
+            delta_var_z[i] = 0.0f;
         } else {
-            delta_mu_z[z_pos + i] = tmp * (y[i] - mu_y_check[i]);
-            delta_var_z[z_pos + i] = -tmp * cov_z_y_check[i];
+            delta_mu_z[i] = tmp * (y[i] - mu_y_check[i]);
+            delta_var_z[i] = -tmp * cov_z_y_check[i];
         }
     }
 }
@@ -957,10 +957,10 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     int z_pos = net.z_pos.back();
     // Covariance between observation y and prediciton\check{y} i.e., in
     // log-space. TODO: Double check on cov_z_e_check
-    compute_cov_y_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                          state.cf_softmax.var_e_check,
-                          state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                          state.cf_softmax.cov_z_y_check);
+    // compute_cov_y_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+    //                       state.cf_softmax.var_e_check,
+    //                       state.cf_softmax.cov_z_e_check, no, B, z_pos,
+    //                       state.cf_softmax.cov_y_y_check);
 
     // Covariance between z and \check{y}
     compute_cov_z_y_check(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
@@ -975,7 +975,7 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     // Convert probability observation in log space
     delta_z_softmax_from_y_check(
         state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check,
-        state.cf_softmax.cov_z_y_check, obs.y_batch, obs.V_batch, no, B, z_pos,
+        state.cf_softmax.cov_z_y_check, obs.y_batch, obs.V_batch, no, B,
         d_state.delta_mz, d_state.delta_Sz);
 }
 
@@ -991,7 +991,7 @@ void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
     compute_cov_y_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
                           state.cf_softmax.var_e_check,
                           state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                          state.cf_softmax.cov_z_y_check);
+                          state.cf_softmax.cov_y_y_check);
 
     // Covariance between z and \check{y}
     compute_cov_z_y_check(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
@@ -1037,7 +1037,8 @@ void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
 {
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
-            net.noise_type.compare("heteros") != 0) {
+            net.noise_type.compare("heteros") != 0 &&
+            (net.activations.back() != net.act_names.cf_softmax)) {
             output_delta_mz_Sz_cpu(net, state, obs, d_state);
         } else if (net.activations.back() == net.act_names.cf_softmax) {
             softmax_output_delta_z_cpu(net, state, obs, d_state);

@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      November 06, 2022
+// Updated:      January 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +84,11 @@ void TagiNetworkCPU::init_net() {
     // Update quantities
     this->d_state.set_values(this->prop.n_state, this->state.msc.size(),
                              this->state.mdsc.size(), this->prop.n_max_state);
+    // TODO: Find a better way to handle softmax's updating quantities
+    if (this->prop.activations.back() == this->prop.act_names.cf_softmax) {
+        this->d_state.set_softmax_delta(this->prop.nodes.back() *
+                                        this->prop.batch_size);
+    }
     this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
                              this->theta.mw_sc.size(),
                              this->theta.mb_sc.size());

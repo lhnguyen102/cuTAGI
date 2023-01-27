@@ -252,9 +252,9 @@ void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
-void exp_fn_cpu(std::vector<float> &mu_z, std::vector<float> &var_z, int z_pos,
-                std::vector<float> &mu_e, std::vector<float> &var_e,
-                std::vector<float> &cov_e_z)
+void exp_fn_cpu(std::vector<float> &mu_z, std::vector<float> &var_z, int no,
+                int B, int z_pos, std::vector<float> &mu_e,
+                std::vector<float> &var_e, std::vector<float> &cov_e_z)
 /* Compute the mean, variance, and cov(e, z) for the exponential function e =
 exp(x).
 
@@ -267,10 +267,10 @@ Args:
 */
 {
     float tmp_m, tmp_S;
-    for (int i = 0; i < mu_z.size(); i++) {
-        tmp_m = mu_z[i];
-        tmp_S = var_z[i];
-        mu_e[i] = expf(mu_z[i] + 0.5 * var_z[i]);
+    for (int i = 0; i < no * B; i++) {
+        tmp_m = mu_z[i + z_pos];
+        tmp_S = var_z[i + z_pos];
+        mu_e[i] = expf(mu_z[i + z_pos] + 0.5 * var_z[i + z_pos]);
         var_e[i] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1);
         cov_e_z[i] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
     }
@@ -403,7 +403,7 @@ void compute_cov_y_y_check(std::vector<float> &mz, std::vector<float> &vz,
                            std::vector<float> &me_check,
                            std::vector<float> &ve_check,
                            std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> cov_y_y_check)
+                           int z_pos, std::vector<float> &cov_y_y_check)
 /*Covariance betwee y and \check{y}. The observation equation is defined
 following
             y = exp(\check{y}) + V, v~N(0, \sigma_{2}^{2}),
@@ -423,7 +423,7 @@ where \hat{y} = exp(\check{y}).
 
 void compute_cov_z_y_check(std::vector<float> &var_z,
                            std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> cov_z_y_check)
+                           int z_pos, std::vector<float> &cov_z_y_check)
 /* Covariance between hidden state z and \check{y}. See function
    `compute_cov_y_y_check`*/
 {
@@ -443,7 +443,7 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
     int B = net.batch_size;
 
     // Transform to exponential space
-    exp_fn_cpu(state.mz, state.Sz, z_pos, state.cf_softmax.mu_e,
+    exp_fn_cpu(state.mz, state.Sz, no, B, z_pos, state.cf_softmax.mu_e,
                state.cf_softmax.var_e, state.cf_softmax.cov_z_e);
 
     // Compute sum of the exponential of all hidden states
@@ -473,6 +473,15 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
                         state.cf_softmax.var_e_check,
                         state.cf_softmax.cov_z_e_check, no, B, z_pos, state.ma,
                         state.Sa);
+
+    // for (int i = 0; i < B; i++) {
+    //     float sum = 0;
+    //     for (int j = 0; j < no; j++) {
+    //         sum += state.ma[z_pos + i * no + j];
+    //     }
+    //     std::cout << "prob sum = " << sum << "\n";
+    // }
+    // int check = 0;
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,

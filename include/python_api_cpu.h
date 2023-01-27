@@ -26,6 +26,9 @@ class UtilityWrapper {
     std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
         std::vector<int> &labels, int num_classes);
 
+    pybind11::array_t<float> label_to_one_hot_wrapper(std::vector<int> &labels,
+                                                      int n_classes);
+
     std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
     load_mnist_dataset_wrapper(std::string &image_file, std::string &label_file,
                                int num);

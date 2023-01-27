@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      January 25, 2023
+// Updated:      January 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,6 +64,8 @@ void get_batch_images(ImageData &imdb, std::vector<int> &data_idx,
 void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx);
 
+std::vector<float> label_to_one_hot(std::vector<int> &labels, int n_classes);
+
 std::vector<float> load_mnist_images(std::string image_file, int num);
 
 std::vector<int> load_mnist_labels(std::string label_file, int num);
@@ -74,9 +76,8 @@ std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
 ImageData get_images(std::string data_name,
                      std::vector<std::string> &image_file,
                      std::vector<std::string> &label_file,
-                     std::vector<float> &mu, std::vector<float> &sigma, int w,
-                     int h, int d, int num_classes, int num,
-                     bool is_one_hot = false);
+                     std::vector<float> &mu, std::vector<float> &sigma, int num,
+                     int num_classes, Network &net_prop);
 
 Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,
