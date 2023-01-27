@@ -8,6 +8,7 @@
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -67,11 +68,11 @@ void compute_cov_y_y_check(std::vector<float> &mz, std::vector<float> &vz,
                            std::vector<float> &me_check,
                            std::vector<float> &ve_check,
                            std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> cov_y_y_check);
+                           int z_pos, std::vector<float> &cov_y_y_check);
 
 void compute_cov_z_y_check(std::vector<float> &var_z,
                            std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> cov_z_y_check);
+                           int z_pos, std::vector<float> &cov_z_y_check);
 
 void closed_form_softmax_cpu(Network &net, NetState &state, int l);
 

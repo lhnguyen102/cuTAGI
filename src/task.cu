@@ -321,7 +321,7 @@ Args:
     std::vector<int> test_data_idx = create_range(test_imdb.num_data);
 
     // Input and output layer
-    auto hrs = class_to_obs(n_classes);
+    net.prop.nye = imdb.output_len;
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
     std::vector<int> batch_idx(net.prop.batch_size);
     std::vector<int> idx_ud_batch(net.prop.nye * net.prop.batch_size, 0);
@@ -330,8 +330,9 @@ Args:
     x_batch.resize(net.prop.batch_size * net.prop.n_x, 0);
     Sx_batch.resize(net.prop.batch_size * net.prop.n_x,
                     powf(net.prop.sigma_x, 2));
-    y_batch.resize(net.prop.batch_size * hrs.n_obs, 0);
-    V_batch.resize(net.prop.batch_size * hrs.n_obs, powf(net.prop.sigma_v, 2));
+    y_batch.resize(net.prop.batch_size * imdb.output_len, 0);
+    V_batch.resize(net.prop.batch_size * imdb.output_len,
+                   powf(net.prop.sigma_v, 2));
 
     // *TODO: Is there any better way?
     std::vector<float> Sx_f_batch;
@@ -375,12 +376,9 @@ Args:
             }
 
             // Load data
-            get_batch_idx(data_idx, i * net.prop.batch_size,
-                          net.prop.batch_size, batch_idx);
-            get_batch_data(imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
-            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images_labels(imdb, data_idx, net.prop.batch_size, i,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
@@ -429,12 +427,8 @@ Args:
             net.prop.ra_mt = 0.0f;
 
             // Load data
-            get_batch_idx(test_data_idx, i, net.prop.batch_size, batch_idx);
-            get_batch_data(test_imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
-                           idx_ud_batch);
-            get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images(test_imdb, test_data_idx, net.prop.batch_size, i,
+                             x_batch, label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
@@ -880,22 +874,22 @@ void task_command(UserInput &user_input, SavePath &path) {
         // Initialize network
         load_cfg(net_file_ext, net_prop);
         net_prop.device = user_input.device;
-        auto hrs = class_to_obs(user_input.num_classes);
-        net_prop.nye = hrs.n_obs;
-        net_prop.is_idx_ud = true;
-        TagiNetwork net(net_prop);
+        bool is_one_hot = true;
+        if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
+            net_prop.is_idx_ud = true;
+        }
+        TagiNetworkCPU tagi_net(net_prop);
 
         // Data
-        auto imdb =
-            get_images(user_input.data_name, user_input.x_train_dir,
-                       user_input.y_train_dir, user_input.mu, user_input.sigma,
-                       net.prop.widths[0], net.prop.heights[0],
-                       net.prop.filters[0], hrs, user_input.num_train_data);
-        auto test_imdb =
-            get_images(user_input.data_name, user_input.x_test_dir,
-                       user_input.y_test_dir, user_input.mu, user_input.sigma,
-                       net.prop.widths[0], net.prop.heights[0],
-                       net.prop.filters[0], hrs, user_input.num_test_data);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, tagi_net.prop);
+
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, tagi_net.prop);
 
         // Load param
         if (user_input.load_param) {
@@ -936,21 +930,18 @@ void task_command(UserInput &user_input, SavePath &path) {
         load_cfg(net_file_ext_d, net_prop_d);
         net_prop_d.device = user_input.device;
         TagiNetwork net_d(net_prop_d);
-        net_d.prop.is_idx_ud = false;
         net_d.prop.last_backward_layer = 0;
 
         // Load data
-        auto hrs = class_to_obs(user_input.num_classes);
-        auto imdb =
-            get_images(user_input.data_name, user_input.x_train_dir,
-                       user_input.y_train_dir, user_input.mu, user_input.sigma,
-                       net_e.prop.widths[0], net_e.prop.heights[0],
-                       net_e.prop.filters[0], hrs, user_input.num_train_data);
-        auto test_imdb =
-            get_images(user_input.data_name, user_input.x_test_dir,
-                       user_input.y_test_dir, user_input.mu, user_input.sigma,
-                       net_e.prop.widths[0], net_e.prop.heights[0],
-                       net_e.prop.filters[0], hrs, user_input.num_test_data);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, net_e.prop);
+
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, net_e.prop);
 
         // Load param
         if (user_input.load_param) {

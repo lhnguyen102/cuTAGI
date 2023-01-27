@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      January 25, 2023
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -96,14 +96,6 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             get_batch_images_labels(imdb, data_idx, net.prop.batch_size, i,
                                     x_batch, y_batch, idx_ud_batch,
                                     label_batch);
-            // get_batch_idx(data_idx, i * net.prop.batch_size,
-            //               net.prop.batch_size, batch_idx);
-            // get_batch_data(imdb.images, batch_idx, net.prop.n_x, x_batch);
-            // get_batch_data(imdb.obs_label, batch_idx, imdb.output_len,
-            // y_batch);
-            // // get_batch_data(imdb.obs_idx, batch_idx, imdb.output_len,
-            // // idx_ud_batch);
-            // get_batch_data(imdb.labels, batch_idx, 1, label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
@@ -116,7 +108,7 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            if (net.prop.activations.back() != net.prop.act_names.softmax) {
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
                 std::tie(error_rate_batch, prob_class_batch) =
                     get_error(ma_output, Sa_output, label_batch, n_classes,
                               net.prop.batch_size);
@@ -128,6 +120,7 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
             if (i % 1000 == 0) {
+                // print_matrix(ma_output, 10, 10);
                 int curr_idx = mt_idx + net.prop.batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);
@@ -158,21 +151,13 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             // Load data
             get_batch_images(test_imdb, test_data_idx, net.prop.batch_size, i,
                              x_batch, label_batch);
-            // get_batch_idx(test_data_idx, i, net.prop.batch_size, batch_idx);
-            // get_batch_data(test_imdb.images, batch_idx, net.prop.n_x,
-            // x_batch); get_batch_data(test_imdb.obs_label, batch_idx,
-            // imdb.output_len,
-            //                y_batch);
-            // // get_batch_data(test_imdb.obs_idx, batch_idx, imdb.output_len,
-            // //                idx_ud_batch);
-            // get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            if (net.prop.activations.back() != net.prop.act_names.softmax) {
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
                 std::tie(error_rate_batch, prob_class_batch) =
                     get_error(ma_output, Sa_output, label_batch, n_classes,
                               net.prop.batch_size);
@@ -585,26 +570,21 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Initialize network
         load_cfg(net_file_ext, net_prop);
-        bool is_one_hot = true;
-        if (net_prop.activations.back() == net_prop.act_names.no_act) {
+        if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
             net_prop.is_idx_ud = true;
-            is_one_hot = false;
         }
         TagiNetworkCPU tagi_net(net_prop);
 
         // Data
-        auto imdb = get_images(
-            user_input.data_name, user_input.x_train_dir,
-            user_input.y_train_dir, user_input.mu, user_input.sigma,
-            tagi_net.prop.widths.front(), tagi_net.prop.heights.front(),
-            tagi_net.prop.filters.front(), user_input.num_classes,
-            user_input.num_train_data, is_one_hot);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, tagi_net.prop);
 
-        auto test_imdb = get_images(
-            user_input.data_name, user_input.x_test_dir, user_input.y_test_dir,
-            user_input.mu, user_input.sigma, tagi_net.prop.widths.front(),
-            tagi_net.prop.heights.front(), tagi_net.prop.filters.front(),
-            user_input.num_classes, user_input.num_test_data, is_one_hot);
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, tagi_net.prop);
 
         // Load param
         if (user_input.load_param) {

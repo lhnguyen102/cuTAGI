@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      January 25, 2023
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,6 +36,7 @@ struct ActLabel {
     int msigmoid = 9;
     int softmax = 10;
     int cf_softmax = 11;
+    int hr_softmax = 12;
 };
 
 struct Network {

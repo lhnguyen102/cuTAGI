@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      January 25, 2023
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -266,8 +266,8 @@ std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
 ImageData get_images(std::string data_name,
                      std::vector<std::string> &image_file,
                      std::vector<std::string> &label_file,
-                     std::vector<float> &mu, std::vector<float> &sigma, int w,
-                     int h, int d, int num_classes, int num, bool is_one_hot)
+                     std::vector<float> &mu, std::vector<float> &sigma, int num,
+                     int num_classes, Network &net_prop)
 /*Load image dataset
 
  Args:
@@ -318,7 +318,7 @@ Returns:
     // Convert label to hierarchical softmax
     std::vector<float> obs;
     std::vector<int> obs_idx;
-    if (is_one_hot) {
+    if (net_prop.activations.back() != net_prop.act_names.hr_softmax) {
         std::vector<int> obs_idx;
         obs = label_to_one_hot(labels, num_classes);
         image_data.output_len = num_classes;
@@ -332,11 +332,15 @@ Returns:
 
     // Normalization
     if (mu.size() > 0 && sigma.size() > 0) {
-        normalize_images(imgs, mu, sigma, w, h, d, num);
+        normalize_images(imgs, mu, sigma, net_prop.widths.front(),
+                         net_prop.heights.front(), net_prop.filters.front(),
+                         num);
     } else {
-        mu.resize(d);
-        sigma.resize(d);
-        compute_mean_std_each_channel(imgs, mu, sigma, w, h, d, num);
+        mu.resize(net_prop.filters.front());
+        sigma.resize(net_prop.filters.front());
+        compute_mean_std_each_channel(imgs, mu, sigma, net_prop.widths.front(),
+                                      net_prop.heights.front(),
+                                      net_prop.filters.front(), num);
     }
     image_data.images = imgs;
     image_data.obs_label = obs;
