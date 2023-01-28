@@ -120,7 +120,6 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
             if (i % 1000 == 0) {
-                // print_matrix(ma_output, 10, 10);
                 int curr_idx = mt_idx + net.prop.batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);
