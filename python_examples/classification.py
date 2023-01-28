@@ -3,7 +3,7 @@
 # Description:  Example of classification task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      January 27, 2023
+# Updated:      January 28, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -181,7 +181,7 @@ class Classifier:
                     )
 
             # Validate on test set after each epoch
-            self.predict()
+            self.predict_one_hot()
 
     def predict_one_hot(self) -> None:
         """Make prediction using TAGI"""

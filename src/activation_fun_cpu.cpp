@@ -393,8 +393,8 @@ where \check{E} = log(sum(exp(z)))
             tmp_mu = mz[z_pos + i * no + j] - me_check[i];
             tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
                       2 * cov_z_e_check[i * no + j];
-            mu_y_check[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
-            var_y_check[i * no + j] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
+            mu_y_check[i * no + j] = tmp_mu;
+            var_y_check[i * no + j] = tmp_var;
         }
     }
 }
@@ -430,7 +430,7 @@ void compute_cov_z_y_check(std::vector<float> &var_z,
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
             cov_z_y_check[i * no + j] =
-                var_z[z_pos + i * no + j] + cov_z_e_check[i * no + j];
+                var_z[z_pos + i * no + j] - cov_z_e_check[i * no + j];
         }
     }
 }
@@ -473,15 +473,6 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
                         state.cf_softmax.var_e_check,
                         state.cf_softmax.cov_z_e_check, no, B, z_pos, state.ma,
                         state.Sa);
-
-    // for (int i = 0; i < B; i++) {
-    //     float sum = 0;
-    //     for (int j = 0; j < no; j++) {
-    //         sum += state.ma[z_pos + i * no + j];
-    //     }
-    //     std::cout << "prob sum = " << sum << "\n";
-    // }
-    // int check = 0;
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
@@ -1107,10 +1098,10 @@ void activate_hidden_states(Network &net, NetState &state, int j) {
         }
     } else if (net.activations[j] == net.act_names.softmax)  // softmax
     {
-        softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma, state.J,
-                    state.Sa);
-        // stable_softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma,
-        //                    state.J, state.Sa);
+        // softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma, state.J,
+        //             state.Sa);
+        stable_softmax_cpu(state.mz, state.Sz, z_pos_out, no, B, state.ma,
+                           state.J, state.Sa);
     } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
     {
         closed_form_softmax_cpu(net, state, j);
