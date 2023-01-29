@@ -286,9 +286,9 @@ void compute_sum_exp_cpu(std::vector<float> &me, std::vector<float> &ve, int no,
         for (int j = 0; j < no; j++) {
             sum_m += me[i * no + j];
             sum_v += ve[i * no + j];
-            me_tilde[i] = sum_m;
-            ve_tilde[i] = sum_v;
         }
+        me_tilde[i] = sum_m;
+        ve_tilde[i] = sum_v;
     }
 }
 
@@ -377,11 +377,12 @@ void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
     }
 }
 
-void compute_y_check(std::vector<float> &mz, std::vector<float> &vz,
-                     std::vector<float> &me_check, std::vector<float> &ve_check,
-                     std::vector<float> &cov_z_e_check, int no, int B,
-                     int z_pos, std::vector<float> &mu_y_check,
-                     std::vector<float> &var_y_check)
+void compute_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
+                         std::vector<float> &me_check,
+                         std::vector<float> &ve_check,
+                         std::vector<float> &cov_z_e_check, int no, int B,
+                         int z_pos, std::vector<float> &mu_y_check,
+                         std::vector<float> &var_y_check)
 /*Compute the \check{y} mean and variance
     \check{y} = Z - \check{E},
 where \check{E} = log(sum(exp(z)))
@@ -399,11 +400,11 @@ where \check{E} = log(sum(exp(z)))
     }
 }
 
-void compute_cov_y_y_check(std::vector<float> &mz, std::vector<float> &vz,
-                           std::vector<float> &me_check,
-                           std::vector<float> &ve_check,
-                           std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> &cov_y_y_check)
+void compute_cov_y_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
+                               std::vector<float> &me_check,
+                               std::vector<float> &ve_check,
+                               std::vector<float> &cov_z_e_check, int no, int B,
+                               int z_pos, std::vector<float> &cov_y_y_check)
 /*Covariance betwee y and \check{y}. The observation equation is defined
 following
             y = exp(\check{y}) + V, v~N(0, \sigma_{2}^{2}),
@@ -421,11 +422,11 @@ where \hat{y} = exp(\check{y}).
     }
 }
 
-void compute_cov_z_y_check(std::vector<float> &var_z,
-                           std::vector<float> &cov_z_e_check, int no, int B,
-                           int z_pos, std::vector<float> &cov_z_y_check)
+void compute_cov_z_y_check_cpu(std::vector<float> &var_z,
+                               std::vector<float> &cov_z_e_check, int no, int B,
+                               int z_pos, std::vector<float> &cov_z_y_check)
 /* Covariance between hidden state z and \check{y}. See function
-   `compute_cov_y_y_check`*/
+   `compute_cov_y_y_check_cpu`*/
 {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
