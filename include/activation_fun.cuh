@@ -3,13 +3,15 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      December 14, 2022
+// Updated:      January 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <cuda.h>
 #include <cuda_runtime.h>
+
+#include "data_transfer.cuh"
 
 __global__ void noActMeanVar(float const *mz, float const *Sz, float *ma,
                              float *J, float *Sa, int zpos, int n);

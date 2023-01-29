@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      December 14, 2022
+// Updated:      January 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,6 +226,197 @@ __global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
         Sa[col] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1.0f);
         Cza[col] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
     }
+}
+
+__global__ void exp_fn(float const *mu_z, float const *var_z, int no, int B,
+                       int z_pos, float *mu_e, float *var_e, float *cov_e_z)
+/* Compute the mean, variance, and cov(e, z) for the exponential function e =
+exp(x).
+
+Args:
+    mu_z: Mean of hidden states
+    var_z: Variance of hidden states
+    mu_e: Mean of activation units
+    var_e: Variance of activation units
+    cov_e_z: Covariance between hidden states and activation units
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp_mu, tmp_var;
+    if (col < no * B) {
+        tmp_m = mu_z[col + z_pos];
+        tmp_var = var_z[col + z_pos];
+        mu_e[col] = expf(mu_z[col + z_pos] + 0.5 * var_z[col + z_pos]);
+        var_e[col] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1);
+        cov_e_z[col] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
+    }
+}
+
+__global__ void compute_sum_exp(float const *mu_e, float const *var_e, int no,
+                                int B, float *me_tilde, float *var_e_tilde) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_m, sum_v;
+    if (i < B) {
+        sum_m = 0;
+        sum_v = 0;
+        for (int j = 0; j < no; j++) {
+            sum_m += mu_e[i * no + j];
+            sum_v += var_e[i * no + j];
+        }
+        me_tilde[i] = sum_m;
+        var_e_tilde[i] = sum_v;
+    }
+}
+
+__global__ void compute_cov_coeff_z_e_tilde(float const *var_e_tilde,
+                                            float const *var_z, int no, int B,
+                                            int z_pos, float const *mu_e,
+                                            float *rho_z_e_tilde)
+/*Covariance between the hidden states (Z) and the sim of exp(Z)
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < B && col < no) {
+        rho_z_e_tilde[row * no + col] =
+            (powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
+            powf(var_e_tilde[col], 0.5);
+    }
+}
+
+__global__ void compute_cov_coeff_e_e_tilde(float const *var_e_tilde,
+                                            float const *var_z, int no, int B,
+                                            float const *mu_e,
+                                            float const *var_e,
+                                            float *rho_e_e_tilde)
+/*Covariance between exp(Z) and the sum of exp(Z)*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < B && col < no) {
+        rho_e_e_tilde[row * no + col] =
+            ((powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
+             powf(var_e_tilde[row], 0.5)) *
+            ((powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
+             powf(var_e[row * no + col], 0.5));
+    }
+}
+
+__global__ void compute_log_sum_exp(float const *mu_e_tilde,
+                                    float const *var_e_tilde, int B,
+                                    float *mu_e_check, float *var_e_check)
+/*Mean and variance of log(sum(exp(Z)))*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp;
+    if (col < B) {
+        tmp = logf(1 + var_e_tilde[col] / powf(mu_e_tilde[col], 2));
+        mu_e_check[col] = logf(mu_e_tilde[col]) - 0.5 * tmp;
+        var_e_check[col] = tmp;
+    }
+}
+
+__global__ void compute_cov_z_e_check(float const *rho_e_e_tilde,
+                                      float const *mu_e, float const *var_e,
+                                      float const *mu_e_tilde,
+                                      float const *var_e_tilde, int no, int B,
+                                      float *cov_z_e_check)
+/*Covariance between hidden states (Z) and log(sum(exp(Z)))*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < B && col < no) {
+        cov_z_e_check[row * no + col] = logf(
+            1 + rho_e_e_tilde[row] *
+                    (powf(var_e[row * no + col], 0.5) / mu_e[row * no + col]) *
+                    (powf(var_e_tilde[row], 0.5) / mu_e_tilde[row]));
+    }
+}
+
+__global__ void exp_log_softmax(float const *mu_z, float const *var_z,
+                                float const *mu_e_check,
+                                float const *var_e_check,
+                                float const *cov_z_e_check, int no, int B,
+                                int z_pos, float *mu_a, float *var_a)
+/*Convert log of softmax to softmax space*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp_mu tmp_var;
+    if (row < B && col < no) {
+        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
+        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
+                  2 * cov_z_e_check[row * no + col];
+        mu_a[z_pos + row * no + col] = expf(tmp_mu + 0.5 * tmp_var);
+        var_a[z_pos + row * no + col] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
+    }
+}
+
+__global__ void compute_y_check(float const *mu_z, float const *var_z,
+                                float const *mu_e_check,
+                                float const *var_e_check,
+                                float const *cov_z_e_check, int no, int B,
+                                int z_pos, float *mu_y_check,
+                                float *var_y_check)
+/*Compute the \check{y} mean and variance
+    \check{y} = Z - \check{E},
+where \check{E} = log(sum(exp(z)))
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp_mu, tmp_var;
+    if (row < B && col < no) {
+        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
+        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
+                  2 * cov_z_e_check[row * no + col];
+        mu_y_check[row * no + col] = tmp_mu;
+        var_y_check[row * no + col] = tmp_var;
+    }
+}
+
+__global__ void compute_cov_y_y_check(float const *mu_z, float const *var_z,
+                                      float const *mu_e_check,
+                                      float const *var_e_check,
+                                      float const *cov_z_e_check, int no, int B,
+                                      int z_pos, float *cov_y_y_check)
+/*Covariance betwee y and \check{y}. The observation equation is defined
+following
+            y = exp(\check{y}) + V, v~N(0, \sigma_{2}^{2}),
+where \hat{y} = exp(\check{y}).
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp_mu, tmp_var;
+    if (row < B && col < no) {
+        tmp_mu = mu_z[z_pos + row * no + col] - me_check[row];
+        tmp_var = vz[z_pos + row * no + col] + ve_check[row] -
+                  2 * cov_z_e_check[row * no + col];
+        cov_y_y_check[row * no + col] = expf(tmp_mu + 0.5 * tmp_var) * tmp_var;
+    }
+}
+
+__global__ void compute_cov_z_y_check(float const *var_z,
+                                      float const *cov_z_e_check, int no, int B,
+                                      int z_pos, float *cov_z_y_check)
+/* Covariance between hidden state z and \check{y}. See function
+   `compute_cov_y_y_check_cpu`*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < B && col < no) {
+        cov_z_y_check[row * no + col] =
+            var_z[z_pos + row * no + col] - cov_z_e_check[row * no + col];
+    }
+}
+
+void closed_form_softmax(Network &net, StateGPU &state, int l)
+/*Closed-form softmax function*/
+{
+    int z_pos = net.z_pos[l];
+    int no = net.nodes[l];
+    int B = net.batch_size;
 }
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,

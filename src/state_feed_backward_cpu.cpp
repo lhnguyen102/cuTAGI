@@ -955,14 +955,14 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     int B = net.batch_size;
     int z_pos = net.z_pos.back();
     // Covariance between z and \check{y}
-    compute_cov_z_y_check(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
-                          z_pos, state.cf_softmax.cov_z_y_check);
+    compute_cov_z_y_check_cpu(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
+                              z_pos, state.cf_softmax.cov_z_y_check);
 
     // Compute mean and variance for \check{y}
-    compute_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                    state.cf_softmax.var_e_check,
-                    state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                    state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
+    compute_y_check_cpu(
+        state.mz, state.Sz, state.cf_softmax.mu_e_check,
+        state.cf_softmax.var_e_check, state.cf_softmax.cov_z_e_check, no, B,
+        z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
 
     // Convert probability observation in log space
     delta_z_softmax_from_y_check(
@@ -980,20 +980,20 @@ void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
     int z_pos = net.z_pos.back();
     // Covariance between observation y and prediciton\check{y} i.e., in
     // log-space. TODO: Double check on cov_z_e_check
-    compute_cov_y_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                          state.cf_softmax.var_e_check,
-                          state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                          state.cf_softmax.cov_y_y_check);
+    compute_cov_y_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+                              state.cf_softmax.var_e_check,
+                              state.cf_softmax.cov_z_e_check, no, B, z_pos,
+                              state.cf_softmax.cov_y_y_check);
 
     // Covariance between z and \check{y}
-    compute_cov_z_y_check(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
-                          z_pos, state.cf_softmax.cov_z_y_check);
+    compute_cov_z_y_check_cpu(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
+                              z_pos, state.cf_softmax.cov_z_y_check);
 
     // Compute mean and variance for \check{y}
-    compute_y_check(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                    state.cf_softmax.var_e_check,
-                    state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                    state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
+    compute_y_check_cpu(
+        state.mz, state.Sz, state.cf_softmax.mu_e_check,
+        state.cf_softmax.var_e_check, state.cf_softmax.cov_z_e_check, no, B,
+        z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
 
     // Updating quantities for \check{y}
     delta_z_y_check(state.ma, state.Sa, state.cf_softmax.cov_y_y_check,
