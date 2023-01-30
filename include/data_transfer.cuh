@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      October 30, 2022
+// Updated:      January 30, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,21 @@
 #include "indices.h"
 #include "net_prop.h"
 #include "struct_var.h"
+
+class CfSoftmaxGPU {
+   public:
+    size_t n_state_bytes;
+    float *d_mu_e, *d_var_e, *d_mu_e_tilde, *d_var_e_tilde, *d_mu_e_check,
+        *d_var_e_check, *d_rho_e_e_tilde, *d_cov_z_e, *d_cov_z_e_check,
+        *d_cov_y_y_check, *d_cov_z_y_check, *d_mu_y_check, *d_var_y_check;
+    CfSoftmax *cf_softmax;
+    CfSoftmaxGPU();
+    ~CfSoftmaxGPU();
+    void set_values(CfSoftmax &_cf_softmax);
+    void allocate_cuda_memory();
+    void copy_host_to_device();
+    void copy_device_to_host();
+};
 
 class LSTMStateGPU {
    public:

@@ -417,6 +417,11 @@ void closed_form_softmax(Network &net, StateGPU &state, int l)
     int z_pos = net.z_pos[l];
     int no = net.nodes[l];
     int B = net.batch_size;
+    // TO BE CONTINUED
+    int blocks = (no * B + net.num_gpu_threads - 1) / net.num_gpu_threads;
+    exp_fn<<<blocks, net.num_gpu_threads>>>(state.d_mz, state.d_Sz, no, B,
+                                            z_pos, state.d_mu_e, state.d_var_e,
+                                            state.d_cov_z_e);
 }
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
