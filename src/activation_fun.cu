@@ -286,7 +286,7 @@ __global__ void compute_cov_coeff_z_e_tilde(float const *var_e_tilde,
 
 __global__ void compute_cov_coeff_e_e_tilde(float const *var_e_tilde,
                                             float const *var_z, int no, int B,
-                                            float const *mu_e,
+                                            int z_pos, float const *mu_e,
                                             float const *var_e,
                                             float *rho_e_e_tilde)
 /*Covariance between exp(Z) and the sum of exp(Z)*/
@@ -417,11 +417,47 @@ void closed_form_softmax(Network &net, StateGPU &state, int l)
     int z_pos = net.z_pos[l];
     int no = net.nodes[l];
     int B = net.batch_size;
-    // TO BE CONTINUED
-    int blocks = (no * B + net.num_gpu_threads - 1) / net.num_gpu_threads;
-    exp_fn<<<blocks, net.num_gpu_threads>>>(state.d_mz, state.d_Sz, no, B,
-                                            z_pos, state.d_mu_e, state.d_var_e,
-                                            state.d_cov_z_e);
+    int THREADS = net.num_gpu_threads;
+
+    // Transform to exponential space
+    int blocks = (no * B + THREADS - 1) / THREADS;
+    exp_fn<<<blocks, THREADS>>>(
+        state.d_mz, state.d_Sz, no, B, z_pos, state.cf_softmax.d_mu_e,
+        state.cf_softmax.d_var_e, state.cf_softmax.d_cov_z_e);
+
+    // Compute sum of the exponential of all hidden states
+    int batch_blocks = (B + THREADS - 1) / THREADS;
+    compute_sum_exp<<<batch_blocks, THREADS>>>(
+        state.cf_softmax.d_mu_e, state.cf_softmax.d_var_e, no, B,
+        state.cf_softmax.d_mu_e_tilde, state.cf_softmax.d_var_e_tilde);
+
+    // Compute covariance coefficient between exp(z) and sum(exp(z))
+    unsigned int grid_row = (B + THREADS - 1) / THREADS;
+    unsigned int grid_col = (no + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(THREADS, THREADS);
+    compute_cov_coeff_e_e_tilde<<<dim_grid, dim_block>>>(
+        state.cf_softmax.d_var_e_tilde, state.d_Sz, no, B, z_pos,
+        state.cf_softmax.d_mu_e, state.cf_softmax.d_var_e,
+        state.cf_softmax.rho_e_e_tilde);
+
+    // Transform sum(exp(z)) in log space
+    compute_log_sum_exp<<<batch_blocks, THREADS>>>(
+        state.cf_softmax.d_mu_e_tilde, state.cf_softmax.d_var_e_tilde, B,
+        state.cf_softmax.d_mu_e_check, state.cf_softmax.d_var_e_check);
+
+    // Covariance between z and log(sum(exp(z)))
+    compute_cov_z_e_check<<<dim_grid, dim_block>>>(
+        state.cf_softmax.d_rho_e_e_tilde, state.cf_softmax.d_mu_e,
+        state.cf_softmax.d_var_e, state.cf_softmax.d_mu_e_tilde,
+        state.cf_softmax.d_var_e_tilde, no, B,
+        state.cf_softmax.d_cov_z_e_check);
+
+    // Convert to softmax probability
+    exp_log_softmax<<<dim_grid, dim_block>>>(
+        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
+        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
+        z_pos, state.d_ma, state.d_Sa);
 }
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
