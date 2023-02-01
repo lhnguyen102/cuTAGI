@@ -492,3 +492,60 @@ __global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
         Saf[col] = Szf[col];
     }
 }
+
+void activate_hidden_states(Network &net, StateGPU &state, int j) {
+    int THREADS = net.num_gpu_threads;
+    int MB = net.nodes[j] * net.batch_size;
+    int z_pos = net.z_pos[j];
+    unsigned int BLOCKS = (MB + THREADS - 1) / THREADS;
+
+    // Compute mean, variance, and Jacobian matrix
+    if (net.activations[j] == net.act_names.tanh)  // tanh
+    {
+        tanhMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
+                                         state.d_J, state.d_Sa, z_pos, MB);
+    } else if (net.activations[j] == net.act_names.sigmoid)  // sigmoid
+    {
+        sigmoidMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
+                                            state.d_J, state.d_Sa, z_pos, MB);
+    } else if (net.activations[j] == net.act_names.relu)  // ReLU
+    {
+        reluMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
+                                         state.d_J, state.d_Sa, z_pos, MB);
+    } else if (net.activations[j] == net.act_names.softplus)  // softplus
+    {
+        softplusMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
+                                             state.d_J, state.d_Sa, z_pos, MB);
+    } else if (net.activations[j] == net.act_names.leakyrelu)  // leaky ReLU
+    {
+        leakyreluMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.alpha,
+                                              state.d_ma, state.d_J, state.d_Sa,
+                                              z_pos, MB);
+
+    } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
+    {
+        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+                                          z_pos, MB, state.d_ma, state.d_J,
+                                          state.d_Sa);
+
+    } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
+    {
+        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+                                          z_pos, MB, state.d_ma, state.d_J,
+                                          state.d_Sa);
+
+    } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
+    {
+        mixture_sigmoid<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
+                                             net.omega_tol, z_pos, MB,
+                                             state.d_ma, state.d_J, state.d_Sa);
+
+    } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
+    {
+        closed_form_softmax(net, state, j);
+    } else  // no activation
+    {
+        noActMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
+                                          state.d_J, state.d_Sa, z_pos, MB);
+    }
+}

@@ -3,7 +3,7 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      January 29, 2023
+// Updated:      February, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,3 +49,5 @@ __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf);
 
 __global__ void noActFullCov(float const *Szf, float *Saf, int Nf);
+
+void activate_hidden_states(Network &net, StateGPU &state, int j);

@@ -128,6 +128,71 @@ Args:
     }
 }
 ////////////////////////////////////////////////////////////////////////////////
+/// CLOSED-FORM SOFTMAX
+////////////////////////////////////////////////////////////////////////////////
+__global__ void delta_z_y_check(float const *mu_a, float const *var_a,
+                                float const *cov_y_y_check, float const *y,
+                                float const *var_noise, int no, int B,
+                                int z_pos, float *delta_mu_zy_check,
+                                float *delta_var_zy_check)
+/*Compute updating quantities for \check{y}*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp, zero_pad = 0;
+    int idx;
+    if (row < B && col < no) {
+        idx = row * no + col;
+        tmp = cov_y_y_check[idx] / (var_a[idx + z_pos] + var_noise[idx]);
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_mu_zy_check[idx] = zero_pad;
+            delta_var_zy_check[idx] = zero_pad;
+        } else {
+            delta_mu_zy_check[idx] = tmp * (y[idx] - mu_a[idx + z_pos]);
+            delta_var_zy_check[idx] = -tmp * cov_y_y_check[idx];
+        }
+    }
+}
+
+__global__ void delta_z_y_softmax(float const *mu_pred, float const *var_pred,
+                                  float const *cov_z_y, float const *y,
+                                  float const *var_noise, int no, int B,
+                                  int z_pos, float *delta_mu_z,
+                                  float *delta_var_z)
+/*Compute updating quantities for \check{y}*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp, zero_pad = 0;
+    int idx;
+    if (row < B && col < no) {
+        idx = row * no + col;
+        tmp = cov_z_y[idx] / (var_pred[idx + z_pos] + var_noise[idx]);
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_mu_z[idx] = zero_pad;
+            delta_var_z[idx] = zero_pad;
+        } else {
+            delta_mu_z[idx] = tmp * (y[idx] - mu_pred[idx + z_pos]);
+            delta_var_z[idx] = -tmp * cov_z_y[idx];
+        }
+    }
+}
+
+__global__ void delta_z_softmax(float const *cov_z_y_check,
+                                float const *delta_mu, float const *delta_var,
+                                int no, int B, float *delta_mu_z,
+                                float *delta_var_z)
+/*Compute updating quantities for hidden states for the softmax layer*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < no * B) {
+        delta_mu_z[col] = cov_z_y_check[col] * delta_mu[col];
+        delta_var_z[col] =
+            cov_z_y_check[col] * delta_var[col] * cov_z_y_check[col];
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// FULL-CONNECTED
 ////////////////////////////////////////////////////////////////////////////////
 __global__ void fcDeltaMz(float const *mw, float const *Sz, float const *J,

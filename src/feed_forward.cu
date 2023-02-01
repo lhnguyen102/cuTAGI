@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      June 13, 2021
-// Updated:      December 14, 2022
+// Updated:      February 01, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1829,58 +1829,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
         // Activation
         //
         // Launch kernel
-        unsigned int BLOCKS = (MB + THREADS - 1) / THREADS;
-        // Compute mean, variance, and Jacobian matrix
-        if (net.activations[j] == net.act_names.tanh)  // tanh
-        {
-            tanhMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
-                                             state.d_J, state.d_Sa, zposOut,
-                                             MB);
-        } else if (net.activations[j] == net.act_names.sigmoid)  // sigmoid
-        {
-            sigmoidMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                                state.d_ma, state.d_J,
-                                                state.d_Sa, zposOut, MB);
-        } else if (net.activations[j] == net.act_names.relu)  // ReLU
-        {
-            reluMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,
-                                             state.d_J, state.d_Sa, zposOut,
-                                             MB);
-        } else if (net.activations[j] == net.act_names.softplus)  // softplus
-        {
-            softplusMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                                 state.d_ma, state.d_J,
-                                                 state.d_Sa, zposOut, MB);
-        } else if (net.activations[j] == net.act_names.leakyrelu)  // leaky ReLU
-        {
-            leakyreluMeanVar<<<BLOCKS, THREADS>>>(
-                state.d_mz, state.d_Sz, net.alpha, state.d_ma, state.d_J,
-                state.d_Sa, zposOut, MB);
-
-        } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
-        {
-            mixture_relu<<<BLOCKS, THREADS>>>(
-                state.d_mz, state.d_Sz, net.omega_tol, zposOut, MB, state.d_ma,
-                state.d_J, state.d_Sa);
-
-        } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
-        {
-            mixture_tanh<<<BLOCKS, THREADS>>>(
-                state.d_mz, state.d_Sz, net.omega_tol, zposOut, MB, state.d_ma,
-                state.d_J, state.d_Sa);
-
-        } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
-        {
-            mixture_sigmoid<<<BLOCKS, THREADS>>>(
-                state.d_mz, state.d_Sz, net.omega_tol, zposOut, MB, state.d_ma,
-                state.d_J, state.d_Sa);
-
-        } else  // no activation
-        {
-            noActMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                              state.d_ma, state.d_J, state.d_Sa,
-                                              zposOut, MB);
-        }
+        activate_hidden_states(net, state, j);
 
         // Full covariance mode
         if (net.is_full_cov) {

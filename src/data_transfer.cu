@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      January 31, 2023
+// Updated:      February, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,22 @@ CfSoftmaxGPU::CfSoftmaxGPU() {
     this->d_cov_z_y_check = nullptr;
     this->d_mu_y_check = nullptr;
     this->d_var_y_check = nullptr;
+}
+
+void CfSoftmax::~CfSoftmaxGPU() {
+    cudaFree(d_mu_e);
+    cudaFree(d_var_e);
+    cudaFree(d_mu_e_tilde);
+    cudaFree(d_var_e_tilde);
+    cudaFree(d_mu_e_check);
+    cudaFree(d_var_e_check);
+    cudaFree(d_rho_e_e_tilde);
+    cudaFree(d_cov_z_e);
+    cudaFree(d_cov_z_e_check);
+    cudaFree(d_cov_y_y_check);
+    cudaFree(d_cov_z_y_check);
+    cudaFree(d_mu_y_check);
+    cudaFree(d_var_y_check);
 }
 
 void CfSoftmax::set_values(CfSoftmax &_cf_softmax) {
@@ -1164,6 +1180,14 @@ void DeltaStateGPU::set_values(int s, int sc, int dsc, int max_n_s) {
     this->max_n_s_bytes = max_n_s * sizeof(float);
 }
 
+void DeltaStateGPU::set_delta_softmax(int n) {
+    this->delta_mu_y_check.resize(n, 0);
+    this->delta_var_y_check.resize(n, 0);
+    this->delta_mu_zy_check.resize(n, 0);
+    this->delta_var_zy_check.resize(n, 0);
+    this->softmax_bytes = n * sizeof(float);
+}
+
 void DeltaStateGPU::allocate_cuda_memory() {
     cudaMalloc(&d_delta_mz, max_n_s_bytes);
     cudaMalloc(&d_delta_Sz, max_n_s_bytes);
@@ -1179,6 +1203,13 @@ void DeltaStateGPU::allocate_cuda_memory() {
     cudaMalloc(&d_delta_S, s_bytes);
     cudaMalloc(&d_delta_mx, dsc_bytes);
     cudaMalloc(&d_delta_Sx, dsc_bytes);
+
+    if (this->softmax_bytes > 0) {
+        cudaMalloc(&this->delta_mu_y_check, this->softmax_bytes);
+        cudaMalloc(&this->delta_var_y_check, this->softmax_bytes);
+        cudaMalloc(&this->delta_mu_zy_check, this->softmax_bytes);
+        cudaMalloc(&this->delta_var_zy_check, this->softmax_bytes);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1211,6 +1242,18 @@ void DeltaStateGPU::copy_host_to_device() {
     cudaMemcpy(d_delta_S, delta_S.data(), s_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_delta_mx, delta_mx.data(), dsc_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_delta_Sx, delta_Sx.data(), dsc_bytes, cudaMemcpyHostToDevice);
+
+    if (this->softmax_bytes > 0) {
+        cudaMemcpy(this->d_delta_mu_y_check, this->d_delta_mu_y_check.data(),
+                   this->softmax_bytes, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_var_y_check, this->d_delta_var_y_check.data(),
+                   this->softmax_bytes, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_mu_zy_check, this->d_delta_mu_zy_check.data(),
+                   this->softmax_bytes, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_var_zy_check,
+                   this->d_delta_var_zy_check.data(), this->softmax_bytes,
+                   cudaMemcpyHostToDevice);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
