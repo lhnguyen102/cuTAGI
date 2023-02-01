@@ -126,6 +126,7 @@ set(CPU_SOURCES
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
   test/test_lstm_cpu.cpp
+  test/fnn_bench/test_fnn_cpu.cpp
 )
 
 # Sources code for CUDA
@@ -143,6 +144,7 @@ set(GPU_SOURCES
   src/task.cu
   src/tagi_network.cu
   src/gpu_debug_utils.cpp
+  test/fnn_bench/test_fnn.cu
 )
 
 # Output binary folder der for different mode

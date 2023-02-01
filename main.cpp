@@ -14,6 +14,7 @@
 #include "include/struct_var.h"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
+#include "test/fnn_bench/test_fnn_cpu.h"
 #include "test/test_lstm_cpu.h"
 
 int main(int argc, char *argv[]) {
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     // Run task
     if (user_input_file.compare("test") == 0) {
-        test_lstm_cpu();
+        test_fnn_cpu();
     } else {
         task_command_cpu(user_input, path);
     }
