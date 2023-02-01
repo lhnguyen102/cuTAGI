@@ -158,4 +158,4 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
                                  int z_pos_out, unsigned int NUM_THREADS,
                                  std::vector<float> &Sa_f);
 
-void activate_hidden_states(Network &net, NetState &state, int j);
+void activate_hidden_states_cpu(Network &net, NetState &state, int j);

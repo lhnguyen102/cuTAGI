@@ -995,7 +995,7 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
     }
 }
 
-void activate_hidden_states(Network &net, NetState &state, int j) {
+void activate_hidden_states_cpu(Network &net, NetState &state, int j) {
     int B = net.batch_size;
     int no = net.nodes[j];
     int ni = net.nodes[j - 1];

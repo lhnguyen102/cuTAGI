@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      January 31, 2023
+// Updated:      February 01, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "data_transfer_cpu.h"
 #include "indices.h"
 #include "net_prop.h"
 #include "struct_var.h"
@@ -144,17 +145,23 @@ class IndexGPU {
 
 class DeltaStateGPU {
    public:
-    std::vector<float> delta_mz, delta_Sz, delta_mdsc, delta_Sdsc, delta_msc;
-    std::vector<float> delta_Ssc, delta_mzsc, delta_Szsc, dummy_m, dummy_S;
-    std::vector<float> delta_m, delta_S, delta_mx, delta_Sx;
+    std::vector<float> delta_mz, delta_Sz, delta_mdsc, delta_Sdsc, delta_msc,
+        delta_Ssc, delta_mzsc, delta_Szsc, dummy_m, dummy_S, delta_m, delta_S,
+        delta_mx, delta_Sx;
+    std::vector<float> delta_mu_y_check, delta_var_y_check, delta_mu_zy_check,
+        delta_var_zy_check;
 
     size_t s_bytes, sc_bytes, dsc_bytes, max_n_s_bytes;
+    size_t softmax_bytes;
     float *d_delta_mz, *d_delta_Sz, *d_delta_mdsc, *d_delta_Sdsc, *d_delta_msc;
     float *d_delta_Ssc, *d_delta_mzsc, *d_delta_Szsc, *d_dummy_m, *d_dummy_S;
     float *d_delta_m, *d_delta_S, *d_delta_mx, *d_delta_Sx;
+    float *d_delta_mu_y_check, *d_delta_var_y_check, *d_delta_mu_zy_check,
+        *d_delta_var_zy_check;
 
     DeltaStateGPU();
     void set_values(int s, int sc, int dsc, int max_n_s);
+    void set_delta_softmax(int n);
     void allocate_cuda_memory();
     void copy_host_to_device();
     void copy_device_to_host();

@@ -127,11 +127,12 @@ Args:
 ////////////////////////////////////////////////////////////////////////////////
 /// CLOSED-FORM SOFTMAX
 ////////////////////////////////////////////////////////////////////////////////
-void delta_z_y_check(std::vector<float> &mu_a, std::vector<float> &var_a,
-                     std::vector<float> &cov_y_y_check, std::vector<float> &y,
-                     std::vector<float> &var_noise, int no, int B, int z_pos,
-                     std::vector<float> &delta_mu_zy_check,
-                     std::vector<float> &delta_var_zy_check)
+void delta_z_y_check_cpu(std::vector<float> &mu_a, std::vector<float> &var_a,
+                         std::vector<float> &cov_y_y_check,
+                         std::vector<float> &y, std::vector<float> &var_noise,
+                         int no, int B, int z_pos,
+                         std::vector<float> &delta_mu_zy_check,
+                         std::vector<float> &delta_var_zy_check)
 /*Compute updating quantities for \check{y}*/
 {
     float tmp = 0, zero_pad = 0;
@@ -150,11 +151,12 @@ void delta_z_y_check(std::vector<float> &mu_a, std::vector<float> &var_a,
         }
     }
 }
-void delta_z_softmax(std::vector<float> &cov_z_y_check,
-                     std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int no, int B,
-                     std::vector<float> &delta_mu_z,
-                     std::vector<float> &delta_var_z)
+
+void delta_z_softmax_cpu(std::vector<float> &cov_z_y_check,
+                         std::vector<float> &delta_mu,
+                         std::vector<float> &delta_var, int no, int B,
+                         std::vector<float> &delta_mu_z,
+                         std::vector<float> &delta_var_z)
 /*Compute updating quantities for hidden states for the softmax layer*/
 {
     for (int i = 0; i < no * B; i++) {
@@ -163,13 +165,13 @@ void delta_z_softmax(std::vector<float> &cov_z_y_check,
     }
 }
 
-void delta_z_softmax_from_y_check(std::vector<float> &mu_y_check,
-                                  std::vector<float> &var_y_check,
-                                  std::vector<float> &cov_z_y_check,
-                                  std::vector<float> &y,
-                                  std::vector<float> &var_noise, int no, int B,
-                                  std::vector<float> &delta_mu_z,
-                                  std::vector<float> &delta_var_z) {
+void delta_z_softmax_from_y_check_cpu(std::vector<float> &mu_y_check,
+                                      std::vector<float> &var_y_check,
+                                      std::vector<float> &cov_z_y_check,
+                                      std::vector<float> &y,
+                                      std::vector<float> &var_noise, int no,
+                                      int B, std::vector<float> &delta_mu_z,
+                                      std::vector<float> &delta_var_z) {
     float tmp = 0, zero_pad = 0;
     for (int i = 0; i < no * B; i++) {
         tmp = cov_z_y_check[i] / (var_noise[i] + var_y_check[i]);
@@ -965,7 +967,7 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
         z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
 
     // Convert probability observation in log space
-    delta_z_softmax_from_y_check(
+    delta_z_softmax_from_y_check_cpu(
         state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check,
         state.cf_softmax.cov_z_y_check, obs.y_batch, obs.V_batch, no, B,
         d_state.delta_mz, d_state.delta_Sz);
@@ -996,10 +998,10 @@ void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
         z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
 
     // Updating quantities for \check{y}
-    delta_z_y_check(state.ma, state.Sa, state.cf_softmax.cov_y_y_check,
-                    obs.y_batch, obs.V_batch, no, B, z_pos,
-                    d_state.delta_state_softmax.delta_mu_zy_check,
-                    d_state.delta_state_softmax.delta_var_zy_check);
+    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_y_y_check,
+                        obs.y_batch, obs.V_batch, no, B, z_pos,
+                        d_state.delta_state_softmax.delta_mu_zy_check,
+                        d_state.delta_state_softmax.delta_var_zy_check);
 
     // Inovation vector for \check{y}
     inovation_mean(state.cf_softmax.var_y_check,
@@ -1010,10 +1012,10 @@ void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
                   d_state.delta_state_softmax.delta_var_y_check);
 
     // Updating quantities for hidden states
-    delta_z_softmax(state.cf_softmax.cov_z_y_check,
-                    d_state.delta_state_softmax.delta_mu_y_check,
-                    d_state.delta_state_softmax.delta_var_y_check, no, B,
-                    d_state.delta_mz, d_state.delta_Sz);
+    delta_z_softmax_cpu(state.cf_softmax.cov_z_y_check,
+                        d_state.delta_state_softmax.delta_mu_y_check,
+                        d_state.delta_state_softmax.delta_var_y_check, no, B,
+                        d_state.delta_mz, d_state.delta_Sz);
 }
 
 void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
