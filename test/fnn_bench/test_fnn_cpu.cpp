@@ -12,12 +12,18 @@
 
 // Specific constant for the network
 const std::vector<int> LAYERS = {1, 1, 1, 1};
-const std::vector<int> NODES = {13, 10, 15, 1};
-const std::vector<int> ACTIVATIONS = {0, 0, 0, 0};
+const std::vector<int> NODES = {13, 30, 30, 1};
+const std::vector<int> ACTIVATIONS = {0, 7, 7, 0};
 const int BATCH_SIZE = 5;
 const int EPOCHS = 50;
 const bool NORMALIZE = true;
 
+/**
+ * @brief Compare two csv files.
+ *
+ * @param[in] file1 the first file to compare
+ * @param[in] file2 the second file to compare
+ */
 bool compare_csv_files(const std::string &file1, const std::string &file2) {
     std::ifstream f1(file1);
     std::ifstream f2(file2);
@@ -33,6 +39,8 @@ bool compare_csv_files(const std::string &file1, const std::string &file2) {
     while (std::getline(f1, line1) && std::getline(f2, line2)) {
         if (line1 != line2) {
             std::cout << "Files differ at line " << lineNumber << std::endl;
+            std::cout << "File 1: " << line1 << std::endl;
+            std::cout << "File 2: " << line2 << std::endl;
             return false;
         }
         lineNumber++;
@@ -109,8 +117,6 @@ void regression_train(TagiNetworkCPU &net, auto &db) {
  * @param[in] db the database to test the network on
  */
 void regression_test(TagiNetworkCPU &net, auto &db) {
-    std::cout << "Testing...\n";
-
     // Number of data points
     int n_iter = db.num_data / net.prop.batch_size;
     int derivative_layer = 0;
@@ -283,6 +289,11 @@ void test_fnn_cpu() {
     net.nodes = NODES;
     net.activations = ACTIVATIONS;
     net.batch_size = BATCH_SIZE;
+    // net.sigma_v = 0.5;
+    // net.sigma_v_min = 0.065;
+    // net.init_method = "He";
+    // net.decay_factor_sigma_v = 0.95;
+    // net.sigma_x = 0.3485;
 
     TagiNetworkCPU tagi_net(net);
 
@@ -306,10 +317,18 @@ void test_fnn_cpu() {
         path.curr_path +
         "/test/fnn_bench/data/"
         "2023_01_26_forward_hidden_states_fnn_bench_Boston_housing.csv";
+    std::string forward_states_path_2 =
+        path.curr_path +
+        "/test/fnn_bench/data/"
+        "2023_01_26_forward_hidden_states_2_fnn_bench_Boston_housing.csv";
     std::string backward_states_path =
         path.curr_path +
         "/test/fnn_bench/data/"
         "2023_01_26_backward_hidden_states_fnn_bench_Boston_housing.csv";
+    std::string backward_states_path_2 =
+        path.curr_path +
+        "/test/fnn_bench/data/"
+        "2023_01_26_backward_hidden_states_2_fnn_bench_Boston_housing.csv";
 
     // Train data
     auto train_db = train_data("Boston_housing", tagi_net, data_path);
@@ -318,6 +337,7 @@ void test_fnn_cpu() {
 
     // Read the initial parameters (see tes_utils.cpp for more details)
     read_params(init_param_path, tagi_net.theta);
+    // write_params(init_param_path, tagi_net.theta);
 
     // Train the network
     regression_train(tagi_net, train_db);
@@ -336,23 +356,55 @@ void test_fnn_cpu() {
         write_backward_hidden_states(backward_states_path, tagi_net,
                                      net.layers.size() - 2);
     } else {
-        // Read optimal parameters for the initial ones
-        // Param optimal_theta;
-        // read_params(opt_param_path, optimal_theta);
-
+        // Write new parameters and compare
         write_params(opt_param_path_2, tagi_net.theta);
 
         // Compare optimal values with the ones we got
         if (compare_csv_files(opt_param_path, opt_param_path_2)) {
-            std::cout << "\033[1;32mTEST FOR FNN HAS PASSED\033[0m\n"
+            std::cout << "\033[1;32mTEST FOR FNN PARAMS HAS PASSED\033[0m\n"
                       << std::endl;
         } else {
-            std::cout << "\033[1;31mTEST FOR FNN HAS FAILED\033[0m\n"
+            std::cout << "\033[1;31mTEST FOR FNN PARAMS HAS FAILED\033[0m\n"
                       << std::endl;
         }
-
+        // Delete the new parameters
         if (remove(opt_param_path_2.c_str()) != 0)
             std::cout << "Error deleting " << opt_param_path_2 << std::endl;
+
+        // Write new backward hidden states and compare
+        write_forward_hidden_states(forward_states_path_2, tagi_net.state);
+
+        if (compare_csv_files(forward_states_path, forward_states_path_2))
+            std::cout << "\033[1;32mTEST FOR FNN FORWARD HIDDEN STATES HAS "
+                         "PASSED\033[0m\n"
+                      << std::endl;
+        else
+            std::cout << "\033[1;31mTEST FOR FNN FORWARD HIDDEN STATES HAS "
+                         "FAILED\033[0m\n"
+                      << std::endl;
+
+        // Delete the new forward hidden states
+        if (remove(forward_states_path_2.c_str()) != 0)
+            std::cout << "Error deleting " << forward_states_path_2
+                      << std::endl;
+
+        // Write new backward hidden states and compare
+        write_backward_hidden_states(backward_states_path_2, tagi_net,
+                                     net.layers.size() - 2);
+
+        if (compare_csv_files(backward_states_path, backward_states_path_2))
+            std::cout << "\033[1;32mTEST FOR FNN BACKWARD HIDDEN STATES HAS "
+                         "PASSED\033[0m\n"
+                      << std::endl;
+        else
+            std::cout << "\033[1;32mTEST FOR FNN BACKWARD HIDDEN STATES HAS "
+                         "FAILED\033[0m\n"
+                      << std::endl;
+
+        // Delete the new backward hidden states
+        if (remove(backward_states_path_2.c_str()) != 0)
+            std::cout << "Error deleting " << backward_states_path_2
+                      << std::endl;
     }
 
     std::cout << "\033[1;33mTEST FOR FNN HAS FINISHED\033[0m\n" << std::endl;

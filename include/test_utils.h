@@ -83,6 +83,7 @@ void read_params(std::string filename, T &theta) {
         return;
     }
 
+    /*
     theta.mw.clear();
     theta.Sw.clear();
     theta.mb.clear();
@@ -91,6 +92,7 @@ void read_params(std::string filename, T &theta) {
     theta.Sw_sc.clear();
     theta.mb_sc.clear();
     theta.Sb_sc.clear();
+    */
 
     std::string line;
     std::getline(file, line);
@@ -100,22 +102,18 @@ void read_params(std::string filename, T &theta) {
         std::string value;
         int column = 0;
         while (std::getline(iss, value, ',')) {
-            if (column == 0 && !value.empty())
-                theta.mw.push_back(std::stod(value));
-            if (column == 1 && !value.empty())
-                theta.Sw.push_back(std::stod(value));
-            if (column == 2 && !value.empty())
-                theta.mb.push_back(std::stod(value));
-            if (column == 3 && !value.empty())
-                theta.Sb.push_back(std::stod(value));
+            if (column == 0 && !value.empty()) theta.mw[row] = std::stod(value);
+            if (column == 1 && !value.empty()) theta.Sw[row] = std::stod(value);
+            if (column == 2 && !value.empty()) theta.mb[row] = std::stod(value);
+            if (column == 3 && !value.empty()) theta.Sb[row] = std::stod(value);
             if (column == 4 && !value.empty())
-                theta.mw_sc.push_back(std::stod(value));
+                theta.mw_sc[row] = std::stod(value);
             if (column == 5 && !value.empty())
-                theta.Sw_sc.push_back(std::stod(value));
+                theta.Sw_sc[row] = std::stod(value);
             if (column == 6 && !value.empty())
-                theta.mb_sc.push_back(std::stod(value));
+                theta.mb_sc[row] = std::stod(value);
             if (column == 7 && !value.empty())
-                theta.Sb_sc.push_back(std::stod(value));
+                theta.Sb_sc[row] = std::stod(value);
             column++;
         }
         row++;
@@ -225,7 +223,6 @@ void write_forward_hidden_states(std::string filename, T &net_state) {
 
     file.close();
 }
-
 template <typename T>
 void write_backward_hidden_states(std::string filename, T &tagi_net,
                                   int num_layers) {
@@ -237,6 +234,8 @@ void write_backward_hidden_states(std::string filename, T &tagi_net,
 
     int rows = 0;
     std::vector<std::vector<float>> mean, var;
+    mean.clear();
+    var.clear();
     for (int i = 0; i < num_layers; i++) {
         mean.push_back(std::get<0>(tagi_net.get_inovation_mean_var(i)));
         var.push_back(std::get<1>(tagi_net.get_inovation_mean_var(i)));
@@ -249,15 +248,16 @@ void write_backward_hidden_states(std::string filename, T &tagi_net,
 
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < num_layers; j++) {
-            if (j < mean[j].size())
+            if (i < mean[j].size())
                 file << mean[j][i] << ",";
             else
                 file << ",";
 
-            if (j < var[j].size())
-                file << var[j][i] << std::endl;
-            else
-                file << std::endl;
+            if (i < var[j].size() && j != num_layers - 1)
+                file << var[j][i] << ",";
+            else if (i < var[j].size() && j == num_layers - 1)
+                file << var[j][i];
         }
+        file << std::endl;
     }
 }
