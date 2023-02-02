@@ -45,6 +45,23 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
 __global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
                         float *Sa, float *Cza);
 
+__global__ void compute_y_check(float const *mu_z, float const *var_z,
+                                float const *mu_e_check,
+                                float const *var_e_check,
+                                float const *cov_z_e_check, int no, int B,
+                                int z_pos, float *mu_y_check,
+                                float *var_y_check);
+
+__global__ void compute_cov_y_y_check(float const *mu_z, float const *var_z,
+                                      float const *mu_e_check,
+                                      float const *var_e_check,
+                                      float const *cov_z_e_check, int no, int B,
+                                      int z_pos, float *cov_y_y_check);
+
+__global__ void compute_cov_z_y_check(float const *var_z,
+                                      float const *cov_z_e_check, int no, int B,
+                                      int z_pos, float *cov_z_y_check);
+
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf);
 

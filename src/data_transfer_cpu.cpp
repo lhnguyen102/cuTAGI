@@ -35,7 +35,12 @@ void DeltaStateSoftmax::reset_delta() {
 //////////////////////////////
 DeltaState::DeltaState() {}
 
-void DeltaState::set_values(int s, int sc, int dsc, int max_n_s) {
+void DeltaState::set_values(Network &net_prop) {
+    int s = net_prop.n_state;
+    int sc = net_prop.n_state_sc;
+    int dsc = net_prop.n_state_sc;
+    int max_n_s = net_prop.n_max_state;
+
     this->delta_mz.resize(max_n_s, 0);
     this->delta_Sz.resize(max_n_s, 0);
     this->delta_mdsc.resize(dsc, 0);
@@ -50,11 +55,11 @@ void DeltaState::set_values(int s, int sc, int dsc, int max_n_s) {
     this->delta_S.resize(s, 0);
     this->delta_mx.resize(dsc, 0);
     this->delta_Sx.resize(dsc, 0);
-    this->delta_state_softmax = DeltaStateSoftmax();
-}
 
-void DeltaState::set_softmax_delta(int n) {
-    this->delta_state_softmax.set_values(n);
+    if (net_prop.activations.back() == net_prop.act_names.cf_softmax) {
+        int n = net_prop.nodes.back() * net_prop.batch_size;
+        this->delta_state_softmax.set_values(n);
+    }
 }
 
 void DeltaState::reset_updated_values(int n) {

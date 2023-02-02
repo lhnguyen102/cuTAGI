@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February, 2023
+// Updated:      February 02, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -634,6 +634,11 @@ void StateGPU::allocate_cuda_memory() {
         this->lstm.allocate_cuda_memory();
     }
 
+    // Closed-form softmax
+    if (net.activations.back() == net.act_names.cf_softmax) {
+        this->cf_softmax.allocate_cuda_memory();
+    }
+
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -696,6 +701,11 @@ void StateGPU::copy_host_to_device() {
         this->lstm.copy_host_to_device();
     }
 
+    // Closed-form softmax
+    if (net.activations.back() == net.act_names.cf_softmax) {
+        this->cf_softmax.copy_host_to_device();
+    }
+
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -751,6 +761,11 @@ void StateGPU::copy_device_to_host() {
     // LSTM state
     if (this->lstm.n_state_bytes > 0) {
         this->lstm.copy_device_to_host();
+    }
+
+    // Closed-form softmax
+    if (net.activations.back() == net.act_names.cf_softmax) {
+        this->cf_softmax.copy_device_to_host();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -1156,9 +1171,39 @@ DeltaStateGPU::DeltaStateGPU() {
     this->d_delta_S = nullptr;
     this->d_delta_mx = nullptr;
     this->d_delta_Sx = nullptr;
+    this->d_delta_mu_y_check = nullptr;
+    this->d_delta_var_y_check = nullptr;
+    this->d_delta_mu_zy_check = nullptr;
+    this->d_delta_var_zy_check = nullptr;
 }
 
-void DeltaStateGPU::set_values(int s, int sc, int dsc, int max_n_s) {
+DeltaStateGPU::~DeltaStateGPU() {
+    cudaFree(d_delta_mz);
+    cudaFree(d_delta_Sz);
+    cudaFree(d_delta_mdsc);
+    cudaFree(d_delta_Sdsc);
+    cudaFree(d_delta_msc);
+    cudaFree(d_delta_Ssc);
+    cudaFree(d_delta_mzsc);
+    cudaFree(d_delta_Szsc);
+    cudaFree(d_dummy_m);
+    cudaFree(d_dummy_S);
+    cudaFree(d_delta_m);
+    cudaFree(d_delta_S);
+    cudaFree(d_delta_mx);
+    cudaFree(d_delta_Sx);
+    cudaFree(d_delta_mu_y_check);
+    cudaFree(d_delta_var_y_check);
+    cudaFree(d_delta_mu_zy_check);
+    cudaFree(d_delta_var_zy_check);
+}
+
+void DeltaStateGPU::set_values(Network &net_prop) {
+    int s = net_prop.n_state;
+    int sc = net_prop.n_state_sc;
+    int dsc = net_prop.n_state_sc;
+    int max_n_s = net_prop.n_max_state;
+
     this->delta_mz.resize(max_n_s, 0);
     this->delta_Sz.resize(max_n_s, 0);
     this->delta_mdsc.resize(dsc, 0);
@@ -1178,14 +1223,17 @@ void DeltaStateGPU::set_values(int s, int sc, int dsc, int max_n_s) {
     this->sc_bytes = sc * sizeof(float);
     this->dsc_bytes = dsc * sizeof(float);
     this->max_n_s_bytes = max_n_s * sizeof(float);
-}
 
-void DeltaStateGPU::set_delta_softmax(int n) {
-    this->delta_mu_y_check.resize(n, 0);
-    this->delta_var_y_check.resize(n, 0);
-    this->delta_mu_zy_check.resize(n, 0);
-    this->delta_var_zy_check.resize(n, 0);
-    this->softmax_bytes = n * sizeof(float);
+    if (net.activations.back() == net.act_names.cf_softmax) {
+        int n = net.nodes.back() * net.batch_size;
+        this->delta_mu_y_check.resize(n, 0);
+        this->delta_var_y_check.resize(n, 0);
+        this->delta_mu_zy_check.resize(n, 0);
+        this->delta_var_zy_check.resize(n, 0);
+        this->softmax_bytes = n * sizeof(float);
+    } else {
+        this->softmax_bytes = 0;
+    }
 }
 
 void DeltaStateGPU::allocate_cuda_memory() {
@@ -1284,6 +1332,17 @@ void DeltaStateGPU::copy_device_to_host() {
     cudaMemcpy(delta_S.data(), d_delta_S, s_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(delta_mx.data(), d_delta_mx, dsc_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(delta_Sx.data(), d_delta_Sx, dsc_bytes, cudaMemcpyDeviceToHost);
+    if (this->softmax_bytes > 0) {
+        cudaMemcpy(this->d_delta_mu_y_check.data(), this->d_delta_mu_y_check,
+                   this->softmax_bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(this->d_delta_var_y_check.data(), this->d_delta_var_y_check,
+                   this->softmax_bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(this->d_delta_mu_zy_check.data(), this->d_delta_mu_zy_check,
+                   this->softmax_bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(this->d_delta_var_zy_check.data(),
+                   this->d_delta_var_zy_check, this->softmax_bytes,
+                   cudaMemcpyDeviceToHost);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1292,23 +1351,6 @@ void DeltaStateGPU::copy_device_to_host() {
             "data_transfer.cu\n";
         std::cerr << error << ": " << err_msg;
     }
-}
-
-DeltaStateGPU::~DeltaStateGPU() {
-    cudaFree(d_delta_mz);
-    cudaFree(d_delta_Sz);
-    cudaFree(d_delta_mdsc);
-    cudaFree(d_delta_Sdsc);
-    cudaFree(d_delta_msc);
-    cudaFree(d_delta_Ssc);
-    cudaFree(d_delta_mzsc);
-    cudaFree(d_delta_Szsc);
-    cudaFree(d_dummy_m);
-    cudaFree(d_dummy_S);
-    cudaFree(d_delta_m);
-    cudaFree(d_delta_S);
-    cudaFree(d_delta_mx);
-    cudaFree(d_delta_Sx);
 }
 
 //////////////////////////////
