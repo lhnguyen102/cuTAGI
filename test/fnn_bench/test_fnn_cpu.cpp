@@ -13,7 +13,7 @@
 // Specific constant for the network
 const std::vector<int> LAYERS = {1, 1, 1, 1};
 const std::vector<int> NODES = {13, 30, 30, 1};
-const std::vector<int> ACTIVATIONS = {0, 7, 7, 0};
+const std::vector<int> ACTIVATIONS = {0, 4, 4, 0};
 const int BATCH_SIZE = 5;
 const int EPOCHS = 50;
 const bool NORMALIZE = true;
