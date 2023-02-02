@@ -154,27 +154,17 @@ __global__ void delta_z_y_check(float const *mu_a, float const *var_a,
     }
 }
 
-__global__ void delta_z_y_softmax(float const *mu_pred, float const *var_pred,
-                                  float const *cov_z_y, float const *y,
-                                  float const *var_noise, int no, int B,
-                                  int z_pos, float *delta_mu_z,
-                                  float *delta_var_z)
-/*Compute updating quantities for \check{y}*/
+__global__ void delta_z_softmax(float const *cov_z_y_check,
+                                float const *delta_mu, float const *delta_var,
+                                int no, int B, float *delta_mu_z,
+                                float *delta_var_z)
+/*Compute updating quantities for hidden states for the softmax layer*/
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    float tmp, zero_pad = 0;
-    int idx;
-    if (row < B && col < no) {
-        idx = row * no + col;
-        tmp = cov_z_y[idx] / (var_pred[idx + z_pos] + var_noise[idx]);
-        if (isinf(tmp) || isnan(tmp)) {
-            delta_mu_z[idx] = zero_pad;
-            delta_var_z[idx] = zero_pad;
-        } else {
-            delta_mu_z[idx] = tmp * (y[idx] - mu_pred[idx + z_pos]);
-            delta_var_z[idx] = -tmp * cov_z_y[idx];
-        }
+    if (col < no * B) {
+        delta_mu_z[col] = cov_z_y_check[col] * delta_mu[col];
+        delta_var_z[col] =
+            cov_z_y_check[col] * delta_var[col] * cov_z_y_check[col];
     }
 }
 
@@ -1548,6 +1538,56 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
     }
 }
 
+void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state_gpu,
+                               DeltaStateGPU &d_state) {
+    int no = net.nodes.back();
+    int B = net.batch_size;
+    int z_pos = net.z_pos.back();
+    int THREADS = net.num_gpu_threads;
+    int BLOCKS = (no * B + THREADS - 1) / THREADS;
+    dim3 dim_block(THREADS, THREADS);
+
+    // Covariance between observation y and prediciton\check{y} i.e., in
+    // log-space. TODO: Double check on cov_z_e_check
+    unsigned int grid_row = (B + THREADS - 1) / THREADS;
+    unsigned int grid_col = (no + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+    compute_cov_y_y_check<<<dim_grid, dim_block>>>(
+        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
+        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
+        z_pos, state.cf_softmax.cov_y_y_check);
+
+    // Covariance between z and \check{y}
+    compute_cov_z_y_check<<<dim_grid, dim_block>>>(
+        state.d_Sz, state.d_cov_z_e_check, no, B, z_pos, state.d_cov_z_y_check);
+
+    // Compute mean and variance for \check{y}
+    compute_y_check<<<dim_grid, dim_block>>>(
+        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
+        state.cf_softmax.d_var_e_check, state.d_cov_z_e_check, no, B, z_pos,
+        state.cf_softmax.d_mu_y_check, state.cf_softmax.d_var_y_check);
+
+    // Updating quantities for \check{y}
+    delta_z_y_check<<<dim_grid, dim_block>>>(
+        state.d_ma, state.d_Sa, state.cf_softmax.d_cov_y_y_check, obs.d_y_batch,
+        obs.d_V_batch, no, B, z_pos, d_state.d_delta_mu_zy_check,
+        d_state.d_delta_mu_zy_check);
+
+    // Inovation vector for \check{y}
+    inovationMean<<<BLOCKS, THREADS>>>(
+        state.cf_softmax.d_var_y_check, d_state.d_delta_mu_zy_check,
+        d_state.d_delta_mu_y_check, 0, 0, no * B);
+    inovationVar<<<BLOCKS, THREADS>>>(
+        state.cf_softmax.d_var_y_check, d_state.d_delta_var_zy_check,
+        d_state.d_delta_var_y_check, 0, 0, no * B);
+
+    // Updating quantities for hidden states
+    delta_z_softmax<<<BLOCKS, THREADS>>>(
+        state.cf_softmax.d_cov_z_y_check, d_state.d_delta_mu_y_check,
+        d_state.d_delta_var_y_check, no, B, d_state.d_delta_mz,
+        d_state.d_delta_Sz);
+}
+
 void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
                                  DeltaStateGPU &d_state)
 /*Compute updated quantities for the output layer's hidden state
@@ -1561,8 +1601,11 @@ void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
 {
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
-            net.noise_type.compare("heteros") != 0) {
+            net.noise_type.compare("heteros") != 0 &&
+            (net.activations.back() != net.act_names.cf_softmax)) {
             output_delta_mz_Sz(obs, net, state, d_state);
+        } else if (net.activations.back() == net.act_names.cf_softmax) {
+            softmax_output_delta_z_v2(obs, net, state, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inference(obs, net, state, d_state);
         }

@@ -40,11 +40,9 @@ class DeltaState {
     DeltaStateSoftmax delta_state_softmax;
 
     DeltaState();
-    void set_values(int s, int sc, int dsc, int max_n_s);
-    void set_softmax_delta(int n);
-    void reset_updated_values(int n);
-
     ~DeltaState();
+    void set_values(Network &net_prop);
+    void reset_updated_values(int n);
 };
 
 //////////////////////////////

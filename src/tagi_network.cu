@@ -307,9 +307,7 @@ void TagiNetwork::init_net() {
     this->theta_gpu.copy_host_to_device();
 
     // Send delta state to device
-    this->d_state_gpu.set_values(this->prop.n_state, this->state.msc.size(),
-                                 this->state.mdsc.size(),
-                                 this->prop.n_max_state);
+    this->d_state_gpu.set_values(this->prop);
     this->d_state_gpu.allocate_cuda_memory();
     this->d_state_gpu.copy_host_to_device();
 

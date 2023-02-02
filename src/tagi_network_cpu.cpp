@@ -82,13 +82,7 @@ void TagiNetworkCPU::init_net() {
     this->state = initialize_net_states(this->prop);
 
     // Update quantities
-    this->d_state.set_values(this->prop.n_state, this->state.msc.size(),
-                             this->state.mdsc.size(), this->prop.n_max_state);
-    // TODO: Find a better way to handle softmax's updating quantities
-    if (this->prop.activations.back() == this->prop.act_names.cf_softmax) {
-        this->d_state.set_softmax_delta(this->prop.nodes.back() *
-                                        this->prop.batch_size);
-    }
+    this->d_state.set_values(this->prop);
     this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
                              this->theta.mw_sc.size(),
                              this->theta.mb_sc.size());

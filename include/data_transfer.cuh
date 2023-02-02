@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 01, 2023
+// Updated:      February 02, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -160,8 +160,7 @@ class DeltaStateGPU {
         *d_delta_var_zy_check;
 
     DeltaStateGPU();
-    void set_values(int s, int sc, int dsc, int max_n_s);
-    void set_delta_softmax(int n);
+    void set_values(Network &net_prop);
     void allocate_cuda_memory();
     void copy_host_to_device();
     void copy_device_to_host();
