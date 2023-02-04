@@ -3,7 +3,7 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      February, 2023
+// Updated:      February 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +61,9 @@ __global__ void compute_cov_y_y_check(float const *mu_z, float const *var_z,
 __global__ void compute_cov_z_y_check(float const *var_z,
                                       float const *cov_z_e_check, int no, int B,
                                       int z_pos, float *cov_z_y_check);
+
+__global__ void compute_cov_z_y(float const *mu_a, float const *cov_z_y_check,
+                                int no, int B, int z_pos, float *cov_z_y);
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf);

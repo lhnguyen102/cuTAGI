@@ -214,6 +214,35 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
     }
 }
 
+__global__ void stable_softmax(float const *mu_z, float *var_z, int no, int B,
+                               z_pos, float *mu_a, float *J, float *var_a) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= B) return;
+    float max_mu = mu_z[0];
+    float max_var = va_z[0];
+    for (int j = 1; j < no; j++) {
+        if (mu_z[j + i * no + z_pos] > max_mu) {
+            max_mu = mu_z[j + i * no + z_pos];
+            max_var = var_z[j + i * no + z_pos]
+        }
+    }
+
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    for (int j = 0; j < no; j++) {
+        sum += expf(mu_z[j + i * no + z_pos] - max_mu);
+    }
+    float tmp_mu;
+    for (int j = 0; j < no; j++) {
+        tmp_mu = expf(mu_z[j + no * i + z_pos] - max_mu) / sum;
+        mu_a[j + i * no + z_pos] = tmp_mu;
+        J[j + no * i + z_pos] = tmp_mu * (1 - tmp_mu);
+        Sa[j + no * i + z_pos] = J[j + no * i + z_pos] *
+                                 (Sz[j + no * i + z_pos] + max_var) *
+                                 J[j + no * i + z_pos];
+    }
+}
+
 __global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
                         float *Sa, float *Cza) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -409,6 +438,13 @@ __global__ void compute_cov_z_y_check(float const *var_z,
         cov_z_y_check[row * no + col] =
             var_z[z_pos + row * no + col] - cov_z_e_check[row * no + col];
     }
+}
+
+__global__ void compute_cov_z_y(float const *mu_a, float const *cov_z_y_check,
+                                int no, int B, int z_pos, float *cov_z_y) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < no * B) return;
+    cov_z_y[col] = mu_a[col + z_pos] * cov_z_y_check[col];
 }
 
 void closed_form_softmax(Network &net, StateGPU &state, int l)

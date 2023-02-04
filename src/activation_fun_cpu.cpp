@@ -436,6 +436,14 @@ void compute_cov_z_y_check_cpu(std::vector<float> &var_z,
     }
 }
 
+void compute_cov_z_y_cpu(std::vector<float> &mu_a,
+                         std::vector<float> &cov_z_y_check, int no, int B,
+                         int z_pos, std::vector<float> &cov_z_y) {
+    for (int i = 0; i < no * B; i++) {
+        cov_z_y[i] = mu_a[i + z_pos] * cov_z_y_check[i];
+    }
+}
+
 void closed_form_softmax_cpu(Network &net, NetState &state, int l)
 /*Closed-form softmax function*/
 {

@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 02, 2023
+// Updated:      February 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,6 +25,7 @@ CfSoftmaxGPU::CfSoftmaxGPU() {
     this->d_cov_z_e_check = nullptr;
     this->d_cov_y_y_check = nullptr;
     this->d_cov_z_y_check = nullptr;
+    this->d_cov_z_y = nullptr;
     this->d_mu_y_check = nullptr;
     this->d_var_y_check = nullptr;
 }
@@ -41,6 +42,7 @@ void CfSoftmax::~CfSoftmaxGPU() {
     cudaFree(d_cov_z_e_check);
     cudaFree(d_cov_y_y_check);
     cudaFree(d_cov_z_y_check);
+    cudaFree(d_cov_z_y);
     cudaFree(d_mu_y_check);
     cudaFree(d_var_y_check);
 }
@@ -62,6 +64,7 @@ void CfSoftmax::allocate_cuda_memory() {
     cudaMalloc(&this->d_cov_z_e_check, this->n_state_bytes);
     cudaMalloc(&this->d_cov_y_y_check, this->n_state_bytes);
     cudaMalloc(&this->d_cov_y_e_check, this->n_state_bytes);
+    cudaMalloc(&this->d_cov_z_y, this->n_state_bytes);
     cudaMalloc(&this->d_mu_y_check, this->n_state_bytes);
     cudaMalloc(&this->d_var_y_check, this->n_state_bytes);
 }
@@ -93,6 +96,8 @@ void CfSoftmax::copy_host_to_device() {
     cudaMemcpy(&this->d_cov_y_e_check,
                this->cf_softmax_cpu.cov_y_e_check.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
+    cudaMemcpy(&this->d_cov_z_y, this->cf_softmax_cpu.cov_z_y.data(),
+               this->n_state_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(&this->d_mu_y_check, this->cf_softmax_cpu.mu_y_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(&this->d_var_y_check, this->cf_softmax_cpu.var_y_check.data(),
@@ -121,6 +126,8 @@ void CfSoftmax::copy_device_to_host() {
     cudaMemcpy(this->cf_softmax_cpu.cov_y_y_check.data(), this->d_cov_y_y_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(this->cf_softmax_cpu.cov_y_e_check.data(), this->d_cov_y_e_check,
+               this->n_state_bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cf_softmax_cpu.cov_z_y.data(), this->d_cov_z_y,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(this->cf_softmax_cpu.mu_y_check.data(), this->d_mu_y_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);

@@ -168,20 +168,6 @@ __global__ void delta_z_softmax(float const *cov_z_y_check,
     }
 }
 
-__global__ void delta_z_softmax(float const *cov_z_y_check,
-                                float const *delta_mu, float const *delta_var,
-                                int no, int B, float *delta_mu_z,
-                                float *delta_var_z)
-/*Compute updating quantities for hidden states for the softmax layer*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < no * B) {
-        delta_mu_z[col] = cov_z_y_check[col] * delta_mu[col];
-        delta_var_z[col] =
-            cov_z_y_check[col] * delta_var[col] * cov_z_y_check[col];
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 /// FULL-CONNECTED
 ////////////////////////////////////////////////////////////////////////////////
@@ -1536,6 +1522,33 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
             d_state.d_delta_Sz, net.z_pos.back(), net.nodes.back(), net.nye,
             nl);
     }
+}
+
+void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state_gpu,
+                            DeltaStateGPU &d_state) {
+    int no = net.nodes.back();
+    int B = net.batch_size;
+    int z_pos = net.z_pos.back();
+    int THREADS = net.num_gpu_threads;
+    int BLOCKS = (no * B + THREADS - 1) / THREADS;
+    dim3 dim_block(THREADS, THREADS);
+
+    // Covariance between z and \check{y}
+    unsigned int grid_row = (B + THREADS - 1) / THREADS;
+    unsigned int grid_col = (no + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+    compute_cov_z_y_check<<<dim_grid, dim_block>>>(
+        state.d_Sz, state.d_cov_z_e_check, no, B, z_pos, state.d_cov_z_y_check);
+
+    // Covariance between z and y
+    compute_cov_z_y<<<BLOCKS, THREADS>>>(state.d_ma,
+                                         state.cf_softmax.d_cov_z_y_check, no,
+                                         B, z_pos, state.cf_softmax.d_cov_z_y);
+
+    // Updating quantities for hidden states
+    delta_z_y_check<<<dim_grid, dim_block>>>(
+        state.d_ma, state.d_Sa, state.cf_softmax.d_cov_z_y, obs.d_y_batch,
+        obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
 }
 
 void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state_gpu,
