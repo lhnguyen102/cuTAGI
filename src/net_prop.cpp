@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      January 26, 2023
+// Updated:      February 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -929,6 +929,7 @@ NetState initialize_net_states(Network &net_prop) {
         state.cf_softmax.cov_z_e_check.resize(n_output, 0);
         state.cf_softmax.cov_y_y_check.resize(n_output, 0);
         state.cf_softmax.cov_z_y_check.resize(n_output, 0);
+        state.cf_softmax.cov_z_y.resize(n_output, 0);
         state.cf_softmax.mu_y_check.resize(n_output, 0);
         state.cf_softmax.var_y_check.resize(n_output, 0);
     }

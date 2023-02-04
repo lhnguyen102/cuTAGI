@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 02, 2023
+// Updated:      February 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -27,7 +27,8 @@ class CfSoftmaxGPU {
     size_t n_state_bytes;
     float d_mu_e, *d_var_e, *d_mu_e_tilde, *d_var_e_tilde, *d_mu_e_check,
         *d_var_e_check, *d_rho_e_e_tilde, *d_cov_z_e, *d_cov_z_e_check,
-        *d_cov_y_y_check, *d_cov_z_y_check, *d_mu_y_check, *d_var_y_check;
+        *d_cov_y_y_check, *d_cov_z_y_check, *d_cov_z_y, *d_mu_y_check,
+        *d_var_y_check;
     CfSoftmax *cf_softmax;
     CfSoftmaxGPU();
     ~CfSoftmaxGPU();

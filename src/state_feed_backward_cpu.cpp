@@ -960,17 +960,14 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     compute_cov_z_y_check_cpu(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
                               z_pos, state.cf_softmax.cov_z_y_check);
 
-    // Compute mean and variance for \check{y}
-    compute_y_check_cpu(
-        state.mz, state.Sz, state.cf_softmax.mu_e_check,
-        state.cf_softmax.var_e_check, state.cf_softmax.cov_z_e_check, no, B,
-        z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
+    // Covariance between z and y
+    compute_cov_z_y_cpu(state.ma, state.cf_softmax.cov_z_y_check, no, B, z_pos,
+                        state.cf_softmax.cov_z_y);
 
-    // Convert probability observation in log space
-    delta_z_softmax_from_y_check_cpu(
-        state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check,
-        state.cf_softmax.cov_z_y_check, obs.y_batch, obs.V_batch, no, B,
-        d_state.delta_mz, d_state.delta_Sz);
+    // Updating quantities for hidden states
+    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
+                        obs.y_batch, obs.V_batch, no, B, z_pos,
+                        d_state.delta_mz, d_state.delta_Sz);
 }
 
 void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
