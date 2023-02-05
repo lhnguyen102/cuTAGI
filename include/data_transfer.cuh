@@ -25,11 +25,11 @@
 class CfSoftmaxGPU {
    public:
     size_t n_state_bytes;
-    float d_mu_e, *d_var_e, *d_mu_e_tilde, *d_var_e_tilde, *d_mu_e_check,
+    float *d_mu_e, *d_var_e, *d_mu_e_tilde, *d_var_e_tilde, *d_mu_e_check,
         *d_var_e_check, *d_rho_e_e_tilde, *d_cov_z_e, *d_cov_z_e_check,
-        *d_cov_y_y_check, *d_cov_z_y_check, *d_cov_z_y, *d_mu_y_check,
-        *d_var_y_check;
-    CfSoftmax *cf_softmax;
+        *d_cov_y_y_check, *d_cov_z_y_check, *d_cov_y_e_check, *d_cov_z_y,
+        *d_mu_y_check, *d_var_y_check;
+    CfSoftmax *cf_softmax_cpu;
     CfSoftmaxGPU();
     ~CfSoftmaxGPU();
     void set_values(CfSoftmax &_cf_softmax);

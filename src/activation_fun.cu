@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      January 29, 2023
+// Updated:      February 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,31 +215,31 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
 }
 
 __global__ void stable_softmax(float const *mu_z, float *var_z, int no, int B,
-                               z_pos, float *mu_a, float *J, float *var_a) {
+                               int z_pos, float *mu_a, float *J, float *var_a) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= B) return;
     float max_mu = mu_z[0];
-    float max_var = va_z[0];
+    float max_var = var_z[0];
     for (int j = 1; j < no; j++) {
         if (mu_z[j + i * no + z_pos] > max_mu) {
             max_mu = mu_z[j + i * no + z_pos];
-            max_var = var_z[j + i * no + z_pos]
+            max_var = var_z[j + i * no + z_pos];
         }
     }
 
     float sum_mu = 0.0f;
     float sum_var = 0.0f;
     for (int j = 0; j < no; j++) {
-        sum += expf(mu_z[j + i * no + z_pos] - max_mu);
+        sum_mu += expf(mu_z[j + i * no + z_pos] - max_mu);
     }
     float tmp_mu;
     for (int j = 0; j < no; j++) {
-        tmp_mu = expf(mu_z[j + no * i + z_pos] - max_mu) / sum;
+        tmp_mu = expf(mu_z[j + no * i + z_pos] - max_mu) / sum_mu;
         mu_a[j + i * no + z_pos] = tmp_mu;
         J[j + no * i + z_pos] = tmp_mu * (1 - tmp_mu);
-        Sa[j + no * i + z_pos] = J[j + no * i + z_pos] *
-                                 (Sz[j + no * i + z_pos] + max_var) *
-                                 J[j + no * i + z_pos];
+        var_a[j + no * i + z_pos] = J[j + no * i + z_pos] *
+                                    (var_z[j + no * i + z_pos] + max_var) *
+                                    J[j + no * i + z_pos];
     }
 }
 
@@ -273,11 +273,11 @@ Args:
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp_mu, tmp_var;
     if (col < no * B) {
-        tmp_m = mu_z[col + z_pos];
+        tmp_mu = mu_z[col + z_pos];
         tmp_var = var_z[col + z_pos];
         mu_e[col] = expf(mu_z[col + z_pos] + 0.5 * var_z[col + z_pos]);
-        var_e[col] = expf(2 * tmp_m + tmp_S) * (expf(tmp_S) - 1);
-        cov_e_z[col] = tmp_S * expf(tmp_m + 0.5 * tmp_S);
+        var_e[col] = expf(2 * tmp_mu + tmp_var) * (expf(tmp_var) - 1);
+        cov_e_z[col] = tmp_var * expf(tmp_mu + 0.5 * tmp_var);
     }
 }
 
@@ -419,8 +419,8 @@ where \hat{y} = exp(\check{y}).
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     float tmp_mu, tmp_var;
     if (row < B && col < no) {
-        tmp_mu = mu_z[z_pos + row * no + col] - me_check[row];
-        tmp_var = vz[z_pos + row * no + col] + ve_check[row] -
+        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
+        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
                   2 * cov_z_e_check[row * no + col];
         cov_y_y_check[row * no + col] = expf(tmp_mu + 0.5 * tmp_var) * tmp_var;
     }
@@ -475,7 +475,7 @@ void closed_form_softmax(Network &net, StateGPU &state, int l)
     compute_cov_coeff_e_e_tilde<<<dim_grid, dim_block>>>(
         state.cf_softmax.d_var_e_tilde, state.d_Sz, no, B, z_pos,
         state.cf_softmax.d_mu_e, state.cf_softmax.d_var_e,
-        state.cf_softmax.rho_e_e_tilde);
+        state.cf_softmax.d_rho_e_e_tilde);
 
     // Transform sum(exp(z)) in log space
     compute_log_sum_exp<<<batch_blocks, THREADS>>>(
