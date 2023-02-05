@@ -25,52 +25,54 @@ void compute_net_memory(Network &net, size_t &id_bytes, size_t &od_bytes,
     max_n_s_bytes = net.n_max_state * sizeof(float);
 }
 
-void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
-                                  Param &theta, IndexGPU &idx_gpu,
-                                  StateGPU &state_gpu, ParamGPU &theta_gpu,
-                                  DeltaStateGPU &d_state_gpu,
-                                  DeltaParamGPU &d_theta_gpu)
-/*Send network's data to device
+// void initialize_network_to_device(Network &net, IndexOut &idx, NetState
+// &state,
+//                                   Param &theta, IndexGPU &idx_gpu,
+//                                   StateGPU &state_gpu, ParamGPU &theta_gpu,
+//                                   DeltaStateGPU &d_state_gpu,
+//                                   DeltaParamGPU &d_theta_gpu)
+// /*Send network's data to device
 
-Args:
-    net: Network properties on CPU
-    idx: Indices of network on CPU
-    state: Hidden states of network on CPU
-    theta: Parameters of network on CPU
-    idx_gpu: Indices of network on GPU
-    state_gpu: Hidden states of network on GPU
-    theta_gpu: Parameters of network on GPU
-    d_state_gpu: Updated quantities for hidden states on GPU
-    d_theta_gpu: Updated quantites for parameters on GPU
-*/
-{
-    // Data transfer for indices
-    idx_gpu.set_values(idx);
-    idx_gpu.allocate_cuda_memory();
-    idx_gpu.copy_host_to_device(idx);
+// Args:
+//     net: Network properties on CPU
+//     idx: Indices of network on CPU
+//     state: Hidden states of network on CPU
+//     theta: Parameters of network on CPU
+//     idx_gpu: Indices of network on GPU
+//     state_gpu: Hidden states of network on GPU
+//     theta_gpu: Parameters of network on GPU
+//     d_state_gpu: Updated quantities for hidden states on GPU
+//     d_theta_gpu: Updated quantites for parameters on GPU
+// */
+// {
+//     // Data transfer for indices
+//     idx_gpu.set_values(idx);
+//     idx_gpu.allocate_cuda_memory();
+//     idx_gpu.copy_host_to_device(idx);
 
-    // Data transfer for states
-    state_gpu.set_values(state, net);
-    state_gpu.allocate_cuda_memory();
-    state_gpu.copy_host_to_device();
+//     // Data transfer for states
+//     state_gpu.set_values(state, net);
+//     state_gpu.allocate_cuda_memory();
+//     state_gpu.copy_host_to_device();
 
-    // Data transfer for parameters
-    theta_gpu.set_values(theta);
-    theta_gpu.allocate_cuda_memory();
-    theta_gpu.copy_host_to_device();
+//     // Data transfer for parameters
+//     theta_gpu.set_values(theta);
+//     theta_gpu.allocate_cuda_memory();
+//     theta_gpu.copy_host_to_device();
 
-    // Data transfer for delta state
-    d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
-                           net.n_max_state);
-    d_state_gpu.allocate_cuda_memory();
-    d_state_gpu.copy_host_to_device();
+//     // Data transfer for delta state
+//     d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
+//                            net.n_max_state);
+//     d_state_gpu.allocate_cuda_memory();
+//     d_state_gpu.copy_host_to_device();
 
-    // Data transfer for delta parameters
-    d_theta_gpu.set_values(theta.mw.size(), theta.mb.size(), theta.mw_sc.size(),
-                           theta.mb_sc.size());
-    d_theta_gpu.allocate_cuda_memory();
-    d_theta_gpu.copy_host_to_device();
-}
+//     // Data transfer for delta parameters
+//     d_theta_gpu.set_values(theta.mw.size(), theta.mb.size(),
+//     theta.mw_sc.size(),
+//                            theta.mb_sc.size());
+//     d_theta_gpu.allocate_cuda_memory();
+//     d_theta_gpu.copy_host_to_device();
+// }
 
 ///////////////////////////////////////////////////////////////////////
 // AUTOENCODER
@@ -874,22 +876,21 @@ void task_command(UserInput &user_input, SavePath &path) {
         // Initialize network
         load_cfg(net_file_ext, net_prop);
         net_prop.device = user_input.device;
-        bool is_one_hot = true;
         if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
             net_prop.is_idx_ud = true;
         }
-        TagiNetworkCPU tagi_net(net_prop);
+        TagiNetwork net(net_prop);
 
         // Data
         auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
                                user_input.y_train_dir, user_input.mu,
                                user_input.sigma, user_input.num_train_data,
-                               user_input.num_classes, tagi_net.prop);
+                               user_input.num_classes, net.prop);
 
         auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
                                     user_input.y_test_dir, user_input.mu,
                                     user_input.sigma, user_input.num_test_data,
-                                    user_input.num_classes, tagi_net.prop);
+                                    user_input.num_classes, net.prop);
 
         // Load param
         if (user_input.load_param) {

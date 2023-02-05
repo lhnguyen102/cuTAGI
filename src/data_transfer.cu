@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 04, 2023
+// Updated:      February 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -71,68 +71,71 @@ void CfSoftmaxGPU::allocate_cuda_memory() {
 }
 
 void CfSoftmaxGPU::copy_host_to_device() {
-    cudaMemcpy(&this->d_mu_e, this->cf_softmax_cpu.mu_e.data(),
+    cudaMemcpy(&this->d_mu_e, this->cf_softmax_cpu->mu_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e, this->cf_softmax_cpu.var_e.data(),
+    cudaMemcpy(&this->d_var_e, this->cf_softmax_cpu->var_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_e_tilde, this->cf_softmax_cpu.mu_e_tilde.data(),
+    cudaMemcpy(&this->d_mu_e_tilde, this->cf_softmax_cpu->mu_e_tilde.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e_tilde, this->cf_softmax_cpu.var_e_tilde.data(),
+    cudaMemcpy(&this->d_var_e_tilde, this->cf_softmax_cpu->var_e_tilde.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_e_check, this->cf_softmax_cpu.mu_e_check.data(),
+    cudaMemcpy(&this->d_mu_e_check, this->cf_softmax_cpu->mu_e_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e_check, this->cf_softmax_cpu.var_e_check.data(),
+    cudaMemcpy(&this->d_var_e_check, this->cf_softmax_cpu->var_e_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(&this->d_rho_e_e_tilde,
-               this->cf_softmax_cpu.rho_e_e_tilde.data(), this->n_state_bytes,
+               this->cf_softmax_cpu->rho_e_e_tilde.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_e, this->cf_softmax_cpu.cov_z_e.data(),
+    cudaMemcpy(&this->d_cov_z_e, this->cf_softmax_cpu->cov_z_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(&this->d_cov_z_e_check,
-               this->cf_softmax_cpu.cov_z_e_check.data(), this->n_state_bytes,
+               this->cf_softmax_cpu->cov_z_e_check.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_y_y_check,
-               this->cf_softmax_cpu.cov_y_y_check.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_y_e_check,
-               this->cf_softmax_cpu.cov_y_e_check.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_y, this->cf_softmax_cpu.cov_z_y.data(),
+    cudaMemcpy(&this->d_cov_y_y_check, this->cf_softmax_cpu->mu_e_tilde.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_y_check, this->cf_softmax_cpu.mu_y_check.data(),
+    cudaMemcpy(&this->d_cov_z_y_check,
+               this->cf_softmax_cpu->cov_z_y_check.data(), this->n_state_bytes,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(&this->d_cov_z_y, this->cf_softmax_cpu->cov_z_y.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_y_check, this->cf_softmax_cpu.var_y_check.data(),
+    cudaMemcpy(&this->d_mu_y_check, this->cf_softmax_cpu->mu_y_check.data(),
+               this->n_state_bytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(&this->d_var_y_check, this->cf_softmax_cpu->var_y_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
 }
 
 void CfSoftmaxGPU::copy_device_to_host() {
-    cudaMemcpy(this->cf_softmax_cpu.mu_e.data(), this->d_mu_e, n_state_bytes,
+    cudaMemcpy(this->cf_softmax_cpu->mu_e.data(), this->d_mu_e, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.var_e.data(), this->d_var_e, n_state_bytes,
+    cudaMemcpy(this->cf_softmax_cpu->var_e.data(), this->d_var_e, n_state_bytes,
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.mu_e_tilde.data(), this->d_mu_e_tilde,
+    cudaMemcpy(this->cf_softmax_cpu->mu_e_tilde.data(), this->d_mu_e_tilde,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.var_e_tilde.data(), this->d_var_e_tilde,
+    cudaMemcpy(this->cf_softmax_cpu->var_e_tilde.data(), this->d_var_e_tilde,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.mu_e_check.data(), this->d_mu_e_check,
+    cudaMemcpy(this->cf_softmax_cpu->mu_e_check.data(), this->d_mu_e_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.var_e_check.data(), this->d_var_e_check,
+    cudaMemcpy(this->cf_softmax_cpu->var_e_check.data(), this->d_var_e_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.rho_e_e_tilde.data(), this->d_rho_e_e_tilde,
+    cudaMemcpy(this->cf_softmax_cpu->rho_e_e_tilde.data(),
+               this->d_rho_e_e_tilde, this->n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cf_softmax_cpu->cov_z_e.data(), this->d_cov_z_e,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.cov_z_e.data(), this->d_cov_z_e,
+    cudaMemcpy(this->cf_softmax_cpu->cov_z_e_check.data(),
+               this->d_cov_z_e_check, this->n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cf_softmax_cpu->cov_y_y_check.data(),
+               this->d_cov_y_y_check, this->n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cf_softmax_cpu->cov_z_y_check.data(),
+               this->d_cov_z_y_check, this->n_state_bytes,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cf_softmax_cpu->cov_z_y.data(), this->d_cov_z_y,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.cov_z_e_check.data(), this->d_cov_z_e_check,
+    cudaMemcpy(this->cf_softmax_cpu->mu_y_check.data(), this->d_mu_y_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.cov_y_y_check.data(), this->d_cov_y_y_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.cov_y_e_check.data(), this->d_cov_y_e_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.cov_z_y.data(), this->d_cov_z_y,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.mu_y_check.data(), this->d_mu_y_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu.var_y_check.data(), this->d_var_y_check,
+    cudaMemcpy(this->cf_softmax_cpu->var_y_check.data(), this->d_var_y_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
 }
 
@@ -643,7 +646,7 @@ void StateGPU::allocate_cuda_memory() {
     }
 
     // Closed-form softmax
-    if (net.activations.back() == net.act_names.cf_softmax) {
+    if (this->cf_softmax.n_state_bytes > 0) {
         this->cf_softmax.allocate_cuda_memory();
     }
 
@@ -710,7 +713,7 @@ void StateGPU::copy_host_to_device() {
     }
 
     // Closed-form softmax
-    if (net.activations.back() == net.act_names.cf_softmax) {
+    if (this->cf_softmax.n_state_bytes > 0) {
         this->cf_softmax.copy_host_to_device();
     }
 
@@ -772,7 +775,7 @@ void StateGPU::copy_device_to_host() {
     }
 
     // Closed-form softmax
-    if (net.activations.back() == net.act_names.cf_softmax) {
+    if (this->cf_softmax.n_state_bytes > 0) {
         this->cf_softmax.copy_device_to_host();
     }
 
@@ -1232,8 +1235,8 @@ void DeltaStateGPU::set_values(Network &net_prop) {
     this->dsc_bytes = dsc * sizeof(float);
     this->max_n_s_bytes = max_n_s * sizeof(float);
 
-    if (net.activations.back() == net.act_names.cf_softmax) {
-        int n = net.nodes.back() * net.batch_size;
+    if (net_prop.activations.back() == net_prop.act_names.cf_softmax) {
+        int n = net_prop.nodes.back() * net_prop.batch_size;
         this->delta_mu_y_check.resize(n, 0);
         this->delta_var_y_check.resize(n, 0);
         this->delta_mu_zy_check.resize(n, 0);
@@ -1261,10 +1264,10 @@ void DeltaStateGPU::allocate_cuda_memory() {
     cudaMalloc(&d_delta_Sx, dsc_bytes);
 
     if (this->softmax_bytes > 0) {
-        cudaMalloc(&this->delta_mu_y_check, this->softmax_bytes);
-        cudaMalloc(&this->delta_var_y_check, this->softmax_bytes);
-        cudaMalloc(&this->delta_mu_zy_check, this->softmax_bytes);
-        cudaMalloc(&this->delta_var_zy_check, this->softmax_bytes);
+        cudaMalloc(&this->d_delta_mu_y_check, this->softmax_bytes);
+        cudaMalloc(&this->d_delta_var_y_check, this->softmax_bytes);
+        cudaMalloc(&this->d_delta_mu_zy_check, this->softmax_bytes);
+        cudaMalloc(&this->d_delta_var_zy_check, this->softmax_bytes);
     }
 
     cudaError_t error = cudaGetLastError();
@@ -1300,15 +1303,14 @@ void DeltaStateGPU::copy_host_to_device() {
     cudaMemcpy(d_delta_Sx, delta_Sx.data(), dsc_bytes, cudaMemcpyHostToDevice);
 
     if (this->softmax_bytes > 0) {
-        cudaMemcpy(this->d_delta_mu_y_check, this->d_delta_mu_y_check.data(),
+        cudaMemcpy(this->d_delta_mu_y_check, this->delta_mu_y_check.data(),
                    this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_var_y_check, this->d_delta_var_y_check.data(),
+        cudaMemcpy(this->d_delta_var_y_check, this->delta_var_y_check.data(),
                    this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_mu_zy_check, this->d_delta_mu_zy_check.data(),
+        cudaMemcpy(this->d_delta_mu_zy_check, this->delta_mu_zy_check.data(),
                    this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_var_zy_check,
-                   this->d_delta_var_zy_check.data(), this->softmax_bytes,
-                   cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_var_zy_check, this->delta_var_zy_check.data(),
+                   this->softmax_bytes, cudaMemcpyHostToDevice);
     }
 
     cudaError_t error = cudaGetLastError();
@@ -1341,15 +1343,14 @@ void DeltaStateGPU::copy_device_to_host() {
     cudaMemcpy(delta_mx.data(), d_delta_mx, dsc_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(delta_Sx.data(), d_delta_Sx, dsc_bytes, cudaMemcpyDeviceToHost);
     if (this->softmax_bytes > 0) {
-        cudaMemcpy(this->d_delta_mu_y_check.data(), this->d_delta_mu_y_check,
+        cudaMemcpy(this->delta_mu_y_check.data(), this->d_delta_mu_y_check,
                    this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->d_delta_var_y_check.data(), this->d_delta_var_y_check,
+        cudaMemcpy(this->delta_var_y_check.data(), this->d_delta_var_y_check,
                    this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->d_delta_mu_zy_check.data(), this->d_delta_mu_zy_check,
+        cudaMemcpy(this->delta_mu_zy_check.data(), this->d_delta_mu_zy_check,
                    this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->d_delta_var_zy_check.data(),
-                   this->d_delta_var_zy_check, this->softmax_bytes,
-                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(this->delta_var_zy_check.data(), this->d_delta_var_zy_check,
+                   this->softmax_bytes, cudaMemcpyDeviceToHost);
     }
 
     cudaError_t error = cudaGetLastError();

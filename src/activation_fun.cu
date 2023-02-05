@@ -228,7 +228,6 @@ __global__ void stable_softmax(float const *mu_z, float *var_z, int no, int B,
     }
 
     float sum_mu = 0.0f;
-    float sum_var = 0.0f;
     for (int j = 0; j < no; j++) {
         sum_mu += expf(mu_z[j + i * no + z_pos] - max_mu);
     }
@@ -371,7 +370,7 @@ __global__ void exp_log_softmax(float const *mu_z, float const *var_z,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    float tmp_mu tmp_var;
+    float tmp_mu, tmp_var;
     if (row < B && col < no) {
         tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
         tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
