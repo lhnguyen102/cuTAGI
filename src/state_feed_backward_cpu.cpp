@@ -1032,7 +1032,7 @@ void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
             (net.activations.back() != net.act_names.cf_softmax)) {
             output_delta_mz_Sz_cpu(net, state, obs, d_state);
         } else if (net.activations.back() == net.act_names.cf_softmax) {
-            softmax_output_delta_z_cpu_v2(net, state, obs, d_state);
+            softmax_output_delta_z_cpu(net, state, obs, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inferenece_cpu(state, net, obs,
                                                          d_state);
