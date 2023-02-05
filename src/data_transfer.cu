@@ -23,6 +23,7 @@ CfSoftmaxGPU::CfSoftmaxGPU() {
     this->d_rho_e_e_tilde = nullptr;
     this->d_cov_z_e = nullptr;
     this->d_cov_z_e_check = nullptr;
+    this->d_cov_y_e_check = nullptr;
     this->d_cov_y_y_check = nullptr;
     this->d_cov_z_y_check = nullptr;
     this->d_cov_z_y = nullptr;
@@ -30,7 +31,7 @@ CfSoftmaxGPU::CfSoftmaxGPU() {
     this->d_var_y_check = nullptr;
 }
 
-void CfSoftmax::~CfSoftmaxGPU() {
+CfSoftmaxGPU::~CfSoftmaxGPU() {
     cudaFree(d_mu_e);
     cudaFree(d_var_e);
     cudaFree(d_mu_e_tilde);
@@ -47,12 +48,12 @@ void CfSoftmax::~CfSoftmaxGPU() {
     cudaFree(d_var_y_check);
 }
 
-void CfSoftmax::set_values(CfSoftmax &_cf_softmax) {
+void CfSoftmaxGPU::set_values(CfSoftmax &_cf_softmax) {
     this->cf_softmax_cpu = &_cf_softmax;
     this->n_state_bytes = _cf_softmax.mu_e.size() * sizeof(float);
 }
 
-void CfSoftmax::allocate_cuda_memory() {
+void CfSoftmaxGPU::allocate_cuda_memory() {
     cudaMalloc(&this->d_mu_e, this->n_state_bytes);
     cudaMalloc(&this->d_var_e, this->n_state_bytes);
     cudaMalloc(&this->d_mu_e_tilde, this->n_state_bytes);
@@ -69,7 +70,7 @@ void CfSoftmax::allocate_cuda_memory() {
     cudaMalloc(&this->d_var_y_check, this->n_state_bytes);
 }
 
-void CfSoftmax::copy_host_to_device() {
+void CfSoftmaxGPU::copy_host_to_device() {
     cudaMemcpy(&this->d_mu_e, this->cf_softmax_cpu.mu_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(&this->d_var_e, this->cf_softmax_cpu.var_e.data(),
@@ -104,7 +105,7 @@ void CfSoftmax::copy_host_to_device() {
                this->n_state_bytes, cudaMemcpyHostToDevice);
 }
 
-void CfSoftmax::copy_device_to_host() {
+void CfSoftmaxGPU::copy_device_to_host() {
     cudaMemcpy(this->cf_softmax_cpu.mu_e.data(), this->d_mu_e, n_state_bytes,
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->cf_softmax_cpu.var_e.data(), this->d_var_e, n_state_bytes,

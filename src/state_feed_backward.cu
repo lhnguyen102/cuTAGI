@@ -1524,7 +1524,7 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
     }
 }
 
-void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state_gpu,
+void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
                             DeltaStateGPU &d_state) {
     int no = net.nodes.back();
     int B = net.batch_size;
