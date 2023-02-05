@@ -1538,7 +1538,8 @@ void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
     unsigned int grid_col = (no + THREADS - 1) / THREADS;
     dim3 dim_grid(grid_col, grid_row);
     compute_cov_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_Sz, state.d_cov_z_e_check, no, B, z_pos, state.d_cov_z_y_check);
+        state.d_Sz, state.cf_softmax.d_cov_z_e_check, no, B, z_pos,
+        state.cf_softmax.d_cov_z_y_check);
 
     // Covariance between z and y
     compute_cov_z_y<<<BLOCKS, THREADS>>>(state.d_ma,
@@ -1551,7 +1552,7 @@ void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
         obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
 }
 
-void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state_gpu,
+void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state,
                                DeltaStateGPU &d_state) {
     int no = net.nodes.back();
     int B = net.batch_size;
@@ -1568,17 +1569,18 @@ void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state_gpu,
     compute_cov_y_y_check<<<dim_grid, dim_block>>>(
         state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
         state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
-        z_pos, state.cf_softmax.cov_y_y_check);
+        z_pos, state.cf_softmax.d_cov_y_y_check);
 
     // Covariance between z and \check{y}
     compute_cov_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_Sz, state.d_cov_z_e_check, no, B, z_pos, state.d_cov_z_y_check);
+        state.d_Sz, state.cf_softmax.d_cov_z_e_check, no, B, z_pos,
+        state.cf_softmax.d_cov_z_y_check);
 
     // Compute mean and variance for \check{y}
     compute_y_check<<<dim_grid, dim_block>>>(
         state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
-        state.cf_softmax.d_var_e_check, state.d_cov_z_e_check, no, B, z_pos,
-        state.cf_softmax.d_mu_y_check, state.cf_softmax.d_var_y_check);
+        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
+        z_pos, state.cf_softmax.d_mu_y_check, state.cf_softmax.d_var_y_check);
 
     // Updating quantities for \check{y}
     delta_z_y_check<<<dim_grid, dim_block>>>(
