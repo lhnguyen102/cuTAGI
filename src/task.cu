@@ -386,10 +386,10 @@ Args:
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
             // Feed backward for hidden states
-            // net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
+            net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
 
-            // // Feed backward for parameters
-            // net.param_feed_backward();
+            // Feed backward for parameters
+            net.param_feed_backward();
 
             // Compute error rate
             net.get_network_outputs();
