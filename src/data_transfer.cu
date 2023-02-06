@@ -1637,7 +1637,7 @@ void ObsGPU::set_values(int ny, int nye, int B) {
 void ObsGPU::allocate_cuda_memory() {
     cudaMalloc(&d_y_batch, od_bytes);
     cudaMalloc(&d_idx_ud_batch, ode_bytes);
-    cudaMalloc(&d_V_batch, od_bytes);
+    cudaMalloc(&d_V_batch, od_bytes);  // TODO: to be replaced...
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
