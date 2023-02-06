@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      January 25, 2023
+// Updated:      February 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -386,10 +386,10 @@ Args:
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
             // Feed backward for hidden states
-            net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
+            // net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
 
-            // Feed backward for parameters
-            net.param_feed_backward();
+            // // Feed backward for parameters
+            // net.param_feed_backward();
 
             // Compute error rate
             net.get_network_outputs();

@@ -51,6 +51,7 @@ check_language(CUDA)
 
 if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
+  message(STATUS "DEVICE -> CUDA")
 else()
   message(STATUS "DEVICE -> CPU")
 endif()
@@ -89,11 +90,13 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
 # CUDA debug (-g) & device debug (- G)
-if(APPLE)
-  set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
-else()
-  set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
-endif()
+set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+
+# if(APPLE)
+# set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
+# else()
+# set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+# endif()
 
 # ###########################################################################################
 # # PYTHON SETUP

@@ -1620,7 +1620,7 @@ void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
             (net.activations.back() != net.act_names.cf_softmax)) {
             output_delta_mz_Sz(obs, net, state, d_state);
         } else if (net.activations.back() == net.act_names.cf_softmax) {
-            softmax_output_delta_z_v2(obs, net, state, d_state);
+            softmax_output_delta_z(obs, net, state, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inference(obs, net, state, d_state);
         }
