@@ -34,9 +34,11 @@
 #include "../../include/struct_var.h"
 #include "../../include/tagi_network_cpu.h"
 #include "../../include/task_cpu.h"
-#include "../../include/test_utils.h"
 #include "../../include/user_input.h"
 #include "../../include/utils.h"
+#include "../test_dataloader.h"
+#include "../test_regression.h"
+#include "../test_utils.h"
 
 bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
                   std::string data);

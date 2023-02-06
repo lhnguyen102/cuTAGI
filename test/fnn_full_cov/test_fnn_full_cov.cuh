@@ -36,4 +36,4 @@
 #include "../../include/utils.h"
 #include "../test_utils.h"
 
-void test_fnn();
+void test_fnn_full_cov();

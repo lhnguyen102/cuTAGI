@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_cpu.cpp
+// File:         test_fnn_heteroscedastic_cpu.cpp
 // Description:  CPU version for testing the FNN
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2023
@@ -8,23 +8,25 @@
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "test_fnn_cpu.h"
+#include "test_fnn_full_cov_cpu.h"
 
 // Specific constant for the network
 const std::vector<int> LAYERS = {1, 1, 1, 1};
-const std::vector<int> NODES_1D = {1, 10, 15, 1};
-const std::vector<int> NODES_BH = {13, 10, 15, 1};
-const std::vector<int> ACTIVATIONS = {0, 4, 4, 0};
+const std::vector<int> NODES_1D = {1, 15, 20, 1};
+const std::vector<int> NODES_BH = {13, 15, 20, 1};
+const std::vector<int> ACTIVATIONS = {0, 7, 7, 0};
 const int BATCH_SIZE = 5;
 const int EPOCHS = 50;
+const bool IS_FULL_COV = true;
+
 const bool NORMALIZE = true;
 
 /**
- * @brief Test the FNN network
+ * @brief Test the FNN Heteroscedastic network
  *
  */
-bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
-                  std::string data) {
+bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
+                           std::string arch, std::string data) {
     // Create TAGI network
     Network net;
 
@@ -37,11 +39,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
     }
     net.activations = ACTIVATIONS;
     net.batch_size = BATCH_SIZE;
-    // net.sigma_v = 0.5;
-    // net.sigma_v_min = 0.065;
-    // net.init_method = "He";
-    // net.decay_factor_sigma_v = 0.95;
-    // net.sigma_x = 0.3485;
+    net.is_full_cov = IS_FULL_COV;
+    net.multithreading = true;
 
     TagiNetworkCPU tagi_net(net);
 
