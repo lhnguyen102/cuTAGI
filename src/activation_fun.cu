@@ -531,6 +531,9 @@ __global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
 void activate_hidden_states(Network &net, StateGPU &state, int j) {
     int THREADS = net.num_gpu_threads;
     int MB = net.nodes[j] * net.batch_size;
+    if (net.layers[j] == net.layer_names.lstm) {
+        MB = net.nodes[j] * net.batch_size * net.input_seq_len;
+    }
     int z_pos = net.z_pos[j];
     unsigned int BLOCKS = (MB + THREADS - 1) / THREADS;
 
