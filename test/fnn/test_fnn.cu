@@ -60,10 +60,10 @@ void test_fnn() {
 
     // Training
     bool train_mode = true;
-    regression(tagi_net, train_db, 50, path, train_mode, false);
+    //regression(tagi_net, train_db, 50, path, train_mode, false);
 
     train_mode = false;
-    regression(tagi_net, test_db, 50, path, train_mode, false);
+    //regression(tagi_net, test_db, 50, path, train_mode, false);
 
     // save_net_param(model_name, net_name, path.curr_path + "/test/data2/",
     //               tagi_net.theta);
