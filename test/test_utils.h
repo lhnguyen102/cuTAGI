@@ -213,3 +213,33 @@ void write_backward_hidden_states(std::string filename, T &tagi_net,
         file << std::endl;
     }
 }
+
+template <typename T>
+void write_input_derivatives(std::string filename, T &tagi_net) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file for writing." << std::endl;
+        return;
+    }
+
+    std::tuple<std::vector<float>, std::vector<float>> input_derivatives =
+        tagi_net.get_derivatives(0);
+
+    file << "md,Sd" << std::endl;
+
+    int rows = std::max({std::get<0>(input_derivatives).size(),
+                         std::get<1>(input_derivatives).size()});
+    for (int i = 0; i < rows; i++) {
+        if (i < std::get<0>(input_derivatives).size())
+            file << std::get<0>(input_derivatives)[i] << ",";
+        else
+            file << ",";
+
+        if (i < std::get<1>(input_derivatives).size())
+            file << std::get<1>(input_derivatives)[i] << std::endl;
+        else
+            file << std::endl;
+    }
+
+    file.close();
+}
