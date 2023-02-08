@@ -878,6 +878,8 @@ void task_command(UserInput &user_input, SavePath &path) {
         net_prop.device = user_input.device;
         if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
             net_prop.is_idx_ud = true;
+            auto hrs = class_to_obs(user_input.num_classes);
+            net_prop.nye = hrs.n_obs;
         }
         TagiNetwork net(net_prop);
 
