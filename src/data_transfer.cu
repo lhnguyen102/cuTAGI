@@ -3,7 +3,7 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 05, 2023
+// Updated:      February 08, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,44 +64,65 @@ void CfSoftmaxGPU::allocate_cuda_memory() {
     cudaMalloc(&this->d_cov_z_e, this->n_state_bytes);
     cudaMalloc(&this->d_cov_z_e_check, this->n_state_bytes);
     cudaMalloc(&this->d_cov_y_y_check, this->n_state_bytes);
+    cudaMalloc(&this->d_cov_z_y_check, this->n_state_bytes);
     cudaMalloc(&this->d_cov_y_e_check, this->n_state_bytes);
     cudaMalloc(&this->d_cov_z_y, this->n_state_bytes);
     cudaMalloc(&this->d_mu_y_check, this->n_state_bytes);
     cudaMalloc(&this->d_var_y_check, this->n_state_bytes);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to allocate CUDA memory for softmax state";
+        throw ::std::runtime_error(err_msg);
+    }
 }
 
 void CfSoftmaxGPU::copy_host_to_device() {
-    cudaMemcpy(&this->d_mu_e, this->cf_softmax_cpu->mu_e.data(),
+    cudaMemcpy(this->d_mu_e, this->cf_softmax_cpu->mu_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e, this->cf_softmax_cpu->var_e.data(),
+    cudaMemcpy(this->d_var_e, this->cf_softmax_cpu->var_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_e_tilde, this->cf_softmax_cpu->mu_e_tilde.data(),
+
+    cudaMemcpy(this->d_mu_e_tilde, this->cf_softmax_cpu->mu_e_tilde.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e_tilde, this->cf_softmax_cpu->var_e_tilde.data(),
+    cudaMemcpy(this->d_var_e_tilde, this->cf_softmax_cpu->var_e_tilde.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_e_check, this->cf_softmax_cpu->mu_e_check.data(),
+
+    cudaMemcpy(this->d_mu_e_check, this->cf_softmax_cpu->mu_e_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_e_check, this->cf_softmax_cpu->var_e_check.data(),
+    cudaMemcpy(this->d_var_e_check, this->cf_softmax_cpu->var_e_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_rho_e_e_tilde,
+
+    cudaMemcpy(this->d_rho_e_e_tilde,
                this->cf_softmax_cpu->rho_e_e_tilde.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_e, this->cf_softmax_cpu->cov_z_e.data(),
+    cudaMemcpy(this->d_cov_z_e, this->cf_softmax_cpu->cov_z_e.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_e_check,
+
+    cudaMemcpy(this->d_cov_z_e_check,
                this->cf_softmax_cpu->cov_z_e_check.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_y_y_check, this->cf_softmax_cpu->mu_e_tilde.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_y_check,
+    cudaMemcpy(this->d_cov_y_y_check,
+               this->cf_softmax_cpu->cov_y_y_check.data(), this->n_state_bytes,
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(this->d_cov_z_y_check,
                this->cf_softmax_cpu->cov_z_y_check.data(), this->n_state_bytes,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_cov_z_y, this->cf_softmax_cpu->cov_z_y.data(),
+    cudaMemcpy(this->d_cov_z_y, this->cf_softmax_cpu->cov_z_y.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_mu_y_check, this->cf_softmax_cpu->mu_y_check.data(),
+
+    cudaMemcpy(this->d_mu_y_check, this->cf_softmax_cpu->mu_y_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(&this->d_var_y_check, this->cf_softmax_cpu->var_y_check.data(),
+    cudaMemcpy(this->d_var_y_check, this->cf_softmax_cpu->var_y_check.data(),
                this->n_state_bytes, cudaMemcpyHostToDevice);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg =
+            "Failed to make data tranfer to device for softmax hidden states ";
+        throw ::std::runtime_error(err_msg);
+    }
 }
 
 void CfSoftmaxGPU::copy_device_to_host() {
@@ -137,6 +158,11 @@ void CfSoftmaxGPU::copy_device_to_host() {
                this->n_state_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(this->cf_softmax_cpu->var_y_check.data(), this->d_var_y_check,
                this->n_state_bytes, cudaMemcpyDeviceToHost);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::string err_msg = "Failed to transfer Softmax state to host";
+        throw ::std::runtime_error(err_msg);
+    }
 }
 
 ////////////////////////
@@ -209,7 +235,7 @@ void LSTMStateGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for LSTM state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -270,7 +296,7 @@ void LSTMStateGPU::copy_host_to_device() {
         std::string err_msg =
             "Failed to make data transfer to device for LSTM state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -331,7 +357,7 @@ void LSTMStateGPU::copy_device_to_host() {
         std::string err_msg =
             "Failed to make data transfer to host for LSTM state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -415,7 +441,7 @@ void NoiseStateGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for noise state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -461,7 +487,7 @@ void NoiseStateGPU::copy_host_to_device(NoiseState &noise_state) {
         std::string err_msg =
             "Failed to make data transfer to device for noise state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -507,7 +533,7 @@ void NoiseStateGPU::copy_device_to_host(NoiseState &noise_state) {
         std::string err_msg =
             "Failed to make data transfer to host for noise state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 };
 
@@ -655,7 +681,7 @@ void StateGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for hidden states - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -722,7 +748,7 @@ void StateGPU::copy_host_to_device() {
         std::string err_msg =
             "Failed to make data tranfer to device for hidden states - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -784,7 +810,7 @@ void StateGPU::copy_device_to_host() {
         std::string err_msg =
             "Failed to make data tranfer to host for hidden states - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -858,7 +884,7 @@ void DerivativeStateGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for derivative states - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -897,7 +923,7 @@ void DerivativeStateGPU::copy_host_to_device(DerivativeState &derv_state) {
         std::string err_msg =
             "Failed to make data transfer to device for derivative state - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -936,7 +962,7 @@ void DerivativeStateGPU::copy_device_to_host(DerivativeState &derv_state) {
         std::string err_msg =
             "Failed to make data transfer to host for derivative states - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -994,7 +1020,7 @@ void ParamGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for parameters - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1021,7 +1047,7 @@ void ParamGPU::copy_host_to_device() {
         std::string err_msg =
             "Failed to make data transfer to device for parameters - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1048,7 +1074,7 @@ void ParamGPU::copy_device_to_host() {
         std::string err_msg =
             "Failed to make data transfer to host for parameters - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1110,7 +1136,7 @@ void IndexGPU::allocate_cuda_memory() {
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg = "Failed to allocate CUDA memory for indices\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1145,7 +1171,7 @@ void IndexGPU::copy_host_to_device(IndexOut &idx) {
         std::string err_msg =
             "Failed to make data transfer to device for indices - "
             "data_transfer.cu";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1274,7 +1300,7 @@ void DeltaStateGPU::allocate_cuda_memory() {
     if (error != cudaSuccess) {
         std::string err_msg =
             "Failed to allocate CUDA memory for delta state\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1318,7 +1344,7 @@ void DeltaStateGPU::copy_host_to_device() {
         std::string err_msg =
             "Failed to make data transfer to device for delta state - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1358,7 +1384,7 @@ void DeltaStateGPU::copy_device_to_host() {
         std::string err_msg =
             "Failed to make data transfer to host for delta states - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1407,7 +1433,7 @@ void DeltaParamGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for delta parameters - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1429,7 +1455,7 @@ void DeltaParamGPU::copy_host_to_device() {
     if (error != cudaSuccess) {
         std::string err_msg =
             "Failed to make data transfer to device for delta parameters\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1452,7 +1478,7 @@ void DeltaParamGPU::copy_device_to_host() {
         std::string err_msg =
             "Failed to make data transfer to host for delta parameters - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1498,7 +1524,7 @@ void InputGPU::allocate_cuda_memory() {
     if (error != cudaSuccess) {
         std::string err_msg =
             "Failed to allocate CUDA memory for inputs - data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1517,7 +1543,7 @@ void InputGPU::copy_host_to_device(std::vector<float> &x_batch,
         std::string err_msg =
             "Failed to make data transfer to device for inputs - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1536,7 +1562,7 @@ void InputGPU::copy_device_to_host(std::vector<float> &x_batch,
         std::string err_msg =
             "Failed to make data transfer to host for inputs - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1573,7 +1599,7 @@ void ConnectorInputGPU::allocate_cuda_memory() {
         std::string err_msg =
             "Failed to allocate CUDA memory for  connected inputs - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1594,7 +1620,7 @@ void ConnectorInputGPU::copy_host_to_device(std::vector<float> &ma,
             std::string err_msg =
                 "Failed to make data transfer to device for connected inputs - "
                 "data_transfer.cu\n";
-            std::cerr << error << ": " << err_msg;
+            throw ::std::runtime_error(err_msg);
         }
     }
 }
@@ -1616,7 +1642,7 @@ void ConnectorInputGPU::copy_device_to_host(std::vector<float> &ma,
             std::string err_msg =
                 "Failed to make data transfer to host for connected inputs - "
                 "data_transfer.cu\n";
-            std::cerr << error << ": " << err_msg;
+            throw ::std::runtime_error(err_msg);
         }
     }
 }
@@ -1626,7 +1652,7 @@ void ConnectorInputGPU::copy_device_to_host(std::vector<float> &ma,
 //////////////////////////////
 ObsGPU::ObsGPU(){};
 void ObsGPU::set_values(int ny, int nye, int B) {
-    this->od_bytes = B * ny * sizeof(float);
+    this->od_bytes = B * nye * sizeof(float);
     this->ode_bytes = B * nye * sizeof(int);
 
     this->d_y_batch = nullptr;
@@ -1637,13 +1663,13 @@ void ObsGPU::set_values(int ny, int nye, int B) {
 void ObsGPU::allocate_cuda_memory() {
     cudaMalloc(&d_y_batch, od_bytes);
     cudaMalloc(&d_idx_ud_batch, ode_bytes);
-    cudaMalloc(&d_V_batch, od_bytes);  // TODO: to be replaced...
+    cudaMalloc(&d_V_batch, od_bytes);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
             "Failed to allocate CUDA memory for outputs - data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1660,7 +1686,7 @@ void ObsGPU::copy_host_to_device(std::vector<float> &y_batch,
         std::string err_msg =
             "Failed to make data transfer to device for outputs - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 
@@ -1677,7 +1703,7 @@ void ObsGPU::copy_device_to_host(std::vector<float> &y_batch,
         std::string err_msg =
             "Failed to make data transfer to host for outputs - "
             "data_transfer.cu\n";
-        std::cerr << error << ": " << err_msg;
+        throw ::std::runtime_error(err_msg);
     }
 }
 

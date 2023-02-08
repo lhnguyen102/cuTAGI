@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      February 04, 2023
+// Updated:      February 08, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -781,12 +781,13 @@ void net_default(Network &net)
     }
 
     // Network's indices
-    if (sizeof(net.nye) == 0) {
+    if (net.activations.back() != net.act_names.hr_softmax) {
         net.nye = net.nodes.back();
-    }
-    if (net.nye != net.nodes.back() && net.nye > 0) {
         net.is_idx_ud = true;
     }
+    // if (net.nye != net.nodes.back() && net.nye > 0) {
+    //     net.is_idx_ud = true;
+    // }
     if (net.Fmwa_1_col.size() == 0) {
         net.Fmwa_1_col.resize(num_layers, 0);
     }

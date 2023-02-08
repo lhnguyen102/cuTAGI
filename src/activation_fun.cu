@@ -281,7 +281,7 @@ Args:
 }
 
 __global__ void compute_sum_exp(float const *mu_e, float const *var_e, int no,
-                                int B, float *me_tilde, float *var_e_tilde) {
+                                int B, float *mu_e_tilde, float *var_e_tilde) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_m, sum_v;
     if (i < B) {
@@ -291,7 +291,7 @@ __global__ void compute_sum_exp(float const *mu_e, float const *var_e, int no,
             sum_m += mu_e[i * no + j];
             sum_v += var_e[i * no + j];
         }
-        me_tilde[i] = sum_m;
+        mu_e_tilde[i] = sum_m;
         var_e_tilde[i] = sum_v;
     }
 }
@@ -442,7 +442,7 @@ __global__ void compute_cov_z_y_check(float const *var_z,
 __global__ void compute_cov_z_y(float const *mu_a, float const *cov_z_y_check,
                                 int no, int B, int z_pos, float *cov_z_y) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < no * B) return;
+    if (col >= no * B) return;
     cov_z_y[col] = mu_a[col + z_pos] * cov_z_y_check[col];
 }
 

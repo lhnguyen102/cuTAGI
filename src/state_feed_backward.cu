@@ -1550,6 +1550,8 @@ void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
     delta_z_y_check<<<dim_grid, dim_block>>>(
         state.d_ma, state.d_Sa, state.cf_softmax.d_cov_z_y, obs.d_y_batch,
         obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
+    d_state.copy_device_to_host();
+    int check = 1;
 }
 
 void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state,
