@@ -83,10 +83,10 @@ void test_cpu(std::vector<std::string>& user_input_options) {
         // test_fnn_cpu(false, test_dates[0], "fnn", "Boston_housing");
         if (test_fnn_cpu(false, test_dates[0], "fnn", "1D") &&
             test_fnn_cpu(false, test_dates[0], "fnn", "Boston_housing")) {
-            std::cout << "[" << floor((100 / 11) * 1) << "%] "
+            std::cout << "[  " << floor((100 / 11) * 1) << "%] "
                       << "FNN tests passed" << std::endl;
         } else {
-            std::cout << "[" << floor((100 / 11) * 1) << "%] "
+            std::cout << "[  " << floor((100 / 11) * 1) << "%] "
                       << "FNN tests failed" << std::endl;
         }
 
@@ -94,21 +94,32 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                                          "1D") &&
             test_fnn_heteroscedastic_cpu(false, test_dates[1], "fnn_heteros",
                                          "Boston_housing")) {
-            std::cout << "[" << floor((100 / 11) * 2) << "%] "
+            std::cout << "[ " << floor((100 / 11) * 2) << "%] "
                       << "FNN heteroscedastic tests passed" << std::endl;
         } else {
-            std::cout << "[" << floor((100 / 11) * 2) << "%] "
+            std::cout << "[ " << floor((100 / 11) * 2) << "%] "
                       << "FNN heteroscedastic tests failed" << std::endl;
         }
 
         if (test_fnn_full_cov_cpu(false, test_dates[2], "fnn_full_cov", "1D") &&
             test_fnn_full_cov_cpu(false, test_dates[2], "fnn_full_cov",
                                   "Boston_housing")) {
-            std::cout << "[" << floor((100 / 11) * 3) << "%] "
+            std::cout << "[ " << floor((100 / 11) * 3) << "%] "
                       << "FNN full covariance tests passed" << std::endl;
         } else {
-            std::cout << "[" << floor((100 / 11) * 3) << "%] "
+            std::cout << "[ " << floor((100 / 11) * 3) << "%] "
                       << "FNN full covariance tests failed" << std::endl;
+        }
+
+        if (test_fnn_derivatives_cpu(false, test_dates[3], "fnn_derivatives",
+                                     "1D")) {
+            // test_fnn_derivatives_cpu(false, test_dates[3], "fnn_derivatives",
+            //                          "Boston_housing")) {
+            std::cout << "[ " << floor((100 / 11) * 4) << "%] "
+                      << "FNN derivatives tests passed" << std::endl;
+        } else {
+            std::cout << "[ " << floor((100 / 11) * 4) << "%] "
+                      << "FNN derivatives tests failed" << std::endl;
         }
     }
 
@@ -160,6 +171,16 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             test_fnn_full_cov_cpu(true, date, "fnn_full_cov", "1D");
             test_fnn_full_cov_cpu(true, date, "fnn_full_cov", "Boston_housing");
             write_dates(test_dates, 2, date);
+        }
+
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "fnn_derivates") {
+            std::cout << "Reinizializing FNN derivatives test outputs"
+                      << std::endl;
+            test_fnn_derivatives_cpu(true, date, "fnn_derivatives", "1D");
+            // test_fnn_derivatives_cpu(true, date, "fnn_derivatives",
+            //                          "Boston_housing");
+            write_dates(test_dates, 3, date);
         }
     }
 }
