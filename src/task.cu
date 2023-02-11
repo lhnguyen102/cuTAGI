@@ -384,17 +384,27 @@ Args:
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
+            net.state_gpu.copy_device_to_host();
 
             // Feed backward for hidden states
             net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
+            net.d_state_gpu.copy_device_to_host();
 
             // Feed backward for parameters
             net.param_feed_backward();
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) = get_error(
-                net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(net.ma, net.Sa, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    net.ma, label_batch, n_classes, net.prop.batch_size);
+            }
+            // std::tie(error_rate_batch, prob_class_batch) = get_error(
+            //     net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
             mt_idx = i * net.prop.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
@@ -904,9 +914,9 @@ void task_command(UserInput &user_input, SavePath &path) {
 
         // Saved debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param/";
-            std::string idx_path = path.debug_path + "/saved_idx/";
-            save_net_prop(param_path, idx_path, net.theta, net.idx);
+            std::string param_path = path.debug_path + "saved_param/";
+            save_net_param(user_input.model_name, user_input.net_name,
+                           param_path, net.theta);
         }
 
         std::cout << "Training...\n" << std::endl;
