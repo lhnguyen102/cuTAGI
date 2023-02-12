@@ -241,13 +241,32 @@ void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         max_m = mz[max_idx];
         max_v = Sz[max_idx];
         for (int j = 0; j < no; j++) {
-            ma[idx + j] = exp(mz[idx + j] - max_m);
+            ma[idx + j] = expf(mz[idx + j] - max_m);
             sum += ma[idx + j];
         }
         for (int j = 0; j < no; j++) {
             ma[idx + j] = ma[idx + j] / sum;
             J[idx + j] = ma[idx + j] * (1 - ma[idx + j]);
             Sa[idx + j] = J[idx + j] * (Sz[idx + j] + max_v) * J[idx + j];
+        }
+    }
+}
+
+void max_norm(std::vector<float> &mz, std::vector<float> &Sz, int zpos, int no,
+              int B, std::vector<float> &mz_norm, std::vector<float> &Sz_norm) {
+    float sum, max_m, max_v;
+    int idx;
+    for (int i = 0; i < B; i++) {
+        sum = 0.0f;
+        idx = zpos + i * no;
+        auto max_idx =
+            std::max_element(mz.begin() + idx, mz.begin() + idx + no) -
+            mz.begin();
+        max_m = mz[max_idx];
+        max_v = Sz[max_idx];
+        for (int j = 0; j < no; j++) {
+            mz_norm[idx + j] = mz[idx + j] - max_m;
+            Sz_norm[idx + j] = Sz[idx + j] + max_v;
         }
     }
 }
@@ -360,8 +379,8 @@ void compute_cov_z_e_check_cpu(std::vector<float> &rho_e_e_tilde,
 void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
                          std::vector<float> &me_check,
                          std::vector<float> &ve_check,
-                         std::vector<float> &cov_z_e_check, int no, int B,
-                         int z_pos, std::vector<float> &ma,
+                         std::vector<float> &cov_z_e_check, float sigma_v,
+                         int no, int B, int z_pos, std::vector<float> &ma,
                          std::vector<float> &va)
 /*Convert log of softmax to softmax space*/
 {
@@ -380,7 +399,8 @@ void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
 void compute_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
                          std::vector<float> &me_check,
                          std::vector<float> &ve_check,
-                         std::vector<float> &cov_z_e_check, int no, int B,
+                         std::vector<float> &cov_z_e_check,
+                         std::vector<float> &var_noise, int no, int B,
                          int z_pos, std::vector<float> &mu_y_check,
                          std::vector<float> &var_y_check)
 /*Compute the \check{y} mean and variance
@@ -393,7 +413,7 @@ where \check{E} = log(sum(exp(z)))
         for (int j = 0; j < no; j++) {
             tmp_mu = mz[z_pos + i * no + j] - me_check[i];
             tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
-                      2 * cov_z_e_check[i * no + j];
+                      2 * cov_z_e_check[i * no + j] + var_noise[i * no + j];
             mu_y_check[i * no + j] = tmp_mu;
             var_y_check[i * no + j] = tmp_var;
         }
@@ -451,6 +471,8 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
     int no = net.nodes[l];
     int B = net.batch_size;
 
+    max_norm(state.mz, state.Sz, z_pos, no, B, state.mz, state.Sz);
+
     // Transform to exponential space
     exp_fn_cpu(state.mz, state.Sz, no, B, z_pos, state.cf_softmax.mu_e,
                state.cf_softmax.var_e, state.cf_softmax.cov_z_e);
@@ -480,8 +502,8 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
     // Convert to softmax probability
     exp_log_softmax_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
                         state.cf_softmax.var_e_check,
-                        state.cf_softmax.cov_z_e_check, no, B, z_pos, state.ma,
-                        state.Sa);
+                        state.cf_softmax.cov_z_e_check, 0.0f, no, B, z_pos,
+                        state.ma, state.Sa);
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,

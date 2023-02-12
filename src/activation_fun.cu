@@ -364,8 +364,9 @@ __global__ void compute_cov_z_e_check(float const *rho_e_e_tilde,
 __global__ void exp_log_softmax(float const *mu_z, float const *var_z,
                                 float const *mu_e_check,
                                 float const *var_e_check,
-                                float const *cov_z_e_check, int no, int B,
-                                int z_pos, float *mu_a, float *var_a)
+                                float const *cov_z_e_check, float sigma_v,
+                                int no, int B, int z_pos, float *mu_a,
+                                float *var_a)
 /*Convert log of softmax to softmax space*/
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -491,8 +492,8 @@ void closed_form_softmax(Network &net, StateGPU &state, int l)
     // Convert to softmax probability
     exp_log_softmax<<<dim_grid, dim_block>>>(
         state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
-        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
-        z_pos, state.d_ma, state.d_Sa);
+        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check,
+        net.sigma_v, no, B, z_pos, state.d_ma, state.d_Sa);
 }
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
@@ -530,6 +531,8 @@ __global__ void noActFullCov(float const *Szf, float *Saf, int Nf) {
 
 void activate_hidden_states(Network &net, StateGPU &state, int j) {
     int THREADS = net.num_gpu_threads;
+    int B = net.batch_size;
+    int no = net.nodes[j];
     int MB = net.nodes[j] * net.batch_size;
     if (net.layers[j] == net.layer_names.lstm) {
         MB = net.nodes[j] * net.batch_size * net.input_seq_len;
@@ -578,6 +581,11 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
                                              net.omega_tol, z_pos, MB,
                                              state.d_ma, state.d_J, state.d_Sa);
 
+    } else if (net.activations[j] == net.act_names.softmax) {
+        unsigned int softmax_blocks = (net.batch_size + THREADS - 1) / THREADS;
+        stable_softmax<<<softmax_blocks, THREADS>>>(state.d_mz, state.d_Sz, no,
+                                                    B, z_pos, state.d_ma,
+                                                    state.d_J, state.d_Sa);
     } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
     {
         closed_form_softmax(net, state, j);

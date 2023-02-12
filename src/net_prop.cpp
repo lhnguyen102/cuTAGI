@@ -783,7 +783,7 @@ void net_default(Network &net)
     // Network's indices
     if (net.activations.back() != net.act_names.hr_softmax) {
         net.nye = net.nodes.back();
-        net.is_idx_ud = true;
+        net.is_idx_ud = false;
     }
     // if (net.nye != net.nodes.back() && net.nye > 0) {
     //     net.is_idx_ud = true;

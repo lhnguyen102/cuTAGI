@@ -3,7 +3,7 @@ task_name: classification
 data_name: mnist
 net_name: 2fc
 load_param: false
-num_epochs: 2
+num_epochs: 20
 num_classes: 10
 num_train_data: 60000
 num_test_data: 10000
