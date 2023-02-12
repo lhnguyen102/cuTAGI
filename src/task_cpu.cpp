@@ -45,7 +45,7 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
     std::vector<float> Sx_f_batch;
     std::vector<float> y_batch(net.prop.batch_size * imdb.output_len, 0);
     std::vector<float> V_batch(net.prop.batch_size * imdb.output_len,
-                               pow(net.prop.sigma_v, 2));
+                               powf(net.prop.sigma_v, 2));
     std::vector<int> idx_ud_batch(imdb.output_len * net.prop.batch_size, 0);
     std::vector<int> label_batch(net.prop.batch_size, 0);
 
@@ -77,7 +77,7 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
         }
 
         std::vector<float> V_batch(net.prop.batch_size * imdb.output_len,
-                                   pow(net.prop.sigma_v, 2));
+                                   powf(net.prop.sigma_v, 2));
 
         // Timer
         std::cout << "################\n";

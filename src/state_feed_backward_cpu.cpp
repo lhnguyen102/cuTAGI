@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      January 28, 2023
+// Updated:      February 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -964,6 +964,17 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     compute_cov_z_y_cpu(state.ma, state.cf_softmax.cov_z_y_check, no, B, z_pos,
                         state.cf_softmax.cov_z_y);
 
+    // // Compute mean and variance for \check{y}
+    // compute_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+    //                     state.cf_softmax.var_e_check,
+    //                     state.cf_softmax.cov_z_e_check, obs.V_batch, no, B,
+    //                     z_pos, state.cf_softmax.mu_y_check,
+    //                     state.cf_softmax.var_y_check);
+    // exp_log_softmax_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+    //                     state.cf_softmax.var_e_check,
+    //                     state.cf_softmax.cov_z_e_check, net.sigma_v, no, B,
+    //                     z_pos, state.ma, state.Sa);
+
     // Updating quantities for hidden states
     delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
                         obs.y_batch, obs.V_batch, no, B, z_pos,
@@ -989,10 +1000,11 @@ void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
                               z_pos, state.cf_softmax.cov_z_y_check);
 
     // Compute mean and variance for \check{y}
-    compute_y_check_cpu(
-        state.mz, state.Sz, state.cf_softmax.mu_e_check,
-        state.cf_softmax.var_e_check, state.cf_softmax.cov_z_e_check, no, B,
-        z_pos, state.cf_softmax.mu_y_check, state.cf_softmax.var_y_check);
+    compute_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
+                        state.cf_softmax.var_e_check,
+                        state.cf_softmax.cov_z_e_check, obs.V_batch, no, B,
+                        z_pos, state.cf_softmax.mu_y_check,
+                        state.cf_softmax.var_y_check);
 
     // Updating quantities for \check{y}
     delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_y_y_check,

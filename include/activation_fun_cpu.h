@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      February 04, 2023
+// Updated:      February 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,7 +61,8 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 void compute_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
                          std::vector<float> &me_check,
                          std::vector<float> &ve_check,
-                         std::vector<float> &cov_z_e_check, int no, int B,
+                         std::vector<float> &cov_z_e_check,
+                         std::vector<float> &var_noise, int no, int B,
                          int z_pos, std::vector<float> &my_y_check,
                          std::vector<float> &var_y_check);
 
@@ -164,3 +165,10 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
                                  std::vector<float> &Sa_f);
 
 void activate_hidden_states_cpu(Network &net, NetState &state, int j);
+
+void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
+                         std::vector<float> &me_check,
+                         std::vector<float> &ve_check,
+                         std::vector<float> &cov_z_e_check, float sigma_v,
+                         int no, int B, int z_pos, std::vector<float> &ma,
+                         std::vector<float> &va);

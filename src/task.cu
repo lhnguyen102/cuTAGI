@@ -447,8 +447,14 @@ Args:
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) = get_error(
-                net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(net.ma, net.Sa, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    net.ma, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
         }
