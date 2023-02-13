@@ -369,7 +369,7 @@ void compute_cov_z_e_check_cpu(std::vector<float> &rho_e_e_tilde,
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
             cov_z_e_check[i * no + j] =
-                logf(1 + rho_e_e_tilde[i] *
+                logf(1 + rho_e_e_tilde[i * no + j] *
                              (powf(ve[i * no + j], 0.5) / me[i * no + j]) *
                              (powf(ve_tilde[i], 0.5) / me_tilde[i]));
         }
