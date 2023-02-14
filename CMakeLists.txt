@@ -151,6 +151,9 @@ set(GPU_SOURCES
   src/tagi_network.cu
   src/gpu_debug_utils.cpp
   test/fnn/test_fnn.cu
+  test/cnn/test_cnn.cu 
+  test/test_classification.cu
+  test/cnn_batch_norm/test_cnn_batch_norm.cu
 )
 
 # Output binary folder der for different mode

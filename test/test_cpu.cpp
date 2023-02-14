@@ -121,15 +121,24 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             std::cout << "[ " << floor((100 / 11) * 4) << "%] "
                       << "FNN derivatives tests failed" << std::endl;
         }
+
+        if (test_cnn(false, test_dates[4], "cnn", "mnist")) {
+            std::cout << "[ " << floor((100 / 11) * 5) << "%] "
+                      << "CNN tests passed" << std::endl;
+        } else {
+            std::cout << "[ " << floor((100 / 11) * 5) << "%] "
+                      << "CNN tests failed" << std::endl;
+        }
+
+        if (test_cnn_batch_norm(false, test_dates[5], "cnn_batch_norm",
+                                "mnist")) {
+            std::cout << "[ " << floor((100 / 11) * 6) << "%] "
+                      << "CNN batch norm tests passed" << std::endl;
+        } else {
+            std::cout << "[ " << floor((100 / 11) * 6) << "%] "
+                      << "CNN batch norm tests failed" << std::endl;
+        }
     }
-
-    // test_fnn_heteroscedastic_cpu();
-
-    // test_fnn_full_cov_cpu();
-
-    // test_fnn_derivatives_cpu();
-
-    // test_cnn_cpu();
 
     // test_cnn_batch_norm_cpu();
 
@@ -181,6 +190,21 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             // test_fnn_derivatives_cpu(true, date, "fnn_derivatives",
             //                          "Boston_housing");
             write_dates(test_dates, 3, date);
+        }
+
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "cnn") {
+            std::cout << "Reinizializing CNN test outputs" << std::endl;
+            test_cnn(true, date, "cnn", "mnist");
+            write_dates(test_dates, 4, date);
+        }
+
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "cnn_batch_norm") {
+            std::cout << "Reinizializing CNN batch norm test outputs"
+                      << std::endl;
+            test_cnn_batch_norm(true, date, "cnn_batch_norm", "mnist");
+            write_dates(test_dates, 5, date);
         }
     }
 }
