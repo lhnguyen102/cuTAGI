@@ -391,7 +391,41 @@ void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
             tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
                       2 * cov_z_e_check[i * no + j];
             ma[z_pos + i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
-            va[z_pos + i * no + j] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
+            va[z_pos + i * no + j] =
+                expf(2 * tmp_mu + tmp_var) * (expf(tmp_var) - 1);
+        }
+    }
+}
+
+void exp_log_softmax_cpu_v2(std::vector<float> &mz, std::vector<float> &vz,
+                            std::vector<float> &me_check,
+                            std::vector<float> &ve_check,
+                            std::vector<float> &cov_z_e_check, float sigma_v,
+                            int no, int B, int z_pos, std::vector<float> &ma,
+                            std::vector<float> &va)
+/*Convert log of softmax to softmax space*/
+{
+    float tmp_mu, tmp_var, max_m, max_v;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mz[z_pos + i * no + j] - me_check[i];
+            tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
+                      2 * cov_z_e_check[i * no + j];
+            ma[z_pos + i * no + j] = tmp_mu + 0.5 * tmp_var;
+            va[z_pos + i * no + j] = tmp_var;
+        }
+        int idx = z_pos + i * no;
+        auto max_idx =
+            std::max_element(ma.begin() + idx, ma.begin() + idx + no) -
+            ma.begin();
+        max_m = ma[max_idx];
+        max_v = va[max_idx];
+        for (int j = 0; j < no; j++) {
+            ma[z_pos + i * no + j] =
+                expf(ma[z_pos + i * no + j] - max_m +
+                     0.5 * (va[z_pos + i * no + j] + max_v));
+            va[z_pos + i * no + j] = powf(ma[z_pos + i * no + j], 2) *
+                                     (expf(va[z_pos + i * no + j] + max_v) - 1);
         }
     }
 }
