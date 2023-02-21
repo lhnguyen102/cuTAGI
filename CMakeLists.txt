@@ -126,6 +126,11 @@ set(CPU_SOURCES
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
   test/test_lstm_cpu.cpp
+  test/test_cpu.cpp
+  test/test_regression.cpp
+  test/test_dataloader.cpp 
+  test/fnn/test_fnn_cpu.cpp
+
 )
 
 # Sources code for CUDA
