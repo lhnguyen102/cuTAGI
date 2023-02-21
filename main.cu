@@ -18,23 +18,16 @@
 #include "include/task.cuh"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
-#include "test/fnn/test_fnn.cuh"
-#include "test/fnn/test_fnn_cpu.h"
-#include "test/test_cpu.h"
 #include "test/test_lstm_cpu.h"
 
 int main(int argc, char* argv[]) {
     // User input file
     std::string user_input_file;
-    std::vector<std::string> user_input_options;
-    if (argc == 0) {
+    if (argc > 1) {
+        user_input_file = argv[1];
+    } else {
         throw std::invalid_argument(
             "User need to provide user input file -> see README");
-    } else {
-        user_input_file = argv[1];
-        for (int i = 2; i < argc; i++) {
-            user_input_options.push_back(argv[i]);
-        }
     }
     auto user_input = load_userinput(user_input_file);
 
@@ -47,12 +40,7 @@ int main(int argc, char* argv[]) {
 
     // Run task
     if (user_input_file.compare("test") == 0) {
-        // auto a = test_lstm_cpu();
-        test_cpu(user_input_options);
-        // if (is_cuda_available())
-        //     test_fnn();
-        // else
-        //     test_fnn_cpu();
+        auto a = test_lstm_cpu();
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "
