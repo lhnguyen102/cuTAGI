@@ -40,11 +40,28 @@
 #include "../include/utils.h"
 #include "test_utils.h"
 
-bool compare_csv_files(const std::string &file1, const std::string &file2);
-
+/**
+ * @brief Train the data
+ *
+ * @param problem contains a string of the problem name
+ * @param net contains the network
+ * @param data_path contains the path to the data
+ *
+ * @return the training data
+ */
 Dataloader train_data(std::string problem, TagiNetworkCPU &net,
                       std::string data_path, bool normalize);
 
+/**
+ * @brief Test the data
+ *
+ * @param problem contains a string of the problem name
+ * @param net contains the network
+ * @param data_path contains the path to the data
+ * @param train_db contains the training data
+ *
+ * @return the testing data
+ */
 Dataloader test_data(std::string problem, TagiNetworkCPU &net,
                      std::string data_path, Dataloader &train_db,
                      bool normalize);

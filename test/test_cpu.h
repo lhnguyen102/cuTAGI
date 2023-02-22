@@ -19,4 +19,9 @@
 
 #include "fnn/test_fnn_cpu.h"
 
+/**
+ * @brief Read the last dates of the tests
+ *
+ * @param user_input_options vector with the user input options
+ */
 void test_cpu(std::vector<std::string> &user_input_options);

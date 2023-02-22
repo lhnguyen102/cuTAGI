@@ -12,6 +12,11 @@
 
 #include "test_cpu.h"
 
+/**
+ * @brief Read the last dates of the tests
+ *
+ * @return std::vector<std::string> vector with the last dates of the tests
+ */
 std::vector<std::string> read_dates() {
     std::ifstream file("test/data/last_dates.csv");
     std::string line;
@@ -27,6 +32,13 @@ std::vector<std::string> read_dates() {
     return dates;
 }
 
+/**
+ * @brief Write the last dates of the tests
+ *
+ * @param dates vector with the last dates of the tests
+ * @param column column to change
+ * @param date new current date
+ */
 void write_dates(std::vector<std::string> dates, int column, std::string date) {
     std::ofstream file("test/data/last_dates.csv");
     file << "fnn,fnn_hetero,fnn_full_cov,fnn_derivates,cnn,cnn_batch_norm,"
@@ -70,7 +82,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                      "cnn_resnet, lstm, cnn_resnet"
                   << std::endl;
         return;
-    } else if (user_input_options.size() > 0) {
+    } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
             if (user_input_options.size() == 1) {
                 reinizialize_test_outputs = "all";

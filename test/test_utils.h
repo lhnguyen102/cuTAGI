@@ -40,220 +40,125 @@
 #include "../include/net_prop.h"
 #include "../include/struct_var.h"
 
+/**
+ * @brief Compare two vectors of vectors
+ *
+ * @param v1 first vector of vectors
+ * @param v2 second vector of vectors
+ *
+ * @return true if the vectors are equal, false otherwise
+ */
 template <typename T>
-void read_params(std::string filename, T &theta) {
+bool compare_vectors(const std::vector<std::vector<T> *> &v1,
+                     const std::vector<std::vector<T> *> &v2) {
+    if (v1.size() != v2.size()) {
+        std::cout << "v1.size() = " << v1.size() << std::endl;
+        std::cout << "v2.size() = " << v2.size() << std::endl;
+        return false;
+    }
+
+    for (size_t i = 0; i < v1.size(); i++) {
+        for (size_t j = 0; j < v1[i]->size(); j++) {
+            // We can't do the comparison directly because when the values are
+            // written and read from a file, they are converted to strings and
+            // back, which can cause some precision loss. So we convert them to
+            // strings and compare the strings.
+            std::stringstream aa;
+            aa << (*v1[i])[j];
+            std::string a = aa.str();
+            std::stringstream bb;
+            bb << (*v2[i])[j];
+            std::string b = bb.str();
+
+            if (a != b) {
+                std::cout << "v1[" << i << "][" << j << "] = " << a
+                          << std::endl;
+                std::cout << "v2[" << i << "][" << j << "] = " << b
+                          << std::endl;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Read a vector of vectors from a CSV file
+ *
+ * @param[in] filename name of the file to read from
+ * @param[out] vector vector of vectors where data is stored
+ */
+template <typename T>
+void read_vector_from_csv(std::string filename,
+                          std::vector<std::vector<T> *> &vector) {
+    // Clear existing data in vectors
+    for (auto &vec : vector) {
+        if (vec != nullptr) {
+            vec->clear();
+        }
+    }
+
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file for reading." << std::endl;
         return;
     }
 
-    theta.mw.clear();
-    theta.Sw.clear();
-    theta.mb.clear();
-    theta.Sb.clear();
-    theta.mw_sc.clear();
-    theta.Sw_sc.clear();
-    theta.mb_sc.clear();
-    theta.Sb_sc.clear();
-
     std::string line;
-    std::getline(file, line);
-    int row = 0;
+    T value;
+    int col_idx = 0;
     while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string value;
-        int column = 0;
-        while (std::getline(iss, value, ',')) {
-            if (column == 0 && !value.empty())
-                theta.mw.push_back(std::stod(value));
-            if (column == 1 && !value.empty())
-                theta.Sw.push_back(std::stod(value));
-            if (column == 2 && !value.empty())
-                theta.mb.push_back(std::stod(value));
-            if (column == 3 && !value.empty())
-                theta.Sb.push_back(std::stod(value));
-            if (column == 4 && !value.empty())
-                theta.mw_sc.push_back(std::stod(value));
-            if (column == 5 && !value.empty())
-                theta.Sw_sc.push_back(std::stod(value));
-            if (column == 6 && !value.empty())
-                theta.mb_sc.push_back(std::stod(value));
-            if (column == 7 && !value.empty())
-                theta.Sb_sc.push_back(std::stod(value));
-            column++;
+        std::stringstream line_ss(line);
+        col_idx = 0;
+        while (line_ss >> value) {
+            if (col_idx >= vector.size()) {
+                // The file has more columns than the input vector
+                break;
+            }
+            vector[col_idx]->push_back(value);
+            col_idx++;
+            if (line_ss.peek() == ',') {
+                line_ss.ignore();
+            }
         }
-        row++;
     }
-
     file.close();
 }
 
+/**
+ * @brief Write a vector of vectors to a CSV file
+ *
+ * @param[in] filename name of the file to write to
+ * @param[in] header header of the CSV file
+ * @param[out] vector vector of vectors where data is stored
+ */
 template <typename T>
-void write_params(std::string filename, T &theta) {
+void write_vector_to_csv(std::string filename, std::string header,
+                         std::vector<std::vector<T> *> &vector) {
     std::ofstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file for writing." << std::endl;
         return;
     }
 
-    file << "mw,Sw,mb,Sb,mw_sc,Sw_sc,mb_sc,Sb_sc" << std::endl;
+    file << header << std::endl;
 
-    int rows =
-        std::max({theta.mw.size(), theta.Sw.size(), theta.mb.size(),
-                  theta.Sb.size(), theta.mw_sc.size(), theta.Sw_sc.size(),
-                  theta.mb_sc.size(), theta.Sb_sc.size()});
-    for (int i = 0; i < rows; i++) {
-        if (i < theta.mw.size())
-            file << theta.mw[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.Sw.size())
-            file << theta.Sw[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.mb.size())
-            file << theta.mb[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.Sb.size())
-            file << theta.Sb[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.mw_sc.size())
-            file << theta.mw_sc[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.Sw_sc.size())
-            file << theta.Sw_sc[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.mb_sc.size())
-            file << theta.mb_sc[i] << ",";
-        else
-            file << ",";
-
-        if (i < theta.Sb_sc.size())
-            file << theta.Sb_sc[i] << std::endl;
-        else
-            file << std::endl;
-    }
-
-    file.close();
-}
-
-template <typename T>
-void write_forward_hidden_states(std::string filename, T &net_state) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for writing." << std::endl;
-        return;
-    }
-
-    file << "mz,Sz,ma,Sa,J" << std::endl;
-
-    int rows =
-        std::max({net_state.mz.size(), net_state.Sz.size(), net_state.ma.size(),
-                  net_state.Sa.size(), net_state.J.size()});
-    for (int i = 0; i < rows; i++) {
-        if (i < net_state.mz.size())
-            file << net_state.mz[i] << ",";
-        else
-            file << ",";
-
-        if (i < net_state.Sz.size())
-            file << net_state.Sz[i] << ",";
-        else
-            file << ",";
-
-        if (i < net_state.ma.size())
-            file << net_state.ma[i] << ",";
-        else
-            file << ",";
-
-        if (i < net_state.Sa.size())
-            file << net_state.Sa[i] << ",";
-        else
-            file << ",";
-
-        if (i < net_state.J.size())
-            file << net_state.J[i] << std::endl;
-        else
-            file << std::endl;
-    }
-
-    file.close();
-}
-template <typename T>
-void write_backward_hidden_states(std::string filename, T &tagi_net,
-                                  int num_layers) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for writing." << std::endl;
-        return;
-    }
-
+    // Maximum number of rows in the vectors
     int rows = 0;
-    std::vector<std::vector<float>> mean, var;
-    mean.clear();
-    var.clear();
-    for (int i = 0; i < num_layers; i++) {
-        mean.push_back(std::get<0>(tagi_net.get_inovation_mean_var(i)));
-        var.push_back(std::get<1>(tagi_net.get_inovation_mean_var(i)));
-        if (mean[i].size() > rows) rows = mean[i].size();
-        if (var[i].size() > rows) rows = var[i].size();
-        file << "mean_l" << i + 1 << ",var_l" << i + 1 << ",";
-
-        if (i == num_layers - 1) file << std::endl;
+    for (const auto &col : vector) {
+        rows = std::max(rows, (int)col->size());
     }
 
     for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < num_layers; j++) {
-            if (i < mean[j].size())
-                file << mean[j][i] << ",";
-            else
+        for (int j = 0; j < vector.size(); j++) {
+            if (i < vector[j]->size()) {
+                file << (*vector[j])[i];
+            }
+            if (j < vector.size() - 1) {
                 file << ",";
-
-            if (i < var[j].size() && j != num_layers - 1)
-                file << var[j][i] << ",";
-            else if (i < var[j].size() && j == num_layers - 1)
-                file << var[j][i];
+            }
         }
         file << std::endl;
-    }
-}
-
-template <typename T>
-void write_input_derivatives(std::string filename, T &tagi_net) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for writing." << std::endl;
-        return;
-    }
-
-    std::tuple<std::vector<float>, std::vector<float>> input_derivatives =
-        tagi_net.get_derivatives(0);
-
-    file << "md,Sd" << std::endl;
-
-    int rows = std::max({std::get<0>(input_derivatives).size(),
-                         std::get<1>(input_derivatives).size()});
-    for (int i = 0; i < rows; i++) {
-        if (i < std::get<0>(input_derivatives).size())
-            file << std::get<0>(input_derivatives)[i] << ",";
-        else
-            file << ",";
-
-        if (i < std::get<1>(input_derivatives).size())
-            file << std::get<1>(input_derivatives)[i] << std::endl;
-        else
-            file << std::endl;
     }
 
     file.close();

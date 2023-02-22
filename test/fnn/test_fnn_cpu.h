@@ -42,5 +42,15 @@
 #include "../test_regression.h"
 #include "../test_utils.h"
 
+/**
+ * @brief Test the FNN network
+ *
+ * @param recompute_outputs indicates if the outputs should be recomputed
+ * @param date date of the test
+ * @param arch architecture of the network
+ * @param data dataset used
+ *
+ * @return true if the test was successful
+ */
 bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
                   std::string data);
