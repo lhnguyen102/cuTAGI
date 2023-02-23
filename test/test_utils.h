@@ -23,6 +23,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd
@@ -39,6 +40,32 @@
 #include "../include/net_init.h"
 #include "../include/net_prop.h"
 #include "../include/struct_var.h"
+
+inline bool directory_exists(const std::string& path) {
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0) {
+        return false;
+    } else if (info.st_mode & S_IFDIR) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+inline bool create_directory_if_not_exists(const std::string& path) {
+    if (directory_exists(path)) {
+        return true;
+    } else {
+        int result = mkdir(path.c_str(), 0777);
+        if (result == 0) {
+            std::cout << "Directory created at " << path << std::endl;
+            return true;
+        } else {
+            std::cerr << "Error creating directory at " << path << std::endl;
+            return false;
+        }
+    }
+}
 
 /**
  * @brief Compare two vectors of vectors

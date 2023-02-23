@@ -21,6 +21,7 @@ const int BATCH_SIZE = 5;
 const int EPOCHS = 50;
 const bool NORMALIZE = true;
 
+
 bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
                   std::string data) {
     // Create TAGI network
@@ -44,6 +45,7 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
     SavePath path;
     path.curr_path = get_current_dir();
     std::string data_path = path.curr_path + "/test/data/" + data;
+    std::string data_dir = path.curr_path + "/test/" + arch + "/data";
     std::string init_param_path_w = path.curr_path + "/test/" + arch +
                                     "/data/" + date + "_init_param_weights_" +
                                     arch + "_" + data + ".csv";
@@ -59,15 +61,16 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
     std::string forward_states_path =
         path.curr_path + "/test/" + arch + "/data/" + date +
         "_forward_hidden_states_" + arch + "_" + data + ".csv";
-    std::string forward_states_path_2 =
-        path.curr_path + "/test/" + arch + "/data/" + date +
-        "_forward_hidden_states_2_" + arch + "_" + data + ".csv";
     std::string backward_states_path =
         path.curr_path + "/test/" + arch + "/data/" + date +
         "_backward_hidden_states_" + arch + "_" + data + ".csv";
-    std::string backward_states_path_2 =
-        path.curr_path + "/test/" + arch + "/data/" + date +
-        "_backward_hidden_states_2_" + arch + "_" + data + ".csv";
+
+    // Cheks if the data directory exists
+    if (!create_directory_if_not_exists(data_dir)) {
+        std::cout << "Error: could not create data directory" << std::endl;
+        return false;
+    }
+
 
     // Train data
     Dataloader train_db = train_data(data, tagi_net, data_path, NORMALIZE);
