@@ -41,6 +41,11 @@
 #include "../include/net_prop.h"
 #include "../include/struct_var.h"
 
+/**
+ * @brief Indicate if a directory exists
+ *
+ * @param path directory path
+ */
 inline bool directory_exists(const std::string& path) {
     struct stat info;
     if (stat(path.c_str(), &info) != 0) {
@@ -52,6 +57,11 @@ inline bool directory_exists(const std::string& path) {
     }
 }
 
+/**
+ * @brief Create a directory if it does not exist
+ *
+ * @param path directory path
+ */
 inline bool create_directory_if_not_exists(const std::string& path) {
     if (directory_exists(path)) {
         return true;
