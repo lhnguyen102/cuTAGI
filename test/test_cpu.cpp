@@ -169,8 +169,10 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                 test_fnn_cpu(true, date, "fnn", "1D");
                 test_fnn_cpu(true, date, "fnn", "Boston_housing");
 
+                int test_num = 0;  // FNN
+
                 // Update de last date of the test
-                write_dates(test_dates, 0, date);
+                write_dates(test_dates, test_num, date);
             }
         }
     }
