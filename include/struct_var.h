@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      February 04, 2023
+// Updated:      February 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -242,9 +242,11 @@ struct LSTMState {
 };
 
 struct CfSoftmax {
+    // TODO: clean the unused variables
     std::vector<float> mu_e, var_e, mu_e_tilde, var_e_tilde, mu_e_check,
         var_e_check, rho_e_e_tilde, cov_z_e, cov_z_e_check, cov_y_y_check,
         cov_z_y_check, cov_z_y, mu_y_check, var_y_check;
+    std::vector<int> max_z_idx;
 };
 
 struct NetState {

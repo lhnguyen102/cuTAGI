@@ -247,6 +247,7 @@ void stable_softmax_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         for (int j = 0; j < no; j++) {
             ma[idx + j] = ma[idx + j] / sum;
             J[idx + j] = ma[idx + j] * (1 - ma[idx + j]);
+            // TODO: double check on covatiance formulation
             Sa[idx + j] = J[idx + j] * (Sz[idx + j] + max_v) * J[idx + j];
         }
     }
@@ -295,6 +296,39 @@ Args:
     }
 }
 
+void exp_fn_cpu_v2(std::vector<float> &mu_z, std::vector<float> &var_z, int no,
+                   int B, int z_pos, std::vector<float> &mu_e,
+                   std::vector<float> &var_e, std::vector<float> &cov_e_z,
+                   std::vector<int> &max_z_idx)
+/* Stable exponential function for softmax
+ */
+{
+    float tmp_mu, tmp_var, max_mu_z, max_var_z;
+    int idx;
+    for (int i = 0; i < B; i++) {
+        idx = z_pos + i * no;
+        auto max_idx =
+            std::max_element(mu_z.begin() + idx, mu_z.begin() + idx + no) -
+            mu_z.begin();
+        max_mu_z = mu_z[idx];
+        max_var_z = var_z[idx];
+        max_z_idx[i] = max_idx;
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mu_z[idx + j] - max_mu_z;
+            if (max_idx != idx + j) {
+                tmp_var = var_z[idx + j] + max_var_z;
+            } else {
+                tmp_var = max_var_z - var_z[idx + j];
+            }
+            mu_e[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
+            var_e[i * no + j] =
+                expf(2 * tmp_mu + tmp_var) * (expf(tmp_var) - 1);
+            cov_e_z[i * no + j] = max_mu_z * var_z[idx + j] *
+                                  expf(mu_z[idx + j] + 0.5 * var_z[idx + j]);
+        }
+    }
+}
+
 void compute_sum_exp_cpu(std::vector<float> &me, std::vector<float> &ve, int no,
                          int B, std::vector<float> &me_tilde,
                          std::vector<float> &ve_tilde) {
@@ -332,6 +366,24 @@ void compute_cov_coeff_e_e_tilde_cpu(std::vector<float> &ve_tilde,
                                      int z_pos, std::vector<float> &me,
                                      std::vector<float> &ve,
                                      std::vector<float> &rho_e_e_tilde)
+/*Covariance between exp(Z) and the sum of exp(Z)*/
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            rho_e_e_tilde[i * no + j] =
+                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
+                 powf(ve_tilde[i], 0.5)) *
+                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
+                 powf(ve[i * no + j], 0.5));
+        }
+    }
+}
+
+void compute_cov_coeff_e_e_tilde_cpu_v2(std::vector<float> &ve_tilde,
+                                        std::vector<float> &vz, int no, int B,
+                                        int z_pos, std::vector<float> &me,
+                                        std::vector<float> &ve,
+                                        std::vector<float> &rho_e_e_tilde)
 /*Covariance between exp(Z) and the sum of exp(Z)*/
 {
     for (int i = 0; i < B; i++) {
@@ -505,7 +557,7 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
     int no = net.nodes[l];
     int B = net.batch_size;
 
-    max_norm(state.mz, state.Sz, z_pos, no, B, state.mz, state.Sz);
+    // max_norm(state.mz, state.Sz, z_pos, no, B, state.mz, state.Sz);
 
     // Transform to exponential space
     exp_fn_cpu(state.mz, state.Sz, no, B, z_pos, state.cf_softmax.mu_e,
