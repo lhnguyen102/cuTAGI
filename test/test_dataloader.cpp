@@ -81,25 +81,3 @@ Dataloader test_data(std::string problem, TagiNetworkCPU &net,
                           train_db.mu_y, train_db.sigma_y, num_test_data,
                           net.prop.n_x, net.prop.n_y, normalize);
 }
-
-ImageData image_train_data(std::string problem, std::string data_path,
-                           std::vector<float> &mu, std::vector<float> &sigma,
-                           int w, int h, int d, HrSoftmax &hrs) {
-    // Directory of the data
-    std::string x_dir, y_dir;
-
-    // Num of data in each set
-    int num_train_data;
-
-    x_dir = data_path + "/x_train.csv";
-    y_dir = data_path + "/y_train.csv";
-    num_train_data = 60000;
-
-    std::vector<std::string> x_path;
-    std::vector<std::string> y_path;
-    x_path.push_back(x_dir);
-    y_path.push_back(y_dir);
-
-    return get_images(problem, x_path, y_path, mu, sigma, w, h, d, hrs,
-                      num_train_data);
-}

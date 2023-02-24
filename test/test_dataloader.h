@@ -65,16 +65,3 @@ Dataloader train_data(std::string problem, TagiNetworkCPU &net,
 Dataloader test_data(std::string problem, TagiNetworkCPU &net,
                      std::string data_path, Dataloader &train_db,
                      bool normalize);
-
-ImageData image_train_data(std::string data_path, std::vector<float> mu,
-                           std::vector<float> sigma, int w, int h, int d,
-                           HrSoftmax &hrs);
-
-ImageData image_test_data(std::string data_path, std::vector<float> mu,
-                          std::vector<float> sigma, int w, int h, int d,
-                          HrSoftmax &hrs);
-
-Dataloader test_time_series_datloader(Network &net, std::string mode,
-                                      int num_features, std::string data_path,
-                                      std::vector<int> output_col,
-                                      bool data_norm);

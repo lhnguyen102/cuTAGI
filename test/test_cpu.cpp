@@ -65,21 +65,31 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
     if (user_input_options.size() == 1 &&
         (user_input_options[0] == "-h" || user_input_options[0] == "--help")) {
-        std::cout << "Perform Tests:                    build/main test"
-                  << std::endl;
-        std::cout << "Run one specific test:            build/main test "
-                     "[architecture-name]"
-                  << std::endl;
-        std::cout
-            << "Reinizialize all test outputs:    build/main test -reset all"
-            << std::endl;
-        std::cout << "Reinizialize one specific outupt: build/main test -reset "
-                     "[architecture-name]"
-                  << std::endl;
-        std::cout << "Available architectures: fnn, fnn_hetero, "
+        int num_spaces = 35;
+
+        std::cout << "Usage: build/main [options]" << std::endl;
+        std::cout << "Options:" << std::endl;
+
+        std::cout << std::setw(num_spaces) << std::left << "test"
+                  << "Perform tests on all architectures" << std::endl;
+
+        std::cout << std::setw(num_spaces) << std::left
+                  << "test [architecture-name]"
+                  << "Run one specific test" << std::endl;
+
+        std::cout << std::setw(num_spaces) << std::left << "test -reset all"
+                  << "Reinizialize all test references" << std::endl;
+
+        std::cout << std::setw(num_spaces) << std::left
+                  << "test -reset <architecture-name>"
+                  << "Reinizialize one specific test reference" << std::endl;
+
+        std::cout << std::endl;
+
+        std::cout << "Available architectures: [fnn, fnn_hetero, "
                      "fnn_full_cov, "
                      "fnn_derivates, cnn, cnn_batch_norm, autoencoder, lstm, "
-                     "cnn_resnet, lstm, cnn_resnet"
+                     "cnn_resnet, lstm, cnn_resnet]"
                   << std::endl;
         return;
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
@@ -117,17 +127,22 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     ////////////////////////////
 
     if (test_architecture.size() > 0) {
+        int num_tests = 9;
+
         if (test_architecture == "all" || test_architecture == "fnn") {
             // Perform test on CPU for the FNN architectures
             std::cout << "Performing FNN tests" << std::endl;
 
-            if (test_fnn_cpu(false, test_dates[0], "fnn", "1D") &&
-                test_fnn_cpu(false, test_dates[0], "fnn", "Boston_housing")) {
-                std::cout << "[ " << floor((100 / 9) * 1) << "%] "
-                          << "FNN tests passed" << std::endl;
+            int test_num = 0;  // FNN
+
+            if (test_fnn_cpu(false, test_dates[test_num], "fnn", "1D") &&
+                test_fnn_cpu(false, test_dates[test_num], "fnn",
+                             "Boston_housing")) {
+                std::cout << "[ " << floor((100 / num_tests) * 1) << "%] "
+                          << "\033[32;1mFNN tests passed\033[0m" << std::endl;
             } else {
-                std::cout << "[ " << floor((100 / 9) * 1) << "%] "
-                          << "FNN tests failed" << std::endl;
+                std::cout << "[ " << floor((100 / num_tests) * 1) << "%] "
+                          << "\033[31;1mFNN tests failed\033[0m" << std::endl;
             }
         }
     }
@@ -137,16 +152,26 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     ///////////////////////////////
 
     if (reinizialize_test_outputs.size() > 0) {
-        if (reinizialize_test_outputs == "all" ||
-            reinizialize_test_outputs == "fnn") {
-            // Reinizialize test outputs for the FNN architectures
-            std::cout << "Reinizializing FNN test outputs" << std::endl;
+        std::string answer;
 
-            test_fnn_cpu(true, date, "fnn", "1D");
-            test_fnn_cpu(true, date, "fnn", "Boston_housing");
+        std::cout
+            << "Are you sure you want to recompute the tests references on " +
+                   reinizialize_test_outputs + " architecture/s? (yes/no): ";
+        std::cin >> answer;
 
-            // Update de last date of the test
-            write_dates(test_dates, 0, date);
+        if (answer == "Y" || answer == "y" || answer == "yes" ||
+            answer == "Yes") {
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "fnn") {
+                // Reinizialize test outputs for the FNN architectures
+                std::cout << "Reinizializing FNN test outputs" << std::endl;
+
+                test_fnn_cpu(true, date, "fnn", "1D");
+                test_fnn_cpu(true, date, "fnn", "Boston_housing");
+
+                // Update de last date of the test
+                write_dates(test_dates, 0, date);
+            }
         }
     }
 }

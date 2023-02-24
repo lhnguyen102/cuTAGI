@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <stdexcept>
 #include <string>
 
 #include "../../include/common.h"
