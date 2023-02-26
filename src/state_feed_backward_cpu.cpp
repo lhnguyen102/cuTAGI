@@ -949,6 +949,30 @@ void output_delta_mz_Sz_cpu(Network &net, NetState &state, Obs &obs,
     }
 }
 
+void remax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
+                              DeltaState &d_state)
+/*Compute updating quantities of hidden states for softmax layer*/
+{
+    int no = net.nodes.back();
+    int B = net.batch_size;
+    int z_pos = net.z_pos.back();
+    // Covariance between m and \check{a}
+    compute_cov_m_a_check_cpu(state.remax.var_log, state.remax.cov_log_logsum,
+                              state.remax.mu_m, no, B,
+                              state.remax.cov_m_a_check);
+
+    // Covariance between m and a
+    compute_cov_m_a_cpu(state.remax.cov_m_a_check, state.remax.mu_m,
+                        state.remax.J_m, 0, no, B, state.remax.cov_m_a);
+
+    // Updating quantities for hidden states
+    delta_z_y_check_cpu(state.ma, state.Sa, state.remax.cov_m_a, obs.y_batch,
+                        obs.V_batch, no, B, z_pos, d_state.delta_mz,
+                        d_state.delta_Sz);
+
+    int check = 0;
+}
+
 void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
                                 DeltaState &d_state)
 /*Compute updating quantities of hidden states for softmax layer*/
@@ -979,6 +1003,29 @@ void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
                         obs.y_batch, obs.V_batch, no, B, z_pos,
                         d_state.delta_mz, d_state.delta_Sz);
+}
+
+void softmax_output_delta_z_cpu_v3(Network &net, NetState &state, Obs &obs,
+                                   DeltaState &d_state)
+/*Compute updating quantities of hidden states for softmax layer*/
+{
+    int no = net.nodes.back();
+    int B = net.batch_size;
+    int z_pos = net.z_pos.back();
+    // Covariance between z and \check{y}
+    compute_cov_z_y_check_cpu_v2(state.Sz, state.cf_softmax.cov_z_e_check,
+                                 state.cf_softmax.max_z_idx, no, B, z_pos,
+                                 state.cf_softmax.cov_z_y_check);
+
+    // Covariance between z and y
+    compute_cov_z_y_cpu(state.ma, state.cf_softmax.cov_z_y_check, no, B, z_pos,
+                        state.cf_softmax.cov_z_y);
+
+    // Updating quantities for hidden states
+    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
+                        obs.y_batch, obs.V_batch, no, B, z_pos,
+                        d_state.delta_mz, d_state.delta_Sz);
+    int check = 1;
 }
 
 void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
@@ -1044,7 +1091,7 @@ void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
             (net.activations.back() != net.act_names.cf_softmax)) {
             output_delta_mz_Sz_cpu(net, state, obs, d_state);
         } else if (net.activations.back() == net.act_names.cf_softmax) {
-            softmax_output_delta_z_cpu(net, state, obs, d_state);
+            remax_output_delta_z_cpu(net, state, obs, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inferenece_cpu(state, net, obs,
                                                          d_state);

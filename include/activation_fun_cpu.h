@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      February 12, 2023
+// Updated:      February 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,15 @@
 
 #include "common.h"
 #include "struct_var.h"
+
+void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
+                               std::vector<float> &cov_log_logsum,
+                               std::vector<float> &mu_a, int no, int B,
+                               std::vector<float> &cov_m_a_check);
+
+void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
+                         std::vector<float> &mu_m, std::vector<float> &J_m,
+                         int z_pos, int no, int B, std::vector<float> &cov_a_m);
 
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          int zpos, int n, std::vector<float> &ma,
@@ -79,6 +88,11 @@ void compute_cov_z_y_check_cpu(std::vector<float> &var_z,
 void compute_cov_z_y_cpu(std::vector<float> &mu_a,
                          std::vector<float> &cov_z_y_check, int no, int B,
                          int z_pos, std::vector<float> &cov_z_y);
+
+void compute_cov_z_y_check_cpu_v2(std::vector<float> &var_z,
+                                  std::vector<float> &cov_z_e_check,
+                                  std::vector<int> &max_idx, int no, int B,
+                                  int z_pos, std::vector<float> &cov_z_y_check);
 
 void closed_form_softmax_cpu(Network &net, NetState &state, int l);
 
