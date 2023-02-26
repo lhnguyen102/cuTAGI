@@ -249,6 +249,11 @@ struct CfSoftmax {
     std::vector<int> max_z_idx;
 };
 
+struct Remax {
+    std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
+        mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -275,6 +280,7 @@ struct NetState {
     DerivativeState derv_state;
     LSTMState lstm;
     CfSoftmax cf_softmax;
+    Remax remax;
 };
 
 // NETWORK PARAMETERS

@@ -933,6 +933,20 @@ NetState initialize_net_states(Network &net_prop) {
         state.cf_softmax.cov_z_y.resize(n_output, 0);
         state.cf_softmax.mu_y_check.resize(n_output, 0);
         state.cf_softmax.var_y_check.resize(n_output, 0);
+        state.cf_softmax.max_z_idx.resize(net_prop.batch_size, 0);
+
+        state.remax.mu_m.resize(n_output, 0);
+        state.remax.var_m.resize(n_output, 0);
+        state.remax.J_m.resize(n_output, 0);
+        state.remax.mu_log.resize(n_output, 0);
+        state.remax.var_log.resize(n_output, 0);
+        state.remax.mu_sum.resize(net_prop.batch_size, 0);
+        state.remax.var_sum.resize(net_prop.batch_size, 0);
+        state.remax.mu_logsum.resize(net_prop.batch_size, 0);
+        state.remax.var_logsum.resize(net_prop.batch_size, 0);
+        state.remax.cov_log_logsum.resize(n_output, 0);
+        state.remax.cov_m_a.resize(n_output, 0);
+        state.remax.cov_m_a_check.resize(n_output, 0);
     }
 
     return state;

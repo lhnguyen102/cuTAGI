@@ -3,13 +3,107 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      January 05, 2023
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/activation_fun_cpu.h"
 
+void to_log_cpu(std::vector<float> &mu_m, std::vector<float> &var_m, int z_pos,
+                int no, int B, std::vector<float> &mu_log,
+                std::vector<float> &var_log) {
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_var = logf(1.0f + (var_m[i * no + j + z_pos] /
+                                   powf(mu_m[i * no + j + z_pos], 2)));
+            tmp_mu = logf(mu_m[i * no + j + z_pos]) - 0.5 * tmp_var;
+            mu_log[i * no + j] = tmp_mu;
+            var_log[i * no + j] = tmp_var;
+        }
+    }
+}
+
+void sum_class_hidden_states_cpu(std::vector<float> &mu_m,
+                                 std::vector<float> &var_m, int z_pos, int no,
+                                 int B, std::vector<float> &mu_sum,
+                                 std::vector<float> &var_sum) {
+    float sum_mu, sum_var;
+    for (int i = 0; i < B; i++) {
+        sum_mu = 0.0f;
+        sum_var = 0.0f;
+        for (int j = 0; j < no; j++) {
+            sum_mu += mu_m[i * no + j + z_pos];
+            sum_var += var_m[i * no + j + z_pos];
+        }
+        mu_sum[i] = sum_mu;
+        var_sum[i] = sum_var;
+    }
+}
+
+void compute_cov_log_logsum_cpu(std::vector<float> &mu_a,
+                                std::vector<float> &var_a,
+                                std::vector<float> &mu_sum, int z_pos, int no,
+                                int B, std::vector<float> &cov_log_logsum) {
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov_log_logsum[i * no + j] =
+                logf(1.0f + var_a[i * no + j + z_pos] * (1.0f / mu_sum[i]) *
+                                (1.0f / mu_a[i * no + j + z_pos]));
+        }
+    }
+}
+
+void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
+                               std::vector<float> &cov_log_logsum,
+                               std::vector<float> &mu_a, int no, int B,
+                               std::vector<float> &cov_m_a_check) {
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov_m_a_check[i * no + j] =
+                (var_log[i * no + j] - cov_log_logsum[i * no + j]) *
+                mu_a[i * no + j];
+        }
+    }
+}
+
+void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
+                         std::vector<float> &mu_m, std::vector<float> &J_m,
+                         int z_pos, int no, int B,
+                         std::vector<float> &cov_a_m) {
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov_a_m[i * no + j] = J_m[i * no + j + z_pos] *
+                                  mu_m[i * no + j + z_pos] *
+                                  cov_m_a_check[i * no + j];
+        }
+    }
+}
+
+void compute_remax_prob_cpu(std::vector<float> &mu_log,
+                            std::vector<float> &var_log,
+                            std::vector<float> &mu_logsum,
+                            std::vector<float> &var_logsum,
+                            std::vector<float> &cov_log_logsum, int z_pos,
+                            int no, int B, std::vector<float> &mu_a,
+                            std::vector<float> &var_a) {
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mu_log[i * no + j] - mu_logsum[i];
+            tmp_var = var_log[i * no + j] + var_logsum[i] -
+                      2 * cov_log_logsum[i * no + j];
+            mu_a[i * no + j + z_pos] = expf(tmp_mu + 0.5 * tmp_var);
+            var_a[i * no + j + z_pos] =
+                expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////
+//// CLASSIC ACTIVATION
+////////////////////////////////////////////////////////////////////////
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          int zpos, int n, std::vector<float> &ma,
                          std::vector<float> &J, std::vector<float> &Sa)
@@ -131,6 +225,29 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         ma[zpos + i] = omega * mz_til;
         Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
         J[zpos + i] = powf(omega * kappa, 0.5);
+    }
+}
+
+void mixture_relu_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
+                         float omega_tol, int zpos, int start_idx, int end_idx,
+                         std::vector<float> &ma, std::vector<float> &J,
+                         std::vector<float> &Sa) {
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    for (int i = start_idx; i < end_idx; i++) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mz[zpos + i] / powf(Sz[zpos + i], 0.5);
+        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
+        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
+        kappa = 1 + alpha * beta - powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mz_til = mz[zpos + i] + beta * powf(Sz[zpos + i], 0.5);
+        Sz_til = kappa * Sz[zpos + i];
+
+        // Activation distribution
+        ma[i] = omega * mz_til;
+        Sa[i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
+        J[i] = powf(omega * kappa, 0.5);
     }
 }
 
@@ -318,13 +435,14 @@ void exp_fn_cpu_v2(std::vector<float> &mu_z, std::vector<float> &var_z, int no,
             if (max_idx != idx + j) {
                 tmp_var = var_z[idx + j] + max_var_z;
             } else {
-                tmp_var = max_var_z - var_z[idx + j];
+                tmp_var = 0.0f;
             }
             mu_e[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
             var_e[i * no + j] =
                 expf(2 * tmp_mu + tmp_var) * (expf(tmp_var) - 1);
-            cov_e_z[i * no + j] = max_mu_z * var_z[idx + j] *
-                                  expf(mu_z[idx + j] + 0.5 * var_z[idx + j]);
+            cov_e_z[i * no + j] =
+                var_z[idx + j] *
+                expf(mu_z[idx + j] + 0.5 * var_z[idx + j] - max_mu_z);
         }
     }
 }
@@ -379,20 +497,15 @@ void compute_cov_coeff_e_e_tilde_cpu(std::vector<float> &ve_tilde,
     }
 }
 
-void compute_cov_coeff_e_e_tilde_cpu_v2(std::vector<float> &ve_tilde,
-                                        std::vector<float> &vz, int no, int B,
-                                        int z_pos, std::vector<float> &me,
+void compute_cov_coeff_e_e_tilde_cpu_v2(std::vector<float> &ve_tilde, int no,
+                                        int B, int z_pos,
                                         std::vector<float> &ve,
                                         std::vector<float> &rho_e_e_tilde)
 /*Covariance between exp(Z) and the sum of exp(Z)*/
 {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            rho_e_e_tilde[i * no + j] =
-                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
-                 powf(ve_tilde[i], 0.5)) *
-                ((powf(vz[i * no + z_pos], 0.5) * me[i * no + j]) /
-                 powf(ve[i * no + j], 0.5));
+            rho_e_e_tilde[i * no + j] = ve[i * no + j] / powf(ve_tilde[i], 0.5);
         }
     }
 }
@@ -428,6 +541,26 @@ void compute_cov_z_e_check_cpu(std::vector<float> &rho_e_e_tilde,
     }
 }
 
+void compute_cov_z_e_check_cpu_v2(
+    std::vector<float> &rho_e_e_tilde, std::vector<float> &me,
+    std::vector<float> &ve, std::vector<float> &me_tilde,
+    std::vector<float> &ve_tilde, std::vector<int> &max_z_idx, int z_pos,
+    int no, int B, std::vector<float> &cov_z_e_check)
+/*Covariance between hidden states (Z) and log(sum(exp(Z)))*/
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov_z_e_check[i * no + j] =
+                logf(1 + rho_e_e_tilde[i * no + j] *
+                             (powf(ve[i * no + j], 0.5) / me[i * no + j]) *
+                             (powf(ve_tilde[i], 0.5) / me_tilde[i]));
+            if (max_z_idx[i] == z_pos + i * no + j) {
+                cov_z_e_check[i * no + j] = 0.0f;
+            }
+        }
+    }
+}
+
 void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
                          std::vector<float> &me_check,
                          std::vector<float> &ve_check,
@@ -452,32 +585,24 @@ void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
 void exp_log_softmax_cpu_v2(std::vector<float> &mz, std::vector<float> &vz,
                             std::vector<float> &me_check,
                             std::vector<float> &ve_check,
-                            std::vector<float> &cov_z_e_check, float sigma_v,
-                            int no, int B, int z_pos, std::vector<float> &ma,
+                            std::vector<float> &cov_z_e_check,
+                            std::vector<int> &max_idx, float sigma_v, int no,
+                            int B, int z_pos, std::vector<float> &ma,
                             std::vector<float> &va)
-/*Convert log of softmax to softmax space*/
+/*TBD*/
 {
-    float tmp_mu, tmp_var, max_m, max_v;
+    float tmp_mu, tmp_var;
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            tmp_mu = mz[z_pos + i * no + j] - me_check[i];
-            tmp_var = vz[z_pos + i * no + j] + ve_check[i] -
+            tmp_mu = mz[z_pos + i * no + j] - me_check[i] - mz[max_idx[i]];
+            tmp_var = vz[z_pos + i * no + j] + ve_check[i] + vz[max_idx[i]] -
                       2 * cov_z_e_check[i * no + j];
-            ma[z_pos + i * no + j] = tmp_mu + 0.5 * tmp_var;
-            va[z_pos + i * no + j] = tmp_var;
-        }
-        int idx = z_pos + i * no;
-        auto max_idx =
-            std::max_element(ma.begin() + idx, ma.begin() + idx + no) -
-            ma.begin();
-        max_m = ma[max_idx];
-        max_v = va[max_idx];
-        for (int j = 0; j < no; j++) {
-            ma[z_pos + i * no + j] =
-                expf(ma[z_pos + i * no + j] - max_m +
-                     0.5 * (va[z_pos + i * no + j] + max_v));
-            va[z_pos + i * no + j] = powf(ma[z_pos + i * no + j], 2) *
-                                     (expf(va[z_pos + i * no + j] + max_v) - 1);
+            if (max_idx[i] == z_pos + i * no + j) {
+                tmp_var = 0;
+            }
+            ma[z_pos + i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
+            va[z_pos + i * no + j] =
+                expf(2 * tmp_mu + tmp_var) * (expf(tmp_var) - 1);
         }
     }
 }
@@ -542,6 +667,25 @@ void compute_cov_z_y_check_cpu(std::vector<float> &var_z,
     }
 }
 
+void compute_cov_z_y_check_cpu_v2(std::vector<float> &var_z,
+                                  std::vector<float> &cov_z_e_check,
+                                  std::vector<int> &max_idx, int no, int B,
+                                  int z_pos, std::vector<float> &cov_z_y_check)
+/* Covariance between hidden state z and \check{y}. See function
+   `compute_cov_y_y_check_cpu`*/
+{
+    float tmp_cov;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_cov = var_z[z_pos + i * no + j] - cov_z_e_check[i * no + j];
+            if (max_idx[i] == z_pos + i * no + j) {
+                tmp_cov -= var_z[z_pos + i * no + j];
+            }
+            cov_z_y_check[i * no + j] = tmp_cov;
+        }
+    }
+}
+
 void compute_cov_z_y_cpu(std::vector<float> &mu_a,
                          std::vector<float> &cov_z_y_check, int no, int B,
                          int z_pos, std::vector<float> &cov_z_y) {
@@ -590,6 +734,91 @@ void closed_form_softmax_cpu(Network &net, NetState &state, int l)
                         state.cf_softmax.var_e_check,
                         state.cf_softmax.cov_z_e_check, 0.0f, no, B, z_pos,
                         state.ma, state.Sa);
+}
+
+void closed_form_softmax_cpu_v2(Network &net, NetState &state, int l)
+/*Closed-form softmax function*/
+{
+    int z_pos = net.z_pos[l];
+    int no = net.nodes[l];
+    int B = net.batch_size;
+
+    // Transform to exponential space
+    exp_fn_cpu_v2(state.mz, state.Sz, no, B, z_pos, state.cf_softmax.mu_e,
+                  state.cf_softmax.var_e, state.cf_softmax.cov_z_e,
+                  state.cf_softmax.max_z_idx);
+
+    // Compute sum of the exponential of all hidden states
+    compute_sum_exp_cpu(state.cf_softmax.mu_e, state.cf_softmax.var_e, no, B,
+                        state.cf_softmax.mu_e_tilde,
+                        state.cf_softmax.var_e_tilde);
+
+    // Compute covariance coefficient between epx(z) and sum(exp(z))
+    compute_cov_coeff_e_e_tilde_cpu_v2(state.cf_softmax.var_e_tilde, no, B,
+                                       z_pos, state.cf_softmax.var_e,
+                                       state.cf_softmax.rho_e_e_tilde);
+
+    // Transform sum(exp(z)) in log space
+    compute_log_sum_exp_cpu(
+        state.cf_softmax.mu_e_tilde, state.cf_softmax.var_e_tilde, B,
+        state.cf_softmax.mu_e_check, state.cf_softmax.var_e_check);
+
+    // Covariance between z and log(sum(exp(z)))
+    compute_cov_z_e_check_cpu_v2(
+        state.cf_softmax.rho_e_e_tilde, state.cf_softmax.mu_e,
+        state.cf_softmax.var_e, state.cf_softmax.mu_e_tilde,
+        state.cf_softmax.var_e_tilde, state.cf_softmax.max_z_idx, z_pos, no, B,
+        state.cf_softmax.cov_z_e_check);
+
+    // Convert to softmax probability
+    exp_log_softmax_cpu_v2(
+        state.mz, state.Sz, state.cf_softmax.mu_e_check,
+        state.cf_softmax.var_e_check, state.cf_softmax.cov_z_e_check,
+        state.cf_softmax.max_z_idx, 0.0f, no, B, z_pos, state.ma, state.Sa);
+
+    float sum_prob = 0.0f;
+    for (int i = 0; i < 10; i++) {
+        sum_prob += state.ma[net.z_pos.back() + i];
+    }
+    int check = 1;
+}
+
+void remax_cpu(Network &net, NetState &state, int l)
+/*Remax activation function*/
+{
+    int z_pos = net.z_pos[l];
+    int no = net.nodes[l];
+    int B = net.batch_size;
+
+    // mrelu
+    mixture_relu_cpu_v2(state.mz, state.Sz, net.omega_tol, z_pos, 0, no * B,
+                        state.remax.mu_m, state.remax.J_m, state.remax.var_m);
+
+    // log of mrelu
+    to_log_cpu(state.remax.mu_m, state.remax.var_m, 0, no, B,
+               state.remax.mu_log, state.remax.var_log);
+
+    // sum of mrelu
+    sum_class_hidden_states_cpu(state.remax.mu_m, state.remax.var_m, 0, no, B,
+                                state.remax.mu_sum, state.remax.var_sum);
+    to_log_cpu(state.remax.mu_sum, state.remax.var_sum, 0, 1, B,
+               state.remax.mu_logsum, state.remax.var_logsum);
+
+    // covariance between log of mrelu and log of sum of mrelu
+    compute_cov_log_logsum_cpu(state.remax.mu_m, state.remax.var_m,
+                               state.remax.mu_sum, 0, no, B,
+                               state.remax.cov_log_logsum);
+
+    // Compute remax probabilities
+    compute_remax_prob_cpu(state.remax.mu_log, state.remax.var_log,
+                           state.remax.mu_logsum, state.remax.var_logsum,
+                           state.remax.cov_log_logsum, z_pos, no, B, state.ma,
+                           state.Sa);
+    float sum_prob = 0.0f;
+    for (int i = 0; i < 10; i++) {
+        sum_prob += state.ma[net.z_pos.back() + i];
+    }
+    int check = 1;
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
@@ -1221,7 +1450,8 @@ void activate_hidden_states_cpu(Network &net, NetState &state, int j) {
                            state.J, state.Sa);
     } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
     {
-        closed_form_softmax_cpu(net, state, j);
+        remax_cpu(net, state, j);
+        // closed_form_softmax_cpu_v2(net, state, j);
     } else  // no activation
     {
         if (no * B > net.min_operations && net.multithreading) {
