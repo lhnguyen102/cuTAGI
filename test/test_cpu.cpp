@@ -41,7 +41,7 @@ std::vector<std::string> read_dates() {
  */
 void write_dates(std::vector<std::string> dates, int column, std::string date) {
     std::ofstream file("test/data/last_dates.csv");
-    file << "fnn,fnn_hetero,fnn_full_cov,fnn_derivates,cnn,cnn_batch_norm,"
+    file << "fnn,fnn_heteros,fnn_full_cov,fnn_derivates,cnn,cnn_batch_norm,"
             "autoencoder,lstm,cnn_resnet"
          << std::endl;
 
@@ -86,7 +86,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
         std::cout << std::endl;
 
-        std::cout << "Available architectures: [fnn, fnn_hetero, "
+        std::cout << "Available architectures: [fnn, fnn_heteros, "
                      "fnn_full_cov, "
                      "fnn_derivates, cnn, cnn_batch_norm, autoencoder, lstm, "
                      "cnn_resnet, lstm, cnn_resnet]"
@@ -97,6 +97,22 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             if (user_input_options.size() == 1) {
                 reinizialize_test_outputs = "all";
             } else {
+                std::vector<std::string> possible_architectures = 
+                                                {"all", "fnn", "fnn_heteros",
+                                                "fnn_full_cov", "fnn_derivates",
+                                                "cnn", "cnn_batch_norm",
+                                                "autoencoder", "lstm",
+                                                "cnn_resnet"};
+
+                // Check if the architecture is valid
+                if (std::find(possible_architectures.begin(), 
+                              possible_architectures.end(), 
+                              user_input_options[1]) == possible_architectures.end()) {
+                    
+                    throw std::runtime_error(
+                        "This architecture is not valid. test -h for help.");                
+                }
+                
                 reinizialize_test_outputs = user_input_options[1];
             }
         } else {
@@ -195,7 +211,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             }
 
             if (reinizialize_test_outputs == "all" ||
-                reinizialize_test_outputs == "fnn_hetero") {
+                reinizialize_test_outputs == "fnn_heteros") {
                 // Reinizialize test outputs for the FNN architecture with heteroscedastic noise
                 std::cout << "Reinizializing FNN heteroscedastic noise test outputs" << std::endl;
 
