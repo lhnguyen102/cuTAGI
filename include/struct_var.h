@@ -187,7 +187,7 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.001;
+    float omega_tol = 0.0000001f;
 };
 
 // NETWORK STATE

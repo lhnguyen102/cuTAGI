@@ -962,116 +962,14 @@ void remax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
                               state.remax.cov_m_a_check);
 
     // Covariance between m and a
-    compute_cov_m_a_cpu(state.remax.cov_m_a_check, state.remax.mu_m,
-                        state.remax.J_m, 0, no, B, state.remax.cov_m_a);
+    compute_cov_m_a_cpu(state.remax.cov_m_a_check, state.ma, state.remax.var_m,
+                        state.Sz, state.remax.J_m, z_pos, no, B,
+                        state.remax.cov_m_a);
 
     // Updating quantities for hidden states
     delta_z_y_check_cpu(state.ma, state.Sa, state.remax.cov_m_a, obs.y_batch,
                         obs.V_batch, no, B, z_pos, d_state.delta_mz,
                         d_state.delta_Sz);
-
-    int check = 0;
-}
-
-void softmax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
-                                DeltaState &d_state)
-/*Compute updating quantities of hidden states for softmax layer*/
-{
-    int no = net.nodes.back();
-    int B = net.batch_size;
-    int z_pos = net.z_pos.back();
-    // Covariance between z and \check{y}
-    compute_cov_z_y_check_cpu(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
-                              z_pos, state.cf_softmax.cov_z_y_check);
-
-    // Covariance between z and y
-    compute_cov_z_y_cpu(state.ma, state.cf_softmax.cov_z_y_check, no, B, z_pos,
-                        state.cf_softmax.cov_z_y);
-
-    // // Compute mean and variance for \check{y}
-    // compute_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-    //                     state.cf_softmax.var_e_check,
-    //                     state.cf_softmax.cov_z_e_check, obs.V_batch, no, B,
-    //                     z_pos, state.cf_softmax.mu_y_check,
-    //                     state.cf_softmax.var_y_check);
-    // exp_log_softmax_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-    //                     state.cf_softmax.var_e_check,
-    //                     state.cf_softmax.cov_z_e_check, net.sigma_v, no, B,
-    //                     z_pos, state.ma, state.Sa);
-
-    // Updating quantities for hidden states
-    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
-                        obs.y_batch, obs.V_batch, no, B, z_pos,
-                        d_state.delta_mz, d_state.delta_Sz);
-}
-
-void softmax_output_delta_z_cpu_v3(Network &net, NetState &state, Obs &obs,
-                                   DeltaState &d_state)
-/*Compute updating quantities of hidden states for softmax layer*/
-{
-    int no = net.nodes.back();
-    int B = net.batch_size;
-    int z_pos = net.z_pos.back();
-    // Covariance between z and \check{y}
-    compute_cov_z_y_check_cpu_v2(state.Sz, state.cf_softmax.cov_z_e_check,
-                                 state.cf_softmax.max_z_idx, no, B, z_pos,
-                                 state.cf_softmax.cov_z_y_check);
-
-    // Covariance between z and y
-    compute_cov_z_y_cpu(state.ma, state.cf_softmax.cov_z_y_check, no, B, z_pos,
-                        state.cf_softmax.cov_z_y);
-
-    // Updating quantities for hidden states
-    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_z_y,
-                        obs.y_batch, obs.V_batch, no, B, z_pos,
-                        d_state.delta_mz, d_state.delta_Sz);
-    int check = 1;
-}
-
-void softmax_output_delta_z_cpu_v2(Network &net, NetState &state, Obs &obs,
-                                   DeltaState &d_state)
-/*Compute updating quantities of hidden states for softmax layer*/
-{
-    int no = net.nodes.back();
-    int B = net.batch_size;
-    int z_pos = net.z_pos.back();
-    // Covariance between observation y and prediciton\check{y} i.e., in
-    // log-space. TODO: Double check on cov_z_e_check
-    compute_cov_y_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                              state.cf_softmax.var_e_check,
-                              state.cf_softmax.cov_z_e_check, no, B, z_pos,
-                              state.cf_softmax.cov_y_y_check);
-
-    // Covariance between z and \check{y}
-    compute_cov_z_y_check_cpu(state.Sz, state.cf_softmax.cov_z_e_check, no, B,
-                              z_pos, state.cf_softmax.cov_z_y_check);
-
-    // Compute mean and variance for \check{y}
-    compute_y_check_cpu(state.mz, state.Sz, state.cf_softmax.mu_e_check,
-                        state.cf_softmax.var_e_check,
-                        state.cf_softmax.cov_z_e_check, obs.V_batch, no, B,
-                        z_pos, state.cf_softmax.mu_y_check,
-                        state.cf_softmax.var_y_check);
-
-    // Updating quantities for \check{y}
-    delta_z_y_check_cpu(state.ma, state.Sa, state.cf_softmax.cov_y_y_check,
-                        obs.y_batch, obs.V_batch, no, B, z_pos,
-                        d_state.delta_state_softmax.delta_mu_zy_check,
-                        d_state.delta_state_softmax.delta_var_zy_check);
-
-    // Inovation vector for \check{y}
-    inovation_mean(state.cf_softmax.var_y_check,
-                   d_state.delta_state_softmax.delta_mu_zy_check, 0, 0, no * B,
-                   d_state.delta_state_softmax.delta_mu_y_check);
-    inovation_var(state.cf_softmax.var_y_check,
-                  d_state.delta_state_softmax.delta_var_zy_check, 0, 0, no * B,
-                  d_state.delta_state_softmax.delta_var_y_check);
-
-    // Updating quantities for hidden states
-    delta_z_softmax_cpu(state.cf_softmax.cov_z_y_check,
-                        d_state.delta_state_softmax.delta_mu_y_check,
-                        d_state.delta_state_softmax.delta_var_y_check, no, B,
-                        d_state.delta_mz, d_state.delta_Sz);
 }
 
 void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,

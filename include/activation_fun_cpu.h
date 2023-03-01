@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      February 25, 2023
+// Updated:      February 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,8 @@ void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_m_a_check);
 
 void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
-                         std::vector<float> &mu_m, std::vector<float> &J_m,
+                         std::vector<float> &mu_a, std::vector<float> &var_m,
+                         std::vector<float> &var_z, std::vector<float> &J_m,
                          int z_pos, int no, int B, std::vector<float> &cov_a_m);
 
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
@@ -66,35 +67,6 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          float omega_tol, int zpos, int start_idx, int end_idx,
                          std::vector<float> &ma, std::vector<float> &J,
                          std::vector<float> &Sa);
-
-void compute_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
-                         std::vector<float> &me_check,
-                         std::vector<float> &ve_check,
-                         std::vector<float> &cov_z_e_check,
-                         std::vector<float> &var_noise, int no, int B,
-                         int z_pos, std::vector<float> &my_y_check,
-                         std::vector<float> &var_y_check);
-
-void compute_cov_y_y_check_cpu(std::vector<float> &mz, std::vector<float> &vz,
-                               std::vector<float> &me_check,
-                               std::vector<float> &ve_check,
-                               std::vector<float> &cov_z_e_check, int no, int B,
-                               int z_pos, std::vector<float> &cov_y_y_check);
-
-void compute_cov_z_y_check_cpu(std::vector<float> &var_z,
-                               std::vector<float> &cov_z_e_check, int no, int B,
-                               int z_pos, std::vector<float> &cov_z_y_check);
-
-void compute_cov_z_y_cpu(std::vector<float> &mu_a,
-                         std::vector<float> &cov_z_y_check, int no, int B,
-                         int z_pos, std::vector<float> &cov_z_y);
-
-void compute_cov_z_y_check_cpu_v2(std::vector<float> &var_z,
-                                  std::vector<float> &cov_z_e_check,
-                                  std::vector<int> &max_idx, int no, int B,
-                                  int z_pos, std::vector<float> &cov_z_y_check);
-
-void closed_form_softmax_cpu(Network &net, NetState &state, int l);
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,
