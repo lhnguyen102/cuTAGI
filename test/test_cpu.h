@@ -19,6 +19,7 @@
 #include <string>
 
 #include "fnn/test_fnn_cpu.h"
+#include "fnn_heteros/test_fnn_heteros_cpu.h"
 
 /**
  * @brief Read the last dates of the tests

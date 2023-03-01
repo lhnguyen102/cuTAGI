@@ -122,6 +122,9 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     // Read last test dates
     std::vector<std::string> test_dates = read_dates();
 
+    // Index of the current test
+    int test_num;
+
     ////////////////////////////
     //      PERFORM TESTS     //
     ////////////////////////////
@@ -129,20 +132,36 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     if (test_architecture.size() > 0) {
         int num_tests = 9;
 
-        if (test_architecture == "all" || test_architecture == "fnn") {
-            // Perform test on CPU for the FNN architectures
-            std::cout << "Performing FNN tests" << std::endl;
+        std::cout << "Performing " << test_architecture << " tests" << std::endl;
 
-            int test_num = 0;  // FNN
+        // Perform test on CPU for the FNN architecture
+        if (test_architecture == "all" || test_architecture == "fnn") {
+
+            test_num = 0;  // FNN
 
             if (test_fnn_cpu(false, test_dates[test_num], "fnn", "1D") &&
                 test_fnn_cpu(false, test_dates[test_num], "fnn",
                              "Boston_housing")) {
-                std::cout << "[ " << floor((100 / num_tests) * 1) << "%] "
+                std::cout << "[ " << floor((100 / num_tests) * (test_num+1)) << "%] "
                           << "\033[32;1mFNN tests passed\033[0m" << std::endl;
             } else {
-                std::cout << "[ " << floor((100 / num_tests) * 1) << "%] "
+                std::cout << "[ " << floor((100 / num_tests) * (test_num+1)) << "%] "
                           << "\033[31;1mFNN tests failed\033[0m" << std::endl;
+            }
+        }
+
+        // Perform test on CPU for the FNN architecture with heteroscedastic noise
+        if (test_architecture == "all" || test_architecture == "fnn_hetero") {
+
+            test_num = 1;  // FNN heteroscedastic noise
+
+            if (test_fnn_heteros_cpu(false, test_dates[test_num], "fnn_heteros", 
+                "1D_noise_inferance")) {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num+1)) << "%] "
+                          << "\033[32;1mFNN heteroscedastic tests passed\033[0m" << std::endl;
+            } else {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num+1)) << "%] "
+                          << "\033[31;1mFNN heteroscedastic tests failed\033[0m" << std::endl;
             }
         }
     }
@@ -163,13 +182,26 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             answer == "Yes") {
             if (reinizialize_test_outputs == "all" ||
                 reinizialize_test_outputs == "fnn") {
-                // Reinizialize test outputs for the FNN architectures
+                // Reinizialize test outputs for the FNN architecture
                 std::cout << "Reinizializing FNN test outputs" << std::endl;
 
                 test_fnn_cpu(true, date, "fnn", "1D");
                 test_fnn_cpu(true, date, "fnn", "Boston_housing");
 
-                int test_num = 0;  // FNN
+                test_num = 0;  // FNN
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "fnn_hetero") {
+                // Reinizialize test outputs for the FNN architecture with heteroscedastic noise
+                std::cout << "Reinizializing FNN heteroscedastic noise test outputs" << std::endl;
+
+                test_fnn_heteros_cpu(true, date, "fnn_heteros", "1D_noise_inferance");
+
+                test_num = 1;  // FNN heteroscedastic noise
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);

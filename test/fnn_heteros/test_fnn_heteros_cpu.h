@@ -2,8 +2,8 @@
 // File:         test_fnn_cpu.cpp
 // Description:  Header file for fnn test
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
-// Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Created:      March 01, 2023
+// Updated:      March 01, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet.
@@ -44,7 +44,7 @@
 #include "../test_utils.h"
 
 /**
- * @brief Test the FNN network
+ * @brief Test the FNN network with heteroscedastic noise
  *
  * @param recompute_outputs indicates if the outputs should be recomputed
  * @param date date of the test
@@ -53,5 +53,5 @@
  *
  * @return true if the test was successful
  */
-bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
+bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string arch,
                   std::string data);
