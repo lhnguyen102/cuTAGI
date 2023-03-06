@@ -4,5 +4,5 @@ activations:[0,     4,       4,       11]
 batch_size: 20
 init_method: He
 sigma_v: 	1
-sigma_v_min: 0.3
+sigma_v_min: 0.1
 decay_factor_sigma_v: 0.95

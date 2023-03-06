@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      February 22, 2023
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ struct ActLabel {
     int mtanh = 8;
     int msigmoid = 9;
     int softmax = 10;
-    int cf_softmax = 11;
+    int remax = 11;
     int hr_softmax = 12;
 };
 
@@ -187,7 +187,7 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.0000001f;
+    float omega_tol = 0.000001f;
 };
 
 // NETWORK STATE
@@ -241,14 +241,6 @@ struct LSTMState {
         mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
-struct CfSoftmax {
-    // TODO: clean the unused variables
-    std::vector<float> mu_e, var_e, mu_e_tilde, var_e_tilde, mu_e_check,
-        var_e_check, rho_e_e_tilde, cov_z_e, cov_z_e_check, cov_y_y_check,
-        cov_z_y_check, cov_z_y, mu_y_check, var_y_check;
-    std::vector<int> max_z_idx;
-};
-
 struct Remax {
     std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
         mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
@@ -279,7 +271,6 @@ struct NetState {
     NoiseState noise_state;
     DerivativeState derv_state;
     LSTMState lstm;
-    CfSoftmax cf_softmax;
     Remax remax;
 };
 

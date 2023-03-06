@@ -3,164 +3,133 @@
 // Description:  Data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 08, 2023
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/data_transfer.cuh"
 ////////////////////////
-// CLOSED-FORM SOFTMAX GPU
+// REMAX GPU
 ///////////////////////
-CfSoftmaxGPU::CfSoftmaxGPU() {
-    this->n_state_bytes = 0 * sizeof(float);
-    this->d_mu_e = nullptr;
-    this->d_var_e = nullptr;
-    this->d_mu_e_tilde = nullptr;
-    this->d_var_e_tilde = nullptr;
-    this->d_mu_e_check = nullptr;
-    this->d_var_e_check = nullptr;
-    this->d_rho_e_e_tilde = nullptr;
-    this->d_cov_z_e = nullptr;
-    this->d_cov_z_e_check = nullptr;
-    this->d_cov_y_e_check = nullptr;
-    this->d_cov_y_y_check = nullptr;
-    this->d_cov_z_y_check = nullptr;
-    this->d_cov_z_y = nullptr;
-    this->d_mu_y_check = nullptr;
-    this->d_var_y_check = nullptr;
+RemaxGPU::RemaxGPU() {
+    this->num_outputs = 0;
+    this->batch_size = 0;
+    this->d_mu_m = nullptr;
+    this->d_var_m = nullptr;
+    this->d_J_m = nullptr;
+    this->d_mu_log = nullptr;
+    this->d_var_log = nullptr;
+    this->d_mu_sum = nullptr;
+    this->d_var_sum = nullptr;
+    this->d_mu_logsum = nullptr;
+    this->d_var_logsum = nullptr;
+    this->d_cov_log_logsum = nullptr;
+    this->d_cov_m_a = nullptr;
+    this->d_cov_m_a_check = nullptr;
+}
+RemaxGPU::~RemaxGPU() {
+    cudaFree(d_mu_m);
+    cudaFree(d_var_m);
+    cudaFree(d_J_m);
+    cudaFree(d_mu_log);
+    cudaFree(d_var_log);
+    cudaFree(d_mu_sum);
+    cudaFree(d_var_sum);
+    cudaFree(d_mu_logsum);
+    cudaFree(d_var_logsum);
+    cudaFree(d_cov_log_logsum);
+    cudaFree(d_cov_m_a);
+    cudaFree(d_cov_m_a_check);
 }
 
-CfSoftmaxGPU::~CfSoftmaxGPU() {
-    cudaFree(d_mu_e);
-    cudaFree(d_var_e);
-    cudaFree(d_mu_e_tilde);
-    cudaFree(d_var_e_tilde);
-    cudaFree(d_mu_e_check);
-    cudaFree(d_var_e_check);
-    cudaFree(d_rho_e_e_tilde);
-    cudaFree(d_cov_z_e);
-    cudaFree(d_cov_z_e_check);
-    cudaFree(d_cov_y_y_check);
-    cudaFree(d_cov_z_y_check);
-    cudaFree(d_cov_z_y);
-    cudaFree(d_mu_y_check);
-    cudaFree(d_var_y_check);
+void RemaxGPU::set_values(Remax &_remax) {
+    this->remax_cpu = &_remax;
+    this->num_outputs = _remax.mu_m.size();
+    this->batch_size = _remax.mu_sum.size();
 }
 
-void CfSoftmaxGPU::set_values(CfSoftmax &_cf_softmax) {
-    this->cf_softmax_cpu = &_cf_softmax;
-    this->n_state_bytes = _cf_softmax.mu_e.size() * sizeof(float);
-}
-
-void CfSoftmaxGPU::allocate_cuda_memory() {
-    cudaMalloc(&this->d_mu_e, this->n_state_bytes);
-    cudaMalloc(&this->d_var_e, this->n_state_bytes);
-    cudaMalloc(&this->d_mu_e_tilde, this->n_state_bytes);
-    cudaMalloc(&this->d_var_e_tilde, this->n_state_bytes);
-    cudaMalloc(&this->d_mu_e_check, this->n_state_bytes);
-    cudaMalloc(&this->d_var_e_check, this->n_state_bytes);
-    cudaMalloc(&this->d_rho_e_e_tilde, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_z_e, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_z_e_check, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_y_y_check, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_z_y_check, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_y_e_check, this->n_state_bytes);
-    cudaMalloc(&this->d_cov_z_y, this->n_state_bytes);
-    cudaMalloc(&this->d_mu_y_check, this->n_state_bytes);
-    cudaMalloc(&this->d_var_y_check, this->n_state_bytes);
-
+void RemaxGPU::allocate_cuda_memory() {
+    cudaMalloc(&this->d_mu_m, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_var_m, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_J_m, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_mu_log, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_var_log, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_mu_sum, this->batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_sum, this->batch_size * sizeof(float));
+    cudaMalloc(&this->d_mu_logsum, this->batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_logsum, this->batch_size * sizeof(float));
+    cudaMalloc(&this->d_cov_log_logsum, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_cov_m_a, this->num_outputs * sizeof(float));
+    cudaMalloc(&this->d_cov_m_a_check, this->num_outputs * sizeof(float));
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        std::string err_msg =
-            "Failed to allocate CUDA memory for softmax state";
+        std::string err_msg = "Failed to allocate CUDA memory for remax state";
         throw ::std::runtime_error(err_msg);
     }
 }
 
-void CfSoftmaxGPU::copy_host_to_device() {
-    cudaMemcpy(this->d_mu_e, this->cf_softmax_cpu->mu_e.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_e, this->cf_softmax_cpu->var_e.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_mu_e_tilde, this->cf_softmax_cpu->mu_e_tilde.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_e_tilde, this->cf_softmax_cpu->var_e_tilde.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_mu_e_check, this->cf_softmax_cpu->mu_e_check.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_e_check, this->cf_softmax_cpu->var_e_check.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_rho_e_e_tilde,
-               this->cf_softmax_cpu->rho_e_e_tilde.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_cov_z_e, this->cf_softmax_cpu->cov_z_e.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_cov_z_e_check,
-               this->cf_softmax_cpu->cov_z_e_check.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_cov_y_y_check,
-               this->cf_softmax_cpu->cov_y_y_check.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_cov_z_y_check,
-               this->cf_softmax_cpu->cov_z_y_check.data(), this->n_state_bytes,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_cov_z_y, this->cf_softmax_cpu->cov_z_y.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(this->d_mu_y_check, this->cf_softmax_cpu->mu_y_check.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_y_check, this->cf_softmax_cpu->var_y_check.data(),
-               this->n_state_bytes, cudaMemcpyHostToDevice);
+void RemaxGPU::copy_host_to_device() {
+    cudaMemcpy(this->d_mu_m, this->remax_cpu->mu_m.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_m, this->remax_cpu->var_m.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_J_m, this->remax_cpu->J_m.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_log, this->remax_cpu->mu_log.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_log, this->remax_cpu->var_log.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_sum, this->remax_cpu->mu_sum.data(),
+               this->batch_size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_sum, this->remax_cpu->var_sum.data(),
+               this->batch_size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_logsum, this->remax_cpu->mu_logsum.data(),
+               this->batch_size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_logsum, this->remax_cpu->var_logsum.data(),
+               this->batch_size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_log_logsum, this->remax_cpu->cov_log_logsum.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_m_a, this->remax_cpu->cov_m_a.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_m_a_check, this->remax_cpu->cov_m_a_check.data(),
+               this->num_outputs * sizeof(float), cudaMemcpyHostToDevice);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
-            "Failed to make data tranfer to device for softmax hidden states ";
+            "Failed to make data tranfer to device for remax hidden states ";
         throw ::std::runtime_error(err_msg);
     }
 }
 
-void CfSoftmaxGPU::copy_device_to_host() {
-    cudaMemcpy(this->cf_softmax_cpu->mu_e.data(), this->d_mu_e, n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->var_e.data(), this->d_var_e, n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->mu_e_tilde.data(), this->d_mu_e_tilde,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->var_e_tilde.data(), this->d_var_e_tilde,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->mu_e_check.data(), this->d_mu_e_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->var_e_check.data(), this->d_var_e_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->rho_e_e_tilde.data(),
-               this->d_rho_e_e_tilde, this->n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->cov_z_e.data(), this->d_cov_z_e,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->cov_z_e_check.data(),
-               this->d_cov_z_e_check, this->n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->cov_y_y_check.data(),
-               this->d_cov_y_y_check, this->n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->cov_z_y_check.data(),
-               this->d_cov_z_y_check, this->n_state_bytes,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->cov_z_y.data(), this->d_cov_z_y,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->mu_y_check.data(), this->d_mu_y_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->cf_softmax_cpu->var_y_check.data(), this->d_var_y_check,
-               this->n_state_bytes, cudaMemcpyDeviceToHost);
+void RemaxGPU::copy_device_to_host() {
+    cudaMemcpy(this->remax_cpu->mu_m.data(), this->d_mu_m,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->var_m.data(), this->d_var_m,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->J_m.data(), this->d_J_m,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->mu_log.data(), this->d_mu_log,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->var_log.data(), this->d_var_log,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->mu_sum.data(), this->d_mu_sum,
+               this->batch_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->var_sum.data(), this->d_var_sum,
+               this->batch_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->mu_logsum.data(), this->d_mu_logsum,
+               this->batch_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->var_logsum.data(), this->d_var_logsum,
+               this->batch_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->cov_log_logsum.data(), this->d_cov_log_logsum,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->cov_m_a.data(), this->d_cov_m_a,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->remax_cpu->cov_m_a_check.data(), this->d_cov_m_a_check,
+               this->num_outputs * sizeof(float), cudaMemcpyDeviceToHost);
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        std::string err_msg = "Failed to transfer Softmax state to host";
+        std::string err_msg = "Failed to transfer remax state to host";
         throw ::std::runtime_error(err_msg);
     }
 }
@@ -584,7 +553,7 @@ StateGPU::StateGPU() {
     this->noise_state = NoiseStateGPU();
     this->derv_state = DerivativeStateGPU();
     this->lstm = LSTMStateGPU();
-    this->cf_softmax = CfSoftmaxGPU();
+    this->remax = RemaxGPU();
 }
 
 void StateGPU::set_values(NetState &state, Network &net) {
@@ -628,8 +597,8 @@ void StateGPU::set_values(NetState &state, Network &net) {
     }
 
     // Closed-form softmax
-    if (net.activations.back() == net.act_names.cf_softmax) {
-        this->cf_softmax.set_values(this->state_cpu->cf_softmax);
+    if (net.activations.back() == net.act_names.remax) {
+        this->remax.set_values(this->state_cpu->remax);
     }
 }
 
@@ -672,8 +641,8 @@ void StateGPU::allocate_cuda_memory() {
     }
 
     // Closed-form softmax
-    if (this->cf_softmax.n_state_bytes > 0) {
-        this->cf_softmax.allocate_cuda_memory();
+    if (this->remax.num_outputs > 0) {
+        this->remax.allocate_cuda_memory();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -739,8 +708,8 @@ void StateGPU::copy_host_to_device() {
     }
 
     // Closed-form softmax
-    if (this->cf_softmax.n_state_bytes > 0) {
-        this->cf_softmax.copy_host_to_device();
+    if (this->remax.num_outputs > 0) {
+        this->remax.copy_host_to_device();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -801,8 +770,8 @@ void StateGPU::copy_device_to_host() {
     }
 
     // Closed-form softmax
-    if (this->cf_softmax.n_state_bytes > 0) {
-        this->cf_softmax.copy_device_to_host();
+    if (this->remax.num_outputs > 0) {
+        this->remax.copy_device_to_host();
     }
 
     cudaError_t error = cudaGetLastError();
@@ -1208,10 +1177,6 @@ DeltaStateGPU::DeltaStateGPU() {
     this->d_delta_S = nullptr;
     this->d_delta_mx = nullptr;
     this->d_delta_Sx = nullptr;
-    this->d_delta_mu_y_check = nullptr;
-    this->d_delta_var_y_check = nullptr;
-    this->d_delta_mu_zy_check = nullptr;
-    this->d_delta_var_zy_check = nullptr;
 }
 
 DeltaStateGPU::~DeltaStateGPU() {
@@ -1229,10 +1194,6 @@ DeltaStateGPU::~DeltaStateGPU() {
     cudaFree(d_delta_S);
     cudaFree(d_delta_mx);
     cudaFree(d_delta_Sx);
-    cudaFree(d_delta_mu_y_check);
-    cudaFree(d_delta_var_y_check);
-    cudaFree(d_delta_mu_zy_check);
-    cudaFree(d_delta_var_zy_check);
 }
 
 void DeltaStateGPU::set_values(Network &net_prop) {
@@ -1260,17 +1221,6 @@ void DeltaStateGPU::set_values(Network &net_prop) {
     this->sc_bytes = sc * sizeof(float);
     this->dsc_bytes = dsc * sizeof(float);
     this->max_n_s_bytes = max_n_s * sizeof(float);
-
-    if (net_prop.activations.back() == net_prop.act_names.cf_softmax) {
-        int n = net_prop.nodes.back() * net_prop.batch_size;
-        this->delta_mu_y_check.resize(n, 0);
-        this->delta_var_y_check.resize(n, 0);
-        this->delta_mu_zy_check.resize(n, 0);
-        this->delta_var_zy_check.resize(n, 0);
-        this->softmax_bytes = n * sizeof(float);
-    } else {
-        this->softmax_bytes = 0;
-    }
 }
 
 void DeltaStateGPU::allocate_cuda_memory() {
@@ -1288,13 +1238,6 @@ void DeltaStateGPU::allocate_cuda_memory() {
     cudaMalloc(&d_delta_S, s_bytes);
     cudaMalloc(&d_delta_mx, dsc_bytes);
     cudaMalloc(&d_delta_Sx, dsc_bytes);
-
-    if (this->softmax_bytes > 0) {
-        cudaMalloc(&this->d_delta_mu_y_check, this->softmax_bytes);
-        cudaMalloc(&this->d_delta_var_y_check, this->softmax_bytes);
-        cudaMalloc(&this->d_delta_mu_zy_check, this->softmax_bytes);
-        cudaMalloc(&this->d_delta_var_zy_check, this->softmax_bytes);
-    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1328,17 +1271,6 @@ void DeltaStateGPU::copy_host_to_device() {
     cudaMemcpy(d_delta_mx, delta_mx.data(), dsc_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(d_delta_Sx, delta_Sx.data(), dsc_bytes, cudaMemcpyHostToDevice);
 
-    if (this->softmax_bytes > 0) {
-        cudaMemcpy(this->d_delta_mu_y_check, this->delta_mu_y_check.data(),
-                   this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_var_y_check, this->delta_var_y_check.data(),
-                   this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_mu_zy_check, this->delta_mu_zy_check.data(),
-                   this->softmax_bytes, cudaMemcpyHostToDevice);
-        cudaMemcpy(this->d_delta_var_zy_check, this->delta_var_zy_check.data(),
-                   this->softmax_bytes, cudaMemcpyHostToDevice);
-    }
-
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string err_msg =
@@ -1368,16 +1300,6 @@ void DeltaStateGPU::copy_device_to_host() {
     cudaMemcpy(delta_S.data(), d_delta_S, s_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(delta_mx.data(), d_delta_mx, dsc_bytes, cudaMemcpyDeviceToHost);
     cudaMemcpy(delta_Sx.data(), d_delta_Sx, dsc_bytes, cudaMemcpyDeviceToHost);
-    if (this->softmax_bytes > 0) {
-        cudaMemcpy(this->delta_mu_y_check.data(), this->d_delta_mu_y_check,
-                   this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->delta_var_y_check.data(), this->d_delta_var_y_check,
-                   this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->delta_mu_zy_check.data(), this->d_delta_mu_zy_check,
-                   this->softmax_bytes, cudaMemcpyDeviceToHost);
-        cudaMemcpy(this->delta_var_zy_check.data(), this->d_delta_var_zy_check,
-                   this->softmax_bytes, cudaMemcpyDeviceToHost);
-    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {

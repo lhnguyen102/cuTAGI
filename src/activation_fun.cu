@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      February 05, 2023
+// Updated:      March 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +137,39 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
     }
 }
 
+__global__ void mixture_relu_v2(float const *mz, float const *Sz,
+                                float omega_tol, int zpos, int apos, int n,
+                                float *ma, float *J, float *Sa) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    float pi = 3.141592;  // pi number
+    if (col < n) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
+        omega = max(1.0f - normcdff(alpha), omega_tol);
+        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
+               omega;
+        kappa = 1.0f + alpha * beta - powf(beta, 2);
+
+        // Gaussian mixture's parameters
+        mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);
+        Sz_til = kappa * Sz[zpos + col];
+
+        // Activation distribution
+        if (omega * mz_til > omega_tol) {
+            ma[apos + col] = omega * mz_til;
+            Sa[apos + col] =
+                omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
+            J[apos + col] = powf(omega, 0.5) * kappa;
+        } else {
+            ma[apos + col] = omega_tol;
+            Sa[apos + col] =
+                omega * Sz_til + omega * (1.0f - omega) * powf(omega_tol, 2);
+            J[apos + col] = 0.0f;  // TODO replace by 1.0f
+        }
+    }
+}
+
 __global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
                              int zpos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -145,8 +178,8 @@ __global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
     float pi = 3.141592;  // pi number
     if (col < n) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
-        alpha_upper = (1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        alpha_lower = (-1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
+        alpha_upper = (1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
         cdf_lower = normcdff(alpha_lower);
         cdf_upper = normcdff(alpha_upper);
         pdf_lower =
@@ -184,8 +217,8 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
     float pi = 3.141592;  // pi number
     if (col < n) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
-        alpha_upper = (1.0f - mz[zpos + col]) / pow(Sz[zpos + col], 0.5);
+        alpha_lower = (-1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
+        alpha_upper = (1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
         cdf_lower = normcdff(alpha_lower);
         cdf_upper = normcdff(alpha_upper);
         pdf_lower =
@@ -280,220 +313,131 @@ Args:
     }
 }
 
-__global__ void compute_sum_exp(float const *mu_e, float const *var_e, int no,
-                                int B, float *mu_e_tilde, float *var_e_tilde) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_m, sum_v;
-    if (i < B) {
-        sum_m = 0;
-        sum_v = 0;
-        for (int j = 0; j < no; j++) {
-            sum_m += mu_e[i * no + j];
-            sum_v += var_e[i * no + j];
-        }
-        mu_e_tilde[i] = sum_m;
-        var_e_tilde[i] = sum_v;
-    }
-}
-
-__global__ void compute_cov_coeff_z_e_tilde(float const *var_e_tilde,
-                                            float const *var_z, int no, int B,
-                                            int z_pos, float const *mu_e,
-                                            float *rho_z_e_tilde)
-/*Covariance between the hidden states (Z) and the sim of exp(Z)
- */
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    if (row < B && col < no) {
-        rho_z_e_tilde[row * no + col] =
-            (powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
-            powf(var_e_tilde[col], 0.5);
-    }
-}
-
-__global__ void compute_cov_coeff_e_e_tilde(float const *var_e_tilde,
-                                            float const *var_z, int no, int B,
-                                            int z_pos, float const *mu_e,
-                                            float const *var_e,
-                                            float *rho_e_e_tilde)
-/*Covariance between exp(Z) and the sum of exp(Z)*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    if (row < B && col < no) {
-        rho_e_e_tilde[row * no + col] =
-            ((powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
-             powf(var_e_tilde[row], 0.5)) *
-            ((powf(var_z[row * no + z_pos], 0.5) * mu_e[row * no + col]) /
-             powf(var_e[row * no + col], 0.5));
-    }
-}
-
-__global__ void compute_log_sum_exp(float const *mu_e_tilde,
-                                    float const *var_e_tilde, int B,
-                                    float *mu_e_check, float *var_e_check)
-/*Mean and variance of log(sum(exp(Z)))*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp;
-    if (col < B) {
-        tmp = logf(1 + var_e_tilde[col] / powf(mu_e_tilde[col], 2));
-        mu_e_check[col] = logf(mu_e_tilde[col]) - 0.5 * tmp;
-        var_e_check[col] = tmp;
-    }
-}
-
-__global__ void compute_cov_z_e_check(float const *rho_e_e_tilde,
-                                      float const *mu_e, float const *var_e,
-                                      float const *mu_e_tilde,
-                                      float const *var_e_tilde, int no, int B,
-                                      float *cov_z_e_check)
-/*Covariance between hidden states (Z) and log(sum(exp(Z)))*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    if (row < B && col < no) {
-        cov_z_e_check[row * no + col] = logf(
-            1 + rho_e_e_tilde[row] *
-                    (powf(var_e[row * no + col], 0.5) / mu_e[row * no + col]) *
-                    (powf(var_e_tilde[row], 0.5) / mu_e_tilde[row]));
-    }
-}
-
-__global__ void exp_log_softmax(float const *mu_z, float const *var_z,
-                                float const *mu_e_check,
-                                float const *var_e_check,
-                                float const *cov_z_e_check, float sigma_v,
-                                int no, int B, int z_pos, float *mu_a,
-                                float *var_a)
-/*Convert log of softmax to softmax space*/
-{
+//////////////////////////////////////////////////////////////////////////////
+//// REMAX
+//////////////////////////////////////////////////////////////////////////////
+__global__ void to_log(float const *mu_m, float const *var_m, int no, int B,
+                       float *mu_log, float *var_log) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     float tmp_mu, tmp_var;
-    if (row < B && col < no) {
-        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
-        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
-                  2 * cov_z_e_check[row * no + col];
-        mu_a[z_pos + row * no + col] = expf(tmp_mu + 0.5 * tmp_var);
-        var_a[z_pos + row * no + col] = powf(tmp_mu, 2) * (expf(tmp_var) - 1);
-    }
+    if (col >= no || row >= B) return;
+
+    tmp_var =
+        logf(1.0f + (var_m[row * no + col] / powf(mu_m[row * no + col], 2)));
+    tmp_mu = logf(mu_m[row * no + col]) - 0.5 * tmp_var;
+    mu_log[row * no + col] = tmp_mu;
+    var_log[row * no + col] = tmp_var;
 }
 
-__global__ void compute_y_check(float const *mu_z, float const *var_z,
-                                float const *mu_e_check,
-                                float const *var_e_check,
-                                float const *cov_z_e_check, int no, int B,
-                                int z_pos, float *mu_y_check,
-                                float *var_y_check)
-/*Compute the \check{y} mean and variance
-    \check{y} = Z - \check{E},
-where \check{E} = log(sum(exp(z)))
-*/
-{
+__global__ void sum_class_hidden_states(float const *mu_m, float const *var_m,
+                                        int no, int B, float *mu_sum,
+                                        float *var_sum) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu = 0.0f, sum_var = 0.0f;
+    if (col >= B) return;
+    for (int j = 0; j < no; j++) {
+        sum_mu += mu_m[col * no + j];
+        sum_var += var_m[col * no + j];
+    }
+    mu_sum[col] = sum_mu;
+    var_sum[col] = sum_var;
+}
+
+__global__ void compute_cov_log_logsum(float const *mu_m, float const *var_m,
+                                       float const *mu_sum, int no, int B,
+                                       float *cov_log_logsum) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (col >= no || row >= B) return;
+    cov_log_logsum[row * no + col] =
+        logf(1.0f + var_m[row * no + col] * (1.0f / mu_sum[row]) *
+                        (1.0f / mu_m[row * no + col]));
+}
+
+__global__ void compute_cov_m_a_check(float const *var_log,
+                                      float const *cov_log_logsum,
+                                      float const *mu_m, int no, int B,
+                                      float *cov_m_a_check) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (col >= no || row >= B) return;
+    cov_m_a_check[row * no + col] =
+        (var_log[row * no + col] - cov_log_logsum[row * no + col]) *
+        mu_m[row * no + col];
+}
+
+__global__ void compute_cov_m_a(float const *cov_m_a_check, float const *mu_a,
+                                float const *var_m, float const *var_z,
+                                float const *J_m, int z_pos, int no, int B,
+                                float *cov_m_a) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (col >= no || row >= B) return;
+    cov_m_a[row * no + col] =
+        mu_a[row * no + col + z_pos] * cov_m_a_check[row * no + col] *
+        J_m[row * no + col] * var_z[row * no + col + z_pos] /
+        var_m[row * no + col];
+}
+
+__global__ void compute_remax_prob(float const *mu_log, float const *var_log,
+                                   float const *mu_logsum,
+                                   float const *var_logsum,
+                                   float const *cov_log_logsum, int z_pos,
+                                   int no, int B, float *mu_a, float *var_a) {
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col >= no || row >= B) return;
     float tmp_mu, tmp_var;
-    if (row < B && col < no) {
-        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
-        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
-                  2 * cov_z_e_check[row * no + col];
-        mu_y_check[row * no + col] = tmp_mu;
-        var_y_check[row * no + col] = tmp_var;
-    }
+    tmp_mu = mu_log[row * no + col] - mu_logsum[row];
+    tmp_var = var_log[row * no + col] + var_logsum[row] -
+              2.0f * cov_log_logsum[row * no + col];
+    mu_a[row * no + col + z_pos] = expf(tmp_mu + 0.5 * tmp_var);
+    var_a[row * no + col + z_pos] =
+        expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
 }
 
-__global__ void compute_cov_y_y_check(float const *mu_z, float const *var_z,
-                                      float const *mu_e_check,
-                                      float const *var_e_check,
-                                      float const *cov_z_e_check, int no, int B,
-                                      int z_pos, float *cov_y_y_check)
-/*Covariance betwee y and \check{y}. The observation equation is defined
-following
-            y = exp(\check{y}) + V, v~N(0, \sigma_{2}^{2}),
-where \hat{y} = exp(\check{y}).
-*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    float tmp_mu, tmp_var;
-    if (row < B && col < no) {
-        tmp_mu = mu_z[z_pos + row * no + col] - mu_e_check[row];
-        tmp_var = var_z[z_pos + row * no + col] + var_e_check[row] -
-                  2 * cov_z_e_check[row * no + col];
-        cov_y_y_check[row * no + col] = expf(tmp_mu + 0.5 * tmp_var) * tmp_var;
-    }
-}
-
-__global__ void compute_cov_z_y_check(float const *var_z,
-                                      float const *cov_z_e_check, int no, int B,
-                                      int z_pos, float *cov_z_y_check)
-/* Covariance between hidden state z and \check{y}. See function
-   `compute_cov_y_y_check_cpu`*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    if (row < B && col < no) {
-        cov_z_y_check[row * no + col] =
-            var_z[z_pos + row * no + col] - cov_z_e_check[row * no + col];
-    }
-}
-
-__global__ void compute_cov_z_y(float const *mu_a, float const *cov_z_y_check,
-                                int no, int B, int z_pos, float *cov_z_y) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col >= no * B) return;
-    cov_z_y[col] = mu_a[col + z_pos] * cov_z_y_check[col];
-}
-
-void closed_form_softmax(Network &net, StateGPU &state, int l)
-/*Closed-form softmax function*/
-{
+void remax(Network &net, StateGPU &state, int l) {
     int z_pos = net.z_pos[l];
     int no = net.nodes[l];
     int B = net.batch_size;
     int THREADS = net.num_gpu_threads;
-
-    // Transform to exponential space
-    int blocks = (no * B + THREADS - 1) / THREADS;
-    exp_fn<<<blocks, THREADS>>>(
-        state.d_mz, state.d_Sz, no, B, z_pos, state.cf_softmax.d_mu_e,
-        state.cf_softmax.d_var_e, state.cf_softmax.d_cov_z_e);
-
-    // Compute sum of the exponential of all hidden states
-    int batch_blocks = (B + THREADS - 1) / THREADS;
-    compute_sum_exp<<<batch_blocks, THREADS>>>(
-        state.cf_softmax.d_mu_e, state.cf_softmax.d_var_e, no, B,
-        state.cf_softmax.d_mu_e_tilde, state.cf_softmax.d_var_e_tilde);
-
-    // Compute covariance coefficient between exp(z) and sum(exp(z))
+    unsigned int BLOCKS = (no * B + THREADS - 1) / THREADS;
+    unsigned int BATCH_BLOCKS = (B + THREADS - 1) / THREADS;
     unsigned int grid_row = (B + THREADS - 1) / THREADS;
     unsigned int grid_col = (no + THREADS - 1) / THREADS;
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(THREADS, THREADS);
-    compute_cov_coeff_e_e_tilde<<<dim_grid, dim_block>>>(
-        state.cf_softmax.d_var_e_tilde, state.d_Sz, no, B, z_pos,
-        state.cf_softmax.d_mu_e, state.cf_softmax.d_var_e,
-        state.cf_softmax.d_rho_e_e_tilde);
+    dim3 dim_grid_1(1, grid_row);
 
-    // Transform sum(exp(z)) in log space
-    compute_log_sum_exp<<<batch_blocks, THREADS>>>(
-        state.cf_softmax.d_mu_e_tilde, state.cf_softmax.d_var_e_tilde, B,
-        state.cf_softmax.d_mu_e_check, state.cf_softmax.d_var_e_check);
+    // mrelu
+    mixture_relu_v2<<<BLOCKS, THREADS>>>(
+        state.d_mz, state.d_Sz, net.omega_tol, z_pos, 0, no * B,
+        state.remax.d_mu_m, state.remax.d_J_m, state.remax.d_var_m);
 
-    // Covariance between z and log(sum(exp(z)))
-    compute_cov_z_e_check<<<dim_grid, dim_block>>>(
-        state.cf_softmax.d_rho_e_e_tilde, state.cf_softmax.d_mu_e,
-        state.cf_softmax.d_var_e, state.cf_softmax.d_mu_e_tilde,
-        state.cf_softmax.d_var_e_tilde, no, B,
-        state.cf_softmax.d_cov_z_e_check);
+    // log of mrelu
+    to_log<<<dim_grid, dim_block>>>(state.remax.d_mu_m, state.remax.d_var_m, no,
+                                    B, state.remax.d_mu_log,
+                                    state.remax.d_var_log);
 
-    // Convert to softmax probability
-    exp_log_softmax<<<dim_grid, dim_block>>>(
-        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
-        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check,
-        net.sigma_v, no, B, z_pos, state.d_ma, state.d_Sa);
+    // sum of mrelu
+    sum_class_hidden_states<<<BATCH_BLOCKS, THREADS>>>(
+        state.remax.d_mu_m, state.remax.d_var_m, no, B, state.remax.d_mu_sum,
+        state.remax.d_var_sum);
+    to_log<<<dim_grid_1, dim_block>>>(
+        state.remax.d_mu_sum, state.remax.d_var_sum, 1, B,
+        state.remax.d_mu_logsum, state.remax.d_var_logsum);
+
+    // Covariance between log of mrelu and log of sum of mrelu
+    compute_cov_log_logsum<<<dim_grid, dim_block>>>(
+        state.remax.d_mu_m, state.remax.d_var_m, state.remax.d_mu_sum, no, B,
+        state.remax.d_cov_log_logsum);
+
+    // Compute remax probabilities
+    compute_remax_prob<<<dim_grid, dim_block>>>(
+        state.remax.d_mu_log, state.remax.d_var_log, state.remax.d_mu_logsum,
+        state.remax.d_var_logsum, state.remax.d_cov_log_logsum, z_pos, no, B,
+        state.d_ma, state.d_Sa);
 }
 
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
@@ -586,9 +530,9 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
         stable_softmax<<<softmax_blocks, THREADS>>>(state.d_mz, state.d_Sz, no,
                                                     B, z_pos, state.d_ma,
                                                     state.d_J, state.d_Sa);
-    } else if (net.activations[j] == net.act_names.cf_softmax)  // cf softmax
+    } else if (net.activations[j] == net.act_names.remax)  // cf softmax
     {
-        closed_form_softmax(net, state, j);
+        remax(net, state, j);
     } else  // no activation
     {
         noActMeanVar<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, state.d_ma,

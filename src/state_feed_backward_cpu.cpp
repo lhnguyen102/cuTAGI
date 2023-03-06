@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for hidden state
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      February 12, 2023
+// Updated:      March 01, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -125,7 +125,7 @@ Args:
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// CLOSED-FORM SOFTMAX
+/// REMAX
 ////////////////////////////////////////////////////////////////////////////////
 void delta_z_y_check_cpu(std::vector<float> &mu_a, std::vector<float> &var_a,
                          std::vector<float> &cov_y_y_check,
@@ -148,39 +148,6 @@ void delta_z_y_check_cpu(std::vector<float> &mu_a, std::vector<float> &var_a,
                 delta_mu_zy_check[col] = tmp * (y[col] - mu_a[col + z_pos]);
                 delta_var_zy_check[col] = -tmp * cov_y_y_check[col];
             }
-        }
-    }
-}
-
-void delta_z_softmax_cpu(std::vector<float> &cov_z_y_check,
-                         std::vector<float> &delta_mu,
-                         std::vector<float> &delta_var, int no, int B,
-                         std::vector<float> &delta_mu_z,
-                         std::vector<float> &delta_var_z)
-/*Compute updating quantities for hidden states for the softmax layer*/
-{
-    for (int i = 0; i < no * B; i++) {
-        delta_mu_z[i] = cov_z_y_check[i] * delta_mu[i];
-        delta_var_z[i] = cov_z_y_check[i] * delta_var[i] * cov_z_y_check[i];
-    }
-}
-
-void delta_z_softmax_from_y_check_cpu(std::vector<float> &mu_y_check,
-                                      std::vector<float> &var_y_check,
-                                      std::vector<float> &cov_z_y_check,
-                                      std::vector<float> &y,
-                                      std::vector<float> &var_noise, int no,
-                                      int B, std::vector<float> &delta_mu_z,
-                                      std::vector<float> &delta_var_z) {
-    float tmp = 0, zero_pad = 0;
-    for (int i = 0; i < no * B; i++) {
-        tmp = cov_z_y_check[i] / (var_noise[i] + var_y_check[i]);
-        if (isnan(tmp) || isinf(tmp)) {
-            delta_mu_z[i] = 0.0f;
-            delta_var_z[i] = 0.0f;
-        } else {
-            delta_mu_z[i] = tmp * (y[i] - mu_y_check[i]);
-            delta_var_z[i] = -tmp * cov_z_y_check[i];
         }
     }
 }
@@ -970,6 +937,7 @@ void remax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     delta_z_y_check_cpu(state.ma, state.Sa, state.remax.cov_m_a, obs.y_batch,
                         obs.V_batch, no, B, z_pos, d_state.delta_mz,
                         d_state.delta_Sz);
+    int check = 1;
 }
 
 void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
@@ -986,9 +954,9 @@ void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
             net.noise_type.compare("heteros") != 0 &&
-            (net.activations.back() != net.act_names.cf_softmax)) {
+            (net.activations.back() != net.act_names.remax)) {
             output_delta_mz_Sz_cpu(net, state, obs, d_state);
-        } else if (net.activations.back() == net.act_names.cf_softmax) {
+        } else if (net.activations.back() == net.act_names.remax) {
             remax_output_delta_z_cpu(net, state, obs, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inferenece_cpu(state, net, obs,

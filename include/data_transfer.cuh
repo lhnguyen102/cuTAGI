@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      February 04, 2023
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,17 +22,16 @@
 #include "net_prop.h"
 #include "struct_var.h"
 
-class CfSoftmaxGPU {
+class RemaxGPU {
    public:
-    size_t n_state_bytes;
-    float *d_mu_e, *d_var_e, *d_mu_e_tilde, *d_var_e_tilde, *d_mu_e_check,
-        *d_var_e_check, *d_rho_e_e_tilde, *d_cov_z_e, *d_cov_z_e_check,
-        *d_cov_y_y_check, *d_cov_z_y_check, *d_cov_y_e_check, *d_cov_z_y,
-        *d_mu_y_check, *d_var_y_check;
-    CfSoftmax *cf_softmax_cpu;
-    CfSoftmaxGPU();
-    ~CfSoftmaxGPU();
-    void set_values(CfSoftmax &_cf_softmax);
+    int num_outputs, batch_size;
+    float *d_mu_m, *d_var_m, *d_J_m, *d_mu_log, *d_var_log, *d_mu_sum,
+        *d_var_sum, *d_mu_logsum, *d_var_logsum, *d_cov_log_logsum, *d_cov_m_a,
+        *d_cov_m_a_check;
+    Remax *remax_cpu;
+    RemaxGPU();
+    ~RemaxGPU();
+    void set_values(Remax &_remax);
     void allocate_cuda_memory();
     void copy_host_to_device();
     void copy_device_to_host();
@@ -100,7 +99,7 @@ class StateGPU {
     NoiseStateGPU noise_state;
     DerivativeStateGPU derv_state;
     LSTMStateGPU lstm;
-    CfSoftmaxGPU cf_softmax;
+    RemaxGPU remax;
 
     StateGPU();
     void set_values(NetState &state, Network &net);
