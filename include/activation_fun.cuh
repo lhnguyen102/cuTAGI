@@ -3,7 +3,7 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      February 04, 2023
+// Updated:      March 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,29 +45,19 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
 __global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
                         float *Sa, float *Cza);
 
-__global__ void compute_y_check(float const *mu_z, float const *var_z,
-                                float const *mu_e_check,
-                                float const *var_e_check,
-                                float const *cov_z_e_check, int no, int B,
-                                int z_pos, float *mu_y_check,
-                                float *var_y_check);
-
-__global__ void compute_cov_y_y_check(float const *mu_z, float const *var_z,
-                                      float const *mu_e_check,
-                                      float const *var_e_check,
-                                      float const *cov_z_e_check, int no, int B,
-                                      int z_pos, float *cov_y_y_check);
-
-__global__ void compute_cov_z_y_check(float const *var_z,
-                                      float const *cov_z_e_check, int no, int B,
-                                      int z_pos, float *cov_z_y_check);
-
-__global__ void compute_cov_z_y(float const *mu_a, float const *cov_z_y_check,
-                                int no, int B, int z_pos, float *cov_z_y);
-
 __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf);
 
 __global__ void noActFullCov(float const *Szf, float *Saf, int Nf);
+
+__global__ void compute_cov_m_a_check(float const *var_log,
+                                      float const *cov_log_logsum,
+                                      float const *mu_m, int no, int B,
+                                      float *cov_m_a_check);
+
+__global__ void compute_cov_m_a(float const *cov_m_a_check, float const *mu_a,
+                                float const *var_m, float const *var_z,
+                                float const *J_m, int z_pos, int no, int B,
+                                float *cov_m_a);
 
 void activate_hidden_states(Network &net, StateGPU &state, int j);

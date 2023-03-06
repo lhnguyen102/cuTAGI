@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer within CPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      January 05, 2023
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -18,17 +18,6 @@
 #include "net_prop.h"
 #include "struct_var.h"
 
-class DeltaStateSoftmax {
-   public:
-    std::vector<float> delta_mu_y_check, delta_var_y_check, delta_mu_zy_check,
-        delta_var_zy_check;
-    int n;
-    DeltaStateSoftmax();
-    ~DeltaStateSoftmax();
-    void set_values(int n);
-    void reset_delta();
-};
-
 //////////////////////////////
 // DELTA STATE
 //////////////////////////////
@@ -37,7 +26,6 @@ class DeltaState {
     std::vector<float> delta_mz, delta_Sz, delta_mdsc, delta_Sdsc, delta_msc;
     std::vector<float> delta_Ssc, delta_mzsc, delta_Szsc, dummy_m, dummy_S;
     std::vector<float> delta_m, delta_S, delta_mx, delta_Sx;
-    DeltaStateSoftmax delta_state_softmax;
 
     DeltaState();
     ~DeltaState();

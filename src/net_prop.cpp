@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      February 08, 2023
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -917,24 +917,8 @@ NetState initialize_net_states(Network &net_prop) {
     }
 
     // Closed-form softmax
-    if (net_prop.activations.back() == net_prop.act_names.cf_softmax) {
+    if (net_prop.activations.back() == net_prop.act_names.remax) {
         int n_output = net_prop.nodes.back() * net_prop.batch_size;
-        state.cf_softmax.mu_e.resize(n_output, 0);
-        state.cf_softmax.var_e.resize(n_output, 0);
-        state.cf_softmax.mu_e_tilde.resize(n_output, 0);
-        state.cf_softmax.var_e_tilde.resize(n_output, 0);
-        state.cf_softmax.mu_e_check.resize(n_output, 0);
-        state.cf_softmax.var_e_check.resize(n_output, 0);
-        state.cf_softmax.rho_e_e_tilde.resize(n_output, 0);
-        state.cf_softmax.cov_z_e.resize(n_output, 0);
-        state.cf_softmax.cov_z_e_check.resize(n_output, 0);
-        state.cf_softmax.cov_y_y_check.resize(n_output, 0);
-        state.cf_softmax.cov_z_y_check.resize(n_output, 0);
-        state.cf_softmax.cov_z_y.resize(n_output, 0);
-        state.cf_softmax.mu_y_check.resize(n_output, 0);
-        state.cf_softmax.var_y_check.resize(n_output, 0);
-        state.cf_softmax.max_z_idx.resize(net_prop.batch_size, 0);
-
         state.remax.mu_m.resize(n_output, 0);
         state.remax.var_m.resize(n_output, 0);
         state.remax.J_m.resize(n_output, 0);

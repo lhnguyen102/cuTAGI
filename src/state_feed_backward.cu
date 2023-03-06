@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      September 18, 2022
+// Updated:      March 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -1524,83 +1524,34 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
     }
 }
 
-void softmax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
-                            DeltaStateGPU &d_state) {
+void remax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
+                          DeltaStateGPU &d_state) {
     int no = net.nodes.back();
     int B = net.batch_size;
     int z_pos = net.z_pos.back();
     int THREADS = net.num_gpu_threads;
-    int BLOCKS = (no * B + THREADS - 1) / THREADS;
     dim3 dim_block(THREADS, THREADS);
 
-    // Covariance between z and \check{y}
+    // Covariance between m and \check{a}
     unsigned int grid_row = (B + THREADS - 1) / THREADS;
     unsigned int grid_col = (no + THREADS - 1) / THREADS;
     dim3 dim_grid(grid_col, grid_row);
-    compute_cov_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_Sz, state.cf_softmax.d_cov_z_e_check, no, B, z_pos,
-        state.cf_softmax.d_cov_z_y_check);
+    compute_cov_m_a_check<<<dim_grid, dim_block>>>(
+        state.remax.d_var_log, state.remax.d_cov_log_logsum, state.remax.d_mu_m,
+        no, B, state.remax.d_cov_m_a_check);
 
-    // Covariance between z and y
-    compute_cov_z_y<<<BLOCKS, THREADS>>>(state.d_ma,
-                                         state.cf_softmax.d_cov_z_y_check, no,
-                                         B, z_pos, state.cf_softmax.d_cov_z_y);
+    // Covariance between m and a
+    compute_cov_m_a<<<dim_grid, dim_block>>>(
+        state.remax.d_cov_m_a_check, state.d_ma, state.remax.d_var_m,
+        state.d_Sz, state.remax.d_J_m, z_pos, no, B, state.remax.d_cov_m_a);
 
     // Updating quantities for hidden states
     delta_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_ma, state.d_Sa, state.cf_softmax.d_cov_z_y, obs.d_y_batch,
+        state.d_ma, state.d_Sa, state.remax.d_cov_m_a, obs.d_y_batch,
         obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
-}
-
-void softmax_output_delta_z_v2(ObsGPU &obs, Network &net, StateGPU &state,
-                               DeltaStateGPU &d_state) {
-    int no = net.nodes.back();
-    int B = net.batch_size;
-    int z_pos = net.z_pos.back();
-    int THREADS = net.num_gpu_threads;
-    int BLOCKS = (no * B + THREADS - 1) / THREADS;
-    dim3 dim_block(THREADS, THREADS);
-
-    // Covariance between observation y and prediciton\check{y} i.e., in
-    // log-space. TODO: Double check on cov_z_e_check
-    unsigned int grid_row = (B + THREADS - 1) / THREADS;
-    unsigned int grid_col = (no + THREADS - 1) / THREADS;
-    dim3 dim_grid(grid_col, grid_row);
-    compute_cov_y_y_check<<<dim_grid, dim_block>>>(
-        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
-        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
-        z_pos, state.cf_softmax.d_cov_y_y_check);
-
-    // Covariance between z and \check{y}
-    compute_cov_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_Sz, state.cf_softmax.d_cov_z_e_check, no, B, z_pos,
-        state.cf_softmax.d_cov_z_y_check);
-
-    // Compute mean and variance for \check{y}
-    compute_y_check<<<dim_grid, dim_block>>>(
-        state.d_mz, state.d_Sz, state.cf_softmax.d_mu_e_check,
-        state.cf_softmax.d_var_e_check, state.cf_softmax.d_cov_z_e_check, no, B,
-        z_pos, state.cf_softmax.d_mu_y_check, state.cf_softmax.d_var_y_check);
-
-    // Updating quantities for \check{y}
-    delta_z_y_check<<<dim_grid, dim_block>>>(
-        state.d_ma, state.d_Sa, state.cf_softmax.d_cov_y_y_check, obs.d_y_batch,
-        obs.d_V_batch, no, B, z_pos, d_state.d_delta_mu_zy_check,
-        d_state.d_delta_mu_zy_check);
-
-    // Inovation vector for \check{y}
-    inovationMean<<<BLOCKS, THREADS>>>(
-        state.cf_softmax.d_var_y_check, d_state.d_delta_mu_zy_check,
-        d_state.d_delta_mu_y_check, 0, 0, no * B);
-    inovationVar<<<BLOCKS, THREADS>>>(
-        state.cf_softmax.d_var_y_check, d_state.d_delta_var_zy_check,
-        d_state.d_delta_var_y_check, 0, 0, no * B);
-
-    // Updating quantities for hidden states
-    delta_z_softmax<<<BLOCKS, THREADS>>>(
-        state.cf_softmax.d_cov_z_y_check, d_state.d_delta_mu_y_check,
-        d_state.d_delta_var_y_check, no, B, d_state.d_delta_mz,
-        d_state.d_delta_Sz);
+    state.copy_device_to_host();
+    d_state.copy_device_to_host();
+    int check = 1;
 }
 
 void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
@@ -1617,10 +1568,10 @@ void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
             net.noise_type.compare("heteros") != 0 &&
-            (net.activations.back() != net.act_names.cf_softmax)) {
+            (net.activations.back() != net.act_names.remax)) {
             output_delta_mz_Sz(obs, net, state, d_state);
-        } else if (net.activations.back() == net.act_names.cf_softmax) {
-            softmax_output_delta_z(obs, net, state, d_state);
+        } else if (net.activations.back() == net.act_names.remax) {
+            remax_output_delta_z(obs, net, state, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inference(obs, net, state, d_state);
         }

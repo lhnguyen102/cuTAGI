@@ -150,7 +150,6 @@ Args:
             }
             std::vector<float> V_batch(net_d.prop.batch_size * net_d.prop.n_y,
                                        powf(net_d.prop.sigma_v, 2));
-            std::cout << "sigma v: " << V_batch[0] << "\n";
 
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
@@ -363,7 +362,12 @@ Args:
         if (e > 0) {
             // Shufle data
             std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            // Decay observation noise
+            decay_obs_noise(net.prop.sigma_v, net.prop.decay_factor_sigma_v,
+                            net.prop.sigma_v_min);
         }
+        std::vector<float> V_batch(net.prop.batch_size * net.prop.n_y,
+                                   powf(net.prop.sigma_v, 2));
         // Timer
         std::cout << "################\n";
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
@@ -384,11 +388,10 @@ Args:
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
-            net.state_gpu.copy_device_to_host();
+            // net.state_gpu.copy_device_to_host();
 
             // Feed backward for hidden states
             net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
-            net.d_state_gpu.copy_device_to_host();
 
             // Feed backward for parameters
             net.param_feed_backward();
