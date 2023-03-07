@@ -137,8 +137,7 @@ void read_vector_from_csv(std::string filename,
 
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for reading." << std::endl;
-        return;
+        throw std::runtime_error("Error: Could not open file for reading.");
     }
 
     std::string line;
@@ -174,8 +173,7 @@ void write_vector_to_csv(std::string filename, std::string header,
                          std::vector<std::vector<T> *> &vector) {
     std::ofstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for writing." << std::endl;
-        return;
+        throw std::runtime_error("Error: Could not open file for reading.");
     }
 
     file << header << std::endl;
