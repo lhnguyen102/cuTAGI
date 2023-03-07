@@ -130,6 +130,7 @@ set(CPU_SOURCES
   test/test_regression.cpp
   test/test_dataloader.cpp 
   test/fnn/test_fnn_cpu.cpp
+  test/fnn_heteros/test_fnn_heteros_cpu.cpp
 
 )
 

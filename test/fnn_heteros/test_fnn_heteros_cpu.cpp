@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_cpu.cpp
-// Description:  Script to test the FNN CPU implementation of cuTAGI
+// Description: Script to test FNN with heteroscedastic noise
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      February 20, 2023
@@ -10,21 +10,24 @@
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "test_fnn_cpu.h"
+#include "test_fnn_heteros_cpu.h"
 
 // Specify network properties
 const std::vector<int> LAYERS = {1, 1, 1, 1};
-const std::vector<int> NODES_1D = {1, 10, 15, 1};
-const std::vector<int> NODES_BH = {13, 10, 15, 1};
+const std::vector<int> NODES_1D = {1, 10, 15, 2};
+const std::vector<int> NODES_BH = {13, 10, 15, 2};
 const std::vector<int> ACTIVATIONS = {0, 4, 4, 0};
 const int BATCH_SIZE = 5;
 const int EPOCHS = 1;
-const float SIGMA_V = 0.06;
-const float SIGMA_V_MIN = 0.06;
+
+const float SIGMA_V = 0.0;
+const std::string NOISE_TYPE = "heteros";
+const int NOISE_GAIN = 1;
+const std::string INIT_METHOD = "He";
 const bool NORMALIZE = true;
 
-bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
-                  std::string data) {
+bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
+                          std::string arch, std::string data) {
     // Create TAGI network
     Network net;
 
@@ -37,8 +40,11 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
     }
     net.activations = ACTIVATIONS;
     net.batch_size = BATCH_SIZE;
+
+    net.noise_type = NOISE_TYPE;
+    net.noise_gain = NOISE_GAIN;
     net.sigma_v = SIGMA_V;
-    net.sigma_v_min = SIGMA_V_MIN;
+    net.init_method = INIT_METHOD;
 
     TagiNetworkCPU tagi_net(net);
 
