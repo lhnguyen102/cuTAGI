@@ -55,8 +55,6 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
 
     for (int i = 0; i < dates.size(); i++) {
         if (i == column) {
-            std::cout << "Writing date: " << date << "for column " << column
-                      << std::endl;
             file << date;
         } else {
             file << dates[i];
