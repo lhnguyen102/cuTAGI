@@ -11,15 +11,16 @@
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <algorithm>
 
 #include "fnn/test_fnn_cpu.h"
+#include "fnn_full_cov/test_fnn_full_cov_cpu.h"
 #include "fnn_heteros/test_fnn_heteros_cpu.h"
 
 /**

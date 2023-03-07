@@ -201,6 +201,24 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                           << std::endl;
             }
         }
+
+        // Perform test on CPU for the FNN architecture with full covariance
+        if (test_architecture == "all" || test_architecture == "fnn_full_cov") {
+            test_num = 2;  // FNN full covariance
+
+            if (test_fnn_full_cov_cpu(false, test_dates[test_num],
+                                      "fnn_full_cov", "1D_full_cov")) {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[32;1mFNN full covariance tests passed\033[0m"
+                          << std::endl;
+            } else {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[31;1mFNN full covariance tests failed\033[0m"
+                          << std::endl;
+            }
+        }
     }
 
     ///////////////////////////////
@@ -244,6 +262,23 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                                      "1D_noise_inferance");
 
                 test_num = 1;  // FNN heteroscedastic noise
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+                test_dates[test_num] = date;
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "fnn_full_cov") {
+                // Reinizialize test outputs for the FNN architecture with
+                // full covariance
+                std::cout << "Reinizializing FNN full covariance test outputs"
+                          << std::endl;
+
+                test_fnn_full_cov_cpu(true, date, "fnn_full_cov",
+                                      "1D_full_cov");
+
+                test_num = 2;  // FNN full covariance
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);

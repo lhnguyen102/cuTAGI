@@ -19,19 +19,17 @@ Dataloader train_data(std::string problem, TagiNetworkCPU &net,
 
     // Num of data in each set
     int num_train_data;
+    x_dir = data_path + "/x_train.csv";
+    y_dir = data_path + "/y_train.csv";
 
     if (problem == "Boston_housing") {
-        x_dir = data_path + "/x_train.csv";
-        y_dir = data_path + "/y_train.csv";
         num_train_data = 455;
     } else if (problem == "1D") {
         num_train_data = 20;
-        x_dir = data_path + "/x_train.csv";
-        y_dir = data_path + "/y_train.csv";
+    } else if (problem == "1D_full_cov") {
+        num_train_data = 500;
     } else {
         num_train_data = 400;
-        x_dir = data_path + "/x_train.csv";
-        y_dir = data_path + "/y_train.csv";
     }
 
     std::vector<std::string> x_path;
@@ -56,19 +54,17 @@ Dataloader test_data(std::string problem, TagiNetworkCPU &net,
 
     // Num of data in each set
     int num_test_data;
+    x_dir = data_path + "/x_test.csv";
+    y_dir = data_path + "/y_test.csv";
 
     if (problem == "Boston_housing") {
-        x_dir = data_path + "/x_test.csv";
-        y_dir = data_path + "/y_test.csv";
         num_test_data = 51;
     } else if (problem == "1D") {
         num_test_data = 100;
-        x_dir = data_path + "/x_test.csv";
-        y_dir = data_path + "/y_test.csv";
+    } else if (problem == "1D_full_cov") {
+        num_test_data = 100;
     } else {
         num_test_data = 200;
-        x_dir = data_path + "/x_test.csv";
-        y_dir = data_path + "/y_test.csv";
     }
 
     std::vector<std::string> x_path;
