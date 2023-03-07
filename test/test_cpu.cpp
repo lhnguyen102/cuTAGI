@@ -82,6 +82,8 @@ void check_valid_input_architecture(std::string test_architecture) {
     if (std::find(POSSIBLE_ARCHITECTURES.begin(), POSSIBLE_ARCHITECTURES.end(),
                   test_architecture) == POSSIBLE_ARCHITECTURES.end()) {
         std::cerr << "Error: Invalid architecture name." << std::endl;
+        std::cerr << "build/main test -h to see possibles architectures."
+                  << std::endl;
         exit(1);
     }
 }
