@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_cpu.cpp
-// Description:  Header file for fnn test
+// Description: Script to test FNN with heteroscedastic noise
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      February 20, 2023
@@ -9,7 +9,6 @@
 // Copyright (c) 2022 Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
-
 
 #include "test_fnn_heteros_cpu.h"
 
@@ -27,9 +26,8 @@ const int NOISE_GAIN = 1;
 const std::string INIT_METHOD = "He";
 const bool NORMALIZE = true;
 
-
-bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string arch,
-                  std::string data) {
+bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
+                          std::string arch, std::string data) {
     // Create TAGI network
     Network net;
 
@@ -47,7 +45,6 @@ bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string 
     net.noise_gain = NOISE_GAIN;
     net.sigma_v = SIGMA_V;
     net.init_method = INIT_METHOD;
-
 
     TagiNetworkCPU tagi_net(net);
 
@@ -203,6 +200,8 @@ bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string 
         for (int i = 0; i < 5; i++)
             ref_forward_states.push_back(new std::vector<float>());
 
+        read_vector_from_csv(forward_states_path, ref_forward_states);
+
         // Compare the saved forward hidden states with the ones we got
         if (!compare_vectors(ref_forward_states, forward_states)) {
             std::cout << "\033[1;31mTest for FNN FORWARD HIDDEN STATES has "
@@ -216,6 +215,8 @@ bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string 
         std::vector<std::vector<float> *> ref_backward_states;
         for (int i = 0; i < 2 * (net.layers.size() - 2); i++)
             ref_backward_states.push_back(new std::vector<float>());
+
+        read_vector_from_csv(backward_states_path, ref_backward_states);
 
         // Compare the saved backward hidden states with the ones we got
         if (!compare_vectors(ref_backward_states, backward_states_ptr)) {

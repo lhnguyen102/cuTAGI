@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_cpu.cpp
-// Description:  Header file for fnn test
+// Description:  Script to test the FNN CPU implementation of cuTAGI
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      February 20, 2023
@@ -194,6 +194,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
         for (int i = 0; i < 5; i++)
             ref_forward_states.push_back(new std::vector<float>());
 
+        read_vector_from_csv(forward_states_path, ref_forward_states);
+
         // Compare the saved forward hidden states with the ones we got
         if (!compare_vectors(ref_forward_states, forward_states)) {
             std::cout << "\033[1;31mTest for FNN FORWARD HIDDEN STATES has "
@@ -207,6 +209,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
         std::vector<std::vector<float> *> ref_backward_states;
         for (int i = 0; i < 2 * (net.layers.size() - 2); i++)
             ref_backward_states.push_back(new std::vector<float>());
+
+        read_vector_from_csv(backward_states_path, ref_backward_states);
 
         // Compare the saved backward hidden states with the ones we got
         if (!compare_vectors(ref_backward_states, backward_states_ptr)) {

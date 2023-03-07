@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_cpu.cpp
-// Description:  Header file for fnn test
+// Description:  Header file for fnn test with heteroscedastic noise
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 01, 2023
 // Updated:      March 01, 2023
@@ -53,5 +53,5 @@
  *
  * @return true if the test was successful
  */
-bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date, std::string arch,
-                  std::string data);
+bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
+                          std::string arch, std::string data);

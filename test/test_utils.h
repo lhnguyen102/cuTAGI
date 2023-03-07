@@ -12,6 +12,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include <algorithm>
 #include <chrono>
@@ -23,7 +24,6 @@
 #include <random>
 #include <sstream>
 #include <string>
-#include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd
@@ -46,7 +46,7 @@
  *
  * @param path directory path
  */
-inline bool directory_exists(const std::string& path) {
+inline bool directory_exists(const std::string &path) {
     struct stat info;
     if (stat(path.c_str(), &info) != 0) {
         return false;
@@ -62,7 +62,7 @@ inline bool directory_exists(const std::string& path) {
  *
  * @param path directory path
  */
-inline bool create_directory_if_not_exists(const std::string& path) {
+inline bool create_directory_if_not_exists(const std::string &path) {
     if (directory_exists(path)) {
         return true;
     } else {

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_cpu.cpp
+// File:         test_fnn_cpu.h
 // Description:  Header file for fnn test
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
