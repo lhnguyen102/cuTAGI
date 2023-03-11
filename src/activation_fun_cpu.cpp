@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 06, 2023
+// Updated:      March 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -254,7 +254,7 @@ void mixture_relu_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
             ma[i + a_pos] = omega * mz_til;
             Sa[i + a_pos] =
                 omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-            J[i + a_pos] = powf(omega, 0.5) * kappa;
+            J[i + a_pos] = powf(omega * kappa, 0.5);
         } else {
             ma[i + a_pos] = omega_tol;
             Sa[i + a_pos] =
