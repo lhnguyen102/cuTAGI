@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      March 05, 2023
+// Updated:      March 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -131,6 +131,11 @@ struct Network {
         num_cpu_threads: Number of threads for gpu
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
+        device: cpu or cuda will be used to perform TAGI forward and backward
+            passes.
+        omega_tol: Tolerance for the mixture activation
+        cap_factor: A hyper-parameter being used to compute the max value for
+            each parameter update
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -187,7 +192,8 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.000001f;
+    float omega_tol = 0.0000001f;
+    float cap_factor = 1.0f;
 };
 
 // NETWORK STATE

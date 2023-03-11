@@ -160,7 +160,7 @@ __global__ void mixture_relu_v2(float const *mz, float const *Sz,
             ma[apos + col] = omega * mz_til;
             Sa[apos + col] =
                 omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-            J[apos + col] = powf(omega, 0.5) * kappa;
+            J[apos + col] = powf(omega * kappa, 0.5);
         } else {
             ma[apos + col] = omega_tol;
             Sa[apos + col] =

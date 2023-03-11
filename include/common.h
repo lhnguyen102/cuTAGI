@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      December 04, 2022
+// Updated:      March 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -217,6 +217,8 @@ int sum(std::vector<int> &v);
 std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
 
 void create_directory(std::string &path);
+
+float get_cap_factor(int batch_size);
 
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
