@@ -1,8 +1,9 @@
 # Version 0.1.4 (2023-03-12)
-* Mixture relu, tanh, and sigmoid (CUDA & CPU) 
-* Localized linear softmax and remax (CUDA & CPU)
+* Add probabilistic activation functions (CUDA & CPU) 
+    * Mixture relu, sigmoid, and tanh
+    * Localized linear softmax and remax
 * Improve stablility for a larger batch size
-* C++ Unittest for fnn and full covariance
+* Add C++ Unittest for fnn and full covariance
 
 # Version 0.1.3 (2022-10-02)
 * Add derivative computation for fully-connected layer (CPU & CUDA)
