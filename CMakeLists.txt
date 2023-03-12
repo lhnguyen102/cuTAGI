@@ -131,6 +131,7 @@ set(CPU_SOURCES
   test/test_dataloader.cpp 
   test/fnn/test_fnn_cpu.cpp
   test/fnn_heteros/test_fnn_heteros_cpu.cpp
+  test/fnn_full_cov/test_fnn_full_cov_cpu.cpp
 
 )
 

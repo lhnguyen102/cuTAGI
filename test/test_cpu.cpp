@@ -12,6 +12,11 @@
 
 #include "test_cpu.h"
 
+const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
+    "all",           "fnn",       "fnn_heteros",    "fnn_full_cov",
+    "fnn_derivates", "cnn",       "cnn_batch_norm", "autoencoder",
+    "lstm",          "cnn_resnet"};
+
 /**
  * @brief Read the last dates of the tests
  *
@@ -68,6 +73,22 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
     file.close();
 }
 
+/**
+ * @brief Check if the user input architecture is valid
+ *
+ * @param test_architecture architecture to test
+ */
+void check_valid_input_architecture(std::string test_architecture) {
+    if (std::find(AVAILABLE_ARCHITECTURES.begin(),
+                  AVAILABLE_ARCHITECTURES.end(),
+                  test_architecture) == AVAILABLE_ARCHITECTURES.end()) {
+        std::cerr << "Error: Invalid architecture name." << std::endl;
+        std::cerr << "build/main test -h to see available architectures."
+                  << std::endl;
+        exit(1);
+    }
+}
+
 void test_cpu(std::vector<std::string>& user_input_options) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
@@ -107,30 +128,15 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             if (user_input_options.size() == 1) {
                 reinizialize_test_outputs = "all";
             } else {
-                std::vector<std::string> possible_architectures = {
-                    "all",
-                    "fnn",
-                    "fnn_heteros",
-                    "fnn_full_cov",
-                    "fnn_derivates",
-                    "cnn",
-                    "cnn_batch_norm",
-                    "autoencoder",
-                    "lstm",
-                    "cnn_resnet"};
-
                 // Check if the architecture is valid
-                if (std::find(possible_architectures.begin(),
-                              possible_architectures.end(),
-                              user_input_options[1]) ==
-                    possible_architectures.end()) {
-                    throw std::runtime_error(
-                        "This architecture is not valid. test -h for help.");
-                }
+                check_valid_input_architecture(user_input_options[1]);
 
                 reinizialize_test_outputs = user_input_options[1];
             }
         } else {
+            // Check if the architecture is valid
+            check_valid_input_architecture(user_input_options[0]);
+
             test_architecture = user_input_options[0];
         }
         std::time_t t = std::time(0);  // get time now
@@ -201,6 +207,24 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                           << std::endl;
             }
         }
+
+        // Perform test on CPU for the FNN architecture with full covariance
+        if (test_architecture == "all" || test_architecture == "fnn_full_cov") {
+            test_num = 2;  // FNN full covariance
+
+            if (test_fnn_full_cov_cpu(false, test_dates[test_num],
+                                      "fnn_full_cov", "1D_full_cov")) {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[32;1mFNN full covariance tests passed\033[0m"
+                          << std::endl;
+            } else {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[31;1mFNN full covariance tests failed\033[0m"
+                          << std::endl;
+            }
+        }
     }
 
     ///////////////////////////////
@@ -244,6 +268,23 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                                      "1D_noise_inferance");
 
                 test_num = 1;  // FNN heteroscedastic noise
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+                test_dates[test_num] = date;
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "fnn_full_cov") {
+                // Reinizialize test outputs for the FNN architecture with
+                // full covariance
+                std::cout << "Reinizializing FNN full covariance test outputs"
+                          << std::endl;
+
+                test_fnn_full_cov_cpu(true, date, "fnn_full_cov",
+                                      "1D_full_cov");
+
+                test_num = 2;  // FNN full covariance
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);

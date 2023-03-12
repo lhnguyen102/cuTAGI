@@ -1,32 +1,34 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_heteros_cpu.cpp
-// Description:  Script to test FNN with heteroscedastic noise
+// File:         test_fnn_full_cov_cpu.cpp
+// Description:  Script to test FNN with full covariance
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
-// Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Created:      March 07, 2023
+// Updated:      March 07, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "test_fnn_heteros_cpu.h"
+#include "test_fnn_full_cov_cpu.h"
 
 // Specify network properties
 const std::vector<int> LAYERS = {1, 1, 1, 1};
-const std::vector<int> NODES = {1, 10, 15, 2};
-const std::vector<int> ACTIVATIONS = {0, 4, 4, 0};
+const std::vector<int> NODES = {1, 10, 15, 1};
+const std::vector<int> ACTIVATIONS = {0, 7, 7, 0};
 const int BATCH_SIZE = 5;
 const int EPOCHS = 1;
 
-const float SIGMA_V = 0.0;
-const std::string NOISE_TYPE = "heteros";
-const int NOISE_GAIN = 1;
+const float SIGMA_V = 0.5;
+const float SIGMA_V_MIN = 0.065;
 const std::string INIT_METHOD = "He";
+const float DECAY_FACTOR_SIGMA_V = 0.95;
 const bool NORMALIZE = true;
+const float SIGMA_X = 0.3485;
+const bool IS_FULL_COV = true;
 
-bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
-                          std::string arch, std::string data) {
+bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
+                           std::string arch, std::string data) {
     // Create TAGI network
     Network net;
 
@@ -34,11 +36,12 @@ bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
     net.nodes = NODES;
     net.activations = ACTIVATIONS;
     net.batch_size = BATCH_SIZE;
-
-    net.noise_type = NOISE_TYPE;
-    net.noise_gain = NOISE_GAIN;
     net.sigma_v = SIGMA_V;
+    net.sigma_v_min = SIGMA_V_MIN;
+    net.decay_factor_sigma_v = DECAY_FACTOR_SIGMA_V;
+    net.sigma_x = SIGMA_X;
     net.init_method = INIT_METHOD;
+    net.is_full_cov = IS_FULL_COV;
 
     TagiNetworkCPU tagi_net(net);
 
