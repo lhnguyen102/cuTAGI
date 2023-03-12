@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      February 06, 2023
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,55 +24,6 @@ void compute_net_memory(Network &net, size_t &id_bytes, size_t &od_bytes,
     ode_bytes = net.batch_size * net.nye * sizeof(int);
     max_n_s_bytes = net.n_max_state * sizeof(float);
 }
-
-// void initialize_network_to_device(Network &net, IndexOut &idx, NetState
-// &state,
-//                                   Param &theta, IndexGPU &idx_gpu,
-//                                   StateGPU &state_gpu, ParamGPU &theta_gpu,
-//                                   DeltaStateGPU &d_state_gpu,
-//                                   DeltaParamGPU &d_theta_gpu)
-// /*Send network's data to device
-
-// Args:
-//     net: Network properties on CPU
-//     idx: Indices of network on CPU
-//     state: Hidden states of network on CPU
-//     theta: Parameters of network on CPU
-//     idx_gpu: Indices of network on GPU
-//     state_gpu: Hidden states of network on GPU
-//     theta_gpu: Parameters of network on GPU
-//     d_state_gpu: Updated quantities for hidden states on GPU
-//     d_theta_gpu: Updated quantites for parameters on GPU
-// */
-// {
-//     // Data transfer for indices
-//     idx_gpu.set_values(idx);
-//     idx_gpu.allocate_cuda_memory();
-//     idx_gpu.copy_host_to_device(idx);
-
-//     // Data transfer for states
-//     state_gpu.set_values(state, net);
-//     state_gpu.allocate_cuda_memory();
-//     state_gpu.copy_host_to_device();
-
-//     // Data transfer for parameters
-//     theta_gpu.set_values(theta);
-//     theta_gpu.allocate_cuda_memory();
-//     theta_gpu.copy_host_to_device();
-
-//     // Data transfer for delta state
-//     d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
-//                            net.n_max_state);
-//     d_state_gpu.allocate_cuda_memory();
-//     d_state_gpu.copy_host_to_device();
-
-//     // Data transfer for delta parameters
-//     d_theta_gpu.set_values(theta.mw.size(), theta.mb.size(),
-//     theta.mw_sc.size(),
-//                            theta.mb_sc.size());
-//     d_theta_gpu.allocate_cuda_memory();
-//     d_theta_gpu.copy_host_to_device();
-// }
 
 ///////////////////////////////////////////////////////////////////////
 // AUTOENCODER
@@ -388,7 +339,6 @@ Args:
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
-            // net.state_gpu.copy_device_to_host();
 
             // Feed backward for hidden states
             net.state_feed_backward(y_batch, V_batch, idx_ud_batch);
