@@ -12,7 +12,7 @@
 
 #include "test_cpu.h"
 
-const std::vector<std::string> POSSIBLE_ARCHITECTURES = {
+const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
     "all",           "fnn",       "fnn_heteros",    "fnn_full_cov",
     "fnn_derivates", "cnn",       "cnn_batch_norm", "autoencoder",
     "lstm",          "cnn_resnet"};
@@ -79,10 +79,11 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
  * @param test_architecture architecture to test
  */
 void check_valid_input_architecture(std::string test_architecture) {
-    if (std::find(POSSIBLE_ARCHITECTURES.begin(), POSSIBLE_ARCHITECTURES.end(),
-                  test_architecture) == POSSIBLE_ARCHITECTURES.end()) {
+    if (std::find(AVAILABLE_ARCHITECTURES.begin(),
+                  AVAILABLE_ARCHITECTURES.end(),
+                  test_architecture) == AVAILABLE_ARCHITECTURES.end()) {
         std::cerr << "Error: Invalid architecture name." << std::endl;
-        std::cerr << "build/main test -h to see possibles architectures."
+        std::cerr << "build/main test -h to see available architectures."
                   << std::endl;
         exit(1);
     }
