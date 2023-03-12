@@ -2,7 +2,7 @@
 * Mixture relu, tanh, and sigmoid (CUDA & CPU) 
 * Localized linear softmax and remax (CUDA & CPU)
 * Improve stablility for a larger batch size
-* C++ Unittest for fnn and full covariance version
+* C++ Unittest for fnn and full covariance
 
 # Version 0.1.3 (2022-10-02)
 * Add derivative computation for fully-connected layer (CPU & CUDA)
