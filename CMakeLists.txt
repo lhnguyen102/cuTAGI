@@ -133,11 +133,10 @@ set(CPU_SOURCES
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
-  test/test_dataloader.cpp 
+  test/test_dataloader.cpp
   test/fnn/test_fnn_cpu.cpp
   test/fnn_heteros/test_fnn_heteros_cpu.cpp
   test/fnn_full_cov/test_fnn_full_cov_cpu.cpp
-
 )
 
 # Sources code for CUDA

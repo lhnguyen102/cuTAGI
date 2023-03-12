@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      February 28, 2023
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,9 +54,9 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                             std::vector<float> &Sa);
 
 void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      float omega_tol, int zpos, int start_idx, int end_idx,
-                      std::vector<float> &ma, std::vector<float> &J,
-                      std::vector<float> &Sa);
+                      float omega_tol, int zpos, int z_pos, int start_idx,
+                      int end_idx, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa);
 
 void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                       float omega_tol, int zpos, int start_idx, int end_idx,

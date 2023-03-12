@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI network
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 13, 2022
-# Updated:      January 27, 2023
+# Updated:      March 12, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -36,7 +36,7 @@ class NetProp(tagi.Network):
         8: Mixture bounded ReLU i.e., [-1.0, 1.0]
         9: Mixture sigmoid i.e., [0.0, 1.0]
         10: Softmax with local linearization
-        11: Closed-form softmax
+        11: Remax
         12: Hierarchical softmax
 
     Attributes:

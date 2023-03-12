@@ -3,7 +3,7 @@
 # Description:  Diffrent example how to build a model in pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      January 27, 2023
+# Updated:      Marche 12, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -91,8 +91,8 @@ class MnistMLP(NetProp):
         super().__init__()
         self.layers = [1, 1, 1, 1]
         self.nodes = [784, 100, 100, 11]
-        self.activations = [0, 4, 4, 0]
-        self.batch_size = 10
+        self.activations = [0, 7, 7, 12]
+        self.batch_size = 100
         self.sigma_v = 1
         self.is_idx_ud = True
         self.multithreading = True
