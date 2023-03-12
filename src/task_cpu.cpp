@@ -3,7 +3,7 @@
 // Description:  CPU version for task command providing different tasks
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 21, 2022
-// Updated:      October 09, 2022
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -38,16 +38,15 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
     std::vector<int> test_data_idx = create_range(test_imdb.num_data);
 
     // Input and output layer
-    auto hrs = class_to_obs(n_classes);
+    net.prop.nye = imdb.output_len;
     std::vector<float> x_batch(net.prop.batch_size * net.prop.n_x, 0);
     std::vector<float> Sx_batch(net.prop.batch_size * net.prop.n_x,
                                 pow(net.prop.sigma_x, 2));
     std::vector<float> Sx_f_batch;
-    std::vector<float> y_batch(net.prop.batch_size * hrs.n_obs, 0);
-    std::vector<float> V_batch(net.prop.batch_size * hrs.n_obs,
-                               pow(net.prop.sigma_v, 2));
-    std::vector<int> batch_idx(net.prop.batch_size);
-    std::vector<int> idx_ud_batch(net.prop.nye * net.prop.batch_size, 0);
+    std::vector<float> y_batch(net.prop.batch_size * imdb.output_len, 0);
+    std::vector<float> V_batch(net.prop.batch_size * imdb.output_len,
+                               powf(net.prop.sigma_v, 2));
+    std::vector<int> idx_ud_batch(imdb.output_len * net.prop.batch_size, 0);
     std::vector<int> label_batch(net.prop.batch_size, 0);
 
     // Error rate for training
@@ -77,8 +76,8 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
                             net.prop.sigma_v_min);
         }
 
-        std::vector<float> V_batch(net.prop.batch_size * hrs.n_obs,
-                                   pow(net.prop.sigma_v, 2));
+        std::vector<float> V_batch(net.prop.batch_size * imdb.output_len,
+                                   powf(net.prop.sigma_v, 2));
 
         // Timer
         std::cout << "################\n";
@@ -94,12 +93,9 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             }
 
             // Load data
-            get_batch_idx(data_idx, i * net.prop.batch_size,
-                          net.prop.batch_size, batch_idx);
-            get_batch_data(imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
-            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images_labels(imdb, data_idx, net.prop.batch_size, i,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
@@ -112,9 +108,14 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(ma_output, Sa_output, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    ma_output, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
@@ -147,21 +148,22 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
             net.prop.ra_mt = 0.0f;
 
             // Load data
-            get_batch_idx(test_data_idx, i, net.prop.batch_size, batch_idx);
-            get_batch_data(test_imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
-                           idx_ud_batch);
-            get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images(test_imdb, test_data_idx, net.prop.batch_size, i,
+                             x_batch, label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
             // Compute error rate
             output_hidden_states(net.state, net.prop, ma_output, Sa_output);
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(ma_output, Sa_output, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(ma_output, Sa_output, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    ma_output, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
         }
@@ -567,23 +569,21 @@ void task_command_cpu(UserInput &user_input, SavePath &path)
 
         // Initialize network
         load_cfg(net_file_ext, net_prop);
-        net_prop.is_idx_ud = true;
+        if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
+            net_prop.is_idx_ud = true;
+        }
         TagiNetworkCPU tagi_net(net_prop);
 
         // Data
-        auto hrs = class_to_obs(user_input.num_classes);
-        tagi_net.prop.nye = hrs.n_obs;
-        auto imdb = get_images(
-            user_input.data_name, user_input.x_train_dir,
-            user_input.y_train_dir, user_input.mu, user_input.sigma,
-            tagi_net.prop.widths[0], tagi_net.prop.heights[0],
-            tagi_net.prop.filters[0], hrs, user_input.num_train_data);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, tagi_net.prop);
 
-        auto test_imdb =
-            get_images(user_input.data_name, user_input.x_test_dir,
-                       user_input.y_test_dir, user_input.mu, user_input.sigma,
-                       tagi_net.prop.widths[0], tagi_net.prop.heights[0],
-                       tagi_net.prop.filters[0], hrs, user_input.num_test_data);
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, tagi_net.prop);
 
         // Load param
         if (user_input.load_param) {

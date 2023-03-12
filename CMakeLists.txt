@@ -51,6 +51,7 @@ check_language(CUDA)
 
 if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
+  message(STATUS "DEVICE -> CUDA")
 else()
   message(STATUS "DEVICE -> CPU")
 endif()
@@ -89,7 +90,11 @@ list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
 # CUDA debug (-g) & device debug (- G)
-set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+if(APPLE)
+  set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
+else()
+  set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
+endif()
 
 # ###########################################################################################
 # # PYTHON SETUP
@@ -128,11 +133,10 @@ set(CPU_SOURCES
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
-  test/test_dataloader.cpp 
+  test/test_dataloader.cpp
   test/fnn/test_fnn_cpu.cpp
   test/fnn_heteros/test_fnn_heteros_cpu.cpp
   test/fnn_full_cov/test_fnn_full_cov_cpu.cpp
-
 )
 
 # Sources code for CUDA

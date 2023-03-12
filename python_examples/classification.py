@@ -3,7 +3,7 @@
 # Description:  Example of classification task using pytagi
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      November 12, 2022
+# Updated:      March 12, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -90,7 +90,7 @@ class Classifier:
                 error_rate = metric.classification_error(prediction=pred,
                                                          label=label)
                 error_rates.append(error_rate)
-                if i % 1000 == 0 and i > 0:
+                if i % 100 == 0 and i > 0:
                     extracted_error_rate = np.hstack(error_rates)
                     avg_error_rate = np.mean(extracted_error_rate[-100:])
                     pbar.set_description(
@@ -98,7 +98,7 @@ class Classifier:
                     )
 
             # Validate on test set after each epoch
-            self.predict()
+            # self.predict()
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
@@ -117,6 +117,86 @@ class Classifier:
                                             hr_softmax=self.hr_softmax,
                                             num_classes=self.num_classes,
                                             batch_size=batch_size)
+
+            # Store data
+            preds.append(pred)
+            labels.append(y_batch)
+
+        preds = np.stack(preds).flatten()
+        labels = np.stack(labels).flatten()
+
+        # Compute classification error rate
+        error_rate = metric.classification_error(prediction=preds,
+                                                 label=labels)
+
+        print("#############")
+        print(f"Error rate    : {error_rate * 100: 0.2f}%")
+
+    def train_one_hot(self) -> None:
+        """Train the network using TAGI"""
+
+        # Inputs
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
+
+        # Outputs
+        V_batch, ud_idx_batch = self.init_outputs(batch_size)
+
+        input_data, output_data, labels = self.data_loader["train"]
+        num_data = input_data.shape[0]
+        num_iter = int(num_data / batch_size)
+        pbar = tqdm(range(self.num_epochs))
+        error_rates = []
+        for epoch in pbar:
+            for i in range(num_iter):
+                # Get data
+                idx = np.random.choice(num_data, size=batch_size)
+                x_batch = input_data[idx, :]
+                y_batch = output_data[idx, :]
+                label = labels[idx]
+
+                # Feed forward
+                self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+
+                # Update hidden states
+                self.network.state_feed_backward(y_batch, V_batch,
+                                                 ud_idx_batch)
+
+                # Update parameters
+                self.network.param_feed_backward()
+
+                # Error rate
+                ma_pred, Sa_pred = self.network.get_network_outputs()
+                pred = ma_pred.reshape((batch_size, self.num_classes))
+                pred = np.argmax(pred, axis=1)
+
+                error_rate = metric.classification_error(prediction=pred,
+                                                         label=label)
+                error_rates.append(error_rate)
+                if i % 1000 == 0 and i > 0:
+                    extracted_error_rate = np.hstack(error_rates)
+                    avg_error_rate = np.mean(extracted_error_rate[-100:])
+                    pbar.set_description(
+                        f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {avg_error_rate * 100:>7.2f}%"
+                    )
+
+            # Validate on test set after each epoch
+            self.predict_one_hot()
+
+    def predict_one_hot(self) -> None:
+        """Make prediction using TAGI"""
+        # Inputs
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
+
+        preds = []
+        labels = []
+        for x_batch, y_batch in self.data_loader["test"]:
+            # Predicitons
+            self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+            ma, Sa = self.network.get_network_outputs()
+            pred = ma.reshape((batch_size, self.num_classes))
+            pred = np.argmax(pred, axis=1)
 
             # Store data
             preds.append(pred)

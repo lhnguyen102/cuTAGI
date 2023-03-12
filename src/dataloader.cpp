@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      October 09, 2022
+// Updated:      January 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,6 +47,35 @@ void get_batch_idx(std::vector<int> &idx, int iter, int B,
         j = (iter + i) % idx.size();
         batch_idx[i] = idx[j];
     }
+}
+
+void get_batch_images_labels(ImageData &imdb, std::vector<int> &data_idx,
+                             int batch_size, int iter,
+                             std::vector<float> &x_batch,
+                             std::vector<float> &y_batch,
+                             std::vector<int> &idx_ud_batch,
+                             std::vector<int> &label_batch)
+/*Get batch of inputs and outputs*/
+{
+    std::vector<int> batch_idx(batch_size);
+    get_batch_idx(data_idx, iter, batch_size, batch_idx);
+    get_batch_data(imdb.images, batch_idx, imdb.image_len, x_batch);
+    get_batch_data(imdb.obs_label, batch_idx, imdb.output_len, y_batch);
+    if (imdb.obs_idx.size() > 0) {
+        get_batch_data(imdb.obs_idx, batch_idx, imdb.output_len, idx_ud_batch);
+    }
+    get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+}
+
+void get_batch_images(ImageData &imdb, std::vector<int> &data_idx,
+                      int batch_size, int iter, std::vector<float> &x_batch,
+                      std::vector<int> &label_batch)
+/*Get batch of inputs*/
+{
+    std::vector<int> batch_idx(batch_size);
+    get_batch_idx(data_idx, iter, batch_size, batch_idx);
+    get_batch_data(imdb.images, batch_idx, imdb.image_len, x_batch);
+    get_batch_data(imdb.labels, batch_idx, 1, label_batch);
 }
 
 //////////////////////////////////////
@@ -164,7 +193,7 @@ std::vector<int> load_mnist_labels(std::string label_file, int num)
     return n_labels;
 }
 
-void labels_to_hrs(std::vector<int> labels, HrSoftmax &hrs,
+void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx)
 /*
  * Convert labels to hierarchical softmax.
@@ -177,6 +206,16 @@ void labels_to_hrs(std::vector<int> labels, HrSoftmax &hrs,
             obs_idx[i * hrs.n_obs + j] = hrs.idx[label * hrs.n_obs + j];
         }
     }
+}
+
+std::vector<float> label_to_one_hot(std::vector<int> &labels, int n_classes)
+/* Convert the classification label to one hot vector*/
+{
+    std::vector<float> obs(labels.size() * n_classes, 0);
+    for (int i = 0; i < labels.size(); i++) {
+        obs[i * n_classes + labels[i]] = 1.0f;
+    }
+    return obs;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -227,8 +266,8 @@ std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
 ImageData get_images(std::string data_name,
                      std::vector<std::string> &image_file,
                      std::vector<std::string> &label_file,
-                     std::vector<float> &mu, std::vector<float> &sigma, int w,
-                     int h, int d, HrSoftmax &hrs, int num)
+                     std::vector<float> &mu, std::vector<float> &sigma, int num,
+                     int num_classes, Network &net_prop)
 /*Load image dataset
 
  Args:
@@ -244,6 +283,7 @@ Returns:
 {
     std::vector<float> imgs;
     std::vector<int> labels;
+    ImageData image_data;
     if (data_name == "mnist") {
         // Load images
         for (int i = 0; i < image_file.size(); i++) {
@@ -257,6 +297,9 @@ Returns:
             labels.insert(labels.end(), label_i.begin(), label_i.end());
         }
 
+        // Hard-code mnist image size 28x28x1
+        image_data.image_len = 28 * 28;
+
     } else if (data_name == "cifar") {
         // Load images and labels
         std::vector<float> img_i;
@@ -266,26 +309,46 @@ Returns:
             imgs.insert(imgs.end(), img_i.begin(), img_i.end());
             labels.insert(labels.end(), label_i.begin(), label_i.end());
         }
+        image_data.image_len = 32 * 32 * 3;
 
     } else {
         throw std::invalid_argument("Dataset does not exist - dataloader.cpp");
     }
 
     // Convert label to hierarchical softmax
-    std::vector<float> obs(hrs.n_obs * num);
-    std::vector<int> obs_idx(hrs.n_obs * num);
-    labels_to_hrs(labels, hrs, obs, obs_idx);
+    std::vector<float> obs;
+    std::vector<int> obs_idx;
+    if (net_prop.activations.back() != net_prop.act_names.hr_softmax) {
+        std::vector<int> obs_idx;
+        obs = label_to_one_hot(labels, num_classes);
+        image_data.output_len = num_classes;
+    } else {
+        auto hrs = class_to_obs(num_classes);
+        image_data.output_len = hrs.n_obs;
+        obs_idx.resize(hrs.n_obs * num);
+        obs.resize(hrs.n_obs * num);
+        labels_to_hrs(labels, hrs, obs, obs_idx);
+    }
 
     // Normalization
     if (mu.size() > 0 && sigma.size() > 0) {
-        normalize_images(imgs, mu, sigma, w, h, d, num);
+        normalize_images(imgs, mu, sigma, net_prop.widths.front(),
+                         net_prop.heights.front(), net_prop.filters.front(),
+                         num);
     } else {
-        mu.resize(d);
-        sigma.resize(d);
-        compute_mean_std_each_channel(imgs, mu, sigma, w, h, d, num);
+        mu.resize(net_prop.filters.front());
+        sigma.resize(net_prop.filters.front());
+        compute_mean_std_each_channel(imgs, mu, sigma, net_prop.widths.front(),
+                                      net_prop.heights.front(),
+                                      net_prop.filters.front(), num);
     }
+    image_data.images = imgs;
+    image_data.obs_label = obs;
+    image_data.obs_idx = obs_idx;
+    image_data.labels = labels;
+    image_data.num_data = num;
 
-    return {imgs, obs, obs_idx, labels, num};
+    return image_data;
 }
 
 Dataloader get_dataloader(std::vector<std::string> &input_file,

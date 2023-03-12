@@ -3,7 +3,7 @@
 # Description:  Python frontend for TAGI utility functions
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 19, 2022
-# Updated:      December 04, 2022
+# Updated:      January 27, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ###############################################################################
@@ -55,6 +55,18 @@ class Utils:
             labels, num_classes)
 
         return np.array(obs), np.array(obs_idx), np.array(num_obs)
+    
+    def label_to_one_hot(self, labels: np.ndarray, num_classes: int) -> np.ndarray:
+        """Get the one hot encoder for each class
+
+        Args:
+            labels: Labels of dataset
+            num_classes: Total number of classes
+        Returns:
+            one_hot: One hot encoder
+        """
+
+        return self.backend_utils.label_to_one_hot_wrapper(labels, num_classes)
 
     def load_mnist_images(self, image_file: str, label_file: str,
                           num_images: int) -> Tuple[np.ndarray, np.ndarray]:

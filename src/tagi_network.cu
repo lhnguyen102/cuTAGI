@@ -68,9 +68,10 @@ void TagiNetwork::param_feed_backward() {
                   this->d_state_gpu, this->idx_gpu, this->d_theta_gpu);
 
     // Update model parameters.
-    globalParamUpdate(this->d_theta_gpu, this->num_weights, this->num_biases,
-                      this->num_weights_sc, this->num_biases_sc,
-                      this->prop.num_gpu_threads, this->theta_gpu);
+    global_param_update(this->d_theta_gpu, this->prop.cap_factor,
+                        this->num_weights, this->num_biases,
+                        this->num_weights_sc, this->num_biases_sc,
+                        this->prop.num_gpu_threads, this->theta_gpu);
 }
 
 void TagiNetwork::get_network_outputs() {
@@ -307,9 +308,7 @@ void TagiNetwork::init_net() {
     this->theta_gpu.copy_host_to_device();
 
     // Send delta state to device
-    this->d_state_gpu.set_values(this->prop.n_state, this->state.msc.size(),
-                                 this->state.mdsc.size(),
-                                 this->prop.n_max_state);
+    this->d_state_gpu.set_values(this->prop);
     this->d_state_gpu.allocate_cuda_memory();
     this->d_state_gpu.copy_host_to_device();
 

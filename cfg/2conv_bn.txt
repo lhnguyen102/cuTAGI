@@ -8,5 +8,5 @@ filters:	[1,     16,     16,     16,     32,     32,     32,     1,      1]
 pads:       [1,     0,      0,      0,      0,      0,      0,	    0,      0]
 pad_types:  [1,     0,      0,      0,      0,      0,      0,      0,      0]
 activations:[0,     4,      0,      0,      4,      0,      0       4,      1]
-batch_size: 20
-sigma_v: 	2
+batch_size: 200
+sigma_v: 	1

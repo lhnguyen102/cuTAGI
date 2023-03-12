@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 04, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -26,6 +26,9 @@ class UtilityWrapper {
     std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
         std::vector<int> &labels, int num_classes);
 
+    pybind11::array_t<float> label_to_one_hot_wrapper(std::vector<int> &labels,
+                                                      int n_classes);
+
     std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
     load_mnist_dataset_wrapper(std::string &image_file, std::string &label_file,
                                int num);
@@ -45,8 +48,7 @@ class UtilityWrapper {
                                                  int num_classes);
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
-                      std::vector<int> &labels, HrSoftmax &hs, int n_classes,
-                      int B);
+                      std::vector<int> &labels, int n_classes, int B);
 
     std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
     create_rolling_window_wrapper(std::vector<float> &data,

@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      December 11, 2022
+// Updated:      March 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,6 +34,9 @@ struct ActLabel {
     int mrelu = 7;
     int mtanh = 8;
     int msigmoid = 9;
+    int softmax = 10;
+    int remax = 11;
+    int hr_softmax = 12;
 };
 
 struct Network {
@@ -128,6 +131,11 @@ struct Network {
         num_cpu_threads: Number of threads for gpu
         num_gpu_threads: Number of threads for gpu
         min_operations: Minimal number of operations to trigger multithread
+        device: cpu or cuda will be used to perform TAGI forward and backward
+            passes.
+        omega_tol: Tolerance for the mixture activation
+        cap_factor: A hyper-parameter being used to compute the max value for
+            each parameter update
 
     NOTE*: sc means the shortcut for residual network.
     */
@@ -184,7 +192,8 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.001;
+    float omega_tol = 0.0000001f;
+    float cap_factor = 1.0f;
 };
 
 // NETWORK STATE
@@ -238,6 +247,11 @@ struct LSTMState {
         mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
+struct Remax {
+    std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
+        mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
+};
+
 struct NetState {
     /* Network's hidden states
 
@@ -263,6 +277,7 @@ struct NetState {
     NoiseState noise_state;
     DerivativeState derv_state;
     LSTMState lstm;
+    Remax remax;
 };
 
 // NETWORK PARAMETERS
@@ -362,7 +377,7 @@ struct ImageData {
     std::vector<float> obs_label;
     std::vector<int> obs_idx;
     std::vector<int> labels;
-    int num_data;
+    int num_data, image_len, output_len;
 };
 
 // REGRESSION DATA

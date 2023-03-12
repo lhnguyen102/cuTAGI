@@ -1,8 +1,14 @@
+# Version 0.1.4 (2023-03-12)
+* Add probabilistic activation functions (CUDA & CPU) 
+    * Mixture relu, sigmoid, and tanh
+    * Localized linear softmax and remax
+* Improve stablility for a larger batch size
+* Add C++ Unittest for fnn and full covariance
+
 # Version 0.1.3 (2022-10-02)
 * Add derivative computation for fully-connected layer (CPU & CUDA)
 * Add Long Short-Term Memory (LSTM) with TAGI (CPU & CUDA)
 * Add dataloader for time series
-
 
 # Version 0.1.2 (2022-07-09)
 * Add homoscedastic & heteroscedastic noise inferences 
