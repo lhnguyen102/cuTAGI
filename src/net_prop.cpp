@@ -726,6 +726,7 @@ void net_default(Network &net)
         net.n_y = net.nodes.back();
     }
     net.n_x = net.nodes.front();
+    net.cap_factor = get_cap_factor(net.batch_size);
 
     // Network architecture
     if (net.widths.size() == 0) {

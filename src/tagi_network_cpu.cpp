@@ -62,7 +62,8 @@ void TagiNetworkCPU::param_feed_backward() {
                        this->idx, this->d_theta);
 
     // Update model parameters
-    global_param_update_cpu(this->d_theta, this->num_weights, this->num_biases,
+    global_param_update_cpu(this->d_theta, this->prop.cap_factor,
+                            this->num_weights, this->num_biases,
                             this->num_weights_sc, this->num_biases_sc,
                             this->theta);
 }
