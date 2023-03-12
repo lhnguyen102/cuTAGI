@@ -1,6 +1,6 @@
 # Version 0.1.4 (2023-03-12)
 * Mixture relu, tanh, and sigmoid (CUDA & CPU) 
-* Localized linear softmax and remax for (CUDA & CPU)
+* Localized linear softmax and remax (CUDA & CPU)
 * Improve stablility for a larger batch size
 * C++ Unittest for fnn and full covariance version
 
