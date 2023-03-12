@@ -3,7 +3,7 @@
 // Description:  Activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      March 06, 2023
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -113,33 +113,8 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
 }
 
 __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
-                             int zpos, int n, float *ma, float *J, float *Sa) {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha, beta, omega, kappa, mz_til, Sz_til;
-    float pi = 3.141592;  // pi number
-    if (col < n) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
-        omega = max(1.0f - normcdff(alpha), omega_tol);
-        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
-               omega;
-        kappa = 1.0f + alpha * beta - powf(beta, 2);
-
-        // Gaussian mixture's parameters
-        mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);
-        Sz_til = kappa * Sz[zpos + col];
-
-        // Activation distribution
-        ma[zpos + col] = omega * mz_til;
-        Sa[zpos + col] =
-            omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-        J[zpos + col] = powf(omega * kappa, 0.5);
-    }
-}
-
-__global__ void mixture_relu_v2(float const *mz, float const *Sz,
-                                float omega_tol, int zpos, int apos, int n,
-                                float *ma, float *J, float *Sa) {
+                             int zpos, int apos, int n, float *ma, float *J,
+                             float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float alpha, beta, omega, kappa, mz_til, Sz_til;
     float pi = 3.141592;  // pi number
@@ -411,9 +386,9 @@ void remax(Network &net, StateGPU &state, int l) {
     dim3 dim_grid_1(1, grid_row);
 
     // mrelu
-    mixture_relu_v2<<<BLOCKS, THREADS>>>(
-        state.d_mz, state.d_Sz, net.omega_tol, z_pos, 0, no * B,
-        state.remax.d_mu_m, state.remax.d_J_m, state.remax.d_var_m);
+    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+                                      z_pos, 0, no * B, state.remax.d_mu_m,
+                                      state.remax.d_J_m, state.remax.d_var_m);
 
     // log of mrelu
     to_log<<<dim_grid, dim_block>>>(state.remax.d_mu_m, state.remax.d_var_m, no,
@@ -510,8 +485,8 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
         mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
-                                          z_pos, MB, state.d_ma, state.d_J,
-                                          state.d_Sa);
+                                          z_pos, z_pos, MB, state.d_ma,
+                                          state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {

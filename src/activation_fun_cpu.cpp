@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 11, 2023
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,34 +209,11 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
-void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      float omega_tol, int zpos, int start_idx, int end_idx,
-                      std::vector<float> &ma, std::vector<float> &J,
-                      std::vector<float> &Sa) {
-    float alpha, beta, omega, kappa, mz_til, Sz_til;
-    for (int i = start_idx; i < end_idx; i++) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mz[zpos + i] / powf(Sz[zpos + i], 0.5);
-        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
-        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mz_til = mz[zpos + i] + beta * powf(Sz[zpos + i], 0.5);
-        Sz_til = kappa * Sz[zpos + i];
-
-        // Activation distribution
-        ma[zpos + i] = omega * mz_til;
-        Sa[zpos + i] = omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-        J[zpos + i] = powf(omega * kappa, 0.5);
-    }
-}
-
 // TO BE replace the first one
-void mixture_relu_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
-                         float omega_tol, int z_pos, int a_pos, int start_idx,
-                         int end_idx, std::vector<float> &ma,
-                         std::vector<float> &J, std::vector<float> &Sa) {
+void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
+                      float omega_tol, int z_pos, int a_pos, int start_idx,
+                      int end_idx, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa) {
     float alpha, beta, omega, kappa, mz_til, Sz_til;
     for (int i = start_idx; i < end_idx; i++) {
         // Hyper-parameters for Gaussian mixture
@@ -415,8 +392,8 @@ void remax_cpu(Network &net, NetState &state, int l)
     int B = net.batch_size;
 
     // mrelu
-    mixture_relu_cpu_v2(state.mz, state.Sz, net.omega_tol, z_pos, 0, 0, no * B,
-                        state.remax.mu_m, state.remax.J_m, state.remax.var_m);
+    mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos, 0, 0, no * B,
+                     state.remax.mu_m, state.remax.J_m, state.remax.var_m);
 
     // log of mrelu
     to_log_cpu(state.remax.mu_m, state.remax.var_m, 0, no, B,
@@ -839,9 +816,9 @@ void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
             start_idx = n_batch * i + rem_batch;
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
-            mixture_relu_cpu_v2, std::ref(mz), std::ref(Sz), omega_tol, zpos,
-            zpos, start_idx, end_idx, std::ref(ma), std::ref(J), std::ref(Sa));
+        threads[i] = std::thread(mixture_relu_cpu, std::ref(mz), std::ref(Sz),
+                                 omega_tol, zpos, zpos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
     }
     for (int i = 0; i < num_threads; i++) {
         threads[i].join();
@@ -1014,9 +991,8 @@ void activate_hidden_states_cpu(Network &net, NetState &state, int j) {
                                         z_pos_out, no_B, net.num_cpu_threads,
                                         state.ma, state.J, state.Sa);
         } else {
-            mixture_relu_cpu_v2(state.mz, state.Sz, net.omega_tol, z_pos_out,
-                                z_pos_out, 0, no_B, state.ma, state.J,
-                                state.Sa);
+            mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos_out,
+                             z_pos_out, 0, no_B, state.ma, state.J, state.Sa);
         }
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
