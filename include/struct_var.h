@@ -247,9 +247,20 @@ struct LSTMState {
         mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
-struct Remax {
+struct Remax
+/*Probablistic probability*/
+{
     std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
         mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
+    std::vector<int> z_pos;
+};
+
+struct MultiHeadAttention
+/*Multi-head self attention*/
+{
+    Remax remax;
+    std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att, var_att;
+    std::vector<int> z_pos, num_heads, time_step, head_size;
 };
 
 struct NetState {

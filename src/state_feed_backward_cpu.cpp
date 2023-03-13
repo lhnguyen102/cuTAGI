@@ -937,7 +937,6 @@ void remax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     delta_z_y_check_cpu(state.ma, state.Sa, state.remax.cov_m_a, obs.y_batch,
                         obs.V_batch, no, B, z_pos, d_state.delta_mz,
                         d_state.delta_Sz);
-    int check = 1;
 }
 
 void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,

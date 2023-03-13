@@ -137,6 +137,8 @@ set(CPU_SOURCES
   test/fnn_derivatives/test_fnn_derivatives_cpu.cpp
   test/lstm/test_lstm_cpu.cpp
   test/test_lstm.cpp
+  src/self_attention_cpu.cpp
+
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
