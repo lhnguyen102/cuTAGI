@@ -541,7 +541,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
         //**
         // Activation
         //
-        activate_hidden_states(net, state, j);
+        activate_hidden_states_cpu(net, state, j);
 
         // Activation derivatives
         if (net.collect_derivative) {

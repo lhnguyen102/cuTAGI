@@ -3,7 +3,7 @@
 // Description:  TAGI network including feed forward & backward (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 03, 2022
-// Updated:      November 06, 2022
+// Updated:      January 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,8 @@ void TagiNetworkCPU::param_feed_backward() {
                        this->idx, this->d_theta);
 
     // Update model parameters
-    global_param_update_cpu(this->d_theta, this->num_weights, this->num_biases,
+    global_param_update_cpu(this->d_theta, this->prop.cap_factor,
+                            this->num_weights, this->num_biases,
                             this->num_weights_sc, this->num_biases_sc,
                             this->theta);
 }
@@ -82,8 +83,7 @@ void TagiNetworkCPU::init_net() {
     this->state = initialize_net_states(this->prop);
 
     // Update quantities
-    this->d_state.set_values(this->prop.n_state, this->state.msc.size(),
-                             this->state.mdsc.size(), this->prop.n_max_state);
+    this->d_state.set_values(this->prop);
     this->d_theta.set_values(this->theta.mw.size(), this->theta.mb.size(),
                              this->theta.mw_sc.size(),
                              this->theta.mb_sc.size());

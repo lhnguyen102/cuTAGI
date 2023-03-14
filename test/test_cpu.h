@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_cpu.h
 // Description:  Header file for main script to test the CPU implementation of
-// cuTAGI
-// Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
+//               cuTAGI
+// Authors:      Florensa Miquel , Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      February 20, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
+// Copyright (c) 2023 Florensa Miquel, Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 

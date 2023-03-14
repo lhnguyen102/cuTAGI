@@ -3,19 +3,23 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      July 01, 2022
+// Updated:      March 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "../include/data_transfer_cpu.h"
-
 //////////////////////////////
 // DELTA STATE
 //////////////////////////////
 DeltaState::DeltaState() {}
 
-void DeltaState::set_values(int s, int sc, int dsc, int max_n_s) {
+void DeltaState::set_values(Network &net_prop) {
+    int s = net_prop.n_state;
+    int sc = net_prop.n_state_sc;
+    int dsc = net_prop.n_state_sc;
+    int max_n_s = net_prop.n_max_state;
+
     this->delta_mz.resize(max_n_s, 0);
     this->delta_Sz.resize(max_n_s, 0);
     this->delta_mdsc.resize(dsc, 0);

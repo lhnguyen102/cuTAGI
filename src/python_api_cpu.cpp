@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 19, 2022
-// Updated:      December 04, 2022
+// Updated:      January 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,6 +24,14 @@ UtilityWrapper::label_to_obs_wrapper(std::vector<int> &labels,
     labels_to_hrs(labels, hrs, obs, obs_idx);
 
     return {obs, obs_idx, hrs.n_obs};
+}
+
+pybind11::array_t<float> UtilityWrapper::label_to_one_hot_wrapper(
+    std::vector<int> &labels, int n_classes) {
+    auto obs = label_to_one_hot(labels, n_classes);
+    auto py_obs = pybind11::array_t<float>(obs.size(), obs.data());
+
+    return py_obs;
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
@@ -98,11 +106,11 @@ std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
                                   std::vector<float> &Sz,
-                                  std::vector<int> &labels, HrSoftmax &hs,
-                                  int n_classes, int B) {
+                                  std::vector<int> &labels, int n_classes,
+                                  int B) {
     std::vector<int> er;
     std::vector<float> prob;
-    std::tie(er, prob) = get_error(mz, Sz, labels, hs, n_classes, B);
+    std::tie(er, prob) = get_error(mz, Sz, labels, n_classes, B);
     auto py_er = pybind11::array_t<int>(er.size(), er.data());
     auto py_prob = pybind11::array_t<float>(prob.size(), prob.data());
 
@@ -329,6 +337,9 @@ PYBIND11_MODULE(cutagi, m) {
 
     pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
         .def(pybind11::init<>())
+        .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
+        .def("label_to_one_hot_wrapper",
+             &UtilityWrapper::label_to_one_hot_wrapper)
         .def("hierarchical_softmax_wrapper",
              &UtilityWrapper::hierarchical_softmax_wrapper)
         .def("load_mnist_dataset_wrapper",
@@ -336,7 +347,6 @@ PYBIND11_MODULE(cutagi, m) {
         .def("load_cifar_dataset_wrapper",
              &UtilityWrapper::load_cifar_dataset_wrapper)
         .def("get_labels_wrapper", &UtilityWrapper::get_labels_wrapper)
-        .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
         .def("obs_to_label_prob_wrapper",
              &UtilityWrapper::obs_to_label_prob_wrapper)
         .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper)

@@ -3,11 +3,12 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      December 16, 2022
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -16,6 +17,16 @@
 
 #include "common.h"
 #include "struct_var.h"
+
+void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
+                               std::vector<float> &cov_log_logsum,
+                               std::vector<float> &mu_a, int no, int B,
+                               std::vector<float> &cov_m_a_check);
+
+void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
+                         std::vector<float> &mu_a, std::vector<float> &var_m,
+                         std::vector<float> &var_z, std::vector<float> &J_m,
+                         int z_pos, int no, int B, std::vector<float> &cov_a_m);
 
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          int zpos, int n, std::vector<float> &ma,
@@ -43,9 +54,9 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                             std::vector<float> &Sa);
 
 void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      float omega_tol, int zpos, int start_idx, int end_idx,
-                      std::vector<float> &ma, std::vector<float> &J,
-                      std::vector<float> &Sa);
+                      float omega_tol, int zpos, int z_pos, int start_idx,
+                      int end_idx, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa);
 
 void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                       float omega_tol, int zpos, int start_idx, int end_idx,
@@ -139,4 +150,11 @@ void act_full_cov_multithreading(std::vector<float> &Sz_f,
                                  int z_pos_out, unsigned int NUM_THREADS,
                                  std::vector<float> &Sa_f);
 
-void activate_hidden_states(Network &net, NetState &state, int j);
+void activate_hidden_states_cpu(Network &net, NetState &state, int j);
+
+void exp_log_softmax_cpu(std::vector<float> &mz, std::vector<float> &vz,
+                         std::vector<float> &me_check,
+                         std::vector<float> &ve_check,
+                         std::vector<float> &cov_z_e_check, float sigma_v,
+                         int no, int B, int z_pos, std::vector<float> &ma,
+                         std::vector<float> &va);

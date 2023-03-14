@@ -3,9 +3,9 @@
 // Description:  Cost functions for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 01, 2022
-// Updated:      December 05, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/cost.h"
 
@@ -201,7 +201,7 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
 ////////////////////////////////////////////////////////////////////////////
 std::tuple<std::vector<int>, std::vector<float>> get_error(
     std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
-    HrSoftmax &hs, int n_classes, int B)
+    int n_classes, int B)
 /*
  * Compute error given an input image
  *
@@ -218,6 +218,7 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
  * */
 {
     // Initialization
+    auto hs = class_to_obs(n_classes);
     std::vector<int> er(B, 0);
     std::vector<float> P(B * n_classes);
     std::vector<float> mz_tmp(hs.len);
@@ -251,6 +252,24 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
     }
 
     return {er, P};
+}
+
+std::vector<int> get_class_error(std::vector<float> &ma,
+                                 std::vector<int> &labels, int n_classes,
+                                 int B) {
+    std::vector<int> er(B, 0);
+    int idx;
+    for (int i = 0; i < B; i++) {
+        idx = i * n_classes;
+        int pred =
+            std::max_element(ma.begin() + idx, ma.begin() + idx + n_classes) -
+            ma.begin() - idx;
+
+        if (pred != labels[i]) {
+            er[i] = 1;
+        }
+    }
+    return er;
 }
 
 float mean_squared_error(std::vector<float> &pred, std::vector<float> &obs)
@@ -360,7 +379,7 @@ void test_obs_to_class() {
     std::vector<float> Sz(hs.len * 2, 0.02f);
     std::vector<int> er;
     std::vector<float> P;
-    std::tie(er, P) = get_error(mz, Sz, labels, hs, n_classes, B);
+    std::tie(er, P) = get_error(mz, Sz, labels, n_classes, B);
 
     std::cout << "Prob = "
               << "\n";

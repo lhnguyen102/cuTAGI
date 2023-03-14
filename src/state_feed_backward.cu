@@ -3,7 +3,7 @@
 // Description:  forward pass in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 07, 2021
-// Updated:      September 18, 2022
+// Updated:      March 06, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////
@@ -127,6 +127,47 @@ Args:
         }
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+/// CLOSED-FORM SOFTMAX
+////////////////////////////////////////////////////////////////////////////////
+__global__ void delta_z_y_check(float const *mu_a, float const *var_a,
+                                float const *cov_y_y_check, float const *y,
+                                float const *var_noise, int no, int B,
+                                int z_pos, float *delta_mu_zy_check,
+                                float *delta_var_zy_check)
+/*Compute updating quantities for \check{y}*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float tmp, zero_pad = 0;
+    int idx;
+    if (row < B && col < no) {
+        idx = row * no + col;
+        tmp = cov_y_y_check[idx] / (var_a[idx + z_pos] + var_noise[idx]);
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_mu_zy_check[idx] = zero_pad;
+            delta_var_zy_check[idx] = zero_pad;
+        } else {
+            delta_mu_zy_check[idx] = tmp * (y[idx] - mu_a[idx + z_pos]);
+            delta_var_zy_check[idx] = -tmp * cov_y_y_check[idx];
+        }
+    }
+}
+
+__global__ void delta_z_softmax(float const *cov_z_y_check,
+                                float const *delta_mu, float const *delta_var,
+                                int no, int B, float *delta_mu_z,
+                                float *delta_var_z)
+/*Compute updating quantities for hidden states for the softmax layer*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < no * B) {
+        delta_mu_z[col] = cov_z_y_check[col] * delta_mu[col];
+        delta_var_z[col] =
+            cov_z_y_check[col] * delta_var[col] * cov_z_y_check[col];
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// FULL-CONNECTED
 ////////////////////////////////////////////////////////////////////////////////
@@ -1483,6 +1524,36 @@ void output_delta_mz_Sz(ObsGPU &obs, Network &net, StateGPU &state,
     }
 }
 
+void remax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
+                          DeltaStateGPU &d_state) {
+    int no = net.nodes.back();
+    int B = net.batch_size;
+    int z_pos = net.z_pos.back();
+    int THREADS = net.num_gpu_threads;
+    dim3 dim_block(THREADS, THREADS);
+
+    // Covariance between m and \check{a}
+    unsigned int grid_row = (B + THREADS - 1) / THREADS;
+    unsigned int grid_col = (no + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+    compute_cov_m_a_check<<<dim_grid, dim_block>>>(
+        state.remax.d_var_log, state.remax.d_cov_log_logsum, state.remax.d_mu_m,
+        no, B, state.remax.d_cov_m_a_check);
+
+    // Covariance between m and a
+    compute_cov_m_a<<<dim_grid, dim_block>>>(
+        state.remax.d_cov_m_a_check, state.d_ma, state.remax.d_var_m,
+        state.d_Sz, state.remax.d_J_m, z_pos, no, B, state.remax.d_cov_m_a);
+
+    // Updating quantities for hidden states
+    delta_z_y_check<<<dim_grid, dim_block>>>(
+        state.d_ma, state.d_Sa, state.remax.d_cov_m_a, obs.d_y_batch,
+        obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
+    state.copy_device_to_host();
+    d_state.copy_device_to_host();
+    int check = 1;
+}
+
 void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
                                  DeltaStateGPU &d_state)
 /*Compute updated quantities for the output layer's hidden state
@@ -1496,8 +1567,11 @@ void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
 {
     if (net.is_output_ud) {
         if (net.noise_type.compare("homosce") != 0 &&
-            net.noise_type.compare("heteros") != 0) {
+            net.noise_type.compare("heteros") != 0 &&
+            (net.activations.back() != net.act_names.remax)) {
             output_delta_mz_Sz(obs, net, state, d_state);
+        } else if (net.activations.back() == net.act_names.remax) {
+            remax_output_delta_z(obs, net, state, d_state);
         } else {
             output_delta_mz_Sz_with_noise_inference(obs, net, state, d_state);
         }

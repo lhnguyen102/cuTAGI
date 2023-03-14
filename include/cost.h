@@ -3,9 +3,9 @@
 // Description:  Header file for cost function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 19, 2022
-// Updated:      October 22, 2022
+// Updated:      January 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. All rights reserve.
+// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <stdio.h>
@@ -27,7 +27,11 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
 
 std::tuple<std::vector<int>, std::vector<float>> get_error(
     std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
-    HrSoftmax &hs, int n_classes, int B);
+    int n_classes, int B);
+
+std::vector<int> get_class_error(std::vector<float> &ma,
+                                 std::vector<int> &labels, int n_classes,
+                                 int B);
 
 float mean_squared_error(std::vector<float> &pred, std::vector<float> &obs);
 float avg_univar_log_lik(std::vector<float> &x, std::vector<float> &mu,

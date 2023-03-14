@@ -7,6 +7,6 @@ heights:	[28,    0,      0,      0,      0,      0,      0]
 filters:	[1,     16,     16,     32,     32,     1,      1]
 pads:       [1,     0,      0,      0,      0,      0,      0]
 pad_types:  [1,     0,      0,      0,      0,      0,      0]
-activations:[0,     4,      0,      4,      0,      4,      0]
-batch_size: 10
-sigma_v: 	1
+activations:[0,     7,      0,      7,      0,      7,      12]
+batch_size: 60
+sigma_v: 	2

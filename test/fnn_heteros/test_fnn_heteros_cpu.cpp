@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_heteros_cpu.cpp
 // Description:  Script to test FNN with heteroscedastic noise
-// Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
+// Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      February 20, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2022 Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet.
+// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 

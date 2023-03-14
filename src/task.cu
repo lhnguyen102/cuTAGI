@@ -4,7 +4,7 @@
 //               that uses TAGI approach.
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      November 11, 2022
+// Updated:      March 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,53 +23,6 @@ void compute_net_memory(Network &net, size_t &id_bytes, size_t &od_bytes,
     od_bytes = net.batch_size * net.n_y * sizeof(float);
     ode_bytes = net.batch_size * net.nye * sizeof(int);
     max_n_s_bytes = net.n_max_state * sizeof(float);
-}
-
-void initialize_network_to_device(Network &net, IndexOut &idx, NetState &state,
-                                  Param &theta, IndexGPU &idx_gpu,
-                                  StateGPU &state_gpu, ParamGPU &theta_gpu,
-                                  DeltaStateGPU &d_state_gpu,
-                                  DeltaParamGPU &d_theta_gpu)
-/*Send network's data to device
-
-Args:
-    net: Network properties on CPU
-    idx: Indices of network on CPU
-    state: Hidden states of network on CPU
-    theta: Parameters of network on CPU
-    idx_gpu: Indices of network on GPU
-    state_gpu: Hidden states of network on GPU
-    theta_gpu: Parameters of network on GPU
-    d_state_gpu: Updated quantities for hidden states on GPU
-    d_theta_gpu: Updated quantites for parameters on GPU
-*/
-{
-    // Data transfer for indices
-    idx_gpu.set_values(idx);
-    idx_gpu.allocate_cuda_memory();
-    idx_gpu.copy_host_to_device(idx);
-
-    // Data transfer for states
-    state_gpu.set_values(state, net);
-    state_gpu.allocate_cuda_memory();
-    state_gpu.copy_host_to_device();
-
-    // Data transfer for parameters
-    theta_gpu.set_values(theta);
-    theta_gpu.allocate_cuda_memory();
-    theta_gpu.copy_host_to_device();
-
-    // Data transfer for delta state
-    d_state_gpu.set_values(net.n_state, state.msc.size(), state.mdsc.size(),
-                           net.n_max_state);
-    d_state_gpu.allocate_cuda_memory();
-    d_state_gpu.copy_host_to_device();
-
-    // Data transfer for delta parameters
-    d_theta_gpu.set_values(theta.mw.size(), theta.mb.size(), theta.mw_sc.size(),
-                           theta.mb_sc.size());
-    d_theta_gpu.allocate_cuda_memory();
-    d_theta_gpu.copy_host_to_device();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -148,7 +101,6 @@ Args:
             }
             std::vector<float> V_batch(net_d.prop.batch_size * net_d.prop.n_y,
                                        powf(net_d.prop.sigma_v, 2));
-            std::cout << "sigma v: " << V_batch[0] << "\n";
 
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {
@@ -321,7 +273,7 @@ Args:
     std::vector<int> test_data_idx = create_range(test_imdb.num_data);
 
     // Input and output layer
-    auto hrs = class_to_obs(n_classes);
+    net.prop.nye = imdb.output_len;
     std::vector<float> x_batch, Sx_batch, y_batch, V_batch;
     std::vector<int> batch_idx(net.prop.batch_size);
     std::vector<int> idx_ud_batch(net.prop.nye * net.prop.batch_size, 0);
@@ -330,8 +282,9 @@ Args:
     x_batch.resize(net.prop.batch_size * net.prop.n_x, 0);
     Sx_batch.resize(net.prop.batch_size * net.prop.n_x,
                     powf(net.prop.sigma_x, 2));
-    y_batch.resize(net.prop.batch_size * hrs.n_obs, 0);
-    V_batch.resize(net.prop.batch_size * hrs.n_obs, powf(net.prop.sigma_v, 2));
+    y_batch.resize(net.prop.batch_size * imdb.output_len, 0);
+    V_batch.resize(net.prop.batch_size * imdb.output_len,
+                   powf(net.prop.sigma_v, 2));
 
     // *TODO: Is there any better way?
     std::vector<float> Sx_f_batch;
@@ -360,7 +313,12 @@ Args:
         if (e > 0) {
             // Shufle data
             std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            // Decay observation noise
+            decay_obs_noise(net.prop.sigma_v, net.prop.decay_factor_sigma_v,
+                            net.prop.sigma_v_min);
         }
+        std::vector<float> V_batch(net.prop.batch_size * net.prop.n_y,
+                                   powf(net.prop.sigma_v, 2));
         // Timer
         std::cout << "################\n";
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
@@ -375,12 +333,9 @@ Args:
             }
 
             // Load data
-            get_batch_idx(data_idx, i * net.prop.batch_size,
-                          net.prop.batch_size, batch_idx);
-            get_batch_data(imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(imdb.obs_idx, batch_idx, hrs.n_obs, idx_ud_batch);
-            get_batch_data(imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images_labels(imdb, data_idx, net.prop.batch_size, i,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
@@ -393,9 +348,16 @@ Args:
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(net.ma, net.Sa, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(net.ma, net.Sa, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    net.ma, label_batch, n_classes, net.prop.batch_size);
+            }
+            // std::tie(error_rate_batch, prob_class_batch) = get_error(
+            //     net.ma, net.Sa, label_batch, n_classes, net.prop.batch_size);
             mt_idx = i * net.prop.batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
@@ -430,21 +392,22 @@ Args:
             net.prop.ra_mt = 0.0f;
 
             // Load data
-            get_batch_idx(test_data_idx, i, net.prop.batch_size, batch_idx);
-            get_batch_data(test_imdb.images, batch_idx, net.prop.n_x, x_batch);
-            get_batch_data(test_imdb.obs_label, batch_idx, hrs.n_obs, y_batch);
-            get_batch_data(test_imdb.obs_idx, batch_idx, hrs.n_obs,
-                           idx_ud_batch);
-            get_batch_data(test_imdb.labels, batch_idx, 1, label_batch);
+            get_batch_images(test_imdb, test_data_idx, net.prop.batch_size, i,
+                             x_batch, label_batch);
 
             // Feed forward
             net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
 
             // Compute error rate
             net.get_network_outputs();
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(net.ma, net.Sa, label_batch, hrs, n_classes,
-                          net.prop.batch_size);
+            if (net.prop.activations.back() == net.prop.act_names.hr_softmax) {
+                std::tie(error_rate_batch, prob_class_batch) =
+                    get_error(net.ma, net.Sa, label_batch, n_classes,
+                              net.prop.batch_size);
+            } else {
+                error_rate_batch = get_class_error(
+                    net.ma, label_batch, n_classes, net.prop.batch_size);
+            }
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
         }
@@ -882,22 +845,23 @@ void task_command(UserInput &user_input, SavePath &path) {
         // Initialize network
         load_cfg(net_file_ext, net_prop);
         net_prop.device = user_input.device;
-        auto hrs = class_to_obs(user_input.num_classes);
-        net_prop.nye = hrs.n_obs;
-        net_prop.is_idx_ud = true;
+        if (net_prop.activations.back() == net_prop.act_names.hr_softmax) {
+            net_prop.is_idx_ud = true;
+            auto hrs = class_to_obs(user_input.num_classes);
+            net_prop.nye = hrs.n_obs;
+        }
         TagiNetwork net(net_prop);
 
         // Data
-        auto imdb =
-            get_images(user_input.data_name, user_input.x_train_dir,
-                       user_input.y_train_dir, user_input.mu, user_input.sigma,
-                       net.prop.widths[0], net.prop.heights[0],
-                       net.prop.filters[0], hrs, user_input.num_train_data);
-        auto test_imdb =
-            get_images(user_input.data_name, user_input.x_test_dir,
-                       user_input.y_test_dir, user_input.mu, user_input.sigma,
-                       net.prop.widths[0], net.prop.heights[0],
-                       net.prop.filters[0], hrs, user_input.num_test_data);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, net.prop);
+
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, net.prop);
 
         // Load param
         if (user_input.load_param) {
@@ -909,9 +873,9 @@ void task_command(UserInput &user_input, SavePath &path) {
 
         // Saved debug data
         if (user_input.debug) {
-            std::string param_path = path.debug_path + "/saved_param/";
-            std::string idx_path = path.debug_path + "/saved_idx/";
-            save_net_prop(param_path, idx_path, net.theta, net.idx);
+            std::string param_path = path.debug_path + "saved_param/";
+            save_net_param(user_input.model_name, user_input.net_name,
+                           param_path, net.theta);
         }
 
         std::cout << "Training...\n" << std::endl;
@@ -938,21 +902,18 @@ void task_command(UserInput &user_input, SavePath &path) {
         load_cfg(net_file_ext_d, net_prop_d);
         net_prop_d.device = user_input.device;
         TagiNetwork net_d(net_prop_d);
-        net_d.prop.is_idx_ud = false;
         net_d.prop.last_backward_layer = 0;
 
         // Load data
-        auto hrs = class_to_obs(user_input.num_classes);
-        auto imdb =
-            get_images(user_input.data_name, user_input.x_train_dir,
-                       user_input.y_train_dir, user_input.mu, user_input.sigma,
-                       net_e.prop.widths[0], net_e.prop.heights[0],
-                       net_e.prop.filters[0], hrs, user_input.num_train_data);
-        auto test_imdb =
-            get_images(user_input.data_name, user_input.x_test_dir,
-                       user_input.y_test_dir, user_input.mu, user_input.sigma,
-                       net_e.prop.widths[0], net_e.prop.heights[0],
-                       net_e.prop.filters[0], hrs, user_input.num_test_data);
+        auto imdb = get_images(user_input.data_name, user_input.x_train_dir,
+                               user_input.y_train_dir, user_input.mu,
+                               user_input.sigma, user_input.num_train_data,
+                               user_input.num_classes, net_e.prop);
+
+        auto test_imdb = get_images(user_input.data_name, user_input.x_test_dir,
+                                    user_input.y_test_dir, user_input.mu,
+                                    user_input.sigma, user_input.num_test_data,
+                                    user_input.num_classes, net_e.prop);
 
         // Load param
         if (user_input.load_param) {

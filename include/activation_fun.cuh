@@ -3,13 +3,15 @@
 // Description:  Header file for activation function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 07, 2022
-// Updated:      December 14, 2022
+// Updated:      March 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <cuda.h>
 #include <cuda_runtime.h>
+
+#include "data_transfer.cuh"
 
 __global__ void noActMeanVar(float const *mz, float const *Sz, float *ma,
                              float *J, float *Sa, int zpos, int n);
@@ -47,3 +49,15 @@ __global__ void actFullCov(float const *Szf, float const *J, int no, int B,
                            int zposOut, float *Saf);
 
 __global__ void noActFullCov(float const *Szf, float *Saf, int Nf);
+
+__global__ void compute_cov_m_a_check(float const *var_log,
+                                      float const *cov_log_logsum,
+                                      float const *mu_m, int no, int B,
+                                      float *cov_m_a_check);
+
+__global__ void compute_cov_m_a(float const *cov_m_a_check, float const *mu_a,
+                                float const *var_m, float const *var_z,
+                                float const *J_m, int z_pos, int no, int B,
+                                float *cov_m_a);
+
+void activate_hidden_states(Network &net, StateGPU &state, int j);

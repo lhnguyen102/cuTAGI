@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_full_cov_cpu.cpp
 // Description:  Script to test FNN with full covariance
-// Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
+// Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 07, 2023
 // Updated:      March 07, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2022 Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet.
+// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
