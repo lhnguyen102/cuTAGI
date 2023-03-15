@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 12, 2023
+// Updated:      March 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,16 @@
 
 #include "common.h"
 #include "struct_var.h"
+
+void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
+                  std::vector<float> &mu_m, std::vector<float> &var_m,
+                  std::vector<float> &J_m, std::vector<float> &mu_log,
+                  std::vector<float> &var_log, std::vector<float> &mu_sum,
+                  std::vector<float> &var_sum, std::vector<float> &mu_logsum,
+                  std::vector<float> &var_logsum,
+                  std::vector<float> &cov_log_logsum, std::vector<float> &ma,
+                  std::vector<float> &Sa, int z_pos, int no, int B,
+                  float omega_tol);
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,

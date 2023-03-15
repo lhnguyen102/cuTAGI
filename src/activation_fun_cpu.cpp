@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 12, 2023
+// Updated:      March 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,8 +89,8 @@ void compute_remax_prob_cpu(std::vector<float> &mu_log,
                             std::vector<float> &var_log,
                             std::vector<float> &mu_logsum,
                             std::vector<float> &var_logsum,
-                            std::vector<float> &cov_log_logsum, float sigma_v,
-                            int z_pos, int no, int B, std::vector<float> &mu_a,
+                            std::vector<float> &cov_log_logsum, int z_pos,
+                            int no, int B, std::vector<float> &mu_a,
                             std::vector<float> &var_a) {
     float tmp_mu, tmp_var;
     for (int i = 0; i < B; i++) {
@@ -413,8 +413,38 @@ void remax_cpu(Network &net, NetState &state, int l)
     // Compute remax probabilities
     compute_remax_prob_cpu(state.remax.mu_log, state.remax.var_log,
                            state.remax.mu_logsum, state.remax.var_logsum,
-                           state.remax.cov_log_logsum, net.sigma_v, z_pos, no,
-                           B, state.ma, state.Sa);
+                           state.remax.cov_log_logsum, z_pos, no, B, state.ma,
+                           state.Sa);
+}
+
+void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
+                  std::vector<float> &mu_m, std::vector<float> &var_m,
+                  std::vector<float> &J_m, std::vector<float> &mu_log,
+                  std::vector<float> &var_log, std::vector<float> &mu_sum,
+                  std::vector<float> &var_sum, std::vector<float> &mu_logsum,
+                  std::vector<float> &var_logsum,
+                  std::vector<float> &cov_log_logsum, std::vector<float> &ma,
+                  std::vector<float> &Sa, int z_pos, int no, int B,
+                  float omega_tol)
+/*Remax is an activation function used to calculate the probability for each
+   class as softmax*/
+{
+    // mrelu
+    mixture_relu_cpu(mz, Sz, omega_tol, z_pos, 0, 0, no * B, mu_m, J_m, var_m);
+
+    // log of mrelu
+    to_log_cpu(mu_m, var_m, 0, no, B, mu_log, var_log);
+
+    // sum of relu
+    sum_class_hidden_states_cpu(mu_m, var_m, 0, no, B, mu_sum, var_sum);
+    to_log_cpu(mu_sum, var_sum, 0, 1, B, mu_logsum, var_logsum);
+
+    // Covariance between log of mrelu and log of sum of relu
+    compute_cov_log_logsum_cpu(mu_m, var_m, mu_sum, 0, no, B, cov_log_logsum);
+
+    // Compute remax probabilities
+    compute_remax_prob_cpu(mu_log, var_log, mu_logsum, var_logsum,
+                           cov_log_logsum, z_pos, no, B, ma, Sa);
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,

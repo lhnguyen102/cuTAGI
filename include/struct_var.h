@@ -256,7 +256,21 @@ struct Remax
 };
 
 struct MultiHeadAttention
-/*Multi-head self attention*/
+/*Multi-head self attention
+
+Args:
+    mu_k: Mean of keys       (batch_size, num_heads, time_step, head_size)
+    var_k: Variance of keys  (batch_size, num_heads, time_step, head_size)
+    mu_q: Mean of query      (batch_size, num_heads, time_step, head_size)
+    var_q: Variance of query (batch_size, num_heads, time_step, head_size)
+    mu_v: Mean of value      (batch_size, num_heads, time_step, head_size)
+    var_v: Variance of value (batch_size, num_heads, time_step, head_size)
+    num_heads: Number of attention heads
+    time_step: Time step
+    head_size: Size of attention heads
+    mu_att: Mean of attention      (batch_size, num_heads, time_step, head_size)
+    var_att: Variance of attention (batch_size, num_heads, time_step, head_size)
+*/
 {
     Remax remax;
     std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att, var_att;
