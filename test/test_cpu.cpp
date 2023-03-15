@@ -12,10 +12,16 @@
 
 #include "test_cpu.h"
 
-const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",           "fnn",       "fnn_heteros",    "fnn_full_cov",
-    "fnn_derivates", "cnn",       "cnn_batch_norm", "autoencoder",
-    "lstm",          "cnn_resnet"};
+const std::vector<std::string> AVAILABLE_ARCHITECTURES = {"all",
+                                                          "fnn",
+                                                          "fnn_heteros",
+                                                          "fnn_full_cov",
+                                                          "fnn_derivatives",
+                                                          "cnn",
+                                                          "cnn_batch_norm",
+                                                          "autoencoder",
+                                                          "lstm",
+                                                          "cnn_resnet"};
 
 /**
  * @brief Read the last dates of the tests
@@ -54,7 +60,7 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
         return;
     }
 
-    file << "fnn,fnn_heteros,fnn_full_cov,fnn_derivates,cnn,cnn_batch_norm,"
+    file << "fnn,fnn_heteros,fnn_full_cov,fnn_derivatives,cnn,cnn_batch_norm,"
             "autoencoder,lstm,cnn_resnet"
          << std::endl;
 
@@ -119,7 +125,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
         std::cout << "Available architectures: [fnn, fnn_heteros, "
                      "fnn_full_cov, "
-                     "fnn_derivates, cnn, cnn_batch_norm, autoencoder, lstm, "
+                     "fnn_derivatives, cnn, cnn_batch_norm, autoencoder, lstm, "
                      "cnn_resnet, lstm, cnn_resnet]"
                   << std::endl;
         return;
@@ -225,6 +231,27 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                           << std::endl;
             }
         }
+
+        // Perform test on CPU for the FNN architecture for estimating
+        // derivatives of the input layer
+        if (test_architecture == "all" ||
+            test_architecture == "fnn_derivatives") {
+            test_num = 3;  // FNN derivatives
+
+            if (test_fnn_derivatives_cpu(false, test_dates[test_num],
+                                         "fnn_derivatives", "1D_derivatives")) {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[32;1mFNN derivatives tests passed\033[0m"
+                          << std::endl;
+            } else {
+                std::cout
+                    << "[ " << floor((100 / num_tests) * (test_num + 1))
+                    << "%] "
+                    << "\033[31;1mFNN full derivatives tests failed\033[0m"
+                    << std::endl;
+            }
+        }
     }
 
     ///////////////////////////////
@@ -285,6 +312,23 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                                       "1D_full_cov");
 
                 test_num = 2;  // FNN full covariance
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+                test_dates[test_num] = date;
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "fnn_derivatives") {
+                // Reinizialize test outputs for the FNN architecture for
+                // estimating derivatives of the input layer
+                std::cout << "Reinizializing FNN derivatives test outputs"
+                          << std::endl;
+
+                test_fnn_derivatives_cpu(true, date, "fnn_derivatives",
+                                         "1D_derivatives");
+
+                test_num = 3;  // FNN derivatives
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);

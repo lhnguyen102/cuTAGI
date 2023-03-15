@@ -28,6 +28,8 @@ Dataloader train_data(std::string problem, TagiNetworkCPU &net,
         num_train_data = 20;
     } else if (problem == "1D_full_cov") {
         num_train_data = 500;
+    } else if (problem == "1D_derivatives") {
+        num_train_data = 100;
     } else {
         num_train_data = 400;
     }
@@ -63,6 +65,8 @@ Dataloader test_data(std::string problem, TagiNetworkCPU &net,
         num_test_data = 100;
     } else if (problem == "1D_full_cov") {
         num_test_data = 100;
+    } else if (problem == "1D_derivatives") {
+        num_test_data = 200;
     } else {
         num_test_data = 200;
     }
