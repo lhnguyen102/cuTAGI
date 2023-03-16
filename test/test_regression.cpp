@@ -12,13 +12,6 @@
 
 #include "test_regression.h"
 
-/**
- * @brief Perform a linear regression on the train data.
- *
- * @param[out] net the network to train with specified architecture and
- * parameters
- * @param[in] db the database to train the network on
- */
 void regression_train(TagiNetworkCPU &net, Dataloader &db, int epochs) {
     // Number of data points
     int n_iter = db.num_data / net.prop.batch_size;

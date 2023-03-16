@@ -3,7 +3,7 @@
 // Description:  Header of data loader file for testing
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Updated:      March 16, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -65,3 +65,18 @@ Dataloader train_data(std::string problem, TagiNetworkCPU &net,
 Dataloader test_data(std::string problem, TagiNetworkCPU &net,
                      std::string data_path, Dataloader &train_db,
                      bool normalize);
+
+/**
+ * @brief Test the LSTM data
+ *
+ * @param net contains the network
+ * @param mode contains the mode: train or test
+ * @param num_features contains the number of features
+ * @param data_path contains the path to the data
+ * @param output_col contains the output column
+ * @param data_norm true if we want to normalize the data
+ */
+Dataloader test_time_series_datloader(Network &net, std::string mode,
+                                      int num_features, std::string data_path,
+                                      std::vector<int> output_col,
+                                      bool data_norm);

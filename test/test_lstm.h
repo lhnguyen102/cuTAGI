@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_regression.h
-// Description:  Auxiliar independent script to perform regression
+// File:         test_lstm.h
+// Description:  Header of independent script to perform lstm
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
-// Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Created:      March 16, 2023
+// Updated:      March 16, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -41,11 +41,10 @@
 #include "test_utils.h"
 
 /**
- * @brief Perform a linear regression on the train data.
+ * @brief Train the network with the time series task
  *
- * @param[out] net the network to train with specified architecture and
- * parameters
- * @param[in] db the database to train the network
- * @param[in] epochs the number of epochs to train the network
+ * @param net TagiNetworkCPU object
+ * @param db Dataloader object
+ * @param epochs number of epochs
  */
-void regression_train(TagiNetworkCPU &net, Dataloader &db, int epochs);
+void train_time_series(TagiNetworkCPU &net, Dataloader &db, int n_epochs);

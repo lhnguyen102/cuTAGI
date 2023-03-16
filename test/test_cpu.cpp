@@ -3,7 +3,7 @@
 // Description:  Main script to test the CPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Updated:      March 16, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet.
@@ -252,6 +252,22 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                     << std::endl;
             }
         }
+
+        // Perform test on CPU for the series forecasting task
+        if (test_architecture == "all" || test_architecture == "lstm") {
+            test_num = 4;  // LSTM
+
+            if (test_fnn_derivatives_cpu(false, test_dates[test_num], "lstm",
+                                         "time_series")) {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[32;1mLSTM tests passed\033[0m" << std::endl;
+            } else {
+                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
+                          << "%] "
+                          << "\033[31;1mLSTM tests failed\033[0m" << std::endl;
+            }
+        }
     }
 
     ///////////////////////////////
@@ -329,6 +345,20 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                                          "1D_derivatives");
 
                 test_num = 3;  // FNN derivatives
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+                test_dates[test_num] = date;
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "lstm") {
+                // Reinizialize test outputs for the series forecasting task
+                std::cout << "Reinizializing LSTM test outputs" << std::endl;
+
+                test_fnn_derivatives_cpu(true, date, "lstm", "time_series");
+
+                test_num = 4;  // LSTM
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);
