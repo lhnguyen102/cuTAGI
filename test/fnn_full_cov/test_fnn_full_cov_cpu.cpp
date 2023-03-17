@@ -186,9 +186,10 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
             !compare_vectors(ref_weights_sc, weights_sc) ||
             !compare_vectors(ref_bias, bias) ||
             !compare_vectors(ref_bias_sc, bias_sc)) {
-            std::cout << "\033[1;31mTest for FNN PARAMS has FAILED in " + data +
-                             " data\033[0m\n"
-                      << std::endl;
+            std::cout
+                << "\033[1;31mTest for FNN FULL COV PARAMS has FAILED in " +
+                       data + " data\033[0m\n"
+                << std::endl;
             return false;
         }
 
@@ -201,10 +202,11 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
 
         // Compare the saved forward hidden states with the ones we got
         if (!compare_vectors(ref_forward_states, forward_states)) {
-            std::cout << "\033[1;31mTest for FNN FORWARD HIDDEN STATES has "
-                         "FAILED in " +
-                             data + " data\033[0m\n"
-                      << std::endl;
+            std::cout
+                << "\033[1;31mTest for FNN FULL COV FORWARD HIDDEN STATES has "
+                   "FAILED in " +
+                       data + " data\033[0m\n"
+                << std::endl;
             return false;
         }
 
@@ -217,10 +219,11 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
 
         // Compare the saved backward hidden states with the ones we got
         if (!compare_vectors(ref_backward_states, backward_states_ptr)) {
-            std::cout << "\033[1;31mTest for FNN BACKWARD HIDDEN STATES has "
-                         "FAILED in " +
-                             data + " data\033[0m\n"
-                      << std::endl;
+            std::cout
+                << "\033[1;31mTest for FNN FULL COV BACKWARD HIDDEN STATES has "
+                   "FAILED in " +
+                       data + " data\033[0m\n"
+                << std::endl;
             return false;
         }
     }
