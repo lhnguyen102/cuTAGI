@@ -257,8 +257,8 @@ void test_cpu(std::vector<std::string>& user_input_options) {
         if (test_architecture == "all" || test_architecture == "lstm") {
             test_num = 4;  // LSTM
 
-            if (test_fnn_derivatives_cpu(false, test_dates[test_num], "lstm",
-                                         "time_series")) {
+            if (test_lstm_cpu(false, test_dates[test_num], "lstm",
+                              "time_series")) {
                 std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
                           << "%] "
                           << "\033[32;1mLSTM tests passed\033[0m" << std::endl;
@@ -356,7 +356,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                 // Reinizialize test outputs for the series forecasting task
                 std::cout << "Reinizializing LSTM test outputs" << std::endl;
 
-                test_fnn_derivatives_cpu(true, date, "lstm", "time_series");
+                test_lstm_cpu(true, date, "lstm", "time_series");
 
                 test_num = 4;  // LSTM
 
