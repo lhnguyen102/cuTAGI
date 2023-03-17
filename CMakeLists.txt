@@ -138,6 +138,7 @@ set(CPU_SOURCES
   test/lstm/test_lstm_cpu.cpp
   test/test_lstm.cpp
   src/self_attention_cpu.cpp
+  src/struct_var.cpp
 
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp

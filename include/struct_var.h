@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      March 11, 2023
+// Updated:      March 16, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,7 @@ struct LayerLabel {
     int ln = 5;      // Layer normalization layer
     int bn = 6;      // Batch normalization layer
     int lstm = 7;    // LSTM layer
+    int mth_sa = 8;  // Multi-head self-attention layer
 };
 
 struct ActLabel {
@@ -252,7 +253,7 @@ struct Remax
 {
     std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
         mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
-    std::vector<int> z_pos;
+    std::vector<int> z_pos, z_sum_pos;
 };
 
 struct MultiHeadAttention

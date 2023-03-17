@@ -31,8 +31,9 @@ void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
     }
 }
 
-void self_attention_forward_cpu(MultiHeadAttention &mht_state, int batch_size,
-                                int num_heads, int time_step, int head_size)
+void self_attention_forward_cpu(MultiHeadAttention &mha_state, int z_pos,
+                                int batch_size, int num_heads, int time_step,
+                                int head_size, float omega_tol)
 /*Multi-head self-attentiopn mecanism.
 
 Args:
@@ -41,7 +42,16 @@ Args:
 */
 {
     // query x key
-    query_key(mht_state.mu_q, mht_state.var_q, mht_state.mu_k, mht_state.var_k,
-              batch_size, num_heads, time_step, head_size, mht_state.mu_att,
-              mht_state.var_att);
+    query_key(mha_state.mu_q, mha_state.var_q, mha_state.mu_k, mha_state.var_k,
+              batch_size, num_heads, time_step, head_size, mha_state.mu_att,
+              mha_state.var_att);
+
+    // // Apply remax on the product of querry and key
+    // remax_cpu_v2(mha_state.mu_att, mha_state.var_att, mha_state.remax.mu_m,
+    //              mha_state.remax.var_m, mha_state.remax.J_m,
+    //              mha_state.remax.mu_log, mha_state.remax.var_log,
+    //              mha_state.remax.mu_sum, mha_state.remax.var_sum,
+    //              mha_state.remax.mu_logsum, mha_state.remax.var_logsum,
+    //              mha_state.remax.cov_log_logsum, mha_state.mu_att,
+    //              mha_state.var_att, z_pos, time_step, batch_size, omega_tol);
 }
