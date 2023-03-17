@@ -3,7 +3,7 @@
 // Description:  Script to test the time series forecasting task using TAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 16, 2023
-// Updated:      March 16, 2023
+// Updated:      March 17, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -78,8 +78,9 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
                                        data + ".csv";
 
     // Train data
-    Dataloader train_db = train_db = test_time_series_datloader(
+    Dataloader train_db = test_time_series_datloader(
         tagi_net.prop, "train", NUM_FEATURES, data_path, OUTPUT_COL, NORMALIZE);
+
     // Test data
     Dataloader test_db = test_time_series_datloader(
         tagi_net.prop, "test", NUM_FEATURES, data_path, OUTPUT_COL, NORMALIZE);
@@ -123,7 +124,7 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
     read_vector_from_csv(init_param_path_b_sc, bias_sc);
 
     // Train the network
-    regression_train(tagi_net, train_db, EPOCHS);
+    train_time_series(tagi_net, train_db, EPOCHS);
 
     std::vector<std::vector<float> *> forward_states;
     forward_states.push_back(&tagi_net.state.mz);

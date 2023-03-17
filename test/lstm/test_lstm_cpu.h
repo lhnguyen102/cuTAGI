@@ -40,6 +40,7 @@
 #include "../../include/user_input.h"
 #include "../../include/utils.h"
 #include "../test_dataloader.h"
+#include "../test_lstm.h"
 #include "../test_regression.h"
 #include "../test_utils.h"
 
