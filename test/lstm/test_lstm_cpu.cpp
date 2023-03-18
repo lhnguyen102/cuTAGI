@@ -3,7 +3,7 @@
 // Description:  Script to test the time series forecasting task using TAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 16, 2023
-// Updated:      March 17, 2023
+// Updated:      March 18, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -188,10 +188,12 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
         read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
 
         // Compare optimal values with the ones we got
-        if (!compare_vectors(ref_weights, weights) ||
-            !compare_vectors(ref_weights_sc, weights_sc) ||
-            !compare_vectors(ref_bias, bias) ||
-            !compare_vectors(ref_bias_sc, bias_sc)) {
+        if (!compare_vectors(ref_weights, weights, data, "lstm weights") ||
+            !compare_vectors(ref_weights_sc, weights_sc, data,
+                             "lstm weights for residual network") ||
+            !compare_vectors(ref_bias, bias, data, "lstm bias") ||
+            !compare_vectors(ref_bias_sc, bias_sc, data,
+                             "lstm bias for residual network")) {
             std::cout << "\033[1;31mTest for LSTM PARAMS has FAILED in " +
                              data + " data\033[0m\n"
                       << std::endl;
@@ -206,7 +208,8 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
         read_vector_from_csv(forward_states_path, ref_forward_states);
 
         // Compare the saved forward hidden states with the ones we got
-        if (!compare_vectors(ref_forward_states, forward_states)) {
+        if (!compare_vectors(ref_forward_states, forward_states, data,
+                             "lstm forward hidden states")) {
             std::cout << "\033[1;31mTest for LSTM FORWARD HIDDEN STATES has "
                          "FAILED in " +
                              data + " data\033[0m\n"
@@ -222,7 +225,8 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
         read_vector_from_csv(backward_states_path, ref_backward_states);
 
         // Compare the saved backward hidden states with the ones we got
-        if (!compare_vectors(ref_backward_states, backward_states_ptr)) {
+        if (!compare_vectors(ref_backward_states, backward_states_ptr, data,
+                             "lstm backward hidden states")) {
             std::cout << "\033[1;31mTest for LSTM BACKWARD HIDDEN STATES has "
                          "FAILED in " +
                              data + " data\033[0m\n"

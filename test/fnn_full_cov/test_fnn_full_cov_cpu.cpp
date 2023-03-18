@@ -3,7 +3,7 @@
 // Description:  Script to test FNN with full covariance
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 07, 2023
-// Updated:      March 07, 2023
+// Updated:      March 18, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -182,10 +182,13 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
         read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
 
         // Compare optimal values with the ones we got
-        if (!compare_vectors(ref_weights, weights) ||
-            !compare_vectors(ref_weights_sc, weights_sc) ||
-            !compare_vectors(ref_bias, bias) ||
-            !compare_vectors(ref_bias_sc, bias_sc)) {
+        if (!compare_vectors(ref_weights, weights, data,
+                             "fnn full cov weights") ||
+            !compare_vectors(ref_weights_sc, weights_sc, data,
+                             "fnn full cov for residual network") ||
+            !compare_vectors(ref_bias, bias, data, "fnn full cov bias") ||
+            !compare_vectors(ref_bias_sc, bias_sc, data,
+                             "fnn full cov bias for residual network")) {
             std::cout
                 << "\033[1;31mTest for FNN FULL COV PARAMS has FAILED in " +
                        data + " data\033[0m\n"
@@ -201,7 +204,8 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
         read_vector_from_csv(forward_states_path, ref_forward_states);
 
         // Compare the saved forward hidden states with the ones we got
-        if (!compare_vectors(ref_forward_states, forward_states)) {
+        if (!compare_vectors(ref_forward_states, forward_states, data,
+                             "fnn full cov forward hidden states")) {
             std::cout
                 << "\033[1;31mTest for FNN FULL COV FORWARD HIDDEN STATES has "
                    "FAILED in " +
@@ -218,7 +222,8 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
         read_vector_from_csv(backward_states_path, ref_backward_states);
 
         // Compare the saved backward hidden states with the ones we got
-        if (!compare_vectors(ref_backward_states, backward_states_ptr)) {
+        if (!compare_vectors(ref_backward_states, backward_states_ptr, data,
+                             "fnn full cov backward hidden states")) {
             std::cout
                 << "\033[1;31mTest for FNN FULL COV BACKWARD HIDDEN STATES has "
                    "FAILED in " +
