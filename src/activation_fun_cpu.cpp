@@ -435,8 +435,7 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
                   std::vector<float> &var_logsum,
                   std::vector<float> &cov_log_logsum, std::vector<float> &ma,
                   std::vector<float> &Sa, int z_pos, int z_remax_pos,
-                  int z_sum_remax_pos, int z_sum_pos_remax, int no, int B,
-                  float omega_tol)
+                  int z_sum_remax_pos, int no, int B, float omega_tol)
 /*Remax is an activation function used to calculate the probability for each
    class as softmax*/
 {
@@ -449,14 +448,14 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
     to_log_cpu(mu_m, var_m, z_remax_pos, no, B, mu_log, var_log);
 
     // sum of relu
-    sum_class_hidden_states_cpu(mu_m, var_m, z_remax_pos, z_sum_pos_remax, no,
+    sum_class_hidden_states_cpu(mu_m, var_m, z_remax_pos, z_sum_remax_pos, no,
                                 B, mu_sum, var_sum);
-    to_log_cpu(mu_sum, var_sum, z_sum_pos_remax, no_sum, B, mu_logsum,
+    to_log_cpu(mu_sum, var_sum, z_sum_remax_pos, no_sum, B, mu_logsum,
                var_logsum);
 
     // Covariance between log of mrelu and log of sum of relu
     compute_cov_log_logsum_cpu(mu_m, var_m, mu_sum, z_remax_pos,
-                               z_sum_pos_remax, no, B, cov_log_logsum);
+                               z_sum_remax_pos, no, B, cov_log_logsum);
 
     // Compute remax probabilities
     compute_remax_prob_cpu(mu_log, var_log, mu_logsum, var_logsum,

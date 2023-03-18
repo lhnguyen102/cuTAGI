@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 16, 2023
+// Updated:      March 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,8 +26,7 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
                   std::vector<float> &var_logsum,
                   std::vector<float> &cov_log_logsum, std::vector<float> &ma,
                   std::vector<float> &Sa, int z_pos, int z_remax_pos,
-                  int z_sum_remax_pos, int z_sum_pos_remax, int no, int B,
-                  float omega_tol);
+                  int z_sum_remax_pos, int no, int B, float omega_tol);
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,

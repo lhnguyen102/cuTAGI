@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      March 16, 2023
+// Updated:      March 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -38,6 +38,18 @@ struct ActLabel {
     int softmax = 10;
     int remax = 11;
     int hr_softmax = 12;
+};
+
+struct MultiHeadAttentionProp
+/*Properties of multi-head self-attention
+
+Args:
+    num_heads: Number of attention heads
+    time_step: Number of timesteps
+    head_size: Size of attention head
+ */
+{
+    std::vector<int> num_heads, timestep, head_size;
 };
 
 struct Network {
@@ -195,6 +207,7 @@ struct Network {
     std::string device = "cpu";
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
+    MultiHeadAttentionProp* mha_prop;
 };
 
 // NETWORK STATE
@@ -256,7 +269,7 @@ struct Remax
     std::vector<int> z_pos, z_sum_pos;
 };
 
-struct MultiHeadAttention
+struct MultiHeadAttentionState
 /*Multi-head self attention
 
 Args:
@@ -274,8 +287,9 @@ Args:
 */
 {
     Remax remax;
-    std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att, var_att;
-    std::vector<int> z_pos, num_heads, time_step, head_size;
+    std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
+        var_att_score, mu_att, var_att;
+    std::vector<int> qkv_pos, att_pos;
 };
 
 struct NetState {
@@ -304,6 +318,7 @@ struct NetState {
     DerivativeState derv_state;
     LSTMState lstm;
     Remax remax;
+    MultiHeadAttentionState* mha;
 };
 
 // NETWORK PARAMETERS
