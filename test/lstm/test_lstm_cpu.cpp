@@ -1,8 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_full_cov_cpu.cpp
-// Description:  Script to test FNN with full covariance
+// File:         test_lstm_cpu.cpp
+// Description:  Script to test the time series forecasting task using TAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 07, 2023
+// Created:      March 16, 2023
 // Updated:      March 18, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
@@ -10,25 +10,28 @@
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "test_fnn_full_cov_cpu.h"
+#include "test_lstm_cpu.h"
 
 // Specify network properties
-const std::vector<int> LAYERS = {1, 1, 1, 1};
-const std::vector<int> NODES = {1, 10, 15, 1};
-const std::vector<int> ACTIVATIONS = {0, 7, 7, 0};
+const std::vector<int> LAYERS = {1, 7, 7, 1};
+const std::vector<int> NODES = {1, 5, 5, 1};
+const std::vector<int> ACTIVATIONS = {0, 0, 0, 0};
 const int BATCH_SIZE = 5;
+const int INPUT_SEQ_LEN = 5;
+const int OUTPUT_SEQ_LEN = 1;
+const int SEQ_STRIDE = 1;
+const int SIGMA_V = 2;
+const int SIGMA_V_MIN = 0.3;
+const int DECAY_FACTOR_SIGMA_V = 0.95;
+const bool MULTITHREADING = true;
+
 const int EPOCHS = 1;
-
-const float SIGMA_V = 0.5;
-const float SIGMA_V_MIN = 0.065;
-const std::string INIT_METHOD = "He";
-const float DECAY_FACTOR_SIGMA_V = 0.95;
+const std::vector<int> OUTPUT_COL = {0};
+const int NUM_FEATURES = 1;
 const bool NORMALIZE = true;
-const float SIGMA_X = 0.3485;
-const bool IS_FULL_COV = true;
 
-bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
-                           std::string arch, std::string data) {
+bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
+                   std::string data) {
     // Create TAGI network
     Network net;
 
@@ -36,12 +39,13 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
     net.nodes = NODES;
     net.activations = ACTIVATIONS;
     net.batch_size = BATCH_SIZE;
+    net.input_seq_len = INPUT_SEQ_LEN;
+    net.output_seq_len = OUTPUT_SEQ_LEN;
+    net.seq_stride = SEQ_STRIDE;
     net.sigma_v = SIGMA_V;
     net.sigma_v_min = SIGMA_V_MIN;
     net.decay_factor_sigma_v = DECAY_FACTOR_SIGMA_V;
-    net.sigma_x = SIGMA_X;
-    net.init_method = INIT_METHOD;
-    net.is_full_cov = IS_FULL_COV;
+    net.multithreading = MULTITHREADING;
 
     TagiNetworkCPU tagi_net(net);
 
@@ -74,10 +78,12 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
                                        data + ".csv";
 
     // Train data
-    Dataloader train_db = train_data(data, tagi_net, data_path, NORMALIZE);
+    Dataloader train_db = test_time_series_datloader(
+        tagi_net.prop, "train", NUM_FEATURES, data_path, OUTPUT_COL, NORMALIZE);
+
     // Test data
-    Dataloader test_db =
-        test_data(data, tagi_net, data_path, train_db, NORMALIZE);
+    Dataloader test_db = test_time_series_datloader(
+        tagi_net.prop, "test", NUM_FEATURES, data_path, OUTPUT_COL, NORMALIZE);
 
     std::vector<std::vector<float> *> weights;
     weights.push_back(&tagi_net.theta.mw);
@@ -118,7 +124,7 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
     read_vector_from_csv(init_param_path_b_sc, bias_sc);
 
     // Train the network
-    regression_train(tagi_net, train_db, EPOCHS);
+    train_time_series(tagi_net, train_db, EPOCHS);
 
     std::vector<std::vector<float> *> forward_states;
     forward_states.push_back(&tagi_net.state.mz);
@@ -182,17 +188,15 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
         read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
 
         // Compare optimal values with the ones we got
-        if (!compare_vectors(ref_weights, weights, data,
-                             "fnn full cov weights") ||
+        if (!compare_vectors(ref_weights, weights, data, "lstm weights") ||
             !compare_vectors(ref_weights_sc, weights_sc, data,
-                             "fnn full cov for residual network") ||
-            !compare_vectors(ref_bias, bias, data, "fnn full cov bias") ||
+                             "lstm weights for residual network") ||
+            !compare_vectors(ref_bias, bias, data, "lstm bias") ||
             !compare_vectors(ref_bias_sc, bias_sc, data,
-                             "fnn full cov bias for residual network")) {
-            std::cout
-                << "\033[1;31mTest for FNN FULL COV PARAMS has FAILED in " +
-                       data + " data\033[0m\n"
-                << std::endl;
+                             "lstm bias for residual network")) {
+            std::cout << "\033[1;31mTest for LSTM PARAMS has FAILED in " +
+                             data + " data\033[0m\n"
+                      << std::endl;
             return false;
         }
 
@@ -205,12 +209,11 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
 
         // Compare the saved forward hidden states with the ones we got
         if (!compare_vectors(ref_forward_states, forward_states, data,
-                             "fnn full cov forward hidden states")) {
-            std::cout
-                << "\033[1;31mTest for FNN FULL COV FORWARD HIDDEN STATES has "
-                   "FAILED in " +
-                       data + " data\033[0m\n"
-                << std::endl;
+                             "lstm forward hidden states")) {
+            std::cout << "\033[1;31mTest for LSTM FORWARD HIDDEN STATES has "
+                         "FAILED in " +
+                             data + " data\033[0m\n"
+                      << std::endl;
             return false;
         }
 
@@ -223,12 +226,11 @@ bool test_fnn_full_cov_cpu(bool recompute_outputs, std::string date,
 
         // Compare the saved backward hidden states with the ones we got
         if (!compare_vectors(ref_backward_states, backward_states_ptr, data,
-                             "fnn full cov backward hidden states")) {
-            std::cout
-                << "\033[1;31mTest for FNN FULL COV BACKWARD HIDDEN STATES has "
-                   "FAILED in " +
-                       data + " data\033[0m\n"
-                << std::endl;
+                             "lstm backward hidden states")) {
+            std::cout << "\033[1;31mTest for LSTM BACKWARD HIDDEN STATES has "
+                         "FAILED in " +
+                             data + " data\033[0m\n"
+                      << std::endl;
             return false;
         }
     }

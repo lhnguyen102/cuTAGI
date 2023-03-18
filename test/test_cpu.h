@@ -23,6 +23,7 @@
 #include "fnn_derivatives/test_fnn_derivatives_cpu.h"
 #include "fnn_full_cov/test_fnn_full_cov_cpu.h"
 #include "fnn_heteros/test_fnn_heteros_cpu.h"
+#include "lstm/test_lstm_cpu.h"
 
 /**
  * @brief Read the last dates of the tests

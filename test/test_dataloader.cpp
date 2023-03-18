@@ -3,7 +3,7 @@
 // Description:  Auxiliar data loader file for testing
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Updated:      March 16, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -80,4 +80,73 @@ Dataloader test_data(std::string problem, TagiNetworkCPU &net,
     return get_dataloader(x_path, y_path, train_db.mu_x, train_db.sigma_x,
                           train_db.mu_y, train_db.sigma_y, num_test_data,
                           net.prop.n_x, net.prop.n_y, normalize);
+}
+
+Dataloader test_time_series_datloader(Network &net, std::string mode,
+                                      int num_features, std::string data_path,
+                                      std::vector<int> output_col,
+                                      bool data_norm) {
+    int num;
+    std::vector<std::string> data_file;
+    if (mode.compare("train") == 0) {
+        num = 924;
+        data_file = {data_path + "/x_train.csv"};
+        data_file.push_back(data_path + "/y_train.csv");
+    } else {
+        num = 232;
+        data_file = {data_path + "/x_test.csv"};
+        data_file.push_back(data_path + "/y_test.csv");
+    }
+
+    Dataloader db;
+    int num_outputs = output_col.size();
+    std::vector<float> x(num_features * num, 0), cat_x;
+
+    // Load input data from csv file that contains the input & output data.
+    // NOTE: csv file need to have a header for each columns
+    for (int i = 0; i < data_file.size(); i++) {
+        read_csv(data_file[i], x, num_features, true);
+        cat_x.insert(cat_x.end(), x.begin(), x.end());
+    };
+
+    // Compute sample mean and std for dataset
+    std::vector<float> mu_x(num_features, 0);
+    std::vector<float> sigma_x(num_features, 1);
+    std::vector<float> mu_y(num_outputs, 0);
+    std::vector<float> sigma_y(num_outputs, 1);
+    if (data_norm) {
+        compute_mean_std(cat_x, mu_x, sigma_x, num_features);
+        normalize_data(cat_x, mu_x, sigma_x, num_features);
+        for (int i = 0; i < num_outputs; i++) {
+            mu_y[i] = mu_x[output_col[i]];
+            sigma_y[i] = sigma_x[output_col[i]];
+        }
+    }
+
+    // Create rolling windows
+    int num_samples =
+        (cat_x.size() / num_features - net.input_seq_len - net.output_seq_len) /
+            net.seq_stride +
+        1;
+    std::vector<float> input_data(net.input_seq_len * num_features *
+                                  num_samples);
+    std::vector<float> output_data(net.output_seq_len * num_outputs *
+                                   num_samples);
+    create_rolling_windows(cat_x, output_col, net.input_seq_len,
+                           net.output_seq_len, num_features, net.seq_stride,
+                           input_data, output_data);
+
+    // Set data to output variable
+    db.x = input_data;
+    db.mu_x = mu_x;
+    db.sigma_x = sigma_x;
+    db.nx = num_features * net.input_seq_len;
+
+    db.y = output_data;
+    db.mu_y = mu_y;
+    db.sigma_y = sigma_y;
+    db.ny = num_outputs * net.output_seq_len;
+    db.num_data = num_samples;
+
+    return db;
 }

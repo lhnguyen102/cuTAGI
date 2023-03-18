@@ -130,6 +130,7 @@ set(CPU_SOURCES
   src/derivative_calcul_cpu.cpp
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
+  test/test_lstm.cpp
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
@@ -138,6 +139,7 @@ set(CPU_SOURCES
   test/fnn_heteros/test_fnn_heteros_cpu.cpp
   test/fnn_full_cov/test_fnn_full_cov_cpu.cpp
   test/fnn_derivatives/test_fnn_derivatives_cpu.cpp
+  test/lstm/test_lstm_cpu.cpp
 )
 
 # Sources code for CUDA

@@ -80,37 +80,42 @@ inline bool create_directory_if_not_exists(const std::string &path) {
 /**
  * @brief Compare two vectors of vectors
  *
- * @param v1 first vector of vectors
- * @param v2 second vector of vectors
+ * @param ref_vector reference vector of vectors
+ * @param test_vector test vector of vectors
  *
  * @return true if the vectors are equal, false otherwise
  */
 template <typename T>
-bool compare_vectors(const std::vector<std::vector<T> *> &v1,
-                     const std::vector<std::vector<T> *> &v2) {
-    if (v1.size() != v2.size()) {
-        std::cout << "v1.size() = " << v1.size() << std::endl;
-        std::cout << "v2.size() = " << v2.size() << std::endl;
+bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
+                     const std::vector<std::vector<T> *> &test_vector,
+                     std::string data, std::string vector_names) {
+    if (ref_vector.size() != test_vector.size()) {
+        std::cout << "Different number of vectors in " << vector_names
+                  << " for " << data << " data" << std::endl;
+        std::cout << "ref_vector.size() = " << ref_vector.size() << std::endl;
+        std::cout << "test_vector.size() = " << test_vector.size() << std::endl;
         return false;
     }
 
-    for (size_t i = 0; i < v1.size(); i++) {
-        for (size_t j = 0; j < v1[i]->size(); j++) {
+    for (size_t i = 0; i < ref_vector.size(); i++) {
+        for (size_t j = 0; j < ref_vector[i]->size(); j++) {
             // We can't do the comparison directly because when the values are
             // written and read from a file, they are converted to strings and
             // back, which can cause some precision loss. So we convert them to
             // strings and compare the strings.
             std::stringstream aa;
-            aa << (*v1[i])[j];
+            aa << (*ref_vector[i])[j];
             std::string a = aa.str();
             std::stringstream bb;
-            bb << (*v2[i])[j];
+            bb << (*test_vector[i])[j];
             std::string b = bb.str();
 
             if (a != b) {
-                std::cout << "v1[" << i << "][" << j << "] = " << a
+                std::cout << "Different values in " << vector_names << " for "
+                          << data << " data" << std::endl;
+                std::cout << "ref_vector[" << i << "][" << j << "] = " << a
                           << std::endl;
-                std::cout << "v2[" << i << "][" << j << "] = " << b
+                std::cout << "test_vector[" << i << "][" << j << "] = " << b
                           << std::endl;
                 return false;
             }
