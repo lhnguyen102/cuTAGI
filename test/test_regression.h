@@ -49,3 +49,12 @@
  * @param[in] epochs the number of epochs to train the network
  */
 void regression_train(TagiNetworkCPU &net, Dataloader &db, int epochs);
+
+/**
+ * @brief Perform a forward pass on the test data.
+ *
+ * @param[out] net the network to train with specified architecture and
+ * parameters
+ * @param[in] db the database to train the network
+ */
+void forward_pass(TagiNetworkCPU &net, Dataloader &db);

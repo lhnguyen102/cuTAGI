@@ -13,8 +13,9 @@
 #include "test_cpu.h"
 
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",  "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
-    "lstm", "cnn", "cnn_batch_norm", "cnn_resnet",   "autoencoder"};
+    "all",     "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
+    "lstm",    "cnn", "cnn_batch_norm", "cnn_resnet",   "autoencoder",
+    "act_func"};
 
 /**
  * @brief Read the last dates of the tests
@@ -173,7 +174,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     ////////////////////////////
 
     if (test_architecture.size() > 0) {
-        int num_tests = 9;
+        int num_tests = 10;
 
         int num_test_passed = 0;
 
@@ -276,6 +277,25 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             }
         }
 
+        // Perform test on CPU for checking activation functions
+        if (test_architecture == "all" || test_architecture == "act_func") {
+            test_num = 9;  // Activation Functions
+
+            if (test_act_func_cpu(false, test_dates[test_num], "act_func",
+                                  "Boston_housing")) {
+                std::cout
+                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
+                    << "\033[32;1mActivation functions tests passed\033[0m"
+                    << std::endl;
+                num_test_passed++;
+            } else {
+                std::cout
+                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
+                    << "\033[31;1mActivation functions tests failed\033[0m"
+                    << std::endl;
+            }
+        }
+
         // Number of tests passed
         if (test_architecture == "all") {
             std::cout << "Passed tests: [" << num_test_passed << "/"
@@ -372,6 +392,21 @@ void test_cpu(std::vector<std::string>& user_input_options) {
                 test_lstm_cpu(true, date, "lstm", "time_series");
 
                 test_num = 4;  // LSTM
+
+                // Update de last date of the test
+                write_dates(test_dates, test_num, date);
+                test_dates[test_num] = date;
+            }
+
+            if (reinizialize_test_outputs == "all" ||
+                reinizialize_test_outputs == "act_func") {
+                // Reinizialize test outputs for activations function tests
+                std::cout << "Reinizializing Activations function test outputs"
+                          << std::endl;
+
+                test_act_func_cpu(true, date, "act_func", "Boston_housing");
+
+                test_num = 9;  // Activation functions
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);

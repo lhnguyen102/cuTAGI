@@ -57,3 +57,26 @@ void regression_train(TagiNetworkCPU &net, Dataloader &db, int epochs) {
         }
     }
 }
+
+void forward_pass(TagiNetworkCPU &net, Dataloader &db) {
+    // Number of data points
+    int n_iter = db.num_data / net.prop.batch_size;
+    std::vector<int> data_idx = create_range(db.num_data);
+
+    // Initialize the data's variables
+    std::vector<float> x_batch(net.prop.batch_size * net.prop.n_x, 0);
+    std::vector<float> Sx_batch(net.prop.batch_size * net.prop.n_x,
+                                pow(net.prop.sigma_x, 2));
+    std::vector<float> Sx_f_batch;
+    std::vector<int> batch_idx(net.prop.batch_size);
+
+    for (int i = 0; i < n_iter; i++) {
+        // Load data
+        get_batch_idx(data_idx, i * net.prop.batch_size, net.prop.batch_size,
+                      batch_idx);
+        get_batch_data(db.x, batch_idx, net.prop.n_x, x_batch);
+
+        // Feed forward
+        net.feed_forward(x_batch, Sx_batch, Sx_f_batch);
+    }
+}
