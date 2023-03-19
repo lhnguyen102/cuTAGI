@@ -298,6 +298,9 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
         // Number of tests passed
         if (test_architecture == "all") {
+            std::cout << std::endl;
+            std::cout << "--------------------SUMMARY--------------------"
+                      << std::endl;
             std::cout << "Passed tests: [" << num_test_passed << "/"
                       << num_tests << "]" << std::endl;
         }

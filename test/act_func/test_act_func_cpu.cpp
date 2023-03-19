@@ -137,8 +137,8 @@ bool test_act_func_cpu(bool recompute_outputs, std::string date,
             if (!compare_vectors(ref_forward_states, forward_states, data,
                                  "fnn forward hidden states")) {
                 std::cout << "\033[1;31mTest for " + ACTIVATIONS_NAMES[i] +
-                                 "activation function has FAILED in " + data +
-                                 " data\033[0m\n"
+                                 " " + "activation function has FAILED in " +
+                                 data + " data\033[0m\n"
                           << std::endl;
                 return false;
             }
