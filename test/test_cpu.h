@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 
+#include "act_func/test_act_func_cpu.h"
 #include "fnn/test_fnn_cpu.h"
 #include "fnn_derivatives/test_fnn_derivatives_cpu.h"
 #include "fnn_full_cov/test_fnn_full_cov_cpu.h"

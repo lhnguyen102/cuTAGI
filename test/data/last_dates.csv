@@ -1,2 +1,2 @@
-all,fnn,fnn_heteros,fnn_full_cov,fnn_derivatives,lstm,cnn,cnn_batch_norm,cnn_resnet,autoencoder
-2023_03_18,2023_03_18,2023_03_18,2023_03_18,2023_03_18,2023_02_21,2023_02_21,2023_02_21,2023_02_21
+all,fnn,fnn_heteros,fnn_full_cov,fnn_derivatives,lstm,cnn,cnn_batch_norm,cnn_resnet,autoencoder,act_func
+2023_03_18,2023_03_18,2023_03_18,2023_03_18,2023_03_18,2023_02_21,2023_02_21,2023_02_21,2023_02_21,2023_03_18
