@@ -18,7 +18,7 @@
 #include "include/task.cuh"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
-#include "test/test_cpu.h"
+#include "test/test.h"
 #include "test/test_lstm_cpu.h"
 
 int main(int argc, char* argv[]) {
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     // Run task
     if (user_input_file.compare("test") == 0) {
         // auto a = test_lstm_cpu();
-        test_cpu(user_input_options);
+        test(user_input_options);
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "

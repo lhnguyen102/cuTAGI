@@ -20,6 +20,7 @@
 #include <sstream>
 #include <string>
 
+#include "../include/feature_availability.h"
 #include "act_func/test_act_func_cpu.h"
 #include "cnn/test_cnn_gpu.cuh"
 #include "fnn/test_fnn_cpu.h"

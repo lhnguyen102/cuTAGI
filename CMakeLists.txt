@@ -138,7 +138,7 @@ set(CPU_SOURCES
   test/lstm/test_lstm_cpu.cpp
   test/test_lstm.cpp
   test/test_lstm_cpu.cpp
-  test/test_cpu.cpp
+  test/test.cpp
   test/test_regression.cpp
   test/test_dataloader.cpp
 )
@@ -158,6 +158,8 @@ set(GPU_SOURCES
   src/task.cu
   src/tagi_network.cu
   src/gpu_debug_utils.cpp
+  test/cnn/test_cnn_gpu.cu
+  test/test_classification.cu
 )
 
 # Output binary folder der for different mode

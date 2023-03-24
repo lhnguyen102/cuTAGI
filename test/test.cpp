@@ -418,8 +418,8 @@ void test(std::vector<std::string>& user_input_options) {
                 test_dates[test_num] = date;
             }
 
-            if (reinizialize_test_outputs == "all" ||
-                reinizialize_test_outputs == "cnn") {
+            if (is_cuda_available() && (reinizialize_test_outputs == "all" ||
+                                        reinizialize_test_outputs == "cnn")) {
                 // Reinizialize test outputs for classification task
                 std::cout << "Reinizializing CNN test outputs" << std::endl;
 
