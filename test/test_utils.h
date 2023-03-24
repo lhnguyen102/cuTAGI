@@ -21,7 +21,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <random>
 #include <sstream>
 #include <string>
 #ifdef _WIN32
@@ -92,7 +91,7 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
     if (ref_vector.size() != test_vector.size()) {
         std::cout << "Different number of vectors in " << vector_names
                   << " for " << data << " data" << std::endl;
-        std::cout << "ref_vector.size() = " << ref_vector.size() << std::endl;
+        std::cout << "ref_vector.size()  = " << ref_vector.size() << std::endl;
         std::cout << "test_vector.size() = " << test_vector.size() << std::endl;
         return false;
     }
@@ -113,7 +112,7 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
             if (a != b) {
                 std::cout << "Different values in " << vector_names << " for "
                           << data << " data" << std::endl;
-                std::cout << "ref_vector[" << i << "][" << j << "] = " << a
+                std::cout << "ref_vector[" << i << "][" << j << "]  = " << a
                           << std::endl;
                 std::cout << "test_vector[" << i << "][" << j << "] = " << b
                           << std::endl;

@@ -3,7 +3,7 @@
 // Description:  Header of data loader file for testing
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 16, 2023
+// Updated:      March 22, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -17,7 +17,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <random>
 #include <sstream>
 #include <string>
 
@@ -80,3 +79,9 @@ Dataloader test_time_series_datloader(Network &net, std::string mode,
                                       int num_features, std::string data_path,
                                       std::vector<int> output_col,
                                       bool data_norm);
+
+
+ImageData image_dataloader(std::string data_name, std::string data_path, 
+                           std::string mode, std::vector<float> mu, 
+                           std::vector<float> sigma, 
+                           int num_classes, Network &net_prop);

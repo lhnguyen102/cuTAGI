@@ -3,7 +3,7 @@
 // Description:  Auxiliar data loader file for testing
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 16, 2023
+// Updated:      March 22, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -149,4 +149,34 @@ Dataloader test_time_series_datloader(Network &net, std::string mode,
     db.num_data = num_samples;
 
     return db;
+}
+
+ImageData image_dataloader(std::string data_name, std::string data_path, 
+                           std::string mode, std::vector<float> mu, 
+                           std::vector<float> sigma, 
+                           int num_classes, Network &net_prop) {
+
+    // Directory of the data
+    std::string x_dir, y_dir;
+
+    // Number of data
+    int num;
+
+    if (mode.compare("train") == 0) {
+        x_dir = data_path + "/train-images-subset-idx3-ubyte";
+        y_dir = data_path + "/train-labels-subset-idx1-ubyte";
+        num = 600;
+    } else {
+        x_dir = data_path + "/test-images-subset-idx3-ubyte";
+        y_dir = data_path + "/test-labels-subset-idx1-ubyte";
+        num = 100;
+    }
+
+    std::vector<std::string> x_path;
+    std::vector<std::string> y_path;
+    x_path.push_back(x_dir);
+    y_path.push_back(y_dir);
+
+    return get_images(data_name, x_path, y_path, mu, sigma, num, 
+                      num_classes, net_prop);
 }
