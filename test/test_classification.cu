@@ -49,12 +49,6 @@ void train_classification(TagiNetwork &net, ImageData &imdb, int n_classes) {
     int mt_idx = 0;
 
     for (int e = 0; e < n_epochs; e++) {
-        /* TRAINING */
-        if (e > 0) {
-            // Decay observation noise
-            decay_obs_noise(net.prop.sigma_v, net.prop.decay_factor_sigma_v,
-                            net.prop.sigma_v_min);
-        }
         std::vector<float> V_batch(net.prop.batch_size * net.prop.n_y,
                                    powf(net.prop.sigma_v, 2));
         // Timer

@@ -18,6 +18,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <string>
 
 #include "../include/common.h"
@@ -37,6 +38,7 @@
 #include "../include/task_cpu.h"
 #include "../include/user_input.h"
 #include "../include/utils.h"
+#include "test_utils.h"
 
 /**
  * @brief Perform a linear regression on the train data.

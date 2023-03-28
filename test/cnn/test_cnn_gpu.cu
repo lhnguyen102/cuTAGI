@@ -3,7 +3,7 @@
 // Description:  Script to test the CNN GPU implementation of cuTAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 22, 2023
+// Updated:      March 28, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -22,8 +22,8 @@ const std::vector<int> HEIGHTS = {28, 0, 0, 0, 0, 0, 0};
 const std::vector<int> FILTERS = {1, 16, 16, 32, 32, 1, 1};
 const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0};
 const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0};
-const std::vector<int> ACTIVATIONS = {0, 4, 0, 4, 0, 4, 0};
-const int BATCH_SIZE = 4;
+const std::vector<int> ACTIVATIONS = {0, 7, 0, 7, 0, 7, 12};
+const int BATCH_SIZE = 2;
 const int SIGMA_V = 4;
 const int NUM_CLASSES = 10;
 const std::vector<float> MU = {0.1309};
@@ -89,11 +89,8 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
                                        data + ".csv";
 
     // Train data
-    ImageData imdb = image_dataloader(data, data_path, "train", MU, SIGMA,
+    ImageData imdb = image_dataloader(data, data_path, MU, SIGMA, 
                                       NUM_CLASSES, tagi_net.prop);
-
-    ImageData imdb_test = image_dataloader(data, data_path, "test", MU, SIGMA,
-                                           NUM_CLASSES, tagi_net.prop);
 
     std::vector<std::vector<float> *> weights;
     weights.push_back(&tagi_net.theta.mw);
@@ -125,7 +122,7 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
         write_vector_to_csv(init_param_path_w_sc, "mw_sc,Sw_sc", weights_sc);
         write_vector_to_csv(init_param_path_b, "mb,Sb", bias);
         write_vector_to_csv(init_param_path_b_sc, "mb_sc,Sb_sc", bias_sc);
-    }
+    } 
 
     tagi_net.theta_gpu.copy_device_to_host();
 
@@ -205,6 +202,7 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
         read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
 
         tagi_net.theta_gpu.copy_host_to_device();
+
 
         // Compare optimal values with the ones we got
         if (!compare_vectors(ref_weights, weights, data, "cnn weights") ||

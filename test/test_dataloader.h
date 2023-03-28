@@ -80,8 +80,6 @@ Dataloader test_time_series_datloader(Network &net, std::string mode,
                                       std::vector<int> output_col,
                                       bool data_norm);
 
-
-ImageData image_dataloader(std::string data_name, std::string data_path, 
-                           std::string mode, std::vector<float> mu, 
-                           std::vector<float> sigma, 
+ImageData image_dataloader(std::string data_name, std::string data_path,
+                           std::vector<float> mu, std::vector<float> sigma,
                            int num_classes, Network &net_prop);
