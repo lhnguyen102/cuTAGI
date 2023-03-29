@@ -5,7 +5,7 @@
 // Created:      March 13, 2023
 // Updated:      March 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2023 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+// License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/self_attention_cpu.h"
@@ -14,7 +14,9 @@ void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
                std::vector<float> &mu_k, std::vector<float> &var_k, int qk_pos,
                int qkv_pos, int batch_size, int num_heads, int time_step,
                int head_size, std::vector<float> &mu_qk,
-               std::vector<float> &var_qk) {
+               std::vector<float> &var_qk)
+/* 4D matrix multiplication of qerry matrix with key matrix*/
+{
     int idx_q, idx_k, idx_qk;
     float sum_mu, sum_var;
     for (int i = 0; i < batch_size; i < batch_size) {
@@ -28,7 +30,7 @@ void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
                                 j * time_step * head_size + k * head_size + m +
                                 qkv_pos;
                         idx_k = i * num_heads * time_step * head_size +
-                                j * time_step * head_size + l + m * head_size +
+                                j * time_step * head_size + l + m * time_step +
                                 qkv_pos;
 
                         sum_mu += mu_q[idx_q] * mu_k[idx_k];

@@ -5,7 +5,7 @@
 # Created:      October 13, 2022
 # Updated:      March 12, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+# License:      This code is released under the MIT License.
 ###############################################################################
 from typing import Tuple
 
@@ -26,7 +26,7 @@ class NetProp(tagi.Network):
         7: LSTM layer
 
     Activation code:
-        0: No activation 
+        0: No activation
         1: Tanh
         2: Sigmoid
         4: ReLU
@@ -49,7 +49,7 @@ class NetProp(tagi.Network):
         activations: Activation function
         pads: Padding that applied to image
         pad_types: Type of padding
-        shortcuts: Layer index for residual network 
+        shortcuts: Layer index for residual network
         mu_v2b: Mean of the observation noise squared
         sigma_v2b: Standard deviation of the observation noise squared
         sigma_v: Observation noise
@@ -155,7 +155,7 @@ class TagiNetwork:
 
     Attributes:
         network: Network wrapper that calls the tagi network from
-         the backend 
+         the backend
         net_prop: Network properties
     """
 
@@ -193,8 +193,8 @@ class TagiNetwork:
     def connected_feed_forward(self, ma: np.ndarray, va: np.ndarray,
                                mz: np.ndarray, vz: np.ndarray,
                                jcb: np.ndarray) -> None:
-        """Forward pass for the network that is connected to the other 
-        network e.g., decoder network in autoencoder task where its inputs 
+        """Forward pass for the network that is connected to the other
+        network e.g., decoder network in autoencoder task where its inputs
         are the outputs of the encoder network.
 
         Args:
@@ -214,9 +214,9 @@ class TagiNetwork:
         is the data dimension
 
         Args:
-            y_batch: Observations 
+            y_batch: Observations
             v_batch: Variance of observations
-            ud_idx_batch: Updated indices for the last layer e.g., it 
+            ud_idx_batch: Updated indices for the last layer e.g., it
                 only required for classification task
         """
         self.network.state_feed_backward_wrapper(y_batch.flatten(),
@@ -229,7 +229,7 @@ class TagiNetwork:
 
     def get_network_outputs(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get output layer's hidden state distribution
-        
+
         Returns:
             ma: Mean of activation units
             va: Variance of activation units
@@ -240,7 +240,7 @@ class TagiNetwork:
 
     def get_network_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get distribution of the predictions
-        
+
         Returns:
             m_pred: Mean of predictions
             v_pred: Variance of predictions
@@ -258,7 +258,7 @@ class TagiNetwork:
             ma: Mean of activations for the output layer
             va: Variance of activations for the output layer
             mz: Mean of hidden states for the output layer
-            vz: Variance of hidden states for the output layer       
+            vz: Variance of hidden states for the output layer
             jcb: Jacobian matrix for the output layer
         """
         ma, va, mz, vz, jcb = self.network.get_all_network_outputs_wrapper()
@@ -274,7 +274,7 @@ class TagiNetwork:
             ma: Mean of activations for the input layer
             va: Variance of activations for the input layer
             mz: Mean of hidden states for the input layer
-            vz: Variance of hidden states for the input layer     
+            vz: Variance of hidden states for the input layer
             jcb: Jacobian matrix for the input layer
         """
         ma, va, mz, vz, jcb = self.network.get_all_network_inputs_wrapper()
@@ -283,7 +283,7 @@ class TagiNetwork:
 
     def get_derivatives(self, layer: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         """ Compute derivatives of the output layer w.r.t a given layer using TAGI
-        
+
         Args:
             layer: Layer index of the network
         Returns:
@@ -297,12 +297,12 @@ class TagiNetwork:
                                layer: int) -> Tuple[np.ndarray, np.ndarray]:
         """Get updating quantities for the inovation
 
-        Args: 
+        Args:
             layer: Layer index of the network
-        
+
         Returns:
-            delta_m: Inovation mean 
-            delta_v: Inovation variance 
+            delta_m: Inovation mean
+            delta_v: Inovation variance
         """
 
         delta_m, delta_v = self.network.get_inovation_mean_var_wrapper(layer)
@@ -311,7 +311,7 @@ class TagiNetwork:
 
     def get_state_delta_mean_var(self) -> None:
         """Get updating quatities for the first layer
-        
+
         Returns:
             delta_mz: Updating quantities for the hidden-state mean of the
                 first layer

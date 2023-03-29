@@ -5,7 +5,7 @@
 # Created:      October 12, 2022
 # Updated:      January 27, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+# License:      This code is released under the MIT License.
 ###############################################################################
 from abc import ABC, abstractmethod
 

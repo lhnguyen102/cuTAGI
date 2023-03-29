@@ -5,7 +5,7 @@
 # Created:      October 19, 2022
 # Updated:      January 27, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+# License:      This code is released under the MIT License.
 ###############################################################################
 from typing import Tuple, Union
 
@@ -29,7 +29,7 @@ class Utils:
     """Frontend for utility functions from C++/CUDA backend
 
     Attributes:
-        backend_utils: Utility functionalities from the backend 
+        backend_utils: Utility functionalities from the backend
     """
 
     backend_utils = UtilityWrapper()
@@ -55,7 +55,7 @@ class Utils:
             labels, num_classes)
 
         return np.array(obs), np.array(obs_idx), np.array(num_obs)
-    
+
     def label_to_one_hot(self, labels: np.ndarray, num_classes: int) -> np.ndarray:
         """Get the one hot encoder for each class
 
@@ -186,14 +186,14 @@ class Utils:
                               stride: int) -> Tuple[np.ndarray, np.ndarray]:
         """Create rolling window for time series data
 
-        Args: 
+        Args:
             data: dataset
             output_col: Indices of the output columns
             input_seq_len: Length of the input sequence
             output_seq_len: Length of the output sequence
-            num_features: Number of features 
+            num_features: Number of features
             stride: Controls number of steps for the window movements
-        Returns: 
+        Returns:
             input_data: Input data for neural networks in sequence
             output_data: Output data for neural networks in sequence
         """
@@ -234,7 +234,7 @@ class Normalizer:
 
     def standardize(self, data: np.ndarray, mu: np.ndarray,
                     std: np.ndarray) -> np.ndarray:
-        """Z-score normalization where 
+        """Z-score normalization where
         data_norm = (data - data_mean) / data_std """
 
         return (data - mu) / (std + 1e-10)
