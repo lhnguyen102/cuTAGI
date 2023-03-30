@@ -14,8 +14,8 @@
 
 const int NUM_TESTS = 9;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",  "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
-    "lstm", "cnn", "cnn_batch_norm", "autoencoder",  "act_func"};
+    "all",  "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives",
+    "lstm", "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
 
 int test_gpu(std::vector<std::string>& user_input_options,
              int num_tests_passed_cpu) {

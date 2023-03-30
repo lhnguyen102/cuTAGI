@@ -15,8 +15,8 @@
 const int NUM_TESTS_CPU = 6;
 const int NUM_TESTS_GPU = 3;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",  "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
-    "lstm", "cnn", "cnn_batch_norm", "autoencoder",  "act_func"};
+    "all",  "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives",
+    "lstm", "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
 
 std::vector<std::string> read_dates() {
     std::ifstream file("test/data/last_dates.csv");
@@ -43,7 +43,7 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
         return;
     }
 
-    for (int i = 0; i < AVAILABLE_ARCHITECTURES.size(); i++) {
+    for (int i = 1; i < AVAILABLE_ARCHITECTURES.size(); i++) {
         file << AVAILABLE_ARCHITECTURES[i];
         if (i != AVAILABLE_ARCHITECTURES.size() - 1) {
             file << ",";
