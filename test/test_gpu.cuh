@@ -1,7 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test.h
-// Description:  Header file for main script to test the CPU & GPU
-// implementation
+// File:         test_cpu.h
+// Description:  Header file for main script to test the CPU implementation
 //               of cuTAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
@@ -20,18 +19,15 @@
 #include <sstream>
 #include <string>
 
-#include "../include/feature_availability.h"
-#include "act_func/test_act_func_cpu.h"
 #include "cnn/test_cnn_gpu.cuh"
-#include "fnn/test_fnn_cpu.h"
-#include "fnn_derivatives/test_fnn_derivatives_cpu.h"
-#include "fnn_full_cov/test_fnn_full_cov_cpu.h"
-#include "fnn_heteros/test_fnn_heteros_cpu.h"
-#include "lstm/test_lstm_cpu.h"
+#include "test_cpu.h"
 
 /**
  * @brief Read the last dates of the tests
  *
  * @param user_input_options vector with the user input options
+ * @param num_tests_passed_cpu number of cpu passed
+ * @return Returns number of passed test or -1 for any error
  */
-void test(std::vector<std::string> &user_input_options);
+int test_gpu(std::vector<std::string> &user_input_options,
+             int num_tests_passed_cpu);

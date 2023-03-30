@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test.cpp
-// Description:  Main script to test the CPU & GPU implementation of cuTAGI
+// File:         test_cpu.cpp
+// Description:  Main script to test the CPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
 // Updated:      March 18, 2023
@@ -10,18 +10,14 @@
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "test.h"
+#include "test_cpu.h"
 
+const int NUM_TESTS_CPU = 6;
+const int NUM_TESTS_GPU = 3;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",     "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
-    "lstm",    "cnn", "cnn_batch_norm", "cnn_resnet",   "autoencoder",
-    "act_func"};
+    "all",  "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
+    "lstm", "cnn", "cnn_batch_norm", "autoencoder",  "act_func"};
 
-/**
- * @brief Read the last dates of the tests
- *
- * @return std::vector<std::string> vector with the last dates of the tests
- */
 std::vector<std::string> read_dates() {
     std::ifstream file("test/data/last_dates.csv");
     std::string line;
@@ -40,13 +36,6 @@ std::vector<std::string> read_dates() {
     return dates;
 }
 
-/**
- * @brief Write the last dates of the tests
- *
- * @param dates vector with the last dates of the tests
- * @param column column to change
- * @param date new current date
- */
 void write_dates(std::vector<std::string> dates, int column, std::string date) {
     std::ofstream file("test/data/last_dates.csv");
     if (!file.is_open()) {
@@ -77,11 +66,6 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
     file.close();
 }
 
-/**
- * @brief Check if the user input architecture is valid
- *
- * @param test_architecture architecture to test
- */
 void check_valid_input_architecture(std::string test_architecture) {
     if (std::find(AVAILABLE_ARCHITECTURES.begin(),
                   AVAILABLE_ARCHITECTURES.end(),
@@ -93,7 +77,8 @@ void check_valid_input_architecture(std::string test_architecture) {
     }
 }
 
-void test(std::vector<std::string>& user_input_options) {
+int test_cpu(std::vector<std::string>& user_input_options,
+             bool compute_gpu_tests) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";
@@ -129,7 +114,7 @@ void test(std::vector<std::string>& user_input_options) {
             }
         }
         std::cout << "]" << std::endl;
-        return;
+        return -1;
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
             if (user_input_options.size() == 1) {
@@ -160,7 +145,7 @@ void test(std::vector<std::string>& user_input_options) {
         test_architecture = "all";
     } else if (user_input_options.size() > 1) {
         std::cout << "Too many arguments" << std::endl;
-        return;
+        return -1;
     }
 
     // Read last test dates
@@ -174,7 +159,12 @@ void test(std::vector<std::string>& user_input_options) {
     ////////////////////////////
 
     if (test_architecture.size() > 0) {
-        int num_tests = 10;
+        int num_tests;
+
+        if (!compute_gpu_tests)
+            num_tests = NUM_TESTS_CPU;
+        else
+            num_tests = NUM_TESTS_CPU + NUM_TESTS_GPU;
 
         int num_test_passed = 0;
 
@@ -277,50 +267,37 @@ void test(std::vector<std::string>& user_input_options) {
             }
         }
 
-        // Perform test on GPU for the classification task
-        if (is_cuda_available() &&
-            (test_architecture == "all" || test_architecture == "cnn")) {
-            test_num = 5;  // CNN
-
-            if (test_cnn_gpu(false, test_dates[test_num], "cnn", "mnist")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mCNN tests passed\033[0m" << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mCNN tests failed\033[0m" << std::endl;
-            }
-        }
-
         // Perform test on CPU for checking activation functions
         if (test_architecture == "all" || test_architecture == "act_func") {
-            test_num = 9;  // Activation Functions
+            test_num = 5;  // Activation Functions
 
             if (test_act_func_cpu(false, test_dates[test_num], "act_func",
                                   "Boston_housing")) {
                 std::cout
-                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
+                    << "[ " << floor((100 / num_tests) * (test_num + 1))
+                    << "%] "
                     << "\033[32;1mActivation functions tests passed\033[0m"
                     << std::endl;
                 num_test_passed++;
             } else {
                 std::cout
-                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
+                    << "[ " << floor((100 / num_tests) * (test_num + 1))
+                    << "%] "
                     << "\033[31;1mActivation functions tests failed\033[0m"
                     << std::endl;
             }
         }
 
         // Number of tests passed
-        if (test_architecture == "all") {
+        if (test_architecture == "all" && !compute_gpu_tests) {
             std::cout << std::endl;
             std::cout << "--------------------SUMMARY--------------------"
                       << std::endl;
             std::cout << "Passed tests: [" << num_test_passed << "/"
                       << num_tests << "]" << std::endl;
+            return num_test_passed;
         }
+        return num_test_passed;
     }
 
     ///////////////////////////////
@@ -418,20 +395,6 @@ void test(std::vector<std::string>& user_input_options) {
                 test_dates[test_num] = date;
             }
 
-            if (is_cuda_available() && (reinizialize_test_outputs == "all" ||
-                                        reinizialize_test_outputs == "cnn")) {
-                // Reinizialize test outputs for classification task
-                std::cout << "Reinizializing CNN test outputs" << std::endl;
-
-                test_cnn_gpu(true, date, "cnn", "mnist");
-
-                test_num = 5;  // CNN
-
-                // Update de last date of the test
-                write_dates(test_dates, test_num, date);
-                test_dates[test_num] = date;
-            }
-
             if (reinizialize_test_outputs == "all" ||
                 reinizialize_test_outputs == "act_func") {
                 // Reinizialize test outputs for activations function tests
@@ -440,12 +403,15 @@ void test(std::vector<std::string>& user_input_options) {
 
                 test_act_func_cpu(true, date, "act_func", "Boston_housing");
 
-                test_num = 9;  // Activation functions
+                test_num = 5;  // Activation functions
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);
                 test_dates[test_num] = date;
             }
         }
+        return 0;
     }
+
+    return -1;
 }

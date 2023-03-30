@@ -14,7 +14,7 @@
 #include "include/struct_var.h"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
-#include "test/test.h"
+#include "test/test_cpu.h"
 #include "test/test_lstm_cpu.h"
 
 int main(int argc, char *argv[]) {
@@ -42,7 +42,8 @@ int main(int argc, char *argv[]) {
     // Run task
     if (user_input_file.compare("test") == 0) {
         // test_lstm_cpu();
-        test(user_input_options);
+        bool compute_gpu_tests = false;
+        test_cpu(user_input_options, compute_gpu_tests);
     } else {
         task_command_cpu(user_input, path);
     }
