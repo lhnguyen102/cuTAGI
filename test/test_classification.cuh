@@ -34,4 +34,11 @@
 #include "../include/tagi_network.cuh"
 #include "../include/user_input.h"
 
+/**
+ * @brief Auxiliar classification function for unit tests
+ *
+ * @param net  The network
+ * @param imdb The image train data
+ * @param n_classes The number of classes
+ */
 void train_classification(TagiNetwork &net, ImageData &imdb, int n_classes);

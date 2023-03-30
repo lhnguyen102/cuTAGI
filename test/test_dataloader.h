@@ -66,7 +66,7 @@ Dataloader test_data(std::string problem, TagiNetworkCPU &net,
                      bool normalize);
 
 /**
- * @brief Test the LSTM data
+ * @brief Train the LSTM data
  *
  * @param net contains the network
  * @param mode contains the mode: train or test
@@ -80,6 +80,16 @@ Dataloader test_time_series_datloader(Network &net, std::string mode,
                                       std::vector<int> output_col,
                                       bool data_norm);
 
+/**
+ * @brief Train the image data
+ *
+ * @param data_name contains the name of the data
+ * @param data_path contains the path to the data
+ * @param mu        contains the mean of the data
+ * @param sigma     contains the standard deviation of the data
+ * @param num_classes number of classes
+ * @param net_prop  network properties
+ */
 ImageData image_dataloader(std::string data_name, std::string data_path,
                            std::vector<float> mu, std::vector<float> sigma,
                            int num_classes, Network &net_prop);

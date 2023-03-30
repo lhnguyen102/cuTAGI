@@ -89,8 +89,8 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
                                        data + ".csv";
 
     // Train data
-    ImageData imdb = image_dataloader(data, data_path, MU, SIGMA, 
-                                      NUM_CLASSES, tagi_net.prop);
+    ImageData imdb = image_dataloader(data, data_path, MU, SIGMA, NUM_CLASSES,
+                                      tagi_net.prop);
 
     std::vector<std::vector<float> *> weights;
     weights.push_back(&tagi_net.theta.mw);
@@ -122,9 +122,7 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
         write_vector_to_csv(init_param_path_w_sc, "mw_sc,Sw_sc", weights_sc);
         write_vector_to_csv(init_param_path_b, "mb,Sb", bias);
         write_vector_to_csv(init_param_path_b_sc, "mb_sc,Sb_sc", bias_sc);
-    } 
-
-    tagi_net.theta_gpu.copy_device_to_host();
+    }
 
     // Read the initial parameters (see test_utils.cpp for more details)
     read_vector_from_csv(init_param_path_w, weights);
@@ -202,7 +200,6 @@ bool test_cnn_gpu(bool recompute_outputs, std::string date, std::string arch,
         read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
 
         tagi_net.theta_gpu.copy_host_to_device();
-
 
         // Compare optimal values with the ones we got
         if (!compare_vectors(ref_weights, weights, data, "cnn weights") ||
