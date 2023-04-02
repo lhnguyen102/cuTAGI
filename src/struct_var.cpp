@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 17, 2023
-// Updated:      March 18, 2023
+// Updated:      April 02, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -70,5 +70,5 @@ void init_multi_head_attention(MultiHeadAttentionState &mha_state,
         num_remax_states[i] = att_size;
     }
     // Initialize the remax state
-    init_remax(mha_state.remax, num_remax_states, batch_size);
+    init_remax(*mha_state.remax, num_remax_states, batch_size);
 }

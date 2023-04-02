@@ -185,6 +185,8 @@ Args:
                 sum += mw[ni * i + row + w_pos] *
                        delta_m[col * no + i + z_pos_out];
             }
+            // TODO: could we compine the inovation function with this one in
+            // order to reduce number of operation because Sz / Sz = no ops
             delta_mz[col * ni + row] = sum * Sz[col * ni + row + z_pos_in] *
                                        J[col * ni + row + z_pos_in];
         }

@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      March 31, 2023
+// Updated:      April 02, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -207,7 +207,7 @@ struct Network {
     std::string device = "cpu";
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
-    MultiHeadAttentionProp* mha_prop;
+    MultiHeadAttentionProp* mha;
 };
 
 // NETWORK STATE
@@ -288,7 +288,7 @@ struct MultiHeadAttentionState
  * head_size).
  */
 {
-    Remax remax;
+    Remax* remax;
     std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
         var_att_score, mu_att, var_att, mu_qk, var_qk, mu_mqk, var_mqk;
     std::vector<int> qkv_pos, att_pos;
