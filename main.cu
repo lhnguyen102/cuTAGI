@@ -52,6 +52,12 @@ int main(int argc, char* argv[]) {
             test_cpu(user_input_options, compute_gpu_tests);
         if (compute_gpu_tests)
             test_gpu(user_input_options, num_tests_passed_cpu);
+        else {
+            std::cout << std::endl;
+            std::cout
+                << "Unable to perform test on GPU: CUDA device unavailable."
+                << std::endl;
+        }
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "

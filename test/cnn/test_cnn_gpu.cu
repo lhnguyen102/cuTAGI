@@ -3,7 +3,7 @@
 // Description:  Script to test the CNN GPU implementation of cuTAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 28, 2023
+// Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -19,7 +19,7 @@ const std::vector<int> KERNELS = {4, 3, 5, 3, 1, 1, 1};
 const std::vector<int> STRIDES = {1, 2, 1, 2, 0, 0, 0};
 const std::vector<int> WIDTHS = {28, 0, 0, 0, 0, 0, 0};
 const std::vector<int> HEIGHTS = {28, 0, 0, 0, 0, 0, 0};
-const std::vector<int> FILTERS = {1, 16, 16, 32, 32, 1, 1};
+const std::vector<int> FILTERS = {1, 4, 4, 8, 8, 1, 1};
 const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0};
 const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0};
 const std::vector<int> ACTIVATIONS = {0, 7, 0, 7, 0, 7, 12};

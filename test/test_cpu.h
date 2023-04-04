@@ -4,7 +4,7 @@
 //               of cuTAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 21, 2023
+// Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -58,3 +58,14 @@ void check_valid_input_architecture(std::string test_architecture);
  */
 int test_cpu(std::vector<std::string> &user_input_options,
              bool compute_gpu_tests);
+
+/**
+ * @brief Print the test results
+ * @param single_test true if there is only one test being executed
+ * @param test_passed true if the test passed
+ * @param num_tests number of tests
+ * @param test_num number of the test
+ * @param arch_name name of the architecture
+ */
+void print_test_results(bool single_test, bool test_passed, int num_tests,
+                        int test_num, std::string arch_name);
