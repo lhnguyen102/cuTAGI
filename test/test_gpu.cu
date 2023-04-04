@@ -3,7 +3,7 @@
 // Description:  Main script to test the GPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 18, 2023
+// Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -13,47 +13,17 @@
 #include "test_gpu.cuh"
 
 const int NUM_TESTS = 9;
-const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",  "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives",
-    "lstm", "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
 
 int test_gpu(std::vector<std::string>& user_input_options,
              int num_tests_passed_cpu) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";
+    bool single_test = true;
 
     if (user_input_options.size() == 1 &&
         (user_input_options[0] == "-h" || user_input_options[0] == "--help")) {
-        int num_spaces = 35;
-
-        std::cout << "Usage: build/main [options]" << std::endl;
-        std::cout << "Options:" << std::endl;
-
-        std::cout << std::setw(num_spaces) << std::left << "test"
-                  << "Perform tests on all architectures" << std::endl;
-
-        std::cout << std::setw(num_spaces) << std::left
-                  << "test [architecture-name]"
-                  << "Run one specific test" << std::endl;
-
-        std::cout << std::setw(num_spaces) << std::left << "test -reset all"
-                  << "Reinizialize all test references" << std::endl;
-
-        std::cout << std::setw(num_spaces) << std::left
-                  << "test -reset <architecture-name>"
-                  << "Reinizialize one specific test reference" << std::endl;
-
-        std::cout << std::endl;
-
-        std::cout << "Available architectures: [";
-        for (int i = 0; i < AVAILABLE_ARCHITECTURES.size(); i++) {
-            std::cout << AVAILABLE_ARCHITECTURES[i];
-            if (i != AVAILABLE_ARCHITECTURES.size() - 1) {
-                std::cout << ", ";
-            }
-        }
-        std::cout << "]" << std::endl;
+        // Help message have alrady been showed in test_cpu.cpp
         return -1;
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
@@ -83,6 +53,7 @@ int test_gpu(std::vector<std::string>& user_input_options,
 
     } else if (user_input_options.size() == 0) {
         test_architecture = "all";
+        single_test = false;
     } else if (user_input_options.size() > 1) {
         std::cout << "Too many arguments" << std::endl;
         return -1;
@@ -105,16 +76,13 @@ int test_gpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "cnn") {
             test_num = 6;  // CNN
 
-            if (test_cnn_gpu(false, test_dates[test_num], "cnn", "mnist")) {
-                std::cout << "[ " << floor((100 / NUM_TESTS) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mCNN tests passed\033[0m" << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / NUM_TESTS) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mCNN tests failed\033[0m" << std::endl;
-            }
+            bool test_result =
+                test_cnn_gpu(false, test_dates[test_num], "cnn", "mnist");
+
+            print_test_results(single_test, test_result, NUM_TESTS, test_num,
+                               "CNN");
+
+            if (test_result) num_test_passed++;
         }
 
         // Number of tests passed
