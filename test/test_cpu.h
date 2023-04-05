@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_cpu.h
-// Description:  Header file for main script to test the CPU implementation of
-//               cuTAGI
-// Authors:      Florensa Miquel , Luong-Ha Nguyen & James-A. Goulet
+// Description:  Header file for main script to test the CPU implementation
+//               of cuTAGI
+// Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2023 Florensa Miquel, Luong-Ha Nguyen & James-A. Goulet.
+// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -29,6 +29,43 @@
 /**
  * @brief Read the last dates of the tests
  *
- * @param user_input_options vector with the user input options
+ * @return std::vector<std::string> vector with the last dates of the tests
  */
-void test_cpu(std::vector<std::string> &user_input_options);
+std::vector<std::string> read_dates();
+
+/**
+ * @brief Write the last dates of the tests
+ *
+ * @param dates vector with the last dates of the tests
+ * @param column column to change
+ * @param date new current date
+ */
+void write_dates(std::vector<std::string> dates, int column, std::string date);
+
+/**
+ * @brief Check if the user input architecture is valid
+ *
+ * @param test_architecture architecture to test
+ */
+void check_valid_input_architecture(std::string test_architecture);
+
+/**
+ * @brief Read the last dates of the tests
+ *
+ * @param user_input_options vector with the user input options
+ * @param compute_gpu_tests true if the gpu tests will be also computed
+ * @return Returns number of passed test or -1 for any error
+ */
+int test_cpu(std::vector<std::string> &user_input_options,
+             bool compute_gpu_tests);
+
+/**
+ * @brief Print the test results
+ * @param single_test true if there is only one test being executed
+ * @param test_passed true if the test passed
+ * @param num_tests number of tests
+ * @param test_num number of the test
+ * @param arch_name name of the architecture
+ */
+void print_test_results(bool single_test, bool test_passed, int num_tests,
+                        int test_num, std::string arch_name);

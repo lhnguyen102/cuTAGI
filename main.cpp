@@ -42,7 +42,11 @@ int main(int argc, char *argv[]) {
     // Run task
     if (user_input_file.compare("test") == 0) {
         // test_lstm_cpu();
-        test_cpu(user_input_options);
+        bool compute_gpu_tests = false;
+        test_cpu(user_input_options, compute_gpu_tests);
+        std::cout << std::endl;
+        std::cout << "Unable to perform test on GPU: CUDA device unavailable."
+                  << std::endl;
     } else {
         task_command_cpu(user_input, path);
     }

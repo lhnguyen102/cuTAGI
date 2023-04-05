@@ -3,25 +3,21 @@
 // Description:  Main script to test the CPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      March 18, 2023
+// Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2023 Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet.
+// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
 // Some rights reserved.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "test_cpu.h"
 
+const int NUM_TESTS_CPU = 6;
+const int NUM_TESTS_GPU = 3;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",     "fnn", "fnn_heteros",    "fnn_full_cov", "fnn_derivatives",
-    "lstm",    "cnn", "cnn_batch_norm", "cnn_resnet",   "autoencoder",
-    "act_func"};
+    "all",  "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives",
+    "lstm", "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
 
-/**
- * @brief Read the last dates of the tests
- *
- * @return std::vector<std::string> vector with the last dates of the tests
- */
 std::vector<std::string> read_dates() {
     std::ifstream file("test/data/last_dates.csv");
     std::string line;
@@ -40,13 +36,6 @@ std::vector<std::string> read_dates() {
     return dates;
 }
 
-/**
- * @brief Write the last dates of the tests
- *
- * @param dates vector with the last dates of the tests
- * @param column column to change
- * @param date new current date
- */
 void write_dates(std::vector<std::string> dates, int column, std::string date) {
     std::ofstream file("test/data/last_dates.csv");
     if (!file.is_open()) {
@@ -54,7 +43,7 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
         return;
     }
 
-    for (int i = 0; i < AVAILABLE_ARCHITECTURES.size(); i++) {
+    for (int i = 1; i < AVAILABLE_ARCHITECTURES.size(); i++) {
         file << AVAILABLE_ARCHITECTURES[i];
         if (i != AVAILABLE_ARCHITECTURES.size() - 1) {
             file << ",";
@@ -77,11 +66,6 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
     file.close();
 }
 
-/**
- * @brief Check if the user input architecture is valid
- *
- * @param test_architecture architecture to test
- */
 void check_valid_input_architecture(std::string test_architecture) {
     if (std::find(AVAILABLE_ARCHITECTURES.begin(),
                   AVAILABLE_ARCHITECTURES.end(),
@@ -93,10 +77,32 @@ void check_valid_input_architecture(std::string test_architecture) {
     }
 }
 
-void test_cpu(std::vector<std::string>& user_input_options) {
+void print_test_results(bool single_test, bool test_passed, int num_tests,
+                        int test_num, std::string arch_name) {
+    std::string output_color;
+    std::string output;
+
+    if (test_passed) {
+        output_color = "[32;1m";
+        output = "passed";
+    } else {
+        output_color = "[31;1m";
+        output = "failed";
+    }
+
+    if (!single_test) {
+        std::cout << "[ " << floor((100 / num_tests) * (test_num + 1)) << "%] ";
+    }
+    std::cout << "\033" << output_color << arch_name << " tests " << output
+              << "\033[0m" << std::endl;
+}
+
+int test_cpu(std::vector<std::string>& user_input_options,
+             bool compute_gpu_tests) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";
+    bool single_test = true;
 
     if (user_input_options.size() == 1 &&
         (user_input_options[0] == "-h" || user_input_options[0] == "--help")) {
@@ -129,7 +135,7 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             }
         }
         std::cout << "]" << std::endl;
-        return;
+        return -1;
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
             if (user_input_options.size() == 1) {
@@ -158,9 +164,10 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
     } else if (user_input_options.size() == 0) {
         test_architecture = "all";
+        single_test = false;
     } else if (user_input_options.size() > 1) {
         std::cout << "Too many arguments" << std::endl;
-        return;
+        return -1;
     }
 
     // Read last test dates
@@ -174,29 +181,35 @@ void test_cpu(std::vector<std::string>& user_input_options) {
     ////////////////////////////
 
     if (test_architecture.size() > 0) {
-        int num_tests = 10;
+        int num_tests;
+        std::string device;
+
+        if (!compute_gpu_tests) {
+            num_tests = NUM_TESTS_CPU;
+            device = "CPU";
+        } else {
+            num_tests = NUM_TESTS_CPU + NUM_TESTS_GPU;
+            device = "GPU";
+        }
 
         int num_test_passed = 0;
 
-        std::cout << "Performing " << test_architecture << " tests"
-                  << std::endl;
+        std::cout << "Performing " << test_architecture << " tests on "
+                  << device << " device" << std::endl;
 
         // Perform test on CPU for the FNN architecture
         if (test_architecture == "all" || test_architecture == "fnn") {
             test_num = 0;  // FNN
 
-            if (test_fnn_cpu(false, test_dates[test_num], "fnn", "1D") &&
+            bool test_result =
+                test_fnn_cpu(false, test_dates[test_num], "fnn", "1D") &&
                 test_fnn_cpu(false, test_dates[test_num], "fnn",
-                             "Boston_housing")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mFNN tests passed\033[0m" << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mFNN tests failed\033[0m" << std::endl;
-            }
+                             "Boston_housing");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "FNN");
+
+            if (test_result) num_test_passed++;
         }
 
         // Perform test on CPU for the FNN architecture with heteroscedastic
@@ -204,38 +217,27 @@ void test_cpu(std::vector<std::string>& user_input_options) {
         if (test_architecture == "all" || test_architecture == "fnn_heteros") {
             test_num = 1;  // FNN heteroscedastic noise
 
-            if (test_fnn_heteros_cpu(false, test_dates[test_num], "fnn_heteros",
-                                     "1D_noise_inferance")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mFNN heteroscedastic tests passed\033[0m"
-                          << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mFNN heteroscedastic tests failed\033[0m"
-                          << std::endl;
-            }
+            bool test_result =
+                test_fnn_heteros_cpu(false, test_dates[test_num], "fnn_heteros",
+                                     "1D_noise_inferance");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "FNN heteroscedastic");
+
+            if (test_result) num_test_passed++;
         }
 
         // Perform test on CPU for the FNN architecture with full covariance
         if (test_architecture == "all" || test_architecture == "fnn_full_cov") {
             test_num = 2;  // FNN full covariance
 
-            if (test_fnn_full_cov_cpu(false, test_dates[test_num],
-                                      "fnn_full_cov", "1D_full_cov")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mFNN full covariance tests passed\033[0m"
-                          << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mFNN full covariance tests failed\033[0m"
-                          << std::endl;
-            }
+            bool test_result = test_fnn_full_cov_cpu(
+                false, test_dates[test_num], "fnn_full_cov", "1D_full_cov");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "FNN full covariance");
+
+            if (test_result) num_test_passed++;
         }
 
         // Perform test on CPU for the FNN architecture for estimating
@@ -244,66 +246,52 @@ void test_cpu(std::vector<std::string>& user_input_options) {
             test_architecture == "fnn_derivatives") {
             test_num = 3;  // FNN derivatives
 
-            if (test_fnn_derivatives_cpu(false, test_dates[test_num],
-                                         "fnn_derivatives", "1D_derivatives")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mFNN derivatives tests passed\033[0m"
-                          << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout
-                    << "[ " << floor((100 / num_tests) * (test_num + 1))
-                    << "%] "
-                    << "\033[31;1mFNN full derivatives tests failed\033[0m"
-                    << std::endl;
-            }
+            bool test_result =
+                test_fnn_derivatives_cpu(false, test_dates[test_num],
+                                         "fnn_derivatives", "1D_derivatives");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "FNN derivatives");
+
+            if (test_result) num_test_passed++;
         }
 
         // Perform test on CPU for the series forecasting task
         if (test_architecture == "all" || test_architecture == "lstm") {
             test_num = 4;  // LSTM
 
-            if (test_lstm_cpu(false, test_dates[test_num], "lstm",
-                              "time_series")) {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[32;1mLSTM tests passed\033[0m" << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout << "[ " << floor((100 / num_tests) * (test_num + 1))
-                          << "%] "
-                          << "\033[31;1mLSTM tests failed\033[0m" << std::endl;
-            }
+            bool test_result = test_lstm_cpu(false, test_dates[test_num],
+                                             "lstm", "time_series");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "LSTM");
+
+            if (test_result) num_test_passed++;
         }
 
         // Perform test on CPU for checking activation functions
         if (test_architecture == "all" || test_architecture == "act_func") {
-            test_num = 9;  // Activation Functions
+            test_num = 5;  // Activation Functions
 
-            if (test_act_func_cpu(false, test_dates[test_num], "act_func",
-                                  "Boston_housing")) {
-                std::cout
-                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
-                    << "\033[32;1mActivation functions tests passed\033[0m"
-                    << std::endl;
-                num_test_passed++;
-            } else {
-                std::cout
-                    << "[" << floor((100 / num_tests) * (test_num + 1)) << "%] "
-                    << "\033[31;1mActivation functions tests failed\033[0m"
-                    << std::endl;
-            }
+            bool test_result = test_act_func_cpu(false, test_dates[test_num],
+                                                 "act_func", "Boston_housing");
+
+            print_test_results(single_test, test_result, num_tests, test_num,
+                               "Activation functions");
+
+            if (test_result) num_test_passed++;
         }
 
         // Number of tests passed
-        if (test_architecture == "all") {
+        if (test_architecture == "all" && !compute_gpu_tests) {
             std::cout << std::endl;
             std::cout << "--------------------SUMMARY--------------------"
                       << std::endl;
             std::cout << "Passed tests: [" << num_test_passed << "/"
                       << num_tests << "]" << std::endl;
+            return num_test_passed;
         }
+        return num_test_passed;
     }
 
     ///////////////////////////////
@@ -409,12 +397,15 @@ void test_cpu(std::vector<std::string>& user_input_options) {
 
                 test_act_func_cpu(true, date, "act_func", "Boston_housing");
 
-                test_num = 9;  // Activation functions
+                test_num = 5;  // Activation functions
 
                 // Update de last date of the test
                 write_dates(test_dates, test_num, date);
                 test_dates[test_num] = date;
             }
         }
+        return 0;
     }
+
+    return -1;
 }
