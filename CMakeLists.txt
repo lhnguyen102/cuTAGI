@@ -160,6 +160,7 @@ set(GPU_SOURCES
   src/gpu_debug_utils.cpp
   test/test_gpu.cu
   test/cnn/test_cnn_gpu.cu
+  test/cnn_batch_norm/test_cnn_batch_norm_gpu.cu
   test/test_classification.cu
 )
 
