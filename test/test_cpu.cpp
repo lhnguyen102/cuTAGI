@@ -403,8 +403,11 @@ int test_cpu(std::vector<std::string>& user_input_options,
                 write_dates(test_dates, test_num, date);
                 test_dates[test_num] = date;
             }
+            return 0;
+        } else {
+            // Reinizialization Aborted
+            return -2;
         }
-        return 0;
     }
 
     return -1;

@@ -50,9 +50,10 @@ int main(int argc, char* argv[]) {
         bool compute_gpu_tests = is_cuda_available();
         int num_tests_passed_cpu =
             test_cpu(user_input_options, compute_gpu_tests);
-        if (compute_gpu_tests)
+        // If cuda Available and output reinicialization not aborted
+        if (compute_gpu_tests && num_tests_passed_cpu >= 0)
             test_gpu(user_input_options, num_tests_passed_cpu);
-        else {
+        else if (!compute_gpu_tests) {
             std::cout << std::endl;
             std::cout
                 << "Unable to perform test on GPU: CUDA device unavailable."

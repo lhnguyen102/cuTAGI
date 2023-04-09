@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cnn/test_cnn_gpu.cuh"
+#include "cnn_batch_norm/test_cnn_batch_norm_gpu.cuh"
 #include "test_cpu.h"
 
 /**

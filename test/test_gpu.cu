@@ -3,7 +3,7 @@
 // Description:  Main script to test the GPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 4, 2023
+// Updated:      April 5, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -85,6 +85,20 @@ int test_gpu(std::vector<std::string>& user_input_options,
             if (test_result) num_test_passed++;
         }
 
+        // Perform test on GPU with batch normalization for classification task
+        if (test_architecture == "all" ||
+            test_architecture == "cnn_batch_norm") {
+            test_num = 7;  // CNN batch norm.
+
+            bool test_result = test_cnn_batch_norm_gpu(
+                false, test_dates[test_num], "cnn_batch_norm", "mnist");
+
+            print_test_results(single_test, test_result, NUM_TESTS, test_num,
+                               "CNN batch normalization");
+
+            if (test_result) num_test_passed++;
+        }
+
         // Number of tests passed
         if (test_architecture == "all") {
             std::cout << std::endl;
@@ -102,14 +116,29 @@ int test_gpu(std::vector<std::string>& user_input_options,
     ///////////////////////////////
 
     if (reinizialize_test_outputs.size() > 0) {
-        if (is_cuda_available() && (reinizialize_test_outputs == "all" ||
-                                    reinizialize_test_outputs == "cnn")) {
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "cnn") {
             // Reinizialize test outputs for classification task
             std::cout << "Reinizializing CNN test outputs" << std::endl;
 
             test_cnn_gpu(true, date, "cnn", "mnist");
 
             test_num = 6;  // CNN
+
+            // Update de last date of the test
+            write_dates(test_dates, test_num, date);
+            test_dates[test_num] = date;
+        }
+
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "cnn_batch_norm") {
+            // Reinizialize test outputs for classification task
+            std::cout << "Reinizializing CNN batch norm. test outputs"
+                      << std::endl;
+
+            test_cnn_batch_norm_gpu(true, date, "cnn_batch_norm", "mnist");
+
+            test_num = 7;  // CNN
 
             // Update de last date of the test
             write_dates(test_dates, test_num, date);
