@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      April 02, 2023
+// Updated:      April 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -292,6 +292,12 @@ struct MultiHeadAttentionState
     std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
         var_att_score, mu_att, var_att, mu_qk, var_qk, mu_mqk, var_mqk;
     std::vector<int> qkv_pos, att_pos;
+};
+
+struct MultiHeadAttentionDelta {
+    std::vector<float> delta_mu_att_score, delta_var_att_score, delta_mu_v,
+        delta_var_v, delta_mu_q, delta_var_q, delta_mu_k, delta_var_k,
+        delta_mu_score_inn, delta_var_score_inn;
 };
 
 struct NetState {
