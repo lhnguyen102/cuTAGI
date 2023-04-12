@@ -3,7 +3,7 @@
 // Description:  Header file for CPU forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      September 11, 2022
+// Updated:      April 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,6 +15,7 @@
 #include "activation_fun_cpu.h"
 #include "common.h"
 #include "derivative_calcul_cpu.h"
+#include "fc_layer_cpu.h"
 #include "lstm_feed_forward_cpu.h"
 #include "net_prop.h"
 #include "struct_var.h"

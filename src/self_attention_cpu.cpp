@@ -378,5 +378,7 @@ void update_self_attention_state(Network &net_prop, NetState &state,
                   batch_size, num_heads, timestep, head_size,
                   d_state.mha->delta_mu_k, d_state.mha->delta_var_k);
 
-    // TO BE CONTINUE WITH PARAMETERS
+    // TODO: Missing the remax backward
+    // TODO: handling the position for each vector in mha state and delta state
+    // (see struct_var.cpp)
 }

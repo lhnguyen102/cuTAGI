@@ -50,9 +50,15 @@ void init_multi_head_attention(MultiHeadAttentionState &mha_state,
     mha_state.att_pos.resize(num_heads.size(), 0);
     std::vector<int> num_remax_states(num_heads.size(), 0);
     int qkv_size, att_size;
+    int buffer_size = 0, max_size;
     for (int i = 0; i < num_heads.size(); i++) {
+        // State size
         qkv_size = batch_size * num_heads[i] * timestep[i] * head_size[i];
         att_size = batch_size * num_heads[i] * timestep[i] * timestep[i];
+        buffer_size = std::max(buffer_size, qkv_size);
+        buffer_size = std::max(buffer_size, att_size);
+
+        // Set all state values to zero
         mha_state.mu_k.resize(qkv_size, 0);
         mha_state.var_k.resize(qkv_size, 0);
         mha_state.mu_q.resize(qkv_size, 0);
@@ -67,8 +73,10 @@ void init_multi_head_attention(MultiHeadAttentionState &mha_state,
             mha_state.qkv_pos[i + 1] += qkv_size;
             mha_state.att_pos[i + 1] += att_size;
         }
-        num_remax_states[i] = att_size;
+        num_remax_states[i] = timestep[i] * timestep[i];
     }
     // Initialize the remax state
+    // TODO need to revise what is the batch siz here so that it is compatable
+    // with current remax
     init_remax(*mha_state.remax, num_remax_states, batch_size);
 }

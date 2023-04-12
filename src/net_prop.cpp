@@ -9,8 +9,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/net_prop.h"
 
-#include "../include/common.h"
-
 ////////////////////////////////////////////////////////////////////////////
 /// LAYER CHECK
 ////////////////////////////////////////////////////////////////////////////
@@ -661,9 +659,20 @@ void get_net_props(Network &net)
             n_state = net.nodes[j] * net.batch_size * net.input_seq_len;
             net.n_state += n_state;
             net.n_max_state = std::max(n_state, net.n_max_state);
-
             z_pos_lstm[j] =
                 net.nodes[j - 1] * net.input_seq_len * net.batch_size;
+
+        }
+        // Multi-head self-attention
+        else if (net.layers[j] == net.layer_names.mha) {
+            int sub_idx = get_sub_layer_idx(net.layers, j, net.layer_names.mha);
+            net.nodes[j] = net.mha->num_heads[sub_idx] *
+                           net.mha->timestep[sub_idx] *
+                           net.mha->head_size[sub_idx];
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
 
         } else {
             throw std::invalid_argument("Layer is not valid - net_prop.cpp");
