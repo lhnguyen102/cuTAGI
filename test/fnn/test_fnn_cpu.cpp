@@ -47,28 +47,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
     path.curr_path = get_current_dir();
     std::string data_path = path.curr_path + "/test/data/" + data;
     std::string data_dir = path.curr_path + "/test/" + arch + "/data/";
-    std::string init_param_path_w =
-        data_dir + date + "_" + data + "_init_param_weights_w.csv";
-    std::string init_param_path_w_sc =
-        data_dir + date + "_" + data + "_init_param_weights_w_sc.csv";
-    std::string init_param_path_b =
-        data_dir + date + "_" + data + "_init_param_bias_b.csv";
-    std::string init_param_path_b_sc =
-        data_dir + date + "_" + data + "_init_param_bias_b_sc.csv";
-    std::string opt_param_path_w =
-        data_dir + date + "_" + data + "_opt_param_weights_w.csv";
-    std::string opt_param_path_w_sc =
-        data_dir + date + "_" + data + "_opt_param_weights_w_sc.csv";
-    std::string opt_param_path_b =
-        data_dir + date + "_" + data + "_opt_param_bias_b.csv";
-    std::string opt_param_path_b_sc =
-        data_dir + date + "_" + data + "_opt_param_bias_b_sc.csv";
-    std::string forward_states_path = data_dir + date +
-                                      "_forward_hidden_states_" + arch + "_" +
-                                      data + ".csv";
-    std::string backward_states_path = data_dir + date +
-                                       "_backward_hidden_states_" + arch + "_" +
-                                       data + ".csv";
+
+    TestSavingPaths test_saving_paths(path.curr_path, arch, data, date);
 
     // Train data
     Dataloader train_db = train_data(data, tagi_net, data_path, NORMALIZE);
@@ -101,18 +81,21 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
             std::cout << "Error: could not create data directory" << std::endl;
             return false;
         }
-        write_vector_to_csv(init_param_path_w, "mw,Sw", weights);
-        write_vector_to_csv(init_param_path_w_sc, "mw_sc,Sw_sc", weights_sc);
+        write_vector_to_csv(test_saving_paths.init_param_path_w, "mw,Sw",
+                            weights);
+        write_vector_to_csv(test_saving_paths.init_param_path_w_sc,
+                            "mw_sc,Sw_sc", weights_sc);
 
-        write_vector_to_csv(init_param_path_b, "mb,Sb", bias);
-        write_vector_to_csv(init_param_path_b_sc, "mb_sc,Sb_sc", bias_sc);
+        write_vector_to_csv(test_saving_paths.init_param_path_b, "mb,Sb", bias);
+        write_vector_to_csv(test_saving_paths.init_param_path_b_sc,
+                            "mb_sc,Sb_sc", bias_sc);
     }
 
     // Read the initial parameters (see tes_utils.cpp for more details)
-    read_vector_from_csv(init_param_path_w, weights);
-    read_vector_from_csv(init_param_path_w_sc, weights_sc);
-    read_vector_from_csv(init_param_path_b, bias);
-    read_vector_from_csv(init_param_path_b_sc, bias_sc);
+    read_vector_from_csv(test_saving_paths.init_param_path_w, weights);
+    read_vector_from_csv(test_saving_paths.init_param_path_w_sc, weights_sc);
+    read_vector_from_csv(test_saving_paths.init_param_path_b, bias);
+    read_vector_from_csv(test_saving_paths.init_param_path_b_sc, bias_sc);
 
     // Train the network
     regression_train(tagi_net, train_db, EPOCHS);
@@ -144,18 +127,21 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
         // RESET OUPUTS
 
         // Write the parameters and hidden states
-        write_vector_to_csv(opt_param_path_w, "mw,Sw", weights);
-        write_vector_to_csv(opt_param_path_w_sc, "mw_sc,Sw_sc", weights_sc);
-        write_vector_to_csv(opt_param_path_b, "mb,Sb", bias);
-        write_vector_to_csv(opt_param_path_b_sc, "mb_sc,Sb_sc", bias_sc);
+        write_vector_to_csv(test_saving_paths.opt_param_path_w, "mw,Sw",
+                            weights);
+        write_vector_to_csv(test_saving_paths.opt_param_path_w_sc,
+                            "mw_sc,Sw_sc", weights_sc);
+        write_vector_to_csv(test_saving_paths.opt_param_path_b, "mb,Sb", bias);
+        write_vector_to_csv(test_saving_paths.opt_param_path_b_sc,
+                            "mb_sc,Sb_sc", bias_sc);
 
         // Write the forward hidden states
-        write_vector_to_csv(forward_states_path, "mz,Sz,ma,Sa,J",
-                            forward_states);
+        write_vector_to_csv(test_saving_paths.forward_states_path,
+                            "mz,Sz,ma,Sa,J", forward_states);
 
         // Write the backward hidden states
-        write_vector_to_csv(backward_states_path, backward_states_header,
-                            backward_states_ptr);
+        write_vector_to_csv(test_saving_paths.backward_states_path,
+                            backward_states_header, backward_states_ptr);
 
     } else {
         // PERFORM TESTS
@@ -173,10 +159,12 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
             ref_bias_sc.push_back(new std::vector<float>());
         }
 
-        read_vector_from_csv(opt_param_path_w, ref_weights);
-        read_vector_from_csv(opt_param_path_w_sc, ref_weights_sc);
-        read_vector_from_csv(opt_param_path_b, ref_bias);
-        read_vector_from_csv(opt_param_path_b_sc, ref_bias_sc);
+        read_vector_from_csv(test_saving_paths.opt_param_path_w, ref_weights);
+        read_vector_from_csv(test_saving_paths.opt_param_path_w_sc,
+                             ref_weights_sc);
+        read_vector_from_csv(test_saving_paths.opt_param_path_b, ref_bias);
+        read_vector_from_csv(test_saving_paths.opt_param_path_b_sc,
+                             ref_bias_sc);
 
         // Compare optimal values with the ones we got
         if (!compare_vectors(ref_weights, weights, data, "fnn weights") ||
@@ -196,7 +184,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
         for (int i = 0; i < 5; i++)
             ref_forward_states.push_back(new std::vector<float>());
 
-        read_vector_from_csv(forward_states_path, ref_forward_states);
+        read_vector_from_csv(test_saving_paths.forward_states_path,
+                             ref_forward_states);
 
         // Compare the saved forward hidden states with the ones we got
         if (!compare_vectors(ref_forward_states, forward_states, data,
@@ -213,7 +202,8 @@ bool test_fnn_cpu(bool recompute_outputs, std::string date, std::string arch,
         for (int i = 0; i < 2 * (net.layers.size() - 2); i++)
             ref_backward_states.push_back(new std::vector<float>());
 
-        read_vector_from_csv(backward_states_path, ref_backward_states);
+        read_vector_from_csv(test_saving_paths.backward_states_path,
+                             ref_backward_states);
 
         // Compare the saved backward hidden states with the ones we got
         if (!compare_vectors(ref_backward_states, backward_states_ptr, data,

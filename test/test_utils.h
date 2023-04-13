@@ -3,7 +3,7 @@
 // Description:  Header file for the utils functions for unitest
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      February 20, 2023
+// Updated:      April 13, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet.
@@ -39,6 +39,57 @@
 #include "../include/net_init.h"
 #include "../include/net_prop.h"
 #include "../include/struct_var.h"
+
+/**
+ * @brief Class to store the paths to the data files
+ */
+class TestSavingPaths {
+   public:
+    /**
+     * @brief Construct a new Test Saving Paths object
+     *
+     * @param curr_path current path
+     * @param arch architecture
+     * @param data data
+     * @param date date
+     * @param add_encoder add encoder
+     * @param add_decoder add decoder
+     */
+    TestSavingPaths(std::string curr_path, std::string arch, std::string data,
+                    std::string date, bool add_encoder = false,
+                    bool add_decoder = false) {
+        std::string encoder_suffix = add_encoder ? "encoder_" : "";
+        std::string decoder_suffix = add_decoder ? "decoder_" : "";
+        std::string data_dir = curr_path + "/test/" + arch + "/data/" + date +
+                               "_" + encoder_suffix + decoder_suffix;
+        std::string path_sufix = "_" + arch + "_" + data + ".csv";
+
+        init_param_path_w = data_dir + "init_param_weights_w" + path_sufix;
+        init_param_path_w_sc =
+            data_dir + "init_param_weights_w_sc" + path_sufix;
+        init_param_path_b = data_dir + "init_param_bias_b" + path_sufix;
+        init_param_path_b_sc = data_dir + "init_param_bias_b_sc" + path_sufix;
+        opt_param_path_w = data_dir + "opt_param_weights_w" + path_sufix;
+        opt_param_path_w_sc = data_dir + "opt_param_weights_w_sc" + path_sufix;
+        opt_param_path_b = data_dir + "opt_param_bias_b" + path_sufix;
+        opt_param_path_b_sc = data_dir + "opt_param_bias_b_sc" + path_sufix;
+        forward_states_path = data_dir + "forward_hidden_states" + path_sufix;
+        backward_states_path = data_dir + "backward_hidden_states" + path_sufix;
+        input_derivative_path = data_dir + "input_derivative" + path_sufix;
+    }
+
+    std::string init_param_path_w;
+    std::string init_param_path_w_sc;
+    std::string init_param_path_b;
+    std::string init_param_path_b_sc;
+    std::string opt_param_path_w;
+    std::string opt_param_path_w_sc;
+    std::string opt_param_path_b;
+    std::string opt_param_path_b_sc;
+    std::string forward_states_path;
+    std::string backward_states_path;
+    std::string input_derivative_path;
+};
 
 /**
  * @brief Indicate if a directory exists

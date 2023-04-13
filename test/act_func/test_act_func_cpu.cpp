@@ -32,14 +32,8 @@ bool test_act_func_cpu(bool recompute_outputs, std::string date,
     path.curr_path = get_current_dir();
     std::string data_path = path.curr_path + "/test/data/" + data;
     std::string data_dir = path.curr_path + "/test/" + arch + "/data/";
-    std::string init_param_path_w =
-        data_dir + date + "_" + data + "_init_param_weights_w.csv";
-    std::string init_param_path_w_sc =
-        data_dir + date + "_" + data + "_init_param_weights_w_sc.csv";
-    std::string init_param_path_b =
-        data_dir + date + "_" + data + "_init_param_bias_b.csv";
-    std::string init_param_path_b_sc =
-        data_dir + date + "_" + data + "_init_param_bias_b_sc.csv";
+
+    TestSavingPaths test_saving_paths(path.curr_path, arch, data, date);
 
     // Iterate over all activation functions
     for (int i = 0; i < ACTIVATIONS.size(); i++) {
@@ -92,19 +86,23 @@ bool test_act_func_cpu(bool recompute_outputs, std::string date,
                           << std::endl;
                 return false;
             }
-            write_vector_to_csv(init_param_path_w, "mw,Sw", weights);
-            write_vector_to_csv(init_param_path_w_sc, "mw_sc,Sw_sc",
-                                weights_sc);
+            write_vector_to_csv(test_saving_paths.init_param_path_w, "mw,Sw",
+                                weights);
+            write_vector_to_csv(test_saving_paths.init_param_path_w_sc,
+                                "mw_sc,Sw_sc", weights_sc);
 
-            write_vector_to_csv(init_param_path_b, "mb,Sb", bias);
-            write_vector_to_csv(init_param_path_b_sc, "mb_sc,Sb_sc", bias_sc);
+            write_vector_to_csv(test_saving_paths.init_param_path_b, "mb,Sb",
+                                bias);
+            write_vector_to_csv(test_saving_paths.init_param_path_b_sc,
+                                "mb_sc,Sb_sc", bias_sc);
         }
 
         // Read the initial parameters (see tes_utils.cpp for more details)
-        read_vector_from_csv(init_param_path_w, weights);
-        read_vector_from_csv(init_param_path_w_sc, weights_sc);
-        read_vector_from_csv(init_param_path_b, bias);
-        read_vector_from_csv(init_param_path_b_sc, bias_sc);
+        read_vector_from_csv(test_saving_paths.init_param_path_w, weights);
+        read_vector_from_csv(test_saving_paths.init_param_path_w_sc,
+                             weights_sc);
+        read_vector_from_csv(test_saving_paths.init_param_path_b, bias);
+        read_vector_from_csv(test_saving_paths.init_param_path_b_sc, bias_sc);
 
         // Train the network
         forward_pass(tagi_net, train_db);

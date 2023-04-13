@@ -3,7 +3,7 @@
 // Description:  Main script to test the GPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 5, 2023
+// Updated:      April 13, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -23,7 +23,7 @@ int test_gpu(std::vector<std::string>& user_input_options,
 
     if (user_input_options.size() == 1 &&
         (user_input_options[0] == "-h" || user_input_options[0] == "--help")) {
-        // Help message have alrady been showed in test_cpu.cpp
+        // Help message have already been showed in test_cpu.cpp
         return -1;
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
@@ -99,6 +99,19 @@ int test_gpu(std::vector<std::string>& user_input_options,
             if (test_result) num_test_passed++;
         }
 
+        // Perform test on GPU with autoencoder for image generation
+        if (test_architecture == "all" || test_architecture == "autoencoder") {
+            test_num = 8;  // Autoencoder
+
+            bool test_result = test_autoencoder_gpu(false, test_dates[test_num],
+                                                    "autoencoder", "mnist");
+
+            print_test_results(single_test, test_result, NUM_TESTS, test_num,
+                               "Autoencoder");
+
+            if (test_result) num_test_passed++;
+        }
+
         // Number of tests passed
         if (test_architecture == "all") {
             std::cout << std::endl;
@@ -139,6 +152,20 @@ int test_gpu(std::vector<std::string>& user_input_options,
             test_cnn_batch_norm_gpu(true, date, "cnn_batch_norm", "mnist");
 
             test_num = 7;  // CNN
+
+            // Update de last date of the test
+            write_dates(test_dates, test_num, date);
+            test_dates[test_num] = date;
+        }
+
+        if (reinizialize_test_outputs == "all" ||
+            reinizialize_test_outputs == "autoencoder") {
+            // Reinizialize test outputs for for image generation
+            std::cout << "Reinizializing Autoencoder test outputs" << std::endl;
+
+            test_autoencoder_gpu(true, date, "autoencoder", "mnist");
+
+            test_num = 8;  // Autoencoder
 
             // Update de last date of the test
             write_dates(test_dates, test_num, date);

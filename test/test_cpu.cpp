@@ -3,7 +3,7 @@
 // Description:  Main script to test the CPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 4, 2023
+// Updated:      April 13, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -91,7 +91,11 @@ void print_test_results(bool single_test, bool test_passed, int num_tests,
     }
 
     if (!single_test) {
-        std::cout << "[ " << floor((100 / num_tests) * (test_num + 1)) << "%] ";
+        int percentage = round((100.0 / num_tests) * (test_num + 1));
+        std::cout << "[";
+        if (percentage < 100) std::cout << " ";
+        if (percentage < 10) std::cout << " ";
+        std::cout << percentage << "%] ";
     }
     std::cout << "\033" << output_color << arch_name << " tests " << output
               << "\033[0m" << std::endl;
