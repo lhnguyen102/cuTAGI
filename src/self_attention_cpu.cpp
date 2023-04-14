@@ -130,7 +130,8 @@ Args:
               state.mha->var_k, qkv_pos, batch_size, num_heads, timestep,
               head_size, state.mha->mu_qk, state.mha->var_qk);
 
-    // Masked the product query x key
+    // Masked the product query x key. TODO: double check if it divise by
+    // sqrt(number of heads)
     mask_query_key(state.mha->mu_qk, state.mha->var_qk, batch_size, num_heads,
                    timestep, head_size, state.mha->mu_mqk, state.mha->var_mqk);
 
