@@ -10,36 +10,10 @@
 
 #include "../include/struct_var.h"
 
-void init_remax_v2(Remax &remax_state, std::vector<int> &num_states,
-                   int batch_size)
+void init_remax_state_pos(Remax &remax_state, std::vector<int> &num_states,
+                          std::vector<int> &num_sum_states)
 /**/
 {
-    remax_state.z_pos.resize(num_states.size(), 0);
-    remax_state.z_sum_pos.resize(batch_size, 0);
-    int tot_num_states = num_states[0];
-    int total_sum_state = batch_size;
-    for (int i = 1; i < num_states.size(); i++) {
-        remax_state.z_pos[i] =
-            remax_state.z_pos[i - 1] + num_states[i - 1] * batch_size;
-        remax_state.z_sum_pos[i] = remax_state.z_sum_pos[i - 1] + batch_size;
-        tot_num_states += num_states[i] * batch_size;
-        total_sum_state += batch_size;
-    }
-    remax_state.mu_m.resize(tot_num_states, 0);
-    remax_state.var_m.resize(tot_num_states, 0);
-    remax_state.J_m.resize(tot_num_states, 0);
-    remax_state.mu_log.resize(tot_num_states, 0);
-    remax_state.var_log.resize(tot_num_states, 0);
-    remax_state.mu_sum.resize(total_sum_state, 0);
-    remax_state.var_sum.resize(total_sum_state, 0);
-    remax_state.mu_logsum.resize(total_sum_state, 0);
-    remax_state.var_logsum.resize(total_sum_state, 0);
-    remax_state.cov_log_logsum.resize(tot_num_states, 0);
-    remax_state.cov_m_a.resize(tot_num_states, 0);
-    remax_state.cov_m_a_check.resize(tot_num_states, 0);
-}
-void init_remax_state_pos(Remax &remax_state, std::vector<int> &num_states,
-                          std::vector<int> &num_sum_states) {
     int num_layers = num_states.size();
     remax_state.z_pos.resize(num_layers, 0);
     remax_state.z_sum_pos.resize(num_layers, 0);
@@ -67,14 +41,12 @@ void init_remax_states(Remax &remax_state, int tot_num_states,
 }
 
 void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
-                                      std::vector<int> &num_heads,
-                                      std::vector<int> &timestep,
-                                      std::vector<int> &head_size,
+                                      MultiHeadAttentionProp &mha_prop,
                                       int batch_size)
 /**/
 {
     // Initalize the self-attention state
-    int num_layers = num_heads.size();
+    int num_layers = mha_prop.num_heads.size();
     mha_state.qkv_pos.resize(num_layers, 0);
     mha_state.att_pos.resize(num_layers, 0);
     std::vector<int> num_remax_states(num_layers, 0);
@@ -84,10 +56,11 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
     int tot_remax_states = 0, tot_remax_sum_states = 0, max_size;
     for (int i = 0; i < num_layers; i++) {
         // State size
-        qkv_size = batch_size * num_heads[i] * timestep[i] * head_size[i];
-        att_size = batch_size * num_heads[i] * timestep[i] * timestep[i];
-        buffer_size = std::max(buffer_size, qkv_size);
-        buffer_size = std::max(buffer_size, att_size);
+        qkv_size = batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i] *
+                   mha_prop.head_size[i];
+        att_size = batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i] *
+                   mha_prop.timestep[i];
+        buffer_size = std::max(std::max(buffer_size, qkv_size), att_size);
 
         // Set all state values to zero
         mha_state.mu_k.resize(qkv_size, 0);
@@ -100,19 +73,23 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
         mha_state.var_att_score.resize(att_size, 0);
         mha_state.mu_att.resize(qkv_size, 0);
         mha_state.var_att.resize(qkv_size, 0);
-        if (i < num_heads.size()) {
+        if (i < num_layers) {
             mha_state.qkv_pos[i + 1] += qkv_size;
             mha_state.att_pos[i + 1] += att_size;
         }
-        num_remax_states[i] =
-            batch_size * num_heads[i] * timestep[i] * timestep[i];
-        num_remax_sum_states[i] = batch_size * num_heads[i] * timestep[i];
-        tot_remax_states +=
-            batch_size * num_heads[i] * timestep[i] * timestep[i];
-        tot_remax_sum_states += batch_size * num_heads[i] * timestep[i];
+
+        // Remax state
+        num_remax_states[i] = batch_size * mha_prop.num_heads[i] *
+                              mha_prop.timestep[i] * mha_prop.timestep[i];
+        num_remax_sum_states[i] =
+            batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i];
+        tot_remax_states += batch_size * mha_prop.num_heads[i] *
+                            mha_prop.timestep[i] * mha_prop.timestep[i];
+        tot_remax_sum_states +=
+            batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i];
     }
     // Initialize the remax state
-    // TODO need to revise what is the batch size here so that it is compatable
-    // with current remax
     init_remax_states(*mha_state.remax, tot_remax_states, tot_remax_sum_states);
+    init_remax_state_pos(*mha_state.remax, num_remax_states,
+                         num_remax_sum_states);
 }

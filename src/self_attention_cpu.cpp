@@ -3,12 +3,96 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      April 10, 2023
+// Updated:      April 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/self_attention_cpu.h"
+std::vector<float> transpose(std::vector<float> input,
+                             std::vector<int> input_shape,
+                             std::vector<int> transpose_dims) {
+    std::vector<float> output(input.size());
+    std::vector<int> output_shape(input_shape);
+    for (int i = 0; i < transpose_dims.size(); ++i) {
+        std::swap(output_shape[transpose_dims[i]], output_shape[i]);
+    }
+    std::vector<int> input_strides(input_shape.size());
+    std::vector<int> output_strides(output_shape.size());
+    input_strides[input_shape.size() - 1] = 1;
+    output_strides[output_shape.size() - 1] = 1;
+    for (int i = input_shape.size() - 2; i >= 0; --i) {
+        input_strides[i] = input_strides[i + 1] * input_shape[i + 1];
+        output_strides[i] = output_strides[i + 1] * output_shape[i + 1];
+    }
+    for (int i = 0; i < input.size(); ++i) {
+        int input_idx = 0;
+        int output_idx = 0;
+        for (int j = 0; j < input_shape.size(); ++j) {
+            int coord = i / input_strides[j] % input_shape[j];
+            input_idx += coord * input_strides[j];
+            output_idx += coord * output_strides[j];
+        }
+        output_idx += i % output_strides[0];
+        output[output_idx] = input[input_idx];
+    }
+    return output;
+}
+
+void project_output_forward(std::vector<float> &mu_in,
+                            std::vector<float> &var_in, int in_pos, int out_pos,
+                            int batch_size, int num_heads, int timestep,
+                            int head_size, std::vector<float> &mu_out,
+                            std::vector<float> &var_out)
+/*Swap dimensions timestep and num_heads where in(batch_size, num_heads,
+   timestep, head_size) -> out(batch_size, timestep, num_heads, head_size)*/
+{
+    int out_idx, in_idx;
+    for (int i = 0; i < batch_size; i++) {
+        for (int k = 0; k < timestep; k++) {
+            for (int j = 0; j < num_heads; j++) {
+                for (int m = 0; m < head_size; m++) {
+                    out_idx = i * timestep * num_heads * head_size +
+                              k * num_heads * head_size + j * num_heads + m +
+                              out_pos;
+                    in_idx = i * timestep * num_heads * head_size +
+                             j * timestep * head_size + k * head_size + m +
+                             in_pos;
+                    mu_out[out_idx] = mu_in[in_idx];
+                    var_out[out_idx] = var_in[in_idx];
+                }
+            }
+        }
+    }
+}
+
+void project_output_backward(std::vector<float> &mu_in,
+                             std::vector<float> &var_in, int in_pos,
+                             int out_pos, int batch_size, int num_heads,
+                             int timestep, int head_size,
+                             std::vector<float> &mu_out,
+                             std::vector<float> &var_out)
+/*Swap dimensions timestep and num_heads where in(batch_size, timestep,
+   num_heads, head_size) -> out(batch_size,  num_heads, timestep, head_size)*/
+{
+    int out_idx, in_idx;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < timestep; k++) {
+                for (int m = 0; m < head_size; m++) {
+                    out_idx = i * timestep * num_heads * head_size +
+                              j * timestep * head_size + k * head_size + m +
+                              out_pos;
+                    in_idx = i * timestep * num_heads * head_size +
+                             k * num_heads * head_size + j * num_heads + m +
+                             in_pos;
+                    mu_out[out_idx] = mu_in[in_idx];
+                    var_out[out_idx] = var_in[in_idx];
+                }
+            }
+        }
+    }
+}
 
 void tagi_4d_matrix_mul(std::vector<float> &mu_a, std::vector<float> &var_a,
                         std::vector<float> &mu_b, std::vector<float> &var_b,
@@ -99,15 +183,54 @@ void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
                     }
                     idx_mqk = i * num_heads * timestep * timestep +
                               j * timestep * timestep + k * timestep + l;
-                    mu_mqk[idx_mqk] = sum_mu;
-                    var_mqk[idx_mqk] = sum_var;
+                    mu_mqk[idx_mqk] = sum_mu / powf(head_size, 0.5);
+                    var_mqk[idx_mqk] = sum_var / head_size;
                 }
             }
         }
     }
 }
 
-void self_attention_forward_cpu(Network &net_prop, NetState &state, int l)
+void separate_projection_components(
+    std::vector<float> &mu_embs, std::vector<float> &var_embs, int emb_pos,
+    int qkv_pos, int batch_size, int num_heads, int timestep, int head_size,
+    std::vector<float> &mu_q, std::vector<float> &var_q,
+    std::vector<float> &mu_k, std::vector<float> &var_k,
+    std::vector<float> &mu_v, std::vector<float> &var_v)
+/*The ordering of the embedding vectors are query, key, and values with a space
+   of comp_size */
+{
+    int comp_idx, emb_idx;
+    int comp_size = batch_size * num_heads * timestep * head_size;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < timestep; k++) {
+                for (int m = 0; m < head_size; m++) {
+                    comp_idx = i * num_heads * timestep * head_size +
+                               j * timestep * head_size + k * head_size + m +
+                               qkv_pos;
+                    emb_idx = i * num_heads * timestep * head_size +
+                              k * num_heads * head_size + j * head_size + m +
+                              emb_pos;
+                    // Query
+                    mu_q[comp_idx] = mu_embs[emb_idx];
+                    var_q[comp_idx] = mu_embs[emb_idx];
+
+                    // Key
+                    mu_k[comp_idx] = mu_embs[emb_idx + comp_size];
+                    var_k[comp_idx] = mu_embs[emb_idx + comp_size];
+
+                    // Value;
+                    mu_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
+                    var_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
+                }
+            }
+        }
+    }
+}
+
+void self_attention_forward_cpu(Network &net_prop, NetState &state,
+                                Param &theta, int l)
 /*Multi-head self-attention mecanism.
 
 Args:
@@ -115,6 +238,7 @@ Args:
 
 */
 {
+    // TODO: Revise w_pos and b_pos and mha initialization (struct_var.cpp)
     int batch_size = net_prop.batch_size;
     int num_heads = net_prop.mha->num_heads[l];
     int timestep = net_prop.mha->timestep[l];
@@ -123,7 +247,24 @@ Args:
     int qkv_pos = state.mha->qkv_pos[l];
     int z_remax_pos = state.mha->remax->z_pos[l];
     int z_sum_remax_pos = state.mha->remax->z_sum_pos[l];
-    int z_pos = net_prop.z_pos[l];
+    int z_pos_out = net_prop.z_pos[l];
+    int z_pos_in = net_prop.z_pos[l - 1];
+    int w_pos = net_prop.w_pos[l];
+    int b_pos = net_prop.b_pos[l];
+    int num_embs = num_heads * head_size;
+    // Query, key, and value projection through a fully-connected layer
+    fc_mean_cpu(theta.mw, theta.mb, state.ma, w_pos, b_pos, z_pos_in, 0,
+                num_embs, 3 * num_embs, batch_size * timestep,
+                state.mha->mu_embs);
+    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa, w_pos, b_pos,
+               z_pos_in, 0, num_embs, 3 * num_embs, batch_size * timestep,
+               state.mha->var_embs);
+
+    // Separate the projection componenents into query, key, and values
+    separate_projection_components(
+        state.mha->mu_embs, state.mha->var_embs, 0, qkv_pos, batch_size,
+        num_heads, timestep, head_size, state.mha->mu_q, state.mha->var_q,
+        state.mha->mu_k, state.mha->var_k, state.mha->mu_v, state.mha->var_v);
 
     // query x key
     query_key(state.mha->mu_q, state.mha->var_q, state.mha->mu_k,
@@ -145,11 +286,23 @@ Args:
                  state.mha->var_att_score, att_pos, z_remax_pos,
                  z_sum_remax_pos, timestep, batch_size, net_prop.omega_tol);
 
-    // // Score time values
+    // Score time values
     tagi_4d_matrix_mul(state.mha->mu_att_score, state.mha->var_att_score,
                        state.mha->mu_v, state.mha->var_v, att_pos, qkv_pos,
-                       z_pos, batch_size, num_heads, timestep, head_size,
-                       timestep, state.mz, state.Sz);
+                       qkv_pos, batch_size, num_heads, timestep, head_size,
+                       timestep, state.mha->mu_sv, state.mha->var_sv);
+
+    // Projection output forward
+    project_output_forward(state.mha->mu_proj, state.mha->var_proj, qkv_pos,
+                           qkv_pos, batch_size, num_heads, timestep, head_size,
+                           state.mha->mu_proj, state.mha->var_proj);
+
+    // Output projections
+    fc_mean_cpu(theta.mw, theta.mb, state.mha->mu_proj, w_pos, b_pos, qkv_pos,
+                z_pos_out, num_embs, num_embs, batch_size * timestep, state.mz);
+    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.mha->mu_proj,
+               state.mha->var_proj, w_pos, b_pos, qkv_pos, z_pos_out, num_embs,
+               num_embs, batch_size * timestep, state.Sz);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -277,9 +430,10 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                     idx_q = i * num_heads * timestep * timestep +
                             j * timestep * timestep + m + k * timestep;
 
-                    delta_mu_q[idx_q] = sum_mu * var_q[idx_q + qkv_pos];
+                    delta_mu_q[idx_q] =
+                        sum_mu * var_q[idx_q + qkv_pos] / powf(num_heads, 0.5);
                     delta_var_q[idx_q] = var_q[idx_q + qkv_pos] * sum_var *
-                                         var_q[idx_q + qkv_pos];
+                                         var_q[idx_q + qkv_pos] / num_heads;
                 }
             }
         }
@@ -333,9 +487,10 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                     idx_q = i * num_heads * timestep * timestep +
                             j * timestep * timestep + m + k * timestep;
 
-                    delta_mu_k[idx_q] = sum_mu * mu_q[idx_q + qkv_pos];
-                    delta_var_k[idx_q] =
-                        mu_q[idx_q + qkv_pos] * sum_var * mu_q[idx_q + qkv_pos];
+                    delta_mu_k[idx_q] =
+                        sum_mu * mu_q[idx_q + qkv_pos] / powf(num_heads, 0.5);
+                    delta_var_k[idx_q] = mu_q[idx_q + qkv_pos] * sum_var *
+                                         mu_q[idx_q + qkv_pos] / num_heads;
                 }
             }
         }
