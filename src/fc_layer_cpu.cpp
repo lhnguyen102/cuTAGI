@@ -518,6 +518,115 @@ void fc_delta_mzSz_multithreading(std::vector<float> &mw,
         threads[i].join();
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+/// INOVATION VECTOR
+////////////////////////////////////////////////////////////////////////////////
+void inovation_mean(std::vector<float> &Sz, std::vector<float> &delta_mz,
+                    int z_pos, int z_delta_pos, int n,
+                    std::vector<float> &delta_m)
+/* Compute the mean of the inovation vector.
+
+Args:
+    Sz: Variance of hidden states
+    delta_mz: Updated quantities for the mean of output's hidden states
+    z_pos: Hidden state's position for output
+    z_delta_pos: Position of the inovation vector for this layer
+    n: Number of hidden states for input x number of batches
+    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
+*/
+{
+    float zeroPad = 0;
+    float tmp = 0;
+    for (int col = 0; col < n; col++) {
+        tmp = delta_mz[col] / Sz[col + z_pos];
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_m[col + z_delta_pos] = zeroPad;
+        } else {
+            delta_m[col + z_delta_pos] = tmp;
+        }
+    }
+}
+
+void inovation_var(std::vector<float> &Sz, std::vector<float> &delta_Sz,
+                   int z_pos, int z_delta_pos, int n,
+                   std::vector<float> &delta_S)
+/* Compute the variance of the inovation vector.
+
+Args:
+    Sz: Variance of hidden states
+    delta_Sz: Updated quantities for the variance of output's hidden states
+    z_pos: Hidden state's position for output
+    z_delta_pos: Position of the inovation vector for this layer
+    n: Number of hidden states for input x number of batches
+    delta_S: Inovation vector for variance i.e. (M_observation - M_prediction)
+*/
+{
+    float zeroPad = 0;
+    float tmp = 0;
+    for (int col = 0; col < n; col++) {
+        tmp = delta_Sz[col] / Sz[col + z_pos];
+        if (isinf(tmp) || isnan(tmp)) {
+            delta_S[col + z_delta_pos] = zeroPad;
+        } else {
+            delta_S[col + z_delta_pos] = tmp / Sz[col + z_pos];
+        }
+    }
+}
+//////////////////////////////////////////////////////////////////////
+/// MULTI-THREADING VERSION
+void inovation_worker(std::vector<float> &Sz, std::vector<float> &delta_mz,
+                      std::vector<float> &delta_Sz, int z_pos, int z_delta_pos,
+                      int start_idx, int end_idx, std::vector<float> &delta_m,
+                      std::vector<float> &delta_S)
+
+{
+    float zeroPad = 0;
+    float tmp_mz = 0;
+    float tmp_Sz = 0;
+    for (int col = start_idx; col < end_idx; col++) {
+        tmp_mz = delta_mz[col] / Sz[col + z_pos];
+        tmp_Sz = delta_Sz[col] / Sz[col + z_pos];
+        if (isinf(tmp_mz) || isnan(tmp_mz) || isinf(tmp_Sz) || isnan(tmp_Sz)) {
+            delta_m[col + z_delta_pos] = zeroPad;
+            delta_S[col + z_delta_pos] = zeroPad;
+        } else {
+            delta_m[col + z_delta_pos] = tmp_mz;
+            delta_S[col + z_delta_pos] = tmp_Sz / Sz[col + z_pos];
+        }
+    }
+}
+
+void inovation_multithreading(std::vector<float> &Sz,
+                              std::vector<float> &delta_mz,
+                              std::vector<float> &delta_Sz, int z_pos,
+                              int z_delta_pos, int n, unsigned int NUM_THREADS,
+                              std::vector<float> &delta_m,
+                              std::vector<float> &delta_S)
+
+{
+    const int n_batch = n / NUM_THREADS;
+    const int rem_batch = n % NUM_THREADS;
+    int start_idx, end_idx;
+    std::thread threads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (i == 0) {
+            start_idx = n_batch * i;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_idx = n_batch * i + rem_batch;
+            end_idx = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(inovation_worker, std::ref(Sz), std::ref(delta_mz),
+                        std::ref(delta_Sz), z_pos, z_delta_pos, start_idx,
+                        end_idx, std::ref(delta_m), std::ref(delta_S));
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        threads[i].join();
+    }
+}
 
 //////////////////////////////////////////////////////////////////////
 /// PARAMETERS FEED BACKWARD

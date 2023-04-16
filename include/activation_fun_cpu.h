@@ -30,13 +30,15 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,
-                               std::vector<float> &mu_a, int no, int B,
+                               std::vector<float> &mu_m, int z_pos,
+                               int z_sum_pos, int no, int B,
                                std::vector<float> &cov_m_a_check);
 
 void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
                          std::vector<float> &mu_a, std::vector<float> &var_m,
                          std::vector<float> &var_z, std::vector<float> &J_m,
-                         int z_pos, int no, int B, std::vector<float> &cov_a_m);
+                         int z_pos, int a_pos, int no, int B,
+                         std::vector<float> &cov_a_m);
 
 void no_act_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          int zpos, int n, std::vector<float> &ma,

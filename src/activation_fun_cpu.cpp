@@ -63,13 +63,15 @@ void compute_cov_log_logsum_cpu(std::vector<float> &mu_m,
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,
-                               std::vector<float> &mu_m, int no, int B,
+                               std::vector<float> &mu_m, int z_pos,
+                               int z_sum_pos, int no, int B,
                                std::vector<float> &cov_m_a_check) {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
             cov_m_a_check[i * no + j] =
-                (var_log[i * no + j] - cov_log_logsum[i * no + j]) *
-                mu_m[i * no + j];
+                (var_log[i * no + j + z_pos] -
+                 cov_log_logsum[i * no + j + z_sum_pos]) *
+                mu_m[i * no + j + z_pos];
         }
     }
 }
@@ -77,13 +79,14 @@ void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
 void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
                          std::vector<float> &mu_a, std::vector<float> &var_m,
                          std::vector<float> &var_z, std::vector<float> &J_m,
-                         int z_pos, int no, int B,
+                         int z_pos, int a_pos, int no, int B,
                          std::vector<float> &cov_a_m) {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            cov_a_m[i * no + j] = mu_a[i * no + j + z_pos] *
-                                  cov_m_a_check[i * no + j] * J_m[i * no + j] *
-                                  var_z[i * no + j + z_pos] / var_m[i * no + j];
+            cov_a_m[i * no + j] =
+                mu_a[i * no + j + a_pos] * cov_m_a_check[i * no + j] *
+                J_m[i * no + j + z_pos] * var_z[i * no + j + a_pos] /
+                var_m[i * no + j + z_pos];
         }
     }
 }

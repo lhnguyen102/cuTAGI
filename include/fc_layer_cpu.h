@@ -8,6 +8,8 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma onnce
+#include <math.h>
+
 #include <thread>
 #include <vector>
 void fc_mean_cpu(std::vector<float> &mw, std::vector<float> &mb,
@@ -39,6 +41,21 @@ void fc_delta_Sz(std::vector<float> &mw, std::vector<float> &Sz,
                  std::vector<float> &J, std::vector<float> &delta_S, int w_pos,
                  int z_pos_in, int z_pos_out, int ni, int no, int B,
                  std::vector<float> &delta_Sz);
+
+void inovation_mean(std::vector<float> &Sz, std::vector<float> &delta_mz,
+                    int z_pos, int z_delta_pos, int n,
+                    std::vector<float> &delta_m);
+
+void inovation_var(std::vector<float> &Sz, std::vector<float> &delta_Sz,
+                   int z_pos, int z_delta_pos, int n,
+                   std::vector<float> &delta_S);
+
+void inovation_multithreading(std::vector<float> &Sz,
+                              std::vector<float> &delta_mz,
+                              std::vector<float> &delta_Sz, int z_pos,
+                              int z_delta_pos, int n, unsigned int NUM_THREADS,
+                              std::vector<float> &delta_m,
+                              std::vector<float> &delta_S);
 
 void fc_delta_mw(std::vector<float> &Sw, std::vector<float> &ma,
                  std::vector<float> &delta_m, int w_pos, int z_pos_in,
