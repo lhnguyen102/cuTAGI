@@ -381,9 +381,10 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                     }
                     idx_s = i * num_heads * timestep * timestep +
                             j * timestep * timestep + k * timestep + l;
-                    delta_mu_s[idx_s] = sum_mu * var_s[idx_s + att_pos];
-                    delta_var_s[idx_s] = var_s[idx_s + att_pos] * sum_var *
-                                         var_s[idx_s + att_pos];
+                    // NOTE: We compute directly the delta innovation
+                    delta_mu_s[idx_s] = sum_mu / var_s[idx_s + att_pos];
+                    delta_var_s[idx_s] =
+                        sum_var / powf(var_s[idx_s + att_pos], 2);
                 }
             }
         }
@@ -420,11 +421,33 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                     }
                     idx_v = i * num_heads * timestep * timestep +
                             j * timestep * timestep + k * timestep + m;
-                    delta_mu_v[idx_v] = sum_mu * var_v[idx_v + qkv_pos];
-                    delta_var_v[idx_v] = var_v[idx_v + qkv_pos] * sum_var *
-                                         var_v[idx_v + qkv_pos];
+                    // NOTE: We compute directly the delta innovation
+                    delta_mu_v[idx_v] = sum_mu / var_v[idx_v + qkv_pos];
+                    delta_var_v[idx_v] =
+                        sum_var / powf(var_v[idx_v + qkv_pos], 2);
                 }
             }
+        }
+    }
+}
+
+void backward_delta_z_y_remax_cpu(std::vector<float> &delta_mu,
+                                  std::vector<float> &delta_var,
+                                  std::vector<float> &var_z,
+                                  std::vector<float> &cov_z_y, int y_pos,
+                                  int batch_size, int no,
+                                  std::vector<float> &delta_mu_z,
+                                  std::vector<float> &delta_var_z)
+/*Smoother update given the inovation vectors and covariance between hidden
+   states (z) and observations (y)*/
+{
+    int idx;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < no; j++) {
+            idx = i * no + j;
+            delta_mu_z[idx] = cov_z_y[idx] * delta_mu[idx] / var_z[idx];
+            delta_var_z[idx] =
+                cov_z_y[idx] * delta_var[idx] / powf(var_z[idx], 2);
         }
     }
 }
@@ -465,20 +488,19 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l +
                                     att_pos;
-                            sum_mu +=
-                                mu_k[idx_k] * delta_mu[idx_s] / var_s[idx_s];
-                            sum_var += (mu_k[idx_k] / var_s[idx_s]) *
-                                       delta_var[idx_s] *
-                                       (mu_k[idx_k] / var_s[idx_s]);
+                            sum_mu += mu_k[idx_k] * delta_mu[idx_s];
+                            sum_var +=
+                                mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
                         }
                     }
                     idx_q = i * num_heads * timestep * timestep +
                             j * timestep * timestep + m + k * timestep;
 
+                    // NOTE: We compute directly the delta innovation
                     delta_mu_q[idx_q] =
-                        sum_mu * var_q[idx_q + qkv_pos] / powf(num_heads, 0.5);
-                    delta_var_q[idx_q] = var_q[idx_q + qkv_pos] * sum_var *
-                                         var_q[idx_q + qkv_pos] / num_heads;
+                        sum_mu / powf(num_heads, 0.5) / var_q[idx_q + qkv_pos];
+                    delta_var_q[idx_q] =
+                        sum_var / num_heads / powf(var_q[idx_q + qkv_pos], 2);
                 }
             }
         }
@@ -521,46 +543,23 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l +
                                     att_pos;
-                            // TODO: double check on this formulation again
-                            // since delta_mu and delta_var are no longer
-                            // innovation vector like any other layer
-                            sum_mu +=
-                                var_k[idx_k] * delta_mu[idx_s] / var_s[idx_s];
-                            sum_var += (var_k[idx_k] / var_s[idx_s]) *
-                                       delta_var[idx_s] *
-                                       (var_k[idx_k] / var_s[idx_s]);
+                            // TODO: Double check this as well
+                            sum_mu += var_k[idx_k] * delta_mu[idx_s];
+                            sum_var +=
+                                var_k[idx_k] * delta_var[idx_s] * var_k[idx_k];
                         }
                     }
                     idx_q = i * num_heads * timestep * timestep +
                             j * timestep * timestep + m + k * timestep;
 
-                    delta_mu_k[idx_q] =
-                        sum_mu * mu_q[idx_q + qkv_pos] / powf(num_heads, 0.5);
+                    delta_mu_k[idx_q] = sum_mu * mu_q[idx_q + qkv_pos] /
+                                        powf(num_heads, 0.5) /
+                                        var_k[idx_q + qkv_pos];
                     delta_var_k[idx_q] = mu_q[idx_q + qkv_pos] * sum_var *
-                                         mu_q[idx_q + qkv_pos] / num_heads;
+                                         mu_q[idx_q + qkv_pos] / num_heads /
+                                         powf(var_k[idx_q + qkv_pos], 2);
                 }
             }
-        }
-    }
-}
-
-void backward_delta_z_y_remax_cpu(std::vector<float> &delta_mu,
-                                  std::vector<float> &delta_var,
-                                  std::vector<float> &var_y,
-                                  std::vector<float> &cov_z_y, int y_pos,
-                                  int batch_size, int no,
-                                  std::vector<float> &delta_mu_z,
-                                  std::vector<float> &delta_var_z)
-/*Smoother update given the inovation vectors and covariance between hidden
-   states (z) and observations (y)*/
-{
-    int idx;
-    for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < no; j++) {
-            idx = i * no + j;
-            delta_mu_z[idx] = cov_z_y[idx] * delta_mu[idx] / var_y[idx + y_pos];
-            delta_var_z[idx] =
-                cov_z_y[idx] * delta_var[idx] / var_y[idx + y_pos];
         }
     }
 }
@@ -624,7 +623,7 @@ void update_self_attention_state(Network &net_prop, NetState &state,
                     d_state.mha->delta_var_att_score);
 
     //////////////////////////////////////////////////////////////////////
-    // Update values for retrieval hidden states R.
+    // Update values for retrieval hidden states R
     compute_cov_m_a_check_cpu(
         state.mha->remax->var_log, state.mha->remax->cov_log_logsum,
         state.mha->remax->mu_m, z_remax_pos, z_sum_remax_pos, timestep,
@@ -638,9 +637,8 @@ void update_self_attention_state(Network &net_prop, NetState &state,
                         state.mha->remax->cov_m_a);
     backward_delta_z_y_remax_cpu(
         d_state.mha->delta_mu_att_score, d_state.mha->delta_var_att_score,
-        state.mha->var_att_score, state.mha->remax->cov_m_a, att_pos,
-        num_batch_remax, timestep, d_state.mha->delta_mu_r,
-        d_state.mha->delta_var_r);
+        state.mha->var_mqk, state.mha->remax->cov_m_a, att_pos, num_batch_remax,
+        timestep, d_state.mha->delta_mu_r, d_state.mha->delta_var_r);
 
     // Update values for query hidden states
     mha_delta_query(state.mha->var_q, state.mha->mu_k, state.mha->var_mqk,
@@ -655,7 +653,7 @@ void update_self_attention_state(Network &net_prop, NetState &state,
                   d_state.mha->delta_mu_k, d_state.mha->delta_var_k);
 
     ///////////////////////////////////////////////////////////////////////
-    // Concatenate the input projection components
+    // Concatenate the input projection components (3 x embddings)
     cat_intput_projection_components(
         d_state.mha->delta_mu_q, d_state.mha->delta_var_q,
         d_state.mha->delta_mu_k, d_state.mha->delta_var_k,
@@ -663,8 +661,12 @@ void update_self_attention_state(Network &net_prop, NetState &state,
         num_heads, timestep, head_size, d_state.mha->delta_mu_embs,
         d_state.mha->delta_var_embs);
 
+    // Input of the embedding
+
     /*
-     * TODO: double check when we concatenate qkv for the embedding
+     * TODO: double check mha_delta_key: idx_q???? idx_k???
+     * TODO: Double on position of all delta since they become now innovation
+     * vectors
      * TODO: Double check on remax back pass and revise delta if we can relace
      * hidden state delta by  delta innovation
      * TODO: Decide whether or not to update parameters in this updates
