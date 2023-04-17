@@ -15,7 +15,8 @@
 const int NUM_TESTS = 9;
 
 int test_gpu(std::vector<std::string>& user_input_options,
-             int num_tests_passed_cpu) {
+             int num_tests_passed_cpu,
+             std::chrono::steady_clock::time_point test_start) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";
@@ -28,6 +29,9 @@ int test_gpu(std::vector<std::string>& user_input_options,
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
             if (user_input_options.size() == 1) {
+                reinizialize_test_outputs = "all";
+            } else if (user_input_options.size() == 2 &&
+                       user_input_options[1] == "all") {
                 reinizialize_test_outputs = "all";
             } else {
                 // Check if the architecture is valid
@@ -76,11 +80,16 @@ int test_gpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "cnn") {
             test_num = 6;  // CNN
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result =
                 test_cnn_gpu(false, test_dates[test_num], "cnn", "mnist");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, NUM_TESTS, test_num,
-                               "CNN");
+                               "CNN", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -90,11 +99,16 @@ int test_gpu(std::vector<std::string>& user_input_options,
             test_architecture == "cnn_batch_norm") {
             test_num = 7;  // CNN batch norm.
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result = test_cnn_batch_norm_gpu(
                 false, test_dates[test_num], "cnn_batch_norm", "mnist");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, NUM_TESTS, test_num,
-                               "CNN batch normalization");
+                               "CNN batch normalization", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -103,22 +117,36 @@ int test_gpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "autoencoder") {
             test_num = 8;  // Autoencoder
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result = test_autoencoder_gpu(false, test_dates[test_num],
                                                     "autoencoder", "mnist");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, NUM_TESTS, test_num,
-                               "Autoencoder");
+                               "Autoencoder", run_time);
 
             if (test_result) num_test_passed++;
         }
 
+        auto end = std::chrono::steady_clock::now();
+        auto run_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            end - test_start)
+                            .count();
+
         // Number of tests passed
         if (test_architecture == "all") {
             std::cout << std::endl;
-            std::cout << "--------------------SUMMARY--------------------"
+            std::cout << "---------------SUMMARY-------------------"
                       << std::endl;
-            std::cout << "Passed tests: [" << num_test_passed << "/"
-                      << NUM_TESTS << "]" << std::endl;
+            std::cout << "Total tests: " << NUM_TESTS << std::endl;
+            std::cout << "Passed: " << num_test_passed << std::endl;
+            std::cout << "Failed: " << NUM_TESTS - num_test_passed << std::endl;
+            std::cout << "Total time taken: " << run_time << "ms" << std::endl;
+            std::cout << "========================================="
+                      << std::endl;
             return num_test_passed;
         }
         return -1;

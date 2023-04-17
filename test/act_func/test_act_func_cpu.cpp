@@ -60,19 +60,7 @@ bool test_act_func_cpu(bool recompute_outputs, std::string date,
         Dataloader test_db =
             test_data(data, tagi_net, data_path, train_db, NORMALIZE);
 
-        std::vector<std::vector<float> *> weights;
-        weights.push_back(&tagi_net.theta.mw);
-        weights.push_back(&tagi_net.theta.Sw);
-        std::vector<std::vector<float> *> weights_sc;
-        weights_sc.push_back(&tagi_net.theta.mw_sc);
-        weights_sc.push_back(&tagi_net.theta.Sw_sc);
-
-        std::vector<std::vector<float> *> bias;
-        bias.push_back(&tagi_net.theta.mb);
-        bias.push_back(&tagi_net.theta.Sb);
-        std::vector<std::vector<float> *> bias_sc;
-        bias_sc.push_back(&tagi_net.theta.mb_sc);
-        bias_sc.push_back(&tagi_net.theta.Sb_sc);
+        TestParamAndStates params_and_states(tagi_net);
 
         // If we want to test but no data is available, we throw an error
         if (!recompute_outputs && !directory_exists(data_dir)) {
@@ -86,53 +74,40 @@ bool test_act_func_cpu(bool recompute_outputs, std::string date,
                           << std::endl;
                 return false;
             }
-            write_vector_to_csv(test_saving_paths.init_param_path_w, "mw,Sw",
-                                weights);
-            write_vector_to_csv(test_saving_paths.init_param_path_w_sc,
-                                "mw_sc,Sw_sc", weights_sc);
-
-            write_vector_to_csv(test_saving_paths.init_param_path_b, "mb,Sb",
-                                bias);
-            write_vector_to_csv(test_saving_paths.init_param_path_b_sc,
-                                "mb_sc,Sb_sc", bias_sc);
+            params_and_states.write_params(test_saving_paths, true);
         }
 
         // Read the initial parameters (see tes_utils.cpp for more details)
-        read_vector_from_csv(test_saving_paths.init_param_path_w, weights);
-        read_vector_from_csv(test_saving_paths.init_param_path_w_sc,
-                             weights_sc);
-        read_vector_from_csv(test_saving_paths.init_param_path_b, bias);
-        read_vector_from_csv(test_saving_paths.init_param_path_b_sc, bias_sc);
+        params_and_states.read_params(test_saving_paths, true);
 
         // Train the network
         forward_pass(tagi_net, train_db);
 
-        std::vector<std::vector<float> *> forward_states;
-        forward_states.push_back(&tagi_net.state.mz);
-        forward_states.push_back(&tagi_net.state.Sz);
-        forward_states.push_back(&tagi_net.state.ma);
-        forward_states.push_back(&tagi_net.state.Sa);
-        forward_states.push_back(&tagi_net.state.J);
+        add_forward_states(params_and_states.forward_states, tagi_net);
 
         if (recompute_outputs) {
             // RESET OUPUTS
 
             // Write the forward hidden states
             write_vector_to_csv(forward_states_path, "mz,Sz,ma,Sa,J",
-                                forward_states);
+                                params_and_states.forward_states);
 
         } else {
             // PERFORM TESTS
 
-            // Read the saved forward hidden states reference
-            std::vector<std::vector<float> *> ref_forward_states;
-            for (int i = 0; i < 5; i++)
-                ref_forward_states.push_back(new std::vector<float>());
+            TestParamAndStates params_and_states_reference(tagi_net);
 
-            read_vector_from_csv(forward_states_path, ref_forward_states);
+            // Read the saved forward hidden states reference
+            for (int i = 0; i < 5; i++)
+                params_and_states_reference.forward_states.push_back(
+                    new std::vector<float>());
+
+            read_vector_from_csv(forward_states_path,
+                                 params_and_states_reference.forward_states);
 
             // Compare the saved forward hidden states with the ones we got
-            if (!compare_vectors(ref_forward_states, forward_states, data,
+            if (!compare_vectors(params_and_states_reference.forward_states,
+                                 params_and_states.forward_states, data,
                                  "fnn forward hidden states")) {
                 std::cout << "\033[1;31mTest for " + ACTIVATIONS_NAMES[i] +
                                  " " + "activation function has FAILED in " +

@@ -3,7 +3,7 @@
 // Description:  Script to test the autoencoder GPU implementation of cuTAGI
 // Authors:      Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 11, 2023
-// Updated:      April 12, 2023
+// Updated:      April 16, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -107,33 +107,8 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
     ImageData imdb =
         image_dataloader(data, data_path, MU, SIGMA, NUM_CLASSES, net_e.prop);
 
-    std::vector<std::vector<float> *> weights_e;
-    weights_e.push_back(&net_e.theta.mw);
-    weights_e.push_back(&net_e.theta.Sw);
-    std::vector<std::vector<float> *> weights_d;
-    weights_d.push_back(&net_d.theta.mw);
-    weights_d.push_back(&net_d.theta.Sw);
-
-    std::vector<std::vector<float> *> weights_sc_e;
-    weights_sc_e.push_back(&net_e.theta.mw_sc);
-    weights_sc_e.push_back(&net_e.theta.Sw_sc);
-    std::vector<std::vector<float> *> weights_sc_d;
-    weights_sc_d.push_back(&net_d.theta.mw_sc);
-    weights_sc_d.push_back(&net_d.theta.Sw_sc);
-
-    std::vector<std::vector<float> *> bias_e;
-    bias_e.push_back(&net_e.theta.mb);
-    bias_e.push_back(&net_e.theta.Sb);
-    std::vector<std::vector<float> *> bias_d;
-    bias_d.push_back(&net_d.theta.mb);
-    bias_d.push_back(&net_d.theta.Sb);
-
-    std::vector<std::vector<float> *> bias_sc_e;
-    bias_sc_e.push_back(&net_e.theta.mb_sc);
-    bias_sc_e.push_back(&net_e.theta.Sb_sc);
-    std::vector<std::vector<float> *> bias_sc_d;
-    bias_sc_d.push_back(&net_d.theta.mb_sc);
-    bias_sc_d.push_back(&net_d.theta.Sb_sc);
+    TestParamAndStates params_and_states_encoder(net_e);
+    TestParamAndStates params_and_states_decoder(net_d);
 
     // If we want to test but no data is available, we throw an error
     if (!recompute_outputs && !directory_exists(data_dir)) {
@@ -147,41 +122,13 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
             return false;
         }
 
-        write_vector_to_csv(test_saving_paths_encoder.init_param_path_w,
-                            "mw,Sw", weights_e);
-        write_vector_to_csv(test_saving_paths_encoder.init_param_path_w_sc,
-                            "mw_sc,Sw_sc", weights_sc_e);
-        write_vector_to_csv(test_saving_paths_encoder.init_param_path_b,
-                            "mb,Sb", bias_e);
-        write_vector_to_csv(test_saving_paths_encoder.init_param_path_b_sc,
-                            "mb_sc,Sb_sc", bias_sc_e);
-
-        write_vector_to_csv(test_saving_paths_decoder.init_param_path_w,
-                            "mw,Sw", weights_d);
-        write_vector_to_csv(test_saving_paths_decoder.init_param_path_w_sc,
-                            "mw_sc,Sw_sc", weights_sc_d);
-        write_vector_to_csv(test_saving_paths_decoder.init_param_path_b,
-                            "mb,Sb", bias_d);
-        write_vector_to_csv(test_saving_paths_decoder.init_param_path_b_sc,
-                            "mb_sc,Sb_sc", bias_sc_d);
+        params_and_states_encoder.write_params(test_saving_paths_encoder, true);
+        params_and_states_decoder.write_params(test_saving_paths_decoder, true);
     }
 
     // Read the initial parameters (see test_utils.cpp for more details)
-    read_vector_from_csv(test_saving_paths_encoder.init_param_path_w,
-                         weights_e);
-    read_vector_from_csv(test_saving_paths_encoder.init_param_path_w_sc,
-                         weights_sc_e);
-    read_vector_from_csv(test_saving_paths_encoder.init_param_path_b, bias_e);
-    read_vector_from_csv(test_saving_paths_encoder.init_param_path_b_sc,
-                         bias_sc_e);
-
-    read_vector_from_csv(test_saving_paths_decoder.init_param_path_w,
-                         weights_d);
-    read_vector_from_csv(test_saving_paths_decoder.init_param_path_w_sc,
-                         weights_sc_d);
-    read_vector_from_csv(test_saving_paths_decoder.init_param_path_b, bias_d);
-    read_vector_from_csv(test_saving_paths_decoder.init_param_path_b_sc,
-                         bias_sc_d);
+    params_and_states_encoder.read_params(test_saving_paths_encoder, true);
+    params_and_states_decoder.read_params(test_saving_paths_decoder, true);
 
     net_e.theta_gpu.copy_host_to_device();
     net_d.theta_gpu.copy_host_to_device();
@@ -189,144 +136,88 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
     // Autoencoder
     train_autoencoder(net_e, net_d, imdb, NUM_CLASSES);
 
+    // Transfer data to CPU
     net_e.theta_gpu.copy_device_to_host();
     net_d.theta_gpu.copy_device_to_host();
     net_e.d_state_gpu.copy_device_to_host();
     net_d.d_state_gpu.copy_device_to_host();
 
-    std::vector<std::vector<float> *> forward_states_e;
-    forward_states_e.push_back(&net_e.state.mz);
-    forward_states_e.push_back(&net_e.state.Sz);
-    forward_states_e.push_back(&net_e.state.ma);
-    forward_states_e.push_back(&net_e.state.Sa);
-    forward_states_e.push_back(&net_e.state.J);
-    std::vector<std::vector<float> *> forward_states_d;
-    forward_states_d.push_back(&net_d.state.mz);
-    forward_states_d.push_back(&net_d.state.Sz);
-    forward_states_d.push_back(&net_d.state.ma);
-    forward_states_d.push_back(&net_d.state.Sa);
-    forward_states_d.push_back(&net_d.state.J);
+    // Recover forward and backward hidden states after running the autoencoder
+    add_forward_states(params_and_states_encoder.forward_states, net_e);
+    add_forward_states(params_and_states_decoder.forward_states, net_d);
+
+    // Recover forward and backward hidden states after running the autoencoder
 
     std::vector<std::vector<float>> backward_states_e;
-    std::string backward_states_header_e = "";
-
-    for (int i = 0; i < net_prop_e.layers.size() - 2; i++) {
-        backward_states_header_e +=
-            "mean_" + std::to_string(i) + ",sigma_" + std::to_string(i) + ",";
-        backward_states_e.push_back(
-            std::get<0>(net_e.get_inovation_mean_var(i)));
-        backward_states_e.push_back(
-            std::get<1>(net_e.get_inovation_mean_var(i)));
-    }
-
     std::vector<std::vector<float>> backward_states_d;
+    std::string backward_states_header_e = "";
     std::string backward_states_header_d = "";
 
-    for (int i = 0; i < net_prop_d.layers.size() - 2; i++) {
-        backward_states_header_d +=
-            "mean_" + std::to_string(i) + ",sigma_" + std::to_string(i) + ",";
-        backward_states_d.push_back(
-            std::get<0>(net_d.get_inovation_mean_var(i)));
-        backward_states_d.push_back(
-            std::get<1>(net_d.get_inovation_mean_var(i)));
-    }
+    add_backward_states(backward_states_e, backward_states_header_e, net_e,
+                        net_prop_e.layers.size());
+    add_backward_states(backward_states_d, backward_states_header_d, net_d,
+                        net_prop_d.layers.size());
 
-    std::vector<std::vector<float> *> backward_states_e_ptr;
     for (int i = 0; i < backward_states_e.size(); i++)
-        backward_states_e_ptr.push_back(&backward_states_e[i]);
+        params_and_states_encoder.backward_states.push_back(
+            &backward_states_e[i]);
 
-    std::vector<std::vector<float> *> backward_states_d_ptr;
     for (int i = 0; i < backward_states_d.size(); i++)
-        backward_states_d_ptr.push_back(&backward_states_d[i]);
+        params_and_states_decoder.backward_states.push_back(
+            &backward_states_d[i]);
 
     if (recompute_outputs) {
         // RESET OUPUTS
 
         // Write the parameters and hidden states
-        write_vector_to_csv(test_saving_paths_encoder.opt_param_path_w, "mw,Sw",
-                            weights_e);
-        write_vector_to_csv(test_saving_paths_encoder.opt_param_path_w_sc,
-                            "mw_sc,Sw_sc", weights_sc_e);
-        write_vector_to_csv(test_saving_paths_encoder.opt_param_path_b, "mb,Sb",
-                            bias_e);
-        write_vector_to_csv(test_saving_paths_encoder.opt_param_path_b_sc,
-                            "mb_sc,Sb_sc", bias_sc_e);
-
-        write_vector_to_csv(test_saving_paths_decoder.opt_param_path_w, "mw,Sw",
-                            weights_d);
-        write_vector_to_csv(test_saving_paths_decoder.opt_param_path_w_sc,
-                            "mw_sc,Sw_sc", weights_sc_d);
-        write_vector_to_csv(test_saving_paths_decoder.opt_param_path_b, "mb,Sb",
-                            bias_d);
-        write_vector_to_csv(test_saving_paths_decoder.opt_param_path_b_sc,
-                            "mb_sc,Sb_sc", bias_sc_d);
+        params_and_states_encoder.write_params(test_saving_paths_encoder,
+                                               false);
+        params_and_states_decoder.write_params(test_saving_paths_decoder,
+                                               false);
 
         // Write the forward hidden states
         write_vector_to_csv(test_saving_paths_encoder.forward_states_path,
-                            "mz,Sz,ma,Sa,J", forward_states_e);
+                            "mz,Sz,ma,Sa,J",
+                            params_and_states_encoder.forward_states);
         write_vector_to_csv(test_saving_paths_decoder.forward_states_path,
-                            "mz,Sz,ma,Sa,J", forward_states_d);
+                            "mz,Sz,ma,Sa,J",
+                            params_and_states_decoder.forward_states);
 
         // Write the backward hidden states
         write_vector_to_csv(test_saving_paths_encoder.backward_states_path,
-                            backward_states_header_e, backward_states_e_ptr);
+                            backward_states_header_e,
+                            params_and_states_encoder.backward_states);
         write_vector_to_csv(test_saving_paths_decoder.backward_states_path,
-                            backward_states_header_d, backward_states_d_ptr);
+                            backward_states_header_d,
+                            params_and_states_decoder.backward_states);
 
     } else {
         // PERFORM TESTS
 
         // Read the saved reference parameters
-        std::vector<std::vector<float> *> ref_weights_e;
-        std::vector<std::vector<float> *> ref_weights_sc_e;
-        std::vector<std::vector<float> *> ref_bias_e;
-        std::vector<std::vector<float> *> ref_bias_sc_e;
-        std::vector<std::vector<float> *> ref_weights_d;
-        std::vector<std::vector<float> *> ref_weights_sc_d;
-        std::vector<std::vector<float> *> ref_bias_d;
-        std::vector<std::vector<float> *> ref_bias_sc_d;
+        TestParamAndStates params_and_states_encoder_reference(net_e);
+        TestParamAndStates params_and_states_decoder_reference(net_d);
 
-        for (int i = 0; i < 2; i++) {
-            ref_weights_e.push_back(new std::vector<float>());
-            ref_weights_sc_e.push_back(new std::vector<float>());
-            ref_bias_e.push_back(new std::vector<float>());
-            ref_bias_sc_e.push_back(new std::vector<float>());
-        }
-        for (int i = 0; i < 2; i++) {
-            ref_weights_d.push_back(new std::vector<float>());
-            ref_weights_sc_d.push_back(new std::vector<float>());
-            ref_bias_d.push_back(new std::vector<float>());
-            ref_bias_sc_d.push_back(new std::vector<float>());
-        }
-
-        read_vector_from_csv(test_saving_paths_encoder.opt_param_path_w,
-                             ref_weights_e);
-        read_vector_from_csv(test_saving_paths_encoder.opt_param_path_w_sc,
-                             ref_weights_sc_e);
-        read_vector_from_csv(test_saving_paths_encoder.opt_param_path_b,
-                             ref_bias_e);
-        read_vector_from_csv(test_saving_paths_encoder.opt_param_path_b_sc,
-                             ref_bias_sc_e);
-
-        read_vector_from_csv(test_saving_paths_decoder.opt_param_path_w,
-                             ref_weights_d);
-        read_vector_from_csv(test_saving_paths_decoder.opt_param_path_w_sc,
-                             ref_weights_sc_d);
-        read_vector_from_csv(test_saving_paths_decoder.opt_param_path_b,
-                             ref_bias_d);
-        read_vector_from_csv(test_saving_paths_decoder.opt_param_path_b_sc,
-                             ref_bias_sc_d);
+        params_and_states_encoder_reference.read_params(
+            test_saving_paths_encoder, false);
+        params_and_states_decoder_reference.read_params(
+            test_saving_paths_decoder, false);
 
         net_e.theta_gpu.copy_host_to_device();
         net_d.theta_gpu.copy_host_to_device();
 
         // Compare optimal values with the ones we got
-        if (!compare_vectors(ref_weights_e, weights_e, data,
+        if (!compare_vectors(params_and_states_encoder_reference.weights,
+                             params_and_states_encoder.weights, data,
                              "encoder weights") ||
-            !compare_vectors(ref_weights_sc_e, weights_sc_e, data,
+            !compare_vectors(params_and_states_encoder_reference.weights_sc,
+                             params_and_states_encoder.weights_sc, data,
                              "encoder weights for residual network") ||
-            !compare_vectors(ref_bias_e, bias_e, data, "encoder bias") ||
-            !compare_vectors(ref_bias_sc_e, bias_sc_e, data,
+            !compare_vectors(params_and_states_encoder_reference.bias,
+                             params_and_states_encoder.bias, data,
+                             "encoder bias") ||
+            !compare_vectors(params_and_states_encoder_reference.bias_sc,
+                             params_and_states_encoder.bias_sc, data,
                              "encoder bias for residual network")) {
             std::cout << "\033[1;31mTest for encoder PARAMS has FAILED in " +
                              data + " data\033[0m\n"
@@ -334,13 +225,17 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
             return false;
         }
 
-        // Compare optimal values with the ones we got
-        if (!compare_vectors(ref_weights_d, weights_d, data,
+        if (!compare_vectors(params_and_states_decoder_reference.weights,
+                             params_and_states_decoder.weights, data,
                              "decoder weights") ||
-            !compare_vectors(ref_weights_sc_d, weights_sc_d, data,
+            !compare_vectors(params_and_states_decoder_reference.weights_sc,
+                             params_and_states_decoder.weights_sc, data,
                              "decoder weights for residual network") ||
-            !compare_vectors(ref_bias_d, bias_d, data, "decoder bias") ||
-            !compare_vectors(ref_bias_sc_d, bias_sc_d, data,
+            !compare_vectors(params_and_states_decoder_reference.bias,
+                             params_and_states_decoder.bias, data,
+                             "decoder bias") ||
+            !compare_vectors(params_and_states_decoder_reference.bias_sc,
+                             params_and_states_decoder.bias_sc, data,
                              "decoder bias for residual network")) {
             std::cout << "\033[1;31mTest for decoder PARAMS has FAILED in " +
                              data + " data\033[0m\n"
@@ -349,20 +244,23 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
         }
 
         // Read the saved forward hidden states reference
-        std::vector<std::vector<float> *> ref_forward_states_e;
         for (int i = 0; i < 5; i++)
-            ref_forward_states_e.push_back(new std::vector<float>());
-        std::vector<std::vector<float> *> ref_forward_states_d;
+            params_and_states_encoder_reference.forward_states.push_back(
+                new std::vector<float>());
         for (int i = 0; i < 5; i++)
-            ref_forward_states_d.push_back(new std::vector<float>());
+            params_and_states_decoder_reference.forward_states.push_back(
+                new std::vector<float>());
 
-        read_vector_from_csv(test_saving_paths_encoder.forward_states_path,
-                             ref_forward_states_e);
-        read_vector_from_csv(test_saving_paths_decoder.forward_states_path,
-                             ref_forward_states_d);
+        read_vector_from_csv(
+            test_saving_paths_encoder.forward_states_path,
+            params_and_states_encoder_reference.forward_states);
+        read_vector_from_csv(
+            test_saving_paths_decoder.forward_states_path,
+            params_and_states_decoder_reference.forward_states);
 
         // Compare the saved forward hidden states with the ones we got
-        if (!compare_vectors(ref_forward_states_e, forward_states_e, data,
+        if (!compare_vectors(params_and_states_encoder_reference.forward_states,
+                             params_and_states_encoder.forward_states, data,
                              "encoder forward hidden states")) {
             std::cout << "\033[1;31mTest for encoder FORWARD HIDDEN STATES has "
                          "FAILED in " +
@@ -372,7 +270,8 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
         }
 
         // Compare the saved forward hidden states with the ones we got
-        if (!compare_vectors(ref_forward_states_d, forward_states_d, data,
+        if (!compare_vectors(params_and_states_decoder_reference.forward_states,
+                             params_and_states_decoder.forward_states, data,
                              "decoder forward hidden states")) {
             std::cout << "\033[1;31mTest for decoder FORWARD HIDDEN STATES has "
                          "FAILED in " +
@@ -382,21 +281,25 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
         }
 
         // Read the saved backward hidden states reference
-        std::vector<std::vector<float> *> ref_backward_states_e;
         for (int i = 0; i < 2 * (net_prop_e.layers.size() - 2); i++)
-            ref_backward_states_e.push_back(new std::vector<float>());
-        std::vector<std::vector<float> *> ref_backward_states_d;
+            params_and_states_encoder_reference.backward_states.push_back(
+                new std::vector<float>());
         for (int i = 0; i < 2 * (net_prop_d.layers.size() - 2); i++)
-            ref_backward_states_d.push_back(new std::vector<float>());
+            params_and_states_decoder_reference.backward_states.push_back(
+                new std::vector<float>());
 
-        read_vector_from_csv(test_saving_paths_encoder.backward_states_path,
-                             ref_backward_states_e);
-        read_vector_from_csv(test_saving_paths_decoder.backward_states_path,
-                             ref_backward_states_d);
+        read_vector_from_csv(
+            test_saving_paths_encoder.backward_states_path,
+            params_and_states_encoder_reference.backward_states);
+        read_vector_from_csv(
+            test_saving_paths_decoder.backward_states_path,
+            params_and_states_decoder_reference.backward_states);
 
         // Compare the saved backward hidden states with the ones we got
-        if (!compare_vectors(ref_backward_states_e, backward_states_e_ptr, data,
-                             "endoer backward hidden states")) {
+        if (!compare_vectors(
+                params_and_states_encoder_reference.backward_states,
+                params_and_states_encoder.backward_states, data,
+                "encoder backward hidden states")) {
             std::cout
                 << "\033[1;31mTest for encoder BACKWARD HIDDEN STATES has "
                    "FAILED in " +
@@ -406,8 +309,10 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
         }
 
         // Compare the saved backward hidden states with the ones we got
-        if (!compare_vectors(ref_backward_states_d, backward_states_d_ptr, data,
-                             "decoder backward hidden states")) {
+        if (!compare_vectors(
+                params_and_states_decoder_reference.backward_states,
+                params_and_states_decoder.backward_states, data,
+                "decoder backward hidden states")) {
             std::cout
                 << "\033[1;31mTest for decoder BACKWARD HIDDEN STATES has "
                    "FAILED in " +
