@@ -3,7 +3,7 @@
 // Description:  Main script to test the CPU implementation of cuTAGI
 // Authors:      Florensa, Miquel, Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 4, 2023
+// Updated:      April 13, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
@@ -15,8 +15,8 @@
 const int NUM_TESTS_CPU = 6;
 const int NUM_TESTS_GPU = 3;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
-    "all",  "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives",
-    "lstm", "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
+    "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives", "lstm",
+    "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
 
 std::vector<std::string> read_dates() {
     std::ifstream file("test/data/last_dates.csv");
@@ -43,7 +43,7 @@ void write_dates(std::vector<std::string> dates, int column, std::string date) {
         return;
     }
 
-    for (int i = 1; i < AVAILABLE_ARCHITECTURES.size(); i++) {
+    for (int i = 0; i < AVAILABLE_ARCHITECTURES.size(); i++) {
         file << AVAILABLE_ARCHITECTURES[i];
         if (i != AVAILABLE_ARCHITECTURES.size() - 1) {
             file << ",";
@@ -78,27 +78,32 @@ void check_valid_input_architecture(std::string test_architecture) {
 }
 
 void print_test_results(bool single_test, bool test_passed, int num_tests,
-                        int test_num, std::string arch_name) {
-    std::string output_color;
-    std::string output;
+                        int test_num, std::string arch_name,
+                        std::chrono::milliseconds run_time) {
+    if (!single_test) {
+        int percentage = round((100.0 / num_tests) * (test_num + 1));
+        std::cout << "[";
+        if (percentage < 100) std::cout << " ";
+        if (percentage < 10) std::cout << " ";
+        std::cout << percentage << "%] ";
+    }
+    int num_spaces = 35;
+    arch_name.append(":");
 
     if (test_passed) {
-        output_color = "[32;1m";
-        output = "passed";
+        std::cout << std::setw(num_spaces) << std::left << arch_name;
+        std::cout << "\033[32;1mPASS\033[0m";
     } else {
-        output_color = "[31;1m";
-        output = "failed";
+        std::cout << std::setw(num_spaces) << std::left << arch_name;
+        std::cout << "\033[31;1mFAIL\033[0m";
     }
 
-    if (!single_test) {
-        std::cout << "[ " << floor((100 / num_tests) * (test_num + 1)) << "%] ";
-    }
-    std::cout << "\033" << output_color << arch_name << " tests " << output
-              << "\033[0m" << std::endl;
+    std::cout << "  (took " << run_time.count() << "ms)" << std::endl;
 }
 
 int test_cpu(std::vector<std::string>& user_input_options,
-             bool compute_gpu_tests) {
+             bool compute_gpu_tests,
+             std::chrono::steady_clock::time_point test_start) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";
@@ -115,10 +120,10 @@ int test_cpu(std::vector<std::string>& user_input_options,
                   << "Perform tests on all architectures" << std::endl;
 
         std::cout << std::setw(num_spaces) << std::left
-                  << "test [architecture-name]"
+                  << "test <architecture-name>"
                   << "Run one specific test" << std::endl;
 
-        std::cout << std::setw(num_spaces) << std::left << "test -reset all"
+        std::cout << std::setw(num_spaces) << std::left << "test -reset (all)"
                   << "Reinizialize all test references" << std::endl;
 
         std::cout << std::setw(num_spaces) << std::left
@@ -139,6 +144,9 @@ int test_cpu(std::vector<std::string>& user_input_options,
     } else if (user_input_options.size() > 0 && user_input_options.size() < 3) {
         if (user_input_options[0] == "-reset") {
             if (user_input_options.size() == 1) {
+                reinizialize_test_outputs = "all";
+            } else if (user_input_options.size() == 2 &&
+                       user_input_options[1] == "all") {
                 reinizialize_test_outputs = "all";
             } else {
                 // Check if the architecture is valid
@@ -192,6 +200,10 @@ int test_cpu(std::vector<std::string>& user_input_options,
             device = "GPU";
         }
 
+        std::cout << "=========================================" << std::endl;
+        std::cout << "            TAGI Unit Test               " << std::endl;
+        std::cout << "=========================================" << std::endl;
+
         int num_test_passed = 0;
 
         std::cout << "Performing " << test_architecture << " tests on "
@@ -201,13 +213,18 @@ int test_cpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "fnn") {
             test_num = 0;  // FNN
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result =
                 test_fnn_cpu(false, test_dates[test_num], "fnn", "1D") &&
                 test_fnn_cpu(false, test_dates[test_num], "fnn",
                              "Boston_housing");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "FNN");
+                               "FNN", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -217,12 +234,17 @@ int test_cpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "fnn_heteros") {
             test_num = 1;  // FNN heteroscedastic noise
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result =
                 test_fnn_heteros_cpu(false, test_dates[test_num], "fnn_heteros",
                                      "1D_noise_inferance");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "FNN heteroscedastic");
+                               "FNN heteroscedastic", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -231,11 +253,16 @@ int test_cpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "fnn_full_cov") {
             test_num = 2;  // FNN full covariance
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result = test_fnn_full_cov_cpu(
                 false, test_dates[test_num], "fnn_full_cov", "1D_full_cov");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "FNN full covariance");
+                               "FNN full covariance", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -246,12 +273,17 @@ int test_cpu(std::vector<std::string>& user_input_options,
             test_architecture == "fnn_derivatives") {
             test_num = 3;  // FNN derivatives
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result =
                 test_fnn_derivatives_cpu(false, test_dates[test_num],
                                          "fnn_derivatives", "1D_derivatives");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "FNN derivatives");
+                               "FNN derivatives", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -260,11 +292,16 @@ int test_cpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "lstm") {
             test_num = 4;  // LSTM
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result = test_lstm_cpu(false, test_dates[test_num],
                                              "lstm", "time_series");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "LSTM");
+                               "LSTM", run_time);
 
             if (test_result) num_test_passed++;
         }
@@ -273,22 +310,36 @@ int test_cpu(std::vector<std::string>& user_input_options,
         if (test_architecture == "all" || test_architecture == "act_func") {
             test_num = 5;  // Activation Functions
 
+            auto start = std::chrono::steady_clock::now();
             bool test_result = test_act_func_cpu(false, test_dates[test_num],
                                                  "act_func", "Boston_housing");
 
+            auto end = std::chrono::steady_clock::now();
+            auto run_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                      start);
             print_test_results(single_test, test_result, num_tests, test_num,
-                               "Activation functions");
+                               "Activation functions", run_time);
 
             if (test_result) num_test_passed++;
         }
 
+        auto end = std::chrono::steady_clock::now();
+        auto run_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            end - test_start)
+                            .count();
+
         // Number of tests passed
         if (test_architecture == "all" && !compute_gpu_tests) {
             std::cout << std::endl;
-            std::cout << "--------------------SUMMARY--------------------"
+            std::cout << "---------------SUMMARY-------------------"
                       << std::endl;
-            std::cout << "Passed tests: [" << num_test_passed << "/"
-                      << num_tests << "]" << std::endl;
+            std::cout << "Total tests: " << num_tests << std::endl;
+            std::cout << "Passed: " << num_test_passed << std::endl;
+            std::cout << "Failed: " << num_tests - num_test_passed << std::endl;
+            std::cout << "Total time taken: " << run_time << "ms" << std::endl;
+            std::cout << "========================================="
+                      << std::endl;
             return num_test_passed;
         }
         return num_test_passed;
