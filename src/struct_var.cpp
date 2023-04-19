@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 17, 2023
-// Updated:      April 14, 2023
+// Updated:      April 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////

@@ -3,7 +3,7 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      April 15, 2023
+// Updated:      April 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -290,20 +290,20 @@ Args:
     int z_pos_in = net_prop.z_pos[l];
     int w_emb_pos = net_prop.w_pos[l];
     int b_emb_pos = net_prop.b_pos[l];
-    int w_proj_pos = net_prop.w_pos[l] + num_embs * num_embs;
-    int b_proj_pos = net_prop.b_pos[l] + num_embs;
+    int w_proj_pos = net_prop.w_pos[l] + 3 * num_embs * num_embs;
+    int b_proj_pos = net_prop.b_pos[l] + 3 * num_embs;
 
     // Query, key, and value projection through a fully-connected layer
     fc_mean_cpu(theta.mw, theta.mb, state.ma, w_emb_pos, b_emb_pos, z_pos_in, 0,
                 num_embs, 3 * num_embs, batch_size * timestep,
-                state.mha->mu_embs);
+                state.mha->mu_in_proj);
     fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa, w_emb_pos,
                b_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs,
-               batch_size * timestep, state.mha->var_embs);
+               batch_size * timestep, state.mha->var_in_proj);
 
     // Separate the projection componenents into query, key, and values
     separate_input_projection_components(
-        state.mha->mu_embs, state.mha->var_embs, 0, qkv_pos, batch_size,
+        state.mha->mu_in_proj, state.mha->var_in_proj, 0, qkv_pos, batch_size,
         num_heads, timestep, head_size, state.mha->mu_q, state.mha->var_q,
         state.mha->mu_k, state.mha->var_k, state.mha->mu_v, state.mha->var_v);
 
@@ -369,8 +369,8 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
                     for (int m = 0; m < head_size; m++) {
-                        idx_v = i * num_heads * timestep * timestep +
-                                j * timestep * timestep + l * head_size + m +
+                        idx_v = i * num_heads * timestep * head_size +
+                                j * timestep * head_size + l * head_size + m +
                                 qkv_pos;
                         idx_obs = i * num_heads * timestep * timestep +
                                   j * timestep * timestep + k * head_size + m +
@@ -419,8 +419,8 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                         sum_var +=
                             mu_s[idx_s] * delta_var[idx_obs] * mu_s[idx_s];
                     }
-                    idx_v = i * num_heads * timestep * timestep +
-                            j * timestep * timestep + k * timestep + m;
+                    idx_v = i * num_heads * timestep * head_size +
+                            j * timestep * head_size + k * timestep + m;
                     // NOTE: We compute directly the delta innovation
                     delta_mu_v[idx_v] = sum_mu / var_v[idx_v + qkv_pos];
                     delta_var_v[idx_v] =
@@ -482,8 +482,8 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                         // TO BE TESTED
                         int reduced_row = ((k * timestep + m) / head_size);
                         if (reduced_row * k * timestep <= l) {
-                            idx_k = i * num_heads * timestep * timestep +
-                                    j * timestep * timestep + l * head_size +
+                            idx_k = i * num_heads * timestep * head_size +
+                                    j * timestep * head_size + l * head_size +
                                     m + qkv_pos;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l +
@@ -493,8 +493,8 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                                 mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
                         }
                     }
-                    idx_q = i * num_heads * timestep * timestep +
-                            j * timestep * timestep + m + k * timestep;
+                    idx_q = i * num_heads * timestep * head_size +
+                            j * timestep * head_size + m + k * timestep;
 
                     // NOTE: We compute directly the delta innovation
                     delta_mu_q[idx_q] =
@@ -537,8 +537,8 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                         // TO BE TESTED
                         int reduced_row = ((k * timestep + m) / head_size);
                         if (reduced_row * k * timestep <= l) {
-                            idx_k = i * num_heads * timestep * timestep +
-                                    j * timestep * timestep + l * head_size +
+                            idx_k = i * num_heads * timestep * head_size +
+                                    j * timestep * head_size + l * head_size +
                                     m + qkv_pos;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l +
@@ -549,8 +549,8 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                                 var_k[idx_k] * delta_var[idx_s] * var_k[idx_k];
                         }
                     }
-                    idx_q = i * num_heads * timestep * timestep +
-                            j * timestep * timestep + m + k * timestep;
+                    idx_q = i * num_heads * timestep * head_size +
+                            j * timestep * head_size + m + k * timestep;
 
                     delta_mu_k[idx_q] = sum_mu * mu_q[idx_q + qkv_pos] /
                                         powf(num_heads, 0.5) /
@@ -576,31 +576,35 @@ void update_self_attention_state(Network &net_prop, NetState &state,
     int head_size = net_prop.mha->head_size[mha_l];
     int num_embs = num_heads * head_size;
     int num_batch_remax = batch_size * timestep * num_heads;
-    int num_mha_states = num_embs * batch_size * timestep;
-    int num_batch_proj = batch_size * timestep;
+    int emb_batch_timestep = num_embs * batch_size * timestep;
+    int batch_timestep = batch_size * timestep;
     int att_pos = state.mha->att_pos[mha_l];
     int qkv_pos = state.mha->qkv_pos[mha_l];
+    int z_in_proj_pos = state.mha->z_in_proj_pos[mha_l];
+    int z_out_proj_pos = state.mha->z_out_proj_pos[mha_l];
     int z_remax_pos = state.mha->remax->z_pos[mha_l];
     int z_sum_remax_pos = state.mha->remax->z_sum_pos[mha_l];
     int w_emb_pos = net_prop.w_pos[l];
     int b_emb_pos = net_prop.b_pos[l];
-    int w_proj_pos = net_prop.w_pos[l] + num_embs * num_embs;
-    int b_proj_pos = net_prop.b_pos[l] + num_embs;
+    int w_proj_pos = net_prop.w_pos[l] + 3 * num_embs * num_embs;
+    int b_proj_pos = net_prop.b_pos[l] + 3 * num_embs;
 
     ////////////////////////////////////////////////////////////////////
     // Update output projections
-    fc_delta_mz(theta.mw, state.Sz, state.J, d_state.delta_m, w_proj_pos,
-                z_pos_in, z_pos_out, num_embs, num_embs, num_batch_proj,
-                d_state.mha->delta_mu_buffer);
-    fc_delta_Sz(theta.mw, state.Sz, state.J, d_state.delta_S, w_proj_pos,
-                z_pos_in, z_pos_out, num_embs, num_embs, num_batch_proj,
-                d_state.mha->delta_var_buffer);
+    fc_delta_mz(theta.mw, state.mha->var_out_proj, state.mha->J_out_proj,
+                d_state.delta_m, w_proj_pos, qkv_pos, z_pos_out, num_embs,
+                num_embs, batch_timestep, d_state.mha->delta_mu_buffer);
+    fc_delta_Sz(theta.mw, state.mha->var_out_proj, state.mha->J_out_proj,
+                d_state.delta_S, w_proj_pos, qkv_pos, z_pos_out, num_embs,
+                num_embs, batch_timestep, d_state.mha->delta_var_buffer);
 
     // Inovation for output projections
-    inovation_mean(state.Sz, d_state.mha->delta_mu_buffer, z_pos_out, 0,
-                   num_mha_states, d_state.mha->delta_mu_out_proj);
-    inovation_var(state.Sz, d_state.mha->delta_var_buffer, z_pos_out, 0,
-                  num_mha_states, d_state.mha->delta_var_out_proj);
+    inovation_mean(state.mha->var_out_proj, d_state.mha->delta_mu_buffer,
+                   qkv_pos, 0, emb_batch_timestep,
+                   d_state.mha->delta_mu_out_proj);
+    inovation_var(state.mha->var_out_proj, d_state.mha->delta_var_buffer,
+                  qkv_pos, 0, emb_batch_timestep,
+                  d_state.mha->delta_var_out_proj);
 
     project_output_backward(
         d_state.mha->delta_mu_out_proj, d_state.mha->delta_var_out_proj, 0, 0,
@@ -658,16 +662,24 @@ void update_self_attention_state(Network &net_prop, NetState &state,
         d_state.mha->delta_mu_q, d_state.mha->delta_var_q,
         d_state.mha->delta_mu_k, d_state.mha->delta_var_k,
         d_state.mha->delta_mu_v, d_state.mha->delta_var_v, 0, 0, batch_size,
-        num_heads, timestep, head_size, d_state.mha->delta_mu_embs,
-        d_state.mha->delta_var_embs);
+        num_heads, timestep, head_size, d_state.mha->delta_mu_in_proj,
+        d_state.mha->delta_var_in_proj);
 
     // Input of the embedding
+    fc_delta_mz(theta.mw, state.Sz, state.J, d_state.mha->delta_mu_in_proj,
+                w_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs, batch_timestep,
+                d_state.mha->delta_mu_buffer);
+    fc_delta_Sz(theta.mw, state.Sz, state.J, d_state.mha->delta_var_in_proj,
+                w_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs, batch_timestep,
+                d_state.mha->delta_var_buffer);
+
+    inovation_mean(state.Sz, d_state.mha->delta_mu_buffer, z_pos_in, 0,
+                   emb_batch_timestep, d_state.delta_m);
+    inovation_var(state.Sz, d_state.mha->delta_var_buffer, z_pos_in, 0,
+                  emb_batch_timestep, d_state.delta_S);
 
     /*
-     * TODO: double check mha_delta_key: idx_q???? idx_k???
-     * TODO: Double on position of all delta since they become now innovation
-     * vectors
-     * TODO: Double check on remax back pass and revise delta if we can relace
+     * TODO: Double check on remax back pass and revise delta if we can replace
      * hidden state delta by  delta innovation
      * TODO: Decide whether or not to update parameters in this updates
      * TODO: Remove all unsed delta and states in struct
