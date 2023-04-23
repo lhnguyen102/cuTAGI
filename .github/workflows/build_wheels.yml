@@ -128,12 +128,26 @@ jobs:
 
   test:
     needs: [build_linux, build_macos, build_sdist]
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+        cuda: ["11.3"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install CUDA
+        env:
+          cuda: ${{ matrix.cuda }}
+        run: ./extern/action_scripts/install_cuda_ubuntu.sh
+        shell: bash
 
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.13
@@ -156,15 +170,13 @@ jobs:
           sh bin/run_test.sh
 
   upload_pypi:
-    needs: [build_linux, build_macos, build_sdist, test]
+    needs: [test]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
     if: |
-      github.ref_type == 'tag' &&
-      github.event_name == 'pull_request' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged &&
-      startsWith(github.event.pull_request.base.ref, 'refs/heads/main')
+      github.ref_type == 'tag' && 
+      github.event_name == 'release' && 
+      github.event.action == 'published'
 
     steps:
       - uses: actions/download-artifact@v3
