@@ -126,8 +126,37 @@ jobs:
         with:
           path: dist/*.tar.gz
 
+  test:
+    runs-on: ubuntu-20.04
+    needs: [build_linux, build_macos]
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: "3.23.x"
+
+      - name: cmake version
+        run: cmake --version
+
+      - name: Configure build
+        run: |
+          cmake . -B build
+
+      - name: Build binary
+        run: |
+          cmake --build build --config RelWithDebInfo -j 16
+
+      - name: Run tests
+        run: |
+          sh bin/run_test.sh
+
   upload_pypi:
-    needs: [build_linux, build_macos, build_sdist]
+    needs: [build_linux, build_macos, build_sdist, tests]
     runs-on: ubuntu-latest
 
     # upload to PyPI on every tag starting with 'v'
