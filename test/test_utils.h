@@ -164,9 +164,13 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
             // back, which can cause some precision loss. So we convert them to
             // strings and compare the strings.
             std::stringstream aa;
+            aa << std::fixed;
+            aa << std::setprecision(6);
             aa << (*ref_vector[i])[j];
             std::string a = aa.str();
             std::stringstream bb;
+            bb << std::fixed;
+            bb << std::setprecision(6);
             bb << (*test_vector[i])[j];
             std::string b = bb.str();
 
@@ -252,6 +256,8 @@ void write_vector_to_csv(std::string filename, std::string header,
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < vector.size(); j++) {
             if (i < vector[j]->size()) {
+                file << std::fixed;
+                file << std::setprecision(6);
                 file << (*vector[j])[i];
             }
             if (j < vector.size() - 1) {
