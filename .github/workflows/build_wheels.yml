@@ -96,7 +96,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_sdist:
-    name: Build SDist
+    name: SDist Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
