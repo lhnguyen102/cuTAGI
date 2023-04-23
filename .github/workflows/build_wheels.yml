@@ -126,51 +126,51 @@ jobs:
         with:
           path: dist/*.tar.gz
 
-  # test:
-  #   needs: [build_linux, build_macos, build_sdist]
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-20.04]
-  #       cuda: ["11.3"]
-  #   if: ${{ github.event.pull_request.draft == false }}
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
+  test:
+    needs: [build_linux, build_macos, build_sdist]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+        cuda: ["11.3"]
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: "3.10"
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-  #     - name: Install CUDA
-  #       env:
-  #         cuda: ${{ matrix.cuda }}
-  #       run: ./extern/action_scripts/install_cuda_ubuntu.sh
-  #       shell: bash
+      - name: Install CUDA
+        env:
+          cuda: ${{ matrix.cuda }}
+        run: ./extern/action_scripts/install_cuda_ubuntu.sh
+        shell: bash
 
-  #     - name: Setup cmake
-  #       uses: jwlawson/actions-setup-cmake@v1.13
-  #       with:
-  #         cmake-version: "3.23.x"
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: "3.23.x"
 
-  #     - name: cmake version
-  #       run: cmake --version
+      - name: cmake version
+        run: cmake --version
 
-  #     - name: Configure build
-  #       run: |
-  #         cmake . -B build
+      - name: Configure build
+        run: |
+          cmake . -B build
 
-  #     - name: Build binary
-  #       run: |
-  #         cmake --build build --config RelWithDebInfo -j 16
+      - name: Build binary
+        run: |
+          cmake --build build --config RelWithDebInfo -j 16
 
-  #     - name: Run tests
-  #       run: |
-  #         sh bin/run_test.sh
+      - name: Run tests
+        run: |
+          sh bin/run_test.sh
 
   upload_pypi:
-    needs: [build_linux, build_macos, build_sdist]
+    needs: [test]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
     if: |
