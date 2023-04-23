@@ -337,6 +337,10 @@ int test_cpu(std::vector<std::string>& user_input_options,
             std::cout << "Passed: " << num_test_passed << std::endl;
             std::cout << "Failed: " << num_tests - num_test_passed << std::endl;
             std::cout << "Total time taken: " << run_time << "ms" << std::endl;
+            std::cout
+                << "Warnings: "
+                << "Unable to perform test on GPU: CUDA device unavailable."
+                << std::endl;
             std::cout << "========================================="
                       << std::endl;
             return num_test_passed;
