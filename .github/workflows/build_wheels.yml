@@ -156,9 +156,8 @@ jobs:
           sh bin/run_test.sh
 
   upload_pypi:
-    needs: [build_linux, build_macos, build_sdist, tests]
+    needs: [build_linux, build_macos, build_sdist, test]
     runs-on: ubuntu-latest
-
     # upload to PyPI on every tag starting with 'v'
     if: |
       github.ref_type == 'tag' &&
