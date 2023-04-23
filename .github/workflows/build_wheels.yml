@@ -4,24 +4,25 @@ on:
   push:
     branches:
       - main
-  # pull_request:
-  #   branches:
-  #     - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build_linux:
-    name: Build wheels on ${{ matrix.os }} ${{ matrix.python_version }}
+    name: Linux Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
         cuda: ["11.3"]
         python_version: ["3.9", "3.10", "3.11"]
+    if: ${{ github.event.pull_request.draft == false }}
     steps:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.13
         with:
-          cmake-version: '3.23.x'
+          cmake-version: "3.23.x"
 
       - name: Use cmake
         run: cmake --version
@@ -40,9 +41,9 @@ jobs:
           cuda: ${{ matrix.cuda }}
         run: ./extern/action_scripts/install_cuda_ubuntu.sh
         shell: bash
-      
+
       - name: Install dependencies
-        run: pip install wheel 
+        run: pip install wheel
 
       - name: Build wheels
         run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
@@ -52,15 +53,15 @@ jobs:
           path: dist/*.whl
 
   build_macos:
-    name: Build wheels on ${{ matrix.os }} ${{ matrix.python_version }}
+    name: MACOS Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-         include:
+        include:
           - os: macos-11
             python_version: "3.9"
             cibuildwheel_python: "cp39-*"
-          
+
           - os: macos-11
             python_version: "3.10"
             cibuildwheel_python: "cp310-*"
@@ -68,7 +69,7 @@ jobs:
           - os: macos-11
             python_version: "3.11"
             cibuildwheel_python: "cp311-*"
-
+    if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -94,46 +95,87 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
-
   build_sdist:
-    name: Build SDist
+    name: SDist Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
         python_version: ["3.9", "3.10", "3.11"]
-
+    if: ${{ github.event.pull_request.draft == false }}
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
-    - name: Set up Python ${{ matrix.python_version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python_version }}
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
 
-    - name: Build SDist
-      run: |
-        python -m pip install setuptools wheel twine
-        python setup.py sdist
+      - name: Build SDist
+        run: |
+          python -m pip install setuptools wheel twine
+          python setup.py sdist
 
-    - uses: actions/upload-artifact@v3
-      with:
-        path: dist/*.tar.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          path: dist/*.tar.gz
+
+  test:
+    name: Test
+    needs: [build_linux, build_macos, build_sdist]
+    runs-on: ubuntu-20.04
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install CUDA
+        env:
+          cuda: "11.3"
+        run: ./extern/action_scripts/install_cuda_ubuntu.sh
+        shell: bash
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: "3.23.x"
+
+      - name: cmake version
+        run: cmake --version
+
+      - name: Configure build
+        run: |
+          cmake . -B build
+
+      - name: Build binary
+        run: |
+          cmake --build build --config RelWithDebInfo -j 16
+
+      - name: Run tests
+        run: |
+          sh bin/run_test.sh
 
   upload_pypi:
-    needs: [build_linux, build_macos, build_sdist]
+    name: PyPI Upload
+    needs: [test]
     runs-on: ubuntu-latest
-
     # upload to PyPI on every tag starting with 'v'
-    #if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    # alternatively, to publish when a GitHub Release is created, use the following rule:
-    # if: github.event_name == 'release' && github.event.action == 'published'
+    if: |
+      github.ref_type == 'tag' && 
+      github.event_name == 'release' && 
+      github.event.action == 'published'
+
     steps:
       - uses: actions/download-artifact@v3
         with:

@@ -5,7 +5,7 @@
 // Created:      October 12, 2021
 // Updated:      September 09, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2021 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+// License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////
 
 #include "../include/param_feed_backward.cuh"
