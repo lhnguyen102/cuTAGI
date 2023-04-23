@@ -9,4 +9,4 @@ __pycache__/
 *.pyc
 pytagi.egg-info
 dist
-!test/
+!test/*.csv
