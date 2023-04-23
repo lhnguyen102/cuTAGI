@@ -127,8 +127,8 @@ jobs:
           path: dist/*.tar.gz
 
   test:
+    needs: [build_linux, build_macos, build_sdist]
     runs-on: ubuntu-20.04
-    needs: [build_linux, build_macos]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v3
