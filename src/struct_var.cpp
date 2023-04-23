@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 17, 2023
-// Updated:      April 19, 2023
+// Updated:      April 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -49,9 +49,10 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
     int num_layers = mha_prop.num_heads.size();
     mha_state.qkv_pos.resize(num_layers, 0);
     mha_state.att_pos.resize(num_layers, 0);
+    mha_state.in_proj_pos.resize(num_layers, 0);
     std::vector<int> num_remax_states(num_layers, 0);
     std::vector<int> num_remax_sum_states(num_layers, 0);
-    int qkv_size, att_size;
+    int qkv_size, att_size, in_proj_size;
     int buffer_size = 0;
     int tot_remax_states = 0, tot_remax_sum_states = 0, max_size;
     for (int i = 0; i < num_layers; i++) {
@@ -60,7 +61,10 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
                    mha_prop.head_size[i];
         att_size = batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i] *
                    mha_prop.timestep[i];
+        in_proj_size =
+            3 * batch_size * mha_prop.num_heads[i] * mha_prop.head_size[i];
         buffer_size = std::max(std::max(buffer_size, qkv_size), att_size);
+        buffer_size = std::max(buffer_size, in_proj_size);
 
         // Set all state values to zero
         mha_state.mu_k.resize(qkv_size, 0);
@@ -76,6 +80,7 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
         if (i < num_layers) {
             mha_state.qkv_pos[i + 1] += qkv_size;
             mha_state.att_pos[i + 1] += att_size;
+            mha_state.in_proj_pos[i + 1] += in_proj_size;
         }
 
         // Remax state

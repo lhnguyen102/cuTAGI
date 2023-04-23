@@ -3,7 +3,7 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      April 19, 2023
+// Updated:      April 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -288,17 +288,17 @@ Args:
     int z_sum_remax_pos = state.mha->remax->z_sum_pos[mha_l];
     int z_pos_out = net_prop.z_pos[l + 1];
     int z_pos_in = net_prop.z_pos[l];
-    int w_emb_pos = net_prop.w_pos[l];
-    int b_emb_pos = net_prop.b_pos[l];
-    int w_proj_pos = net_prop.w_pos[l] + 3 * num_embs * num_embs;
-    int b_proj_pos = net_prop.b_pos[l] + 3 * num_embs;
+    int w_in_proj_pos = net_prop.w_pos[l];
+    int b_in_proj_pos = net_prop.b_pos[l];
+    int w_out_proj_pos = net_prop.w_pos[l] + 3 * num_embs * num_embs;
+    int b_out_proj_pos = net_prop.b_pos[l] + 3 * num_embs;
 
     // Query, key, and value projection through a fully-connected layer
-    fc_mean_cpu(theta.mw, theta.mb, state.ma, w_emb_pos, b_emb_pos, z_pos_in, 0,
-                num_embs, 3 * num_embs, batch_size * timestep,
+    fc_mean_cpu(theta.mw, theta.mb, state.ma, w_in_proj_pos, b_in_proj_pos,
+                z_pos_in, 0, num_embs, 3 * num_embs, batch_size * timestep,
                 state.mha->mu_in_proj);
-    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa, w_emb_pos,
-               b_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs,
+    fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa, w_in_proj_pos,
+               b_in_proj_pos, z_pos_in, 0, num_embs, 3 * num_embs,
                batch_size * timestep, state.mha->var_in_proj);
 
     // Separate the projection componenents into query, key, and values
@@ -340,11 +340,11 @@ Args:
                            state.mha->var_out_proj);
 
     // Output projections
-    fc_mean_cpu(theta.mw, theta.mb, state.mha->mu_out_proj, w_proj_pos,
-                b_proj_pos, qkv_pos, z_pos_out, num_embs, num_embs,
+    fc_mean_cpu(theta.mw, theta.mb, state.mha->mu_out_proj, w_out_proj_pos,
+                b_out_proj_pos, qkv_pos, z_pos_out, num_embs, num_embs,
                 batch_size * timestep, state.mz);
     fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.mha->mu_out_proj,
-               state.mha->var_out_proj, w_proj_pos, b_proj_pos, qkv_pos,
+               state.mha->var_out_proj, w_out_proj_pos, b_out_proj_pos, qkv_pos,
                z_pos_out, num_embs, num_embs, batch_size * timestep, state.Sz);
 }
 
@@ -353,9 +353,9 @@ Args:
 ///////////////////////////////////////////////////////////////////////////////
 void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int z_pos, int qkv_pos,
-                     int att_pos, int batch_size, int num_heads, int timestep,
-                     int head_size, std::vector<float> &delta_mu_s,
+                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
+                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_mu_s,
                      std::vector<float> &delta_var_s)
 /*Compute update values for the hidden states of the score*/
 {
@@ -373,8 +373,7 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                                 j * timestep * head_size + l * head_size + m +
                                 qkv_pos;
                         idx_obs = i * num_heads * timestep * timestep +
-                                  j * timestep * timestep + k * head_size + m +
-                                  z_pos;
+                                  j * timestep * timestep + k * head_size + m;
                         sum_mu += mu_v[idx_v] * delta_mu[idx_obs];
                         sum_var +=
                             mu_v[idx_v] * delta_var[idx_obs] * mu_v[idx_v];
@@ -393,9 +392,9 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
 
 void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int z_pos, int qkv_pos,
-                     int att_pos, int batch_size, int num_heads, int timestep,
-                     int head_size, std::vector<float> &delta_mu_v,
+                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
+                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_mu_v,
                      std::vector<float> &delta_var_v)
 /*Compute update values for the hidden states of the value*/
 {
@@ -413,8 +412,7 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                                 j * timestep * timestep + l * timestep + k +
                                 att_pos;
                         idx_obs = i * num_heads * timestep * timestep +
-                                  j * timestep * timestep + m * timestep + l +
-                                  z_pos;
+                                  j * timestep * timestep + m * timestep + l;
                         sum_mu += mu_s[idx_s] * delta_mu[idx_obs];
                         sum_var +=
                             mu_s[idx_s] * delta_var[idx_obs] * mu_s[idx_s];
@@ -565,37 +563,36 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
 }
 
 void update_self_attention_state(Network &net_prop, NetState &state,
-                                 Param &theta, DeltaState &d_state, int l) {
-    auto mha_l =
-        get_sub_layer_idx(net_prop.layers, l, net_prop.layer_names.mha);
+                                 Param &theta, DeltaState &d_state, int k) {
+    int z_pos_in = net_prop.z_pos[k];
+    int z_pos_out = net_prop.z_pos[k + 1];
+    auto mha_k =
+        get_sub_layer_idx(net_prop.layers, k, net_prop.layer_names.mha);
     int batch_size = net_prop.batch_size;
-    int z_pos_in = net_prop.z_pos[l];
-    int z_pos_out = net_prop.z_pos[l + 1];
-    int num_heads = net_prop.mha->num_heads[mha_l];
-    int timestep = net_prop.mha->timestep[mha_l];
-    int head_size = net_prop.mha->head_size[mha_l];
+    int num_heads = net_prop.mha->num_heads[mha_k];
+    int timestep = net_prop.mha->timestep[mha_k];
+    int head_size = net_prop.mha->head_size[mha_k];
     int num_embs = num_heads * head_size;
     int num_batch_remax = batch_size * timestep * num_heads;
     int emb_batch_timestep = num_embs * batch_size * timestep;
     int batch_timestep = batch_size * timestep;
-    int att_pos = state.mha->att_pos[mha_l];
-    int qkv_pos = state.mha->qkv_pos[mha_l];
-    int z_in_proj_pos = state.mha->z_in_proj_pos[mha_l];
-    int z_out_proj_pos = state.mha->z_out_proj_pos[mha_l];
-    int z_remax_pos = state.mha->remax->z_pos[mha_l];
-    int z_sum_remax_pos = state.mha->remax->z_sum_pos[mha_l];
-    int w_emb_pos = net_prop.w_pos[l];
-    int b_emb_pos = net_prop.b_pos[l];
-    int w_proj_pos = net_prop.w_pos[l] + 3 * num_embs * num_embs;
-    int b_proj_pos = net_prop.b_pos[l] + 3 * num_embs;
+    int att_pos = state.mha->att_pos[mha_k];
+    int qkv_pos = state.mha->qkv_pos[mha_k];
+    int in_proj_pos = state.mha->in_proj_pos[mha_k];
+    int z_remax_pos = state.mha->remax->z_pos[mha_k];
+    int z_sum_remax_pos = state.mha->remax->z_sum_pos[mha_k];
+    int w_in_proj_pos = net_prop.w_pos[k];
+    int b_in_proj_pos = net_prop.b_pos[k];
+    int w_out_proj_pos = net_prop.w_pos[k] + 3 * num_embs * num_embs;
+    int b_out_proj_pos = net_prop.b_pos[k] + 3 * num_embs;
 
     ////////////////////////////////////////////////////////////////////
     // Update output projections
     fc_delta_mz(theta.mw, state.mha->var_out_proj, state.mha->J_out_proj,
-                d_state.delta_m, w_proj_pos, qkv_pos, z_pos_out, num_embs,
+                d_state.delta_m, w_out_proj_pos, qkv_pos, z_pos_out, num_embs,
                 num_embs, batch_timestep, d_state.mha->delta_mu_buffer);
     fc_delta_Sz(theta.mw, state.mha->var_out_proj, state.mha->J_out_proj,
-                d_state.delta_S, w_proj_pos, qkv_pos, z_pos_out, num_embs,
+                d_state.delta_S, w_out_proj_pos, qkv_pos, z_pos_out, num_embs,
                 num_embs, batch_timestep, d_state.mha->delta_var_buffer);
 
     // Inovation for output projections
@@ -613,16 +610,15 @@ void update_self_attention_state(Network &net_prop, NetState &state,
 
     //////////////////////////////////////////////////////////////////////
     // Update values for value hidden states
-    mha_delta_value(state.mha->mu_att_score, state.mha->var_v,
-                    d_state.mha->delta_mu_buffer, d_state.mha->delta_var_buffer,
-                    0, qkv_pos, att_pos, batch_size, num_heads, timestep,
-                    head_size, d_state.mha->delta_mu_v,
-                    d_state.mha->delta_var_v);
+    mha_delta_value(
+        state.mha->mu_att_score, state.mha->var_v, d_state.mha->delta_mu_buffer,
+        d_state.mha->delta_var_buffer, qkv_pos, att_pos, batch_size, num_heads,
+        timestep, head_size, d_state.mha->delta_mu_v, d_state.mha->delta_var_v);
 
     // Update values for score hidden states
     mha_delta_score(state.mha->mu_att_score, state.mha->var_att_score,
                     d_state.mha->delta_mu_buffer, d_state.mha->delta_var_buffer,
-                    0, qkv_pos, att_pos, batch_size, num_heads, timestep,
+                    qkv_pos, att_pos, batch_size, num_heads, timestep,
                     head_size, d_state.mha->delta_mu_att_score,
                     d_state.mha->delta_var_att_score);
 
@@ -657,21 +653,21 @@ void update_self_attention_state(Network &net_prop, NetState &state,
                   d_state.mha->delta_mu_k, d_state.mha->delta_var_k);
 
     ///////////////////////////////////////////////////////////////////////
-    // Concatenate the input projection components (3 x embddings)
+    // Concatenate the input projection components (3 x embeddings)
     cat_intput_projection_components(
         d_state.mha->delta_mu_q, d_state.mha->delta_var_q,
         d_state.mha->delta_mu_k, d_state.mha->delta_var_k,
-        d_state.mha->delta_mu_v, d_state.mha->delta_var_v, 0, 0, batch_size,
-        num_heads, timestep, head_size, d_state.mha->delta_mu_in_proj,
-        d_state.mha->delta_var_in_proj);
+        d_state.mha->delta_mu_v, d_state.mha->delta_var_v, 0, in_proj_pos,
+        batch_size, num_heads, timestep, head_size,
+        d_state.mha->delta_mu_in_proj, d_state.mha->delta_var_in_proj);
 
     // Input of the embedding
     fc_delta_mz(theta.mw, state.Sz, state.J, d_state.mha->delta_mu_in_proj,
-                w_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs, batch_timestep,
-                d_state.mha->delta_mu_buffer);
+                w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, 3 * num_embs,
+                batch_timestep, d_state.mha->delta_mu_buffer);
     fc_delta_Sz(theta.mw, state.Sz, state.J, d_state.mha->delta_var_in_proj,
-                w_emb_pos, z_pos_in, 0, num_embs, 3 * num_embs, batch_timestep,
-                d_state.mha->delta_var_buffer);
+                w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, 3 * num_embs,
+                batch_timestep, d_state.mha->delta_var_buffer);
 
     inovation_mean(state.Sz, d_state.mha->delta_mu_buffer, z_pos_in, 0,
                    emb_batch_timestep, d_state.delta_m);
@@ -686,4 +682,52 @@ void update_self_attention_state(Network &net_prop, NetState &state,
      * TODO: Add w_pos and b_pos to struct_var.cpp
      * TODO: Add backward parameter estimation
      */
+}
+
+void update_self_attention_param(Network &net_prop, Param &theta,
+                                 NetState &state, DeltaState &d_state,
+                                 DeltaParam &d_theta, int k_layer)
+/**/
+{
+    auto mha_k =
+        get_sub_layer_idx(net_prop.layers, k_layer, net_prop.layer_names.mha);
+    int z_pos_out = net_prop.z_pos[k_layer + 1];
+    int z_pos_in = net_prop.z_pos[k_layer];
+    int att_pos = state.mha->att_pos[mha_k];
+    int qkv_pos = state.mha->qkv_pos[mha_k];
+    int in_proj_pos = state.mha->in_proj_pos[mha_k];
+    int num_heads = net_prop.mha->num_heads[mha_k];
+    int timestep = net_prop.mha->timestep[mha_k];
+    int head_size = net_prop.mha->head_size[mha_k];
+    int num_embs = num_heads * head_size;
+    int batch_timestep = net_prop.batch_size * timestep;
+    int w_in_proj_pos = net_prop.w_pos[k_layer];
+    int b_in_proj_pos = net_prop.b_pos[k_layer];
+    int w_out_proj_pos = net_prop.w_pos[k_layer] + 3 * num_embs * num_embs;
+    int b_out_proj_pos = net_prop.b_pos[k_layer] + 3 * num_embs;
+
+    // Parameters for output projections
+    fc_delta_mw(theta.Sw, state.mha->mu_out_proj, d_state.delta_m,
+                w_out_proj_pos, qkv_pos, z_pos_out, num_embs, batch_timestep,
+                num_embs, d_theta.delta_mw);
+    fc_delta_Sw(theta.Sw, state.mha->mu_out_proj, d_state.delta_S,
+                w_out_proj_pos, qkv_pos, z_pos_out, num_embs, batch_timestep,
+                num_embs, d_theta.delta_mw);
+    fc_delta_mb(theta.Sb, d_state.delta_m, b_out_proj_pos, z_pos_out, num_embs,
+                batch_timestep, 1, d_theta.delta_mb);
+    fc_delta_mb(theta.Sb, d_state.delta_S, b_out_proj_pos, z_pos_out, num_embs,
+                batch_timestep, 1, d_theta.delta_Sb);
+
+    // Parameters for input projections. TODO: need to revise the postion for
+    // delta_mu_in_proj
+    fc_delta_mw(theta.Sw, state.ma, d_state.mha->delta_mu_in_proj,
+                w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, batch_timestep,
+                num_embs, d_theta.delta_mw);
+    fc_delta_Sw(theta.Sw, state.ma, d_state.mha->delta_var_in_proj,
+                w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, batch_timestep,
+                num_embs, d_theta.delta_mw);
+    fc_delta_mb(theta.Sb, d_state.mha->delta_mu_in_proj, b_in_proj_pos,
+                in_proj_pos, num_embs, batch_timestep, 1, d_theta.delta_mb);
+    fc_delta_mb(theta.Sb, d_state.mha->delta_var_in_proj, b_in_proj_pos,
+                in_proj_pos, num_embs, batch_timestep, 1, d_theta.delta_Sb);
 }
