@@ -6,8 +6,7 @@
 // Updated:      April 13, 2023
 // Contact:      miquelflorensa11@gmail.com, luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
-// Some rights reserved.
+// License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "test_cpu.h"
@@ -332,7 +331,7 @@ int test_cpu(std::vector<std::string>& user_input_options,
         // Number of tests passed
         if (test_architecture == "all" && !compute_gpu_tests) {
             std::cout << std::endl;
-            std::cout << "---------------SUMMARY-------------------"
+            std::cout << "-----------------SUMMARY-----------------"
                       << std::endl;
             std::cout << "Total tests: " << num_tests << std::endl;
             std::cout << "Passed: " << num_test_passed << std::endl;

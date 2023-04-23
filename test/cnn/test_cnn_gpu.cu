@@ -6,8 +6,7 @@
 // Updated:      April 4, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
-// Copyright (c) 2023 Miquel Florensa, Luong-Ha Nguyen & James-A. Goulet.
-// Some rights reserved.
+// License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "test_cnn_gpu.cuh"
