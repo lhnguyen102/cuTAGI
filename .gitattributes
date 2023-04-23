@@ -1,15 +1,15 @@
-test/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/act_func/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/autoencoder/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/cnn/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/cnn_batch_norm/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/fnn/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/fnn_derivatives/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/fnn_full_cov/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/fnn_heteros/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-test/lstm/data/*.csv  -crlf -diff -merge -filter=lfs -binary
-data/mnist/*.ubyte -crlf -diff -merge -filter=lfs -binary
-data/toy_example/*.csv -crlf -diff -merge -filter=lfs -binary
-data/toy_time_series/*.csv -crlf -diff -merge -filter=lfs -binary
-data/UCI/*.csv -crlf -diff -merge -filter=lfs -binary
-data/Boston_housing/data/*.txt -crlf -diff -merge -filter=lfs -binary
+test/data/*.csv -binary
+test/act_func/data/*.csv -binary
+test/autoencoder/data/*.csv -binary
+test/cnn/data/*.csv -binary
+test/cnn_batch_norm/data/*.csv -binary
+test/fnn/data/*.csv -binary
+test/fnn_derivatives/data/*.csv -binary
+test/fnn_full_cov/data/*.csv -binary
+test/fnn_heteros/data/*.csv -binary
+test/lstm/data/*.csv -binary
+data/mnist/*.ubyte -binary
+data/toy_example/*.csv -binary
+data/toy_time_series/*.csv -binary
+data/UCI/*.csv -binary
+data/Boston_housing/data/*.txt -binary
