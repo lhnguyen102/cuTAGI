@@ -9,4 +9,13 @@ __pycache__/
 *.pyc
 pytagi.egg-info
 dist
-!test/*.csv
+!test/data/*.csv
+!test/act_func/data/*.csv
+!test/autoencoder/data/*.csv
+!test/cnn/data/*.csv
+!test/cnn_batch_norm/data/*.csv
+!test/fnn_derivatives/data/*.csv
+!test/fnn/data/*.csv
+!test/fnn_full_cov/data/*.csv
+!test/fnn_heteros/data/*.csv
+!test/lstm/data/*.csv
