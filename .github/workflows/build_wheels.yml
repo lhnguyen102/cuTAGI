@@ -127,12 +127,9 @@ jobs:
           path: dist/*.tar.gz
 
   test:
+    name: Test
     needs: [build_linux, build_macos, build_sdist]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04]
-        cuda: ["11.3"]
+    runs-on: ubuntu-20.04
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v3
@@ -145,7 +142,7 @@ jobs:
 
       - name: Install CUDA
         env:
-          cuda: ${{ matrix.cuda }}
+          cuda: "11.3"
         run: ./extern/action_scripts/install_cuda_ubuntu.sh
         shell: bash
 
@@ -170,6 +167,7 @@ jobs:
           sh bin/run_test.sh
 
   upload_pypi:
+    name: PyPI Upload
     needs: [test]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
