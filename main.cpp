@@ -5,7 +5,7 @@
 // Created:      January 23, 2022
 // Updated:      September 04, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+// License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
@@ -45,9 +45,6 @@ int main(int argc, char *argv[]) {
         bool compute_gpu_tests = false;
         auto start = std::chrono::steady_clock::now();
         test_cpu(user_input_options, compute_gpu_tests, start);
-        std::cout << std::endl;
-        std::cout << "Unable to perform test on GPU: CUDA device unavailable."
-                  << std::endl;
     } else {
         task_command_cpu(user_input, path);
     }

@@ -5,7 +5,7 @@
 // Created:      January 23, 2022
 // Updated:      December 11, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+// License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -51,15 +51,11 @@ int main(int argc, char* argv[]) {
         auto start = std::chrono::steady_clock::now();
         int num_tests_passed_cpu =
             test_cpu(user_input_options, compute_gpu_tests, start);
-        // If cuda Available and output reinicialization not aborted
-        if (compute_gpu_tests && num_tests_passed_cpu >= 0)
+        // If cuda Available and output re-initialization not aborted
+        if (compute_gpu_tests && num_tests_passed_cpu >= 0) {
             test_gpu(user_input_options, num_tests_passed_cpu, start);
-        else if (!compute_gpu_tests) {
-            std::cout << std::endl;
-            std::cout
-                << "Unable to perform test on GPU: CUDA device unavailable."
-                << std::endl;
         }
+
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "
