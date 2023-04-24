@@ -3,7 +3,7 @@
 // Description:  Header file for the utils functions for unitest
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 13, 2023
+// Updated:      April 24, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
@@ -163,23 +163,19 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
             // written and read from a file, they are converted to strings and
             // back, which can cause some precision loss. So we convert them to
             // strings and compare the strings.
-            std::stringstream aa;
-            aa << std::fixed;
-            aa << std::setprecision(6);
-            aa << (*ref_vector[i])[j];
-            std::string a = aa.str();
-            std::stringstream bb;
-            bb << std::fixed;
-            bb << std::setprecision(6);
-            bb << (*test_vector[i])[j];
-            std::string b = bb.str();
+            double test = round((*test_vector[i])[j] * 10000000) / 10000000;
+            double ref = (*ref_vector[i])[j];
 
-            if (a != b) {
+            double dif = std::abs(test - ref);
+
+            double abs_ref = std::abs(ref);
+
+            if (dif > 1e-5 * abs_ref) {
                 std::cout << "Different values in " << vector_names << " for "
                           << data << " data" << std::endl;
-                std::cout << "ref_vector[" << i << "][" << j << "] = " << a
+                std::cout << "ref_vector[" << i << "][" << j << "] = " << ref
                           << std::endl;
-                std::cout << "test_vector[" << i << "][" << j << "] = " << b
+                std::cout << "test_vector[" << i << "][" << j << "] = " << test
                           << std::endl;
                 return false;
             }
@@ -257,7 +253,7 @@ void write_vector_to_csv(std::string filename, std::string header,
         for (int j = 0; j < vector.size(); j++) {
             if (i < vector[j]->size()) {
                 file << std::fixed;
-                file << std::setprecision(6);
+                file << std::setprecision(7);
                 file << (*vector[j])[i];
             }
             if (j < vector.size() - 1) {
