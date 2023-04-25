@@ -163,7 +163,7 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
             // written and read from a file, they are converted to strings and
             // back, which can cause some precision loss. So we convert them to
             // strings and compare the strings.
-            double test = round((*test_vector[i])[j] * 10000000) / 10000000;
+            double test = round((*test_vector[i])[j] * 1000000000) / 1000000000;
             double ref = (*ref_vector[i])[j];
 
             double dif = std::abs(test - ref);
@@ -253,7 +253,7 @@ void write_vector_to_csv(std::string filename, std::string header,
         for (int j = 0; j < vector.size(); j++) {
             if (i < vector[j]->size()) {
                 file << std::fixed;
-                file << std::setprecision(7);
+                file << std::setprecision(9);
                 file << (*vector[j])[i];
             }
             if (j < vector.size() - 1) {
