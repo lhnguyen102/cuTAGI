@@ -115,8 +115,9 @@ bool test_lstm_cpu(bool recompute_outputs, std::string date, std::string arch,
     } else {
         // PERFORM TESTS
 
+        TagiNetworkCPU tagi_net_ref(net);
         // Read the saved reference parameters
-        TestParamAndStates params_and_states_reference(tagi_net);
+        TestParamAndStates params_and_states_reference(tagi_net_ref);
 
         params_and_states_reference.read_params(test_saving_paths, false);
 
