@@ -193,9 +193,11 @@ bool test_autoencoder_gpu(bool recompute_outputs, std::string date,
     } else {
         // PERFORM TESTS
 
+        TagiNetworkCPU net_e_ref(net_prop_e);
+        TagiNetworkCPU net_d_ref(net_prop_d);
         // Read the saved reference parameters
-        TestParamAndStates params_and_states_encoder_reference(net_e);
-        TestParamAndStates params_and_states_decoder_reference(net_d);
+        TestParamAndStates params_and_states_encoder_reference(net_e_ref);
+        TestParamAndStates params_and_states_decoder_reference(net_d_ref);
 
         params_and_states_encoder_reference.read_params(
             test_saving_paths_encoder, false);
