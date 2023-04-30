@@ -11,8 +11,6 @@
 
 #include "test_cpu.h"
 
-const int NUM_TESTS_CPU = 6;
-const int NUM_TESTS_GPU = 3;
 const std::vector<std::string> AVAILABLE_ARCHITECTURES = {
     "fnn",      "fnn_heteros", "fnn_full_cov",   "fnn_derivatives", "lstm",
     "act_func", "cnn",         "cnn_batch_norm", "autoencoder"};
@@ -102,7 +100,8 @@ void print_test_results(bool single_test, bool test_passed, int num_tests,
 
 int test_cpu(std::vector<std::string>& user_input_options,
              bool compute_gpu_tests,
-             std::chrono::steady_clock::time_point test_start) {
+             std::chrono::steady_clock::time_point test_start,
+             const int NUM_TESTS_CPU, const int NUM_TESTS_GPU) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";

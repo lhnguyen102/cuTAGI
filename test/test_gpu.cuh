@@ -33,4 +33,5 @@
  */
 int test_gpu(std::vector<std::string> &user_input_options,
              int num_tests_passed_cpu,
-             std::chrono::steady_clock::time_point test_start);
+             std::chrono::steady_clock::time_point test_start,
+             const int NUM_TESTS);
