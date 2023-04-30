@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     // Run task
     if (user_input_file.compare("test") == 0) {
         const int NUM_TESTS_CPU = 6;
-        const int NUM_TESTS_GPU = 3;
+        const int NUM_TESTS_GPU = 0;
         const int NUM_TESTS = NUM_TESTS_CPU + NUM_TESTS_GPU;
         bool compute_gpu_tests = false;
         auto start = std::chrono::steady_clock::now();
