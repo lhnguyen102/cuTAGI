@@ -3,7 +3,7 @@
 // Description:  Header file for the utils functions for unitest
 // Authors:      Florensa, Miquel & Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2023
-// Updated:      April 24, 2023
+// Updated:      April 30, 2023
 // Contact:      miquelflorensa11@gmail.com & luongha.nguyen@gmail.com &
 //               james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
@@ -138,6 +138,32 @@ inline bool create_directory_if_not_exists(const std::string &path) {
 }
 
 /**
+ * @brief Chek if two floats are almost equal
+ *
+ * @param test test float
+ * @param ref reference float
+ *
+ * @return true if the floats are almost equal, false otherwise
+ */
+inline bool is_almost_equal(float test, float ref) {
+#ifdef __APPLE__
+    const float tolerance = 2e-2;
+    float threshold = tolerance * std::max(std::abs(test), std::abs(ref));
+#else
+    const float tolerance = 1e-4;
+    float epsilon = std::numeric_limits<float>::epsilon();
+    float threshold;
+    if (std::abs(ref) >= epsilon) {
+        threshold = epsilon;
+    } else {
+        threshold = tolerance * std::max(std::abs(test), std::abs(ref));
+    }
+#endif
+
+    return std::abs(test - ref) <= threshold;
+}
+
+/**
  * @brief Compare two vectors of vectors
  *
  * @param ref_vector reference vector of vectors
@@ -156,15 +182,12 @@ bool compare_vectors(const std::vector<std::vector<T> *> &ref_vector,
         std::cout << "test_vector.size() = " << test_vector.size() << std::endl;
         return false;
     }
-
     for (size_t i = 0; i < ref_vector.size(); i++) {
         for (size_t j = 0; j < ref_vector[i]->size(); j++) {
-            double test = (*test_vector[i])[j];
-            double ref = (*ref_vector[i])[j];
-
-            double diff = std::abs(test - ref);
-
-            if (diff > 1e-8) {
+            float test = (*test_vector[i])[j];
+            float ref = (*ref_vector[i])[j];
+            bool passed = is_almost_equal(test, ref);
+            if (!passed) {
                 std::cout << "Different values in " << vector_names << " for "
                           << data << " data" << std::endl;
                 std::cout << "ref_vector[" << i << "][" << j
@@ -259,7 +282,7 @@ void write_vector_to_csv(std::string filename, std::string header,
         for (int j = 0; j < vector.size(); j++) {
             if (i < vector[j]->size()) {
                 file << std::fixed;
-                file << std::setprecision(12);
+                file << std::setprecision(15);
                 file << (*vector[j])[i];
             }
             if (j < vector.size() - 1) {
