@@ -290,9 +290,8 @@ struct MultiHeadAttentionState
 {
     Remax* remax;
     std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
-        var_att_score, mu_att, var_att, mu_qk, var_qk, mu_mqk, var_mqk, J_mqk,
-        mu_sv, var_sv, mu_out_proj, var_out_proj, J_out_proj, mu_in_proj,
-        var_in_proj;
+        var_att_score, mu_qk, var_qk, mu_mqk, var_mqk, J_mqk, mu_sv, var_sv,
+        mu_out_proj, var_out_proj, J_out_proj, mu_in_proj, var_in_proj;
     std::vector<int> qkv_pos, att_pos, in_proj_pos;
     int buffer_size;
 };
