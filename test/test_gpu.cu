@@ -11,11 +11,10 @@
 
 #include "test_gpu.cuh"
 
-const int NUM_TESTS = 9;
-
 int test_gpu(std::vector<std::string>& user_input_options,
              int num_tests_passed_cpu,
-             std::chrono::steady_clock::time_point test_start) {
+             std::chrono::steady_clock::time_point test_start,
+             const int NUM_TESTS) {
     std::string reinizialize_test_outputs = "";
     std::string test_architecture = "";
     std::string date = "";

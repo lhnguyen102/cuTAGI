@@ -56,9 +56,10 @@ void check_valid_input_architecture(std::string test_architecture);
  * @param test_start time when the test started
  * @return Returns number of passed test or -1 for any error
  */
-int test_cpu(std::vector<std::string> &user_input_options,
+int test_cpu(std::vector<std::string>& user_input_options,
              bool compute_gpu_tests,
-             std::chrono::steady_clock::time_point test_start);
+             std::chrono::steady_clock::time_point test_start,
+             const int NUM_TESTS_CPU, const int NUM_TESTS_GPU);
 
 /**
  * @brief Print the test results

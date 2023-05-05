@@ -46,14 +46,21 @@ int main(int argc, char* argv[]) {
 
     // Run task
     if (user_input_file.compare("test") == 0) {
-        // auto a = test_lstm_cpu();
+        const int NUM_TESTS_CPU = 6;
+        const int NUM_TESTS_GPU = 3;
+        const int NUM_TESTS = NUM_TESTS_CPU + NUM_TESTS_GPU;
         bool compute_gpu_tests = is_cuda_available();
         auto start = std::chrono::steady_clock::now();
         int num_tests_passed_cpu =
-            test_cpu(user_input_options, compute_gpu_tests, start);
+            test_cpu(user_input_options, compute_gpu_tests, start,
+                     NUM_TESTS_CPU, NUM_TESTS_GPU);
         // If cuda Available and output re-initialization not aborted
         if (compute_gpu_tests && num_tests_passed_cpu >= 0) {
-            test_gpu(user_input_options, num_tests_passed_cpu, start);
+            num_tests_passed_cpu = test_gpu(
+                user_input_options, num_tests_passed_cpu, start, NUM_TESTS);
+        }
+        if (num_tests_passed_cpu < NUM_TESTS) {
+            return 1;
         }
 
     } else {

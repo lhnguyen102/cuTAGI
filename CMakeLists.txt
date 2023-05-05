@@ -189,6 +189,7 @@ if(CMAKE_CUDA_COMPILER)
   pybind11_add_module(cutagi "src/python_api.cu")
 else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
+  target_link_libraries(cutagi_lib ${CMAKE_DL_LIBS})
 
   # Executable code i.e. application
   add_executable(main main.cpp)
