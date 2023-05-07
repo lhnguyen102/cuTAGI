@@ -145,6 +145,7 @@ set(CPU_SOURCES
   test/test_cpu.cpp
   test/test_regression.cpp
   test/test_dataloader.cpp
+  test/mha/test_mha_cpu.cpp
 )
 
 # Sources code for CUDA
