@@ -133,18 +133,18 @@ void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
 {
     int idx_q, idx_k, idx_qk;
     float sum_mu, sum_var, sum_mu_masked, sum_var_masked;
-    for (int i = 0; i < batch_size; i < batch_size) {
+    for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
                 for (int l = 0; l < timestep; l++) {
-                    sum_mu = 0;
-                    sum_var = 0;
+                    sum_mu = 0.0f;
+                    sum_var = 0.0f;
                     for (int m = 0; m < head_size; m++) {
                         idx_q = i * num_heads * timestep * head_size +
-                                j * timestep * head_size + k * timestep + m +
+                                j * timestep * head_size + k * head_size + m +
                                 qkv_pos;
                         idx_k = i * num_heads * timestep * head_size +
-                                j * timestep * head_size + l + m * timestep +
+                                j * timestep * head_size + l * head_size + m +
                                 qkv_pos;
 
                         sum_mu += mu_q[idx_q] * mu_k[idx_k];
@@ -167,7 +167,7 @@ void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
                     std::vector<float> &mu_mqk, std::vector<float> &var_mqk) {
     float sum_mu = 0, sum_var = 0;
     int idx_qk, idx_mqk;
-    for (int i = 0; i < batch_size; i < batch_size) {
+    for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
                 for (int l = 0; l < timestep; l++) {
