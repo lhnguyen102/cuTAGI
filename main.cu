@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     } else if (user_input_file.compare("test_mha") == 0) {
-        auto is_passed = test_query_key();
+        auto is_passed = test_mha();
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "

@@ -3,7 +3,7 @@
 // Description:  Header file for unittest for multi-head self-attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 07, 2023
-// Updated:      May 13, 2023
+// Updated:      May 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,4 +16,4 @@
 
 #include "../../include/self_attention_cpu.h"
 
-bool test_query_key();
+int test_mha();

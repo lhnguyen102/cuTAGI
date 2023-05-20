@@ -171,14 +171,15 @@ void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
                 for (int l = 0; l < timestep; l++) {
-                    sum_mu = 0;
-                    sum_var = 0;
+                    sum_mu = 0.0f;
+                    sum_var = 0.0f;
                     for (int m = 0; m < timestep; m++) {
                         if (m <= k) {
                             idx_qk = i * num_heads * timestep * timestep +
-                                     j * timestep * timestep + k * timestep + m;
+                                     j * timestep * timestep + m * timestep + l;
                             sum_mu += mu_qk[idx_qk];
-                            sum_var += var_qk[idx_qk];
+                            sum_var +=
+                                2 * var_qk[idx_qk] + powf(mu_qk[idx_qk], 2);
                         }
                     }
                     idx_mqk = i * num_heads * timestep * timestep +
@@ -220,7 +221,7 @@ void separate_input_projection_components(
                     mu_k[comp_idx] = mu_embs[emb_idx + comp_size];
                     var_k[comp_idx] = mu_embs[emb_idx + comp_size];
 
-                    // Value;
+                    // Value
                     mu_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
                     var_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
                 }
