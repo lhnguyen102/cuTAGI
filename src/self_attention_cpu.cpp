@@ -108,13 +108,13 @@ void tagi_4d_matrix_mul(std::vector<float> &mu_a, std::vector<float> &var_a,
                     sum_mu = 0;
                     sum_var = 0;
                     for (int m = 0; m < D; m++) {
-                        idx_a = i * C * H * W + j * H * W + k * H + m + a_pos;
+                        idx_a = i * C * H * D + j * H * D + k * H + m + a_pos;
                         idx_b = i * C * H * W + j * H * W + l + m * W + b_pos;
 
                         sum_mu += mu_a[idx_a] * mu_b[idx_b];
                         sum_var += var_a[idx_a] * var_b[idx_b] +
                                    var_a[idx_a] * powf(mu_b[idx_b], 2) +
-                                   var_a[idx_a] * powf(mu_b[idx_b], 2);
+                                   var_b[idx_b] * powf(mu_a[idx_a], 2);
                     }
                     idx_ab = i * C * H * W + j * H * W + k * W + l + ab_pos;
                     mu_ab[idx_ab] = sum_mu;
@@ -215,15 +215,15 @@ void separate_input_projection_components(
                               emb_pos;
                     // Query
                     mu_q[comp_idx] = mu_embs[emb_idx];
-                    var_q[comp_idx] = mu_embs[emb_idx];
+                    var_q[comp_idx] = var_embs[emb_idx];
 
                     // Key
                     mu_k[comp_idx] = mu_embs[emb_idx + comp_size];
-                    var_k[comp_idx] = mu_embs[emb_idx + comp_size];
+                    var_k[comp_idx] = var_embs[emb_idx + comp_size];
 
                     // Value
                     mu_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
-                    var_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
+                    var_v[comp_idx] = var_embs[emb_idx + 2 * comp_size];
                 }
             }
         }
@@ -255,12 +255,12 @@ void cat_intput_projection_components(
                     var_embs[emb_idx] = var_q[qkv_idx];
 
                     // Insert key to embeddings
-                    mu_embs[emb_idx + comp_size] = mu_q[qkv_idx];
-                    var_embs[emb_idx + comp_size] = var_q[qkv_idx];
+                    mu_embs[emb_idx + comp_size] = mu_k[qkv_idx];
+                    var_embs[emb_idx + comp_size] = var_k[qkv_idx];
 
                     // Insert value to embeddings
-                    mu_embs[emb_idx + 2 * comp_size] = mu_q[qkv_idx];
-                    var_embs[emb_idx + 2 * comp_size] = var_q[qkv_idx];
+                    mu_embs[emb_idx + 2 * comp_size] = mu_v[qkv_idx];
+                    var_embs[emb_idx + 2 * comp_size] = var_v[qkv_idx];
                 }
             }
         }
@@ -335,10 +335,9 @@ Args:
                        timestep, state.mha->mu_sv, state.mha->var_sv);
 
     // Projection output forward
-    project_output_forward(state.mha->mu_out_proj, state.mha->var_out_proj,
-                           qkv_pos, qkv_pos, batch_size, num_heads, timestep,
-                           head_size, state.mha->mu_out_proj,
-                           state.mha->var_out_proj);
+    project_output_forward(state.mha->mu_sv, state.mha->var_sv, qkv_pos,
+                           qkv_pos, batch_size, num_heads, timestep, head_size,
+                           state.mha->mu_out_proj, state.mha->var_out_proj);
 
     // Output projections
     fc_mean_cpu(theta.mw, theta.mb, state.mha->mu_out_proj, w_out_proj_pos,
