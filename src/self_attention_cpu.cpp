@@ -412,7 +412,7 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                                 j * timestep * timestep + l * timestep + k +
                                 att_pos;
                         idx_obs = i * num_heads * timestep * timestep +
-                                  j * timestep * timestep + m * timestep + l;
+                                  j * timestep * timestep + l * head_size + m;
                         sum_mu += mu_s[idx_s] * delta_mu[idx_obs];
                         sum_var +=
                             mu_s[idx_s] * delta_var[idx_obs] * mu_s[idx_s];

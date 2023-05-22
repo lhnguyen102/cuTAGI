@@ -355,6 +355,112 @@ std::vector<float> create_random_mha_matrix(int batch_size, int num_heads,
     return vec_qk;
 }
 
+std::vector<std::vector<float>> compute_score_update(
+    std::vector<float> &mu_v, std::vector<float> &var_s,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int timestep,
+    int head_size)
+/*Compute the update values for score distribution. NOTE: delta_mu and
+delta_var represent the update quanties of the observation or previous layer.
+The output are the update quanties for the previous layer.
+For example, the transition equation is written as
+    s = z + v, where v ~N(0, sigma)
+The previous layer will use the ouput of the current function following
+    mu_z_post = m_z_prior + cov(z, s) * delta_mu_s
+    var_z_post = var_z_prior + cov(z, s) * delta_var * cov(s, z)
+*/
+{
+    // Initialization
+    std::vector<float> delta_mu_s(timestep * timestep, 0.0f);
+    std::vector<float> delta_var_s(timestep * timestep, 0.0f);
+    float sum_mu, sum_var;
+    int idx_v, idx_obs, idx_s;
+    for (int i = 0; i < timestep; i++) {
+        for (int j = 0; j < timestep; j++) {
+            sum_mu = 0.0f;
+            sum_var = 0.0f;
+            for (int m = 0; m < head_size; m++) {
+                idx_v = j * head_size + m;
+                idx_obs = i * head_size + m;
+                sum_mu += mu_v[idx_v] * delta_mu[idx_obs];
+                sum_var += mu_v[idx_v] * delta_var[idx_obs] * mu_v[idx_v];
+            }
+            idx_s = i * timestep + j;
+            delta_mu_s[idx_s] = sum_mu / var_s[idx_s];
+            delta_var_s[idx_s] = sum_var / powf(var_s[idx_s], 2);
+        }
+    }
+    return {delta_mu_s, delta_var_s};
+}
+
+std::vector<std::vector<float>> compute_batch_score_update(
+    std::vector<float> &mu_v, std::vector<float> &var_s,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int batch_size,
+    int num_heads, int timestep, int head_size)
+/*Compute updates in batch for score distribution*/
+{
+    std::vector<float> delta_mu_s(batch_size * num_heads * timestep * timestep,
+                                  0.0f);
+    std::vector<float> delta_var_s(batch_size * num_heads * timestep * timestep,
+                                   0.0f);
+    int pos_s, pos_v;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            // Matrix position
+            pos_v =
+                i * num_heads * timestep * head_size + j * timestep * head_size;
+            pos_s =
+                i * num_heads * timestep * timestep + j * timestep * timestep;
+
+            // Get 2d array vectors
+            auto mu_v_2d = get_vec_2d(mu_v, pos_v, timestep * head_size);
+            auto var_s_2d = get_vec_2d(var_s, pos_s, timestep * timestep);
+            auto delta_mu_2d =
+                get_vec_2d(delta_mu, pos_v, timestep * head_size);
+            auto delta_var_2d =
+                get_vec_2d(delta_var, pos_v, timestep * head_size);
+
+            // Get update values
+            auto update_val =
+                compute_score_update(mu_v_2d, var_s_2d, delta_mu_2d,
+                                     delta_var_s, timestep, head_size);
+
+            // Merge vectors
+            merge_vec(update_val[0], pos_s, timestep * timestep, delta_mu_s);
+            merge_vec(update_val[1], pos_s, timestep * timestep, delta_var_s);
+        }
+    }
+    return {delta_mu_s, delta_var_s};
+}
+
+std::vector<std::vector<float>> compute_value_update(
+    std::vector<float> &mu_s, std::vector<float> &var_v,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int timestep,
+    int head_size)
+/*Compute the update values for score distribution*/
+{
+    // Initialization
+    std::vector<float> delta_mu_v(timestep * head_size, 0.0f);
+    std::vector<float> delta_var_v(timestep * head_size, 0.0f);
+    float sum_mu, sum_var;
+    int idx_v, idx_obs, idx_s;
+    for (int i = 0; i < timestep; i++) {
+        for (int j = 0; j < head_size; j++) {
+            sum_mu = 0.0f;
+            sum_var = 0.0f;
+            for (int m = 0; m < timestep; m++) {
+                idx_s = m * timestep + i;
+                idx_obs = m * head_size + j;
+                sum_mu += mu_s[idx_s] * delta_mu[idx_obs];
+                sum_var += mu_s[idx_s] * delta_var[idx_obs] * mu_s[idx_s];
+            }
+            idx_v = i * head_size + j;
+            delta_mu_v[idx_v] = sum_mu / var_v[idx_v];
+            delta_var_v[idx_v] = sum_var / powf(var_v[idx_v], 2);
+        }
+    }
+    return {delta_mu_v, delta_var_v};
+}
+
 bool is_close(std::string &test_name, std::vector<float> &ref,
               std::vector<float> &test) {
     if (ref.size() != test.size()) {
