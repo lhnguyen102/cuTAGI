@@ -3,7 +3,7 @@
 // Description:  Header of CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      May 21, 2023
+// Updated:      May 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -58,3 +58,30 @@ void cat_intput_projection_components(
     std::vector<float> &mu_v, std::vector<float> &var_v, int qkv_pos,
     int emb_pos, int batch_size, int num_heads, int timestep, int head_size,
     std::vector<float> &mu_embs, std::vector<float> &var_embs);
+
+void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
+                     std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
+                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_mu_s,
+                     std::vector<float> &delta_var_s);
+
+void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
+                     std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
+                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_mu_v,
+                     std::vector<float> &delta_var_v);
+
+void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
+                     std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
+                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_mu_q,
+                     std::vector<float> &delta_var_q);
+
+void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
+                   std::vector<float> &delta_mu, std::vector<float> &delta_var,
+                   int qkv_pos, int att_pos, int batch_size, int num_heads,
+                   int timestep, int head_size, std::vector<float> &delta_mu_k,
+                   std::vector<float> &delta_var_k);

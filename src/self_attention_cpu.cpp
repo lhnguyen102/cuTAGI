@@ -3,7 +3,7 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      April 20, 2023
+// Updated:      April 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -365,15 +365,15 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
-                for (int l = 0; l < timestep; k++) {
+                for (int l = 0; l < timestep; l++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
                     for (int m = 0; m < head_size; m++) {
                         idx_v = i * num_heads * timestep * head_size +
                                 j * timestep * head_size + l * head_size + m +
                                 qkv_pos;
-                        idx_obs = i * num_heads * timestep * timestep +
-                                  j * timestep * timestep + k * head_size + m;
+                        idx_obs = i * num_heads * timestep * head_size +
+                                  j * timestep * head_size + k * head_size + m;
                         sum_mu += mu_v[idx_v] * delta_mu[idx_obs];
                         sum_var +=
                             mu_v[idx_v] * delta_var[idx_obs] * mu_v[idx_v];
@@ -411,14 +411,14 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                         idx_s = i * num_heads * timestep * timestep +
                                 j * timestep * timestep + l * timestep + k +
                                 att_pos;
-                        idx_obs = i * num_heads * timestep * timestep +
-                                  j * timestep * timestep + l * head_size + m;
+                        idx_obs = i * num_heads * timestep * head_size +
+                                  j * timestep * head_size + l * head_size + m;
                         sum_mu += mu_s[idx_s] * delta_mu[idx_obs];
                         sum_var +=
                             mu_s[idx_s] * delta_var[idx_obs] * mu_s[idx_s];
                     }
                     idx_v = i * num_heads * timestep * head_size +
-                            j * timestep * head_size + k * timestep + m;
+                            j * timestep * head_size + k * head_size + m;
                     // NOTE: We compute directly the delta innovation
                     delta_mu_v[idx_v] = sum_mu / var_v[idx_v + qkv_pos];
                     delta_var_v[idx_v] =
@@ -451,7 +451,7 @@ void backward_delta_z_y_remax_cpu(std::vector<float> &delta_mu,
 }
 
 void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
-                     std::vector<float> &var_s, std::vector<float> &delta_mu,
+                     std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int qkv_pos, int att_pos,
                      int batch_size, int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_q,
@@ -468,7 +468,7 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
  * the inovation vectors
  */
 {
-    int idx_q, idx_k, idx_s;
+    int idx_q, idx_k, idx_s, block_row, block_col;
     float sum_mu, sum_var;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
@@ -476,10 +476,10 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                 for (int k = 0; k < timestep; k++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
+                    block_row = (k * head_size + m) / head_size;
                     for (int l = 0; l < timestep; l++) {
-                        // TO BE TESTED
-                        int reduced_row = ((k * timestep + m) / head_size);
-                        if (reduced_row * k * timestep <= l) {
+                        block_col = (k * timestep + l) / timestep;
+                        if (block_row > block_col) {
                             idx_k = i * num_heads * timestep * head_size +
                                     j * timestep * head_size + l * head_size +
                                     m + qkv_pos;
@@ -495,10 +495,8 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                             j * timestep * head_size + m + k * timestep;
 
                     // NOTE: We compute directly the delta innovation
-                    delta_mu_q[idx_q] =
-                        sum_mu / powf(num_heads, 0.5) / var_q[idx_q + qkv_pos];
-                    delta_var_q[idx_q] =
-                        sum_var / num_heads / powf(var_q[idx_q + qkv_pos], 2);
+                    delta_mu_q[idx_q] = sum_mu / powf(num_heads, 0.5);
+                    delta_var_q[idx_q] = sum_var / num_heads;
                 }
             }
         }
@@ -506,10 +504,9 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
 }
 
 void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
-                   std::vector<float> &var_s, std::vector<float> &delta_mu,
-                   std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                   int batch_size, int num_heads, int timestep, int head_size,
-                   std::vector<float> &delta_mu_k,
+                   std::vector<float> &delta_mu, std::vector<float> &delta_var,
+                   int qkv_pos, int att_pos, int batch_size, int num_heads,
+                   int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k)
 /**
  * Computes the update values for the key's hidden states. See
@@ -523,7 +520,7 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
  * not the inovation vectors
  */
 {
-    int idx_q, idx_k, idx_s;
+    int idx_q, idx_k, idx_s, block_row, block_col;
     float sum_mu, sum_var;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
@@ -531,10 +528,10 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                 for (int k = 0; k < timestep; k++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
+                    block_row = (k * head_size + m) / head_size;
                     for (int l = 0; l < timestep; l++) {
-                        // TO BE TESTED
-                        int reduced_row = ((k * timestep + m) / head_size);
-                        if (reduced_row * k * timestep <= l) {
+                        block_col = (k * timestep + l) / timestep;
+                        if (block_row > block_col) {
                             idx_k = i * num_heads * timestep * head_size +
                                     j * timestep * head_size + l * head_size +
                                     m + qkv_pos;
@@ -641,16 +638,16 @@ void update_self_attention_state(Network &net_prop, NetState &state,
         timestep, d_state.mha->delta_mu_r, d_state.mha->delta_var_r);
 
     // Update values for query hidden states
-    mha_delta_query(state.mha->var_q, state.mha->mu_k, state.mha->var_mqk,
-                    d_state.mha->delta_mu_r, d_state.mha->delta_var_r, qkv_pos,
-                    att_pos, batch_size, num_heads, timestep, head_size,
-                    d_state.mha->delta_mu_q, d_state.mha->delta_var_q);
+    mha_delta_query(state.mha->var_q, state.mha->mu_k, d_state.mha->delta_mu_r,
+                    d_state.mha->delta_var_r, qkv_pos, att_pos, batch_size,
+                    num_heads, timestep, head_size, d_state.mha->delta_mu_q,
+                    d_state.mha->delta_var_q);
 
     // Update values for key hidden states
-    mha_delta_key(state.mha->var_k, state.mha->mu_q, state.mha->var_mqk,
-                  d_state.mha->delta_mu_r, d_state.mha->delta_var_r, qkv_pos,
-                  att_pos, batch_size, num_heads, timestep, head_size,
-                  d_state.mha->delta_mu_k, d_state.mha->delta_var_k);
+    mha_delta_key(state.mha->var_k, state.mha->mu_q, d_state.mha->delta_mu_r,
+                  d_state.mha->delta_var_r, qkv_pos, att_pos, batch_size,
+                  num_heads, timestep, head_size, d_state.mha->delta_mu_k,
+                  d_state.mha->delta_var_k);
 
     ///////////////////////////////////////////////////////////////////////
     // Concatenate the input projection components (3 x embeddings)

@@ -3,7 +3,7 @@
 // Description:  Unittest for multi-head self-attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 07, 2023
-// Updated:      May 20, 2023
+// Updated:      May 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -422,7 +422,7 @@ std::vector<std::vector<float>> compute_batch_score_update(
             // Get update values
             auto update_val =
                 compute_score_update(mu_v_2d, var_s_2d, delta_mu_2d,
-                                     delta_var_s, timestep, head_size);
+                                     delta_var_2d, timestep, head_size);
 
             // Merge vectors
             merge_vec(update_val[0], pos_s, timestep * timestep, delta_mu_s);
@@ -461,34 +461,190 @@ std::vector<std::vector<float>> compute_value_update(
     return {delta_mu_v, delta_var_v};
 }
 
+std::vector<std::vector<float>> compute_batch_value_update(
+    std::vector<float> &mu_s, std::vector<float> &var_v,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int batch_size,
+    int num_heads, int timestep, int head_size)
+/*Compute updates in batch for score distribution*/
+{
+    std::vector<float> delta_mu_v(batch_size * num_heads * timestep * head_size,
+                                  0.0f);
+    std::vector<float> delta_var_v(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    int pos_s, pos_v;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            // Matrix position
+            pos_v =
+                i * num_heads * timestep * head_size + j * timestep * head_size;
+            pos_s =
+                i * num_heads * timestep * timestep + j * timestep * timestep;
+
+            // Get 2d array vectors
+            auto var_v_2d = get_vec_2d(var_v, pos_v, timestep * head_size);
+            auto mu_s_2d = get_vec_2d(mu_s, pos_s, timestep * timestep);
+            auto delta_mu_2d =
+                get_vec_2d(delta_mu, pos_v, timestep * head_size);
+            auto delta_var_2d =
+                get_vec_2d(delta_var, pos_v, timestep * head_size);
+
+            // Get update values
+            auto update_val =
+                compute_value_update(mu_s_2d, var_v_2d, delta_mu_2d,
+                                     delta_var_2d, timestep, head_size);
+
+            // Merge vectors
+            merge_vec(update_val[0], pos_v, timestep * head_size, delta_mu_v);
+            merge_vec(update_val[1], pos_v, timestep * head_size, delta_var_v);
+        }
+    }
+    return {delta_mu_v, delta_var_v};
+}
+
 std::vector<std::vector<float>> compute_query_update(
-    std::vector<float> &var_q, std::vector<float> &mu_k,
-    std::vector<float> &var_s, std::vector<float> &delta_mu,
-    std::vector<float> &delta_var, int batch_size, int num_heads, int timestep,
-    int head_size)
+    std::vector<float> &mu_k, std::vector<float> &var_q,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int num_heads,
+    int timestep, int head_size)
 /*Compute the update values for query distribution*/
 {
     // Initialization
-    int idx_q, idx_k, idx_s;
+    int idx_q, idx_k, idx_s, block_row, block_col;
     float sum_mu, sum_var;
-    std::vector<float> delta_mu(batch_size * num_heads * timestep * head_size,
-                                0.0f);
-    std::vector<float> delta_var(batch_size * num_heads * timestep * head_size,
-                                 0.0f);
+    std::vector<float> delta_mu_q(timestep * head_size, 0.0f);
+    std::vector<float> delta_var_q(timestep * head_size, 0.0f);
     for (int i = 0; i < head_size; i++) {
         for (int j = 0; j < timestep; j++) {
             sum_mu = 0.0f;
             sum_var = 0.0f;
-            for (int l = 0; l < timestep; l++) {
-                idx_k = l * head_size + i;
-                idx_s = j * timestep + l;
-                sum_mu += mu_k[idx_k] * delta_mu[idx_s];
-                sum_var += mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
+            block_col = (j * head_size + i) / head_size;
+            for (int k = 0; k < timestep; k++) {
+                block_row = (j * timestep + k) / timestep;
+                if (block_row > block_col) {
+                    idx_k = k * head_size + i;
+                    idx_s = j * timestep + k;
+                    sum_mu += mu_k[idx_k] * delta_mu[idx_s];
+                    sum_var += mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
+                }
             }
             idx_q = i + j * head_size;
+            delta_mu_q[idx_q] = sum_mu / powf(num_heads, 0.5);
+            delta_var_q[idx_q] = sum_var / num_heads;
         }
     }
-    return {delta_mu, delta_var};
+    return {delta_mu_q, delta_var_q};
+}
+
+std::vector<std::vector<float>> compute_batch_query_update(
+    std::vector<float> &mu_k, std::vector<float> &var_q,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int batch_size,
+    int num_heads, int timestep, int head_size)
+/*Compute updates in batch for score distribution*/
+{
+    std::vector<float> delta_mu_q(batch_size * num_heads * timestep * head_size,
+                                  0.0f);
+    std::vector<float> delta_var_q(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    int pos_q, pos_s;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            // Matrix position
+            pos_q =
+                i * num_heads * timestep * head_size + j * timestep * head_size;
+            pos_s =
+                i * num_heads * timestep * timestep + j * timestep * timestep;
+
+            // Get 2d array vectors
+            auto mu_k_2d = get_vec_2d(mu_k, pos_q, timestep * head_size);
+            auto var_q_2d = get_vec_2d(var_q, pos_q, timestep * timestep);
+            auto delta_mu_2d = get_vec_2d(delta_mu, pos_s, timestep * timestep);
+            auto delta_var_2d =
+                get_vec_2d(delta_var, pos_s, timestep * timestep);
+
+            // Get update values
+            auto update_val = compute_query_update(
+                mu_k_2d, var_q_2d, delta_mu_2d, delta_var_2d, num_heads,
+                timestep, head_size);
+
+            // Merge vectors
+            merge_vec(update_val[0], pos_q, timestep * head_size, delta_mu_q);
+            merge_vec(update_val[1], pos_q, timestep * head_size, delta_var_q);
+        }
+    }
+    return {delta_mu_q, delta_var_q};
+}
+
+std::vector<std::vector<float>> compute_key_update(
+    std::vector<float> &mu_q, std::vector<float> &var_k,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int num_heads,
+    int timestep, int head_size)
+/*Compute the update values for key distribution*/
+{
+    // Initialization
+    std::vector<float> delta_mu_k(timestep * head_size, 0.0f);
+    std::vector<float> delta_var_k(timestep * head_size, 0.0f);
+    int idx_delta, idx_k, idx_s, block_row, block_col;
+    float sum_mu, sum_var;
+    for (int i = 0; i < head_size; i++) {
+        for (int j = 0; j < timestep; j++) {
+            sum_mu = 0.0f;
+            sum_var = 0.0f;
+            block_col = (j * head_size + i) / head_size;
+            for (int k = 0; k < timestep; k++) {
+                block_row = (j * timestep + k) / timestep;
+                if (block_row > block_col) {
+                    idx_k = k * head_size + i;
+                    idx_s = j * timestep + k;
+                    sum_mu += var_k[idx_k] * delta_mu[idx_s];
+                    sum_var += var_k[idx_k] * delta_var[idx_s] * var_k[idx_k];
+                }
+            }
+            idx_delta = j * timestep + i;
+            delta_mu_k[idx_delta] =
+                sum_mu * mu_q[idx_delta] / powf(num_heads, 0.5);
+            delta_var[idx_delta] = mu_q[idx_delta] * sum_var * mu_q[idx_delta] /
+                                   num_heads / powf(var_k[idx_delta], 2);
+        }
+    }
+    return {delta_mu_k, delta_var_k};
+}
+
+std::vector<std::vector<float>> compute_batch_key_update(
+    std::vector<float> &mu_q, std::vector<float> &var_k,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int batch_size,
+    int num_heads, int timestep, int head_size)
+/*Compute updates in batch for score distribution*/
+{
+    std::vector<float> delta_mu_k(batch_size * num_heads * timestep * head_size,
+                                  0.0f);
+    std::vector<float> delta_var_k(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    int pos_k, pos_s;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            // Matrix position
+            pos_k =
+                i * num_heads * timestep * head_size + j * timestep * head_size;
+            pos_s =
+                i * num_heads * timestep * timestep + j * timestep * timestep;
+
+            // Get 2d array vectors
+            auto mu_q_2d = get_vec_2d(mu_q, pos_k, timestep * head_size);
+            auto var_k_2d = get_vec_2d(var_k, pos_k, timestep * timestep);
+            auto delta_mu_2d = get_vec_2d(delta_mu, pos_s, timestep * timestep);
+            auto delta_var_2d =
+                get_vec_2d(delta_var, pos_s, timestep * timestep);
+
+            // Get update values
+            auto update_val =
+                compute_key_update(mu_q_2d, var_k_2d, delta_mu_2d, delta_var_2d,
+                                   num_heads, timestep, head_size);
+
+            // Merge vectors
+            merge_vec(update_val[0], pos_k, timestep * head_size, delta_mu_k);
+            merge_vec(update_val[1], pos_k, timestep * head_size, delta_var_k);
+        }
+    }
+    return {delta_mu_k, delta_var_k};
 }
 
 bool is_close(std::string &test_name, std::vector<float> &ref,
@@ -673,7 +829,7 @@ bool test_tagi_4d_matrix_mul() {
     bool is_mean_passed = is_close(mean_test_name, mu_fwd, mu_fwd_mha);
     bool is_var_passed = is_close(var_test_name, var_fwd, var_fwd_mha);
 
-    return true;
+    return is_mean_passed && is_var_passed;
 }
 
 bool test_input_projection() {
@@ -787,6 +943,200 @@ bool test_output_projection() {
     return (is_mean_passed && is_var_passed);
 }
 
+bool test_score_update() {
+    int seed = 1;
+    int batch_size = 2;
+    int num_heads = 2;
+    int timestep = 3;
+    int head_size = 2;
+    float min_value = 0.0f;
+    float max_value = 5.0f;
+
+    // Generate mu and var for value
+    auto mu_v = create_random_mha_matrix(batch_size, num_heads, timestep,
+                                         head_size, min_value, max_value, seed);
+    auto var_s =
+        create_random_mha_matrix(batch_size, num_heads, timestep, timestep,
+                                 min_value, max_value, seed, true);
+
+    auto delta_mu = create_random_mha_matrix(
+        batch_size, num_heads, timestep, head_size, min_value, max_value, seed);
+
+    auto delta_var = create_random_mha_matrix(
+        batch_size, num_heads, timestep, head_size, min_value, max_value, seed);
+
+    // Compute updating values
+    auto delta_s_dist =
+        compute_batch_score_update(mu_v, var_s, delta_mu, delta_var, batch_size,
+                                   num_heads, timestep, head_size);
+    auto delta_mu_s = delta_s_dist[0];
+    auto delta_var_s = delta_s_dist[1];
+
+    // Self-attention function
+    std::vector<float> delta_mu_s_mha(
+        batch_size * num_heads * timestep * timestep, 0.0f);
+    std::vector<float> delta_var_s_mha(
+        batch_size * num_heads * timestep * timestep, 0.0f);
+
+    mha_delta_score(mu_v, var_s, delta_mu, delta_var, 0, 0, batch_size,
+                    num_heads, timestep, head_size, delta_mu_s_mha,
+                    delta_var_s_mha);
+
+    // Test
+    std::string mean_test_name = "Delta mean score";
+    std::string var_test_name = "Delta var score";
+
+    bool is_mean_passed = is_close(mean_test_name, delta_mu_s, delta_mu_s_mha);
+    bool is_var_passed = is_close(var_test_name, delta_var_s, delta_var_s_mha);
+
+    return is_mean_passed && is_var_passed;
+}
+
+bool test_value_update() {
+    int seed = 1;
+    int batch_size = 2;
+    int num_heads = 2;
+    int timestep = 3;
+    int head_size = 2;
+    float min_value = 0.0f;
+    float max_value = 5.0f;
+
+    // Generate data
+    auto mu_s = create_random_mha_matrix(batch_size, num_heads, timestep,
+                                         timestep, min_value, max_value, seed);
+    auto var_v =
+        create_random_mha_matrix(batch_size, num_heads, timestep, head_size,
+                                 min_value, max_value, seed, true);
+
+    auto delta_mu = create_random_mha_matrix(
+        batch_size, num_heads, timestep, head_size, min_value, max_value, seed);
+
+    auto delta_var = create_random_mha_matrix(
+        batch_size, num_heads, timestep, head_size, min_value, max_value, seed);
+
+    // Compute updating value
+    auto delta_v_dist =
+        compute_batch_value_update(mu_s, var_v, delta_mu, delta_var, batch_size,
+                                   num_heads, timestep, head_size);
+    auto delta_mu_v = delta_v_dist[0];
+    auto delta_var_v = delta_v_dist[1];
+
+    // Self-attention function
+    std::vector<float> delta_mu_v_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    std::vector<float> delta_var_v_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+
+    mha_delta_value(mu_s, var_v, delta_mu, delta_var, 0, 0, batch_size,
+                    num_heads, timestep, head_size, delta_mu_v_mha,
+                    delta_var_v_mha);
+
+    // Test
+    std::string mean_test_name = "Delta mean value";
+    std::string var_test_name = "Delta var value";
+
+    bool is_mean_passed = is_close(mean_test_name, delta_mu_v, delta_mu_v_mha);
+    bool is_var_passed = is_close(var_test_name, delta_var_v, delta_var_v_mha);
+
+    return is_mean_passed && is_var_passed;
+}
+
+bool test_query_update() {
+    int seed = 1;
+    int batch_size = 2;
+    int num_heads = 2;
+    int timestep = 3;
+    int head_size = 2;
+    float min_value = 0.0f;
+    float max_value = 5.0f;
+
+    // Generate data
+    auto mu_k = create_random_mha_matrix(batch_size, num_heads, timestep,
+                                         head_size, min_value, max_value, seed);
+    auto var_q =
+        create_random_mha_matrix(batch_size, num_heads, timestep, head_size,
+                                 min_value, max_value, seed, true);
+
+    auto delta_mu = create_random_mha_matrix(
+        batch_size, num_heads, timestep, timestep, min_value, max_value, seed);
+
+    auto delta_var = create_random_mha_matrix(
+        batch_size, num_heads, timestep, timestep, min_value, max_value, seed);
+
+    // Compute updating values
+    auto delta_q_dist =
+        compute_batch_key_update(mu_k, var_q, delta_mu, delta_var, batch_size,
+                                 num_heads, timestep, head_size);
+    auto delta_mu_q = delta_q_dist[0];
+    auto delta_var_q = delta_q_dist[1];
+
+    // Selt-attention function
+    std::vector<float> delta_mu_q_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    std::vector<float> delta_var_q_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+
+    mha_delta_query(var_q, mu_k, delta_mu, delta_var, 0, 0, batch_size,
+                    num_heads, timestep, head_size, delta_mu_q_mha,
+                    delta_var_q_mha);
+    // Test
+    std::string mean_test_name = "Delta mean query";
+    std::string var_test_name = "Delta var query";
+
+    bool is_mean_passed = is_close(mean_test_name, delta_mu_q, delta_mu_q_mha);
+    bool is_var_passed = is_close(var_test_name, delta_var_q, delta_var_q_mha);
+
+    return is_mean_passed && is_var_passed;
+}
+
+bool test_key_update() {
+    int seed = 1;
+    int batch_size = 2;
+    int num_heads = 2;
+    int timestep = 3;
+    int head_size = 2;
+    float min_value = 0.0f;
+    float max_value = 5.0f;
+
+    // Generate data
+    auto mu_q = create_random_mha_matrix(batch_size, num_heads, timestep,
+                                         head_size, min_value, max_value, seed);
+    auto var_k =
+        create_random_mha_matrix(batch_size, num_heads, timestep, timestep,
+                                 min_value, max_value, seed, true);
+
+    auto delta_mu = create_random_mha_matrix(
+        batch_size, num_heads, timestep, timestep, min_value, max_value, seed);
+
+    auto delta_var = create_random_mha_matrix(
+        batch_size, num_heads, timestep, timestep, min_value, max_value, seed);
+
+    // Compute updating values
+    auto delta_k_dist =
+        compute_batch_key_update(mu_q, var_k, delta_mu, delta_var, batch_size,
+                                 num_heads, timestep, head_size);
+    auto delta_mu_k = delta_k_dist[0];
+    auto delta_var_k = delta_k_dist[1];
+
+    // Selt-attention function
+    std::vector<float> delta_mu_k_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+    std::vector<float> delta_var_k_mha(
+        batch_size * num_heads * timestep * head_size, 0.0f);
+
+    mha_delta_key(var_k, mu_q, delta_mu, delta_var, 0, 0, batch_size, num_heads,
+                  timestep, head_size, delta_mu_k_mha, delta_var_k_mha);
+
+    // Test
+    std::string mean_test_name = "Delta mean key";
+    std::string var_test_name = "Delta var key";
+
+    bool is_mean_passed = is_close(mean_test_name, delta_mu_k, delta_mu_k_mha);
+    bool is_var_passed = is_close(var_test_name, delta_var_k, delta_var_k_mha);
+
+    return is_mean_passed && is_var_passed;
+}
+
 int test_mha() {
     std::cout << "=========================================" << std::endl;
     std::cout << std::setw(7) << " " << std::setw(7)
@@ -797,6 +1147,10 @@ int test_mha() {
     auto is_mat_mul_passed = test_tagi_4d_matrix_mul();
     auto is_input_proj_passed = test_input_projection();
     auto is_output_proj_passed = test_output_projection();
+    auto is_delta_score_passed = test_score_update();
+    auto is_delta_value_passed = test_value_update();
+    auto is_delta_query_passed = test_query_update();
+    auto is_delta_key_passed = test_key_update();
 
     return 0;
 }
