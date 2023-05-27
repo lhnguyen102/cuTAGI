@@ -461,6 +461,36 @@ std::vector<std::vector<float>> compute_value_update(
     return {delta_mu_v, delta_var_v};
 }
 
+std::vector<std::vector<float>> compute_query_update(
+    std::vector<float> &var_q, std::vector<float> &mu_k,
+    std::vector<float> &var_s, std::vector<float> &delta_mu,
+    std::vector<float> &delta_var, int batch_size, int num_heads, int timestep,
+    int head_size)
+/*Compute the update values for query distribution*/
+{
+    // Initialization
+    int idx_q, idx_k, idx_s;
+    float sum_mu, sum_var;
+    std::vector<float> delta_mu(batch_size * num_heads * timestep * head_size,
+                                0.0f);
+    std::vector<float> delta_var(batch_size * num_heads * timestep * head_size,
+                                 0.0f);
+    for (int i = 0; i < head_size; i++) {
+        for (int j = 0; j < timestep; j++) {
+            sum_mu = 0.0f;
+            sum_var = 0.0f;
+            for (int l = 0; l < timestep; l++) {
+                idx_k = l * head_size + i;
+                idx_s = j * timestep + l;
+                sum_mu += mu_k[idx_k] * delta_mu[idx_s];
+                sum_var += mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
+            }
+            idx_q = i + j * head_size;
+        }
+    }
+    return {delta_mu, delta_var};
+}
+
 bool is_close(std::string &test_name, std::vector<float> &ref,
               std::vector<float> &test) {
     if (ref.size() != test.size()) {
