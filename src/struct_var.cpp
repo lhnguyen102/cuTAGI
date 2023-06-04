@@ -52,7 +52,7 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
     mha_state.in_proj_pos.resize(num_layers, 0);
     std::vector<int> num_remax_states(num_layers, 0);
     std::vector<int> num_remax_sum_states(num_layers, 0);
-    int qkv_size, att_size, in_proj_size;
+    int qkv_size, att_size, in_proj_size, mha_i;
     int buffer_size = 0;
     int buffer_size_sv = 0;
     int tot_remax_states = 0, tot_remax_sum_states = 0, max_size;

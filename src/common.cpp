@@ -389,7 +389,7 @@ float normpdf_cpu(float x, float mu, float sigma)
 ///////////////////////////////////////////////////////
 int get_sub_layer_idx(std::vector<int> &layer, int curr_layer,
                       int layer_label) {
-    int sub_idx = 0;
+    int sub_idx = -1;
     for (int i = 0; i < curr_layer + 1; i++) {
         if (layer[i] == layer_label) {
             sub_idx++;

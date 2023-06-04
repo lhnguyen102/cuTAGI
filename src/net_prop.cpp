@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      March 18, 2023
+// Updated:      June 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,6 +12,24 @@
 ////////////////////////////////////////////////////////////////////////////
 /// LAYER CHECK
 ////////////////////////////////////////////////////////////////////////////
+bool is_mha(std::vector<int> &layers, LayerLabel &layer_names)
+/*Does network contain the multi-head self-attention layer?
+Args:
+    layers: All layer types of the network
+    layer_names: Code name of each layer
+
+Returns:
+    bool
+*/
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.mha) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
 /* Does network contain the convolutional layer?
 
@@ -943,6 +961,12 @@ NetState initialize_net_states(Network &net_prop) {
         state.remax.cov_m_a_check.resize(n_output, 0);
     }
 
+    // Multi-head attention
+    if (is_mha(net_prop.layers, net_prop.layer_names)) {
+        init_multi_head_attention_states(*state.mha, *net_prop.mha,
+                                         net_prop.batch_size);
+    }
+
     return state;
 }
 
@@ -1172,7 +1196,9 @@ void load_cfg(std::string net_file, Network &net)
                                "sigma_v2b",      "noise_gain",
                                "multithreading", "collect_derivative",
                                "input_seq_len",  "output_seq_len",
-                               "seq_stride",     "gain_w"};
+                               "seq_stride",     "gain_w",
+                               "num_heads",      "timestep",
+                               "head_size"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1364,6 +1390,51 @@ void load_cfg(std::string net_file, Network &net)
                         }
                     }
                     net.gain_w = vf;
+                } else if (key_words[k] == "num_heads") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha->num_heads = v;
+                } else if (key_words[k] == "timestep") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha->timestep = v;
+                } else if (key_words[k] == "head_size") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha->head_size = v;
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;

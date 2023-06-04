@@ -516,9 +516,9 @@ std::vector<std::vector<float>> compute_query_update(
         for (int j = 0; j < timestep; j++) {
             sum_mu = 0.0f;
             sum_var = 0.0f;
-            block_col = (j * head_size + i) / head_size;
+            block_col = (j * head_size + i);
             for (int k = 0; k < timestep; k++) {
-                block_row = (j * timestep + k) / timestep;
+                block_row = (j * timestep + k);
                 if (block_row > block_col) {
                     idx_k = k * head_size + i;
                     idx_s = j * timestep + k;
@@ -555,7 +555,7 @@ std::vector<std::vector<float>> compute_batch_query_update(
 
             // Get 2d array vectors
             auto mu_k_2d = get_vec_2d(mu_k, pos_q, timestep * head_size);
-            auto var_q_2d = get_vec_2d(var_q, pos_q, timestep * timestep);
+            auto var_q_2d = get_vec_2d(var_q, pos_q, timestep * head_size);
             auto delta_mu_2d = get_vec_2d(delta_mu, pos_s, timestep * timestep);
             auto delta_var_2d =
                 get_vec_2d(delta_var, pos_s, timestep * timestep);
@@ -588,9 +588,9 @@ std::vector<std::vector<float>> compute_key_update(
         for (int j = 0; j < timestep; j++) {
             sum_mu = 0.0f;
             sum_var = 0.0f;
-            block_col = (j * head_size + i) / head_size;
+            block_col = (j * head_size + i);
             for (int k = 0; k < timestep; k++) {
-                block_row = (j * timestep + k) / timestep;
+                block_row = (j * timestep + k);
                 if (block_row > block_col) {
                     idx_k = k * head_size + i;
                     idx_s = j * timestep + k;
@@ -598,11 +598,12 @@ std::vector<std::vector<float>> compute_key_update(
                     sum_var += var_k[idx_k] * delta_var[idx_s] * var_k[idx_k];
                 }
             }
-            idx_delta = j * timestep + i;
+            idx_delta = j * head_size + i;
             delta_mu_k[idx_delta] =
                 sum_mu * mu_q[idx_delta] / powf(num_heads, 0.5);
-            delta_var[idx_delta] = mu_q[idx_delta] * sum_var * mu_q[idx_delta] /
-                                   num_heads / powf(var_k[idx_delta], 2);
+            delta_var_k[idx_delta] = mu_q[idx_delta] * sum_var *
+                                     mu_q[idx_delta] / num_heads /
+                                     powf(var_k[idx_delta], 2);
         }
     }
     return {delta_mu_k, delta_var_k};
@@ -619,20 +620,19 @@ std::vector<std::vector<float>> compute_batch_key_update(
     std::vector<float> delta_var_k(
         batch_size * num_heads * timestep * head_size, 0.0f);
     int pos_k, pos_s;
+    int ud_size = timestep * timestep;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             // Matrix position
             pos_k =
                 i * num_heads * timestep * head_size + j * timestep * head_size;
-            pos_s =
-                i * num_heads * timestep * timestep + j * timestep * timestep;
+            pos_s = i * num_heads * ud_size + j * ud_size;
 
             // Get 2d array vectors
             auto mu_q_2d = get_vec_2d(mu_q, pos_k, timestep * head_size);
-            auto var_k_2d = get_vec_2d(var_k, pos_k, timestep * timestep);
-            auto delta_mu_2d = get_vec_2d(delta_mu, pos_s, timestep * timestep);
-            auto delta_var_2d =
-                get_vec_2d(delta_var, pos_s, timestep * timestep);
+            auto var_k_2d = get_vec_2d(var_k, pos_k, timestep * head_size);
+            auto delta_mu_2d = get_vec_2d(delta_mu, pos_s, ud_size);
+            auto delta_var_2d = get_vec_2d(delta_var, pos_s, ud_size);
 
             // Get update values
             auto update_val =
@@ -1065,8 +1065,8 @@ bool test_query_update() {
 
     // Compute updating values
     auto delta_q_dist =
-        compute_batch_key_update(mu_k, var_q, delta_mu, delta_var, batch_size,
-                                 num_heads, timestep, head_size);
+        compute_batch_query_update(mu_k, var_q, delta_mu, delta_var, batch_size,
+                                   num_heads, timestep, head_size);
     auto delta_mu_q = delta_q_dist[0];
     auto delta_var_q = delta_q_dist[1];
 
@@ -1102,7 +1102,7 @@ bool test_key_update() {
     auto mu_q = create_random_mha_matrix(batch_size, num_heads, timestep,
                                          head_size, min_value, max_value, seed);
     auto var_k =
-        create_random_mha_matrix(batch_size, num_heads, timestep, timestep,
+        create_random_mha_matrix(batch_size, num_heads, timestep, head_size,
                                  min_value, max_value, seed, true);
 
     auto delta_mu = create_random_mha_matrix(
@@ -1143,7 +1143,7 @@ int test_mha() {
               << "Self-Attention Unit Test" << std::endl;
     std::cout << "=========================================" << std::endl;
     auto is_qk_passed = test_query_key();
-    auto is_passed = test_mask_query_key();
+    auto is_mk_passed = test_mask_query_key();
     auto is_mat_mul_passed = test_tagi_4d_matrix_mul();
     auto is_input_proj_passed = test_input_projection();
     auto is_output_proj_passed = test_output_projection();
@@ -1151,6 +1151,13 @@ int test_mha() {
     auto is_delta_value_passed = test_value_update();
     auto is_delta_query_passed = test_query_update();
     auto is_delta_key_passed = test_key_update();
+    std::cout << "=========================================" << std::endl;
+    if (!is_qk_passed || !is_mk_passed || !is_mat_mul_passed ||
+        !is_input_proj_passed || !is_output_proj_passed ||
+        !is_delta_score_passed || !is_delta_value_passed ||
+        !is_delta_query_passed || !is_delta_key_passed) {
+        return 1;
+    }
 
     return 0;
 }

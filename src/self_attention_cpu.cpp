@@ -3,7 +3,7 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      April 27, 2023
+// Updated:      June 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -476,9 +476,9 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                 for (int k = 0; k < timestep; k++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
-                    block_row = (k * head_size + m) / head_size;
+                    block_col = (k * head_size + m);
                     for (int l = 0; l < timestep; l++) {
-                        block_col = (k * timestep + l) / timestep;
+                        block_row = (k * timestep + l);
                         if (block_row > block_col) {
                             idx_k = i * num_heads * timestep * head_size +
                                     j * timestep * head_size + l * head_size +
@@ -492,7 +492,7 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
-                            j * timestep * head_size + m + k * timestep;
+                            j * timestep * head_size + m + k * head_size;
 
                     // NOTE: We compute directly the delta innovation
                     delta_mu_q[idx_q] = sum_mu / powf(num_heads, 0.5);
@@ -528,9 +528,9 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                 for (int k = 0; k < timestep; k++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
-                    block_row = (k * head_size + m) / head_size;
+                    block_col = (k * head_size + m);
                     for (int l = 0; l < timestep; l++) {
-                        block_col = (k * timestep + l) / timestep;
+                        block_row = (k * timestep + l);
                         if (block_row > block_col) {
                             idx_k = i * num_heads * timestep * head_size +
                                     j * timestep * head_size + l * head_size +
@@ -545,11 +545,10 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
-                            j * timestep * head_size + m + k * timestep;
+                            j * timestep * head_size + m + k * head_size;
 
-                    delta_mu_k[idx_q] = sum_mu * mu_q[idx_q + qkv_pos] /
-                                        powf(num_heads, 0.5) /
-                                        var_k[idx_q + qkv_pos];
+                    delta_mu_k[idx_q] =
+                        sum_mu * mu_q[idx_q + qkv_pos] / powf(num_heads, 0.5);
                     delta_var_k[idx_q] = mu_q[idx_q + qkv_pos] * sum_var *
                                          mu_q[idx_q + qkv_pos] / num_heads /
                                          powf(var_k[idx_q + qkv_pos], 2);

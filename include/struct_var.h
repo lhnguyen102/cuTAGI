@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      April 15, 2023
+// Updated:      June 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,6 +208,12 @@ struct Network {
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
     MultiHeadAttentionProp* mha;
+
+    Network() { mha = new MultiHeadAttentionProp; }
+    ~Network() {
+        delete mha;
+        mha = nullptr;
+    }
 };
 
 // NETWORK STATE
@@ -331,6 +337,12 @@ struct NetState {
     LSTMState lstm;
     Remax remax;
     MultiHeadAttentionState* mha;
+
+    NetState() { mha = new MultiHeadAttentionState; }
+    ~NetState() {
+        delete mha;
+        mha = nullptr;
+    }
 };
 
 // NETWORK PARAMETERS
@@ -478,3 +490,12 @@ struct SavePath {
     */
     std::string curr_path, saved_param_path, saved_inference_path, debug_path;
 };
+
+// FUNCTIONS
+void init_multi_head_attention_states(MultiHeadAttentionState& mha_state,
+                                      MultiHeadAttentionProp& mha_prop,
+                                      int batch_size);
+
+void init_multi_head_attention_delta_states(
+    MultiHeadAttentionDelta& delta_mha_state, MultiHeadAttentionProp& mha_prop,
+    int batch_size);
