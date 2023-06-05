@@ -3,7 +3,7 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      June 04, 2023
+// Updated:      June 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -683,10 +683,19 @@ void get_net_props(Network &net)
         }
         // Multi-head self-attention
         else if (net.layers[j] == net.layer_names.mha) {
+            // TODO: put a check if node[j-1] is diffrent than node[j]
             int sub_idx = get_sub_layer_idx(net.layers, j, net.layer_names.mha);
-            net.nodes[j] = net.mha->num_heads[sub_idx] *
-                           net.mha->timestep[sub_idx] *
-                           net.mha->head_size[sub_idx];
+
+            // Number of weights and bias
+            int num_embs =
+                net.mha.num_heads[sub_idx] * net.mha.head_size[sub_idx];
+            net.num_weights[j] = 3 * num_embs * num_embs + num_embs * num_embs;
+            net.num_biases[j] = 3 * num_embs + num_embs;
+
+            // Number of nodes
+            net.nodes[j] = net.mha.num_heads[sub_idx] *
+                           net.mha.timestep[sub_idx] *
+                           net.mha.head_size[sub_idx];
             z_pos[j] = net.batch_size * net.nodes[j - 1];
             n_state = net.nodes[j] * net.batch_size;
             net.n_state += n_state;
@@ -963,7 +972,7 @@ NetState initialize_net_states(Network &net_prop) {
 
     // Multi-head attention
     if (is_mha(net_prop.layers, net_prop.layer_names)) {
-        init_multi_head_attention_states(*state.mha, *net_prop.mha,
+        init_multi_head_attention_states(state.mha, net_prop.mha,
                                          net_prop.batch_size);
     }
 
@@ -1101,6 +1110,32 @@ Param initialize_param(Network &net) {
             // Variance
             if (net.init_method.compare("Xavier") == 0 ||
                 net.init_method.compare("xavier") == 0) {
+                scale = xavier_init(fan_in, fan_out);
+            } else {
+                scale = he_init(fan_in);
+            }
+
+            // Weight
+            if (net.num_weights[j] > 0) {
+                std::tie(mw_j, Sw_j) = gaussian_param_init(scale, net.gain_w[j],
+                                                           net.num_weights[j]);
+            }
+
+            // Biases
+            if (net.num_biases[j] > 0) {
+                std::tie(mb_j, Sb_j) = gaussian_param_init(scale, net.gain_b[j],
+                                                           net.num_biases[j]);
+            }
+        }
+        // MHA layer
+        else if (net.layers[j] == net.layer_names.mha) {
+            // int sub_idx = get_sub_layer_idx(net.layers, j,
+            // net.layer_names.mha);
+            fan_in = net.nodes[j - 1];
+            fan_out = net.nodes[j];
+
+            // Compute variance
+            if (net.init_method.compare("Xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);
@@ -1404,7 +1439,7 @@ void load_cfg(std::string net_file, Network &net)
                             v.push_back(d);
                         }
                     }
-                    net.mha->num_heads = v;
+                    net.mha.num_heads = v;
                 } else if (key_words[k] == "timestep") {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;
@@ -1419,7 +1454,7 @@ void load_cfg(std::string net_file, Network &net)
                             v.push_back(d);
                         }
                     }
-                    net.mha->timestep = v;
+                    net.mha.timestep = v;
                 } else if (key_words[k] == "head_size") {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;
@@ -1434,7 +1469,7 @@ void load_cfg(std::string net_file, Network &net)
                             v.push_back(d);
                         }
                     }
-                    net.mha->head_size = v;
+                    net.mha.head_size = v;
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;

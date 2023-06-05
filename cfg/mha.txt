@@ -1,5 +1,5 @@
 layers: 	[1,     1,       8,     1,       1]
-nodes:		[784,   100,     0,     100,     11]
+nodes:		[784,   12,      0,     100,     11]
 activations:[0,     7,       0,     7,       12]
 num_heads: [2]
 timestep: [3]

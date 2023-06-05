@@ -3,7 +3,7 @@
 // Description:  CPU version for forward pass
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 17, 2022
-// Updated:      April 12, 2022
+// Updated:      June 05, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +182,12 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
             no_B = no * B * net.input_seq_len;
             lstm_state_forward_cpu(net, state, theta, j);
         }
-
+        //**
+        // 8: MHA
+        //
+        else if (net.layers[j] == net.layer_names.mha) {
+            self_attention_forward_cpu(net, state, theta, j);
+        }
         //**
         // Activation
         //

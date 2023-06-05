@@ -37,7 +37,7 @@ void DeltaState::set_values(Network &net_prop) {
 
     // Multi-head self-attention
     if (is_mha(net_prop.layers, net_prop.layer_names)) {
-        init_multi_head_attention_delta_states(*this->mha, *net_prop.mha,
+        init_multi_head_attention_delta_states(this->mha, net_prop.mha,
                                                net_prop.batch_size);
     }
 }

@@ -111,9 +111,10 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
     mha_state.var_in_proj.resize(buffer_size, 0);
 
     // Initialize the remax state
-    init_remax_states(*mha_state.remax, tot_remax_states, tot_remax_sum_states);
-    init_remax_state_pos(*mha_state.remax, num_remax_states,
+    init_remax_states(mha_state.remax, tot_remax_states, tot_remax_sum_states);
+    init_remax_state_pos(mha_state.remax, num_remax_states,
                          num_remax_sum_states);
+    int check = 0;
 }
 
 void init_multi_head_attention_delta_states(

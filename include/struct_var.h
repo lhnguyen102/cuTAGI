@@ -207,13 +207,7 @@ struct Network {
     std::string device = "cpu";
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
-    MultiHeadAttentionProp* mha;
-
-    Network() { mha = new MultiHeadAttentionProp; }
-    ~Network() {
-        delete mha;
-        mha = nullptr;
-    }
+    MultiHeadAttentionProp mha;
 };
 
 // NETWORK STATE
@@ -294,7 +288,7 @@ struct MultiHeadAttentionState
  * head_size).
  */
 {
-    Remax* remax;
+    Remax remax;
     std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
         var_att_score, mu_qk, var_qk, mu_mqk, var_mqk, J_mqk, mu_sv, var_sv,
         mu_out_proj, var_out_proj, J_out_proj, mu_in_proj, var_in_proj;
@@ -336,13 +330,7 @@ struct NetState {
     DerivativeState derv_state;
     LSTMState lstm;
     Remax remax;
-    MultiHeadAttentionState* mha;
-
-    NetState() { mha = new MultiHeadAttentionState; }
-    ~NetState() {
-        delete mha;
-        mha = nullptr;
-    }
+    MultiHeadAttentionState mha;
 };
 
 // NETWORK PARAMETERS

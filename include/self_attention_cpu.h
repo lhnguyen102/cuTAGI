@@ -85,3 +85,9 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    int qkv_pos, int att_pos, int batch_size, int num_heads,
                    int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k);
+
+void self_attention_forward_cpu(Network &net_prop, NetState &state,
+                                Param &theta, int l);
+
+void update_self_attention_state(Network &net_prop, NetState &state,
+                                 Param &theta, DeltaState &d_state, int k);
