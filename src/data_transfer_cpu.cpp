@@ -3,7 +3,7 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      March 05, 2023
+// Updated:      June 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,6 +34,12 @@ void DeltaState::set_values(Network &net_prop) {
     this->delta_S.resize(s, 0);
     this->delta_mx.resize(dsc, 0);
     this->delta_Sx.resize(dsc, 0);
+
+    // Multi-head self-attention
+    if (is_mha(net_prop.layers, net_prop.layer_names)) {
+        init_multi_head_attention_delta_states(this->mha, net_prop.mha,
+                                               net_prop.batch_size);
+    }
 }
 
 void DeltaState::reset_updated_values(int n) {

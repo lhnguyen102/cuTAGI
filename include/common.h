@@ -3,7 +3,7 @@
 // Description:  Header file for common.h
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      March 11, 2022
+// Updated:      April 12, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -272,3 +272,8 @@ void get_homosce_noise_param(std::vector<float> &ma_v2b_prior,
 //////////////////////////////////////////////////////////////////////
 float normcdf_cpu(float x);
 float normpdf_cpu(float x, float mu, float sigma);
+
+///////////////////////////////////////////////////////
+// INDEX
+///////////////////////////////////////////////////////
+int get_sub_layer_idx(std::vector<int> &layer, int curr_layer, int layer_label);

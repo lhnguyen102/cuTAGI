@@ -3,17 +3,33 @@
 // Description:  Network properties
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 29, 2021
-// Updated:      March 12, 2023
+// Updated:      June 05, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/net_prop.h"
 
-#include "../include/common.h"
-
 ////////////////////////////////////////////////////////////////////////////
 /// LAYER CHECK
 ////////////////////////////////////////////////////////////////////////////
+bool is_mha(std::vector<int> &layers, LayerLabel &layer_names)
+/*Does network contain the multi-head self-attention layer?
+Args:
+    layers: All layer types of the network
+    layer_names: Code name of each layer
+
+Returns:
+    bool
+*/
+{
+    for (int i = 0; i < layers.size(); i++) {
+        if (layers[i] == layer_names.mha) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool is_conv(std::vector<int> &layers, LayerLabel &layer_names)
 /* Does network contain the convolutional layer?
 
@@ -661,9 +677,29 @@ void get_net_props(Network &net)
             n_state = net.nodes[j] * net.batch_size * net.input_seq_len;
             net.n_state += n_state;
             net.n_max_state = std::max(n_state, net.n_max_state);
-
             z_pos_lstm[j] =
                 net.nodes[j - 1] * net.input_seq_len * net.batch_size;
+
+        }
+        // Multi-head self-attention
+        else if (net.layers[j] == net.layer_names.mha) {
+            // TODO: put a check if node[j-1] is diffrent than node[j]
+            int sub_idx = get_sub_layer_idx(net.layers, j, net.layer_names.mha);
+
+            // Number of weights and bias
+            int num_embs =
+                net.mha.num_heads[sub_idx] * net.mha.head_size[sub_idx];
+            net.num_weights[j] = 3 * num_embs * num_embs + num_embs * num_embs;
+            net.num_biases[j] = 3 * num_embs + num_embs;
+
+            // Number of nodes
+            net.nodes[j] = net.mha.num_heads[sub_idx] *
+                           net.mha.timestep[sub_idx] *
+                           net.mha.head_size[sub_idx];
+            z_pos[j] = net.batch_size * net.nodes[j - 1];
+            n_state = net.nodes[j] * net.batch_size;
+            net.n_state += n_state;
+            net.n_max_state = std::max(n_state, net.n_max_state);
 
         } else {
             throw std::invalid_argument("Layer is not valid - net_prop.cpp");
@@ -934,6 +970,12 @@ NetState initialize_net_states(Network &net_prop) {
         state.remax.cov_m_a_check.resize(n_output, 0);
     }
 
+    // Multi-head attention
+    if (is_mha(net_prop.layers, net_prop.layer_names)) {
+        init_multi_head_attention_states(state.mha, net_prop.mha,
+                                         net_prop.batch_size);
+    }
+
     return state;
 }
 
@@ -1085,6 +1127,33 @@ Param initialize_param(Network &net) {
                                                            net.num_biases[j]);
             }
         }
+        // MHA layer
+        else if (net.layers[j] == net.layer_names.mha) {
+            // TODO: Add different scale for input & output projection
+            // int sub_idx = get_sub_layer_idx(net.layers, j,
+            // net.layer_names.mha);
+            fan_in = net.nodes[j - 1];
+            fan_out = net.nodes[j];
+
+            // Compute variance
+            if (net.init_method.compare("Xavier") == 0) {
+                scale = xavier_init(fan_in, fan_out);
+            } else {
+                scale = he_init(fan_in);
+            }
+
+            // Weight
+            if (net.num_weights[j] > 0) {
+                std::tie(mw_j, Sw_j) = gaussian_param_init(scale, net.gain_w[j],
+                                                           net.num_weights[j]);
+            }
+
+            // Biases
+            if (net.num_biases[j] > 0) {
+                std::tie(mb_j, Sb_j) = gaussian_param_init(scale, net.gain_b[j],
+                                                           net.num_biases[j]);
+            }
+        }
 
         // Push to main vector
         if (net.num_weights[j] > 0) {
@@ -1163,7 +1232,9 @@ void load_cfg(std::string net_file, Network &net)
                                "sigma_v2b",      "noise_gain",
                                "multithreading", "collect_derivative",
                                "input_seq_len",  "output_seq_len",
-                               "seq_stride",     "gain_w"};
+                               "seq_stride",     "gain_w",
+                               "num_heads",      "timestep",
+                               "head_size"};
     int num_keys = sizeof(key_words) / sizeof(key_words[0]);
 
     // Map strings
@@ -1355,6 +1426,51 @@ void load_cfg(std::string net_file, Network &net)
                         }
                     }
                     net.gain_w = vf;
+                } else if (key_words[k] == "num_heads") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha.num_heads = v;
+                } else if (key_words[k] == "timestep") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha.timestep = v;
+                } else if (key_words[k] == "head_size") {
+                    std::stringstream ss(line.substr(pos + key.size() + 1));
+                    std::vector<int> v;
+                    while (ss.good()) {
+                        // Remove comma between layers
+                        std::string tmp;
+                        std::getline(ss, tmp, ',');
+                        std::stringstream iss(tmp);
+
+                        // If string is dtype d, store in a container v
+                        if (iss >> d) {
+                            v.push_back(d);
+                        }
+                    }
+                    net.mha.head_size = v;
                 } else {
                     std::stringstream ss(line.substr(pos + key.size() + 1));
                     std::vector<int> v;

@@ -70,61 +70,6 @@ void delta_mzSz(std::vector<float> &ma, std::vector<float> &Sa,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// INOVATION VECTOR
-////////////////////////////////////////////////////////////////////////////////
-void inovation_mean(std::vector<float> &Sz, std::vector<float> &delta_mz,
-                    int z_pos, int z_delta_pos, int n,
-                    std::vector<float> &delta_m)
-/* Compute the mean of the inovation vector.
-
-Args:
-    Sz: Variance of hidden states
-    delta_mz: Updated quantities for the mean of output's hidden states
-    z_pos: Hidden state's position for output
-    z_delta_pos: Position of the inovation vector for this layer
-    n: Number of hidden states for input x number of batches
-    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
-*/
-{
-    float zeroPad = 0;
-    float tmp = 0;
-    for (int col = 0; col < n; col++) {
-        tmp = delta_mz[col] / Sz[col + z_pos];
-        if (isinf(tmp) || isnan(tmp)) {
-            delta_m[col + z_delta_pos] = zeroPad;
-        } else {
-            delta_m[col + z_delta_pos] = tmp;
-        }
-    }
-}
-
-void inovation_var(std::vector<float> &Sz, std::vector<float> &delta_Sz,
-                   int z_pos, int z_delta_pos, int n,
-                   std::vector<float> &delta_S)
-/* Compute the variance of the inovation vector.
-
-Args:
-    Sz: Variance of hidden states
-    delta_Sz: Updated quantities for the variance of output's hidden states
-    z_pos: Hidden state's position for output
-    z_delta_pos: Position of the inovation vector for this layer
-    n: Number of hidden states for input x number of batches
-    delta_S: Inovation vector for variance i.e. (M_observation - M_prediction)
-*/
-{
-    float zeroPad = 0;
-    float tmp = 0;
-    for (int col = 0; col < n; col++) {
-        tmp = delta_Sz[col] / Sz[col + z_pos];
-        if (isinf(tmp) || isnan(tmp)) {
-            delta_S[col + z_delta_pos] = zeroPad;
-        } else {
-            delta_S[col + z_delta_pos] = tmp / Sz[col + z_pos];
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// REMAX
 ////////////////////////////////////////////////////////////////////////////////
 void delta_z_y_check_cpu(std::vector<float> &mu_a, std::vector<float> &var_a,
@@ -148,84 +93,6 @@ void delta_z_y_check_cpu(std::vector<float> &mu_a, std::vector<float> &var_a,
                 delta_mu_zy_check[col] = tmp * (y[col] - mu_a[col + z_pos]);
                 delta_var_zy_check[col] = -tmp * cov_y_y_check[col];
             }
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// FULL-CONNECTED
-////////////////////////////////////////////////////////////////////////////////
-void fc_delta_mz(std::vector<float> &mw, std::vector<float> &Sz,
-                 std::vector<float> &J, std::vector<float> &delta_m, int w_pos,
-                 int z_pos_in, int z_pos_out, int ni, int no, int B,
-                 std::vector<float> &delta_mz)
-/* Compute the updated quatitites of the mean of the hidden states.
-
-Args:
-    mz: Mean of hidden states
-    Sz: Variance of hidden states
-    J: Jacobian vector
-    delta_m: Inovation vector for mean i.e. (M_observation - M_prediction)
-    w_pos: Weight position for this layer in the weight vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-            of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-            of network
-    ni: Number of hidden units for input
-    B: Number of batches
-    no: Number of hidden units for output
-    delta_mz: Updated quantities for the mean of output's hidden states
-*/
-{
-    float sum = 0;
-    for (int row = 0; row < ni; row++) {
-        for (int col = 0; col < B; col++) {
-            sum = 0;
-            for (int i = 0; i < no; i++) {
-                sum += mw[ni * i + row + w_pos] *
-                       delta_m[col * no + i + z_pos_out];
-            }
-            delta_mz[col * ni + row] = sum * Sz[col * ni + row + z_pos_in] *
-                                       J[col * ni + row + z_pos_in];
-        }
-    }
-}
-
-void fc_delta_Sz(std::vector<float> &mw, std::vector<float> &Sz,
-                 std::vector<float> &J, std::vector<float> &delta_S, int w_pos,
-                 int z_pos_in, int z_pos_out, int ni, int no, int B,
-                 std::vector<float> &delta_Sz)
-/* Compute the updated quatitites for the variance of the hidden states.
-
-Args:
-    mz: Mean of hidden states
-    Sz: Variance of hidden states
-    J: Jacobian vector
-    delta_S: Inovation vector for variance i.e. (S_observation - S_prediction)
-    wpos: Weight position for this layer in the weight vector of network
-    z_pos_in: Input-hidden-state position for this layer in the weight vector
-            of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-            of network
-    ni: Number of hidden units for input
-    B: Number of batches
-    no: Number of hidden units for output
-    delta_Sz: Updated quantities for the varaince of output's hidden states
-*/
-{
-    float sum = 0;
-    for (int row = 0; row < ni; row++) {
-        for (int col = 0; col < B; col++) {
-            sum = 0;
-            for (int i = 0; i < no; i++) {
-                sum += mw[ni * i + row + w_pos] *
-                       delta_S[col * no + i + z_pos_out] *
-                       mw[ni * i + row + w_pos];
-            }
-            delta_Sz[col * ni + row] = sum * Sz[col * ni + row + z_pos_in] *
-                                       Sz[col * ni + row + z_pos_in] *
-                                       J[col * ni + row + z_pos_in] *
-                                       J[col * ni + row + z_pos_in];
         }
     }
 }
@@ -332,126 +199,6 @@ void delta_mzSz_multithreading(std::vector<float> &ma, std::vector<float> &Sa,
                                  std::ref(Sz), std::ref(J), std::ref(y),
                                  std::ref(Sv), z_pos, start_idx, end_idx,
                                  std::ref(delta_mz), std::ref(delta_Sz));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
-void inovation_worker(std::vector<float> &Sz, std::vector<float> &delta_mz,
-                      std::vector<float> &delta_Sz, int z_pos, int z_delta_pos,
-                      int start_idx, int end_idx, std::vector<float> &delta_m,
-                      std::vector<float> &delta_S)
-
-{
-    float zeroPad = 0;
-    float tmp_mz = 0;
-    float tmp_Sz = 0;
-    for (int col = start_idx; col < end_idx; col++) {
-        tmp_mz = delta_mz[col] / Sz[col + z_pos];
-        tmp_Sz = delta_Sz[col] / Sz[col + z_pos];
-        if (isinf(tmp_mz) || isnan(tmp_mz) || isinf(tmp_Sz) || isnan(tmp_Sz)) {
-            delta_m[col + z_delta_pos] = zeroPad;
-            delta_S[col + z_delta_pos] = zeroPad;
-        } else {
-            delta_m[col + z_delta_pos] = tmp_mz;
-            delta_S[col + z_delta_pos] = tmp_Sz / Sz[col + z_pos];
-        }
-    }
-}
-
-void inovation_multithreading(std::vector<float> &Sz,
-                              std::vector<float> &delta_mz,
-                              std::vector<float> &delta_Sz, int z_pos,
-                              int z_delta_pos, int n, unsigned int NUM_THREADS,
-                              std::vector<float> &delta_m,
-                              std::vector<float> &delta_S)
-
-{
-    const int n_batch = n / NUM_THREADS;
-    const int rem_batch = n % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(inovation_worker, std::ref(Sz), std::ref(delta_mz),
-                        std::ref(delta_Sz), z_pos, z_delta_pos, start_idx,
-                        end_idx, std::ref(delta_m), std::ref(delta_S));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
-}
-
-void fc_delta_mzSz_worker(std::vector<float> &mw, std::vector<float> &Sz,
-                          std::vector<float> &J, std::vector<float> &delta_m,
-                          std::vector<float> &delta_S, int w_pos, int z_pos_in,
-                          int z_pos_out, int ni, int no, int B, int start_idx,
-                          int end_idx, std::vector<float> &delta_mz,
-                          std::vector<float> &delta_Sz)
-
-{
-    for (int j = start_idx; j < end_idx; j++) {
-        int row = j / B;
-        int col = j % B;
-        float sum_mz = 0.0f;
-        float sum_Sz = 0.0f;
-        for (int i = 0; i < no; i++) {
-            sum_mz +=
-                mw[ni * i + row + w_pos] * delta_m[col * no + i + z_pos_out];
-
-            sum_Sz += mw[ni * i + row + w_pos] *
-                      delta_S[col * no + i + z_pos_out] *
-                      mw[ni * i + row + w_pos];
-        }
-        delta_mz[col * ni + row] = sum_mz * Sz[col * ni + row + z_pos_in] *
-                                   J[col * ni + row + z_pos_in];
-        delta_Sz[col * ni + row] = sum_Sz * Sz[col * ni + row + z_pos_in] *
-                                   Sz[col * ni + row + z_pos_in] *
-                                   J[col * ni + row + z_pos_in] *
-                                   J[col * ni + row + z_pos_in];
-    }
-}
-
-void fc_delta_mzSz_multithreading(std::vector<float> &mw,
-                                  std::vector<float> &Sz, std::vector<float> &J,
-                                  std::vector<float> &delta_m,
-                                  std::vector<float> &delta_S, int w_pos,
-                                  int z_pos_in, int z_pos_out, int ni, int no,
-                                  int B, unsigned int NUM_THREADS,
-                                  std::vector<float> &delta_mz,
-                                  std::vector<float> &delta_Sz)
-
-{
-    const int tot_ops = ni * B;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
-    int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (i == 0) {
-            start_idx = n_batch * i;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_idx = n_batch * i + rem_batch;
-            end_idx = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(fc_delta_mzSz_worker, std::ref(mw), std::ref(Sz),
-                        std::ref(J), std::ref(delta_m), std::ref(delta_S),
-                        w_pos, z_pos_in, z_pos_out, ni, no, B, start_idx,
-                        end_idx, std::ref(delta_mz), std::ref(delta_Sz));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -925,19 +672,18 @@ void remax_output_delta_z_cpu(Network &net, NetState &state, Obs &obs,
     int z_pos = net.z_pos.back();
     // Covariance between m and \check{a}
     compute_cov_m_a_check_cpu(state.remax.var_log, state.remax.cov_log_logsum,
-                              state.remax.mu_m, no, B,
+                              state.remax.mu_m, 0, 0, no, B,
                               state.remax.cov_m_a_check);
 
     // Covariance between m and a
     compute_cov_m_a_cpu(state.remax.cov_m_a_check, state.ma, state.remax.var_m,
-                        state.Sz, state.remax.J_m, z_pos, no, B,
+                        state.Sz, state.remax.J_m, 0, z_pos, no, B,
                         state.remax.cov_m_a);
 
     // Updating quantities for hidden states
     delta_z_y_check_cpu(state.ma, state.Sa, state.remax.cov_m_a, obs.y_batch,
                         obs.V_batch, no, B, z_pos, d_state.delta_mz,
                         d_state.delta_Sz);
-    int check = 1;
 }
 
 void update_output_hidden_states_cpu(Network &net, NetState &state, Obs &obs,
@@ -1041,6 +787,12 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         //
         else if (net.layers[k + 1] == net.layer_names.lstm) {
             lstm_state_update_cpu(net, state, theta, d_state, k);
+        }
+        //**
+        // 8: MHA
+        //
+        else if (net.layers[k + 1] == net.layer_names.mha) {
+            update_self_attention_state(net, state, theta, d_state, k);
         }
 
         if (niB > net.min_operations && net.multithreading) {

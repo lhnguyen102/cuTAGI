@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer between CPU and GPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 20, 2022
-// Updated:      March 05, 2023
+// Updated:      April 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -148,6 +148,7 @@ class DeltaStateGPU {
     std::vector<float> delta_mz, delta_Sz, delta_mdsc, delta_Sdsc, delta_msc,
         delta_Ssc, delta_mzsc, delta_Szsc, dummy_m, dummy_S, delta_m, delta_S,
         delta_mx, delta_Sx;
+    // TO BE REMOVED
     std::vector<float> delta_mu_y_check, delta_var_y_check, delta_mu_zy_check,
         delta_var_zy_check;
 
@@ -156,6 +157,7 @@ class DeltaStateGPU {
     float *d_delta_mz, *d_delta_Sz, *d_delta_mdsc, *d_delta_Sdsc, *d_delta_msc;
     float *d_delta_Ssc, *d_delta_mzsc, *d_delta_Szsc, *d_dummy_m, *d_dummy_S;
     float *d_delta_m, *d_delta_S, *d_delta_mx, *d_delta_Sx;
+    // TO BE REMOVED
     float *d_delta_mu_y_check, *d_delta_var_y_check, *d_delta_mu_zy_check,
         *d_delta_var_zy_check;
 

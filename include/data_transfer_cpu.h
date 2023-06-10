@@ -26,6 +26,7 @@ class DeltaState {
     std::vector<float> delta_mz, delta_Sz, delta_mdsc, delta_Sdsc, delta_msc;
     std::vector<float> delta_Ssc, delta_mzsc, delta_Szsc, dummy_m, dummy_S;
     std::vector<float> delta_m, delta_S, delta_mx, delta_Sx;
+    MultiHeadAttentionDelta mha;
 
     DeltaState();
     ~DeltaState();

@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 12, 2023
+// Updated:      March 16, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,15 +22,16 @@ void to_log_cpu(std::vector<float> &mu_m, std::vector<float> &var_m, int z_pos,
             tmp_var = logf(1.0f + (var_m[i * no + j + z_pos] /
                                    powf(mu_m[i * no + j + z_pos], 2)));
             tmp_mu = logf(mu_m[i * no + j + z_pos]) - 0.5 * tmp_var;
-            mu_log[i * no + j] = tmp_mu;
-            var_log[i * no + j] = tmp_var;
+            mu_log[i * no + j + z_pos] = tmp_mu;
+            var_log[i * no + j + z_pos] = tmp_var;
         }
     }
 }
 
 void sum_class_hidden_states_cpu(std::vector<float> &mu_m,
-                                 std::vector<float> &var_m, int z_pos, int no,
-                                 int B, std::vector<float> &mu_sum,
+                                 std::vector<float> &var_m, int z_pos,
+                                 int z_sum_pos, int no, int B,
+                                 std::vector<float> &mu_sum,
                                  std::vector<float> &var_sum) {
     float sum_mu, sum_var;
     for (int i = 0; i < B; i++) {
@@ -40,19 +41,21 @@ void sum_class_hidden_states_cpu(std::vector<float> &mu_m,
             sum_mu += mu_m[i * no + j + z_pos];
             sum_var += var_m[i * no + j + z_pos];
         }
-        mu_sum[i] = sum_mu;
-        var_sum[i] = sum_var;
+        mu_sum[i + z_sum_pos] = sum_mu;
+        var_sum[i + z_sum_pos] = sum_var;
     }
 }
 
 void compute_cov_log_logsum_cpu(std::vector<float> &mu_m,
                                 std::vector<float> &var_m,
-                                std::vector<float> &mu_sum, int z_pos, int no,
-                                int B, std::vector<float> &cov_log_logsum) {
+                                std::vector<float> &mu_sum, int z_pos,
+                                int z_sum_pos, int no, int B,
+                                std::vector<float> &cov_log_logsum) {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            cov_log_logsum[i * no + j] =
-                logf(1.0f + var_m[i * no + j + z_pos] * (1.0f / mu_sum[i]) *
+            cov_log_logsum[i * no + j + z_pos] =
+                logf(1.0f + var_m[i * no + j + z_pos] *
+                                (1.0f / mu_sum[i + z_sum_pos]) *
                                 (1.0f / mu_m[i * no + j + z_pos]));
         }
     }
@@ -60,13 +63,15 @@ void compute_cov_log_logsum_cpu(std::vector<float> &mu_m,
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,
-                               std::vector<float> &mu_m, int no, int B,
+                               std::vector<float> &mu_m, int z_pos,
+                               int z_sum_pos, int no, int B,
                                std::vector<float> &cov_m_a_check) {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
             cov_m_a_check[i * no + j] =
-                (var_log[i * no + j] - cov_log_logsum[i * no + j]) *
-                mu_m[i * no + j];
+                (var_log[i * no + j + z_pos] -
+                 cov_log_logsum[i * no + j + z_sum_pos]) *
+                mu_m[i * no + j + z_pos];
         }
     }
 }
@@ -74,13 +79,14 @@ void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
 void compute_cov_m_a_cpu(std::vector<float> &cov_m_a_check,
                          std::vector<float> &mu_a, std::vector<float> &var_m,
                          std::vector<float> &var_z, std::vector<float> &J_m,
-                         int z_pos, int no, int B,
+                         int z_pos, int a_pos, int no, int B,
                          std::vector<float> &cov_a_m) {
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            cov_a_m[i * no + j] = mu_a[i * no + j + z_pos] *
-                                  cov_m_a_check[i * no + j] * J_m[i * no + j] *
-                                  var_z[i * no + j + z_pos] / var_m[i * no + j];
+            cov_a_m[i * no + j] =
+                mu_a[i * no + j + a_pos] * cov_m_a_check[i * no + j] *
+                J_m[i * no + j + z_pos] * var_z[i * no + j + a_pos] /
+                var_m[i * no + j + z_pos];
         }
     }
 }
@@ -89,15 +95,18 @@ void compute_remax_prob_cpu(std::vector<float> &mu_log,
                             std::vector<float> &var_log,
                             std::vector<float> &mu_logsum,
                             std::vector<float> &var_logsum,
-                            std::vector<float> &cov_log_logsum, float sigma_v,
-                            int z_pos, int no, int B, std::vector<float> &mu_a,
+                            std::vector<float> &cov_log_logsum, int z_pos,
+                            int z_remax_pos, int z_sum_remax_pos, int no, int B,
+                            std::vector<float> &mu_a,
                             std::vector<float> &var_a) {
     float tmp_mu, tmp_var;
     for (int i = 0; i < B; i++) {
         for (int j = 0; j < no; j++) {
-            tmp_mu = mu_log[i * no + j] - mu_logsum[i];
-            tmp_var = var_log[i * no + j] + var_logsum[i] -
-                      2 * cov_log_logsum[i * no + j];
+            tmp_mu = mu_log[i * no + j + z_remax_pos] -
+                     mu_logsum[i + z_sum_remax_pos];
+            tmp_var = var_log[i * no + j + z_remax_pos] +
+                      var_logsum[i + z_sum_remax_pos] -
+                      2 * cov_log_logsum[i * no + j + z_remax_pos];
             mu_a[i * no + j + z_pos] = expf(tmp_mu + 0.5 * tmp_var);
             var_a[i * no + j + z_pos] =
                 expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
@@ -388,33 +397,73 @@ void remax_cpu(Network &net, NetState &state, int l)
 /*Remax activation function*/
 {
     int z_pos = net.z_pos[l];
+    int z_remax_pos = state.remax.z_pos[l];
+    int z_sum_remax_pos = state.remax.z_sum_pos[l];
     int no = net.nodes[l];
     int B = net.batch_size;
 
     // mrelu
-    mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos, 0, 0, no * B,
-                     state.remax.mu_m, state.remax.J_m, state.remax.var_m);
+    mixture_relu_cpu(state.mz, state.Sz, net.omega_tol, z_pos, z_remax_pos, 0,
+                     no * B, state.remax.mu_m, state.remax.J_m,
+                     state.remax.var_m);
 
     // log of mrelu
-    to_log_cpu(state.remax.mu_m, state.remax.var_m, 0, no, B,
+    to_log_cpu(state.remax.mu_m, state.remax.var_m, z_remax_pos, no, B,
                state.remax.mu_log, state.remax.var_log);
 
     // sum of mrelu
-    sum_class_hidden_states_cpu(state.remax.mu_m, state.remax.var_m, 0, no, B,
+    sum_class_hidden_states_cpu(state.remax.mu_m, state.remax.var_m,
+                                z_remax_pos, z_sum_remax_pos, no, B,
                                 state.remax.mu_sum, state.remax.var_sum);
-    to_log_cpu(state.remax.mu_sum, state.remax.var_sum, 0, 1, B,
+    to_log_cpu(state.remax.mu_sum, state.remax.var_sum, z_sum_remax_pos, 1, B,
                state.remax.mu_logsum, state.remax.var_logsum);
 
     // covariance between log of mrelu and log of sum of mrelu
     compute_cov_log_logsum_cpu(state.remax.mu_m, state.remax.var_m,
-                               state.remax.mu_sum, 0, no, B,
-                               state.remax.cov_log_logsum);
+                               state.remax.mu_sum, z_remax_pos, z_sum_remax_pos,
+                               no, B, state.remax.cov_log_logsum);
 
     // Compute remax probabilities
     compute_remax_prob_cpu(state.remax.mu_log, state.remax.var_log,
                            state.remax.mu_logsum, state.remax.var_logsum,
-                           state.remax.cov_log_logsum, net.sigma_v, z_pos, no,
-                           B, state.ma, state.Sa);
+                           state.remax.cov_log_logsum, z_pos, z_remax_pos,
+                           z_sum_remax_pos, no, B, state.ma, state.Sa);
+}
+
+void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
+                  std::vector<float> &mu_m, std::vector<float> &var_m,
+                  std::vector<float> &J_m, std::vector<float> &mu_log,
+                  std::vector<float> &var_log, std::vector<float> &mu_sum,
+                  std::vector<float> &var_sum, std::vector<float> &mu_logsum,
+                  std::vector<float> &var_logsum,
+                  std::vector<float> &cov_log_logsum, std::vector<float> &ma,
+                  std::vector<float> &Sa, int z_pos, int z_remax_pos,
+                  int z_sum_remax_pos, int no, int B, float omega_tol)
+/*Remax is an activation function used to calculate the probability for each
+   class as softmax*/
+{
+    int no_sum = 1;
+    // mrelu
+    mixture_relu_cpu(mz, Sz, omega_tol, z_pos, z_remax_pos, 0, no * B, mu_m,
+                     J_m, var_m);
+
+    // log of mrelu
+    to_log_cpu(mu_m, var_m, z_remax_pos, no, B, mu_log, var_log);
+
+    // sum of relu
+    sum_class_hidden_states_cpu(mu_m, var_m, z_remax_pos, z_sum_remax_pos, no,
+                                B, mu_sum, var_sum);
+    to_log_cpu(mu_sum, var_sum, z_sum_remax_pos, no_sum, B, mu_logsum,
+               var_logsum);
+
+    // Covariance between log of mrelu and log of sum of relu
+    compute_cov_log_logsum_cpu(mu_m, var_m, mu_sum, z_remax_pos,
+                               z_sum_remax_pos, no, B, cov_log_logsum);
+
+    // Compute remax probabilities
+    compute_remax_prob_cpu(mu_log, var_log, mu_logsum, var_logsum,
+                           cov_log_logsum, z_pos, z_remax_pos, z_sum_remax_pos,
+                           no, B, ma, Sa);
 }
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,

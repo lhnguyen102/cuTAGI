@@ -5,7 +5,7 @@
 # Created:      October 12, 2022
 # Updated:      Marche 12, 2023
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# Copyright (c) 2022 Luong-Ha Nguyen & James-A. Goulet. Some rights reserved.
+# License:      This code is released under the MIT License.
 ###############################################################################
 from pytagi import NetProp
 
@@ -43,7 +43,7 @@ class HeterosMLP(NetProp):
 
 
 class DervMLP(NetProp):
-    """Multi-layer perceptron for computing the derivative of a 
+    """Multi-layer perceptron for computing the derivative of a
     regression task"""
 
     def __init__(self) -> None:
@@ -82,8 +82,8 @@ class MnistMLP(NetProp):
     """Multi-layer perceptron for mnist classificaiton.
 
     NOTE: The number of hidden states for last layer is 11 because
-    TAGI use the hierarchical softmax for the classification task. 
-    Further details can be found in 
+    TAGI use the hierarchical softmax for the classification task.
+    Further details can be found in
     https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf
     """
 

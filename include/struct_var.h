@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      March 11, 2023
+// Updated:      June 04, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,7 @@ struct LayerLabel {
     int ln = 5;      // Layer normalization layer
     int bn = 6;      // Batch normalization layer
     int lstm = 7;    // LSTM layer
+    int mha = 8;     // Multi-head self-attention layer
 };
 
 struct ActLabel {
@@ -37,6 +38,18 @@ struct ActLabel {
     int softmax = 10;
     int remax = 11;
     int hr_softmax = 12;
+};
+
+struct MultiHeadAttentionProp
+/*Properties of multi-head self-attention
+
+Args:
+    num_heads: Number of attention heads
+    time_step: Number of timesteps
+    head_size: Size of attention head
+ */
+{
+    std::vector<int> num_heads, timestep, head_size;
 };
 
 struct Network {
@@ -194,6 +207,7 @@ struct Network {
     std::string device = "cpu";
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
+    MultiHeadAttentionProp mha;
 };
 
 // NETWORK STATE
@@ -247,9 +261,47 @@ struct LSTMState {
         mc_prev, Sc_prev, mh_prev, Sh_prev, Ci_c, Co_tanh_c;
 };
 
-struct Remax {
+struct Remax
+/*Probablistic probability*/
+{
     std::vector<float> mu_m, var_m, J_m, mu_log, var_log, mu_sum, var_sum,
         mu_logsum, var_logsum, cov_log_logsum, cov_m_a, cov_m_a_check;
+    std::vector<int> z_pos, z_sum_pos;
+};
+
+struct MultiHeadAttentionState
+/**
+ * Multi-head self attention.
+ *
+ * Args:
+ *     mu_k: Mean of keys (batch_size, num_heads, time_step, head_size).
+ *     var_k: Variance of keys (batch_size, num_heads, time_step, head_size).
+ *     mu_q: Mean of query (batch_size, num_heads, time_step, head_size).
+ *     var_q: Variance of query (batch_size, num_heads, time_step, head_size).
+ *     mu_v: Mean of value (batch_size, num_heads, time_step, head_size).
+ *     var_v: Variance of value (batch_size, num_heads, time_step, head_size).
+ *     num_heads: Number of attention heads.
+ *     time_step: Time step.
+ *     head_size: Size of attention heads.
+ *     mu_att: Mean of attention (batch_size, num_heads, time_step, head_size).
+ *     var_att: Variance of attention (batch_size, num_heads, time_step,
+ * head_size).
+ */
+{
+    Remax remax;
+    std::vector<float> mu_k, var_k, mu_q, var_q, mu_v, var_v, mu_att_score,
+        var_att_score, mu_qk, var_qk, mu_mqk, var_mqk, J_mqk, mu_sv, var_sv,
+        mu_out_proj, var_out_proj, J_out_proj, mu_in_proj, var_in_proj;
+    std::vector<int> qkv_pos, att_pos, in_proj_pos;
+    int buffer_size;
+};
+
+struct MultiHeadAttentionDelta {
+    std::vector<float> delta_mu_att_score, delta_var_att_score, delta_mu_v,
+        delta_var_v, delta_mu_q, delta_var_q, delta_mu_k, delta_var_k,
+        delta_mu_out_proj, delta_var_out_proj, delta_mu_in_proj,
+        delta_var_in_proj, delta_mu_buffer, delta_var_buffer, delta_mu_r,
+        delta_var_r;
 };
 
 struct NetState {
@@ -278,6 +330,7 @@ struct NetState {
     DerivativeState derv_state;
     LSTMState lstm;
     Remax remax;
+    MultiHeadAttentionState mha;
 };
 
 // NETWORK PARAMETERS
@@ -425,3 +478,12 @@ struct SavePath {
     */
     std::string curr_path, saved_param_path, saved_inference_path, debug_path;
 };
+
+// FUNCTIONS
+void init_multi_head_attention_states(MultiHeadAttentionState& mha_state,
+                                      MultiHeadAttentionProp& mha_prop,
+                                      int batch_size);
+
+void init_multi_head_attention_delta_states(
+    MultiHeadAttentionDelta& delta_mha_state, MultiHeadAttentionProp& mha_prop,
+    int batch_size);

@@ -3,7 +3,7 @@
 // Description:  Common function used for computing indices for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 15, 2022
-// Updated:      March 11, 2023
+// Updated:      April 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -382,4 +382,18 @@ float normpdf_cpu(float x, float mu, float sigma)
                      exp(-pow(x - mu, 2) / (2 * pow(sigma, 2)));
 
     return prob_pdf;
+}
+
+///////////////////////////////////////////////////////
+// INDEX
+///////////////////////////////////////////////////////
+int get_sub_layer_idx(std::vector<int> &layer, int curr_layer,
+                      int layer_label) {
+    int sub_idx = -1;
+    for (int i = 0; i < curr_layer + 1; i++) {
+        if (layer[i] == layer_label) {
+            sub_idx++;
+        }
+    }
+    return sub_idx;
 }

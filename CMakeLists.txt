@@ -137,10 +137,15 @@ set(CPU_SOURCES
   test/fnn_derivatives/test_fnn_derivatives_cpu.cpp
   test/lstm/test_lstm_cpu.cpp
   test/test_lstm.cpp
+  src/self_attention_cpu.cpp
+  src/struct_var.cpp
+  src/fc_layer_cpu.cpp
+
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
   test/test_dataloader.cpp
+  test/mha/test_mha_cpu.cpp
 )
 
 # Sources code for CUDA

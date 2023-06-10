@@ -661,6 +661,7 @@ Args:
     }
 }
 
+// TODO: change the name to update_lstm_parameter_cpu
 void lstm_parameter_update_cpu(Network &net, NetState &state, Param &theta,
                                DeltaState &d_state, DeltaParam &d_theta, int l)
 /*Update lstm's parameters

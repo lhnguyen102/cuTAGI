@@ -1,0 +1,16 @@
+model_name: mnist_mha
+task_name: classification
+data_name: mnist
+net_name: mha
+load_param: false
+num_epochs: 20
+num_classes: 10
+num_train_data: 60000
+num_test_data: 10000
+mu: 0.1309
+sigma: 2
+device: cpu
+x_train_dir: data/mnist/train-images-idx3-ubyte
+y_train_dir: data/mnist/train-labels-idx1-ubyte
+x_test_dir: data/mnist/t10k-images-idx3-ubyte
+y_test_dir: data/mnist/t10k-labels-idx1-ubyte
