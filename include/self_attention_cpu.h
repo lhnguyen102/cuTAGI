@@ -3,7 +3,7 @@
 // Description:  Header of CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      May 27, 2023
+// Updated:      June 09, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,3 +91,10 @@ void self_attention_forward_cpu(Network &net_prop, NetState &state,
 
 void update_self_attention_state(Network &net_prop, NetState &state,
                                  Param &theta, DeltaState &d_state, int k);
+
+void update_self_attention_state(Network &net_prop, NetState &state,
+                                 Param &theta, DeltaState &d_state, int k);
+
+void update_self_attention_param(Network &net_prop, Param &theta,
+                                 NetState &state, DeltaState &d_state,
+                                 DeltaParam &d_theta, int k_layer);

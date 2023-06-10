@@ -788,6 +788,12 @@ void state_backward_cpu(Network &net, Param &theta, NetState &state,
         else if (net.layers[k + 1] == net.layer_names.lstm) {
             lstm_state_update_cpu(net, state, theta, d_state, k);
         }
+        //**
+        // 8: MHA
+        //
+        else if (net.layers[k + 1] == net.layer_names.mha) {
+            update_self_attention_state(net, state, theta, d_state, k);
+        }
 
         if (niB > net.min_operations && net.multithreading) {
             inovation_multithreading(state.Sz, d_state.delta_mz,

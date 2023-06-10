@@ -1129,6 +1129,7 @@ Param initialize_param(Network &net) {
         }
         // MHA layer
         else if (net.layers[j] == net.layer_names.mha) {
+            // TODO: Add different scale for input & output projection
             // int sub_idx = get_sub_layer_idx(net.layers, j,
             // net.layer_names.mha);
             fan_in = net.nodes[j - 1];

@@ -78,5 +78,11 @@ Returns:
         else if (net.layers[k + 1] == net.layer_names.lstm) {
             lstm_parameter_update_cpu(net, state, theta, d_state, d_theta, k);
         }
+        //**
+        // 8: MHA
+        //
+        else if (net.layers[k + 1] == net.layer_names.mha) {
+            update_self_attention_param(net, theta, state, d_state, d_theta, k);
+        }
     }
 }

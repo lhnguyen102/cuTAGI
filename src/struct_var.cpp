@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 17, 2023
-// Updated:      May 03, 2023
+// Updated:      June 09, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,8 +64,8 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
                    mha_prop.head_size[i];
         att_size = batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i] *
                    mha_prop.timestep[i];
-        in_proj_size =
-            3 * batch_size * mha_prop.num_heads[i] * mha_prop.head_size[i];
+        in_proj_size = 3 * batch_size * mha_prop.num_heads[i] *
+                       mha_prop.timestep[i] * mha_prop.head_size[i];
         buffer_size_sv = std::max(std::max(buffer_size_sv, qkv_size), att_size);
         buffer_size = std::max(buffer_size, in_proj_size);
 
@@ -99,16 +99,18 @@ void init_multi_head_attention_states(MultiHeadAttentionState &mha_state,
     mha_state.var_att_score.resize(tot_att_size, 0);
     mha_state.mu_out_proj.resize(tot_qkv_size, 0);
     mha_state.var_out_proj.resize(tot_qkv_size, 0);
-    mha_state.J_out_proj.resize(tot_qkv_size, 0);
+    mha_state.J_out_proj.resize(tot_qkv_size, 1.0f);
     mha_state.mu_mqk.resize(tot_att_size, 0);
     mha_state.var_mqk.resize(tot_att_size, 0);
-    mha_state.J_mqk.resize(tot_att_size, 0);
+    mha_state.J_mqk.resize(tot_att_size, 1.0f);
 
     // Initialize buffer states
     mha_state.mu_sv.resize(buffer_size_sv, 0);
     mha_state.var_sv.resize(buffer_size_sv, 0);
     mha_state.mu_in_proj.resize(buffer_size, 0);
     mha_state.var_in_proj.resize(buffer_size, 0);
+    mha_state.mu_qk.resize(buffer_size, 0);
+    mha_state.var_qk.resize(buffer_size, 0);
 
     // Initialize the remax state
     init_remax_states(mha_state.remax, tot_remax_states, tot_remax_sum_states);
@@ -132,8 +134,8 @@ void init_multi_head_attention_delta_states(
                    mha_prop.head_size[i];
         att_size = batch_size * mha_prop.num_heads[i] * mha_prop.timestep[i] *
                    mha_prop.timestep[i];
-        in_proj_size =
-            3 * batch_size * mha_prop.num_heads[i] * mha_prop.head_size[i];
+        in_proj_size = 3 * batch_size * mha_prop.num_heads[i] *
+                       mha_prop.timestep[i] * mha_prop.head_size[i];
         buffer_size_sv = std::max(std::max(buffer_size_sv, qkv_size), att_size);
         buffer_size = std::max(buffer_size, in_proj_size);
         tot_qkv_size += qkv_size;
@@ -143,6 +145,8 @@ void init_multi_head_attention_delta_states(
     delta_mha_state.delta_var_in_proj.resize(tot_qkv_size * 3, 0);
     delta_mha_state.delta_mu_buffer.resize(buffer_size, 0);
     delta_mha_state.delta_var_buffer.resize(buffer_size, 0);
+    delta_mha_state.delta_mu_out_proj.resize(buffer_size, 0);
+    delta_mha_state.delta_var_out_proj.resize(buffer_size, 0);
     delta_mha_state.delta_mu_k.resize(buffer_size_sv, 0);
     delta_mha_state.delta_var_k.resize(buffer_size_sv, 0);
     delta_mha_state.delta_mu_v.resize(buffer_size_sv, 0);

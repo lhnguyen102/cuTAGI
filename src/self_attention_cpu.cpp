@@ -3,7 +3,7 @@
 // Description:  CPU version for self attention
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 13, 2023
-// Updated:      June 05, 2023
+// Updated:      June 09, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -296,10 +296,10 @@ Args:
 
     // Query, key, and value projection through a fully-connected layer
     fc_mean_cpu(theta.mw, theta.mb, state.ma, w_in_proj_pos, b_in_proj_pos,
-                z_pos_in, 0, num_embs, 3 * num_embs, batch_size * timestep,
+                z_pos_in, 0, 3 * num_embs, num_embs, batch_size * timestep,
                 state.mha.mu_in_proj);
     fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.ma, state.Sa, w_in_proj_pos,
-               b_in_proj_pos, z_pos_in, 0, num_embs, 3 * num_embs,
+               b_in_proj_pos, z_pos_in, 0, 3 * num_embs, num_embs,
                batch_size * timestep, state.mha.var_in_proj);
 
     // Separate the projection componenents into query, key, and values
@@ -319,6 +319,7 @@ Args:
                    timestep, head_size, state.mha.mu_mqk, state.mha.var_mqk);
 
     // Apply remax on the product of querry and key
+    // TODO: Merge with current remax
     remax_cpu_v2(state.mha.mu_mqk, state.mha.var_mqk, state.mha.remax.mu_m,
                  state.mha.remax.var_m, state.mha.remax.J_m,
                  state.mha.remax.mu_log, state.mha.remax.var_log,
@@ -326,7 +327,8 @@ Args:
                  state.mha.remax.mu_logsum, state.mha.remax.var_logsum,
                  state.mha.remax.cov_log_logsum, state.mha.mu_att_score,
                  state.mha.var_att_score, att_pos, z_remax_pos, z_sum_remax_pos,
-                 timestep, batch_size, net_prop.omega_tol);
+                 timestep, timestep * num_heads * batch_size,
+                 net_prop.omega_tol);
 
     // Score time values
     tagi_4d_matrix_mul(state.mha.mu_att_score, state.mha.var_att_score,
@@ -346,6 +348,7 @@ Args:
     fc_var_cpu(theta.mw, theta.Sw, theta.Sb, state.mha.mu_out_proj,
                state.mha.var_out_proj, w_out_proj_pos, b_out_proj_pos, qkv_pos,
                z_pos_out, num_embs, num_embs, batch_size * timestep, state.Sz);
+    int check = 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -563,7 +566,7 @@ void update_self_attention_state(Network &net_prop, NetState &state,
     int z_pos_in = net_prop.z_pos[k];
     int z_pos_out = net_prop.z_pos[k + 1];
     auto mha_k =
-        get_sub_layer_idx(net_prop.layers, k, net_prop.layer_names.mha);
+        get_sub_layer_idx(net_prop.layers, k + 1, net_prop.layer_names.mha);
     int batch_size = net_prop.batch_size;
     int num_heads = net_prop.mha.num_heads[mha_k];
     int timestep = net_prop.mha.timestep[mha_k];
@@ -654,27 +657,13 @@ void update_self_attention_state(Network &net_prop, NetState &state,
         timestep, head_size, d_state.mha.delta_mu_in_proj,
         d_state.mha.delta_var_in_proj);
 
-    // Input of the embedding
+    // Input of the embeddings
     fc_delta_mz(theta.mw, state.Sz, state.J, d_state.mha.delta_mu_in_proj,
                 w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, 3 * num_embs,
-                batch_timestep, d_state.mha.delta_mu_buffer);
+                batch_timestep, d_state.delta_mz);
     fc_delta_Sz(theta.mw, state.Sz, state.J, d_state.mha.delta_var_in_proj,
                 w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, 3 * num_embs,
-                batch_timestep, d_state.mha.delta_var_buffer);
-
-    inovation_mean(state.Sz, d_state.mha.delta_mu_buffer, z_pos_in, 0,
-                   emb_batch_timestep, d_state.delta_m);
-    inovation_var(state.Sz, d_state.mha.delta_var_buffer, z_pos_in, 0,
-                  emb_batch_timestep, d_state.delta_S);
-
-    /*
-     * TODO: Double check on remax back pass and revise delta if we can replace
-     * hidden state delta by  delta innovation
-     * TODO: Decide whether or not to update parameters in this updates
-     * TODO: Remove all unsed delta and states in struct
-     * TODO: Add w_pos and b_pos to struct_var.cpp
-     * TODO: Add backward parameter estimation
-     */
+                batch_timestep, d_state.delta_Sz);
 }
 
 void update_self_attention_param(Network &net_prop, Param &theta,
@@ -682,8 +671,8 @@ void update_self_attention_param(Network &net_prop, Param &theta,
                                  DeltaParam &d_theta, int k_layer)
 /**/
 {
-    auto mha_k =
-        get_sub_layer_idx(net_prop.layers, k_layer, net_prop.layer_names.mha);
+    auto mha_k = get_sub_layer_idx(net_prop.layers, k_layer + 1,
+                                   net_prop.layer_names.mha);
     int z_pos_out = net_prop.z_pos[k_layer + 1];
     int z_pos_in = net_prop.z_pos[k_layer];
     int att_pos = state.mha.att_pos[mha_k];
@@ -705,7 +694,7 @@ void update_self_attention_param(Network &net_prop, Param &theta,
                 num_embs, d_theta.delta_mw);
     fc_delta_Sw(theta.Sw, state.mha.mu_out_proj, d_state.delta_S,
                 w_out_proj_pos, qkv_pos, z_pos_out, num_embs, batch_timestep,
-                num_embs, d_theta.delta_mw);
+                num_embs, d_theta.delta_Sw);
     fc_delta_mb(theta.Sb, d_state.delta_m, b_out_proj_pos, z_pos_out, num_embs,
                 batch_timestep, 1, d_theta.delta_mb);
     fc_delta_mb(theta.Sb, d_state.delta_S, b_out_proj_pos, z_pos_out, num_embs,
@@ -718,7 +707,7 @@ void update_self_attention_param(Network &net_prop, Param &theta,
                 d_theta.delta_mw);
     fc_delta_Sw(theta.Sw, state.ma, d_state.mha.delta_var_in_proj,
                 w_in_proj_pos, z_pos_in, in_proj_pos, num_embs, batch_timestep,
-                num_embs, d_theta.delta_mw);
+                num_embs, d_theta.delta_Sw);
     fc_delta_mb(theta.Sb, d_state.mha.delta_mu_in_proj, b_in_proj_pos,
                 in_proj_pos, num_embs, batch_timestep, 1, d_theta.delta_mb);
     fc_delta_mb(theta.Sb, d_state.mha.delta_var_in_proj, b_in_proj_pos,
