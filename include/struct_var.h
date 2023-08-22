@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 04, 2023
+// Updated:      August 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -38,6 +38,7 @@ struct ActLabel {
     int softmax = 10;
     int remax = 11;
     int hr_softmax = 12;
+    int emb = 13;
 };
 
 struct MultiHeadAttentionProp
