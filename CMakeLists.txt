@@ -140,6 +140,7 @@ set(CPU_SOURCES
   src/self_attention_cpu.cpp
   src/struct_var.cpp
   src/fc_layer_cpu.cpp
+  src/embedding_cpu.cpp
 
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
