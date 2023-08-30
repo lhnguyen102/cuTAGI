@@ -141,8 +141,8 @@ Args:
     var_z: Variance of output hidden states
 
 Example:
-    A two categorical varaibles num_cat = 2 each having 5 and 6 classes. Also
-assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
+    A two categorical varaibles num_cat = 2 each having 5 and 6 classes. In
+addition, assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
 
     embedding vector
     cat_1 = [
@@ -263,11 +263,20 @@ Args:
     }
 }
 
-int calculate_embedding_size(int num_categories)
+int calculate_embedding_size(int num_classes)
 /*
+Calculate the embedding size based on the number of categories using fast.ai
+heuristic.
+
+Args:
+    num_classes: Number of classes
+
+Return:
+    int: Embedding size
+
  */
 {
-    int emb_size = 1.6 * powf(num_categories, 0.56);
+    int emb_size = 1.6 * powf(num_classes, 0.56);
 
     return std::max(600, emb_size);
 }

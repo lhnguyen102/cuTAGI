@@ -20,9 +20,12 @@ struct EmbeddingProp {
     std::vector<int> num_categories, num_emb_sizes;
 };
 
+std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
+    int num_classes, int emb_size, float scale, unsigned int *seed = nullptr);
+
 std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
-    std::vector<int> num_classes, std::vector<int> num_weights, float scale,
-    unsigned int *seed = nullptr);
+    std::vector<int> cat_sizes, std::vector<int> emb_sizes, int num_cat_var,
+    float scale, unsigned int *seed = nullptr);
 
 void forward(std::vector<float> &ma, std::vector<float> &mu_w,
              std::vector<float> &var_w, std::vector<int> &cat_sizes,
