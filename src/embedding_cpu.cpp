@@ -4,7 +4,7 @@
 //               (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 23, 2023
-// Updated:      August 28, 2023
+// Updated:      September 06, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -12,7 +12,8 @@
 #include "../include/embedding_cpu.h"
 
 std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
-    int num_classes, int emb_size, float scale, unsigned int *seed = nullptr)
+    size_t num_classes, size_t emb_size, float scale,
+    unsigned int *seed = nullptr)
 /*
  */
 {
@@ -27,7 +28,7 @@ std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
     std::normal_distribution<float> norm_dist(0.0f, scale);
 
     // Get sample for weight
-    for (int i = 0; i < num_classes * emb_size; i++) {
+    for (size_t i = 0; i < num_classes * emb_size; i++) {
         mu_w[i] = norm_dist(gen);
     }
 
@@ -35,8 +36,8 @@ std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
 }
 
 std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
-    std::vector<int> cat_sizes, std::vector<int> emb_sizes, int num_cat_var,
-    float scale, unsigned int *seed = nullptr)
+    std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
+    int num_cat_var, float scale, unsigned int *seed = nullptr)
 /*
  */
 {
@@ -69,8 +70,8 @@ std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
 // Embedding Layer
 ///////////////////////////////////////////////////////////////////////////////
 void forward(std::vector<float> &ma, std::vector<float> &mu_w,
-             std::vector<float> &var_w, std::vector<int> &cat_sizes,
-             std::vector<int> &emb_sizes, int num_cat, int batch_size,
+             std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
+             std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
              int w_pos_in, int z_pos_in, int z_pos_out,
              std::vector<float> &mu_z, std::vector<float> &var_z)
 /**/
@@ -89,9 +90,10 @@ void forward(std::vector<float> &ma, std::vector<float> &mu_w,
 
 void param_backward(std::vector<float> &ma, std::vector<float> &var_w,
                     std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                    std::vector<int> &cat_sizes, std::vector<int> &emb_sizes,
-                    int num_cat, int batch_size, int z_pos_in, int z_pos_out,
-                    int w_pos_in, std::vector<float> &delta_mu_w,
+                    std::vector<size_t> &cat_sizes,
+                    std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
+                    int z_pos_in, int z_pos_out, int w_pos_in,
+                    std::vector<float> &delta_mu_w,
                     std::vector<float> &delta_var_w)
 /*
  */
@@ -117,9 +119,9 @@ void param_backward(std::vector<float> &ma, std::vector<float> &var_w,
 // Bag Embedding Layer
 ///////////////////////////////////////////////////////////////////////////////
 void bag_forward(std::vector<float> &mu_a, std::vector<float> &mu_w,
-                 std::vector<float> &var_w, std::vector<int> &cat_sizes,
-                 std::vector<int> &emb_sizes, std::vector<int> &num_bags,
-                 std::vector<int> &bag_sizes, int num_cat, int batch_size,
+                 std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
+                 std::vector<size_t> &emb_sizes, std::vector<size_t> &num_bags,
+                 std::vector<size_t> &bag_sizes, int num_cat, int batch_size,
                  int w_pos_in, int z_pos_in, int z_pos_out,
                  std::vector<float> &mu_z, std::vector<float> &var_z)
 /* Forward pass for bag embedding layer.
@@ -171,11 +173,11 @@ addition, assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
 {
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_cat; j++) {
-            int bag = num_bags[j];
-            int emb_size = emb_sizes[j];
+            size_t bag = num_bags[j];
+            size_t emb_size = emb_sizes[j];
 
             for (int m = 0; m < bag; m++) {
-                int bag_size = bag_sizes[m];
+                size_t bag_size = bag_sizes[m];
                 float sum_mu = 0.0f;
                 float sum_var = 0.0f;
                 for (int n = 0; n < bag_size; n++) {
@@ -202,15 +204,13 @@ addition, assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
     }
 }
 
-void bag_param_backward(std::vector<float> &mu_a, std::vector<float> &var_w,
-                        std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var,
-                        std::vector<int> &cat_sizes,
-                        std::vector<int> &emb_sizes, std::vector<int> &num_bags,
-                        std::vector<int> &bag_sizes, int num_cat,
-                        int batch_size, int z_pos_in, int w_pos_in,
-                        int z_pos_out, std::vector<float> &delta_mu_w,
-                        std::vector<float> &delta_var_w)
+void bag_param_backward(
+    std::vector<float> &mu_a, std::vector<float> &var_w,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var,
+    std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
+    std::vector<size_t> &num_bags, std::vector<size_t> &bag_sizes, int num_cat,
+    int batch_size, int z_pos_in, int w_pos_in, int z_pos_out,
+    std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
 /*
 Args:
     mu_a: Input mean stored the categorical variable in float
@@ -233,11 +233,11 @@ Args:
 {
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_cat; j++) {
-            int bag = num_bags[j];
-            int emb_size = emb_sizes[j];
+            size_t bag = num_bags[j];
+            size_t emb_size = emb_sizes[j];
 
             for (int m = 0; m < bag; m++) {
-                int bag_size = bag_sizes[m];
+                size_t bag_size = bag_sizes[m];
                 for (int n = 0; n < bag_size; n++) {
                     // Convert categorical index in each bag to integer. TODO:
                     // need to avoid this conversion for computing performance
