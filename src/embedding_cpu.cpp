@@ -12,8 +12,7 @@
 #include "../include/embedding_cpu.h"
 
 std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
-    size_t num_classes, size_t emb_size, float scale,
-    unsigned int *seed = nullptr)
+    size_t num_classes, size_t emb_size, float scale, unsigned int *seed)
 /*
  */
 {
@@ -37,7 +36,7 @@ std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
 
 std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
     std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
-    int num_cat_var, float scale, unsigned int *seed = nullptr)
+    int num_cat_var, float scale, unsigned int *seed)
 /*
  */
 {
@@ -69,6 +68,7 @@ std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
 ///////////////////////////////////////////////////////////////////////////////
 // Embedding Layer
 ///////////////////////////////////////////////////////////////////////////////
+
 void forward(std::vector<float> &ma, std::vector<float> &mu_w,
              std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
              std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
@@ -118,6 +118,48 @@ void param_backward(std::vector<float> &ma, std::vector<float> &var_w,
 ///////////////////////////////////////////////////////////////////////////////
 // Bag Embedding Layer
 ///////////////////////////////////////////////////////////////////////////////
+struct Offsets {
+    std::vector<int> batch_in_offsets;
+    std::vector<int> batch_out_offsets;
+    std::vector<int> cat_in_offsets;
+    std::vector<int> cat_out_offsets;
+};
+
+Offsets precompute_offsets(const std::vector<size_t> &num_bags,
+                           const std::vector<size_t> &bag_sizes, int num_cat,
+                           int batch_size) {
+    Offsets offsets;
+    offsets.batch_in_offsets.resize(batch_size);
+    offsets.batch_out_offsets.resize(batch_size);
+    offsets.cat_in_offsets.resize(num_cat);
+    offsets.cat_out_offsets.resize(num_cat);
+
+    // Precompute batch offsets
+    int batch_size_in_offset = 0;
+    int batch_size_out_offset = 0;
+    for (int i = 0; i < batch_size; ++i) {
+        offsets.batch_in_offsets[i] = batch_size_in_offset;
+        offsets.batch_out_offsets[i] = batch_size_out_offset;
+
+        int cat_in_offset = 0;
+        int cat_out_offset = 0;
+
+        for (int j = 0; j < num_cat; ++j) {
+            size_t bag = num_bags[j];
+            size_t bag_size = bag_sizes[j];
+            offsets.cat_in_offsets[j] = cat_in_offset;
+            offsets.cat_out_offsets[j] = cat_out_offset;
+
+            cat_in_offset += bag_size * bag;
+            cat_out_offset += bag;
+        }
+
+        batch_size_in_offset += cat_in_offset;
+        batch_size_out_offset += cat_out_offset;
+    }
+
+    return offsets;
+}
 void bag_forward(std::vector<float> &mu_a, std::vector<float> &mu_w,
                  std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
                  std::vector<size_t> &emb_sizes, std::vector<size_t> &num_bags,
@@ -171,34 +213,42 @@ addition, assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
     output size (3, 1)
  */
 {
+    // Compute the offsets for each bags due to we store all data in a single
+    // vector
+    Offsets offsets =
+        precompute_offsets(num_bags, bag_sizes, num_cat, batch_size);
     for (int i = 0; i < batch_size; i++) {
+        int batch_size_in_offset = offsets.batch_in_offsets[i];
+        int batch_size_out_offset = offsets.batch_out_offsets[i];
         for (int j = 0; j < num_cat; j++) {
             size_t bag = num_bags[j];
             size_t emb_size = emb_sizes[j];
-
+            size_t bag_size = bag_sizes[j];
+            int cat_in_offset = offsets.cat_in_offsets[j];
+            int cat_out_offset = offsets.cat_out_offsets[j];
             for (int m = 0; m < bag; m++) {
-                size_t bag_size = bag_sizes[m];
                 float sum_mu = 0.0f;
                 float sum_var = 0.0f;
                 for (int n = 0; n < bag_size; n++) {
                     // Convert categorical index in each bag to integer. TODO:
                     // need to avoid this conversion for computing performance
-                    int cat_idx = mu_a[n + m * bag_size + j * bag * bag_size +
-                                       i * num_cat * bag * bag_size + z_pos_in];
+                    int cat_idx = mu_a[n + m * bag_size + cat_in_offset +
+                                       batch_size_in_offset + z_pos_in];
 
+                    int offset = cat_idx * emb_size + w_pos_in;
                     // Sum over all embedding values for each bag
                     for (int k = 0; k < emb_size; k++) {
-                        sum_mu += mu_w[cat_idx * emb_size + k + w_pos_in];
-                        sum_var += var_w[cat_idx * emb_size + k + w_pos_in];
+                        sum_mu += mu_w[offset + k];
+                        sum_var += var_w[offset + k];
                     }
                 }
 
                 // Average the embedding values. Output size (batch_size,
                 // num_cat, bag)
-                mu_z[m + j * bag + i * bag * num_cat + z_pos_out] =
-                    sum_mu / bag;
-                var_z[m + j * bag + i * bag * num_cat + z_pos_out] =
-                    sum_var / bag;
+                int z_idx =
+                    m + cat_out_offset + batch_size_out_offset + z_pos_out;
+                mu_z[z_idx] = sum_mu / bag_size;
+                var_z[z_idx] = sum_var / bag_size;
             }
         }
     }
@@ -231,21 +281,30 @@ Args:
 
  */
 {
+    // Compute the offsets for each bags due to we store all data in a single
+    // vector
+    Offsets offsets =
+        precompute_offsets(num_bags, bag_sizes, num_cat, batch_size);
     for (int i = 0; i < batch_size; i++) {
+        int batch_size_in_offset = offsets.batch_in_offsets[i];
+        int batch_size_out_offset = offsets.batch_out_offsets[i];
         for (int j = 0; j < num_cat; j++) {
             size_t bag = num_bags[j];
             size_t emb_size = emb_sizes[j];
+            int cat_in_offset = offsets.cat_in_offsets[j];
+            int cat_out_offset = offsets.cat_out_offsets[j];
 
             for (int m = 0; m < bag; m++) {
                 size_t bag_size = bag_sizes[m];
                 for (int n = 0; n < bag_size; n++) {
                     // Convert categorical index in each bag to integer. TODO:
                     // need to avoid this conversion for computing performance
-                    int cat_idx = mu_a[n + m * bag_size + j * bag * bag_size +
-                                       i * num_cat * bag * bag_size + z_pos_in];
+                    int cat_idx = mu_a[n + m * bag_size + cat_in_offset +
+                                       batch_size_in_offset + z_pos_in];
 
                     // Index for the updating quantities of the output layer
-                    int ino_idx = m + j * bag + i * bag * num_cat + z_pos_out;
+                    int ino_idx =
+                        m + cat_out_offset + batch_size_out_offset + z_pos_out;
 
                     // Calculate the updating quanties for embeddings inside
                     // each bag
@@ -253,9 +312,10 @@ Args:
                         // Index for embedding
                         int w_idx = cat_idx * emb_size + k + w_pos_in;
 
-                        // Updating quantities for embedding
-                        delta_mu_w[w_idx] = delta_mu[ino_idx] * var_w[w_idx];
-                        delta_var_w[w_idx] = delta_var[ino_idx] * var_w[w_idx];
+                        // Updating quantities for embedding. TODO Need to set
+                        // all delta values to zero
+                        delta_mu_w[w_idx] += delta_mu[ino_idx] * var_w[w_idx];
+                        delta_var_w[w_idx] += delta_var[ino_idx] * var_w[w_idx];
                     }
                 }
             }

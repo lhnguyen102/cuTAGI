@@ -18,6 +18,7 @@
 #include "include/task.cuh"
 #include "include/task_cpu.h"
 #include "include/user_input.h"
+#include "test/embedding/test_emb_cpu.h"
 #include "test/mha/test_mha_cpu.h"
 #include "test/test_cpu.h"
 #include "test/test_gpu.cuh"
@@ -65,6 +66,8 @@ int main(int argc, char* argv[]) {
         }
     } else if (user_input_file.compare("test_mha") == 0) {
         auto is_passed = test_mha();
+    } else if (user_input_file.compare("test_embedding") == 0) {
+        auto is_passed = test_embedding();
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "

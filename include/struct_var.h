@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "embedding_cpu.h"
+
 // NETWORK PROPERTIES
 struct LayerLabel {
     int fc = 1;      // Full-connected layer
@@ -26,7 +28,7 @@ struct LayerLabel {
 };
 
 struct ActLabel {
-    int no_act = 0;  // No activaivation
+    int no_act = 0;  // No activation
     int tanh = 1;
     int sigmoid = 2;
     int relu = 4;
@@ -209,6 +211,7 @@ struct Network {
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
     MultiHeadAttentionProp mha;
+    EmbeddingProp emb;
 };
 
 // NETWORK STATE
