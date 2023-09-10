@@ -3,7 +3,7 @@
 // Description:  Header file for data transfer within CPU
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      March 05, 2023
+// Updated:      September 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -44,6 +44,7 @@ class DeltaParam {
 
     DeltaParam();
     void set_values(int w, int b, int w_sc, int b_sc);
+    void reset_zero();
 
     ~DeltaParam();
 };

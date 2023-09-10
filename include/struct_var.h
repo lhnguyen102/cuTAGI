@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      June 04, 2023
+// Updated:      August 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "embedding_cpu.h"
 
 // NETWORK PROPERTIES
 struct LayerLabel {
@@ -26,7 +28,7 @@ struct LayerLabel {
 };
 
 struct ActLabel {
-    int no_act = 0;  // No activaivation
+    int no_act = 0;  // No activation
     int tanh = 1;
     int sigmoid = 2;
     int relu = 4;
@@ -38,6 +40,7 @@ struct ActLabel {
     int softmax = 10;
     int remax = 11;
     int hr_softmax = 12;
+    int emb = 13;
 };
 
 struct MultiHeadAttentionProp
@@ -208,6 +211,7 @@ struct Network {
     float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
     MultiHeadAttentionProp mha;
+    EmbeddingProp emb;
 };
 
 // NETWORK STATE

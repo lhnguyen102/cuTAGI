@@ -3,7 +3,7 @@
 // Description:  CPU version for data transfer
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 20, 2022
-// Updated:      June 04, 2023
+// Updated:      September 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -65,6 +65,17 @@ void DeltaParam::set_values(int w, int b, int w_sc, int b_sc) {
     this->delta_Sw_sc.resize(w_sc, 0);
     this->delta_mb_sc.resize(b_sc, 0);
     this->delta_Sb_sc.resize(b_sc, 0);
+}
+
+void DeltaParam::reset_zero() {
+    this->delta_mw.assign(this->delta_mw.size(), 0);
+    this->delta_Sw.assign(this->delta_Sw.size(), 0);
+    this->delta_mb.assign(this->delta_mb.size(), 0);
+    this->delta_Sb.assign(this->delta_Sb.size(), 0);
+    this->delta_mw_sc.assign(this->delta_mw_sc.size(), 0);
+    this->delta_Sw_sc.assign(this->delta_Sw_sc.size(), 0);
+    this->delta_mb_sc.assign(this->delta_mb_sc.size(), 0);
+    this->delta_Sb_sc.assign(this->delta_Sb_sc.size(), 0);
 }
 
 DeltaParam::~DeltaParam() {}

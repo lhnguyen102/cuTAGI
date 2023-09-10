@@ -3,7 +3,7 @@
 // Description:  CPU version for backward pass for parametes
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      May 18, 2022
-// Updated:      April 12, 2022
+// Updated:      September 10, 2022
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////
@@ -30,6 +30,8 @@ Returns:
 {
     int no, ni, z_pos_in, z_pos_out, w_pos_in, b_pos_in;
     int B = net.batch_size;
+    // Reset delta value vector to zero
+    d_theta.reset_zero();
     for (int k = net.layers.size() - 2; k >= 0; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];

@@ -130,6 +130,11 @@ set(CPU_SOURCES
   src/derivative_calcul_cpu.cpp
   src/tagi_network_cpu.cpp
   src/tagi_network_base.cpp
+  src/self_attention_cpu.cpp
+  src/struct_var.cpp
+  src/fc_layer_cpu.cpp
+  src/embedding_cpu.cpp
+
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
   test/fnn_heteros/test_fnn_heteros_cpu.cpp
@@ -137,15 +142,12 @@ set(CPU_SOURCES
   test/fnn_derivatives/test_fnn_derivatives_cpu.cpp
   test/lstm/test_lstm_cpu.cpp
   test/test_lstm.cpp
-  src/self_attention_cpu.cpp
-  src/struct_var.cpp
-  src/fc_layer_cpu.cpp
-
   test/test_lstm_cpu.cpp
   test/test_cpu.cpp
   test/test_regression.cpp
   test/test_dataloader.cpp
   test/mha/test_mha_cpu.cpp
+  test/embedding/test_emb_cpu.cpp
 )
 
 # Sources code for CUDA
