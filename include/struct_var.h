@@ -208,7 +208,7 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.0000001f;
+    float omega_tol = 0.001f;
     float cap_factor = 1.0f;
     MultiHeadAttentionProp mha;
     EmbeddingProp emb;
