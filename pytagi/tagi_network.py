@@ -109,6 +109,7 @@ class NetProp(tagi.Network):
     init_method: str
     device: str
     ra_mt: float
+    omega_tol: float
 
     def __init__(self) -> None:
         super().__init__()

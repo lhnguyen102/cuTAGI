@@ -1310,6 +1310,12 @@ void load_cfg(std::string net_file, Network &net)
                         ss >> f;
                         net.sigma_x = f;
                     }
+                } else if (key_words[k] == "omega_tol") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.omega_tol = f;
+                    }
                 } else if (key_words[k] == "init_method") {
                     std::stringstream ss(line.substr(pos + key.size()));
                     if (ss.good()) {
