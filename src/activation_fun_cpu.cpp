@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 16, 2023
+// Updated:      September 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -320,6 +320,32 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
              (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
             4.0f;
         J[zpos + i] = powf(omega * kappa, 0.5);
+    }
+}
+
+void silu(std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+          int z_pos, int n, std::vector<float> &mu_a, std::vector<float> &J,
+          std::vector<float> &var_a)
+/*Sigmoid Linear Unit (silu)
+Observation equation: y   = x * sigmoid(x) where sigmoid function is replaced
+a mixture bound relu.
+*/
+{
+    // Pass through inputs mixture of sigmoid
+    mixture_relu_cpu(mu_z, var_z, omega_tol, z_pos, 0, n, mu_a, J, var_a);
+
+    // GLU operaration
+    for (int col = 0; col < n; col++) {
+        float tmp_mu_a = mu_a[col + z_pos];
+        float tmp_var_a = var_a[col + z_pos];
+        float cov_zm = J[col + z_pos] * var_z[col + z_pos];
+
+        var_a[col + z_pos] = var_z[col + z_pos] * tmp_var_a + powf(cov_zm, 2) +
+                             2 * cov_zm * mu_z[col + z_pos] * tmp_mu_a +
+                             powf(mu_z[col + z_pos], 2) * tmp_var_a +
+                             powf(tmp_mu_a, 2) * var_z[col + z_pos];
+
+        mu_a[col + z_pos] = mu_z[col + z_pos] * tmp_mu_a + cov_zm;
     }
 }
 
