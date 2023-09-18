@@ -3,7 +3,7 @@
 // Description:  Activation function (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      September 17, 2023
+// Updated:      September 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -332,9 +332,9 @@ a mixture bound relu.
 */
 {
     // Pass through inputs mixture of sigmoid
-    mixture_relu_cpu(mu_z, var_z, omega_tol, z_pos, 0, n, mu_a, J, var_a);
+    mixture_sigmoid_cpu(mu_z, var_z, omega_tol, z_pos, 0, n, mu_a, J, var_a);
 
-    // GLU operaration
+    // GLU operation
     for (int col = 0; col < n; col++) {
         float tmp_mu_a = mu_a[col + z_pos];
         float tmp_var_a = var_a[col + z_pos];

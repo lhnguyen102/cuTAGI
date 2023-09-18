@@ -17,6 +17,10 @@ int get_number_of_params(GatedResidualProp &prop)
     prop.num_weights += prop.input_size * prop.hidden_size;
     prop.num_biases += prop.hidden_size;
 
+    // Update weight and bias position vectors
+    prop.w_pos.push_back(prop.num_weights);
+    prop.b_pos.push_back(prop.num_biases);
+
     // Context layer
     if (prop.context_size > 0) {
         prop.num_weights += prop.context_size * prop.hidden_size;
@@ -24,11 +28,13 @@ int get_number_of_params(GatedResidualProp &prop)
     }
 
     // 2nd FC Layer
+    prop.w_pos.push_back(prop.num_weights);
+    prop.b_pos.push_back(prop.num_biases);
     prop.num_weights += prop.hidden_size * prop.output_size;
     prop.num_biases += prop.output_size;
 }
 
-void forward()
+void forward_cpu(Network &net, Param &theta, IndexOut &idx, NetState &state)
 /*
  */
 {
@@ -41,4 +47,6 @@ void forward()
     // Layer norm
 }
 
-void backward() {}
+void state_backward_cpu() {}
+
+void param_backward_cpu() {}
