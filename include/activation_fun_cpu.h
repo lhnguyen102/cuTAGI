@@ -3,7 +3,7 @@
 // Description:  Header file for activation functions (CPU version)
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 11, 2022
-// Updated:      March 18, 2023
+// Updated:      September 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +79,10 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          float omega_tol, int zpos, int start_idx, int end_idx,
                          std::vector<float> &ma, std::vector<float> &J,
                          std::vector<float> &Sa);
+
+void silu(std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+          int z_pos, int n, std::vector<float> &mu_a, std::vector<float> &J,
+          std::vector<float> &var_a);
 
 void exp_fun_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  std::vector<float> &ma, std::vector<float> &Sa,
