@@ -98,7 +98,8 @@
         "queue": "cpp",
         "stack": "cpp",
         "filesystem": "cpp",
-        "__verbose_abort": "cpp"
+        "__verbose_abort": "cpp",
+        "charconv": "cpp"
     },
     "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
     "editor.formatOnSave": true,

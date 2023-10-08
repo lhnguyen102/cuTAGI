@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      September 28, 2023
+// Updated:      October 08, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,11 +15,43 @@ FullyConnectedLayer::FullyConnectedLayer(size_t input_size, size_t output_size,
       output_size(output_size),
       batch_size(batch_size) {}
 
-void FullyConnectedLayer::fwd_mean_var(std::vector<float> &mu_a,
-                                       std::vector<float> &var_a,
-                                       int start_chunk, int end_chunk,
-                                       int batch_size, std::vector<float> &mu_z,
-                                       std::vector<float> &var_z)
+void FullyConnectedLayer::init_weight_bias(float &gain_w, float &gain_b,
+                                           const std::string &init_method)
+/*
+ */
+{
+    int num_weights = this->input_size * this->output_size;
+    float scale = 0.1f;
+    if (init_method.compare("Xavier") == 0 || init_method.compare("xavier")) {
+        auto scale = xavier_init(this->input_size, this->output_size);
+    } else {
+        auto scale = he_init(this->input_size);
+    }
+
+    // Weights & biases
+    std::tie(this->mu_w, this->var_w) =
+        gaussian_param_init(scale, gain_w, num_weights);
+
+    std::tie(this->mu_b, this->var_b) =
+        gaussian_param_init(scale, gain_b, this->output_size);
+}
+
+void FullyConnectedLayer::init_weight_bias()
+/*
+ */
+{
+    float default_gain_w = 1.0f;
+    float default_gain_b = 1.0f;
+    const std::string default_init_method = "he";
+    init_weight_bias(default_gain_w, default_gain_b, default_init_method);
+}
+
+void FullyConnectedLayer::fwd_mean_var(
+    std::vector<float> &mu_w, std::vector<float> &var_w,
+    std::vector<float> &mu_b, std::vector<float> &var_b,
+    std::vector<float> &mu_a, std::vector<float> &var_a, int start_chunk,
+    int end_chunk, size_t input_size, size_t output_size, int batch_size,
+    std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA for full connected layer
 
 Args:
@@ -42,23 +74,23 @@ Args:
 {
     float mu_a_tmp;
     float var_a_tmp;
-    int n = this->input_size;
+    int n = input_size;
     for (int i = start_chunk; i < end_chunk; i++) {
         int row = i / batch_size;
         int col = i % batch_size;
         float sum_mu_z = 0.0f;
         float sum_var_z = 0.0f;
-        for (int j = 0; j < this->input_size; j++) {
+        for (int j = 0; j < input_size; j++) {
             mu_a_tmp = mu_a[n * col + j];
             var_a_tmp = var_a[n * col + j];
-            sum_mu_z += this->mu_w[row * n + j] * mu_a_tmp;
-            sum_var_z += (this->mu_w[row * n + j] * this->mu_w[row * n + j] +
-                          this->var_w[row * n + j]) *
-                             mu_a_tmp +
-                         this->var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
+            sum_mu_z += mu_w[row * n + j] * mu_a_tmp;
+            sum_var_z +=
+                (mu_w[row * n + j] * mu_w[row * n + j] + var_w[row * n + j]) *
+                    mu_a_tmp +
+                var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
         }
-        mu_z[col * this->output_size + row] = sum_mu_z + this->mu_b[row];
-        var_z[col * this->output_size + row] = sum_var_z + this->var_b[row];
+        mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
+        var_z[col * output_size + row] = sum_var_z + var_b[row];
     }
 }
 
@@ -85,10 +117,12 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(&FullyConnectedLayer::fwd_mean_var, this,
-                        std::ref(mu_a), std::ref(var_a), start_chunk, end_chunk,
-                        batch_size, std::ref(mu_z), std::ref(var_z));
+        threads[i] = std::thread(&FullyConnectedLayer::fwd_mean_var, this,
+                                 std::ref(this->mu_w), std::ref(this->var_w),
+                                 std::ref(this->mu_b), std::ref(this->var_b),
+                                 std::ref(mu_a), std::ref(var_a), start_chunk,
+                                 end_chunk, this->input_size, this->output_size,
+                                 batch_size, std::ref(mu_z), std::ref(var_z));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -98,8 +132,10 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
     }
 }
 
-void FullyConnectedLayer::fwd_full_cov(std::vector<float> &var_a_f, int B,
-                                       int start_chunk, int end_chunk,
+void FullyConnectedLayer::fwd_full_cov(std::vector<float> &mu_w,
+                                       std::vector<float> &var_a_f,
+                                       size_t input_size, size_t output_size,
+                                       int B, int start_chunk, int end_chunk,
                                        std::vector<float> &var_z_fp)
 /* Add diagonal terms to the full covariance matrix.
 
@@ -113,8 +149,8 @@ Args:
 {
     int tu, col, row, k;
     float Sa_in;
-    int ni = this->input_size;
-    int no = this->output_size;
+    int ni = input_size;
+    int no = output_size;
     for (int j = start_chunk; j < end_chunk; j++) {
         row = j / no;
         col = j % no;
@@ -130,8 +166,8 @@ Args:
                           i % ni);
                 }
                 Sa_in = var_a_f[tu + (row / no) * (ni * (ni + 1)) / 2];
-                sum += this->mu_w[i % ni + (row % no) * ni] * Sa_in *
-                       this->mu_w[i / ni + (col % no) * ni];
+                sum += mu_w[i % ni + (row % no) * ni] * Sa_in *
+                       mu_w[i / ni + (col % no) * ni];
             }
             k = no * col - ((col * (col + 1)) / 2) + row % no +
                 (row / no) * (((no + 1) * no) / 2);
@@ -157,9 +193,10 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(&FullyConnectedLayer::fwd_full_cov, std::ref(var_a_f),
-                        B, start_chunk, end_chunk, std::ref(var_z_fp));
+        threads[i] = std::thread(&FullyConnectedLayer::fwd_full_cov, this,
+                                 std::ref(this->mu_w), std::ref(var_a_f),
+                                 this->input_size, this->output_size, B,
+                                 start_chunk, end_chunk, std::ref(var_z_fp));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -169,29 +206,29 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
     }
 }
 
-void FullyConnectedLayer::fwd_fc_full_var(std::vector<float> &mu_a,
-                                          std::vector<float> &var_a,
-                                          std::vector<float> &var_z_fp, int B,
-                                          int start_chunk, int end_chunk,
-                                          std::vector<float> &var_z,
-                                          std::vector<float> &var_z_f)
+void FullyConnectedLayer::fwd_fc_full_var(
+    std::vector<float> &var_w, std::vector<float> &var_b,
+    std::vector<float> &mu_a, std::vector<float> &var_a,
+    std::vector<float> &var_z_fp, size_t input_size, size_t output_size, int B,
+    int start_chunk, int end_chunk, std::vector<float> &var_z,
+    std::vector<float> &var_z_f)
 /**/
 {
     int col, row, i, k;
     float final_sum;
-    int ni = this->input_size;
-    int no = this->output_size;
+    int ni = input_size;
+    int no = output_size;
     for (int j = start_chunk; j < end_chunk; j++) {
         row = j / B;
         col = j % B;
         float sum = 0.0f;
         for (i = 0; i < ni; i++) {
-            sum += this->var_w[row * ni + i] * var_a[ni * col + i] +
-                   this->var_w[row * ni + i] * mu_a[ni * col + i] *
-                       mu_a[ni * col + i];
+            sum +=
+                var_w[row * ni + i] * var_a[ni * col + i] +
+                var_w[row * ni + i] * mu_a[ni * col + i] * mu_a[ni * col + i];
         }
         k = no * row - (row * (row - 1)) / 2 + col * (no * (no + 1)) / 2;
-        final_sum = sum + this->var_b[row] + var_z_fp[k];
+        final_sum = sum + var_b[row] + var_z_fp[k];
         var_z[col * no + row] = final_sum;
         var_z_f[k] = final_sum;
     }
@@ -223,10 +260,11 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&FullyConnectedLayer::fwd_fc_full_var, this,
-                                 std::ref(mu_a), std::ref(var_a),
-                                 std::ref(var_z_fp), B, start_chunk, end_chunk,
-                                 std::ref(var_z), std::ref(var_z_f));
+        threads[i] = std::thread(
+            &FullyConnectedLayer::fwd_fc_full_var, this, std::ref(this->var_w),
+            std::ref(this->var_b), std::ref(mu_a), std::ref(var_a),
+            std::ref(var_z_fp), this->input_size, this->output_size, B,
+            start_chunk, end_chunk, std::ref(var_z), std::ref(var_z_f));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -236,39 +274,39 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_z(std::vector<float> &var_z,
+void FullyConnectedLayer::bwd_fc_delta_z(std::vector<float> &mu_w,
                                          std::vector<float> &jcb,
                                          std::vector<float> &delta_mu,
-                                         std::vector<float> &delta_var, int B,
-                                         int start_chunk, int end_chunk,
+                                         std::vector<float> &delta_var,
+                                         size_t input_size, size_t output_size,
+                                         int B, int start_chunk, int end_chunk,
                                          std::vector<float> &delta_mu_z,
                                          std::vector<float> &delta_var_z)
 /*
  */
 {
-    int ni = this->input_size;
-    int no = this->output_size;
+    int ni = input_size;
+    int no = output_size;
     for (int j = start_chunk; j < end_chunk; j++) {
         int row = j / B;
         int col = j % B;
         float sum_mu_z = 0.0f;
         float sum_var_z = 0.0f;
         for (int i = 0; i < no; i++) {
-            sum_mu_z += this->mu_w[ni * i + row] * delta_mu[col * no + i];
+            sum_mu_z += mu_w[ni * i + row] * delta_mu[col * no + i];
 
-            sum_var_z += this->mu_w[ni * i + row] * delta_var[col * no + i] *
-                         this->mu_w[ni * i + row];
+            sum_var_z += mu_w[ni * i + row] * delta_var[col * no + i] *
+                         mu_w[ni * i + row];
         }
-        delta_mu_z[col * ni + row] =
-            sum_mu_z * var_z[col * ni + row] * jcb[col * ni + row];
-        delta_var_z[col * ni + row] = sum_var_z * var_z[col * ni + row] *
-                                      var_z[col * ni + row] *
-                                      jcb[col * ni + row] * jcb[col * ni + row];
+
+        // NOTE: Compute directly inovation vector
+        delta_mu_z[col * ni + row] = sum_mu_z * jcb[col * ni + row];
+        delta_var_z[col * ni + row] =
+            sum_var_z * jcb[col * ni + row] * jcb[col * ni + row];
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &var_z,
-                                            std::vector<float> &jcb,
+void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
                                             std::vector<float> &delta_mu,
                                             std::vector<float> &delta_var,
                                             int B, unsigned int NUM_THREADS,
@@ -292,11 +330,11 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &var_z,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(FullyConnectedLayer::bwd_fc_delta_z, this,
-                        std::ref(var_z), std::ref(jcb), std::ref(delta_mu),
-                        std::ref(delta_var), B, start_chunk, end_chunk,
-                        std::ref(delta_mu_z), std::ref(delta_var_z));
+        threads[i] = std::thread(
+            &FullyConnectedLayer::bwd_fc_delta_z, this, std::ref(this->mu_w),
+            std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
+            this->input_size, this->output_size, B, start_chunk, end_chunk,
+            std::ref(delta_mu_z), std::ref(delta_var_z));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -306,13 +344,12 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &var_z,
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_w(std::vector<float> &mu_a,
-                                         std::vector<float> &delta_mu,
-                                         std::vector<float> &delta_var,
-                                         int batch_size, int start_chunk,
-                                         int end_chunk,
-                                         std::vector<float> &delta_mu_w,
-                                         std::vector<float> &delta_var_w)
+void FullyConnectedLayer::bwd_fc_delta_w(
+    std::vector<float> &var_w, std::vector<float> &mu_a,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var,
+    size_t input_size, size_t output_size, int batch_size, int start_chunk,
+    int end_chunk, std::vector<float> &delta_mu_w,
+    std::vector<float> &delta_var_w)
 /* Compute update quantities for the mean of weights for full-connected layer.
 
 Args:
@@ -325,8 +362,8 @@ Args:
     delta_var_w: Updated quantities for the variance of weights
  */
 {
-    int k = this->output_size;
-    int m = this->input_size;
+    int k = output_size;
+    int m = input_size;
 
     for (int j = start_chunk; j < end_chunk; j++) {
         int row = j / k;
@@ -339,9 +376,9 @@ Args:
                 mu_a[m * i + row] * mu_a[m * i + row] * delta_var[col + k * i];
         }
 
-        delta_mu_w[col * m + row] = sum_mu_w * this->var_w[col * m + row];
+        delta_mu_w[col * m + row] = sum_mu_w * var_w[col * m + row];
         delta_var_w[col * m + row] =
-            sum_var_w * this->var_w[col * m + row] * this->var_w[col * m + row];
+            sum_var_w * var_w[col * m + row] * var_w[col * m + row];
     }
 }
 
@@ -366,8 +403,9 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            &FullyConnectedLayer::bwd_fc_delta_w, this, std::ref(mu_a),
-            std::ref(delta_mu), std::ref(delta_var), batch_size, start_chunk,
+            &FullyConnectedLayer::bwd_fc_delta_w, this, std::ref(this->var_w),
+            std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
+            this->input_size, this->output_size, batch_size, start_chunk,
             end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
     }
 
@@ -378,10 +416,11 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_b(std::vector<float> &delta_mu,
+void FullyConnectedLayer::bwd_fc_delta_b(std::vector<float> &var_b,
+                                         std::vector<float> &delta_mu,
                                          std::vector<float> &delta_var,
-                                         int batch_size, int start_chunk,
-                                         int end_chunk,
+                                         int batch_size, size_t output_size,
+                                         int start_chunk, int end_chunk,
                                          std::vector<float> &delta_mu_b,
                                          std::vector<float> &delta_var_b)
 /* Compute update quantities for the variance of biases for full-connected
@@ -399,7 +438,7 @@ Args:
     deltaSb: Updated quantities for the variance of biases
 */
 {
-    int m = this->output_size;
+    int m = output_size;
     for (int j = start_chunk; j < end_chunk; j++) {
         float sum_mu_b = 0.0f;
         float sum_var_b = 0.0f;
@@ -408,9 +447,9 @@ Args:
             sum_var_b += delta_var[m * i + j];
         }
 
-        delta_mu_b[j * m + j] = sum_mu_b * this->var_b[j * m + j];
+        delta_mu_b[j * m + j] = sum_mu_b * var_b[j * m + j];
         delta_var_b[j * m + j] =
-            sum_var_b * this->var_b[j * m + j] * this->var_b[j * m + j];
+            sum_var_b * var_b[j * m + j] * var_b[j * m + j];
     }
 }
 
@@ -438,7 +477,8 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(&FullyConnectedLayer::bwd_fc_delta_b, this,
-                                 std::ref(delta_mu), std::ref(delta_var),
+                                 std::ref(this->var_b), std::ref(delta_mu),
+                                 std::ref(delta_var), this->output_size,
                                  batch_size, start_chunk, end_chunk,
                                  std::ref(delta_mu_b), std::ref(delta_var_b));
     }
@@ -461,22 +501,52 @@ HiddenStates FullyConnectedLayer::forward(HiddenStates &input_states)
     HiddenStates output_states(this->output_size * batch_size);
 
     // Forward pass
-    this->fwd_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
-                       end_chunk, batch_size, input_states.mu_z,
-                       input_states.var_z);
+    this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
+                       input_states.mu_a, input_states.var_a, start_chunk,
+                       end_chunk, this->input_size, this->output_size,
+                       batch_size, input_states.mu_z, input_states.var_z);
 
     return output_states;
 }
 
-void FullyConnectedLayer::state_backward(std::vector<float> &var_z,
-                                         std::vector<float> &jcb,
+void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
                                          std::vector<float> &delta_mu,
                                          std::vector<float> &delta_var)
 /*
  */
-{}
+{
+    // Initialization
+    int batch_size = jcb.size() / this->input_size;
+    int start_chunk = 0;
+    int end_chunk = batch_size * this->output_size;
 
-void FullyConnectedLayer::param_backward()
+    // Compute inovation vector
+    this->bwd_fc_delta_z(this->mu_w, jcb, delta_mu, delta_var, this->input_size,
+                         this->output_size, batch_size, start_chunk, end_chunk,
+                         this->delta_mu, this->delta_var);
+}
+
+void FullyConnectedLayer::param_backward(std::vector<float> &mu_a)
 /*
+...
+
+Args:
+    mu_a: Mean of input activation
  */
-{}
+{
+    // Initialization
+    int batch_size = mu_a.size() / this->input_size;
+    int start_chunk = 0;
+    int end_chunk = batch_size * this->output_size;
+
+    // Update values for weights
+    this->bwd_fc_delta_w(this->var_w, mu_a, this->delta_mu, this->delta_var,
+                         this->input_size, this->output_size, batch_size,
+                         start_chunk, end_chunk, this->delta_mu_w,
+                         this->delta_var_w);
+
+    // Update values for biases
+    this->bwd_fc_delta_b(this->var_b, this->delta_mu, this->delta_var,
+                         this->output_size, batch_size, start_chunk, end_chunk,
+                         this->delta_mu_b, this->delta_var_b);
+}
