@@ -9,11 +9,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cpu_v2.h"
 
-FullyConnectedLayer::FullyConnectedLayer(size_t input_size, size_t output_size,
-                                         size_t batch_size)
-    : input_size(input_size),
-      output_size(output_size),
-      batch_size(batch_size) {}
+FullyConnectedLayer::FullyConnectedLayer(size_t input_size, size_t output_size)
+    : input_size(input_size), output_size(output_size) {}
 
 void FullyConnectedLayer::init_weight_bias(float &gain_w, float &gain_b,
                                            const std::string &init_method)
@@ -490,15 +487,16 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
     }
 }
 
-HiddenStates FullyConnectedLayer::forward(HiddenStates &input_states)
+void FullyConnectedLayer::forward(HiddenStates &input_states,
+                                  HiddenStates &output_states)
 /*
  */
 {
-    // Initialization
-    int batch_size = input_states.mu_z.size() / this->input_size;
+    // Initialization. TODO: figure out where to put batch size if mu_a is a
+    // member of buffer
+    int batch_size = this->mu_a.size() / this->input_size;
     int start_chunk = 0;
     int end_chunk = this->output_size * batch_size;
-    HiddenStates output_states(this->output_size * batch_size);
 
     // Forward pass
     this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
@@ -506,7 +504,8 @@ HiddenStates FullyConnectedLayer::forward(HiddenStates &input_states)
                        end_chunk, this->input_size, this->output_size,
                        batch_size, input_states.mu_z, input_states.var_z);
 
-    return output_states;
+    // Update number of actual states
+    output_states.num_actual_states = this->output_size * batch_size;
 }
 
 void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
@@ -516,7 +515,7 @@ void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
  */
 {
     // Initialization
-    int batch_size = jcb.size() / this->input_size;
+    int batch_size = this->delta_mu.size() / this->input_size;
     int start_chunk = 0;
     int end_chunk = batch_size * this->output_size;
 
@@ -526,23 +525,23 @@ void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
                          this->delta_mu, this->delta_var);
 }
 
-void FullyConnectedLayer::param_backward(std::vector<float> &mu_a)
+void FullyConnectedLayer::param_backward()
 /*
 ...
 
 Args:
-    mu_a: Mean of input activation
+    mu_a: Mean of input activations
  */
 {
     // Initialization
-    int batch_size = mu_a.size() / this->input_size;
+    int batch_size = this->delta_mu.size() / this->input_size;
     int start_chunk = 0;
     int end_chunk = batch_size * this->output_size;
 
     // Update values for weights
-    this->bwd_fc_delta_w(this->var_w, mu_a, this->delta_mu, this->delta_var,
-                         this->input_size, this->output_size, batch_size,
-                         start_chunk, end_chunk, this->delta_mu_w,
+    this->bwd_fc_delta_w(this->var_w, this->mu_a, this->delta_mu,
+                         this->delta_var, this->input_size, this->output_size,
+                         batch_size, start_chunk, end_chunk, this->delta_mu_w,
                          this->delta_var_w);
 
     // Update values for biases

@@ -43,6 +43,26 @@ struct ActLabel {
     int emb = 13;
 };
 
+struct HiddenStates {
+    std::vector<float> mu_z;
+    std::vector<float> var_z;
+    std::vector<float> mu_a;
+    std::vector<float> var_a;
+    std::vector<float> jcb;
+    int num_actual_states = 1;
+
+    // Default constructor
+    HiddenStates() = default;
+
+    // Constructor to initialize all vectors with a specific size
+    HiddenStates(size_t n)
+        : mu_z(n, 0.0f),
+          var_z(n, 0.0f),
+          mu_a(n, 0.0f),
+          var_a(n, 0.0f),
+          jcb(n, 1.0f) {}
+};
+
 struct MultiHeadAttentionProp
 /*Properties of multi-head self-attention
 

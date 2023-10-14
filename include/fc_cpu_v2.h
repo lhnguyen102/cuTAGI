@@ -12,34 +12,19 @@
 #include <thread>
 #include <vector>
 
+#include "base_layer.h"
 #include "net_prop.h"
+#include "struct_var.h"
 
-struct HiddenStates {
-    std::vector<float> mu_z;
-    std::vector<float> var_z;
-    std::vector<float> mu_a;
-    std::vector<float> var_a;
-    std::vector<float> jcb;
-
-    // Default constructor
-    HiddenStates() = default;
-
-    // Constructor to initialize all vectors with a specific size
-    HiddenStates(size_t n)
-        : mu_z(n, 0.0f),
-          var_z(n, 0.0f),
-          mu_a(n, 0.0f),
-          var_a(n, 0.0f),
-          jcb(n, 1.0f) {}
-};
-
-class FullyConnectedLayer {
+class FullyConnectedLayer : public BaseLayer {
    public:
-    size_t input_size, output_size, batch_size;
+    size_t input_size, output_size;
     std::vector<float> mu_w;
     std::vector<float> var_w;
     std::vector<float> mu_b;
     std::vector<float> var_b;
+    std::vector<float> mu_a;
+    std::vector<float> jcb;
     std::vector<float> delta_mu;
     std::vector<float> delta_var;
     std::vector<float> delta_mu_w;
@@ -47,8 +32,8 @@ class FullyConnectedLayer {
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
 
-    FullyConnectedLayer(size_t input_size, size_t output_size,
-                        size_t batch_size);
+    FullyConnectedLayer(size_t input_size, size_t output_size);
+
     ~FullyConnectedLayer();
 
     void init_weight_bias(float &gain_w, float &gain_b,
@@ -130,10 +115,11 @@ class FullyConnectedLayer {
                            std::vector<float> &delta_mu_b,
                            std::vector<float> &delta_var_b);
 
-    HiddenStates forward(HiddenStates &input_states);
+    void forward(HiddenStates &input_states,
+                 HiddenStates &output_states) override;
 
     void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var);
+                        std::vector<float> &delta_var) override;
 
-    void param_backward(std::vector<float> &mu_a);
+    void param_backward() override;
 };
