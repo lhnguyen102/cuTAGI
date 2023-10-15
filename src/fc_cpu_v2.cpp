@@ -494,7 +494,7 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
 {
     // Initialization. TODO: figure out where to put batch size if mu_a is a
     // member of buffer
-    int batch_size = this->mu_a.size() / this->input_size;
+    int batch_size = input_states.size / this->input_size;
     int start_chunk = 0;
     int end_chunk = this->output_size * batch_size;
 
@@ -505,7 +505,8 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
                        batch_size, input_states.mu_z, input_states.var_z);
 
     // Update number of actual states
-    output_states.num_actual_states = this->output_size * batch_size;
+    output_states.size = this->output_size * batch_size;
+    output_states.block_size = this->output_size;
 }
 
 void FullyConnectedLayer::state_backward(std::vector<float> &jcb,

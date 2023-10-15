@@ -49,7 +49,7 @@ struct HiddenStates {
     std::vector<float> mu_a;
     std::vector<float> var_a;
     std::vector<float> jcb;
-    int num_actual_states = 1;
+    int size = 0, block_size = 0;
 
     // Default constructor
     HiddenStates() = default;

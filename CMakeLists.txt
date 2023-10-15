@@ -135,6 +135,7 @@ set(CPU_SOURCES
   src/fc_layer_cpu.cpp
   src/embedding_cpu.cpp
   src/fc_cpu_v2.cpp
+  src/activation_layer_cpu.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp

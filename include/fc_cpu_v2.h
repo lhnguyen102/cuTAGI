@@ -8,6 +8,8 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <iostream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
