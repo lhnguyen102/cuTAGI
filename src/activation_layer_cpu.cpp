@@ -558,3 +558,178 @@ void MixtureTanh::forward(HiddenStates &input_states,
         this->jcb[i] = output_states.jcb[i];
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+/// Softplus
+////////////////////////////////////////////////////////////////////////////////
+Softplus::Softplus(){};
+Softplus::~Softplus(){};
+
+void Softplus::softplus_mean_var(std::vector<float> &mu_z,
+                                 std::vector<float> &var_z, int start_chunk,
+                                 int end_chunk, std::vector<float> &mu_a,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &var_a)
+/*
+ */
+{
+    float tmp;
+    for (int col = start_chunk; col < end_chunk; col++) {
+        mu_a[col] = logf(1 + expf(mu_z[col]));
+        tmp = 1 / (1 + expf(-mu_z[col]));
+        jcb[col] = tmp;
+        var_a[col] = tmp * var_z[col] * tmp;
+    }
+}
+
+void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
+                                    std::vector<float> &var_z, int n,
+                                    unsigned int num_threads,
+                                    std::vector<float> &mu_a,
+                                    std::vector<float> &jcb,
+                                    std::vector<float> &var_a)
+/*
+ */
+{
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_chunk, end_chunk;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_chunk = n_batch * i;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_chunk = n_batch * i + rem_batch;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(&Softplus::softplus_mean_var, this, std::ref(mu_z),
+                        std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
+                        std::ref(jcb), std::ref(var_a));
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        if (threads[i].joinable()) {
+            threads[i].join();
+        }
+    }
+}
+
+void Softplus::forward(HiddenStates &input_states, HiddenStates &output_states)
+/*
+ */
+{
+    // Validate input. TODO: to be removed
+    if (input_states.size == 0) {
+        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
+                  << std::endl;
+        throw std::invalid_argument("Error: Input state size is zero.");
+    }
+
+    // TODO: replace this function by the multiprocessing one
+    int start_chunk = 0;
+    int end_chunk = input_states.size;
+    this->softplus_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+                            end_chunk, output_states.mu_a, output_states.jcb,
+                            output_states.var_a);
+
+    // Copy activation mean and jacobian to the class member for backward pass
+    for (int i = 0; i < output_states.size; i++) {
+        this->mu_a[i] = output_states.mu_a[i];
+        this->jcb[i] = output_states.jcb[i];
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
+/// Leaky ReLU
+////////////////////////////////////////////////////////////////////////////////
+LeakyRelu::LeakyRelu(){};
+LeakyRelu::~LeakyRelu(){};
+
+void LeakyRelu::leaky_relu_mean_var(std::vector<float> &mu_z,
+                                    std::vector<float> &var_z, float alpha,
+                                    int start_chunk, int end_chunk,
+                                    std::vector<float> &mu_a,
+                                    std::vector<float> &jcb,
+                                    std::vector<float> &var_a)
+/*
+ */
+{
+    float zeroPad = 0;
+    float onePad = 1;
+    float tmp;
+    int col;
+    for (col = start_chunk; col < end_chunk; col++) {
+        tmp = std::max(mu_z[col], zeroPad);
+        if (tmp == 0) {
+            mu_a[col] = alpha * mu_z[col];
+            jcb[col] = alpha;
+            var_a[col] = alpha * var_z[col] * alpha;
+        } else {
+            mu_a[col] = tmp;
+            jcb[col] = onePad;
+            var_a[col] = var_z[col];
+        }
+    }
+}
+
+void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
+                                       std::vector<float> &var_z, float alpha,
+                                       int n, unsigned int num_threads,
+                                       std::vector<float> &mu_a,
+                                       std::vector<float> &jcb,
+                                       std::vector<float> &var_a)
+/*
+ */
+{
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_chunk, end_chunk;
+    std::thread threads[num_threads];
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_chunk = n_batch * i;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_chunk = n_batch * i + rem_batch;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] =
+            std::thread(&LeakyRelu::leaky_relu_mean_var, this, std::ref(mu_z),
+                        std::ref(var_z), alpha, start_chunk, end_chunk,
+                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        if (threads[i].joinable()) {
+            threads[i].join();
+        }
+    }
+}
+
+void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states)
+/*
+ */
+{
+    // Validate input. TODO: to be removed
+    if (input_states.size == 0) {
+        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
+                  << std::endl;
+        throw std::invalid_argument("Error: Input state size is zero.");
+    }
+
+    // TODO: replace this function by the multiprocessing one
+    int start_chunk = 0;
+    int end_chunk = input_states.size;
+    this->leaky_relu_mean_var(input_states.mu_z, input_states.var_z,
+                              start_chunk, end_chunk, this->alpha,
+                              output_states.mu_a, output_states.jcb,
+                              output_states.var_a);
+
+    // Copy activation mean and jacobian to the class member for backward pass
+    for (int i = 0; i < output_states.size; i++) {
+        this->mu_a[i] = output_states.mu_a[i];
+        this->jcb[i] = output_states.jcb[i];
+    }
+}

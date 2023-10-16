@@ -160,3 +160,52 @@ class MixtureTanh : public BaseLayer {
                         std::vector<float> &delta_var) override;
     void param_backward() override;
 };
+////////////////////////////////////////////////////////////////////////////////
+/// Softplus
+////////////////////////////////////////////////////////////////////////////////
+class Softplus : public BaseLayer {
+   public:
+    Softplus();
+    ~Softplus();
+    void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                           int start_chunk, int end_chunk,
+                           std::vector<float> &mu_a, std::vector<float> &jcb,
+                           std::vector<float> &var_a);
+    void softplus_mean_var_mp(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, int n,
+                              unsigned int num_threads,
+                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_a);
+
+    void forward(HiddenStates &input_states,
+                 HiddenStates &output_states) override;
+    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
+                        std::vector<float> &delta_var) override;
+    void param_backward() override;
+};
+////////////////////////////////////////////////////////////////////////////////
+/// Leaky ReLU
+////////////////////////////////////////////////////////////////////////////////
+class LeakyRelu : public BaseLayer {
+   public:
+    float alpha = 0.1f;
+    LeakyRelu();
+    ~LeakyRelu();
+    void leaky_relu_mean_var(std::vector<float> &mu_z,
+                             std::vector<float> &var_z, float alpha,
+                             int start_chunk, int end_chunk,
+                             std::vector<float> &mu_a, std::vector<float> &jcb,
+                             std::vector<float> &var_a);
+    void leaky_relu_mean_var_mp(std::vector<float> &mu_z,
+                                std::vector<float> &var_z, float alpha, int n,
+                                unsigned int num_threads,
+                                std::vector<float> &mu_a,
+                                std::vector<float> &jcb,
+                                std::vector<float> &var_a);
+
+    void forward(HiddenStates &input_states,
+                 HiddenStates &output_states) override;
+    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
+                        std::vector<float> &delta_var) override;
+    void param_backward() override;
+};
