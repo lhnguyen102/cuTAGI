@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 15, 2023
+// Updated:      October 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,7 +307,7 @@ void MixtureRelu::mixture_relu_mean_var_mp(
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(num_threads);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -317,10 +317,10 @@ void MixtureRelu::mixture_relu_mean_var_mp(
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&MixtureRelu::mixture_relu_mean_var, this,
-                                 std::ref(mu_z), std::ref(var_z), omega_tol,
-                                 start_chunk, end_chunk, std::ref(mu_a),
-                                 std::ref(jcb), std::ref(var_a));
+        threads[i] =
+            std::thread(MixtureRelu::mixture_relu_mean_var, std::ref(mu_z),
+                        std::ref(var_z), omega_tol, start_chunk, end_chunk,
+                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
     }
     for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
@@ -731,5 +731,148 @@ void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states)
     for (int i = 0; i < output_states.size; i++) {
         this->mu_a[i] = output_states.mu_a[i];
         this->jcb[i] = output_states.jcb[i];
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
+/// Stable Softmax
+////////////////////////////////////////////////////////////////////////////////
+Softmax::Softmax() {}
+Softmax::~Softmax() {}
+
+void Softmax::softmax_mean_var(std::vector<float> &mu_z,
+                               std::vector<float> &var_z, int no,
+                               int batch_size, std::vector<float> &mu_a,
+                               std::vector<float> &jcb,
+                               std::vector<float> &var_a)
+/*
+ */
+{
+    float sum, max_m, max_v;
+    int idx;
+    for (int i = 0; i < batch_size; i++) {
+        sum = 0.0f;
+        idx = i * no;
+        auto max_idx =
+            std::max_element(mu_z.begin() + idx, mu_z.begin() + idx + no) -
+            mu_z.begin();
+        max_m = mu_z[max_idx];
+        max_v = var_z[max_idx];
+        for (int j = 0; j < no; j++) {
+            mu_a[idx + j] = expf(mu_z[idx + j] - max_m);
+            sum += mu_a[idx + j];
+        }
+        for (int j = 0; j < no; j++) {
+            mu_a[idx + j] = mu_a[idx + j] / sum;
+            jcb[idx + j] = mu_a[idx + j] * (1 - mu_a[idx + j]);
+            // TODO: double check on covariance formulation
+            var_a[idx + j] =
+                jcb[idx + j] * (var_z[idx + j] + max_v) * jcb[idx + j];
+        }
+    }
+}
+
+void Softmax::forward(HiddenStates &input_states, HiddenStates &output_states)
+/*
+ */
+{
+    // Validate input. TODO: to be removed
+    if (input_states.size == 0) {
+        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
+                  << std::endl;
+        throw std::invalid_argument("Error: Input state size is zero.");
+    }
+
+    // TODO: replace this function by the multiprocessing one
+    int batch_size = input_states.size / input_states.block_size;
+    this->softmax_mean_var(
+        input_states.mu_z, input_states.var_z, input_states.block_size,
+        batch_size, output_states.mu_a, output_states.jcb, output_states.var_a);
+
+    // Copy activation mean and jacobian to the class member for backward pass
+    for (int i = 0; i < output_states.size; i++) {
+        this->mu_a[i] = output_states.mu_a[i];
+        this->jcb[i] = output_states.jcb[i];
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
+/// Remax
+////////////////////////////////////////////////////////////////////////////////
+RemaxA::RemaxA() {}
+RemaxA::~RemaxA() {}
+
+void RemaxA::to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
+                    int B, std::vector<float> &mu_log,
+                    std::vector<float> &var_log)
+/*
+ */
+{
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_var =
+                logf(1.0f + (var_m[i * no + j] / powf(mu_m[i * no + j], 2)));
+            tmp_mu = logf(mu_m[i * no + j]) - 0.5 * tmp_var;
+            mu_log[i * no + j] = tmp_mu;
+            var_log[i * no + j] = tmp_var;
+        }
+    }
+}
+
+void RemaxA::sum_class_hidden_states(std::vector<float> &mu_m,
+                                     std::vector<float> &var_m, int no, int B,
+                                     std::vector<float> &mu_sum,
+                                     std::vector<float> &var_sum)
+/*
+ */
+{
+    float sum_mu, sum_var;
+    for (int i = 0; i < B; i++) {
+        sum_mu = 0.0f;
+        sum_var = 0.0f;
+        for (int j = 0; j < no; j++) {
+            sum_mu += mu_m[i * no + j];
+            sum_var += var_m[i * no + j];
+        }
+        mu_sum[i] = sum_mu;
+        var_sum[i] = sum_var;
+    }
+}
+
+void RemaxA::compute_cov_log_logsum(std::vector<float> &mu_m,
+                                    std::vector<float> &var_m,
+                                    std::vector<float> &mu_sum, int no, int B,
+                                    std::vector<float> &cov_log_logsum)
+/*
+ */
+{
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            cov_log_logsum[i * no + j] =
+                logf(1.0f + var_m[i * no + j] * (1.0f / mu_sum[i]) *
+                                (1.0f / mu_m[i * no + j]));
+        }
+    }
+}
+
+void RemaxA::compute_remax_prob(std::vector<float> &mu_log,
+                                std::vector<float> &var_log,
+                                std::vector<float> &mu_logsum,
+                                std::vector<float> &var_logsum,
+                                std::vector<float> &cov_log_logsum, int no,
+                                int B, std::vector<float> &mu_a,
+                                std::vector<float> &var_a)
+/*
+ */
+{
+    float tmp_mu, tmp_var;
+    for (int i = 0; i < B; i++) {
+        for (int j = 0; j < no; j++) {
+            tmp_mu = mu_log[i * no + j] - mu_logsum[i];
+            tmp_var = var_log[i * no + j] + var_logsum[i] -
+                      2 * cov_log_logsum[i * no + j];
+            mu_a[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
+            var_a[i * no + j] =
+                expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
+        }
     }
 }
