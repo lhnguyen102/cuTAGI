@@ -3,26 +3,48 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 09, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/layer_stack.h"
 
-void LayerStack::addLayer(std::unique_ptr<BaseLayer> layer) {
+void LayerStack::add_layer(std::unique_ptr<BaseLayer> layer)
+/*
+ */
+{
+    // Get buffer size
+    int output_size = layer->get_output_size();
+    this->output_buffer_size = std::max(output_size, this->output_buffer_size);
+
+    // Stack layer
     layers.push_back(std::move(layer));
+}
+
+void LayerStack::init_output_state_buffer()
+/*
+ */
+{
+    this->output_state_buffer = HiddenStates(this->output_buffer_size);
+}
+
+void LayerStack::init_delta_state_buffer()
+/*
+ */
+{
+    this->delta_state_buffer = DeltaStates(this->output_buffer_size);
 }
 
 HiddenStates LayerStack::forward(HiddenStates &input_states)
 /*
  */
 {
-    HiddenStates output_states = input_states;
     for (const auto &layer : this->layers) {
-        output_states = layer->forward(output_states);
+        layer->forward(input_states, this->output_state_buffer);
+        input_states = this->output_state_buffer;
     }
-    return output_states;
+    return this->output_state_buffer;
 }
 
 void LayerStack::state_backward(std::vector<float> &jcb,

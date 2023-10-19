@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      August 22, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,6 +62,25 @@ struct HiddenStates {
           mu_a(n, 0.0f),
           var_a(n, 0.0f),
           jcb(n, 1.0f) {}
+};
+
+struct DeltaStates {
+    std::vector<float> delta_mu;
+    std::vector<float> delta_var;
+
+    // Default constructor
+    DeltaStates() = default;
+
+    // Constructor to initialize all vectors with a specific size
+    DeltaStates(size_t n) : delta_mu(n, 0.0f), delta_var(n, 0.0f) {}
+};
+
+struct TempStates {
+    std::vector<float> tmp_1;
+    std::vector<float> tmp_2;
+
+    // Default constructor
+    TempStates() = default;
 };
 
 struct MultiHeadAttentionProp

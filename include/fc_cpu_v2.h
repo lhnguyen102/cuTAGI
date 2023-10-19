@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 08, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +37,10 @@ class FullyConnectedLayer : public BaseLayer {
     FullyConnectedLayer(size_t input_size, size_t output_size);
 
     ~FullyConnectedLayer();
+
+    int get_input_size() override;
+
+    int get_output_size() override;
 
     void init_weight_bias(float &gain_w, float &gain_b,
                           const std::string &init_method);

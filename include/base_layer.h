@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 09, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,11 @@ class BaseLayer {
     std::vector<float> delta_var_b;
 
     virtual ~BaseLayer() = default;
+
+    virtual int get_input_size();
+
+    virtual int get_output_size();
+
     virtual void forward(HiddenStates &input_states,
                          HiddenStates &output_states);
     virtual void state_backward(std::vector<float> &jcb,

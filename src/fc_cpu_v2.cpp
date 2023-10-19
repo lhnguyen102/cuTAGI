@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 08, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,20 @@ Args:
         mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
         var_z[col * output_size + row] = sum_var_z + var_b[row];
     }
+}
+
+int FullyConnectedLayer::get_input_size()
+/*
+ */
+{
+    return this->input_size;
+}
+
+int FullyConnectedLayer::get_output_size()
+/*
+ */
+{
+    return this->output_size;
 }
 
 void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
