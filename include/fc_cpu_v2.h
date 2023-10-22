@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 19, 2023
+// Updated:      October 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,8 +27,6 @@ class FullyConnectedLayer : public BaseLayer {
     std::vector<float> var_b;
     std::vector<float> mu_a;
     std::vector<float> jcb;
-    std::vector<float> delta_mu;
-    std::vector<float> delta_var;
     std::vector<float> delta_mu_w;
     std::vector<float> delta_var_w;
     std::vector<float> delta_mu_b;
@@ -121,11 +119,14 @@ class FullyConnectedLayer : public BaseLayer {
                            std::vector<float> &delta_mu_b,
                            std::vector<float> &delta_var_b);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
 
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
 
-    void param_backward() override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };

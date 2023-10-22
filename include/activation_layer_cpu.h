@@ -3,12 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 18, 2023
+// Updated:      October 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <thread>
+#include <vector>
 
 #include "base_layer.h"
 #include "common.h"
@@ -27,11 +28,14 @@ class Relu : public BaseLayer {
                           std::vector<float> &mu_a, std::vector<float> &jcb,
                           std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Sigmoid
@@ -50,11 +54,14 @@ class Sigmoid : public BaseLayer {
                              std::vector<float> &jcb,
                              std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Tanh
@@ -71,11 +78,14 @@ class Tanh : public BaseLayer {
                           std::vector<float> &mu_a, std::vector<float> &jcb,
                           std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
@@ -96,11 +106,14 @@ class MixtureRelu : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -124,11 +137,14 @@ class MixtureSigmoid : public BaseLayer {
                                      std::vector<float> &jcb,
                                      std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,11 +168,14 @@ class MixtureTanh : public BaseLayer {
                                   std::vector<float> &jcb,
                                   std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
@@ -175,11 +194,14 @@ class Softplus : public BaseLayer {
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
@@ -201,11 +223,14 @@ class LeakyRelu : public BaseLayer {
                                 std::vector<float> &jcb,
                                 std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Stable Softmax
@@ -219,11 +244,14 @@ class Softmax : public BaseLayer {
                           int no, int batch_size, std::vector<float> &mu_a,
                           std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -256,9 +284,14 @@ class RemaxA : public BaseLayer {
                             std::vector<float> &mu_a,
                             std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states,
-                 HiddenStates &output_states) override;
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var) override;
-    void param_backward() override;
+    void forward(HiddenStates &input_states, HiddenStates &output_states,
+                 TempStates &temp_states) override;
+
+    void state_backward(std::vector<float> &jcb,
+                        DeltaStates &input_delta_states,
+                        DeltaStates &output_hidden_states,
+                        TempStates &temp_states) override;
+
+    void param_backward(DeltaStates &delta_states,
+                        TempStates &temp_states) override;
 };

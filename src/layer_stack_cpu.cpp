@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 19, 2023
+// Updated:      October 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,55 +26,58 @@ void LayerStack::init_output_state_buffer()
 /*
  */
 {
-    this->output_state_buffer = HiddenStates(this->output_buffer_size);
+    this->output_state_buffer =
+        HiddenStates(this->output_buffer_size, this->output_buffer_block_size);
 }
 
 void LayerStack::init_delta_state_buffer()
 /*
  */
 {
-    this->delta_state_buffer = DeltaStates(this->output_buffer_size);
+    this->output_delta_state_buffer =
+        DeltaStates(this->output_buffer_size, this->output_buffer_block_size);
 }
 
 HiddenStates LayerStack::forward(HiddenStates &input_states)
 /*
  */
 {
+    // Resize the buffer for delta and output states
+    if (input_states.block_size != this->output_buffer_block_size) {
+        this->output_buffer_block_size = input_states.block_size;
+        init_delta_state_buffer();
+        init_output_state_buffer();
+    }
+
+    // Forward pass for all layers
     for (const auto &layer : this->layers) {
-        layer->forward(input_states, this->output_state_buffer);
+        layer->forward(input_states, this->output_state_buffer,
+                       this->temp_states);
         input_states = this->output_state_buffer;
     }
     return this->output_state_buffer;
 }
 
-void LayerStack::state_backward(std::vector<float> &jcb,
-                                std::vector<float> &delta_mu,
-                                std::vector<float> &delta_var)
+void LayerStack::backward(std::vector<float> &obs, std::vector<float> &obs_var)
 /*
  */
 {
     // Output layer
     int last_layer_idx = this->layers.size() - 1;
-    this->layers[last_layer_idx]->state_backward(jcb, delta_mu, delta_var);
+    // this->layers[last_layer_idx]->state_backward(jcb, delta_mu, delta_var);
 
     // Hidden layers
     for (int i = last_layer_idx - 1; i >= 0; --i) {
-        this->layers[i]->state_backward(this->layers[i + 1]->jcb,
-                                        this->layers[i + 1]->delta_mu,
-                                        this->layers[i + 1]->delta_var);
+        // Backward pass for hidden states
+        this->layers[i]->state_backward(
+            this->layers[i + 1]->jcb, this->input_delta_state_buffer,
+            this->output_delta_state_buffer, this->temp_states);
+
+        // Backward pass for parameters
+        this->layers[i]->param_backward(this->output_delta_state_buffer,
+                                        this->temp_states);
+
+        // Pass new input data for next iteration
+        this->input_delta_state_buffer = this->output_delta_state_buffer;
     }
 }
-
-void LayerStack::param_backward()
-/*
- */
-{
-    for (int i = this->layers.size() - 1; i >= 0; --i) {
-        this->layers[i]->param_backward();
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////
-/// MODULE
-///////////////////////////////////////////////////////////////////////////
-void Module::add(std::shared_ptr<BaseLayer> layer) { layers.push_back(layer); }

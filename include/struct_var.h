@@ -3,7 +3,7 @@
 // Description:  Header file for struct variable in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      April 20, 2022
-// Updated:      October 19, 2023
+// Updated:      October 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,37 +50,46 @@ struct HiddenStates {
     std::vector<float> var_a;
     std::vector<float> jcb;
     // Block size can be fixed size of a vector without accounting batch_size
-    int size = 0, block_size = 0;
+    int size = 0, block_size = 1;
 
     // Default constructor
     HiddenStates() = default;
 
     // Constructor to initialize all vectors with a specific size
-    HiddenStates(size_t n)
+    HiddenStates(size_t n, size_t m)
         : mu_z(n, 0.0f),
           var_z(n, 0.0f),
           mu_a(n, 0.0f),
           var_a(n, 0.0f),
-          jcb(n, 1.0f) {}
+          jcb(n, 1.0f),
+          size(n),
+          block_size(m) {}
 };
 
 struct DeltaStates {
     std::vector<float> delta_mu;
     std::vector<float> delta_var;
+    int size = 0, block_size = 1;
 
     // Default constructor
     DeltaStates() = default;
 
     // Constructor to initialize all vectors with a specific size
-    DeltaStates(size_t n) : delta_mu(n, 0.0f), delta_var(n, 0.0f) {}
+    DeltaStates(size_t n, size_t m)
+        : delta_mu(n, 0.0f), delta_var(n, 0.0f), size(n), block_size(m) {}
 };
 
 struct TempStates {
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
+    int size = 0, block_size = 1;
 
     // Default constructor
     TempStates() = default;
+
+    // Constructor to initialize all vectors with a specific size
+    TempStates(size_t n, size_t m)
+        : tmp_1(n, 0.0f), tmp_2(n, 0.0f), size(n), block_size(m) {}
 };
 
 struct MultiHeadAttentionProp

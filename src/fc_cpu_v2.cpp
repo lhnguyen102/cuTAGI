@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 19, 2023
+// Updated:      October 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -502,7 +502,8 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
 }
 
 void FullyConnectedLayer::forward(HiddenStates &input_states,
-                                  HiddenStates &output_states)
+                                  HiddenStates &output_states,
+                                  TempStates &temp_states)
 /*
  */
 {
@@ -524,23 +525,27 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
 }
 
 void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
-                                         std::vector<float> &delta_mu,
-                                         std::vector<float> &delta_var)
+                                         DeltaStates &input_delta_states,
+                                         DeltaStates &output_delta_states,
+                                         TempStates &temp_states)
 /*
  */
 {
     // Initialization
-    int batch_size = this->delta_mu.size() / this->input_size;
+    int batch_size = input_delta_states.block_size;
     int start_chunk = 0;
     int end_chunk = batch_size * this->output_size;
 
     // Compute inovation vector
-    this->bwd_fc_delta_z(this->mu_w, jcb, delta_mu, delta_var, this->input_size,
+    this->bwd_fc_delta_z(this->mu_w, jcb, input_delta_states.delta_mu,
+                         input_delta_states.delta_var, this->input_size,
                          this->output_size, batch_size, start_chunk, end_chunk,
-                         this->delta_mu, this->delta_var);
+                         output_delta_states.delta_mu,
+                         output_delta_states.delta_var);
 }
 
-void FullyConnectedLayer::param_backward()
+void FullyConnectedLayer::param_backward(DeltaStates &delta_states,
+                                         TempStates &temp_states)
 /*
 ...
 
@@ -549,18 +554,19 @@ Args:
  */
 {
     // Initialization
-    int batch_size = this->delta_mu.size() / this->input_size;
+    int batch_size = delta_states.block_size;
     int start_chunk = 0;
     int end_chunk = batch_size * this->output_size;
 
     // Update values for weights
-    this->bwd_fc_delta_w(this->var_w, this->mu_a, this->delta_mu,
-                         this->delta_var, this->input_size, this->output_size,
-                         batch_size, start_chunk, end_chunk, this->delta_mu_w,
-                         this->delta_var_w);
+    this->bwd_fc_delta_w(this->var_w, this->mu_a, delta_states.delta_mu,
+                         delta_states.delta_var, this->input_size,
+                         this->output_size, batch_size, start_chunk, end_chunk,
+                         this->delta_mu_w, this->delta_var_w);
 
     // Update values for biases
-    this->bwd_fc_delta_b(this->var_b, this->delta_mu, this->delta_var,
-                         this->output_size, batch_size, start_chunk, end_chunk,
-                         this->delta_mu_b, this->delta_var_b);
+    this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
+                         delta_states.delta_var, this->output_size, batch_size,
+                         start_chunk, end_chunk, this->delta_mu_b,
+                         this->delta_var_b);
 }

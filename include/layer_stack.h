@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 19, 2023
+// Updated:      October 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,10 +17,14 @@
 class LayerStack {
    public:
     HiddenStates output_state_buffer;
-    DeltaStates delta_state_buffer;
+    DeltaStates output_delta_state_buffer;
+    DeltaStates input_delta_state_buffer;
+    TempStates temp_states;
     int output_buffer_size = 0;
-    int input_buffer_size = 0;
+    int output_buffer_block_size = 1;
+
     LayerStack();
+
     ~LayerStack();
 
     void add_layer(std::unique_ptr<BaseLayer> layer){};
@@ -31,10 +35,7 @@ class LayerStack {
 
     HiddenStates forward(HiddenStates &input_states);
 
-    void state_backward(std::vector<float> &jcb, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var);
-
-    void param_backward();
+    void backward(std::vector<float> &obs, std::vector<float> &obs_var);
 
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;
