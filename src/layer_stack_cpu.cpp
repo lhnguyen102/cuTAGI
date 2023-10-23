@@ -38,6 +38,21 @@ void LayerStack::init_delta_state_buffer()
         DeltaStates(this->output_buffer_size, this->output_buffer_block_size);
 }
 
+void LayerStack::update_output_delta_z(HiddenStates &last_layer_states,
+                                       std::vector<float> &obs,
+                                       std::vector<float> &var_obs)
+/*
+ */
+{
+    int start_chunk = 0;
+    int end_chunk = obs.size();
+    compute_delta_z_output(last_layer_states.mu_a, last_layer_states.var_a,
+                           last_layer_states.var_z, last_layer_states.jcb, obs,
+                           var_obs, start_chunk, end_chunk,
+                           this->input_delta_state_buffer.delta_mu,
+                           this->input_delta_state_buffer.delta_var);
+}
+
 HiddenStates LayerStack::forward(HiddenStates &input_states)
 /*
  */
@@ -58,7 +73,7 @@ HiddenStates LayerStack::forward(HiddenStates &input_states)
     return this->output_state_buffer;
 }
 
-void LayerStack::backward(std::vector<float> &obs, std::vector<float> &obs_var)
+void LayerStack::backward()
 /*
  */
 {

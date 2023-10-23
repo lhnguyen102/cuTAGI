@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 22, 2023
+// Updated:      October 23, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "base_layer.h"
+#include "output_layer_update_cpu.h"
 #include "struct_var.h"
 
 class LayerStack {
@@ -33,18 +34,14 @@ class LayerStack {
 
     void init_delta_state_buffer();
 
+    void update_output_delta_z(HiddenStates &output_states,
+                               std::vector<float> &obs,
+                               std::vector<float> &var_obs);
+
     HiddenStates forward(HiddenStates &input_states);
 
-    void backward(std::vector<float> &obs, std::vector<float> &obs_var);
+    void backward();
 
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;
-};
-
-class Module {
-   public:
-    void add(std::shared_ptr<BaseLayer> layer){};
-
-   private:
-    std::vector<std::shared_ptr<BaseLayer>> layers;
 };
