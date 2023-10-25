@@ -3,44 +3,54 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 20, 2023
+// Updated:      October 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cpu_v2.h"
 
-FullyConnectedLayer::FullyConnectedLayer(size_t input_size, size_t output_size)
-    : input_size(input_size), output_size(output_size) {}
-
-void FullyConnectedLayer::init_weight_bias(float &gain_w, float &gain_b,
-                                           const std::string &init_method)
+FullyConnectedLayer::FullyConnectedLayer(size_t ip_size, size_t op_size,
+                                         float gain_weight, float gain_bias,
+                                         std::string method)
+    : input_size(ip_size),
+      output_size(op_size),
+      gain_w(gain_weight),
+      gain_b(gain_bias),
+      init_method(method)
 /*
  */
 {
-    int num_weights = this->input_size * this->output_size;
-    float scale = 0.1f;
-    if (init_method.compare("Xavier") == 0 || init_method.compare("xavier")) {
-        auto scale = xavier_init(this->input_size, this->output_size);
-    } else {
-        auto scale = he_init(this->input_size);
-    }
-
-    // Weights & biases
-    std::tie(this->mu_w, this->var_w) =
-        gaussian_param_init(scale, gain_w, num_weights);
-
-    std::tie(this->mu_b, this->var_b) =
-        gaussian_param_init(scale, gain_b, this->output_size);
+    // Initalize weights and bias
+    this->init_weight_bias();
 }
+
+FullyConnectedLayer::~FullyConnectedLayer() {}
 
 void FullyConnectedLayer::init_weight_bias()
 /*
  */
 {
-    float default_gain_w = 1.0f;
-    float default_gain_b = 1.0f;
-    const std::string default_init_method = "he";
-    init_weight_bias(default_gain_w, default_gain_b, default_init_method);
+    int num_weights = this->input_size * this->output_size;
+    float scale = 0.1f;
+    if (this->init_method.compare("Xavier") == 0 ||
+        this->init_method.compare("xavier")) {
+        auto scale = xavier_init(this->input_size, this->output_size);
+    } else if (this->init_method.compare("He") == 0 ||
+               this->init_method.compare("he")) {
+        auto scale = he_init(this->input_size);
+    } else {
+        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
+                  << std::endl;
+        throw std::invalid_argument("Error: Inital parameter method '" +
+                                    init_method + "'is not supported.");
+    }
+
+    // Weights & biases
+    std::tie(this->mu_w, this->var_w) =
+        gaussian_param_init(scale, this->gain_w, num_weights);
+
+    std::tie(this->mu_b, this->var_b) =
+        gaussian_param_init(scale, this->gain_b, this->output_size);
 }
 
 void FullyConnectedLayer::fwd_mean_var(
@@ -58,12 +68,6 @@ Args:
   mu_z: Mean of hidden states
   start_chunk: Start index of the chunk
   end_chunk: End index of the chunk
-  w_pos: Weight position for this layer in the weight vector of network
-  b_pos: Bias position for this layer in the bias vector of network
-  z_pos_in: Input-hidden-state position for this layer in the hidden-state
-      vector of network
-  z_pos_out: Output-hidden-state position for this layer in the hidden-state
-      vector of network
   n: Input node
   m: Output node
   k: Number of batches
@@ -108,19 +112,19 @@ int FullyConnectedLayer::get_output_size()
 void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
                                           std::vector<float> &var_a,
                                           int batch_size,
-                                          unsigned int NUM_THREADS,
+                                          unsigned int num_threads,
                                           std::vector<float> &mu_z,
                                           std::vector<float> &var_z)
 /*Multi-processing verion of forward pass for fc layer
  */
 {
     const int tot_ops = output_size * batch_size;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[NUM_THREADS];
+    std::thread threads[num_threads];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -136,7 +140,7 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
                                  batch_size, std::ref(mu_z), std::ref(var_z));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }
@@ -188,15 +192,15 @@ Args:
 }
 
 void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
-                                          unsigned int NUM_THREADS,
+                                          unsigned int num_threads,
                                           std::vector<float> &var_z_fp) {
     const int tot_ops = this->output_size * B * this->output_size;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[NUM_THREADS];
+    std::thread threads[num_threads];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -210,7 +214,7 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
                                  start_chunk, end_chunk, std::ref(var_z_fp));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }
@@ -248,22 +252,22 @@ void FullyConnectedLayer::fwd_fc_full_var(
 void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
                                              std::vector<float> &var_a,
                                              std::vector<float> &var_z_fp,
-                                             int B, unsigned int NUM_THREADS,
+                                             int B, unsigned int num_threads,
                                              std::vector<float> &var_z,
                                              std::vector<float> &var_z_f)
 /**/
 {
     int no = this->output_size;
     const int tot_ops = no * B;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
 
     for (int j = 0; j < (no * (no + 1) / 2) * B; j++) {
         var_z_f[j] = var_z_fp[j];
     }
-    std::thread threads[NUM_THREADS];
-    for (int i = 0; i < NUM_THREADS; i++) {
+    std::thread threads[num_threads];
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -278,7 +282,7 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
             start_chunk, end_chunk, std::ref(var_z), std::ref(var_z_f));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }
@@ -320,7 +324,7 @@ void FullyConnectedLayer::bwd_fc_delta_z(std::vector<float> &mu_w,
 void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
                                             std::vector<float> &delta_mu,
                                             std::vector<float> &delta_var,
-                                            int B, unsigned int NUM_THREADS,
+                                            int B, unsigned int num_threads,
                                             std::vector<float> &delta_mu_z,
                                             std::vector<float> &delta_var_z)
 /*
@@ -328,12 +332,12 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
 {
     const int ni = this->input_size;
     const int tot_ops = ni * B;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[NUM_THREADS];
+    std::thread threads[num_threads];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -348,7 +352,7 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
             std::ref(delta_mu_z), std::ref(delta_var_z));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }
@@ -395,17 +399,17 @@ Args:
 
 void FullyConnectedLayer::bwd_fc_delta_w_mp(
     std::vector<float> &mu_a, std::vector<float> &delta_mu,
-    std::vector<float> &delta_var, int batch_size, unsigned int NUM_THREADS,
+    std::vector<float> &delta_var, int batch_size, unsigned int num_threads,
     std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
 /**/
 {
     const int tot_ops = this->input_size * this->output_size;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[NUM_THREADS];
+    std::thread threads[num_threads];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -420,7 +424,7 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
             end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }
@@ -440,9 +444,6 @@ layer.
 Args:
     C_bz: Covariance b|Z+
     delta_S: Inovation vector for variance i.e. (S_observation - S_prediction)
-    b_pos: Bias position for this layer in the bias vector of network
-    z_pos_out: Output-hidden-state position for this layer in the weight vector
-    of network
     m: Number of hidden units for outputs
     n: Number of batches
     k: 1
@@ -467,19 +468,19 @@ Args:
 void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
                                             std::vector<float> &delta_var,
                                             int batch_size,
-                                            unsigned int NUM_THREADS,
+                                            unsigned int num_threads,
                                             std::vector<float> &delta_mu_b,
                                             std::vector<float> &delta_var_b)
 /*
  */
 {
     const int tot_ops = this->output_size;
-    const int n_batch = tot_ops / NUM_THREADS;
-    const int rem_batch = tot_ops % NUM_THREADS;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[NUM_THREADS];
+    std::thread threads[num_threads];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_chunk = n_batch * i;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
@@ -494,7 +495,7 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
                                  std::ref(delta_mu_b), std::ref(delta_var_b));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
             threads[i].join();
         }

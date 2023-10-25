@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 20, 2023
+// Updated:      October 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,17 +31,19 @@ class FullyConnectedLayer : public BaseLayer {
     std::vector<float> delta_var_w;
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
+    float gain_w;
+    float gain_b;
+    std::string init_method;
 
-    FullyConnectedLayer(size_t input_size, size_t output_size);
+    FullyConnectedLayer(size_t ip_size, size_t op_size,
+                        float gain_weight = 1.0f, float gain_bias = 1.0f,
+                        std::string method = "He");
 
     ~FullyConnectedLayer();
 
     int get_input_size() override;
 
     int get_output_size() override;
-
-    void init_weight_bias(float &gain_w, float &gain_b,
-                          const std::string &init_method);
 
     void init_weight_bias();
 
@@ -53,7 +55,7 @@ class FullyConnectedLayer : public BaseLayer {
                       std::vector<float> &mu_z, std::vector<float> &var_z);
 
     void fwd_mean_var_mp(std::vector<float> &mu_a, std::vector<float> &var_a,
-                         int output_size, unsigned int NUM_THREADS,
+                         int output_size, unsigned int num_threads,
                          std::vector<float> &mu_z, std::vector<float> &var_z);
 
     void fwd_full_cov(std::vector<float> &mu_w, std::vector<float> &var_a_f,
@@ -62,7 +64,7 @@ class FullyConnectedLayer : public BaseLayer {
                       std::vector<float> &var_z_fp);
 
     void fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
-                         unsigned int NUM_THREADS,
+                         unsigned int num_threads,
                          std::vector<float> &var_z_fp);
 
     void fwd_fc_full_var(std::vector<float> &var_w, std::vector<float> &var_b,
@@ -74,7 +76,7 @@ class FullyConnectedLayer : public BaseLayer {
 
     void fwd_fc_full_var_mp(std::vector<float> &mu_a, std::vector<float> &var_a,
                             std::vector<float> &var_z_fp, int B,
-                            unsigned int NUM_THREADS, std::vector<float> &var_z,
+                            unsigned int num_threads, std::vector<float> &var_z,
                             std::vector<float> &var_z_f);
 
     // Hidden states
@@ -88,7 +90,7 @@ class FullyConnectedLayer : public BaseLayer {
     void bwd_fc_delta_z_mp(std::vector<float> &jcb,
                            std::vector<float> &delta_mu,
                            std::vector<float> &delta_var, int B,
-                           unsigned int NUM_THREADS,
+                           unsigned int num_threads,
                            std::vector<float> &delta_mu_z,
                            std::vector<float> &delta_var_z);
 
@@ -103,7 +105,7 @@ class FullyConnectedLayer : public BaseLayer {
     void bwd_fc_delta_w_mp(std::vector<float> &mu_a,
                            std::vector<float> &delta_mu,
                            std::vector<float> &delta_var, int batch_size,
-                           unsigned int NUM_THREADS,
+                           unsigned int num_threads,
                            std::vector<float> &delta_mu_w,
                            std::vector<float> &delta_var_w);
 
@@ -115,7 +117,7 @@ class FullyConnectedLayer : public BaseLayer {
 
     void bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
                            std::vector<float> &delta_var, int batch_size,
-                           unsigned int NUM_THREADS,
+                           unsigned int num_threads,
                            std::vector<float> &delta_mu_b,
                            std::vector<float> &delta_var_b);
 
