@@ -8,7 +8,10 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "../include/layer_stack.h"
+#include "../include/layer_stack_cpu.h"
+
+LayerStack::LayerStack() {}
+LayerStack::~LayerStack() {}
 
 void LayerStack::add_layer(std::unique_ptr<BaseLayer> layer)
 /*

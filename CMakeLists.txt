@@ -136,6 +136,8 @@ set(CPU_SOURCES
   src/embedding_cpu.cpp
   src/fc_cpu_v2.cpp
   src/activation_layer_cpu.cpp
+  src/layer_stack_cpu.cpp
+  src/output_layer_update_cpu.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -150,6 +152,7 @@ set(CPU_SOURCES
   test/test_dataloader.cpp
   test/mha/test_mha_cpu.cpp
   test/embedding/test_emb_cpu.cpp
+  test/fnn/test_fnn_cpu_v2.cpp
 )
 
 # Sources code for CUDA

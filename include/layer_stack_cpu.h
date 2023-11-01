@@ -29,7 +29,7 @@ class LayerStack {
 
     ~LayerStack();
 
-    void add_layer(std::unique_ptr<BaseLayer> layer){};
+    void add_layer(std::unique_ptr<BaseLayer> layer);
 
     void init_output_state_buffer();
 

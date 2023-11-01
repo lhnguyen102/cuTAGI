@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 20, 2023
+// Updated:      November 01, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,18 +26,17 @@ class BaseLayer {
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
 
-    virtual ~BaseLayer() = default;
+    virtual int get_input_size() { return static_cast<int>(input_size); }
 
-    virtual int get_input_size();
-
-    virtual int get_output_size();
+    virtual int get_output_size() { return static_cast<int>(output_size); }
 
     virtual void forward(HiddenStates &input_states,
-                         HiddenStates &output_states, TempStates &temp_states);
+                         HiddenStates &output_states,
+                         TempStates &temp_states){};
     virtual void state_backward(std::vector<float> &jcb,
                                 DeltaStates &input_delta_states,
                                 DeltaStates &output_hidden_states,
-                                TempStates &temp_states);
+                                TempStates &temp_states){};
     virtual void param_backward(DeltaStates &delta_states,
-                                TempStates &temp_states);
+                                TempStates &temp_states){};
 };

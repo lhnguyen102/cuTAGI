@@ -33,9 +33,9 @@ class Relu : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Sigmoid
@@ -59,9 +59,9 @@ class Sigmoid : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Tanh
@@ -83,9 +83,9 @@ class Tanh : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
@@ -111,9 +111,9 @@ class MixtureRelu : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,9 +142,9 @@ class MixtureSigmoid : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -173,9 +173,9 @@ class MixtureTanh : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
@@ -199,9 +199,9 @@ class Softplus : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
@@ -228,9 +228,9 @@ class LeakyRelu : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 ////////////////////////////////////////////////////////////////////////////////
 /// Stable Softmax
@@ -249,9 +249,9 @@ class Softmax : public BaseLayer {
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -285,13 +285,13 @@ class RemaxA : public BaseLayer {
                             std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+                 TempStates &temp_states) override{};
 
     void state_backward(std::vector<float> &jcb,
                         DeltaStates &input_delta_states,
                         DeltaStates &output_hidden_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 
     void param_backward(DeltaStates &delta_states,
-                        TempStates &temp_states) override;
+                        TempStates &temp_states) override{};
 };

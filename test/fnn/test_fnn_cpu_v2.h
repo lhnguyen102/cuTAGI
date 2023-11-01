@@ -13,12 +13,13 @@
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
 #include "../../include/activation_layer_cpu.h"
 #include "../../include/dataloader.h"
 #include "../../include/fc_cpu_v2.h"
-#include "../../include/layer_stack.h"
+#include "../../include/layer_stack_cpu.h"
 
 int test_fnn_cpu_v2();
