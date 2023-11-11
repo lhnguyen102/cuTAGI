@@ -138,6 +138,7 @@ set(CPU_SOURCES
   src/activation_layer_cpu.cpp
   src/layer_stack_cpu.cpp
   src/output_layer_update_cpu.cpp
+  src/base_layer.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp

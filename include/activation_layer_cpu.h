@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 22, 2023
+// Updated:      November 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,7 @@ class Relu : public BaseLayer {
    public:
     Relu();
     ~Relu();
+
     void relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                        int start_chunk, int end_chunk, std::vector<float> &mu_a,
                        std::vector<float> &jcb, std::vector<float> &var_a);

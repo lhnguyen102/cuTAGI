@@ -32,7 +32,7 @@ void forward_fnn_v2()
 
     std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
     auto train_db = get_dataloader(x_train_path, y_train_path, mu_x, sigma_x,
-                                   mu_y, sigma_y, 500, 13, 1, true);
+                                   mu_y, sigma_y, 455, 13, 1, true);
     auto test_db = get_dataloader(x_test_path, y_test_path, mu_x, sigma_x, mu_y,
                                   sigma_y, 51, 13, 1, true);
 
