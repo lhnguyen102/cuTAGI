@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      October 11, 2023
+// Updated:      October 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,9 +35,7 @@ void BaseLayer::allocate_activation_bwd_vector(int size)
                                     " - Invalid size: " + std::to_string(size));
     }
 
-    if (this->input_size != size) {
-        this->input_size = size;
-        this->mu_a.resize(size, 0);
-        this->jcb.resize(size, 0);
-    }
+    this->input_size = size;
+    this->mu_a.resize(size, 0.0f);
+    this->jcb.resize(size, 0.0f);
 }
