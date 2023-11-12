@@ -50,5 +50,5 @@ void forward_fnn_v2()
 
 int test_fnn_cpu_v2() {
     forward_fnn_v2();
-    return 1;
+    return 0;
 }

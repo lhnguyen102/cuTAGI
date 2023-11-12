@@ -15,6 +15,9 @@ LayerStack::~LayerStack() {}
 
 void LayerStack::add_layer(std::unique_ptr<BaseLayer> layer)
 /*
+NOTE: The output buffer size is determinated based on the output size for each
+layer assuming that batch size = 1. If the batch size in the forward pass > 1,
+it will be corrected at the first run in the forward pass.
  */
 {
     // Get buffer size
@@ -59,12 +62,16 @@ void LayerStack::update_output_delta_z(HiddenStates &last_layer_states,
 }
 
 HiddenStates LayerStack::forward(HiddenStates &input_states)
+// TODO: Might need to redesign input were we only provide mu_z and var_z. We
+// then send it to cuda device
 /*
  */
 {
     // Resize the buffer for delta and output states
     if (input_states.block_size != this->output_buffer_block_size) {
         this->output_buffer_block_size = input_states.block_size;
+        this->output_buffer_size =
+            input_states.block_size * this->output_buffer_size;
         init_output_state_buffer();
     }
 

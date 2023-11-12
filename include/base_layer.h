@@ -14,7 +14,7 @@
 
 class BaseLayer {
    public:
-    size_t input_size, output_size;
+    size_t input_size = 0, output_size = 0;
     std::vector<float> mu_w;
     std::vector<float> var_w;
     std::vector<float> mu_b;
@@ -25,6 +25,11 @@ class BaseLayer {
     std::vector<float> delta_var_w;
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
+
+    BaseLayer();
+    ~BaseLayer() = default;
+
+    virtual const char *get_layer_type_name() const;
 
     virtual int get_input_size();
 

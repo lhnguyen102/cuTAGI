@@ -20,17 +20,6 @@
 
 class FullyConnectedLayer : public BaseLayer {
    public:
-    size_t input_size, output_size;
-    std::vector<float> mu_w;
-    std::vector<float> var_w;
-    std::vector<float> mu_b;
-    std::vector<float> var_b;
-    std::vector<float> mu_a;
-    std::vector<float> jcb;
-    std::vector<float> delta_mu_w;
-    std::vector<float> delta_var_w;
-    std::vector<float> delta_mu_b;
-    std::vector<float> delta_var_b;
     float gain_w;
     float gain_b;
     std::string init_method;

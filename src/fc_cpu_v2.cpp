@@ -12,14 +12,15 @@
 FullyConnectedLayer::FullyConnectedLayer(size_t ip_size, size_t op_size,
                                          float gain_weight, float gain_bias,
                                          std::string method)
-    : input_size(ip_size),
-      output_size(op_size),
-      gain_w(gain_weight),
+    : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
 /*
  */
 {
+    this->input_size = ip_size;
+    this->output_size = op_size;
+
     // Initalize weights and bias
     this->init_weight_bias();
 }
@@ -33,10 +34,10 @@ void FullyConnectedLayer::init_weight_bias()
     int num_weights = this->input_size * this->output_size;
     float scale = 0.1f;
     if (this->init_method.compare("Xavier") == 0 ||
-        this->init_method.compare("xavier")) {
+        this->init_method.compare("xavier") == 0) {
         auto scale = xavier_init(this->input_size, this->output_size);
     } else if (this->init_method.compare("He") == 0 ||
-               this->init_method.compare("he")) {
+               this->init_method.compare("he") == 0) {
         auto scale = he_init(this->input_size);
     } else {
         std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
@@ -510,7 +511,7 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
 {
     // Initialization. TODO: figure out where to put batch size if mu_a is a
     // member of buffer
-    int batch_size = input_states.size / this->input_size;
+    int batch_size = input_states.block_size;
     int start_chunk = 0;
     int end_chunk = this->output_size * batch_size;
 
@@ -518,11 +519,13 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
     this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
                        input_states.mu_a, input_states.var_a, start_chunk,
                        end_chunk, this->input_size, this->output_size,
-                       batch_size, input_states.mu_z, input_states.var_z);
+                       batch_size, output_states.mu_z, output_states.var_z);
 
-    // Update number of actual states
+    // Update number of actual states. TODO: need to add another variable where
+    // we have the actual size for the hidden state and buffer size. This will
+    // benefit the activation function layer
     output_states.size = this->output_size * batch_size;
-    output_states.block_size = this->output_size;
+    output_states.block_size = batch_size;
 }
 
 void FullyConnectedLayer::state_backward(std::vector<float> &jcb,

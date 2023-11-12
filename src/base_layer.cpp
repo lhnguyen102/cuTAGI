@@ -10,6 +10,12 @@
 
 #include "../include/base_layer.h"
 
+BaseLayer::BaseLayer() {}
+
+const char *BaseLayer::get_layer_type_name() const {
+    return typeid(*this).name();
+}
+
 int BaseLayer::get_input_size() { return static_cast<int>(input_size); }
 
 int BaseLayer::get_output_size() { return static_cast<int>(output_size); }

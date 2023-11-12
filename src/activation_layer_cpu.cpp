@@ -91,7 +91,8 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
                         output_states.var_a);
 
     // Copy activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.size) {
+    if (this->input_size != (input_states.size / input_states.block_size)) {
+        this->input_size = input_states.block_size;
         this->allocate_activation_bwd_vector(input_states.size);
     }
     for (int i = 0; i < output_states.size; i++) {

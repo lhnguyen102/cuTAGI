@@ -49,7 +49,7 @@ struct HiddenStates {
     std::vector<float> mu_a;
     std::vector<float> var_a;
     std::vector<float> jcb;
-    // Block size can be fixed size of a vector without accounting batch_size
+    // Block size is equivalent to batch size
     int size = 0, block_size = 1;
 
     // Default constructor
