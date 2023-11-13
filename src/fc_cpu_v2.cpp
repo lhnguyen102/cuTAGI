@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 25, 2023
+// Updated:      November 13, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -521,11 +521,10 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
                        end_chunk, this->input_size, this->output_size,
                        batch_size, output_states.mu_z, output_states.var_z);
 
-    // Update number of actual states. TODO: need to add another variable where
-    // we have the actual size for the hidden state and buffer size. This will
-    // benefit the activation function layer
+    // Update number of actual states.
     output_states.size = this->output_size * batch_size;
     output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
 }
 
 void FullyConnectedLayer::state_backward(std::vector<float> &jcb,

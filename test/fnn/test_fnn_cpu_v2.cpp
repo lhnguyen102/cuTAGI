@@ -14,7 +14,7 @@ void forward_fnn_v2()
 /*
  */
 {
-    // Put it in the main test file
+    // Data preprocessing
     std::string x_train_dir, y_train_dir, x_test_dir, y_test_dir;
     std::vector<std::string> x_train_path, y_train_path, x_test_path,
         y_test_path;
@@ -42,9 +42,10 @@ void forward_fnn_v2()
     model.add_layer(std::make_unique<Relu>());
     model.add_layer(std::make_unique<FullyConnectedLayer>(10, 1));
 
-    // Forward pass
+    // Forward pass.
     HiddenStates input_states(26, 2);
-    auto output_states = model.forward(input_states);
+    auto output_states = model.forward(input_states.mu_z, input_states.var_z);
+
     int check = 1;
 }
 

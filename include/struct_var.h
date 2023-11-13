@@ -49,8 +49,9 @@ struct HiddenStates {
     std::vector<float> mu_a;
     std::vector<float> var_a;
     std::vector<float> jcb;
-    // Block size is equivalent to batch size
-    int size = 0, block_size = 1;
+    int size = 0;         // size of data including buffer
+    int block_size = 1;   // batch size
+    int actual_size = 0;  // actual size of data
 
     // Default constructor
     HiddenStates() = default;

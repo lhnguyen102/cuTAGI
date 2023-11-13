@@ -79,21 +79,22 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
     // Validate input. TODO: to be removed
     if (input_states.size == 0) {
         std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
+                  << ". Reason: Invalid input state size (size is 0).\n";
+        throw std::invalid_argument("Error: Invalid input state size");
     }
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->relu_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
                         end_chunk, output_states.mu_a, output_states.jcb,
                         output_states.var_a);
 
     // Copy activation mean and jacobian to the class member for backward pass
-    if (this->input_size != (input_states.size / input_states.block_size)) {
-        this->input_size = input_states.block_size;
-        this->allocate_activation_bwd_vector(input_states.size);
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_activation_bwd_vector(act_size);
     }
     for (int i = 0; i < output_states.size; i++) {
         this->mu_a[i] = output_states.mu_a[i];

@@ -22,10 +22,12 @@ it will be corrected at the first run in the forward pass.
 {
     // Get buffer size
     int output_size = layer->get_output_size();
-    this->output_buffer_size = std::max(output_size, this->output_buffer_size);
+    int input_size = layer->get_input_size();
+    this->z_buffer_size = std::max(output_size, this->z_buffer_size);
+    this->z_buffer_size = std::max(input_size, this->z_buffer_size);
 
     // Stack layer
-    layers.push_back(std::move(layer));
+    this->layers.push_back(std::move(layer));
 }
 
 void LayerStack::init_output_state_buffer()
@@ -33,7 +35,9 @@ void LayerStack::init_output_state_buffer()
  */
 {
     this->output_z_buffer =
-        HiddenStates(this->output_buffer_size, this->output_buffer_block_size);
+        HiddenStates(this->z_buffer_size, this->z_buffer_block_size);
+    this->input_z_buffer =
+        HiddenStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::init_delta_state_buffer()
@@ -41,9 +45,9 @@ void LayerStack::init_delta_state_buffer()
  */
 {
     this->output_delta_z_buffer =
-        DeltaStates(this->output_buffer_size, this->output_buffer_block_size);
+        DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
     this->input_delta_z_buffer =
-        DeltaStates(this->output_buffer_size, this->output_buffer_block_size);
+        DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::update_output_delta_z(HiddenStates &last_layer_states,
@@ -61,24 +65,51 @@ void LayerStack::update_output_delta_z(HiddenStates &last_layer_states,
                            this->input_delta_z_buffer.delta_var);
 }
 
-HiddenStates LayerStack::forward(HiddenStates &input_states)
-// TODO: Might need to redesign input were we only provide mu_z and var_z. We
-// then send it to cuda device
+void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
+                             const std::vector<float> &var_x,
+                             HiddenStates &hidden_states)
 /*
  */
 {
-    // Resize the buffer for delta and output states
-    if (input_states.block_size != this->output_buffer_block_size) {
-        this->output_buffer_block_size = input_states.block_size;
-        this->output_buffer_size =
-            input_states.block_size * this->output_buffer_size;
+    int data_size = mu_x.size();
+    for (int i = 0; i < data_size; i++) {
+        hidden_states.mu_z[i] = mu_x[i];
+        hidden_states.mu_a[i] = mu_x[i];
+    }
+    if (var_x.size() == data_size) {
+        for (int i = 0; i < data_size; i++) {
+            hidden_states.var_z[i] = var_x[i];
+            hidden_states.var_a[i] = var_x[i];
+        }
+    }
+    hidden_states.size = data_size;
+    hidden_states.block_size = data_size / this->layers.front()->input_size;
+    hidden_states.actual_size = this->layers.front()->input_size;
+}
+
+HiddenStates LayerStack::forward(const std::vector<float> &mu_x,
+                                 const std::vector<float> &var_x)
+/*
+ */
+{
+    // Batch size
+    int batch_size = mu_x.size() / this->layers.front()->input_size;
+
+    // Only initialize if batch size changes
+    if (batch_size != this->z_buffer_block_size) {
+        this->z_buffer_block_size = batch_size;
+        this->z_buffer_size = batch_size * this->z_buffer_size;
         init_output_state_buffer();
     }
 
+    // Merge input data to the input buffer
+    this->to_z_buffer(mu_x, var_x, this->input_z_buffer);
+
     // Forward pass for all layers
     for (const auto &layer : this->layers) {
-        layer->forward(input_states, this->output_z_buffer, this->temp_states);
-        input_states = this->output_z_buffer;
+        layer->forward(this->input_z_buffer, this->output_z_buffer,
+                       this->temp_states);
+        this->input_z_buffer = this->output_z_buffer;
     }
     return this->output_z_buffer;
 }
