@@ -42,7 +42,7 @@ void forward_fnn_v2()
     model.add_layer(std::make_unique<Relu>());
     model.add_layer(std::make_unique<FullyConnectedLayer>(10, 1));
 
-    // Forward pass.
+    // Forward pass
     HiddenStates input_states(26, 2);
     auto output_states = model.forward(input_states.mu_z, input_states.var_z);
 

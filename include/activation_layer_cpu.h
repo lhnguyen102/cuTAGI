@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 11, 2023
+// Updated:      November 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,13 +21,18 @@ class Relu : public BaseLayer {
     Relu();
     ~Relu();
 
-    void relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                       int start_chunk, int end_chunk, std::vector<float> &mu_a,
-                       std::vector<float> &jcb, std::vector<float> &var_a);
-    void relu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
-                          int n, unsigned int num_threads,
-                          std::vector<float> &mu_a, std::vector<float> &jcb,
-                          std::vector<float> &var_a);
+    static void relu_mean_var(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, std::vector<float> &mu_a,
+                              std::vector<float> &jcb,
+                              std::vector<float> &var_a);
+
+    static void relu_mean_var_mp(std::vector<float> &mu_z,
+                                 std::vector<float> &var_z, int n,
+                                 unsigned int num_threads,
+                                 std::vector<float> &mu_a,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -38,6 +43,7 @@ class Relu : public BaseLayer {
     void param_backward(DeltaStates &delta_states,
                         TempStates &temp_states) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Sigmoid
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,15 +51,18 @@ class Sigmoid : public BaseLayer {
    public:
     Sigmoid();
     ~Sigmoid();
-    void sigmoid_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                          int start_chunk, int end_chunk,
-                          std::vector<float> &mu_a, std::vector<float> &jcb,
-                          std::vector<float> &var_a);
-    void sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                             std::vector<float> &var_z, int n,
-                             unsigned int num_threads, std::vector<float> &mu_a,
-                             std::vector<float> &jcb,
-                             std::vector<float> &var_a);
+    static void sigmoid_mean_var(std::vector<float> &mu_z,
+                                 std::vector<float> &var_z, int start_chunk,
+                                 int end_chunk, std::vector<float> &mu_a,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &var_a);
+
+    static void sigmoid_mean_var_mp(std::vector<float> &mu_z,
+                                    std::vector<float> &var_z, int n,
+                                    unsigned int num_threads,
+                                    std::vector<float> &mu_a,
+                                    std::vector<float> &jcb,
+                                    std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -71,9 +80,12 @@ class Tanh : public BaseLayer {
    public:
     Tanh();
     ~Tanh();
-    void tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                       int start_chunk, int end_chunk, std::vector<float> &mu_a,
-                       std::vector<float> &jcb, std::vector<float> &var_a);
+    static void tanh_mean_var(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, std::vector<float> &mu_a,
+                              std::vector<float> &jcb,
+                              std::vector<float> &var_a);
+
     void tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
                           int n, unsigned int num_threads,
                           std::vector<float> &mu_a, std::vector<float> &jcb,
@@ -125,18 +137,15 @@ class MixtureSigmoid : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureSigmoid();
     ~MixtureSigmoid();
-    void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                                  std::vector<float> &var_z, float omega_tol,
-                                  int start_chunk, int end_chunk,
-                                  std::vector<float> &mu_a,
-                                  std::vector<float> &jcb,
-                                  std::vector<float> &var_a);
-    void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                     std::vector<float> &var_z, float omega_tol,
-                                     int n, unsigned int num_threads,
-                                     std::vector<float> &mu_a,
-                                     std::vector<float> &jcb,
-                                     std::vector<float> &var_a);
+    static void mixture_sigmoid_mean_var(
+        std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+        int start_chunk, int end_chunk, std::vector<float> &mu_a,
+        std::vector<float> &jcb, std::vector<float> &var_a);
+
+    static void mixture_sigmoid_mean_var_mp(
+        std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+        int n, unsigned int num_threads, std::vector<float> &mu_a,
+        std::vector<float> &jcb, std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -156,18 +165,17 @@ class MixtureTanh : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureTanh();
     ~MixtureTanh();
-    void mixture_tanh_mean_var(std::vector<float> &mu_z,
-                               std::vector<float> &var_z, float omega_tol,
-                               int start_chunk, int end_chunk,
-                               std::vector<float> &mu_a,
-                               std::vector<float> &jcb,
-                               std::vector<float> &var_a);
-    void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                                  std::vector<float> &var_z, float omega_tol,
-                                  int n, unsigned int num_threads,
-                                  std::vector<float> &mu_a,
-                                  std::vector<float> &jcb,
-                                  std::vector<float> &var_a);
+    static void mixture_tanh_mean_var(std::vector<float> &mu_z,
+                                      std::vector<float> &var_z,
+                                      float omega_tol, int start_chunk,
+                                      int end_chunk, std::vector<float> &mu_a,
+                                      std::vector<float> &jcb,
+                                      std::vector<float> &var_a);
+
+    static void mixture_tanh_mean_var_mp(
+        std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+        int n, unsigned int num_threads, std::vector<float> &mu_a,
+        std::vector<float> &jcb, std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -185,15 +193,18 @@ class Softplus : public BaseLayer {
    public:
     Softplus();
     ~Softplus();
-    void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           int start_chunk, int end_chunk,
-                           std::vector<float> &mu_a, std::vector<float> &jcb,
-                           std::vector<float> &var_a);
-    void softplus_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, int n,
-                              unsigned int num_threads,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
-                              std::vector<float> &var_a);
+    static void softplus_mean_var(std::vector<float> &mu_z,
+                                  std::vector<float> &var_z, int start_chunk,
+                                  int end_chunk, std::vector<float> &mu_a,
+                                  std::vector<float> &jcb,
+                                  std::vector<float> &var_a);
+
+    static void softplus_mean_var_mp(std::vector<float> &mu_z,
+                                     std::vector<float> &var_z, int n,
+                                     unsigned int num_threads,
+                                     std::vector<float> &mu_a,
+                                     std::vector<float> &jcb,
+                                     std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -212,17 +223,19 @@ class LeakyRelu : public BaseLayer {
     float alpha = 0.1f;
     LeakyRelu();
     ~LeakyRelu();
-    void leaky_relu_mean_var(std::vector<float> &mu_z,
-                             std::vector<float> &var_z, float alpha,
-                             int start_chunk, int end_chunk,
-                             std::vector<float> &mu_a, std::vector<float> &jcb,
-                             std::vector<float> &var_a);
-    void leaky_relu_mean_var_mp(std::vector<float> &mu_z,
-                                std::vector<float> &var_z, float alpha, int n,
-                                unsigned int num_threads,
-                                std::vector<float> &mu_a,
-                                std::vector<float> &jcb,
-                                std::vector<float> &var_a);
+    static void leaky_relu_mean_var(std::vector<float> &mu_z,
+                                    std::vector<float> &var_z, float alpha,
+                                    int start_chunk, int end_chunk,
+                                    std::vector<float> &mu_a,
+                                    std::vector<float> &jcb,
+                                    std::vector<float> &var_a);
+
+    static void leaky_relu_mean_var_mp(std::vector<float> &mu_z,
+                                       std::vector<float> &var_z, float alpha,
+                                       int n, unsigned int num_threads,
+                                       std::vector<float> &mu_a,
+                                       std::vector<float> &jcb,
+                                       std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
@@ -241,9 +254,11 @@ class Softmax : public BaseLayer {
     float alpha = 0.1f;
     Softmax();
     ~Softmax();
-    void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                          int no, int batch_size, std::vector<float> &mu_a,
-                          std::vector<float> &jcb, std::vector<float> &var_a);
+    static void softmax_mean_var(std::vector<float> &mu_z,
+                                 std::vector<float> &var_z, int no,
+                                 int batch_size, std::vector<float> &mu_a,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &var_a);
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;

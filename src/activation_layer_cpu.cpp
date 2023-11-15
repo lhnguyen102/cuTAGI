@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 21, 2023
+// Updated:      November 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -58,10 +58,9 @@ void Relu::relu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(&Relu::relu_mean_var, this, std::ref(mu_z),
-                        std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
-                        std::ref(jcb), std::ref(var_a));
+        threads[i] = std::thread(
+            Relu::relu_mean_var, std::ref(mu_z), std::ref(var_z), start_chunk,
+            end_chunk, std::ref(mu_a), std::ref(jcb), std::ref(var_a));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -146,7 +145,7 @@ void Sigmoid::sigmoid_mean_var_mp(std::vector<float> &mu_z,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(&Sigmoid::sigmoid_mean_var, this, std::ref(mu_z),
+            std::thread(Sigmoid::sigmoid_mean_var, std::ref(mu_z),
                         std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
                         std::ref(jcb), std::ref(var_a));
     }
@@ -225,10 +224,9 @@ void Tanh::tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(&Tanh::tanh_mean_var, this, std::ref(mu_z),
-                        std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
-                        std::ref(jcb), std::ref(var_a));
+        threads[i] = std::thread(
+            Tanh::tanh_mean_var, std::ref(mu_z), std::ref(var_z), start_chunk,
+            end_chunk, std::ref(mu_a), std::ref(jcb), std::ref(var_a));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -426,10 +424,10 @@ void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
-            &MixtureSigmoid::mixture_sigmoid_mean_var, this, std::ref(mu_z),
-            std::ref(var_z), omega_tol, start_chunk, end_chunk, std::ref(mu_a),
-            std::ref(jcb), std::ref(var_a));
+        threads[i] = std::thread(MixtureSigmoid::mixture_sigmoid_mean_var,
+                                 std::ref(mu_z), std::ref(var_z), omega_tol,
+                                 start_chunk, end_chunk, std::ref(mu_a),
+                                 std::ref(jcb), std::ref(var_a));
     }
     for (int i = 0; i < num_threads; i++) {
         if (threads[i].joinable()) {
@@ -529,10 +527,10 @@ void MixtureTanh::mixture_tanh_mean_var_mp(
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&MixtureTanh::mixture_tanh_mean_var, this,
-                                 std::ref(mu_z), std::ref(var_z), omega_tol,
-                                 start_chunk, end_chunk, std::ref(mu_a),
-                                 std::ref(jcb), std::ref(var_a));
+        threads[i] =
+            std::thread(MixtureTanh::mixture_tanh_mean_var, std::ref(mu_z),
+                        std::ref(var_z), omega_tol, start_chunk, end_chunk,
+                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -613,7 +611,7 @@ void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(&Softplus::softplus_mean_var, this, std::ref(mu_z),
+            std::thread(Softplus::softplus_mean_var, std::ref(mu_z),
                         std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
                         std::ref(jcb), std::ref(var_a));
     }
@@ -706,7 +704,7 @@ void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(&LeakyRelu::leaky_relu_mean_var, this, std::ref(mu_z),
+            std::thread(LeakyRelu::leaky_relu_mean_var, std::ref(mu_z),
                         std::ref(var_z), alpha, start_chunk, end_chunk,
                         std::ref(mu_a), std::ref(jcb), std::ref(var_a));
     }

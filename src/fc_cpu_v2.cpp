@@ -133,7 +133,7 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&FullyConnectedLayer::fwd_mean_var, this,
+        threads[i] = std::thread(FullyConnectedLayer::fwd_mean_var,
                                  std::ref(this->mu_w), std::ref(this->var_w),
                                  std::ref(this->mu_b), std::ref(this->var_b),
                                  std::ref(mu_a), std::ref(var_a), start_chunk,
@@ -209,10 +209,10 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&FullyConnectedLayer::fwd_full_cov, this,
-                                 std::ref(this->mu_w), std::ref(var_a_f),
-                                 this->input_size, this->output_size, B,
-                                 start_chunk, end_chunk, std::ref(var_z_fp));
+        threads[i] =
+            std::thread(FullyConnectedLayer::fwd_full_cov, std::ref(this->mu_w),
+                        std::ref(var_a_f), this->input_size, this->output_size,
+                        B, start_chunk, end_chunk, std::ref(var_z_fp));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -277,7 +277,7 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            &FullyConnectedLayer::fwd_fc_full_var, this, std::ref(this->var_w),
+            FullyConnectedLayer::fwd_fc_full_var, std::ref(this->var_w),
             std::ref(this->var_b), std::ref(mu_a), std::ref(var_a),
             std::ref(var_z_fp), this->input_size, this->output_size, B,
             start_chunk, end_chunk, std::ref(var_z), std::ref(var_z_f));
@@ -347,7 +347,7 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            &FullyConnectedLayer::bwd_fc_delta_z, this, std::ref(this->mu_w),
+            FullyConnectedLayer::bwd_fc_delta_z, std::ref(this->mu_w),
             std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
             this->input_size, this->output_size, B, start_chunk, end_chunk,
             std::ref(delta_mu_z), std::ref(delta_var_z));
@@ -419,7 +419,7 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            &FullyConnectedLayer::bwd_fc_delta_w, this, std::ref(this->var_w),
+            FullyConnectedLayer::bwd_fc_delta_w, std::ref(this->var_w),
             std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
             this->input_size, this->output_size, batch_size, start_chunk,
             end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
@@ -489,7 +489,7 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(&FullyConnectedLayer::bwd_fc_delta_b, this,
+        threads[i] = std::thread(FullyConnectedLayer::bwd_fc_delta_b,
                                  std::ref(this->var_b), std::ref(delta_mu),
                                  std::ref(delta_var), this->output_size,
                                  batch_size, start_chunk, end_chunk,
@@ -509,8 +509,7 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
 /*
  */
 {
-    // Initialization. TODO: figure out where to put batch size if mu_a is a
-    // member of buffer
+    // Initialization
     int batch_size = input_states.block_size;
     int start_chunk = 0;
     int end_chunk = this->output_size * batch_size;

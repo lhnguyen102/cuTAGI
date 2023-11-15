@@ -70,7 +70,7 @@ struct HiddenStates {
 struct DeltaStates {
     std::vector<float> delta_mu;
     std::vector<float> delta_var;
-    int size = 0, block_size = 1;
+    int size = 0, block_size = 1, actual_size = 0;
 
     // Default constructor
     DeltaStates() = default;

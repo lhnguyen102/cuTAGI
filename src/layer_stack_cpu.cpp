@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      October 25, 2023
+// Updated:      November 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +111,7 @@ HiddenStates LayerStack::forward(const std::vector<float> &mu_x,
                        this->temp_states);
         this->input_z_buffer = this->output_z_buffer;
     }
+    // TODO: this return is useless. Might need to be revised
     return this->output_z_buffer;
 }
 
@@ -118,6 +119,8 @@ void LayerStack::backward()
 /*
  */
 {
+    // Initalize only at the first iteration
+
     // Output layer
     int last_layer_idx = this->layers.size() - 1;
 
