@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 25, 2023
-// Updated:      October 25, 2023
+// Updated:      November 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +44,17 @@ void forward_fnn_v2()
 
     // Forward pass
     HiddenStates input_states(26, 2);
-    auto output_states = model.forward(input_states.mu_z, input_states.var_z);
+    model.forward(input_states.mu_z, input_states.var_z);
+
+    // Backward pass
+    std::vector<float> obs = {1, 2};
+    std::vector<float> var_obs = {1, 1};
+
+    update_output_delta_z(model.output_z_buffer, obs, var_obs,
+                          model.input_delta_z_buffer.delta_mu,
+                          model.input_delta_z_buffer.delta_var);
+
+    model.backward();
 
     int check = 1;
 }

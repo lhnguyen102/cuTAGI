@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 15, 2023
+// Updated:      November 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,21 +50,6 @@ void LayerStack::init_delta_state_buffer()
         DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
-void LayerStack::update_output_delta_z(HiddenStates &last_layer_states,
-                                       std::vector<float> &obs,
-                                       std::vector<float> &var_obs)
-/*
- */
-{
-    int start_chunk = 0;
-    int end_chunk = obs.size();
-    compute_delta_z_output(last_layer_states.mu_a, last_layer_states.var_a,
-                           last_layer_states.var_z, last_layer_states.jcb, obs,
-                           var_obs, start_chunk, end_chunk,
-                           this->input_delta_z_buffer.delta_mu,
-                           this->input_delta_z_buffer.delta_var);
-}
-
 void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
                              const std::vector<float> &var_x,
                              HiddenStates &hidden_states)
@@ -87,8 +72,8 @@ void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
     hidden_states.actual_size = this->layers.front()->input_size;
 }
 
-HiddenStates LayerStack::forward(const std::vector<float> &mu_x,
-                                 const std::vector<float> &var_x)
+void LayerStack::forward(const std::vector<float> &mu_x,
+                         const std::vector<float> &var_x)
 /*
  */
 {
@@ -100,6 +85,9 @@ HiddenStates LayerStack::forward(const std::vector<float> &mu_x,
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
         init_output_state_buffer();
+        if (this->train) {
+            init_delta_state_buffer();
+        }
     }
 
     // Merge input data to the input buffer
@@ -111,17 +99,14 @@ HiddenStates LayerStack::forward(const std::vector<float> &mu_x,
                        this->temp_states);
         this->input_z_buffer = this->output_z_buffer;
     }
-    // TODO: this return is useless. Might need to be revised
-    return this->output_z_buffer;
 }
 
 void LayerStack::backward()
 /*
  */
 {
-    // Initalize only at the first iteration
-
-    // Output layer
+    // TODO: need to fix the case we we dont have activation function and need
+    // to pass mu_a to parameters Output layer
     int last_layer_idx = this->layers.size() - 1;
 
     // Hidden layers

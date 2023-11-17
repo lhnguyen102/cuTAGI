@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 13, 2023
+// Updated:      November 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,6 +25,7 @@ class LayerStack {
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 1;  // e.g., batch size
     int input_size = 0;
+    bool train = true;
     bool param_update = true;
 
     LayerStack();
@@ -37,13 +38,8 @@ class LayerStack {
 
     void init_delta_state_buffer();
 
-    void update_output_delta_z(HiddenStates& output_states,
-                               std::vector<float>& obs,
-                               std::vector<float>& var_obs);
-
-    HiddenStates forward(
-        const std::vector<float>& mu_a,
-        const std::vector<float>& var_a = std::vector<float>());
+    void forward(const std::vector<float>& mu_a,
+                 const std::vector<float>& var_a = std::vector<float>());
 
     void to_z_buffer(const std::vector<float>& mu_x,
                      const std::vector<float>& var_x,
