@@ -89,16 +89,24 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
                         end_chunk, output_states.mu_a, output_states.jcb,
                         output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size) {
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
         this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
         int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_activation_bwd_vector(act_size);
+        this->allocate_bwd_vector(act_size);
     }
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    if (this->training) {
+        for (int i = 0; i < this->output_size * output_states.block_size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
     }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Sigmoid
@@ -176,11 +184,23 @@ void Sigmoid::forward(HiddenStates &input_states, HiddenStates &output_states,
                            end_chunk, output_states.mu_a, output_states.jcb,
                            output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -255,11 +275,23 @@ void Tanh::forward(HiddenStates &input_states, HiddenStates &output_states,
                         end_chunk, output_states.mu_a, output_states.jcb,
                         output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
@@ -354,11 +386,23 @@ void MixtureRelu::forward(HiddenStates &input_states,
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Sigmoid
@@ -455,11 +499,23 @@ void MixtureSigmoid::forward(HiddenStates &input_states,
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Tanh
@@ -559,11 +615,23 @@ void MixtureTanh::forward(HiddenStates &input_states,
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
@@ -642,11 +710,23 @@ void Softplus::forward(HiddenStates &input_states, HiddenStates &output_states,
                             end_chunk, output_states.mu_a, output_states.jcb,
                             output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
@@ -736,11 +816,23 @@ void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states,
                               output_states.mu_a, output_states.jcb,
                               output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Stable Softmax
@@ -798,11 +890,23 @@ void Softmax::forward(HiddenStates &input_states, HiddenStates &output_states,
         input_states.mu_z, input_states.var_z, input_states.block_size,
         batch_size, output_states.mu_a, output_states.jcb, output_states.var_a);
 
-    // Copy activation mean and jacobian to the class member for backward pass
-    for (int i = 0; i < output_states.size; i++) {
-        this->mu_a[i] = output_states.mu_a[i];
-        this->jcb[i] = output_states.jcb[i];
+    // Save activation mean and jacobian to the class member for backward pass
+    if (this->input_size != input_states.actual_size && this->training) {
+        this->input_size = input_states.actual_size;
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
     }
+    if (this->training) {
+        for (int i = 0; i < output_states.size; i++) {
+            this->mu_a[i] = output_states.mu_a[i];
+            this->jcb[i] = output_states.jcb[i];
+        }
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax

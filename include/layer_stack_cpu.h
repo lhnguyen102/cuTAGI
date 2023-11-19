@@ -25,7 +25,7 @@ class LayerStack {
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 1;  // e.g., batch size
     int input_size = 0;
-    bool train = true;
+    bool training = true;
     bool param_update = true;
 
     LayerStack();

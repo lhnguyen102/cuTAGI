@@ -85,7 +85,7 @@ void LayerStack::forward(const std::vector<float> &mu_x,
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
         init_output_state_buffer();
-        if (this->train) {
+        if (this->training) {
             init_delta_state_buffer();
         }
     }
@@ -110,17 +110,20 @@ void LayerStack::backward()
     int last_layer_idx = this->layers.size() - 1;
 
     // Hidden layers
-    for (int i = last_layer_idx - 1; i >= 0; --i) {
-        // Backward pass for hidden states
-        this->layers[i]->state_backward(
-            this->layers[i + 1]->jcb, this->input_delta_z_buffer,
-            this->output_delta_z_buffer, this->temp_states);
-
+    for (int i = last_layer_idx; i >= 1; --i) {
+        // TODO: need to perform parameter update for input layer and potential
+        // update hidden state
         // Backward pass for parameters
         if (this->param_update) {
-            this->layers[i]->param_backward(this->output_delta_z_buffer,
+            this->layers[i]->param_backward(this->layers[i - 1]->mu_a,
+                                            this->input_delta_z_buffer,
                                             this->temp_states);
         }
+
+        // Backward pass for hidden states
+        this->layers[i]->state_backward(
+            this->layers[i - 1]->jcb, this->input_delta_z_buffer,
+            this->output_delta_z_buffer, this->temp_states);
 
         // Pass new input data for next iteration
         this->input_delta_z_buffer = this->output_delta_z_buffer;

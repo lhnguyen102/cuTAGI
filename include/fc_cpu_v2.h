@@ -36,6 +36,8 @@ class FullyConnectedLayer : public BaseLayer {
 
     void init_weight_bias();
 
+    void allocate_param_delta();
+
     static void fwd_mean_var(
         std::vector<float> &mu_w, std::vector<float> &var_w,
         std::vector<float> &mu_b, std::vector<float> &var_b,
@@ -105,9 +107,10 @@ class FullyConnectedLayer : public BaseLayer {
 
     static void bwd_fc_delta_b(std::vector<float> &var_b,
                                std::vector<float> &delta_mu,
-                               std::vector<float> &delta_var, int batch_size,
-                               size_t output_size, int start_chunk,
-                               int end_chunk, std::vector<float> &delta_mu_b,
+                               std::vector<float> &delta_var,
+                               size_t output_size, int batch_size,
+                               int start_chunk, int end_chunk,
+                               std::vector<float> &delta_mu_b,
                                std::vector<float> &delta_var_b);
 
     void bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
@@ -124,6 +127,6 @@ class FullyConnectedLayer : public BaseLayer {
                         DeltaStates &output_hidden_states,
                         TempStates &temp_states) override;
 
-    void param_backward(DeltaStates &delta_states,
+    void param_backward(std::vector<float> &mu_a, DeltaStates &delta_states,
                         TempStates &temp_states) override;
 };

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      October 12, 2023
+// Updated:      October 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,10 +28,11 @@ void BaseLayer::state_backward(std::vector<float> &jcb,
                                DeltaStates &output_hidden_states,
                                TempStates &temp_states) {}
 
-void BaseLayer::param_backward(DeltaStates &delta_states,
+void BaseLayer::param_backward(std::vector<float> &mu_a,
+                               DeltaStates &delta_states,
                                TempStates &temp_states) {}
 
-void BaseLayer::allocate_activation_bwd_vector(int size)
+void BaseLayer::allocate_bwd_vector(int size)
 /*
  */
 {
@@ -41,7 +42,6 @@ void BaseLayer::allocate_activation_bwd_vector(int size)
                                     " - Invalid size: " + std::to_string(size));
     }
 
-    this->input_size = size;
     this->mu_a.resize(size, 0.0f);
     this->jcb.resize(size, 0.0f);
 }
