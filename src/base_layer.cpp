@@ -45,3 +45,24 @@ void BaseLayer::allocate_bwd_vector(int size)
     this->mu_a.resize(size, 0.0f);
     this->jcb.resize(size, 0.0f);
 }
+
+void BaseLayer::fill_output_states(HiddenStates &output_states)
+/**/
+{
+    for (int j = 0; j < output_states.actual_size * output_states.block_size;
+         j++) {
+        output_states.mu_a[j] = output_states.mu_z[j];
+        output_states.var_a[j] = output_states.var_z[j];
+    }
+}
+
+void BaseLayer::fill_bwd_vector(HiddenStates &input_states)
+/*
+ */
+{
+    for (int i = 0; i < input_states.actual_size * input_states.block_size;
+         i++) {
+        this->mu_a[i] = input_states.mu_a[i];
+        this->jcb[i] = input_states.jcb[i];
+    }
+}

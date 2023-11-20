@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 19, 2023
+// Updated:      November 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,4 +48,6 @@ class BaseLayer {
 
    protected:
     virtual void allocate_bwd_vector(int size);
+    virtual void fill_output_states(HiddenStates &output_states);
+    virtual void fill_bwd_vector(HiddenStates &input_states);
 };

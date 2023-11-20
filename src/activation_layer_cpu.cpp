@@ -90,17 +90,13 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
                         output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        this->output_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
     if (this->training) {
-        for (int i = 0; i < this->output_size * output_states.block_size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
+        // Send a copy of activation's mean and variance to the output buffer
+        // for the current layer
+        this->fill_output_states(output_states);
     }
 
     // Update number of actual states.
