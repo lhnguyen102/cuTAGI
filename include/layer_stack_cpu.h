@@ -3,13 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 17, 2023
+// Updated:      November 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base_layer.h"
 #include "output_layer_update_cpu.h"

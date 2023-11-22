@@ -105,27 +105,36 @@ void LayerStack::backward()
 /*
  */
 {
-    // TODO: need to fix the case we we dont have activation function and need
-    // to pass mu_a to parameters Output layer
+    //  Output layer
     int last_layer_idx = this->layers.size() - 1;
 
     // Hidden layers
-    for (int i = last_layer_idx; i >= 0; --i) {
-        // TODO: need to perform parameter update for input layer and potential
-        // update hidden state
+    for (int i = last_layer_idx; i > 0; --i) {
+        // Current layer
+        BaseLayer *current_layer = this->layers[i].get();
+
         // Backward pass for parameters
         if (this->param_update) {
-            this->layers[i]->param_backward(this->layers[i]->mu_a,
-                                            this->input_delta_z_buffer,
-                                            this->temp_states);
+            current_layer->param_backward(current_layer->mu_a,
+                                          this->input_delta_z_buffer,
+                                          this->temp_states);
         }
 
         // Backward pass for hidden states
-        this->layers[i]->state_backward(
-            this->layers[i]->jcb, this->input_delta_z_buffer,
+        current_layer->state_backward(
+            current_layer->jcb, this->input_delta_z_buffer,
             this->output_delta_z_buffer, this->temp_states);
 
         // Pass new input data for next iteration
         this->input_delta_z_buffer = this->output_delta_z_buffer;
     }
+
+    // Parameter update for input layer
+    if (this->param_update) {
+        this->layers[0]->param_backward(this->layers[0]->mu_a,
+                                        this->input_delta_z_buffer,
+                                        this->temp_states);
+    }
+
+    // TODO: State update for input layer
 }

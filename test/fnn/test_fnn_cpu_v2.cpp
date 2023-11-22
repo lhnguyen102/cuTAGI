@@ -40,7 +40,9 @@ void forward_fnn_v2()
     LayerStack model;
     model.add_layer(std::make_unique<FullyConnectedLayer>(13, 10));
     model.add_layer(std::make_unique<Relu>());
-    model.add_layer(std::make_unique<FullyConnectedLayer>(10, 1));
+    model.add_layer(std::make_unique<FullyConnectedLayer>(10, 5));
+    model.add_layer(std::make_unique<Relu>());
+    model.add_layer(std::make_unique<FullyConnectedLayer>(5, 1));
 
     // Forward pass
     HiddenStates input_states(26, 2);
