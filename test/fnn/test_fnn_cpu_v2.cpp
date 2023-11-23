@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 25, 2023
-// Updated:      November 17, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,12 +37,15 @@ void forward_fnn_v2()
                                   sigma_y, 51, 13, 1, true);
 
     // TAGI network
-    LayerStack model;
-    model.add_layer(std::make_unique<FullyConnectedLayer>(13, 10));
-    model.add_layer(std::make_unique<Relu>());
-    model.add_layer(std::make_unique<FullyConnectedLayer>(10, 5));
-    model.add_layer(std::make_unique<Relu>());
-    model.add_layer(std::make_unique<FullyConnectedLayer>(5, 1));
+    // LayerStack model;
+    // model.add_layer(std::make_unique<FullyConnectedLayer>(13, 10));
+    // model.add_layer(std::make_unique<Relu>());
+    // model.add_layer(std::make_unique<FullyConnectedLayer>(10, 5));
+    // model.add_layer(std::make_unique<Relu>());
+    // model.add_layer(std::make_unique<FullyConnectedLayer>(5, 1));
+    LayerStack model(FullyConnectedLayer(13, 10), Relu(),
+                     FullyConnectedLayer(10, 5), Relu(),
+                     FullyConnectedLayer(5, 1));
 
     // Forward pass
     HiddenStates input_states(26, 2);
@@ -57,6 +60,8 @@ void forward_fnn_v2()
                           model.input_delta_z_buffer.delta_var);
 
     model.backward();
+    auto layer_info = model.get_layer_stack_info();
+    std::cout << layer_info << std::endl;
 
     int check = 1;
 }

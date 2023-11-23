@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      October 25, 2023
+// Updated:      November 23, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,8 @@ class FullyConnectedLayer : public BaseLayer {
                         std::string method = "He");
 
     ~FullyConnectedLayer();
+
+    std::string get_layer_info() const override;
 
     int get_input_size() override;
 

@@ -138,3 +138,14 @@ void LayerStack::backward()
 
     // TODO: State update for input layer
 }
+
+// Utility function to get layer stack info
+std::string LayerStack::get_layer_stack_info() const {
+    std::stringstream ss;
+    for (const auto &layer : this->layers) {
+        if (layer) {
+            ss << layer->get_layer_info() << "\n";
+        }
+    }
+    return ss.str();
+}

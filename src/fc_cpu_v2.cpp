@@ -32,6 +32,28 @@ FullyConnectedLayer::FullyConnectedLayer(size_t ip_size, size_t op_size,
 
 FullyConnectedLayer::~FullyConnectedLayer() {}
 
+std::string FullyConnectedLayer::get_layer_info() const
+/*
+ */
+{
+    return "FC(" + std::to_string(this->input_size) + "," +
+           std::to_string(this->output_size) + ")";
+}
+
+int FullyConnectedLayer::get_input_size()
+/*
+ */
+{
+    return this->input_size;
+}
+
+int FullyConnectedLayer::get_output_size()
+/*
+ */
+{
+    return this->output_size;
+}
+
 void FullyConnectedLayer::allocate_param_delta()
 /*
  */
@@ -109,20 +131,6 @@ Args:
         mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
         var_z[col * output_size + row] = sum_var_z + var_b[row];
     }
-}
-
-int FullyConnectedLayer::get_input_size()
-/*
- */
-{
-    return this->input_size;
-}
-
-int FullyConnectedLayer::get_output_size()
-/*
- */
-{
-    return this->output_size;
 }
 
 void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,

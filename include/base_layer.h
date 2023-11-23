@@ -32,6 +32,8 @@ class BaseLayer {
 
     virtual const char *get_layer_type_name() const;
 
+    virtual std::string get_layer_info() const = 0;
+
     virtual int get_input_size();
 
     virtual int get_output_size();

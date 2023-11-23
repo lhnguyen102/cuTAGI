@@ -3,13 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 22, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <algorithm>
 #include <memory>
+#include <sstream>
 #include <utility>
 
 #include "base_layer.h"
@@ -28,6 +29,13 @@ class LayerStack {
     int input_size = 0;
     bool training = true;
     bool param_update = true;
+
+    // Variadic template. Note that for the template function the definition of
+    // template must be included in the herder
+    template <typename... Layers>
+    LayerStack(Layers&&... layers) {
+        add_layers(std::forward<Layers>(layers)...);
+    }
 
     LayerStack();
 
@@ -48,6 +56,32 @@ class LayerStack {
 
     void backward();
 
+    // Utility function to get layer stack info
+    std::string get_layer_stack_info() const;
+
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;
+
+    // Recursive variadic template
+    template <typename T, typename... Rest>
+    void add_layers(T&& first, Rest&&... rest) {
+        // Runtime check to verify if T is derived from BaseLayer
+        if (!std::is_base_of<BaseLayer,
+                             typename std::remove_reference<T>::type>::value) {
+            std::cerr << "Error in file: " << __FILE__
+                      << " at line: " << __LINE__
+                      << ". Reason: Type T must be derived from BaseLayer.\n";
+            throw std::invalid_argument(
+                "Error: Type T must be derived from BaseLayer");
+        }
+
+        // Add layer
+        add_layer(std::make_unique<T>(std::forward<T>(first)));
+
+        // Recursively adding next layer
+        add_layers(std::forward<Rest>(rest)...);
+    }
+
+    // Base case for recursive variadic template
+    void add_layers(){};
 };

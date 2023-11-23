@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 11, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 Relu::Relu(){};
 Relu::~Relu(){};
+
+std::string Relu::get_layer_info() const
+/*
+ */
+{
+    return "ReLU()";
+}
+
 void Relu::relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                          int start_chunk, int end_chunk,
                          std::vector<float> &mu_a, std::vector<float> &jcb,
@@ -109,6 +117,14 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 Sigmoid::Sigmoid(){};
 Sigmoid::~Sigmoid(){};
+
+std::string Sigmoid::get_layer_info() const
+/*
+ */
+{
+    return "Sigmoid()";
+}
+
 void Sigmoid::sigmoid_mean_var(std::vector<float> &mu_z,
                                std::vector<float> &var_z, int start_chunk,
                                int end_chunk, std::vector<float> &mu_a,
@@ -204,6 +220,13 @@ void Sigmoid::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 Tanh::Tanh() {}
 Tanh::~Tanh() {}
+std::string Tanh::get_layer_info() const
+/*
+ */
+{
+    return "Tanh()";
+}
+
 void Tanh::tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                          int start_chunk, int end_chunk,
                          std::vector<float> &mu_a, std::vector<float> &jcb,
@@ -294,6 +317,13 @@ void Tanh::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 MixtureRelu::MixtureRelu() {}
 MixtureRelu::~MixtureRelu() {}
+
+std::string MixtureRelu::get_layer_info() const
+/*
+ */
+{
+    return "MixtureReLU()";
+}
 
 void MixtureRelu::mixture_relu_mean_var(std::vector<float> &mu_z,
                                         std::vector<float> &var_z,
@@ -405,6 +435,13 @@ void MixtureRelu::forward(HiddenStates &input_states,
 ////////////////////////////////////////////////////////////////////////////////
 MixtureSigmoid::MixtureSigmoid(){};
 MixtureSigmoid::~MixtureSigmoid(){};
+
+std::string MixtureSigmoid::get_layer_info() const
+/*
+ */
+{
+    return "MixtureSigmoid()";
+}
 
 void MixtureSigmoid::mixture_sigmoid_mean_var(
     std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
@@ -518,6 +555,13 @@ void MixtureSigmoid::forward(HiddenStates &input_states,
 ////////////////////////////////////////////////////////////////////////////////
 MixtureTanh::MixtureTanh(){};
 MixtureTanh::~MixtureTanh(){};
+
+std::string MixtureTanh::get_layer_info() const
+/*
+ */
+{
+    return "MixtureTanh()";
+}
 
 void MixtureTanh::mixture_tanh_mean_var(std::vector<float> &mu_z,
                                         std::vector<float> &var_z,
@@ -634,6 +678,12 @@ void MixtureTanh::forward(HiddenStates &input_states,
 ////////////////////////////////////////////////////////////////////////////////
 Softplus::Softplus(){};
 Softplus::~Softplus(){};
+std::string Softplus::get_layer_info() const
+/*
+ */
+{
+    return "Softplus()";
+}
 
 void Softplus::softplus_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int start_chunk,
@@ -729,6 +779,13 @@ void Softplus::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 LeakyRelu::LeakyRelu(){};
 LeakyRelu::~LeakyRelu(){};
+
+std::string LeakyRelu::get_layer_info() const
+/*
+ */
+{
+    return "leakyReLU()";
+}
 
 void LeakyRelu::leaky_relu_mean_var(std::vector<float> &mu_z,
                                     std::vector<float> &var_z, float alpha,
@@ -835,6 +892,12 @@ void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 Softmax::Softmax() {}
 Softmax::~Softmax() {}
+std::string Softmax::get_layer_info() const
+/*
+ */
+{
+    return "Softmax()";
+}
 
 void Softmax::softmax_mean_var(std::vector<float> &mu_z,
                                std::vector<float> &var_z, int no,
