@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 25, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,8 @@ class Relu : public BaseLayer {
 
     std::string get_layer_info() const override;
 
+    std::string get_layer_name() const override;
+
     static void relu_mean_var(std::vector<float> &mu_z,
                               std::vector<float> &var_z, int start_chunk,
                               int end_chunk, std::vector<float> &mu_a,
@@ -38,6 +40,9 @@ class Relu : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +52,11 @@ class Sigmoid : public BaseLayer {
    public:
     Sigmoid();
     ~Sigmoid();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void sigmoid_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int start_chunk,
                                  int end_chunk, std::vector<float> &mu_a,
@@ -63,7 +72,11 @@ class Sigmoid : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Tanh
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +84,11 @@ class Tanh : public BaseLayer {
    public:
     Tanh();
     ~Tanh();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void tanh_mean_var(std::vector<float> &mu_z,
                               std::vector<float> &var_z, int start_chunk,
                               int end_chunk, std::vector<float> &mu_a,
@@ -85,7 +102,11 @@ class Tanh : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +115,11 @@ class MixtureRelu : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureRelu();
     ~MixtureRelu();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void mixture_relu_mean_var(std::vector<float> &mu_z,
                                       std::vector<float> &var_z,
                                       float omega_tol, int start_chunk,
@@ -108,6 +133,9 @@ class MixtureRelu : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +146,11 @@ class MixtureSigmoid : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureSigmoid();
     ~MixtureSigmoid();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void mixture_sigmoid_mean_var(
         std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
         int start_chunk, int end_chunk, std::vector<float> &mu_a,
@@ -131,6 +163,9 @@ class MixtureSigmoid : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +176,11 @@ class MixtureTanh : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureTanh();
     ~MixtureTanh();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void mixture_tanh_mean_var(std::vector<float> &mu_z,
                                       std::vector<float> &var_z,
                                       float omega_tol, int start_chunk,
@@ -156,7 +195,11 @@ class MixtureTanh : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
 ////////////////////////////////////////////////////////////////////////////////
@@ -164,7 +207,11 @@ class Softplus : public BaseLayer {
    public:
     Softplus();
     ~Softplus();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void softplus_mean_var(std::vector<float> &mu_z,
                                   std::vector<float> &var_z, int start_chunk,
                                   int end_chunk, std::vector<float> &mu_a,
@@ -180,7 +227,11 @@ class Softplus : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,7 +240,11 @@ class LeakyRelu : public BaseLayer {
     float alpha = 0.1f;
     LeakyRelu();
     ~LeakyRelu();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void leaky_relu_mean_var(std::vector<float> &mu_z,
                                     std::vector<float> &var_z, float alpha,
                                     int start_chunk, int end_chunk,
@@ -206,7 +261,11 @@ class LeakyRelu : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Stable Softmax
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +274,11 @@ class Softmax : public BaseLayer {
     float alpha = 0.1f;
     Softmax();
     ~Softmax();
+
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     static void softmax_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int no,
                                  int batch_size, std::vector<float> &mu_a,
@@ -224,6 +287,9 @@ class Softmax : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -234,6 +300,11 @@ class RemaxA : public BaseLayer {
     float alpha = 0.1f;
     RemaxA();
     ~RemaxA();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
     // TODO: How to add mixture relu
     void to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
                 int B, std::vector<float> &mu_log, std::vector<float> &var_log);
@@ -258,4 +329,7 @@ class RemaxA : public BaseLayer {
 
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override{};
+
+    void save(std::ofstream &file) override{};
+    void load(std::ifstream &file) override{};
 };

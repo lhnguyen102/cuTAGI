@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 25, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "base_layer.h"
+#include "common.h"
 #include "output_layer_update_cpu.h"
 #include "struct_var.h"
 
@@ -29,6 +30,7 @@ class LayerStack {
     int input_size = 0;
     bool training = true;
     bool param_update = true;
+    bool input_hidden_state_update = false;
 
     // Variadic template. Note that for the template function the definition of
     // template must be included in the herder
@@ -58,6 +60,11 @@ class LayerStack {
 
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
+
+    // Saving and loading
+    void save(const std::string& filename);
+
+    void load(const std::string& filename);
 
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;

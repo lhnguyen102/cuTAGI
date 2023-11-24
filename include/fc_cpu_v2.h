@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 23, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,19 +18,21 @@
 #include "net_prop.h"
 #include "struct_var.h"
 
-class FullyConnectedLayer : public BaseLayer {
+class FullyConnected : public BaseLayer {
    public:
     float gain_w;
     float gain_b;
     std::string init_method;
 
-    FullyConnectedLayer(size_t ip_size, size_t op_size,
+    FullyConnected(size_t ip_size, size_t op_size,
                         float gain_weight = 1.0f, float gain_bias = 1.0f,
                         std::string method = "He");
 
-    ~FullyConnectedLayer();
+    ~FullyConnected();
 
     std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
 
     int get_input_size() override;
 

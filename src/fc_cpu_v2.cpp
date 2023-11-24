@@ -3,15 +3,15 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 19, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cpu_v2.h"
 
-FullyConnectedLayer::FullyConnectedLayer(size_t ip_size, size_t op_size,
-                                         float gain_weight, float gain_bias,
-                                         std::string method)
+FullyConnected::FullyConnected(size_t ip_size, size_t op_size,
+                               float gain_weight, float gain_bias,
+                               std::string method)
     : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
@@ -30,9 +30,9 @@ FullyConnectedLayer::FullyConnectedLayer(size_t ip_size, size_t op_size,
     }
 }
 
-FullyConnectedLayer::~FullyConnectedLayer() {}
+FullyConnected::~FullyConnected() {}
 
-std::string FullyConnectedLayer::get_layer_info() const
+std::string FullyConnected::get_layer_info() const
 /*
  */
 {
@@ -40,21 +40,28 @@ std::string FullyConnectedLayer::get_layer_info() const
            std::to_string(this->output_size) + ")";
 }
 
-int FullyConnectedLayer::get_input_size()
+std::string FullyConnected::get_layer_name() const
+/*
+ */
+{
+    return "FullyConnected";
+}
+
+int FullyConnected::get_input_size()
 /*
  */
 {
     return this->input_size;
 }
 
-int FullyConnectedLayer::get_output_size()
+int FullyConnected::get_output_size()
 /*
  */
 {
     return this->output_size;
 }
 
-void FullyConnectedLayer::allocate_param_delta()
+void FullyConnected::allocate_param_delta()
 /*
  */
 {
@@ -64,7 +71,7 @@ void FullyConnectedLayer::allocate_param_delta()
     this->delta_var_b.resize(this->output_size, 0.0f);
 }
 
-void FullyConnectedLayer::init_weight_bias()
+void FullyConnected::init_weight_bias()
 /*
  */
 {
@@ -91,7 +98,7 @@ void FullyConnectedLayer::init_weight_bias()
         gaussian_param_init(scale, this->gain_b, this->output_size);
 }
 
-void FullyConnectedLayer::fwd_mean_var(
+void FullyConnected::fwd_mean_var(
     std::vector<float> &mu_w, std::vector<float> &var_w,
     std::vector<float> &mu_b, std::vector<float> &var_b,
     std::vector<float> &mu_a, std::vector<float> &var_a, int start_chunk,
@@ -133,12 +140,11 @@ Args:
     }
 }
 
-void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
-                                          std::vector<float> &var_a,
-                                          int batch_size,
-                                          unsigned int num_threads,
-                                          std::vector<float> &mu_z,
-                                          std::vector<float> &var_z)
+void FullyConnected::fwd_mean_var_mp(std::vector<float> &mu_a,
+                                     std::vector<float> &var_a, int batch_size,
+                                     unsigned int num_threads,
+                                     std::vector<float> &mu_z,
+                                     std::vector<float> &var_z)
 /*Multi-processing verion of forward pass for fc layer
  */
 {
@@ -156,7 +162,7 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(FullyConnectedLayer::fwd_mean_var,
+        threads[i] = std::thread(FullyConnected::fwd_mean_var,
                                  std::ref(this->mu_w), std::ref(this->var_w),
                                  std::ref(this->mu_b), std::ref(this->var_b),
                                  std::ref(mu_a), std::ref(var_a), start_chunk,
@@ -171,11 +177,11 @@ void FullyConnectedLayer::fwd_mean_var_mp(std::vector<float> &mu_a,
     }
 }
 
-void FullyConnectedLayer::fwd_full_cov(std::vector<float> &mu_w,
-                                       std::vector<float> &var_a_f,
-                                       size_t input_size, size_t output_size,
-                                       int B, int start_chunk, int end_chunk,
-                                       std::vector<float> &var_z_fp)
+void FullyConnected::fwd_full_cov(std::vector<float> &mu_w,
+                                  std::vector<float> &var_a_f,
+                                  size_t input_size, size_t output_size, int B,
+                                  int start_chunk, int end_chunk,
+                                  std::vector<float> &var_z_fp)
 /* Add diagonal terms to the full covariance matrix.
 
 Args:
@@ -215,9 +221,9 @@ Args:
     }
 }
 
-void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
-                                          unsigned int num_threads,
-                                          std::vector<float> &var_z_fp) {
+void FullyConnected::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
+                                     unsigned int num_threads,
+                                     std::vector<float> &var_z_fp) {
     const int tot_ops = this->output_size * B * this->output_size;
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
@@ -233,7 +239,7 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(FullyConnectedLayer::fwd_full_cov, std::ref(this->mu_w),
+            std::thread(FullyConnected::fwd_full_cov, std::ref(this->mu_w),
                         std::ref(var_a_f), this->input_size, this->output_size,
                         B, start_chunk, end_chunk, std::ref(var_z_fp));
     }
@@ -245,7 +251,7 @@ void FullyConnectedLayer::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
     }
 }
 
-void FullyConnectedLayer::fwd_fc_full_var(
+void FullyConnected::fwd_fc_full_var(
     std::vector<float> &var_w, std::vector<float> &var_b,
     std::vector<float> &mu_a, std::vector<float> &var_a,
     std::vector<float> &var_z_fp, size_t input_size, size_t output_size, int B,
@@ -273,12 +279,12 @@ void FullyConnectedLayer::fwd_fc_full_var(
     }
 }
 
-void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
-                                             std::vector<float> &var_a,
-                                             std::vector<float> &var_z_fp,
-                                             int B, unsigned int num_threads,
-                                             std::vector<float> &var_z,
-                                             std::vector<float> &var_z_f)
+void FullyConnected::fwd_fc_full_var_mp(std::vector<float> &mu_a,
+                                        std::vector<float> &var_a,
+                                        std::vector<float> &var_z_fp, int B,
+                                        unsigned int num_threads,
+                                        std::vector<float> &var_z,
+                                        std::vector<float> &var_z_f)
 /**/
 {
     int no = this->output_size;
@@ -300,7 +306,7 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            FullyConnectedLayer::fwd_fc_full_var, std::ref(this->var_w),
+            FullyConnected::fwd_fc_full_var, std::ref(this->var_w),
             std::ref(this->var_b), std::ref(mu_a), std::ref(var_a),
             std::ref(var_z_fp), this->input_size, this->output_size, B,
             start_chunk, end_chunk, std::ref(var_z), std::ref(var_z_f));
@@ -313,14 +319,14 @@ void FullyConnectedLayer::fwd_fc_full_var_mp(std::vector<float> &mu_a,
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_z(std::vector<float> &mu_w,
-                                         std::vector<float> &jcb,
-                                         std::vector<float> &delta_mu,
-                                         std::vector<float> &delta_var,
-                                         size_t input_size, size_t output_size,
-                                         int B, int start_chunk, int end_chunk,
-                                         std::vector<float> &delta_mu_z,
-                                         std::vector<float> &delta_var_z)
+void FullyConnected::bwd_fc_delta_z(std::vector<float> &mu_w,
+                                    std::vector<float> &jcb,
+                                    std::vector<float> &delta_mu,
+                                    std::vector<float> &delta_var,
+                                    size_t input_size, size_t output_size,
+                                    int B, int start_chunk, int end_chunk,
+                                    std::vector<float> &delta_mu_z,
+                                    std::vector<float> &delta_var_z)
 /*
  */
 {
@@ -345,12 +351,12 @@ void FullyConnectedLayer::bwd_fc_delta_z(std::vector<float> &mu_w,
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
-                                            std::vector<float> &delta_mu,
-                                            std::vector<float> &delta_var,
-                                            int B, unsigned int num_threads,
-                                            std::vector<float> &delta_mu_z,
-                                            std::vector<float> &delta_var_z)
+void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &jcb,
+                                       std::vector<float> &delta_mu,
+                                       std::vector<float> &delta_var, int B,
+                                       unsigned int num_threads,
+                                       std::vector<float> &delta_mu_z,
+                                       std::vector<float> &delta_var_z)
 /*
  */
 {
@@ -369,11 +375,11 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
-            FullyConnectedLayer::bwd_fc_delta_z, std::ref(this->mu_w),
-            std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
-            this->input_size, this->output_size, B, start_chunk, end_chunk,
-            std::ref(delta_mu_z), std::ref(delta_var_z));
+        threads[i] =
+            std::thread(FullyConnected::bwd_fc_delta_z, std::ref(this->mu_w),
+                        std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
+                        this->input_size, this->output_size, B, start_chunk,
+                        end_chunk, std::ref(delta_mu_z), std::ref(delta_var_z));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -383,7 +389,7 @@ void FullyConnectedLayer::bwd_fc_delta_z_mp(std::vector<float> &jcb,
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_w(
+void FullyConnected::bwd_fc_delta_w(
     std::vector<float> &var_w, std::vector<float> &mu_a,
     std::vector<float> &delta_mu, std::vector<float> &delta_var,
     size_t input_size, size_t output_size, int batch_size, int start_chunk,
@@ -421,10 +427,12 @@ Args:
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_w_mp(
-    std::vector<float> &mu_a, std::vector<float> &delta_mu,
-    std::vector<float> &delta_var, int batch_size, unsigned int num_threads,
-    std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
+void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &mu_a,
+                                       std::vector<float> &delta_mu,
+                                       std::vector<float> &delta_var,
+                                       int batch_size, unsigned int num_threads,
+                                       std::vector<float> &delta_mu_w,
+                                       std::vector<float> &delta_var_w)
 /**/
 {
     const int tot_ops = this->input_size * this->output_size;
@@ -442,7 +450,7 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(
-            FullyConnectedLayer::bwd_fc_delta_w, std::ref(this->var_w),
+            FullyConnected::bwd_fc_delta_w, std::ref(this->var_w),
             std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
             this->input_size, this->output_size, batch_size, start_chunk,
             end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
@@ -455,13 +463,13 @@ void FullyConnectedLayer::bwd_fc_delta_w_mp(
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_b(std::vector<float> &var_b,
-                                         std::vector<float> &delta_mu,
-                                         std::vector<float> &delta_var,
-                                         size_t output_size, int batch_size,
-                                         int start_chunk, int end_chunk,
-                                         std::vector<float> &delta_mu_b,
-                                         std::vector<float> &delta_var_b)
+void FullyConnected::bwd_fc_delta_b(std::vector<float> &var_b,
+                                    std::vector<float> &delta_mu,
+                                    std::vector<float> &delta_var,
+                                    size_t output_size, int batch_size,
+                                    int start_chunk, int end_chunk,
+                                    std::vector<float> &delta_mu_b,
+                                    std::vector<float> &delta_var_b)
 /* Compute update quantities for the variance of biases for full-connected
 layer.
 
@@ -491,12 +499,11 @@ Args:
     }
 }
 
-void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
-                                            std::vector<float> &delta_var,
-                                            int batch_size,
-                                            unsigned int num_threads,
-                                            std::vector<float> &delta_mu_b,
-                                            std::vector<float> &delta_var_b)
+void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
+                                       std::vector<float> &delta_var,
+                                       int batch_size, unsigned int num_threads,
+                                       std::vector<float> &delta_mu_b,
+                                       std::vector<float> &delta_var_b)
 /*
  */
 {
@@ -514,11 +521,11 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(FullyConnectedLayer::bwd_fc_delta_b,
-                                 std::ref(this->var_b), std::ref(delta_mu),
-                                 std::ref(delta_var), this->output_size,
-                                 batch_size, start_chunk, end_chunk,
-                                 std::ref(delta_mu_b), std::ref(delta_var_b));
+        threads[i] =
+            std::thread(FullyConnected::bwd_fc_delta_b, std::ref(this->var_b),
+                        std::ref(delta_mu), std::ref(delta_var),
+                        this->output_size, batch_size, start_chunk, end_chunk,
+                        std::ref(delta_mu_b), std::ref(delta_var_b));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -528,9 +535,9 @@ void FullyConnectedLayer::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
     }
 }
 
-void FullyConnectedLayer::forward(HiddenStates &input_states,
-                                  HiddenStates &output_states,
-                                  TempStates &temp_states)
+void FullyConnected::forward(HiddenStates &input_states,
+                             HiddenStates &output_states,
+                             TempStates &temp_states)
 /*
  */
 {
@@ -566,10 +573,10 @@ void FullyConnectedLayer::forward(HiddenStates &input_states,
     output_states.actual_size = this->output_size;
 }
 
-void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
-                                         DeltaStates &input_delta_states,
-                                         DeltaStates &output_delta_states,
-                                         TempStates &temp_states)
+void FullyConnected::state_backward(std::vector<float> &jcb,
+                                    DeltaStates &input_delta_states,
+                                    DeltaStates &output_delta_states,
+                                    TempStates &temp_states)
 /*
  */
 {
@@ -586,9 +593,9 @@ void FullyConnectedLayer::state_backward(std::vector<float> &jcb,
                          output_delta_states.delta_var);
 }
 
-void FullyConnectedLayer::param_backward(std::vector<float> &mu_a,
-                                         DeltaStates &delta_states,
-                                         TempStates &temp_states)
+void FullyConnected::param_backward(std::vector<float> &mu_a,
+                                    DeltaStates &delta_states,
+                                    TempStates &temp_states)
 /*
 ...
 

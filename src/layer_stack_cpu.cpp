@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 17, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -136,7 +136,12 @@ void LayerStack::backward()
                                         this->temp_states);
     }
 
-    // TODO: State update for input layer
+    // State update for input layer
+    if (this->input_hidden_state_update) {
+        this->layers[0]->state_backward(
+            this->layers[0]->jcb, this->input_delta_z_buffer,
+            this->output_delta_z_buffer, this->temp_states);
+    }
 }
 
 // Utility function to get layer stack info
@@ -148,4 +153,40 @@ std::string LayerStack::get_layer_stack_info() const {
         }
     }
     return ss.str();
+}
+
+void LayerStack::save(const std::string &filename)
+/**/
+{
+    // Extract the directory path from the filename
+    std::string directory = filename.substr(0, filename.find_last_of("\\/"));
+    create_directory(directory);
+
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for saving");
+    }
+
+    for (const auto &layer : layers) {
+        layer->save(file);
+    }
+    file.close();
+}
+
+void LayerStack::load(const std::string &filename)
+/**/
+{
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for loading");
+    }
+
+    for (auto &layer : layers) {
+        layer->load(file);
+    }
+    file.close();
 }

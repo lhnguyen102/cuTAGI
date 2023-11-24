@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 25, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,13 @@ std::string Relu::get_layer_info() const
  */
 {
     return "ReLU()";
+}
+
+std::string Relu::get_layer_name() const
+/*
+ */
+{
+    return "ReLU";
 }
 
 void Relu::relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
@@ -125,6 +132,13 @@ std::string Sigmoid::get_layer_info() const
     return "Sigmoid()";
 }
 
+std::string Sigmoid::get_layer_name() const
+/*
+ */
+{
+    return "Sigmoid";
+}
+
 void Sigmoid::sigmoid_mean_var(std::vector<float> &mu_z,
                                std::vector<float> &var_z, int start_chunk,
                                int end_chunk, std::vector<float> &mu_a,
@@ -220,11 +234,20 @@ void Sigmoid::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 Tanh::Tanh() {}
 Tanh::~Tanh() {}
+
 std::string Tanh::get_layer_info() const
 /*
  */
 {
     return "Tanh()";
+}
+
+std::string Tanh::get_layer_name() const
+/*
+ */
+
+{
+    return "Tanh";
 }
 
 void Tanh::tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
@@ -323,6 +346,14 @@ std::string MixtureRelu::get_layer_info() const
  */
 {
     return "MixtureReLU()";
+}
+
+std::string MixtureRelu::get_layer_name() const
+/*
+ */
+
+{
+    return "MixtureReLU";
 }
 
 void MixtureRelu::mixture_relu_mean_var(std::vector<float> &mu_z,
@@ -443,6 +474,14 @@ std::string MixtureSigmoid::get_layer_info() const
     return "MixtureSigmoid()";
 }
 
+std::string MixtureSigmoid::get_layer_name() const
+/*
+ */
+
+{
+    return "MixtureSigmoid";
+}
+
 void MixtureSigmoid::mixture_sigmoid_mean_var(
     std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
     int start_chunk, int end_chunk, std::vector<float> &mu_a,
@@ -561,6 +600,14 @@ std::string MixtureTanh::get_layer_info() const
  */
 {
     return "MixtureTanh()";
+}
+
+std::string MixtureTanh::get_layer_name() const
+/*
+ */
+
+{
+    return "MixtureTanh";
 }
 
 void MixtureTanh::mixture_tanh_mean_var(std::vector<float> &mu_z,
@@ -685,6 +732,14 @@ std::string Softplus::get_layer_info() const
     return "Softplus()";
 }
 
+std::string Softplus::get_layer_name() const
+/*
+ */
+
+{
+    return "Softplus";
+}
+
 void Softplus::softplus_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int start_chunk,
                                  int end_chunk, std::vector<float> &mu_a,
@@ -785,6 +840,14 @@ std::string LeakyRelu::get_layer_info() const
  */
 {
     return "leakyReLU()";
+}
+
+std::string LeakyRelu::get_layer_name() const
+/*
+ */
+
+{
+    return "leakReLU";
 }
 
 void LeakyRelu::leaky_relu_mean_var(std::vector<float> &mu_z,
@@ -899,6 +962,14 @@ std::string Softmax::get_layer_info() const
     return "Softmax()";
 }
 
+std::string Softmax::get_layer_name() const
+/*
+ */
+
+{
+    return "Softmax";
+}
+
 void Softmax::softmax_mean_var(std::vector<float> &mu_z,
                                std::vector<float> &var_z, int no,
                                int batch_size, std::vector<float> &mu_a,
@@ -972,6 +1043,21 @@ void Softmax::forward(HiddenStates &input_states, HiddenStates &output_states,
 ////////////////////////////////////////////////////////////////////////////////
 RemaxA::RemaxA() {}
 RemaxA::~RemaxA() {}
+
+std::string RemaxA::get_layer_info() const
+/*
+ */
+{
+    return "RemaxA()";
+}
+
+std::string RemaxA::get_layer_name() const
+/*
+ */
+
+{
+    return "RemaxA";
+}
 
 void RemaxA::to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
                     int B, std::vector<float> &mu_log,

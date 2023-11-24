@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      October 19, 2023
+// Updated:      November 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -64,5 +64,74 @@ void BaseLayer::fill_bwd_vector(HiddenStates &input_states)
          i++) {
         this->mu_a[i] = input_states.mu_a[i];
         this->jcb[i] = input_states.jcb[i];
+    }
+}
+
+void BaseLayer::save(std::ofstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for saving");
+    }
+
+    // Save the name length and name
+    auto layer_name = this->get_layer_name();
+    size_t name_length = layer_name.length();
+    file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    file.write(layer_name.c_str(), name_length);
+
+    for (const auto &m_w : this->mu_w) {
+        file.write(reinterpret_cast<const char *>(&m_w), sizeof(m_w));
+    }
+    for (const auto &v_w : this->var_w) {
+        file.write(reinterpret_cast<const char *>(&v_w), sizeof(v_w));
+    }
+    for (const auto &m_b : this->mu_b) {
+        file.write(reinterpret_cast<const char *>(&m_b), sizeof(m_b));
+    }
+    for (const auto &v_b : this->var_b) {
+        file.write(reinterpret_cast<const char *>(&v_b), sizeof(v_b));
+    }
+}
+
+void BaseLayer::load(std::ifstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for loading");
+    }
+    // Load the name length and name
+    auto layer_name = this->get_layer_name();
+    std::string loaded_name;
+    size_t name_length;
+    file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    loaded_name.resize(name_length);
+    file.read(&loaded_name[0], name_length);
+
+    // Check layer name
+    if (layer_name != loaded_name) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Layer name are not match. Expected: " +
+                                 layer_name + ", Found: " + loaded_name);
+    }
+
+    for (auto &m_w : this->mu_w) {
+        file.read(reinterpret_cast<char *>(&m_w), sizeof(m_w));
+    }
+    for (auto &v_w : this->var_w) {
+        file.read(reinterpret_cast<char *>(&v_w), sizeof(v_w));
+    }
+    for (auto &m_b : this->mu_b) {
+        file.read(reinterpret_cast<char *>(&m_b), sizeof(m_b));
+    }
+    for (auto &v_b : this->var_b) {
+        file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
     }
 }
