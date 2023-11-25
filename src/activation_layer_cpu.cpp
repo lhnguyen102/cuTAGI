@@ -108,11 +108,11 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
     this->input_size = input_states.actual_size;
     this->output_size = input_states.actual_size;
 
-    if (this->training) {
-        // Send a copy of activation's mean and variance to the output buffer
-        // for the current layer
-        this->fill_output_states(output_states);
-    }
+    // if (this->training) {
+    //     // Send a copy of activation's mean and variance to the output buffer
+    //     // for the current layer
+    //     this->fill_output_states(output_states);
+    // }
 
     // Update number of actual states.
     output_states.size = input_states.size;

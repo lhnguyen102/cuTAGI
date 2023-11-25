@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      January 26, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -351,6 +351,92 @@ Returns:
     return image_data;
 }
 
+ImageData get_images_v2(std::string data_name,
+                        std::vector<std::string> &image_file,
+                        std::vector<std::string> &label_file,
+                        std::vector<float> &mu, std::vector<float> &sigma,
+                        int num, int num_classes, int width, int height,
+                        int channel, bool is_hr_softmax)
+/*Load image dataset
+
+ Args:
+    data_name: Name of dataset e.g. mnist, cifar
+    image_file: Directory path to image file
+    label_file: Directory path to label file
+    num: Number of images files
+    HrSoftmax: Hierarchical softmax for classification
+
+Returns:
+    ImageData: Image database
+*/
+{
+    std::vector<float> imgs;
+    std::vector<int> labels;
+    ImageData image_data;
+    if (data_name == "mnist") {
+        // Load images
+        for (int i = 0; i < image_file.size(); i++) {
+            auto img_i = load_mnist_images(image_file[i], num);
+            imgs.insert(imgs.end(), img_i.begin(), img_i.end());
+        }
+
+        // Load labels
+        for (int i = 0; i < label_file.size(); i++) {
+            auto label_i = load_mnist_labels(label_file[i], num);
+            labels.insert(labels.end(), label_i.begin(), label_i.end());
+        }
+
+        // Hard-code mnist image size 28x28x1
+        image_data.image_len = 28 * 28;
+
+    } else if (data_name == "cifar") {
+        // Load images and labels
+        std::vector<float> img_i;
+        std::vector<int> label_i;
+        for (int i = 0; i < image_file.size(); i++) {
+            std::tie(img_i, label_i) = load_cifar_images(image_file[i], num);
+            imgs.insert(imgs.end(), img_i.begin(), img_i.end());
+            labels.insert(labels.end(), label_i.begin(), label_i.end());
+        }
+        image_data.image_len = 32 * 32 * 3;
+
+    } else {
+        throw std::invalid_argument("Dataset does not exist - dataloader.cpp");
+    }
+
+    // Convert label to hierarchical softmax
+    std::vector<float> obs;
+    std::vector<int> obs_idx;
+    if (is_hr_softmax) {
+        std::vector<int> obs_idx;
+        obs = label_to_one_hot(labels, num_classes);
+        image_data.output_len = num_classes;
+    } else {
+        auto hrs = class_to_obs(num_classes);
+        image_data.output_len = hrs.n_obs;
+        obs_idx.resize(hrs.n_obs * num);
+        obs.resize(hrs.n_obs * num);
+        labels_to_hrs(labels, hrs, obs, obs_idx);
+    }
+
+    // Normalization
+    if (mu.size() > 0 && sigma.size() > 0) {
+        normalize_images(imgs, mu, sigma, width, height, channel, num);
+    } else {
+        mu.resize(channel);
+        sigma.resize(channel);
+        compute_mean_std_each_channel(imgs, mu, sigma, width, height, channel,
+                                      num);
+    }
+    image_data.images = imgs;
+    image_data.obs_label = obs;
+    image_data.obs_idx = obs_idx;
+    image_data.labels = labels;
+    image_data.num_data = num;
+
+    return image_data;
+}
+
 Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,
                           std::vector<float> mu_x, std::vector<float> sigma_x,
@@ -388,13 +474,15 @@ Returns:
     };
 
     // Compute sample mean and std for dataset
-    mu_x.resize(nx, 0);
-    sigma_x.resize(nx, 1);
-    mu_y.resize(ny, 0);
-    sigma_y.resize(ny, 1);
-    if (data_norm) {
+    if (mu_x.size() == 0) {
+        mu_x.resize(nx, 0);
+        sigma_x.resize(nx, 1);
+        mu_y.resize(ny, 0);
+        sigma_y.resize(ny, 1);
         compute_mean_std(db.x, mu_x, sigma_x, nx);
         compute_mean_std(db.y, mu_y, sigma_y, ny);
+    }
+    if (data_norm) {
         normalize_data(db.x, mu_x, sigma_x, nx);
         normalize_data(db.y, mu_y, sigma_y, ny);
     }

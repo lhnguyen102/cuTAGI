@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      November 24, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +53,7 @@ void BaseLayer::fill_output_states(HiddenStates &output_states)
          j++) {
         output_states.mu_a[j] = output_states.mu_z[j];
         output_states.var_a[j] = output_states.var_z[j];
+        output_states.jcb[j] = 1.0f;
     }
 }
 
@@ -64,6 +65,26 @@ void BaseLayer::fill_bwd_vector(HiddenStates &input_states)
          i++) {
         this->mu_a[i] = input_states.mu_a[i];
         this->jcb[i] = input_states.jcb[i];
+    }
+}
+
+void BaseLayer::update_weights()
+/*
+ */
+{
+    for (int i = 0; i < this->mu_w.size(); i++) {
+        this->mu_w[i] += this->delta_mu_w[i];
+        this->var_w[i] += this->delta_var_w[i];
+    }
+}
+
+void BaseLayer::update_biases()
+/*
+ */
+{
+    for (int i = 0; i < this->mu_b.size(); i++) {
+        this->mu_b[i] += this->delta_mu_b[i];
+        this->var_b[i] += this->delta_var_b[i];
     }
 }
 

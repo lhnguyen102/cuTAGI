@@ -495,7 +495,7 @@ Args:
 
             // Timer
             std::cout << "################\n";
-            std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
+            std::cout << "Epoch PP #" << e + 1 << "/" << n_epochs << "\n";
             std::cout << "Training...\n";
             auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < n_iter; i++) {

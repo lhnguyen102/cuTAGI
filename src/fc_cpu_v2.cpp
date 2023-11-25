@@ -76,13 +76,13 @@ void FullyConnected::init_weight_bias()
  */
 {
     int num_weights = this->input_size * this->output_size;
-    float scale = 0.1f;
+    float scale;
     if (this->init_method.compare("Xavier") == 0 ||
         this->init_method.compare("xavier") == 0) {
-        auto scale = xavier_init(this->input_size, this->output_size);
+        scale = xavier_init(this->input_size, this->output_size);
     } else if (this->init_method.compare("He") == 0 ||
                this->init_method.compare("he") == 0) {
-        auto scale = he_init(this->input_size);
+        scale = he_init(this->input_size);
     } else {
         std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
                   << std::endl;
@@ -563,7 +563,8 @@ void FullyConnected::forward(HiddenStates &input_states,
         this->fill_bwd_vector(input_states);
 
         // Send a copy of activation's mean and variance to the output buffer
-        // for the current layer
+        // for the current layer.
+        // TODO: consider to have only mu_a and var_a in struct HiddenStates
         this->fill_output_states(output_states);
     }
 
@@ -606,7 +607,7 @@ Args:
     // Initialization
     int batch_size = delta_states.block_size;
     int start_chunk = 0;
-    int end_chunk = batch_size * this->output_size;
+    int end_chunk = this->input_size * this->output_size;
 
     // Update values for weights
     this->bwd_fc_delta_w(this->var_w, mu_a, delta_states.delta_mu,

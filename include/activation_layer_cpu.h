@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 24, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,12 @@ class Relu : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -73,7 +78,12 @@ class Sigmoid : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -103,7 +113,12 @@ class Tanh : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -134,7 +149,12 @@ class MixtureRelu : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -164,7 +184,12 @@ class MixtureSigmoid : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -196,7 +221,12 @@ class MixtureTanh : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -228,7 +258,12 @@ class Softplus : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -262,7 +297,12 @@ class LeakyRelu : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -288,7 +328,12 @@ class Softmax : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };
 
@@ -330,6 +375,11 @@ class RemaxA : public BaseLayer {
     void forward(HiddenStates &input_states, HiddenStates &output_states,
                  TempStates &temp_states) override{};
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     void save(std::ofstream &file) override{};
+
     void load(std::ifstream &file) override{};
 };

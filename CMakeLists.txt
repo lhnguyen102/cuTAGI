@@ -154,6 +154,7 @@ set(CPU_SOURCES
   test/mha/test_mha_cpu.cpp
   test/embedding/test_emb_cpu.cpp
   test/fnn/test_fnn_cpu_v2.cpp
+  test/fnn/test_fnn_mnist_cpu.cpp
 )
 
 # Sources code for CUDA

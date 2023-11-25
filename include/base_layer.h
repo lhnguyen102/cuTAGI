@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 24, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,6 +51,10 @@ class BaseLayer {
     virtual void param_backward(std::vector<float> &mu_a,
                                 DeltaStates &delta_states,
                                 TempStates &temp_states);
+
+    virtual void update_weights();
+
+    virtual void update_biases();
 
     virtual void save(std::ofstream &file);
     virtual void load(std::ifstream &file);

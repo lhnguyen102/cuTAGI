@@ -144,6 +144,16 @@ void LayerStack::backward()
     }
 }
 
+void LayerStack::step()
+/*
+ */
+{
+    for (const auto &layer : this->layers) {
+        layer->update_weights();
+        layer->update_biases();
+    }
+}
+
 // Utility function to get layer stack info
 std::string LayerStack::get_layer_stack_info() const {
     std::stringstream ss;
@@ -189,4 +199,103 @@ void LayerStack::load(const std::string &filename)
         layer->load(file);
     }
     file.close();
+}
+
+void LayerStack::save_csv(const std::string &filename)
+/*
+This allows saving network's parameters in csv so that
+    (1) we can test on the previous version
+    (2) we have a human-readable of weights and biases
+*/
+{
+    // Extract the directory path from the filename
+    std::string directory = filename.substr(0, filename.find_last_of("\\/"));
+    create_directory(directory);
+
+    // Initialize the size counters
+    size_t total_mu_w_size = 0, total_var_w_size = 0, total_mu_b_size = 0,
+           total_var_b_size = 0;
+
+    // Calculate the total size needed for each vector
+    for (const auto &layer : this->layers) {
+        total_mu_w_size += layer->mu_w.size();
+        total_var_w_size += layer->var_w.size();
+        total_mu_b_size += layer->mu_b.size();
+        total_var_b_size += layer->var_b.size();
+    }
+
+    // Allocate data vectors
+    std::vector<float> mu_w, var_w, mu_b, var_b;
+    mu_w.reserve(total_mu_w_size);
+    var_w.reserve(total_var_w_size);
+    mu_b.reserve(total_mu_b_size);
+    var_b.reserve(total_var_b_size);
+
+    // Concatenate layer parameters
+    for (const auto &layer : this->layers) {
+        mu_w.insert(mu_w.end(), layer->mu_w.begin(), layer->mu_w.end());
+        var_w.insert(var_w.end(), layer->var_w.begin(), layer->var_w.end());
+        mu_b.insert(mu_b.end(), layer->mu_b.begin(), layer->mu_b.end());
+        var_b.insert(var_b.end(), layer->var_b.begin(), layer->var_b.end());
+    }
+
+    // Save parameters to csv
+    std::string mu_w_path = filename + "_mu_w.csv";
+    std::string var_w_path = filename + "_var_w.csv";
+    std::string mu_b_path = filename + "_mu_b.csv";
+    std::string var_b_path = filename + "_var_b.csv";
+
+    write_csv(mu_w_path, mu_w);
+    write_csv(var_w_path, var_w);
+    write_csv(mu_b_path, mu_b);
+    write_csv(var_b_path, var_b);
+}
+
+void LayerStack::load_csv(const std::string &filename)
+/*
+ */
+{
+    // Count number of weights & biases for the entire network
+    int num_weights = 0, num_biases = 0;
+    for (auto &layer : this->layers) {
+        num_weights += layer->mu_w.size();
+        num_biases += layer->mu_b.size();
+    }
+
+    // Define the global weight & bias vectors
+    std::vector<float> mu_w(num_weights);
+    std::vector<float> var_w(num_weights);
+    std::vector<float> mu_b(num_biases);
+    std::vector<float> var_b(num_biases);
+
+    // Read data from csv
+    std::string mu_w_path = filename + "_mu_w.csv";
+    std::string var_w_path = filename + "_var_w.csv";
+    std::string mu_b_path = filename + "_mu_b.csv";
+    std::string var_b_path = filename + "_var_b.csv";
+
+    read_csv(mu_w_path, mu_w, 1, false);
+    read_csv(var_w_path, var_w, 1, false);
+    read_csv(mu_b_path, mu_b, 1, false);
+    read_csv(var_b_path, var_b, 1, false);
+
+    // Distribute parameter for each layer
+    int weight_start_idx = 0, bias_start_idx = 0;
+    for (auto &layer : this->layers) {
+        std::copy(mu_w.begin() + weight_start_idx,
+                  mu_w.begin() + weight_start_idx + layer->mu_w.size(),
+                  layer->mu_w.begin());
+        std::copy(var_w.begin() + weight_start_idx,
+                  var_w.begin() + weight_start_idx + layer->var_w.size(),
+                  layer->var_w.begin());
+        std::copy(mu_b.begin() + bias_start_idx,
+                  mu_b.begin() + bias_start_idx + layer->mu_b.size(),
+                  layer->mu_b.begin());
+        std::copy(var_b.begin() + bias_start_idx,
+                  var_b.begin() + bias_start_idx + layer->var_b.size(),
+                  layer->var_b.begin());
+
+        weight_start_idx += layer->mu_w.size();
+        bias_start_idx += layer->mu_b.size();
+    }
 }

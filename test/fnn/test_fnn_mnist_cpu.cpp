@@ -1,0 +1,136 @@
+///////////////////////////////////////////////////////////////////////////////
+// File:         test_fnn_mnist_cpu.cpp
+// Description:  ...
+// Authors:      Luong-Ha Nguyen & James-A. Goulet
+// Created:      November 25, 2023
+// Updated:      November 25, 2023
+// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
+// License:      This code is released under the MIT License.
+////////////////////////////////////////////////////////////////////////////////
+
+#include "test_fnn_mnist_cpu.h"
+
+void fnn_mnist() {
+    //////////////////////////////////////////////////////////////////////
+    // Data preprocessing
+    //////////////////////////////////////////////////////////////////////
+    std::vector<std::string> x_train_paths, y_train_paths, x_test_paths,
+        y_test_paths;
+    std::string x_train_path = "../data/mnist/train-images-idx3-ubyte";
+    std::string y_train_path = "../data/mnist/train-labels-idx1-ubyte";
+    std::string x_test_path = "../data/mnist/t10k-images-idx3-ubyte";
+    std::string y_test_path = "../data/mnist/t10k-labels-idx1-ubyte";
+    x_train_paths.push_back(x_train_path);
+    y_train_paths.push_back(y_train_path);
+    x_test_paths.push_back(x_test_path);
+    y_test_paths.push_back(y_test_path);
+
+    std::string data_name = "mnist";
+    std::vector<float> mu = {0.1309};
+    std::vector<float> sigma = {2.0f};
+    int num_train_data = 60000;
+    int num_test_data = 10000;
+    int num_classes = 10;
+    int width = 28;
+    int height = 28;
+    int channel = 1;
+    int n_x = width * height;
+    int n_y = 11;
+    auto train_db = get_images_v2(data_name, x_train_paths, y_train_paths, mu,
+                                  sigma, num_train_data, num_classes, width,
+                                  height, channel, true);
+
+    auto test_db =
+        get_images_v2(data_name, x_test_paths, y_test_paths, mu, sigma,
+                      num_test_data, num_classes, width, height, channel, true);
+
+    //////////////////////////////////////////////////////////////////////
+    // TAGI network
+    //////////////////////////////////////////////////////////////////////
+    LayerStack model(FullyConnected(784, 100), Relu(), FullyConnected(100, 100),
+                     Relu(), FullyConnected(100, 11));
+
+    //////////////////////////////////////////////////////////////////////
+    // Training
+    //////////////////////////////////////////////////////////////////////
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
+    int batch_size = 5;
+    float sigma_obs = 0.06;
+    int iters = train_db.num_data / batch_size;
+    std::vector<float> x_batch(batch_size * n_x, 0.0f);
+    std::vector<float> var_obs(batch_size * train_db.output_len,
+                               pow(sigma_obs, 2));
+    std::vector<float> y_batch(batch_size * train_db.output_len, 0.0f);
+    std::vector<int> batch_idx(batch_size);
+    std::vector<int> idx_ud_batch(train_db.output_len * batch_size, 0);
+    std::vector<int> label_batch(batch_size, 0);
+    std::vector<float> mu_a_output(batch_size * n_y, 0);
+    std::vector<float> var_a_output(batch_size * n_y, 0);
+    auto data_idx = create_range(train_db.num_data);
+
+    // Error rate for training
+    int mt_idx = 0;
+    std::vector<int> error_rate(train_db.num_data, 0);
+    std::vector<int> error_rate_batch;
+    std::vector<float> prob_class_batch;
+    for (int e = 0; e < 50; e++) {
+        if (e > 0) {
+            // Shuffle data
+            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        }
+        for (int i = 0; i < iters; i++) {
+            // Load data
+            get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
+
+            // Load data
+            get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
+                                    y_batch, idx_ud_batch, label_batch);
+
+            // Forward pass
+            model.forward(x_batch);
+
+            // Output layer
+            update_selected_output_delta_z(
+                model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                model.input_delta_z_buffer.delta_mu,
+                model.input_delta_z_buffer.delta_var);
+
+            // Backward pass
+            model.backward();
+            model.step();
+
+            // Extract output
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[i] = model.output_z_buffer.mu_a[j];
+                var_a_output[i] = model.output_z_buffer.var_a[j];
+            }
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(mu_a_output, var_a_output, label_batch, num_classes,
+                          batch_size);
+
+            mt_idx = i * batch_size;
+            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+
+            if (i % 1000 == 0) {
+                int curr_idx = mt_idx + batch_size;
+                auto avg_error =
+                    compute_average_error_rate(error_rate, curr_idx, 100);
+
+                std::cout << "\tError rate for last 100 observation: ";
+                std::cout << std::fixed;
+                std::cout << std::setprecision(3);
+                std::cout << avg_error << "\n";
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Testing
+    //////////////////////////////////////////////////////////////////////
+}
+
+int test_fnn_mnist() {
+    fnn_mnist();
+    return 0;
+}

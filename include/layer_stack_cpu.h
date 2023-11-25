@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 24, 2023
+// Updated:      November 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <memory>
 #include <sstream>
+#include <string>
 #include <utility>
 
 #include "base_layer.h"
@@ -58,6 +59,8 @@ class LayerStack {
 
     void backward();
 
+    void step();
+
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
 
@@ -65,6 +68,10 @@ class LayerStack {
     void save(const std::string& filename);
 
     void load(const std::string& filename);
+
+    void save_csv(const std::string& filename);
+
+    void load_csv(const std::string& filename);
 
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;

@@ -299,8 +299,8 @@ def regression():
     y_train_path = "./data/toy_example/y_train_1D.csv"
     x_test_path = "./data/toy_example/x_test_1D.csv"
     y_test_path = "./data/toy_example/y_test_1D.csv"
-    y_pred_path = "./saved_results/y_prediction.csv"
-    sy_pred_path = "./saved_results/sy_prediction.csv"
+    y_pred_path = "./saved_results/y_prediction_fc_v2.csv"
+    sy_pred_path = "./saved_results/sy_prediction_fc_v2.csv"
 
     viz = PredictionViz(task_name=task_name, data_name=data_name)
 
@@ -321,7 +321,7 @@ def regression():
                          y_pred=y_pred,
                          sy_pred=sy_pred,
                          std_factor=std_factor,
-                         label="diag",
+                         label="test_fc_v2",
                          title=r"\textbf{Diagonal covariance}",
                          eq=eq,
                          x_eq=x_eq,
@@ -533,9 +533,9 @@ def time_series_forecasting():
 
 
 if __name__ == "__main__":
-    #regression()
+    regression()
     #autoencoder()
     #input_uncertainty_prop()
     #noise_inference()
     #derivative()
-    time_series_forecasting()
+    # time_series_forecasting()
