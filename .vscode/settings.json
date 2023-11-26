@@ -102,6 +102,9 @@
         "charconv": "cpp"
     },
     "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
+    "editor.rulers": [
+        80
+    ],
     "editor.formatOnSave": true,
     "files.trimTrailingWhitespace": true,
     "python.formatting.provider": "yapf",

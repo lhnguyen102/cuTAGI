@@ -100,9 +100,15 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->relu_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
-                        end_chunk, output_states.mu_a, output_states.jcb,
-                        output_states.var_a);
+    if (this->num_threads > 1) {
+        this->relu_mean_var_mp(input_states.mu_z, input_states.var_z, end_chunk,
+                               this->num_threads, output_states.mu_a,
+                               output_states.jcb, output_states.var_a);
+    } else {
+        this->relu_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+                            end_chunk, output_states.mu_a, output_states.jcb,
+                            output_states.var_a);
+    }
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;

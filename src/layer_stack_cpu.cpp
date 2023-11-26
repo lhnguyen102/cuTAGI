@@ -50,6 +50,16 @@ void LayerStack::init_delta_state_buffer()
         DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
+void LayerStack::set_threads(unsigned int num_threads)
+/*
+ */
+{
+    this->num_threads = num_threads;
+    for (auto &layer : this->layers) {
+        layer->num_threads = num_threads;
+    }
+}
+
 void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
                              const std::vector<float> &var_x,
                              HiddenStates &hidden_states)

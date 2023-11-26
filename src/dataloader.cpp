@@ -407,7 +407,7 @@ Returns:
     // Convert label to hierarchical softmax
     std::vector<float> obs;
     std::vector<int> obs_idx;
-    if (is_hr_softmax) {
+    if (!is_hr_softmax) {
         std::vector<int> obs_idx;
         obs = label_to_one_hot(labels, num_classes);
         image_data.output_len = num_classes;

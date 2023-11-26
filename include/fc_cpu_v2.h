@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 24, 2023
+// Updated:      November 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,9 +24,8 @@ class FullyConnected : public BaseLayer {
     float gain_b;
     std::string init_method;
 
-    FullyConnected(size_t ip_size, size_t op_size,
-                        float gain_weight = 1.0f, float gain_bias = 1.0f,
-                        std::string method = "He");
+    FullyConnected(size_t ip_size, size_t op_size, float gain_weight = 1.0f,
+                   float gain_bias = 1.0f, std::string method = "He");
 
     ~FullyConnected();
 
@@ -50,8 +49,8 @@ class FullyConnected : public BaseLayer {
         std::vector<float> &mu_z, std::vector<float> &var_z);
 
     void fwd_mean_var_mp(std::vector<float> &mu_a, std::vector<float> &var_a,
-                         int output_size, unsigned int num_threads,
-                         std::vector<float> &mu_z, std::vector<float> &var_z);
+                         int batch_size, std::vector<float> &mu_z,
+                         std::vector<float> &var_z);
 
     static void fwd_full_cov(std::vector<float> &mu_w,
                              std::vector<float> &var_a_f, size_t input_size,

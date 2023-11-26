@@ -32,6 +32,7 @@ class LayerStack {
     bool training = true;
     bool param_update = true;
     bool input_hidden_state_update = false;
+    unsigned num_threads = 1;
 
     // Variadic template. Note that for the template function the definition of
     // template must be included in the herder
@@ -49,6 +50,8 @@ class LayerStack {
     void init_output_state_buffer();
 
     void init_delta_state_buffer();
+
+    void set_threads(unsigned num_threads);
 
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());

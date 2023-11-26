@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      November 25, 2023
+// Updated:      November 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,10 +16,10 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     std::vector<std::string> x_train_paths, y_train_paths, x_test_paths,
         y_test_paths;
-    std::string x_train_path = "../data/mnist/train-images-idx3-ubyte";
-    std::string y_train_path = "../data/mnist/train-labels-idx1-ubyte";
-    std::string x_test_path = "../data/mnist/t10k-images-idx3-ubyte";
-    std::string y_test_path = "../data/mnist/t10k-labels-idx1-ubyte";
+    std::string x_train_path = "./data/mnist/train-images-idx3-ubyte";
+    std::string y_train_path = "./data/mnist/train-labels-idx1-ubyte";
+    std::string x_test_path = "./data/mnist/t10k-images-idx3-ubyte";
+    std::string y_test_path = "./data/mnist/t10k-labels-idx1-ubyte";
     x_train_paths.push_back(x_train_path);
     y_train_paths.push_back(y_train_path);
     x_test_paths.push_back(x_test_path);
@@ -49,15 +49,18 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     LayerStack model(FullyConnected(784, 100), Relu(), FullyConnected(100, 100),
                      Relu(), FullyConnected(100, 11));
+    model.set_threads(4);
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int batch_size = 5;
-    float sigma_obs = 0.06;
+    int n_epochs = 50;
+    int batch_size = 20;
+    float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
+    std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> var_obs(batch_size * train_db.output_len,
                                pow(sigma_obs, 2));
@@ -74,15 +77,16 @@ void fnn_mnist() {
     std::vector<int> error_rate(train_db.num_data, 0);
     std::vector<int> error_rate_batch;
     std::vector<float> prob_class_batch;
-    for (int e = 0; e < 50; e++) {
+    for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
             // Shuffle data
             std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
         }
+        std::cout << "################\n";
+        std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
+        std::cout << "Training...\n";
+        auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < iters; i++) {
-            // Load data
-            get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
-
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -102,8 +106,8 @@ void fnn_mnist() {
 
             // Extract output
             for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[i] = model.output_z_buffer.mu_a[j];
-                var_a_output[i] = model.output_z_buffer.var_a[j];
+                mu_a_output[j] = model.output_z_buffer.mu_a[j];
+                var_a_output[j] = model.output_z_buffer.var_a[j];
             }
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(mu_a_output, var_a_output, label_batch, num_classes,
@@ -112,7 +116,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 1000 == 0) {
+            if (i % 1000 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);
@@ -123,6 +127,17 @@ void fnn_mnist() {
                 std::cout << avg_error << "\n";
             }
         }
+        // Report computational time
+        std::cout << std::endl;
+        auto end = std::chrono::steady_clock::now();
+        auto run_time =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+                .count();
+        std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
+        std::cout << " Time left     : ";
+        std::cout << std::fixed;
+        std::cout << std::setprecision(3);
+        std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
 
     //////////////////////////////////////////////////////////////////////

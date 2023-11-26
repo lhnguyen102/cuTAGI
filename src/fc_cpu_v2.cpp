@@ -142,15 +142,14 @@ Args:
 
 void FullyConnected::fwd_mean_var_mp(std::vector<float> &mu_a,
                                      std::vector<float> &var_a, int batch_size,
-                                     unsigned int num_threads,
                                      std::vector<float> &mu_z,
                                      std::vector<float> &var_z)
 /*Multi-processing verion of forward pass for fc layer
  */
 {
-    const int tot_ops = output_size * batch_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+    const int tot_ops = this->output_size * batch_size;
+    const int n_batch = tot_ops / this->num_threads;
+    const int rem_batch = tot_ops % this->num_threads;
     int start_chunk, end_chunk;
     std::thread threads[num_threads];
 
@@ -547,11 +546,15 @@ void FullyConnected::forward(HiddenStates &input_states,
     int end_chunk = this->output_size * batch_size;
 
     // Forward pass
-    this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                       input_states.mu_a, input_states.var_a, start_chunk,
-                       end_chunk, this->input_size, this->output_size,
-                       batch_size, output_states.mu_z, output_states.var_z);
-
+    if (this->num_threads > 1) {
+        this->fwd_mean_var_mp(input_states.mu_a, input_states.var_a, batch_size,
+                              output_states.mu_z, output_states.var_z);
+    } else {
+        this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
+                           input_states.mu_a, input_states.var_a, start_chunk,
+                           end_chunk, this->input_size, this->output_size,
+                           batch_size, output_states.mu_z, output_states.var_z);
+    }
     // Save activation mean and jacobian from the previous layer for the
     // backward pass
     if ((this->mu_a.size() == 0 || this->jcb.size() == 0) && this->training) {
@@ -587,11 +590,18 @@ void FullyConnected::state_backward(std::vector<float> &jcb,
     int end_chunk = batch_size * this->input_size;
 
     // Compute inovation vector
-    this->bwd_fc_delta_z(this->mu_w, jcb, input_delta_states.delta_mu,
-                         input_delta_states.delta_var, this->input_size,
-                         this->output_size, batch_size, start_chunk, end_chunk,
-                         output_delta_states.delta_mu,
-                         output_delta_states.delta_var);
+    if (this->num_threads > 1) {
+        this->bwd_fc_delta_z_mp(jcb, input_delta_states.delta_mu,
+                                input_delta_states.delta_var, batch_size,
+                                this->num_threads, output_delta_states.delta_mu,
+                                output_delta_states.delta_var);
+    } else {
+        this->bwd_fc_delta_z(this->mu_w, jcb, input_delta_states.delta_mu,
+                             input_delta_states.delta_var, this->input_size,
+                             this->output_size, batch_size, start_chunk,
+                             end_chunk, output_delta_states.delta_mu,
+                             output_delta_states.delta_var);
+    }
 }
 
 void FullyConnected::param_backward(std::vector<float> &mu_a,
@@ -609,15 +619,24 @@ Args:
     int start_chunk = 0;
     int end_chunk = this->input_size * this->output_size;
 
-    // Update values for weights
-    this->bwd_fc_delta_w(this->var_w, mu_a, delta_states.delta_mu,
-                         delta_states.delta_var, this->input_size,
-                         this->output_size, batch_size, start_chunk, end_chunk,
-                         this->delta_mu_w, this->delta_var_w);
+    // Update values for weights & biases
+    if (this->num_threads > 1) {
+        this->bwd_fc_delta_w_mp(
+            mu_a, delta_states.delta_mu, delta_states.delta_var, batch_size,
+            this->num_threads, this->delta_mu_w, this->delta_var_w);
 
-    // Update values for biases
-    this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
-                         delta_states.delta_var, this->output_size, batch_size,
-                         start_chunk, this->output_size, this->delta_mu_b,
-                         this->delta_var_b);
+        this->bwd_fc_delta_b_mp(delta_states.delta_mu, delta_states.delta_var,
+                                batch_size, this->num_threads, this->delta_mu_b,
+                                this->delta_var_b);
+    } else {
+        this->bwd_fc_delta_w(this->var_w, mu_a, delta_states.delta_mu,
+                             delta_states.delta_var, this->input_size,
+                             this->output_size, batch_size, start_chunk,
+                             end_chunk, this->delta_mu_w, this->delta_var_w);
+
+        this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
+                             delta_states.delta_var, this->output_size,
+                             batch_size, start_chunk, this->output_size,
+                             this->delta_mu_b, this->delta_var_b);
+    }
 }

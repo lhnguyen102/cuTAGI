@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 25, 2023
+// Updated:      November 26, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,7 @@ class BaseLayer {
     std::vector<float> delta_var_w;
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
+    unsigned int num_threads = 1;
     bool training = true;
 
     BaseLayer();
