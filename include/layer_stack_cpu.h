@@ -27,7 +27,7 @@ class LayerStack {
     DeltaStates input_delta_z_buffer;
     TempStates temp_states;
     int z_buffer_size = 0;        // e.g., batch size x input size
-    int z_buffer_block_size = 1;  // e.g., batch size
+    int z_buffer_block_size = 0;  // e.g., batch size
     int input_size = 0;
     bool training = true;
     bool param_update = true;

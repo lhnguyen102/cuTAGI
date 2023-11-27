@@ -60,7 +60,7 @@ void fnn_v2()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int batch_size = 5;
+    int batch_size = 1;
     float sigma_obs = 0.06;
     int iters = train_db.num_data / batch_size;
     std::vector<float> var_obs(batch_size * n_y, pow(sigma_obs, 2));

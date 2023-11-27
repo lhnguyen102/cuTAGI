@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 24, 2023
+// Updated:      November 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,10 +29,10 @@ std::string Relu::get_layer_name() const
     return "ReLU";
 }
 
-void Relu::relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                         int start_chunk, int end_chunk,
-                         std::vector<float> &mu_a, std::vector<float> &jcb,
-                         std::vector<float> &var_a)
+void Relu::relu_mean_var(std::vector<float> const &mu_z,
+                         std::vector<float> const &var_z, int start_chunk,
+                         int end_chunk, std::vector<float> &mu_a,
+                         std::vector<float> &jcb, std::vector<float> &var_a)
 /*
  */
 {
@@ -53,34 +53,35 @@ void Relu::relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void Relu::relu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
-                            int n, unsigned int num_threads,
-                            std::vector<float> &mu_a, std::vector<float> &jcb,
-                            std::vector<float> &var_a)
+void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
+                            std::vector<float> const &var_z, int n,
+                            unsigned int num_threads, std::vector<float> &mu_a,
+                            std::vector<float> &jcb, std::vector<float> &var_a)
 /*
  */
 {
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            Relu::relu_mean_var, std::ref(mu_z), std::ref(var_z), start_chunk,
-            end_chunk, std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            Relu::relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                                var_a);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -113,12 +114,6 @@ void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
     this->output_size = input_states.actual_size;
-
-    // if (this->training) {
-    //     // Send a copy of activation's mean and variance to the output buffer
-    //     // for the current layer
-    //     this->fill_output_states(output_states);
-    // }
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -211,23 +206,14 @@ void Sigmoid::forward(HiddenStates &input_states, HiddenStates &output_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->sigmoid_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
                            end_chunk, output_states.mu_a, output_states.jcb,
                            output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -318,23 +304,14 @@ void Tanh::forward(HiddenStates &input_states, HiddenStates &output_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->tanh_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
                         end_chunk, output_states.mu_a, output_states.jcb,
                         output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -444,23 +421,14 @@ void MixtureRelu::forward(HiddenStates &input_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_relu_mean_var(
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -572,23 +540,14 @@ void MixtureSigmoid::forward(HiddenStates &input_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_sigmoid_mean_var(
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -703,23 +662,14 @@ void MixtureTanh::forward(HiddenStates &input_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_tanh_mean_var(
         input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -812,23 +762,14 @@ void Softplus::forward(HiddenStates &input_states, HiddenStates &output_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->softplus_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
                             end_chunk, output_states.mu_a, output_states.jcb,
                             output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -932,24 +873,15 @@ void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states,
 
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
-    int end_chunk = input_states.size;
+    int end_chunk = input_states.actual_size * input_states.block_size;
     this->leaky_relu_mean_var(input_states.mu_z, input_states.var_z,
                               start_chunk, end_chunk, this->alpha,
                               output_states.mu_a, output_states.jcb,
                               output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;
@@ -1027,17 +959,8 @@ void Softmax::forward(HiddenStates &input_states, HiddenStates &output_states,
         batch_size, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
-    if (this->input_size != input_states.actual_size && this->training) {
-        this->input_size = input_states.actual_size;
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        for (int i = 0; i < output_states.size; i++) {
-            this->mu_a[i] = output_states.mu_a[i];
-            this->jcb[i] = output_states.jcb[i];
-        }
-    }
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
 
     // Update number of actual states.
     output_states.size = input_states.size;

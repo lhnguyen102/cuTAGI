@@ -48,8 +48,11 @@ class FullyConnected : public BaseLayer {
         int end_chunk, size_t input_size, size_t output_size, int batch_size,
         std::vector<float> &mu_z, std::vector<float> &var_z);
 
-    void fwd_mean_var_mp(std::vector<float> &mu_a, std::vector<float> &var_a,
-                         int batch_size, std::vector<float> &mu_z,
+    void fwd_mean_var_mp(std::vector<float> &mu_w, std::vector<float> &var_w,
+                         std::vector<float> &mu_b, std::vector<float> &var_b,
+                         std::vector<float> &mu_a, std::vector<float> &var_a,
+                         size_t input_size, size_t output_size, int batch_size,
+                         unsigned int num_threads, std::vector<float> &mu_z,
                          std::vector<float> &var_z);
 
     static void fwd_full_cov(std::vector<float> &mu_w,
@@ -80,13 +83,15 @@ class FullyConnected : public BaseLayer {
                                std::vector<float> &jcb,
                                std::vector<float> &delta_mu,
                                std::vector<float> &delta_var, size_t input_size,
-                               size_t output_size, int B, int start_chunk,
-                               int end_chunk, std::vector<float> &delta_mu_z,
+                               size_t output_size, int batch_size,
+                               int start_chunk, int end_chunk,
+                               std::vector<float> &delta_mu_z,
                                std::vector<float> &delta_var_z);
 
-    void bwd_fc_delta_z_mp(std::vector<float> &jcb,
+    void bwd_fc_delta_z_mp(std::vector<float> &mu_w, std::vector<float> &jcb,
                            std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, int B,
+                           std::vector<float> &delta_var, size_t input_size,
+                           size_t output_size, int batch_size,
                            unsigned int num_threads,
                            std::vector<float> &delta_mu_z,
                            std::vector<float> &delta_var_z);
@@ -101,9 +106,10 @@ class FullyConnected : public BaseLayer {
                                std::vector<float> &delta_mu_w,
                                std::vector<float> &delta_var_w);
 
-    void bwd_fc_delta_w_mp(std::vector<float> &mu_a,
+    void bwd_fc_delta_w_mp(std::vector<float> &var_w, std::vector<float> &mu_a,
                            std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, int batch_size,
+                           std::vector<float> &delta_var, size_t input_size,
+                           size_t output_size, int batch_size,
                            unsigned int num_threads,
                            std::vector<float> &delta_mu_w,
                            std::vector<float> &delta_var_w);
@@ -116,9 +122,10 @@ class FullyConnected : public BaseLayer {
                                std::vector<float> &delta_mu_b,
                                std::vector<float> &delta_var_b);
 
-    void bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, int batch_size,
-                           unsigned int num_threads,
+    void bwd_fc_delta_b_mp(std::vector<float> &var_b,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var, size_t output_size,
+                           int batch_size, unsigned int num_threads,
                            std::vector<float> &delta_mu_b,
                            std::vector<float> &delta_var_b);
 

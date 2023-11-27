@@ -25,14 +25,14 @@ class Relu : public BaseLayer {
 
     std::string get_layer_name() const override;
 
-    static void relu_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, int start_chunk,
+    static void relu_mean_var(std::vector<float> const &mu_z,
+                              std::vector<float> const &var_z, int start_chunk,
                               int end_chunk, std::vector<float> &mu_a,
                               std::vector<float> &jcb,
                               std::vector<float> &var_a);
 
-    static void relu_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z, int n,
+    static void relu_mean_var_mp(std::vector<float> const &mu_z,
+                                 std::vector<float> const &var_z, int n,
                                  unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,

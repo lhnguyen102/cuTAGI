@@ -140,16 +140,18 @@ Args:
     }
 }
 
-void FullyConnected::fwd_mean_var_mp(std::vector<float> &mu_a,
-                                     std::vector<float> &var_a, int batch_size,
-                                     std::vector<float> &mu_z,
-                                     std::vector<float> &var_z)
+void FullyConnected::fwd_mean_var_mp(
+    std::vector<float> &mu_w, std::vector<float> &var_w,
+    std::vector<float> &mu_b, std::vector<float> &var_b,
+    std::vector<float> &mu_a, std::vector<float> &var_a, size_t input_size,
+    size_t output_size, int batch_size, unsigned int num_threads,
+    std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Multi-processing verion of forward pass for fc layer
  */
 {
-    const int tot_ops = this->output_size * batch_size;
-    const int n_batch = tot_ops / this->num_threads;
-    const int rem_batch = tot_ops % this->num_threads;
+    const int tot_ops = output_size * batch_size;
+    const int n_batch = tot_ops / num_threads;
+    const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
     std::thread threads[num_threads];
 
@@ -161,12 +163,11 @@ void FullyConnected::fwd_mean_var_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(FullyConnected::fwd_mean_var,
-                                 std::ref(this->mu_w), std::ref(this->var_w),
-                                 std::ref(this->mu_b), std::ref(this->var_b),
-                                 std::ref(mu_a), std::ref(var_a), start_chunk,
-                                 end_chunk, this->input_size, this->output_size,
-                                 batch_size, std::ref(mu_z), std::ref(var_z));
+        threads[i] = std::thread(
+            FullyConnected::fwd_mean_var, std::ref(mu_w), std::ref(var_w),
+            std::ref(mu_b), std::ref(var_b), std::ref(mu_a), std::ref(var_a),
+            start_chunk, end_chunk, input_size, output_size, batch_size,
+            std::ref(mu_z), std::ref(var_z));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -350,17 +351,18 @@ void FullyConnected::bwd_fc_delta_z(std::vector<float> &mu_w,
     }
 }
 
-void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &jcb,
+void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
+                                       std::vector<float> &jcb,
                                        std::vector<float> &delta_mu,
-                                       std::vector<float> &delta_var, int B,
-                                       unsigned int num_threads,
+                                       std::vector<float> &delta_var,
+                                       size_t input_size, size_t output_size,
+                                       int batch_size, unsigned int num_threads,
                                        std::vector<float> &delta_mu_z,
                                        std::vector<float> &delta_var_z)
 /*
  */
 {
-    const int ni = this->input_size;
-    const int tot_ops = ni * B;
+    const int tot_ops = input_size * batch_size;
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
@@ -375,9 +377,9 @@ void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &jcb,
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] =
-            std::thread(FullyConnected::bwd_fc_delta_z, std::ref(this->mu_w),
+            std::thread(FullyConnected::bwd_fc_delta_z, std::ref(mu_w),
                         std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
-                        this->input_size, this->output_size, B, start_chunk,
+                        input_size, output_size, batch_size, start_chunk,
                         end_chunk, std::ref(delta_mu_z), std::ref(delta_var_z));
     }
 
@@ -426,15 +428,17 @@ Args:
     }
 }
 
-void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &mu_a,
+void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &var_w,
+                                       std::vector<float> &mu_a,
                                        std::vector<float> &delta_mu,
                                        std::vector<float> &delta_var,
+                                       size_t input_size, size_t output_size,
                                        int batch_size, unsigned int num_threads,
                                        std::vector<float> &delta_mu_w,
                                        std::vector<float> &delta_var_w)
 /**/
 {
-    const int tot_ops = this->input_size * this->output_size;
+    const int tot_ops = input_size * output_size;
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_chunk, end_chunk;
@@ -448,11 +452,11 @@ void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &mu_a,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
-            FullyConnected::bwd_fc_delta_w, std::ref(this->var_w),
-            std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
-            this->input_size, this->output_size, batch_size, start_chunk,
-            end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
+        threads[i] =
+            std::thread(FullyConnected::bwd_fc_delta_w, std::ref(var_w),
+                        std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
+                        input_size, output_size, batch_size, start_chunk,
+                        end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -498,17 +502,18 @@ Args:
     }
 }
 
-void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
+void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
+                                       std::vector<float> &delta_mu,
                                        std::vector<float> &delta_var,
-                                       int batch_size, unsigned int num_threads,
+                                       size_t output_size, int batch_size,
+                                       unsigned int num_threads,
                                        std::vector<float> &delta_mu_b,
                                        std::vector<float> &delta_var_b)
 /*
  */
 {
-    const int tot_ops = this->output_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+    const int n_batch = output_size / num_threads;
+    const int rem_batch = output_size % num_threads;
     int start_chunk, end_chunk;
     std::thread threads[num_threads];
 
@@ -520,11 +525,10 @@ void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &delta_mu,
             start_chunk = n_batch * i + rem_batch;
             end_chunk = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] =
-            std::thread(FullyConnected::bwd_fc_delta_b, std::ref(this->var_b),
-                        std::ref(delta_mu), std::ref(delta_var),
-                        this->output_size, batch_size, start_chunk, end_chunk,
-                        std::ref(delta_mu_b), std::ref(delta_var_b));
+        threads[i] = std::thread(
+            FullyConnected::bwd_fc_delta_b, std::ref(var_b), std::ref(delta_mu),
+            std::ref(delta_var), output_size, batch_size, start_chunk,
+            end_chunk, std::ref(delta_mu_b), std::ref(delta_var_b));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -542,14 +546,16 @@ void FullyConnected::forward(HiddenStates &input_states,
 {
     // Initialization
     int batch_size = input_states.block_size;
-    int start_chunk = 0;
-    int end_chunk = this->output_size * batch_size;
 
     // Forward pass
     if (this->num_threads > 1) {
-        this->fwd_mean_var_mp(input_states.mu_a, input_states.var_a, batch_size,
-                              output_states.mu_z, output_states.var_z);
+        this->fwd_mean_var_mp(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
+            input_states.var_a, this->input_size, this->output_size, batch_size,
+            this->num_threads, output_states.mu_z, output_states.var_z);
     } else {
+        int start_chunk = 0;
+        int end_chunk = this->output_size * batch_size;
         this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
                            input_states.mu_a, input_states.var_a, start_chunk,
                            end_chunk, this->input_size, this->output_size,
@@ -586,16 +592,17 @@ void FullyConnected::state_backward(std::vector<float> &jcb,
 {
     // Initialization
     int batch_size = input_delta_states.block_size;
-    int start_chunk = 0;
-    int end_chunk = batch_size * this->input_size;
 
     // Compute inovation vector
     if (this->num_threads > 1) {
-        this->bwd_fc_delta_z_mp(jcb, input_delta_states.delta_mu,
-                                input_delta_states.delta_var, batch_size,
+        this->bwd_fc_delta_z_mp(this->mu_w, jcb, input_delta_states.delta_mu,
+                                input_delta_states.delta_var, this->input_size,
+                                this->output_size, batch_size,
                                 this->num_threads, output_delta_states.delta_mu,
                                 output_delta_states.delta_var);
     } else {
+        int start_chunk = 0;
+        int end_chunk = batch_size * this->input_size;
         this->bwd_fc_delta_z(this->mu_w, jcb, input_delta_states.delta_mu,
                              input_delta_states.delta_var, this->input_size,
                              this->output_size, batch_size, start_chunk,
@@ -616,19 +623,21 @@ Args:
 {
     // Initialization
     int batch_size = delta_states.block_size;
-    int start_chunk = 0;
-    int end_chunk = this->input_size * this->output_size;
 
     // Update values for weights & biases
     if (this->num_threads > 1) {
         this->bwd_fc_delta_w_mp(
-            mu_a, delta_states.delta_mu, delta_states.delta_var, batch_size,
-            this->num_threads, this->delta_mu_w, this->delta_var_w);
+            this->var_w, mu_a, delta_states.delta_mu, delta_states.delta_var,
+            this->input_size, this->output_size, batch_size, this->num_threads,
+            this->delta_mu_w, this->delta_var_w);
 
-        this->bwd_fc_delta_b_mp(delta_states.delta_mu, delta_states.delta_var,
+        this->bwd_fc_delta_b_mp(this->var_b, delta_states.delta_mu,
+                                delta_states.delta_var, this->output_size,
                                 batch_size, this->num_threads, this->delta_mu_b,
                                 this->delta_var_b);
     } else {
+        int start_chunk = 0;
+        int end_chunk = this->input_size * this->output_size;
         this->bwd_fc_delta_w(this->var_w, mu_a, delta_states.delta_mu,
                              delta_states.delta_var, this->input_size,
                              this->output_size, batch_size, start_chunk,
