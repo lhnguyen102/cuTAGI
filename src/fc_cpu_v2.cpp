@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 24, 2023
+// Updated:      November 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -150,29 +150,30 @@ void FullyConnected::fwd_mean_var_mp(
  */
 {
     const int tot_ops = output_size * batch_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            FullyConnected::fwd_mean_var, std::ref(mu_w), std::ref(var_w),
-            std::ref(mu_b), std::ref(var_b), std::ref(mu_a), std::ref(var_a),
-            start_chunk, end_chunk, input_size, output_size, batch_size,
-            std::ref(mu_z), std::ref(var_z));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
+                              &input_size, &output_size, &batch_size, &mu_z,
+                              &var_z] {
+            FullyConnected::fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
+                                         start_chunk, end_chunk, input_size,
+                                         output_size, batch_size, mu_z, var_z);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -221,32 +222,35 @@ Args:
     }
 }
 
-void FullyConnected::fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
-                                     unsigned int num_threads,
+void FullyConnected::fwd_full_cov_mp(std::vector<float> &mu_w,
+                                     std::vector<float> &var_a_f,
+                                     size_t input_size, size_t output_size,
+                                     int batch_size, unsigned int num_threads,
                                      std::vector<float> &var_z_fp) {
-    const int tot_ops = this->output_size * B * this->output_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+    const int tot_ops = output_size * batch_size * output_size;
+
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(FullyConnected::fwd_full_cov, std::ref(this->mu_w),
-                        std::ref(var_a_f), this->input_size, this->output_size,
-                        B, start_chunk, end_chunk, std::ref(var_z_fp));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_w, &var_a_f, &input_size, &output_size,
+                              &batch_size, &var_z_fp] {
+            FullyConnected::fwd_full_cov(mu_w, var_a_f, input_size, output_size,
+                                         batch_size, start_chunk, end_chunk,
+                                         var_z_fp);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -279,42 +283,43 @@ void FullyConnected::fwd_fc_full_var(
     }
 }
 
-void FullyConnected::fwd_fc_full_var_mp(std::vector<float> &mu_a,
-                                        std::vector<float> &var_a,
-                                        std::vector<float> &var_z_fp, int B,
-                                        unsigned int num_threads,
-                                        std::vector<float> &var_z,
-                                        std::vector<float> &var_z_f)
+void FullyConnected::fwd_fc_full_var_mp(
+    std::vector<float> &var_w, std::vector<float> &var_b,
+    std::vector<float> &mu_a, std::vector<float> &var_a,
+    std::vector<float> &var_z_fp, int input_size, int output_size,
+    int batch_size, unsigned int num_threads, std::vector<float> &var_z,
+    std::vector<float> &var_z_f)
 /**/
 {
     int no = this->output_size;
-    const int tot_ops = no * B;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
-    int start_chunk, end_chunk;
+    const int tot_ops = no * batch_size;
 
-    for (int j = 0; j < (no * (no + 1) / 2) * B; j++) {
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
+
+    for (int j = 0; j < (no * (no + 1) / 2) * batch_size; j++) {
         var_z_f[j] = var_z_fp[j];
     }
-    std::thread threads[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            FullyConnected::fwd_fc_full_var, std::ref(this->var_w),
-            std::ref(this->var_b), std::ref(mu_a), std::ref(var_a),
-            std::ref(var_z_fp), this->input_size, this->output_size, B,
-            start_chunk, end_chunk, std::ref(var_z), std::ref(var_z_f));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &var_w, &var_b, &mu_a, &var_a, &var_z_fp,
+                              &input_size, &output_size, &batch_size, &var_z,
+                              &var_z_f] {
+            FullyConnected::fwd_fc_full_var(
+                var_w, var_b, mu_a, var_a, var_z_fp, input_size, output_size,
+                batch_size, start_chunk, end_chunk, var_z, var_z_f);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -363,29 +368,30 @@ void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
  */
 {
     const int tot_ops = input_size * batch_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(FullyConnected::bwd_fc_delta_z, std::ref(mu_w),
-                        std::ref(jcb), std::ref(delta_mu), std::ref(delta_var),
-                        input_size, output_size, batch_size, start_chunk,
-                        end_chunk, std::ref(delta_mu_z), std::ref(delta_var_z));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_w, &jcb, &delta_mu, &delta_var,
+                              &input_size, &output_size, &batch_size,
+                              &delta_mu_z, &delta_var_z] {
+            FullyConnected::bwd_fc_delta_z(
+                mu_w, jcb, delta_mu, delta_var, input_size, output_size,
+                batch_size, start_chunk, end_chunk, delta_mu_z, delta_var_z);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -439,29 +445,30 @@ void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &var_w,
 /**/
 {
     const int tot_ops = input_size * output_size;
-    const int n_batch = tot_ops / num_threads;
-    const int rem_batch = tot_ops % num_threads;
+
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(FullyConnected::bwd_fc_delta_w, std::ref(var_w),
-                        std::ref(mu_a), std::ref(delta_mu), std::ref(delta_var),
-                        input_size, output_size, batch_size, start_chunk,
-                        end_chunk, std::ref(delta_mu_w), std::ref(delta_var_w));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &var_w, &mu_a, &delta_mu, &delta_var,
+                              &input_size, &output_size, &batch_size,
+                              &delta_mu_w, &delta_var_w] {
+            FullyConnected::bwd_fc_delta_w(
+                var_w, mu_a, delta_mu, delta_var, input_size, output_size,
+                batch_size, start_chunk, end_chunk, delta_mu_w, delta_var_w);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -512,28 +519,28 @@ void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
 /*
  */
 {
-    const int n_batch = output_size / num_threads;
-    const int rem_batch = output_size % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = output_size / num_threads;
+    int extra = output_size % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            FullyConnected::bwd_fc_delta_b, std::ref(var_b), std::ref(delta_mu),
-            std::ref(delta_var), output_size, batch_size, start_chunk,
-            end_chunk, std::ref(delta_mu_b), std::ref(delta_var_b));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &var_b, &delta_mu, &delta_var, &output_size,
+                              &batch_size, &delta_mu_b, &delta_var_b] {
+            FullyConnected::bwd_fc_delta_b(var_b, delta_mu, delta_var,
+                                           output_size, batch_size, start_chunk,
+                                           end_chunk, delta_mu_b, delta_var_b);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }

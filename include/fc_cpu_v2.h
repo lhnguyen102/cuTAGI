@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 26, 2023
+// Updated:      November 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +60,8 @@ class FullyConnected : public BaseLayer {
                              size_t output_size, int B, int start_chunk,
                              int end_chunk, std::vector<float> &var_z_fp);
 
-    void fwd_full_cov_mp(std::vector<float> &var_a_f, int B,
+    void fwd_full_cov_mp(std::vector<float> &mu_w, std::vector<float> &var_a_f,
+                         size_t input_size, size_t output_size, int batch_size,
                          unsigned int num_threads,
                          std::vector<float> &var_z_fp);
 
@@ -73,8 +74,11 @@ class FullyConnected : public BaseLayer {
                                 int end_chunk, std::vector<float> &var_z,
                                 std::vector<float> &var_z_f);
 
-    void fwd_fc_full_var_mp(std::vector<float> &mu_a, std::vector<float> &var_a,
-                            std::vector<float> &var_z_fp, int B,
+    void fwd_fc_full_var_mp(std::vector<float> &var_w,
+                            std::vector<float> &var_b, std::vector<float> &mu_a,
+                            std::vector<float> &var_a,
+                            std::vector<float> &var_z_fp, int input_size,
+                            int output_size, int batch_size,
                             unsigned int num_threads, std::vector<float> &var_z,
                             std::vector<float> &var_z_f);
 

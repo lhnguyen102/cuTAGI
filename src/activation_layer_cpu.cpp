@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 27, 2023
+// Updated:      November 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,8 +60,6 @@ void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
@@ -166,28 +164,26 @@ void Sigmoid::sigmoid_mean_var_mp(std::vector<float> &mu_z,
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(Sigmoid::sigmoid_mean_var, std::ref(mu_z),
-                        std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
-                        std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            Sigmoid::sigmoid_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a,
+                                      jcb, var_a);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -265,27 +261,25 @@ void Tanh::tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
-    int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(
-            Tanh::tanh_mean_var, std::ref(mu_z), std::ref(var_z), start_chunk,
-            end_chunk, std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            Tanh::tanh_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                                var_a);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -382,27 +376,27 @@ void MixtureRelu::mixture_relu_mean_var_mp(
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::vector<std::thread> threads(num_threads);
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(MixtureRelu::mixture_relu_mean_var, std::ref(mu_z),
-                        std::ref(var_z), omega_tol, start_chunk, end_chunk,
-                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                MixtureRelu::mixture_relu_mean_var(mu_z, var_z, omega_tol,
+                                                   start_chunk, end_chunk, mu_a,
+                                                   jcb, var_a);
+            });
     }
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -502,26 +496,28 @@ void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] = std::thread(MixtureSigmoid::mixture_sigmoid_mean_var,
-                                 std::ref(mu_z), std::ref(var_z), omega_tol,
-                                 start_chunk, end_chunk, std::ref(mu_a),
-                                 std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                MixtureSigmoid::mixture_sigmoid_mean_var(mu_z, var_z, omega_tol,
+                                                         start_chunk, end_chunk,
+                                                         mu_a, jcb, var_a);
+            });
     }
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -622,28 +618,28 @@ void MixtureTanh::mixture_tanh_mean_var_mp(
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(MixtureTanh::mixture_tanh_mean_var, std::ref(mu_z),
-                        std::ref(var_z), omega_tol, start_chunk, end_chunk,
-                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                MixtureTanh::mixture_tanh_mean_var(mu_z, var_z, omega_tol,
+                                                   start_chunk, end_chunk, mu_a,
+                                                   jcb, var_a);
+            });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -722,28 +718,26 @@ void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(Softplus::softplus_mean_var, std::ref(mu_z),
-                        std::ref(var_z), start_chunk, end_chunk, std::ref(mu_a),
-                        std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            Softplus::softplus_mean_var(mu_z, var_z, start_chunk, end_chunk,
+                                        mu_a, jcb, var_a);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
@@ -833,28 +827,26 @@ void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
 /*
  */
 {
-    const int n_batch = n / num_threads;
-    const int rem_batch = n % num_threads;
     int start_chunk, end_chunk;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
 
     for (int i = 0; i < num_threads; i++) {
-        if (i == 0) {
-            start_chunk = n_batch * i;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        } else {
-            start_chunk = n_batch * i + rem_batch;
-            end_chunk = (n_batch * (i + 1)) + rem_batch;
-        }
-        threads[i] =
-            std::thread(LeakyRelu::leaky_relu_mean_var, std::ref(mu_z),
-                        std::ref(var_z), alpha, start_chunk, end_chunk,
-                        std::ref(mu_a), std::ref(jcb), std::ref(var_a));
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &alpha, &mu_a, &jcb, &var_a] {
+            LeakyRelu::leaky_relu_mean_var(mu_z, var_z, alpha, start_chunk,
+                                           end_chunk, mu_a, jcb, var_a);
+        });
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 }
