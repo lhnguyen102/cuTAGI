@@ -61,7 +61,7 @@ class BaseLayer {
     virtual void load(std::ifstream &file);
 
    protected:
-    virtual void allocate_bwd_vector(int size);
-    virtual void fill_output_states(HiddenStates &output_states);
-    virtual void fill_bwd_vector(HiddenStates &input_states);
+    void allocate_bwd_vector(int size);
+    void fill_output_states(HiddenStates &output_states);
+    void fill_bwd_vector(HiddenStates &input_states);
 };

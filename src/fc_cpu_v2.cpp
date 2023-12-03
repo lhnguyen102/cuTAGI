@@ -86,8 +86,8 @@ void FullyConnected::init_weight_bias()
     } else {
         std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
                   << std::endl;
-        throw std::invalid_argument("Error: Inital parameter method '" +
-                                    init_method + "'is not supported.");
+        throw std::invalid_argument("Error: Initial parameter method [" +
+                                    init_method + "] is not supported.");
     }
 
     // Weights & biases
