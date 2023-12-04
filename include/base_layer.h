@@ -45,10 +45,12 @@ class BaseLayer {
 
     virtual void forward(HiddenStates &input_states,
                          HiddenStates &output_states, TempStates &temp_states);
+
     virtual void state_backward(std::vector<float> &jcb,
                                 DeltaStates &input_delta_states,
                                 DeltaStates &output_hidden_states,
                                 TempStates &temp_states);
+
     virtual void param_backward(std::vector<float> &mu_a,
                                 DeltaStates &delta_states,
                                 TempStates &temp_states);

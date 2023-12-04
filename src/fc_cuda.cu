@@ -9,11 +9,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cuda.cuh"
 
-__global__ void fc_mean_var(float const *mu_w, float const *var_w,
-                            float const *mu_b, float const *var_b,
-                            const float *mu_a, const float *var_a,
-                            size_t input_size, size_t output_size,
-                            int batch_size, float *mu_z, float *var_z)
+__global__ void fwd_mean_var(float const *mu_w, float const *var_w,
+                             float const *mu_b, float const *var_b,
+                             const float *mu_a, const float *var_a,
+                             size_t input_size, size_t output_size,
+                             int batch_size, float *mu_z, float *var_z)
 /*
  */
 {
@@ -42,9 +42,9 @@ __global__ void fc_mean_var(float const *mu_w, float const *var_w,
     }
 }
 
-__global__ void fc_cov(float const *mu_w, float const *var_a_f,
-                       size_t input_size, size_t output_size, int batch_size,
-                       float *var_z_fp)
+__global__ void fwd_full_cov(float const *mu_w, float const *var_a_f,
+                             size_t input_size, size_t output_size,
+                             int batch_size, float *var_z_fp)
 /*
  */
 {
@@ -79,11 +79,11 @@ __global__ void fc_cov(float const *mu_w, float const *var_a_f,
     }
 }
 
-__global__ void fc_full_var(float const *mu_w, float const *var_w,
-                            float const *var_b, float const *mu_a,
-                            float const *var_a, float const *var_z_fp,
-                            size_t input_size, size_t output_size,
-                            int batch_size, float *var_z, float *var_z_f)
+__global__ void fwd_full_var(float const *mu_w, float const *var_w,
+                             float const *var_b, float const *mu_a,
+                             float const *var_a, float const *var_z_fp,
+                             size_t input_size, size_t output_size,
+                             int batch_size, float *var_z, float *var_z_f)
 /*
  */
 {
@@ -108,10 +108,11 @@ __global__ void fc_full_var(float const *mu_w, float const *var_w,
     }
 }
 
-__global__ void fc_delta_mu_z(float const *mu_w, float const *jcb,
-                              float const *delta_mu, float const *delta_var,
-                              int input_size, int output_size, int batch_size,
-                              float *delta_mu_prev, float *delta_var_prev)
+__global__ void bwd_delta_z(float const *mu_w, float const *jcb,
+                            float const *delta_mu_out,
+                            float const *delta_var_out, size_t input_size,
+                            size_t output_size, int batch_size,
+                            float *delta_mu_in, float *delta_var_in)
 /*
  */
 {
@@ -121,16 +122,74 @@ __global__ void fc_delta_mu_z(float const *mu_w, float const *jcb,
     float sum_var = 0.0f;
     if (col < batch_size && row < input_size) {
         for (int i = 0; i < output_size; i++) {
-            sum_mu +=
-                mu_w[input_size * i + row] * delta_mu[col * output_size + i];
+            sum_mu += mu_w[input_size * i + row] *
+                      delta_mu_out[col * output_size + i];
+
             sum_var += mu_w[input_size * i + row] *
-                       delta_var[col * output_size + i] *
+                       delta_var_out[col * output_size + i] *
                        mu_w[input_size * i + row];
         }
-        delta_mu_prev[col * input_size + row] =
+        delta_mu_in[col * input_size + row] =
             sum_mu * jcb[col * input_size + row];
 
-        delta_var_prev[col * input_size + row] =
+        delta_var_in[col * input_size + row] =
             sum_var * jcb[col * input_size + row] * jcb[col * input_size + row];
+    }
+}
+
+__global__ void bwd_delta_w(float const *var_w, float const *mu_a,
+                            float const *delta_mu_out,
+                            float const *delta_var_out, size_t input_size,
+                            size_t output_size, int batch_size,
+                            float *delta_mu_w, float *delta_var_w)
+/**/
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+
+    if (col < output_size && row < input_size) {
+        for (int i = 0; i < batch_size; i++) {
+            sum_mu += mu_a[input_size * i + row] *
+                      delta_mu_out[output_size * i + col];
+
+            sum_var += mu_a[input_size * i + row] * mu_a[input_size * i + row] *
+                       delta_var_out[output_size * i + col];
+        }
+
+        delta_mu_w[col * input_size + row] =
+            sum_mu * var_w[col * input_size + row];
+
+        delta_var_w[col * input_size + row] = sum_var *
+                                              var_w[col * input_size + row] *
+                                              var_w[col * input_size + row];
+    }
+}
+
+__global__ void bwd_delta_b(float const *var_b, float const *delta_mu_out,
+                            float const *delta_var_out, size_t input_size,
+                            size_t output_size, int batch_size,
+                            float *delta_mu_b, float *delta_var_b)
+/*
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+
+    if (col < output_size && row < input_size) {
+        for (int i = 0; i < batch_size; i++) {
+            sum_mu += delta_mu_out[input_size * i + row];
+            sum_var += delta_var_out[input_size * i + row];
+        }
+
+        delta_mu_b[col * input_size + row] =
+            sum_mu * var_b[col * input_size + row];
+
+        delta_var_b[col * input_size + row] = sum_var *
+                                              var_b[col * input_size + row] *
+                                              var_b[col * input_size + row];
     }
 }
