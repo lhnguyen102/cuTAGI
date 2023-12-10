@@ -139,6 +139,7 @@ set(CPU_SOURCES
   src/layer_stack_cpu.cpp
   src/output_layer_update_cpu.cpp
   src/base_layer.cpp
+  src/data_struct.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -172,6 +173,8 @@ set(GPU_SOURCES
   src/task.cu
   src/tagi_network.cu
   src/gpu_debug_utils.cpp
+  src/data_struct_cuda.cu
+
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu
   test/cnn/test_cnn_gpu.cu

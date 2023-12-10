@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 28, 2023
+// Updated:      December 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,8 +84,8 @@ void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
     }
 }
 
-void Relu::forward(HiddenStates &input_states, HiddenStates &output_states,
-                   TempStates &temp_states)
+void Relu::forward(HiddenStateBase &input_states,
+                   HiddenStateBase &output_states, TempStateBase &temp_states)
 /*
  */
 {
@@ -188,8 +188,9 @@ void Sigmoid::sigmoid_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void Sigmoid::forward(HiddenStates &input_states, HiddenStates &output_states,
-                      TempStates &temp_states)
+void Sigmoid::forward(HiddenStateBase &input_states,
+                      HiddenStateBase &output_states,
+                      TempStateBase &temp_states)
 /*
  */
 {
@@ -284,8 +285,8 @@ void Tanh::tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void Tanh::forward(HiddenStates &input_states, HiddenStates &output_states,
-                   TempStates &temp_states)
+void Tanh::forward(HiddenStateBase &input_states,
+                   HiddenStateBase &output_states, TempStateBase &temp_states)
 /*
  */
 {
@@ -401,8 +402,9 @@ void MixtureRelu::mixture_relu_mean_var_mp(
     }
 }
 
-void MixtureRelu::forward(HiddenStates &input_states,
-                          HiddenStates &output_states, TempStates &temp_states)
+void MixtureRelu::forward(HiddenStateBase &input_states,
+                          HiddenStateBase &output_states,
+                          TempStateBase &temp_states)
 /*
  */
 {
@@ -521,9 +523,9 @@ void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
         }
     }
 }
-void MixtureSigmoid::forward(HiddenStates &input_states,
-                             HiddenStates &output_states,
-                             TempStates &temp_states)
+void MixtureSigmoid::forward(HiddenStateBase &input_states,
+                             HiddenStateBase &output_states,
+                             TempStateBase &temp_states)
 /*
  */
 {
@@ -644,8 +646,9 @@ void MixtureTanh::mixture_tanh_mean_var_mp(
     }
 }
 
-void MixtureTanh::forward(HiddenStates &input_states,
-                          HiddenStates &output_states, TempStates &temp_states)
+void MixtureTanh::forward(HiddenStateBase &input_states,
+                          HiddenStateBase &output_states,
+                          TempStateBase &temp_states)
 /*
  */
 {
@@ -742,8 +745,9 @@ void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void Softplus::forward(HiddenStates &input_states, HiddenStates &output_states,
-                       TempStates &temp_states)
+void Softplus::forward(HiddenStateBase &input_states,
+                       HiddenStateBase &output_states,
+                       TempStateBase &temp_states)
 /*
  */
 {
@@ -851,8 +855,9 @@ void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void LeakyRelu::forward(HiddenStates &input_states, HiddenStates &output_states,
-                        TempStates &temp_states)
+void LeakyRelu::forward(HiddenStateBase &input_states,
+                        HiddenStateBase &output_states,
+                        TempStateBase &temp_states)
 /*
  */
 {
@@ -932,8 +937,9 @@ void Softmax::softmax_mean_var(std::vector<float> &mu_z,
     }
 }
 
-void Softmax::forward(HiddenStates &input_states, HiddenStates &output_states,
-                      TempStates &temp_states)
+void Softmax::forward(HiddenStateBase &input_states,
+                      HiddenStateBase &output_states,
+                      TempStateBase &temp_states)
 /*
  */
 {

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 26, 2023
+// Updated:      December 09, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,7 +12,7 @@
 #include <iostream>
 #include <vector>
 
-#include "struct_var.h"
+#include "data_struct.h"
 
 class BaseLayer {
    public:
@@ -29,6 +29,7 @@ class BaseLayer {
     std::vector<float> delta_var_b;
     unsigned int num_threads = 1;
     bool training = true;
+    std::string device = "cpu";
 
     BaseLayer();
     ~BaseLayer() = default;
@@ -43,17 +44,18 @@ class BaseLayer {
 
     virtual int get_output_size();
 
-    virtual void forward(HiddenStates &input_states,
-                         HiddenStates &output_states, TempStates &temp_states);
+    virtual void forward(HiddenStateBase &input_states,
+                         HiddenStateBase &output_states,
+                         TempStateBase &temp_states);
 
     virtual void state_backward(std::vector<float> &jcb,
-                                DeltaStates &input_delta_states,
-                                DeltaStates &output_hidden_states,
-                                TempStates &temp_states);
+                                DeltaStateBase &input_delta_states,
+                                DeltaStateBase &output_hidden_states,
+                                TempStateBase &temp_states);
 
     virtual void param_backward(std::vector<float> &mu_a,
-                                DeltaStates &delta_states,
-                                TempStates &temp_states);
+                                DeltaStateBase &delta_states,
+                                TempStateBase &temp_states);
 
     virtual void update_weights();
 
@@ -64,6 +66,6 @@ class BaseLayer {
 
    protected:
     void allocate_bwd_vector(int size);
-    void fill_output_states(HiddenStates &output_states);
-    void fill_bwd_vector(HiddenStates &input_states);
+    void fill_output_states(HiddenStateBase &output_states);
+    void fill_bwd_vector(HiddenStateBase &input_states);
 };

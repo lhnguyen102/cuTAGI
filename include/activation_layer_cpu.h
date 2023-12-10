@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 25, 2023
+// Updated:      December 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -13,6 +13,8 @@
 
 #include "base_layer.h"
 #include "common.h"
+#include "data_struct.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,8 +40,8 @@ class Relu : public BaseLayer {
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -75,8 +77,8 @@ class Sigmoid : public BaseLayer {
                                     std::vector<float> &jcb,
                                     std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -110,8 +112,8 @@ class Tanh : public BaseLayer {
                           std::vector<float> &mu_a, std::vector<float> &jcb,
                           std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -146,8 +148,8 @@ class MixtureRelu : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -181,8 +183,8 @@ class MixtureSigmoid : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -218,8 +220,8 @@ class MixtureTanh : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -255,8 +257,8 @@ class Softplus : public BaseLayer {
                                      std::vector<float> &jcb,
                                      std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -294,8 +296,8 @@ class LeakyRelu : public BaseLayer {
                                        std::vector<float> &jcb,
                                        std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -325,8 +327,8 @@ class Softmax : public BaseLayer {
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 
     void update_weights() override{};
 
@@ -372,8 +374,8 @@ class RemaxA : public BaseLayer {
                             std::vector<float> &mu_a,
                             std::vector<float> &var_a);
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override{};
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override{};
 
     void update_weights() override{};
 

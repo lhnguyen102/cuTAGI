@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      November 28, 2023
+// Updated:      December 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -545,9 +545,9 @@ void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
     }
 }
 
-void FullyConnected::forward(HiddenStates &input_states,
-                             HiddenStates &output_states,
-                             TempStates &temp_states)
+void FullyConnected::forward(HiddenStateBase &input_states,
+                             HiddenStateBase &output_states,
+                             TempStateBase &temp_states)
 /*
  */
 {
@@ -591,9 +591,9 @@ void FullyConnected::forward(HiddenStates &input_states,
 }
 
 void FullyConnected::state_backward(std::vector<float> &jcb,
-                                    DeltaStates &input_delta_states,
-                                    DeltaStates &output_delta_states,
-                                    TempStates &temp_states)
+                                    DeltaStateBase &input_delta_states,
+                                    DeltaStateBase &output_delta_states,
+                                    TempStateBase &temp_states)
 /*
  */
 {
@@ -619,8 +619,8 @@ void FullyConnected::state_backward(std::vector<float> &jcb,
 }
 
 void FullyConnected::param_backward(std::vector<float> &mu_a,
-                                    DeltaStates &delta_states,
-                                    TempStates &temp_states)
+                                    DeltaStateBase &delta_states,
+                                    TempStateBase &temp_states)
 /*
 ...
 

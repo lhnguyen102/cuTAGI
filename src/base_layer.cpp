@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      November 25, 2023
+// Updated:      December 10, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,17 +20,18 @@ int BaseLayer::get_input_size() { return static_cast<int>(input_size); }
 
 int BaseLayer::get_output_size() { return static_cast<int>(output_size); }
 
-void BaseLayer::forward(HiddenStates &input_states, HiddenStates &output_states,
-                        TempStates &temp_states) {}
+void BaseLayer::forward(HiddenStateBase &input_states,
+                        HiddenStateBase &output_states,
+                        TempStateBase &temp_states) {}
 
 void BaseLayer::state_backward(std::vector<float> &jcb,
-                               DeltaStates &input_delta_states,
-                               DeltaStates &output_hidden_states,
-                               TempStates &temp_states) {}
+                               DeltaStateBase &input_delta_states,
+                               DeltaStateBase &output_hidden_states,
+                               TempStateBase &temp_states) {}
 
 void BaseLayer::param_backward(std::vector<float> &mu_a,
-                               DeltaStates &delta_states,
-                               TempStates &temp_states) {}
+                               DeltaStateBase &delta_states,
+                               TempStateBase &temp_states) {}
 
 void BaseLayer::allocate_bwd_vector(int size)
 /*
@@ -46,7 +47,7 @@ void BaseLayer::allocate_bwd_vector(int size)
     this->jcb.resize(size, 0.0f);
 }
 
-void BaseLayer::fill_output_states(HiddenStates &output_states)
+void BaseLayer::fill_output_states(HiddenStateBase &output_states)
 /**/
 {
     for (int j = 0; j < output_states.actual_size * output_states.block_size;
@@ -57,7 +58,7 @@ void BaseLayer::fill_output_states(HiddenStates &output_states)
     }
 }
 
-void BaseLayer::fill_bwd_vector(HiddenStates &input_states)
+void BaseLayer::fill_bwd_vector(HiddenStateBase &input_states)
 /*
  */
 {
