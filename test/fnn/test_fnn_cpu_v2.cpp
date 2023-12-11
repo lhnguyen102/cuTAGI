@@ -46,14 +46,14 @@ void fnn_v2()
     //////////////////////////////////////////////////////////////////////
     // Method 1: Stack layer one-by-one
     // LayerStack model;
-    // model.add_layer(std::make_unique<FullyConnected>(13, 10));
+    // model.add_layer(std::make_unique<Linear>(13, 10));
     // model.add_layer(std::make_unique<Relu>());
-    // model.add_layer(std::make_unique<FullyConnected>(10, 5));
+    // model.add_layer(std::make_unique<Linear>(10, 5));
     // model.add_layer(std::make_unique<Relu>());
-    // model.add_layer(std::make_unique<FullyConnected>(5, 1));
+    // model.add_layer(std::make_unique<Linear>(5, 1));
 
     // Method 2: Stack layers all together when initializing the model
-    LayerStack model(FullyConnected(1, 50), Relu(), FullyConnected(50, 1));
+    LayerStack model(Linear(1, 50), Relu(), Linear(50, 1));
 
     //////////////////////////////////////////////////////////////////////
     // Training

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      December 10, 2023
+// Updated:      December 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,22 +16,40 @@ const char *BaseLayer::get_layer_type_name() const {
     return typeid(*this).name();
 }
 
-int BaseLayer::get_input_size() { return static_cast<int>(input_size); }
+int BaseLayer::get_input_size() { return static_cast<int>(this->input_size); }
 
-int BaseLayer::get_output_size() { return static_cast<int>(output_size); }
+int BaseLayer::get_output_size() { return static_cast<int>(this->output_size); }
 
 void BaseLayer::forward(HiddenStateBase &input_states,
                         HiddenStateBase &output_states,
-                        TempStateBase &temp_states) {}
+                        TempStateBase &temp_states) {
+    if (this->device.compare("cpu") != 0) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Device mismatch");
+    }
+}
 
 void BaseLayer::state_backward(std::vector<float> &jcb,
                                DeltaStateBase &input_delta_states,
                                DeltaStateBase &output_hidden_states,
-                               TempStateBase &temp_states) {}
+                               TempStateBase &temp_states) {
+    if (this->device.compare("cpu") != 0) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Device mismatch");
+    }
+}
 
 void BaseLayer::param_backward(std::vector<float> &mu_a,
                                DeltaStateBase &delta_states,
-                               TempStateBase &temp_states) {}
+                               TempStateBase &temp_states) {
+    if (this->device.compare("cpu") != 0) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Device mismatch");
+    }
+}
 
 void BaseLayer::allocate_bwd_vector(int size)
 /*

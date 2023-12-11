@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 10, 2023
+// Updated:      December 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +22,7 @@ class HiddenStateCuda : public HiddenStateBase {
     float *d_jcb;
 
     HiddenStateCuda(size_t size, size_t block_size);
+    HiddenStateCuda();
     ~HiddenStateCuda();
     void to_device();
 };
@@ -32,6 +33,7 @@ class DeltaStateCuda : public DeltaStateBase {
     float *d_delta_var;
 
     DeltaStateCuda(size_t size, size_t block_size);
+    DeltaStateCuda();
     ~DeltaStateCuda();
     void to_device();
 };
@@ -42,6 +44,7 @@ class TempStateCuda : public TempStateBase {
     float *d_tmp_2;
 
     TempStateCuda(size_t size, size_t block_size);
+    TempStateCuda();
     ~TempStateCuda();
     void to_device();
 };

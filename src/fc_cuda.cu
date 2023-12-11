@@ -193,3 +193,25 @@ __global__ void bwd_delta_b(float const *var_b, float const *delta_mu_out,
                                               var_b[col * input_size + row];
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Fully Connected Layer
+////////////////////////////////////////////////////////////////////////////////
+
+LinearCuda::LinearCuda() {}
+LinearCuda::~LinearCuda() {}
+
+std::string LinearCuda::get_layer_info() const
+/*
+ */
+{
+    return "Linear(" + std::to_string(this->input_size) + "," +
+           std::to_string(this->output_size) + ")";
+}
+
+std::string LinearCuda::get_layer_name() const
+/*
+ */
+{
+    return "LinearCuda";
+}

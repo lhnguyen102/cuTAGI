@@ -18,6 +18,7 @@
 #include <string>
 
 #include "../../include/activation_layer_cpu.h"
+#include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
 #include "../../include/fc_cpu_v2.h"
 #include "../../include/layer_stack_cpu.h"

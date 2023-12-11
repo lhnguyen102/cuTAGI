@@ -35,9 +35,9 @@ void LayerStack::init_output_state_buffer()
  */
 {
     this->output_z_buffer =
-        HiddenStates(this->z_buffer_size, this->z_buffer_block_size);
+        HiddenStateBase(this->z_buffer_size, this->z_buffer_block_size);
     this->input_z_buffer =
-        HiddenStates(this->z_buffer_size, this->z_buffer_block_size);
+        HiddenStateBase(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::init_delta_state_buffer()
@@ -45,9 +45,9 @@ void LayerStack::init_delta_state_buffer()
  */
 {
     this->output_delta_z_buffer =
-        DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
+        DeltaStateBase(this->z_buffer_size, this->z_buffer_block_size);
     this->input_delta_z_buffer =
-        DeltaStates(this->z_buffer_size, this->z_buffer_block_size);
+        DeltaStateBase(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::set_threads(unsigned int num_threads)
@@ -62,7 +62,7 @@ void LayerStack::set_threads(unsigned int num_threads)
 
 void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
                              const std::vector<float> &var_x,
-                             HiddenStates &hidden_states)
+                             HiddenStateBase &hidden_states)
 /*
  */
 {

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 28, 2023
-// Updated:      December 04, 2023
+// Updated:      December 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base_layer_cuda.cuh"
+#include "data_struct.h"
 #include "struct_var.h"
 
 __global__ void fwd_mean_var(float const *mu_w, float const *var_w,
@@ -52,8 +53,15 @@ __global__ void bwd_delta_b(float const *var_b, float const *delta_mu_out,
                             size_t output_size, int batch_size,
                             float *delta_mu_b, float *delta_var_b);
 
-class FullConnectedCuda : public BaseLayerCuda {
+class LinearCuda : public BaseLayerCuda {
    public:
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    LinearCuda();
+    ~LinearCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
+                 TempStateBase &temp_states) override;
 };

@@ -3,14 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 10, 2023
+// Updated:      December 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/data_struct_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
-// Hidden State
+// Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size)
     : HiddenStateBase(size, block_size)
@@ -24,6 +24,8 @@ HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_var_a, size * sizeof(float));
     cudaMalloc(&d_jcb, size * sizeof(float));
 }
+
+HiddenStateCuda::HiddenStateCuda() : HiddenStateBase() {}
 
 HiddenStateCuda::~HiddenStateCuda()
 /*
@@ -54,10 +56,10 @@ void HiddenStateCuda::to_device()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Delta Hidden State
+// Delta Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size)
-    : DeltaStateCuda(size, block_size)
+    : DeltaStateBase(size, block_size)
 /*
  */
 {
@@ -65,6 +67,8 @@ DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_delta_mu, size * sizeof(float));
     cudaMalloc(&d_delta_var, size * sizeof(float));
 }
+
+DeltaStateCuda::DeltaStateCuda() : DeltaStateBase() {}
 
 DeltaStateCuda::~DeltaStateCuda()
 /*
@@ -85,7 +89,7 @@ void DeltaStateCuda::to_device()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Temporary Hidden State
+// Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 TempStateCuda::TempStateCuda(size_t size, size_t block_size)
     : TempStateBase(size, block_size)
@@ -96,6 +100,8 @@ TempStateCuda::TempStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_tmp_1, size * sizeof(float));
     cudaMalloc(&d_tmp_2, size * sizeof(float));
 }
+
+TempStateCuda::TempStateCuda() : TempStateBase() {}
 
 TempStateCuda::~TempStateCuda()
 /*

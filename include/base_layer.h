@@ -13,6 +13,9 @@
 #include <vector>
 
 #include "data_struct.h"
+#ifdef USE_CUDA
+#include "data_struct_cuda.cuh"
+#endif
 
 class BaseLayer {
    public:
@@ -40,9 +43,9 @@ class BaseLayer {
 
     virtual std::string get_layer_name() const = 0;
 
-    virtual int get_input_size();
+    int get_input_size();
 
-    virtual int get_output_size();
+    int get_output_size();
 
     virtual void forward(HiddenStateBase &input_states,
                          HiddenStateBase &output_states,

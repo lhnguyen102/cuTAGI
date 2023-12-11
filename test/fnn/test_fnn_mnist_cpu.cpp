@@ -47,8 +47,8 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    LayerStack model(FullyConnected(784, 100), Relu(), FullyConnected(100, 100),
-                     Relu(), FullyConnected(100, 11));
+    LayerStack model(Linear(784, 100), Relu(), Linear(100, 100),
+                     Relu(), Linear(100, 11));
     model.set_threads(4);
 
     //////////////////////////////////////////////////////////////////////

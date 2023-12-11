@@ -16,16 +16,17 @@
 
 #include "base_layer.h"
 #include "common.h"
+#include "data_struct.h"
 #include "output_layer_update_cpu.h"
 #include "struct_var.h"
 
 class LayerStack {
    public:
-    HiddenStates output_z_buffer;
-    HiddenStates input_z_buffer;
-    DeltaStates output_delta_z_buffer;
-    DeltaStates input_delta_z_buffer;
-    TempStates temp_states;
+    HiddenStateBase output_z_buffer;
+    HiddenStateBase input_z_buffer;
+    DeltaStateBase output_delta_z_buffer;
+    DeltaStateBase input_delta_z_buffer;
+    TempStateBase temp_states;
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
     int input_size = 0;
@@ -59,7 +60,7 @@ class LayerStack {
 
     void to_z_buffer(const std::vector<float>& mu_x,
                      const std::vector<float>& var_x,
-                     HiddenStates& hidden_states);
+                     HiddenStateBase& hidden_states);
 
     void backward();
 

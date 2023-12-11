@@ -3,15 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 10, 2023
+// Updated:      December 11, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cpu_v2.h"
 
-FullyConnected::FullyConnected(size_t ip_size, size_t op_size,
-                               float gain_weight, float gain_bias,
-                               std::string method)
+Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
+               float gain_bias, std::string method)
     : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
@@ -30,38 +29,24 @@ FullyConnected::FullyConnected(size_t ip_size, size_t op_size,
     }
 }
 
-FullyConnected::~FullyConnected() {}
+Linear::~Linear() {}
 
-std::string FullyConnected::get_layer_info() const
+std::string Linear::get_layer_info() const
 /*
  */
 {
-    return "FC(" + std::to_string(this->input_size) + "," +
+    return "Linear(" + std::to_string(this->input_size) + "," +
            std::to_string(this->output_size) + ")";
 }
 
-std::string FullyConnected::get_layer_name() const
+std::string Linear::get_layer_name() const
 /*
  */
 {
-    return "FullyConnected";
+    return "Linear";
 }
 
-int FullyConnected::get_input_size()
-/*
- */
-{
-    return this->input_size;
-}
-
-int FullyConnected::get_output_size()
-/*
- */
-{
-    return this->output_size;
-}
-
-void FullyConnected::allocate_param_delta()
+void Linear::allocate_param_delta()
 /*
  */
 {
@@ -71,7 +56,7 @@ void FullyConnected::allocate_param_delta()
     this->delta_var_b.resize(this->output_size, 0.0f);
 }
 
-void FullyConnected::init_weight_bias()
+void Linear::init_weight_bias()
 /*
  */
 {
@@ -98,12 +83,12 @@ void FullyConnected::init_weight_bias()
         gaussian_param_init(scale, this->gain_b, this->output_size);
 }
 
-void FullyConnected::fwd_mean_var(
-    std::vector<float> &mu_w, std::vector<float> &var_w,
-    std::vector<float> &mu_b, std::vector<float> &var_b,
-    std::vector<float> &mu_a, std::vector<float> &var_a, int start_chunk,
-    int end_chunk, size_t input_size, size_t output_size, int batch_size,
-    std::vector<float> &mu_z, std::vector<float> &var_z)
+void Linear::fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
+                          std::vector<float> &mu_b, std::vector<float> &var_b,
+                          std::vector<float> &mu_a, std::vector<float> &var_a,
+                          int start_chunk, int end_chunk, size_t input_size,
+                          size_t output_size, int batch_size,
+                          std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA for full connected layer
 
 Args:
@@ -140,7 +125,7 @@ Args:
     }
 }
 
-void FullyConnected::fwd_mean_var_mp(
+void Linear::fwd_mean_var_mp(
     std::vector<float> &mu_w, std::vector<float> &var_w,
     std::vector<float> &mu_b, std::vector<float> &var_b,
     std::vector<float> &mu_a, std::vector<float> &var_a, size_t input_size,
@@ -165,9 +150,9 @@ void FullyConnected::fwd_mean_var_mp(
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
                               &input_size, &output_size, &batch_size, &mu_z,
                               &var_z] {
-            FullyConnected::fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
-                                         start_chunk, end_chunk, input_size,
-                                         output_size, batch_size, mu_z, var_z);
+            Linear::fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
+                                 start_chunk, end_chunk, input_size,
+                                 output_size, batch_size, mu_z, var_z);
         });
     }
 
@@ -178,11 +163,10 @@ void FullyConnected::fwd_mean_var_mp(
     }
 }
 
-void FullyConnected::fwd_full_cov(std::vector<float> &mu_w,
-                                  std::vector<float> &var_a_f,
-                                  size_t input_size, size_t output_size, int B,
-                                  int start_chunk, int end_chunk,
-                                  std::vector<float> &var_z_fp)
+void Linear::fwd_full_cov(std::vector<float> &mu_w, std::vector<float> &var_a_f,
+                          size_t input_size, size_t output_size, int B,
+                          int start_chunk, int end_chunk,
+                          std::vector<float> &var_z_fp)
 /* Add diagonal terms to the full covariance matrix.
 
 Args:
@@ -222,11 +206,11 @@ Args:
     }
 }
 
-void FullyConnected::fwd_full_cov_mp(std::vector<float> &mu_w,
-                                     std::vector<float> &var_a_f,
-                                     size_t input_size, size_t output_size,
-                                     int batch_size, unsigned int num_threads,
-                                     std::vector<float> &var_z_fp) {
+void Linear::fwd_full_cov_mp(std::vector<float> &mu_w,
+                             std::vector<float> &var_a_f, size_t input_size,
+                             size_t output_size, int batch_size,
+                             unsigned int num_threads,
+                             std::vector<float> &var_z_fp) {
     const int tot_ops = output_size * batch_size * output_size;
 
     int start_chunk, end_chunk;
@@ -242,9 +226,8 @@ void FullyConnected::fwd_full_cov_mp(std::vector<float> &mu_w,
 
         threads.emplace_back([=, &mu_w, &var_a_f, &input_size, &output_size,
                               &batch_size, &var_z_fp] {
-            FullyConnected::fwd_full_cov(mu_w, var_a_f, input_size, output_size,
-                                         batch_size, start_chunk, end_chunk,
-                                         var_z_fp);
+            Linear::fwd_full_cov(mu_w, var_a_f, input_size, output_size,
+                                 batch_size, start_chunk, end_chunk, var_z_fp);
         });
     }
 
@@ -255,12 +238,14 @@ void FullyConnected::fwd_full_cov_mp(std::vector<float> &mu_w,
     }
 }
 
-void FullyConnected::fwd_fc_full_var(
-    std::vector<float> &var_w, std::vector<float> &var_b,
-    std::vector<float> &mu_a, std::vector<float> &var_a,
-    std::vector<float> &var_z_fp, size_t input_size, size_t output_size, int B,
-    int start_chunk, int end_chunk, std::vector<float> &var_z,
-    std::vector<float> &var_z_f)
+void Linear::fwd_fc_full_var(std::vector<float> &var_w,
+                             std::vector<float> &var_b,
+                             std::vector<float> &mu_a,
+                             std::vector<float> &var_a,
+                             std::vector<float> &var_z_fp, size_t input_size,
+                             size_t output_size, int B, int start_chunk,
+                             int end_chunk, std::vector<float> &var_z,
+                             std::vector<float> &var_z_f)
 /**/
 {
     int col, row, i, k;
@@ -283,7 +268,7 @@ void FullyConnected::fwd_fc_full_var(
     }
 }
 
-void FullyConnected::fwd_fc_full_var_mp(
+void Linear::fwd_fc_full_var_mp(
     std::vector<float> &var_w, std::vector<float> &var_b,
     std::vector<float> &mu_a, std::vector<float> &var_a,
     std::vector<float> &var_z_fp, int input_size, int output_size,
@@ -311,9 +296,9 @@ void FullyConnected::fwd_fc_full_var_mp(
         threads.emplace_back([=, &var_w, &var_b, &mu_a, &var_a, &var_z_fp,
                               &input_size, &output_size, &batch_size, &var_z,
                               &var_z_f] {
-            FullyConnected::fwd_fc_full_var(
-                var_w, var_b, mu_a, var_a, var_z_fp, input_size, output_size,
-                batch_size, start_chunk, end_chunk, var_z, var_z_f);
+            Linear::fwd_fc_full_var(var_w, var_b, mu_a, var_a, var_z_fp,
+                                    input_size, output_size, batch_size,
+                                    start_chunk, end_chunk, var_z, var_z_f);
         });
     }
 
@@ -324,14 +309,12 @@ void FullyConnected::fwd_fc_full_var_mp(
     }
 }
 
-void FullyConnected::bwd_fc_delta_z(std::vector<float> &mu_w,
-                                    std::vector<float> &jcb,
-                                    std::vector<float> &delta_mu,
-                                    std::vector<float> &delta_var,
-                                    size_t input_size, size_t output_size,
-                                    int B, int start_chunk, int end_chunk,
-                                    std::vector<float> &delta_mu_z,
-                                    std::vector<float> &delta_var_z)
+void Linear::bwd_fc_delta_z(std::vector<float> &mu_w, std::vector<float> &jcb,
+                            std::vector<float> &delta_mu,
+                            std::vector<float> &delta_var, size_t input_size,
+                            size_t output_size, int B, int start_chunk,
+                            int end_chunk, std::vector<float> &delta_mu_z,
+                            std::vector<float> &delta_var_z)
 /*
  */
 {
@@ -356,14 +339,14 @@ void FullyConnected::bwd_fc_delta_z(std::vector<float> &mu_w,
     }
 }
 
-void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
-                                       std::vector<float> &jcb,
-                                       std::vector<float> &delta_mu,
-                                       std::vector<float> &delta_var,
-                                       size_t input_size, size_t output_size,
-                                       int batch_size, unsigned int num_threads,
-                                       std::vector<float> &delta_mu_z,
-                                       std::vector<float> &delta_var_z)
+void Linear::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
+                               std::vector<float> &jcb,
+                               std::vector<float> &delta_mu,
+                               std::vector<float> &delta_var, size_t input_size,
+                               size_t output_size, int batch_size,
+                               unsigned int num_threads,
+                               std::vector<float> &delta_mu_z,
+                               std::vector<float> &delta_var_z)
 /*
  */
 {
@@ -383,9 +366,9 @@ void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
         threads.emplace_back([=, &mu_w, &jcb, &delta_mu, &delta_var,
                               &input_size, &output_size, &batch_size,
                               &delta_mu_z, &delta_var_z] {
-            FullyConnected::bwd_fc_delta_z(
-                mu_w, jcb, delta_mu, delta_var, input_size, output_size,
-                batch_size, start_chunk, end_chunk, delta_mu_z, delta_var_z);
+            Linear::bwd_fc_delta_z(mu_w, jcb, delta_mu, delta_var, input_size,
+                                   output_size, batch_size, start_chunk,
+                                   end_chunk, delta_mu_z, delta_var_z);
         });
     }
 
@@ -396,12 +379,12 @@ void FullyConnected::bwd_fc_delta_z_mp(std::vector<float> &mu_w,
     }
 }
 
-void FullyConnected::bwd_fc_delta_w(
-    std::vector<float> &var_w, std::vector<float> &mu_a,
-    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-    size_t input_size, size_t output_size, int batch_size, int start_chunk,
-    int end_chunk, std::vector<float> &delta_mu_w,
-    std::vector<float> &delta_var_w)
+void Linear::bwd_fc_delta_w(std::vector<float> &var_w, std::vector<float> &mu_a,
+                            std::vector<float> &delta_mu,
+                            std::vector<float> &delta_var, size_t input_size,
+                            size_t output_size, int batch_size, int start_chunk,
+                            int end_chunk, std::vector<float> &delta_mu_w,
+                            std::vector<float> &delta_var_w)
 /* Compute update quantities for the mean of weights for full-connected layer.
 
 Args:
@@ -434,14 +417,14 @@ Args:
     }
 }
 
-void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &var_w,
-                                       std::vector<float> &mu_a,
-                                       std::vector<float> &delta_mu,
-                                       std::vector<float> &delta_var,
-                                       size_t input_size, size_t output_size,
-                                       int batch_size, unsigned int num_threads,
-                                       std::vector<float> &delta_mu_w,
-                                       std::vector<float> &delta_var_w)
+void Linear::bwd_fc_delta_w_mp(std::vector<float> &var_w,
+                               std::vector<float> &mu_a,
+                               std::vector<float> &delta_mu,
+                               std::vector<float> &delta_var, size_t input_size,
+                               size_t output_size, int batch_size,
+                               unsigned int num_threads,
+                               std::vector<float> &delta_mu_w,
+                               std::vector<float> &delta_var_w)
 /**/
 {
     const int tot_ops = input_size * output_size;
@@ -460,9 +443,9 @@ void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &var_w,
         threads.emplace_back([=, &var_w, &mu_a, &delta_mu, &delta_var,
                               &input_size, &output_size, &batch_size,
                               &delta_mu_w, &delta_var_w] {
-            FullyConnected::bwd_fc_delta_w(
-                var_w, mu_a, delta_mu, delta_var, input_size, output_size,
-                batch_size, start_chunk, end_chunk, delta_mu_w, delta_var_w);
+            Linear::bwd_fc_delta_w(var_w, mu_a, delta_mu, delta_var, input_size,
+                                   output_size, batch_size, start_chunk,
+                                   end_chunk, delta_mu_w, delta_var_w);
         });
     }
 
@@ -473,13 +456,12 @@ void FullyConnected::bwd_fc_delta_w_mp(std::vector<float> &var_w,
     }
 }
 
-void FullyConnected::bwd_fc_delta_b(std::vector<float> &var_b,
-                                    std::vector<float> &delta_mu,
-                                    std::vector<float> &delta_var,
-                                    size_t output_size, int batch_size,
-                                    int start_chunk, int end_chunk,
-                                    std::vector<float> &delta_mu_b,
-                                    std::vector<float> &delta_var_b)
+void Linear::bwd_fc_delta_b(std::vector<float> &var_b,
+                            std::vector<float> &delta_mu,
+                            std::vector<float> &delta_var, size_t output_size,
+                            int batch_size, int start_chunk, int end_chunk,
+                            std::vector<float> &delta_mu_b,
+                            std::vector<float> &delta_var_b)
 /* Compute update quantities for the variance of biases for full-connected
 layer.
 
@@ -509,13 +491,13 @@ Args:
     }
 }
 
-void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
-                                       std::vector<float> &delta_mu,
-                                       std::vector<float> &delta_var,
-                                       size_t output_size, int batch_size,
-                                       unsigned int num_threads,
-                                       std::vector<float> &delta_mu_b,
-                                       std::vector<float> &delta_var_b)
+void Linear::bwd_fc_delta_b_mp(std::vector<float> &var_b,
+                               std::vector<float> &delta_mu,
+                               std::vector<float> &delta_var,
+                               size_t output_size, int batch_size,
+                               unsigned int num_threads,
+                               std::vector<float> &delta_mu_b,
+                               std::vector<float> &delta_var_b)
 /*
  */
 {
@@ -532,9 +514,9 @@ void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
 
         threads.emplace_back([=, &var_b, &delta_mu, &delta_var, &output_size,
                               &batch_size, &delta_mu_b, &delta_var_b] {
-            FullyConnected::bwd_fc_delta_b(var_b, delta_mu, delta_var,
-                                           output_size, batch_size, start_chunk,
-                                           end_chunk, delta_mu_b, delta_var_b);
+            Linear::bwd_fc_delta_b(var_b, delta_mu, delta_var, output_size,
+                                   batch_size, start_chunk, end_chunk,
+                                   delta_mu_b, delta_var_b);
         });
     }
 
@@ -545,9 +527,8 @@ void FullyConnected::bwd_fc_delta_b_mp(std::vector<float> &var_b,
     }
 }
 
-void FullyConnected::forward(HiddenStateBase &input_states,
-                             HiddenStateBase &output_states,
-                             TempStateBase &temp_states)
+void Linear::forward(HiddenStateBase &input_states,
+                     HiddenStateBase &output_states, TempStateBase &temp_states)
 /*
  */
 {
@@ -590,10 +571,10 @@ void FullyConnected::forward(HiddenStateBase &input_states,
     output_states.actual_size = this->output_size;
 }
 
-void FullyConnected::state_backward(std::vector<float> &jcb,
-                                    DeltaStateBase &input_delta_states,
-                                    DeltaStateBase &output_delta_states,
-                                    TempStateBase &temp_states)
+void Linear::state_backward(std::vector<float> &jcb,
+                            DeltaStateBase &input_delta_states,
+                            DeltaStateBase &output_delta_states,
+                            TempStateBase &temp_states)
 /*
  */
 {
@@ -618,9 +599,9 @@ void FullyConnected::state_backward(std::vector<float> &jcb,
     }
 }
 
-void FullyConnected::param_backward(std::vector<float> &mu_a,
-                                    DeltaStateBase &delta_states,
-                                    TempStateBase &temp_states)
+void Linear::param_backward(std::vector<float> &mu_a,
+                            DeltaStateBase &delta_states,
+                            TempStateBase &temp_states)
 /*
 ...
 
