@@ -13,7 +13,7 @@
 
 #include "data_struct.h"
 
-class HiddenStateCuda : public HiddenStateBase {
+class HiddenStateCuda : public BaseHiddenStates {
    public:
     float *d_mu_z;
     float *d_var_z;
@@ -27,7 +27,7 @@ class HiddenStateCuda : public HiddenStateBase {
     void to_device();
 };
 
-class DeltaStateCuda : public DeltaStateBase {
+class DeltaStateCuda : public BaseDeltaStates {
    public:
     float *d_delta_mu;
     float *d_delta_var;
@@ -38,7 +38,7 @@ class DeltaStateCuda : public DeltaStateBase {
     void to_device();
 };
 
-class TempStateCuda : public TempStateBase {
+class TempStateCuda : public BaseTempStates {
    public:
     float *d_tmp_1;
     float *d_tmp_2;
@@ -47,4 +47,13 @@ class TempStateCuda : public TempStateBase {
     TempStateCuda();
     ~TempStateCuda();
     void to_device();
+};
+
+class BackwardStateCuda : public BaseBackwardStates {
+   public:
+    float *d_mu_a;
+    float *d_jcb;
+
+    BackwardStateCuda();
+    ~BackwardStateCuda();
 };

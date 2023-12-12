@@ -133,7 +133,7 @@ void compute_selected_delta_z_output_mp(
     }
 }
 
-void update_output_delta_z(HiddenStateBase &last_layer_states,
+void update_output_delta_z(BaseHiddenStates &last_layer_states,
                            std::vector<float> &obs, std::vector<float> &var_obs,
                            std::vector<float> &delta_mu,
                            std::vector<float> &delta_var)
@@ -147,7 +147,7 @@ void update_output_delta_z(HiddenStateBase &last_layer_states,
                            end_chunk, delta_mu, delta_var);
 }
 
-void update_selected_output_delta_z(HiddenStateBase &last_layer_states,
+void update_selected_output_delta_z(BaseHiddenStates &last_layer_states,
                                     std::vector<float> &obs,
                                     std::vector<float> &var_obs,
                                     std::vector<int> &selected_idx,

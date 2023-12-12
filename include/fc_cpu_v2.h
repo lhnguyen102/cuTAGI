@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 11, 2023
+// Updated:      December 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,14 +129,16 @@ class Linear : public BaseLayer {
                            std::vector<float> &delta_mu_b,
                            std::vector<float> &delta_var_b);
 
-    void forward(HiddenStateBase &input_states, HiddenStateBase &output_states,
-                 TempStateBase &temp_states) override;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
-    void state_backward(std::vector<float> &jcb,
-                        DeltaStateBase &input_delta_states,
-                        DeltaStateBase &output_hidden_states,
-                        TempStateBase &temp_states) override;
+    void state_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &input_delta_states,
+                        BaseDeltaStates &output_hidden_states,
+                        BaseTempStates &temp_states) override;
 
-    void param_backward(std::vector<float> &mu_a, DeltaStateBase &delta_states,
-                        TempStateBase &temp_states) override;
+    void param_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &delta_states,
+                        BaseTempStates &temp_states) override;
 };

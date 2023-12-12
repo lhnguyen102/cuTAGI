@@ -13,7 +13,7 @@
 // Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size)
-    : HiddenStateBase(size, block_size)
+    : BaseHiddenStates(size, block_size)
 /*
  */
 {
@@ -25,7 +25,7 @@ HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_jcb, size * sizeof(float));
 }
 
-HiddenStateCuda::HiddenStateCuda() : HiddenStateBase() {}
+HiddenStateCuda::HiddenStateCuda() : BaseHiddenStates() {}
 
 HiddenStateCuda::~HiddenStateCuda()
 /*
@@ -59,7 +59,7 @@ void HiddenStateCuda::to_device()
 // Delta Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size)
-    : DeltaStateBase(size, block_size)
+    : BaseDeltaStates(size, block_size)
 /*
  */
 {
@@ -68,7 +68,7 @@ DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_delta_var, size * sizeof(float));
 }
 
-DeltaStateCuda::DeltaStateCuda() : DeltaStateBase() {}
+DeltaStateCuda::DeltaStateCuda() : BaseDeltaStates() {}
 
 DeltaStateCuda::~DeltaStateCuda()
 /*
@@ -92,7 +92,7 @@ void DeltaStateCuda::to_device()
 // Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 TempStateCuda::TempStateCuda(size_t size, size_t block_size)
-    : TempStateBase(size, block_size)
+    : BaseTempStates(size, block_size)
 /*
  */
 {
@@ -101,7 +101,7 @@ TempStateCuda::TempStateCuda(size_t size, size_t block_size)
     cudaMalloc(&d_tmp_2, size * sizeof(float));
 }
 
-TempStateCuda::TempStateCuda() : TempStateBase() {}
+TempStateCuda::TempStateCuda() : BaseTempStates() {}
 
 TempStateCuda::~TempStateCuda()
 /*
@@ -119,4 +119,14 @@ void TempStateCuda::to_device()
                cudaMemcpyHostToDevice);
     cudaMemcpy(d_tmp_2, this->tmp_2.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Backward States
+////////////////////////////////////////////////////////////////////////////////
+
+BackwardStateCuda::BackwardStateCuda() {}
+BackwardStateCuda::~BackwardStateCuda() {
+    cudaFree(d_mu_a);
+    cudaFree(d_jcb);
 }

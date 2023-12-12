@@ -215,3 +215,10 @@ std::string LinearCuda::get_layer_name() const
 {
     return "LinearCuda";
 }
+
+void LinearCuda::forward(BaseHiddenStates &input_states,
+                         BaseHiddenStates &output_states,
+                         BaseTempStates &temp_states)
+/*
+ */
+{}

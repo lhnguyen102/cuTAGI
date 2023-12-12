@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      November 27, 2023
+// Updated:      December 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,9 +35,9 @@ void LayerStack::init_output_state_buffer()
  */
 {
     this->output_z_buffer =
-        HiddenStateBase(this->z_buffer_size, this->z_buffer_block_size);
+        BaseHiddenStates(this->z_buffer_size, this->z_buffer_block_size);
     this->input_z_buffer =
-        HiddenStateBase(this->z_buffer_size, this->z_buffer_block_size);
+        BaseHiddenStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::init_delta_state_buffer()
@@ -45,9 +45,9 @@ void LayerStack::init_delta_state_buffer()
  */
 {
     this->output_delta_z_buffer =
-        DeltaStateBase(this->z_buffer_size, this->z_buffer_block_size);
+        BaseDeltaStates(this->z_buffer_size, this->z_buffer_block_size);
     this->input_delta_z_buffer =
-        DeltaStateBase(this->z_buffer_size, this->z_buffer_block_size);
+        BaseDeltaStates(this->z_buffer_size, this->z_buffer_block_size);
 }
 
 void LayerStack::set_threads(unsigned int num_threads)
@@ -62,7 +62,7 @@ void LayerStack::set_threads(unsigned int num_threads)
 
 void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
                              const std::vector<float> &var_x,
-                             HiddenStateBase &hidden_states)
+                             BaseHiddenStates &hidden_states)
 /*
  */
 {
@@ -125,14 +125,14 @@ void LayerStack::backward()
 
         // Backward pass for parameters
         if (this->param_update) {
-            current_layer->param_backward(current_layer->mu_a,
+            current_layer->param_backward(current_layer->bwd_states,
                                           this->input_delta_z_buffer,
                                           this->temp_states);
         }
 
         // Backward pass for hidden states
         current_layer->state_backward(
-            current_layer->jcb, this->input_delta_z_buffer,
+            current_layer->bwd_states, this->input_delta_z_buffer,
             this->output_delta_z_buffer, this->temp_states);
 
         // Pass new input data for next iteration
@@ -141,7 +141,7 @@ void LayerStack::backward()
 
     // Parameter update for input layer
     if (this->param_update) {
-        this->layers[0]->param_backward(this->layers[0]->mu_a,
+        this->layers[0]->param_backward(this->layers[0]->bwd_states,
                                         this->input_delta_z_buffer,
                                         this->temp_states);
     }
@@ -149,7 +149,7 @@ void LayerStack::backward()
     // State update for input layer
     if (this->input_hidden_state_update) {
         this->layers[0]->state_backward(
-            this->layers[0]->jcb, this->input_delta_z_buffer,
+            this->layers[0]->bwd_states, this->input_delta_z_buffer,
             this->output_delta_z_buffer, this->temp_states);
     }
 }

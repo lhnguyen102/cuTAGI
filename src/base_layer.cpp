@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      December 11, 2023
+// Updated:      December 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,9 +20,9 @@ int BaseLayer::get_input_size() { return static_cast<int>(this->input_size); }
 
 int BaseLayer::get_output_size() { return static_cast<int>(this->output_size); }
 
-void BaseLayer::forward(HiddenStateBase &input_states,
-                        HiddenStateBase &output_states,
-                        TempStateBase &temp_states) {
+void BaseLayer::forward(BaseHiddenStates &input_states,
+                        BaseHiddenStates &output_states,
+                        BaseTempStates &temp_states) {
     if (this->device.compare("cpu") != 0) {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                                  " at line: " + std::to_string(__LINE__) +
@@ -30,10 +30,10 @@ void BaseLayer::forward(HiddenStateBase &input_states,
     }
 }
 
-void BaseLayer::state_backward(std::vector<float> &jcb,
-                               DeltaStateBase &input_delta_states,
-                               DeltaStateBase &output_hidden_states,
-                               TempStateBase &temp_states) {
+void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
+                               BaseDeltaStates &input_delta_states,
+                               BaseDeltaStates &output_hidden_states,
+                               BaseTempStates &temp_states) {
     if (this->device.compare("cpu") != 0) {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                                  " at line: " + std::to_string(__LINE__) +
@@ -41,9 +41,9 @@ void BaseLayer::state_backward(std::vector<float> &jcb,
     }
 }
 
-void BaseLayer::param_backward(std::vector<float> &mu_a,
-                               DeltaStateBase &delta_states,
-                               TempStateBase &temp_states) {
+void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
+                               BaseDeltaStates &delta_states,
+                               BaseTempStates &temp_states) {
     if (this->device.compare("cpu") != 0) {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                                  " at line: " + std::to_string(__LINE__) +
@@ -61,11 +61,11 @@ void BaseLayer::allocate_bwd_vector(int size)
                                     " - Invalid size: " + std::to_string(size));
     }
 
-    this->mu_a.resize(size, 0.0f);
-    this->jcb.resize(size, 0.0f);
+    this->bwd_states.mu_a.resize(size, 0.0f);
+    this->bwd_states.jcb.resize(size, 0.0f);
 }
 
-void BaseLayer::fill_output_states(HiddenStateBase &output_states)
+void BaseLayer::fill_output_states(BaseHiddenStates &output_states)
 /**/
 {
     for (int j = 0; j < output_states.actual_size * output_states.block_size;
@@ -76,14 +76,14 @@ void BaseLayer::fill_output_states(HiddenStateBase &output_states)
     }
 }
 
-void BaseLayer::fill_bwd_vector(HiddenStateBase &input_states)
+void BaseLayer::fill_bwd_vector(BaseHiddenStates &input_states)
 /*
  */
 {
     for (int i = 0; i < input_states.actual_size * input_states.block_size;
          i++) {
-        this->mu_a[i] = input_states.mu_a[i];
-        this->jcb[i] = input_states.jcb[i];
+        this->bwd_states.mu_a[i] = input_states.mu_a[i];
+        this->bwd_states.jcb[i] = input_states.jcb[i];
     }
 }
 

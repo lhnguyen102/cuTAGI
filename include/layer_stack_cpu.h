@@ -22,11 +22,11 @@
 
 class LayerStack {
    public:
-    HiddenStateBase output_z_buffer;
-    HiddenStateBase input_z_buffer;
-    DeltaStateBase output_delta_z_buffer;
-    DeltaStateBase input_delta_z_buffer;
-    TempStateBase temp_states;
+    BaseHiddenStates output_z_buffer;
+    BaseHiddenStates input_z_buffer;
+    BaseDeltaStates output_delta_z_buffer;
+    BaseDeltaStates input_delta_z_buffer;
+    BaseTempStates temp_states;
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
     int input_size = 0;
@@ -60,7 +60,7 @@ class LayerStack {
 
     void to_z_buffer(const std::vector<float>& mu_x,
                      const std::vector<float>& var_x,
-                     HiddenStateBase& hidden_states);
+                     BaseHiddenStates& hidden_states);
 
     void backward();
 

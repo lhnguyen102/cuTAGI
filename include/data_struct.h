@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 01, 2023
-// Updated:      December 11, 2023
+// Updated:      December 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@
 #include <iostream>
 #include <vector>
 
-class HiddenStateBase {
+class BaseHiddenStates {
    public:
     std::vector<float> mu_z;
     std::vector<float> var_z;
@@ -22,29 +22,38 @@ class HiddenStateBase {
     int block_size = 1;   // batch size
     int actual_size = 0;  // actual size of data
 
-    HiddenStateBase(size_t n, size_t m);
-    HiddenStateBase();
-    ~HiddenStateBase() = default;
+    BaseHiddenStates(size_t n, size_t m);
+    BaseHiddenStates();
+    ~BaseHiddenStates() = default;
 };
 
-class DeltaStateBase {
+class BaseDeltaStates {
    public:
     std::vector<float> delta_mu;
     std::vector<float> delta_var;
     int size = 0, block_size = 1, actual_size = 0;
 
-    DeltaStateBase(size_t n, size_t m);
-    DeltaStateBase();
-    ~DeltaStateBase() = default;
+    BaseDeltaStates(size_t n, size_t m);
+    BaseDeltaStates();
+    ~BaseDeltaStates() = default;
 };
 
-class TempStateBase {
+class BaseTempStates {
    public:
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
     int size = 0, block_size = 1;
 
-    TempStateBase(size_t n, size_t m);
-    TempStateBase();
-    ~TempStateBase() = default;
+    BaseTempStates(size_t n, size_t m);
+    BaseTempStates();
+    ~BaseTempStates() = default;
+};
+
+class BaseBackwardStates {
+   public:
+    std::vector<float> mu_a;
+    std::vector<float> jcb;
+
+    BaseBackwardStates();
+    ~BaseBackwardStates() = default;
 };

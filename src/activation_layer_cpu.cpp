@@ -84,8 +84,8 @@ void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
     }
 }
 
-void Relu::forward(HiddenStateBase &input_states,
-                   HiddenStateBase &output_states, TempStateBase &temp_states)
+void Relu::forward(BaseHiddenStates &input_states,
+                   BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
  */
 {
@@ -188,9 +188,9 @@ void Sigmoid::sigmoid_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void Sigmoid::forward(HiddenStateBase &input_states,
-                      HiddenStateBase &output_states,
-                      TempStateBase &temp_states)
+void Sigmoid::forward(BaseHiddenStates &input_states,
+                      BaseHiddenStates &output_states,
+                      BaseTempStates &temp_states)
 /*
  */
 {
@@ -285,8 +285,8 @@ void Tanh::tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void Tanh::forward(HiddenStateBase &input_states,
-                   HiddenStateBase &output_states, TempStateBase &temp_states)
+void Tanh::forward(BaseHiddenStates &input_states,
+                   BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
  */
 {
@@ -402,9 +402,9 @@ void MixtureRelu::mixture_relu_mean_var_mp(
     }
 }
 
-void MixtureRelu::forward(HiddenStateBase &input_states,
-                          HiddenStateBase &output_states,
-                          TempStateBase &temp_states)
+void MixtureRelu::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
 /*
  */
 {
@@ -523,9 +523,9 @@ void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
         }
     }
 }
-void MixtureSigmoid::forward(HiddenStateBase &input_states,
-                             HiddenStateBase &output_states,
-                             TempStateBase &temp_states)
+void MixtureSigmoid::forward(BaseHiddenStates &input_states,
+                             BaseHiddenStates &output_states,
+                             BaseTempStates &temp_states)
 /*
  */
 {
@@ -646,9 +646,9 @@ void MixtureTanh::mixture_tanh_mean_var_mp(
     }
 }
 
-void MixtureTanh::forward(HiddenStateBase &input_states,
-                          HiddenStateBase &output_states,
-                          TempStateBase &temp_states)
+void MixtureTanh::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
 /*
  */
 {
@@ -745,9 +745,9 @@ void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void Softplus::forward(HiddenStateBase &input_states,
-                       HiddenStateBase &output_states,
-                       TempStateBase &temp_states)
+void Softplus::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states)
 /*
  */
 {
@@ -855,9 +855,9 @@ void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
-void LeakyRelu::forward(HiddenStateBase &input_states,
-                        HiddenStateBase &output_states,
-                        TempStateBase &temp_states)
+void LeakyRelu::forward(BaseHiddenStates &input_states,
+                        BaseHiddenStates &output_states,
+                        BaseTempStates &temp_states)
 /*
  */
 {
@@ -937,9 +937,9 @@ void Softmax::softmax_mean_var(std::vector<float> &mu_z,
     }
 }
 
-void Softmax::forward(HiddenStateBase &input_states,
-                      HiddenStateBase &output_states,
-                      TempStateBase &temp_states)
+void Softmax::forward(BaseHiddenStates &input_states,
+                      BaseHiddenStates &output_states,
+                      BaseTempStates &temp_states)
 /*
  */
 {

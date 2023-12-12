@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 11, 2023
+// Updated:      December 12, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -527,8 +527,9 @@ void Linear::bwd_fc_delta_b_mp(std::vector<float> &var_b,
     }
 }
 
-void Linear::forward(HiddenStateBase &input_states,
-                     HiddenStateBase &output_states, TempStateBase &temp_states)
+void Linear::forward(BaseHiddenStates &input_states,
+                     BaseHiddenStates &output_states,
+                     BaseTempStates &temp_states)
 /*
  */
 {
@@ -549,9 +550,10 @@ void Linear::forward(HiddenStateBase &input_states,
                            end_chunk, this->input_size, this->output_size,
                            batch_size, output_states.mu_z, output_states.var_z);
     }
+    // TODO: Group the following if statements
     // Save activation mean and jacobian from the previous layer for the
     // backward pass
-    if ((this->mu_a.size() == 0 || this->jcb.size() == 0) && this->training) {
+    if (this->bwd_states.mu_a.size() == 0 && this->training) {
         int act_size = input_states.actual_size * input_states.block_size;
         this->allocate_bwd_vector(act_size);
     }
@@ -571,10 +573,10 @@ void Linear::forward(HiddenStateBase &input_states,
     output_states.actual_size = this->output_size;
 }
 
-void Linear::state_backward(std::vector<float> &jcb,
-                            DeltaStateBase &input_delta_states,
-                            DeltaStateBase &output_delta_states,
-                            TempStateBase &temp_states)
+void Linear::state_backward(BaseBackwardStates &next_bwd_states,
+                            BaseDeltaStates &input_delta_states,
+                            BaseDeltaStates &output_delta_states,
+                            BaseTempStates &temp_states)
 /*
  */
 {
@@ -583,25 +585,25 @@ void Linear::state_backward(std::vector<float> &jcb,
 
     // Compute inovation vector
     if (this->num_threads > 1) {
-        this->bwd_fc_delta_z_mp(this->mu_w, jcb, input_delta_states.delta_mu,
-                                input_delta_states.delta_var, this->input_size,
-                                this->output_size, batch_size,
-                                this->num_threads, output_delta_states.delta_mu,
-                                output_delta_states.delta_var);
+        this->bwd_fc_delta_z_mp(
+            this->mu_w, next_bwd_states.jcb, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->input_size, this->output_size,
+            batch_size, this->num_threads, output_delta_states.delta_mu,
+            output_delta_states.delta_var);
     } else {
         int start_chunk = 0;
         int end_chunk = batch_size * this->input_size;
-        this->bwd_fc_delta_z(this->mu_w, jcb, input_delta_states.delta_mu,
-                             input_delta_states.delta_var, this->input_size,
-                             this->output_size, batch_size, start_chunk,
-                             end_chunk, output_delta_states.delta_mu,
-                             output_delta_states.delta_var);
+        this->bwd_fc_delta_z(
+            this->mu_w, next_bwd_states.jcb, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->input_size, this->output_size,
+            batch_size, start_chunk, end_chunk, output_delta_states.delta_mu,
+            output_delta_states.delta_var);
     }
 }
 
-void Linear::param_backward(std::vector<float> &mu_a,
-                            DeltaStateBase &delta_states,
-                            TempStateBase &temp_states)
+void Linear::param_backward(BaseBackwardStates &next_bwd_states,
+                            BaseDeltaStates &delta_states,
+                            BaseTempStates &temp_states)
 /*
 ...
 
@@ -615,9 +617,9 @@ Args:
     // Update values for weights & biases
     if (this->num_threads > 1) {
         this->bwd_fc_delta_w_mp(
-            this->var_w, mu_a, delta_states.delta_mu, delta_states.delta_var,
-            this->input_size, this->output_size, batch_size, this->num_threads,
-            this->delta_mu_w, this->delta_var_w);
+            this->var_w, next_bwd_states.mu_a, delta_states.delta_mu,
+            delta_states.delta_var, this->input_size, this->output_size,
+            batch_size, this->num_threads, this->delta_mu_w, this->delta_var_w);
 
         this->bwd_fc_delta_b_mp(this->var_b, delta_states.delta_mu,
                                 delta_states.delta_var, this->output_size,
@@ -626,10 +628,11 @@ Args:
     } else {
         int start_chunk = 0;
         int end_chunk = this->input_size * this->output_size;
-        this->bwd_fc_delta_w(this->var_w, mu_a, delta_states.delta_mu,
-                             delta_states.delta_var, this->input_size,
-                             this->output_size, batch_size, start_chunk,
-                             end_chunk, this->delta_mu_w, this->delta_var_w);
+        this->bwd_fc_delta_w(this->var_w, next_bwd_states.mu_a,
+                             delta_states.delta_mu, delta_states.delta_var,
+                             this->input_size, this->output_size, batch_size,
+                             start_chunk, end_chunk, this->delta_mu_w,
+                             this->delta_var_w);
 
         this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
                              delta_states.delta_var, this->output_size,
