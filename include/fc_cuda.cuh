@@ -62,7 +62,15 @@ class LinearCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
-    void forward(BaseHiddenStates &input_states,
-                 BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override;
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    void state_backward(BackwardStateCuda &next_bwd_states,
+                        DeltaStateCuda &input_delta_states,
+                        DeltaStateCuda &output_delta_states,
+                        TempStateCuda &temp_states) override;
+
+    void param_backward(BackwardStateCuda &bwd_states,
+                        DeltaStateCuda &delta_states,
+                        TempStateCuda &temp_states) override;
 };

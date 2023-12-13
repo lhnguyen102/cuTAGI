@@ -53,7 +53,10 @@ class BackwardStateCuda : public BaseBackwardStates {
    public:
     float *d_mu_a;
     float *d_jcb;
+    int size = 0;
 
     BackwardStateCuda();
     ~BackwardStateCuda();
+
+    void allocate_memory();
 };

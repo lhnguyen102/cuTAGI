@@ -130,3 +130,11 @@ BackwardStateCuda::~BackwardStateCuda() {
     cudaFree(d_mu_a);
     cudaFree(d_jcb);
 }
+
+void BackwardStateCuda::allocate_memory()
+/*
+ */
+{
+    cudaMalloc(&this->d_mu_a, this->size * sizeof(float));
+    cudaMalloc(&this->d_jcb, this->size * sizeof(float));
+}
