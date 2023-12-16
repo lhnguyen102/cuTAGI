@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 12, 2023
+// Updated:      December 15, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,10 @@
 
 #include "base_layer.h"
 #include "data_struct.h"
-#include "net_prop.h"
+#include "param_init.h"
+#ifdef USE_CUDA
+#include "fc_cuda.cuh"
+#endif
 
 class Linear : public BaseLayer {
    public:
@@ -141,4 +144,14 @@ class Linear : public BaseLayer {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+#ifdef USE_CUDA
+    LinearCuda to_device();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };

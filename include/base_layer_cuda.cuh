@@ -41,6 +41,9 @@ class BaseLayerCuda : public BaseLayer {
     BaseLayerCuda();
 
     ~BaseLayerCuda();
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     virtual void forward(HiddenStateCuda &input_states,
                          HiddenStateCuda &output_states,

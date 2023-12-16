@@ -96,7 +96,6 @@ void Relu::forward(BaseHiddenStates &input_states,
         throw std::invalid_argument("Error: Invalid input state size");
     }
 
-    // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
@@ -109,7 +108,6 @@ void Relu::forward(BaseHiddenStates &input_states,
                             output_states.var_a);
     }
 
-    // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
     this->output_size = input_states.actual_size;
 
@@ -118,6 +116,11 @@ void Relu::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+ReluCuda Relu::to_cuda() { return ReluCuda(); }
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Sigmoid
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +221,10 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
     output_states.actual_size = input_states.actual_size;
 }
 
+#ifdef USE_CUDA
+SigmoidCuda Sigmoid::to_cuda() { return SigmoidCuda(); }
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Tanh
 ////////////////////////////////////////////////////////////////////////////////
@@ -313,6 +320,11 @@ void Tanh::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+TanhCuda Tanh::to_cuda() { return TanhCuda(); }
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
 ////////////////////////////////////////////////////////////////////////////////

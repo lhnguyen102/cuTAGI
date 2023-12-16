@@ -65,8 +65,261 @@ class ReluCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
-    void forward(HiddenStates &input_states, HiddenStates &output_states,
-                 TempStates &temp_states) override;
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class SigmoidCuda : public BaseLayerCuda {
+   public:
+    SigmoidCuda();
+    ~SigmoidCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class TanhCuda : public BaseLayerCuda {
+   public:
+    TanhCuda();
+    ~TanhCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class MixtureReluCuda : public BaseLayerCuda {
+   public:
+    float omega_tol = 0.0000001f;
+    MixtureReluCuda();
+    ~MixtureReluCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class MixtureSigmoidCuda : public BaseLayerCuda {
+   public:
+    float omega_tol = 0.0000001f;
+    MixtureSigmoidCuda();
+    ~MixtureSigmoidCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class MixtureTanhCuda : public BaseLayerCuda {
+   public:
+    float omega_tol = 0.0000001f;
+    MixtureTanhCuda();
+    ~MixtureTanhCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class SoftplusCuda : public BaseLayerCuda {
+   public:
+    SoftplusCuda();
+    ~SoftplusCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class LeakyReluCuda : public BaseLayerCuda {
+   public:
+    float alpha = 0.1f;
+    LeakyReluCuda();
+    ~LeakyReluCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
+
+    void save(std::ofstream &file) override{};
+
+    void load(std::ifstream &file) override{};
+};
+
+class SoftmaxCuda : public BaseLayerCuda {
+   public:
+    SoftmaxCuda();
+    ~SoftmaxCuda();
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+                 TempStateCuda &temp_states) override;
+
+    // Overloaded function from base layer
+    using BaseLayer::forward;
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
+
+    // Cuda base layer
+    using BaseLayerCuda::param_backward;
+    using BaseLayerCuda::state_backward;
 
     void update_weights() override{};
 

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 12, 2023
+// Updated:      December 16, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,10 +21,12 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
     this->output_size = op_size;
 
     // Initalize weights and bias
-    this->init_weight_bias();
+    if (this->device.compare("cpu") == 0) {
+        this->init_weight_bias();
+    }
 
     // Allocate the update quantities for parameters
-    if (this->training) {
+    if (this->training && this->device.compare("cpu") == 0) {
         this->allocate_param_delta();
     }
 }
@@ -60,27 +62,9 @@ void Linear::init_weight_bias()
 /*
  */
 {
-    int num_weights = this->input_size * this->output_size;
-    float scale;
-    if (this->init_method.compare("Xavier") == 0 ||
-        this->init_method.compare("xavier") == 0) {
-        scale = xavier_init(this->input_size, this->output_size);
-    } else if (this->init_method.compare("He") == 0 ||
-               this->init_method.compare("he") == 0) {
-        scale = he_init(this->input_size);
-    } else {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Initial parameter method [" +
-                                    init_method + "] is not supported.");
-    }
-
-    // Weights & biases
-    std::tie(this->mu_w, this->var_w) =
-        gaussian_param_init(scale, this->gain_w, num_weights);
-
-    std::tie(this->mu_b, this->var_b) =
-        gaussian_param_init(scale, this->gain_b, this->output_size);
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
+                                this->input_size, this->output_size);
 }
 
 void Linear::fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
@@ -640,3 +624,9 @@ Args:
                              this->delta_mu_b, this->delta_var_b);
     }
 }
+#ifdef USE_CUDA
+LinearCuda Linear::to_device() {
+    return LinearCuda(this->input_size, this->output_size, this->gain_w,
+                      this->gain_b, this->init_method);
+}
+#endif

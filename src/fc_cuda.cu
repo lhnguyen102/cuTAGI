@@ -198,7 +198,21 @@ __global__ void bwd_delta_b(float const *var_b, float const *delta_mu_out,
 // Fully Connected Layer
 ////////////////////////////////////////////////////////////////////////////////
 
-LinearCuda::LinearCuda() {}
+LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
+                       float gain_bias, std::string method)
+    : gain_w(gain_weight),
+      gain_b(gain_bias),
+      init_method(method)
+/*
+ */
+{
+    this->input_size = ip_size;
+    this->output_size = op_size;
+
+    // Initalize weights and bias
+    this->init_weight_bias();
+}
+
 LinearCuda::~LinearCuda() {}
 
 std::string LinearCuda::get_layer_info() const
@@ -214,6 +228,27 @@ std::string LinearCuda::get_layer_name() const
  */
 {
     return "LinearCuda";
+}
+
+void LinearCuda::init_weight_bias()
+/*
+ */
+{
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
+                                this->input_size, this->output_size);
+}
+
+void LinearCuda::allocate_param_delta()
+/*
+ */
+{
+    cudaMalloc(&this->d_delta_mu_w,
+               this->input_size * this->output_size * sizeof(float));
+    cudaMalloc(&this->d_delta_var_w,
+               this->input_size * this->output_size * sizeof(float));
+    cudaMalloc(&this->d_delta_mu_b, this->output_size * sizeof(float));
+    cudaMalloc(&this->d_delta_var_b, this->output_size * sizeof(float));
 }
 
 void LinearCuda::forward(HiddenStateCuda &input_states,

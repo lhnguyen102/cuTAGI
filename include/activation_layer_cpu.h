@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 10, 2023
+// Updated:      December 16, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,9 @@
 #include "base_layer.h"
 #include "common.h"
 #include "data_struct.h"
+#ifdef USE_CUDA
+#include "activation_cuda.cuh"
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
@@ -40,8 +43,12 @@ class Relu : public BaseLayer {
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -50,6 +57,16 @@ class Relu : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    ReluCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,8 +94,12 @@ class Sigmoid : public BaseLayer {
                                     std::vector<float> &jcb,
                                     std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -87,6 +108,16 @@ class Sigmoid : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    SigmoidCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,8 +143,12 @@ class Tanh : public BaseLayer {
                           std::vector<float> &mu_a, std::vector<float> &jcb,
                           std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -122,6 +157,16 @@ class Tanh : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    TanhCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,8 +193,12 @@ class MixtureRelu : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -158,6 +207,16 @@ class MixtureRelu : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    MixtureReluCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,8 +242,12 @@ class MixtureSigmoid : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -193,6 +256,16 @@ class MixtureSigmoid : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    MixtureSigmoid to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -220,8 +293,12 @@ class MixtureTanh : public BaseLayer {
         int n, unsigned int num_threads, std::vector<float> &mu_a,
         std::vector<float> &jcb, std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -230,6 +307,16 @@ class MixtureTanh : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    MixtureTanhCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -257,8 +344,12 @@ class Softplus : public BaseLayer {
                                      std::vector<float> &jcb,
                                      std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -267,6 +358,16 @@ class Softplus : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    SoftplusCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -296,8 +397,12 @@ class LeakyRelu : public BaseLayer {
                                        std::vector<float> &jcb,
                                        std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -306,6 +411,16 @@ class LeakyRelu : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    LeakyReluCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -327,8 +442,12 @@ class Softmax : public BaseLayer {
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 
@@ -337,6 +456,16 @@ class Softmax : public BaseLayer {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+#ifdef USE_CUDA
+    SoftmaxCuda to_cuda();
+#else
+    void to_device() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -374,8 +503,12 @@ class RemaxA : public BaseLayer {
                             std::vector<float> &mu_a,
                             std::vector<float> &var_a);
 
-    void forward(BaseHiddenStates &input_states, BaseHiddenStates &output_states,
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override{};
+
+    using BaseLayer::param_backward;
+    using BaseLayer::state_backward;
 
     void update_weights() override{};
 

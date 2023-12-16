@@ -3,11 +3,421 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 04, 2023
+// Updated:      December 16, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/activation_cuda.cuh"
+
+////////////////////////////////////////////////////////////////////////////////
+/// ReLU
+////////////////////////////////////////////////////////////////////////////////
+ReluCuda::ReluCuda() {}
+ReluCuda::~ReluCuda() {}
+
+std::string ReluCuda::get_layer_info() const
+/*
+ */
+{
+    return "Relu()";
+}
+
+std::string ReluCuda::get_layer_name() const
+/*
+ */
+{
+    return "ReluCuda";
+}
+
+void ReluCuda::forward(HiddenStateCuda &input_states,
+                       HiddenStateCuda &output_states,
+                       TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    relu_mean_var<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Sigmoid
+////////////////////////////////////////////////////////////////////////////////
+SigmoidCuda::SigmoidCuda() {}
+SigmoidCuda::~SigmoidCuda() {}
+
+std::string SigmoidCuda::get_layer_info() const
+/*
+ */
+{
+    return "Sigmoid()";
+}
+
+std::string SigmoidCuda::get_layer_name() const
+/*
+ */
+{
+    return "SigmoidCuda";
+}
+
+void SigmoidCuda::forward(HiddenStateCuda &input_states,
+                          HiddenStateCuda &output_states,
+                          TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    sigmoid_mean_var<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Tanh
+////////////////////////////////////////////////////////////////////////////////
+TanhCuda::TanhCuda() {}
+TanhCuda::~TanhCuda() {}
+
+std::string TanhCuda::get_layer_info() const
+/*
+ */
+{
+    return "Tanh()";
+}
+
+std::string TanhCuda::get_layer_name() const
+/*
+ */
+{
+    return "TanhCuda";
+}
+
+void TanhCuda::forward(HiddenStateCuda &input_states,
+                       HiddenStateCuda &output_states,
+                       TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    tanh_mean_var<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Mixture Relu
+////////////////////////////////////////////////////////////////////////////////
+MixtureReluCuda::MixtureReluCuda() {}
+MixtureReluCuda ::~MixtureReluCuda() {}
+
+std::string MixtureReluCuda::get_layer_info() const
+/*
+ */
+{
+    return "MixtureReLU()";
+}
+
+std::string MixtureReluCuda::get_layer_name() const
+/*
+ */
+{
+    return "MixtureReluCuda";
+}
+
+void MixtureReluCuda::forward(HiddenStateCuda &input_states,
+                              HiddenStateCuda &output_states,
+                              TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    mixture_relu<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Mixture Sigmoid
+////////////////////////////////////////////////////////////////////////////////
+MixtureSigmoidCuda::MixtureSigmoidCuda() {}
+MixtureSigmoidCuda ::~MixtureSigmoidCuda() {}
+
+std::string MixtureSigmoidCuda::get_layer_info() const
+/*
+ */
+{
+    return "MixtureSigmoid()";
+}
+
+std::string MixtureSigmoidCuda::get_layer_name() const
+/*
+ */
+{
+    return "MixtureSigmoidCuda";
+}
+
+void MixtureSigmoidCuda::forward(HiddenStateCuda &input_states,
+                                 HiddenStateCuda &output_states,
+                                 TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    mixture_sigmoid<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Mixture Tanh
+////////////////////////////////////////////////////////////////////////////////
+MixtureTanhCuda::MixtureTanhCuda() {}
+MixtureTanhCuda ::~MixtureTanhCuda() {}
+
+std::string MixtureTanhCuda::get_layer_info() const
+/*
+ */
+{
+    return "MixtureTanh()";
+}
+
+std::string MixtureTanhCuda::get_layer_name() const
+/*
+ */
+{
+    return "MixtureTanhCuda";
+}
+
+void MixtureTanhCuda::forward(HiddenStateCuda &input_states,
+                              HiddenStateCuda &output_states,
+                              TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    mixture_tanh<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Softplus
+////////////////////////////////////////////////////////////////////////////////
+SoftplusCuda::SoftplusCuda() {}
+SoftplusCuda::~SoftplusCuda() {}
+
+std::string SoftplusCuda::get_layer_info() const
+/*
+ */
+{
+    return "Softplus()";
+}
+
+std::string SoftplusCuda::get_layer_name() const
+/*
+ */
+{
+    return "SoftplusCuda";
+}
+
+void SoftplusCuda::forward(HiddenStateCuda &input_states,
+                           HiddenStateCuda &output_states,
+                           TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    softplus<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// LeakyRelu
+////////////////////////////////////////////////////////////////////////////////
+LeakyReluCuda::LeakyReluCuda() {}
+LeakyReluCuda::~LeakyReluCuda() {}
+
+std::string LeakyReluCuda::get_layer_info() const
+/*
+ */
+{
+    return "leakyRelu()";
+}
+
+std::string LeakyReluCuda::get_layer_name() const
+/*
+ */
+{
+    return "leakyReluCuda";
+}
+
+void LeakyReluCuda::forward(HiddenStateCuda &input_states,
+                            HiddenStateCuda &output_states,
+                            TempStateCuda &temp_states)
+/*
+ */
+{
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    leakyrelu<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, this->alpha, num_states,
+        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Softmax
+////////////////////////////////////////////////////////////////////////////////
+SoftmaxCuda::SoftmaxCuda() {}
+SoftmaxCuda::~SoftmaxCuda() {}
+
+std::string SoftmaxCuda::get_layer_info() const
+/*
+ */
+{
+    return "Softmax()";
+}
+
+std::string SoftmaxCuda::get_layer_name() const
+/*
+ */
+{
+    return "SoftmaxCuda";
+}
+
+void SoftmaxCuda::forward(HiddenStateCuda &input_states,
+                          HiddenStateCuda &output_states,
+                          TempStateCuda &temp_states)
+/*
+ */
+{
+    unsigned int blocks =
+        (input_states.block_size + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+
+    softmax<<<blocks, this->num_cuda_threads>>>(
+        input_states.d_mu_z, input_states.d_var_z, input_states.actual_size,
+        input_states.block_size, output_states.d_mu_a, output_states.d_jcb,
+        output_states.d_var_a);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// CUDA kernels
+////////////////////////////////////////////////////////////////////////////////
 
 __global__ void relu_mean_var(float const *mu_z, float const *var_z,
                               int num_states, float *mu_a, float *jcb,
