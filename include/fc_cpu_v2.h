@@ -3,12 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 15, 2023
+// Updated:      December 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -145,13 +146,9 @@ class Linear : public BaseLayer {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    using BaseLayer::to_cuda;
+
 #ifdef USE_CUDA
-    LinearCuda to_device();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };

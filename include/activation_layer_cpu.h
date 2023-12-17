@@ -3,11 +3,12 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 16, 2023
+// Updated:      December 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -59,13 +60,7 @@ class Relu : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    ReluCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -110,13 +105,7 @@ class Sigmoid : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    SigmoidCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -159,13 +148,7 @@ class Tanh : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    TanhCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -209,13 +192,7 @@ class MixtureRelu : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    MixtureReluCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -258,13 +235,7 @@ class MixtureSigmoid : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    MixtureSigmoid to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -309,13 +280,7 @@ class MixtureTanh : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    MixtureTanhCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -360,13 +325,7 @@ class Softplus : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    SoftplusCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -413,13 +372,7 @@ class LeakyRelu : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    LeakyReluCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 
@@ -458,13 +411,7 @@ class Softmax : public BaseLayer {
     void load(std::ifstream &file) override{};
 
 #ifdef USE_CUDA
-    SoftmaxCuda to_cuda();
-#else
-    void to_device() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
-    };
+    std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 };
 

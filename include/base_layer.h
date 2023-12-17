@@ -10,6 +10,7 @@
 #pragma once
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -63,6 +64,11 @@ class BaseLayer {
 
     virtual void save(std::ofstream &file);
     virtual void load(std::ifstream &file);
+    virtual std::unique_ptr<BaseLayer> to_cuda() {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Cuda device is not available");
+    };
 
    protected:
     void allocate_bwd_vector(int size);

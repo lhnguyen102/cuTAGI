@@ -83,9 +83,9 @@ void fnn_v2()
             model.forward(x_batch);
 
             // Output layer
-            update_output_delta_z(model.output_z_buffer, y_batch, var_obs,
-                                  model.input_delta_z_buffer.delta_mu,
-                                  model.input_delta_z_buffer.delta_var);
+            update_output_delta_z(*model.output_z_buffer, y_batch, var_obs,
+                                  model.input_delta_z_buffer->delta_mu,
+                                  model.input_delta_z_buffer->delta_var);
 
             // Backward pass
             model.backward();
@@ -123,8 +123,8 @@ void fnn_v2()
 
         // Collect the output data
         for (int j = 0; j < n_y * test_batch_size; j++) {
-            mu_a_batch_out[j] = model.output_z_buffer.mu_a[j];
-            var_a_batch_out[j] = model.output_z_buffer.var_a[j];
+            mu_a_batch_out[j] = model.output_z_buffer->mu_a[j];
+            var_a_batch_out[j] = model.output_z_buffer->var_a[j];
         }
         update_vector(mu_a_out, mu_a_batch_out, mt_idx, n_y);
         update_vector(var_a_out, var_a_batch_out, mt_idx, n_y);

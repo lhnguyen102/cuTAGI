@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 10, 2023
+// Updated:      December 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,14 +19,17 @@
 #include "data_struct.h"
 #include "output_layer_update_cpu.h"
 #include "struct_var.h"
+#ifdef USE_CUDA
+#include "data_struct_cuda.cuh"
+#endif
 
 class LayerStack {
    public:
-    BaseHiddenStates output_z_buffer;
-    BaseHiddenStates input_z_buffer;
-    BaseDeltaStates output_delta_z_buffer;
-    BaseDeltaStates input_delta_z_buffer;
-    BaseTempStates temp_states;
+    std::unique_ptr<BaseHiddenStates> output_z_buffer;
+    std::unique_ptr<BaseHiddenStates> input_z_buffer;
+    std::unique_ptr<BaseDeltaStates> output_delta_z_buffer;
+    std::unique_ptr<BaseDeltaStates> input_delta_z_buffer;
+    std::unique_ptr<BaseTempStates> temp_states;
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
     int input_size = 0;

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 10, 2023
+// Updated:      December 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +118,9 @@ void Relu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-ReluCuda Relu::to_cuda() { return ReluCuda(); }
+std::unique_ptr<BaseLayer> Relu::to_cuda() {
+    return std::make_unique<ReluCuda>();
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -222,7 +224,9 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-SigmoidCuda Sigmoid::to_cuda() { return SigmoidCuda(); }
+std::unique_ptr<BaseLayer> Sigmoid::to_cuda() {
+    return std::make_unique<SigmoidCuda>();
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +326,9 @@ void Tanh::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-TanhCuda Tanh::to_cuda() { return TanhCuda(); }
+std::unique_ptr<BaseLayer> Tanh::to_cuda() {
+    return std::make_unique<TanhCuda>();
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,6 +449,13 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> MixtureRelu::to_cuda() {
+    return std::make_unique<MixtureReluCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Sigmoid
 ////////////////////////////////////////////////////////////////////////////////
@@ -564,6 +577,13 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> MixtureSigmoid::to_cuda() {
+    return std::make_unique<MixtureSigmoidCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Tanh
 ////////////////////////////////////////////////////////////////////////////////
@@ -687,6 +707,13 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> MixtureTanh::to_cuda() {
+    return std::make_unique<MixtureTanhCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
 ////////////////////////////////////////////////////////////////////////////////
@@ -786,6 +813,13 @@ void Softplus::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> Softplus::to_cuda() {
+    return std::make_unique<SoftplusCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
 ////////////////////////////////////////////////////////////////////////////////
@@ -897,6 +931,13 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> LeakyRelu::to_cuda() {
+    return std::make_unique<LeakyReluCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Stable Softmax
 ////////////////////////////////////////////////////////////////////////////////
@@ -977,6 +1018,13 @@ void Softmax::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> Softmax::to_cuda() {
+    return std::make_unique<SoftmaxCuda>();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax
 ////////////////////////////////////////////////////////////////////////////////

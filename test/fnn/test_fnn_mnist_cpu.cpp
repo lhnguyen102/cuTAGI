@@ -47,14 +47,15 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    LayerStack model(Linear(784, 100), Relu(), Linear(100, 100),
-                     Relu(), Linear(100, 11));
+    LayerStack model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
+                     Linear(100, 11));
     model.set_threads(4);
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed =
+        1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 50;
     int batch_size = 20;
@@ -96,9 +97,9 @@ void fnn_mnist() {
 
             // Output layer
             update_selected_output_delta_z(
-                model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-                model.input_delta_z_buffer.delta_mu,
-                model.input_delta_z_buffer.delta_var);
+                *model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                model.input_delta_z_buffer->delta_mu,
+                model.input_delta_z_buffer->delta_var);
 
             // Backward pass
             model.backward();
@@ -106,8 +107,8 @@ void fnn_mnist() {
 
             // Extract output
             for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model.output_z_buffer.mu_a[j];
-                var_a_output[j] = model.output_z_buffer.var_a[j];
+                mu_a_output[j] = model.output_z_buffer->mu_a[j];
+                var_a_output[j] = model.output_z_buffer->var_a[j];
             }
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(mu_a_output, var_a_output, label_batch, num_classes,

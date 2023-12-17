@@ -625,8 +625,9 @@ Args:
     }
 }
 #ifdef USE_CUDA
-LinearCuda Linear::to_device() {
-    return LinearCuda(this->input_size, this->output_size, this->gain_w,
-                      this->gain_b, this->init_method);
+std::unique_ptr<BaseLayer> Linear::to_cuda() {
+    return std::make_unique<LinearCuda>(this->input_size, this->output_size,
+                                        this->gain_w, this->gain_b,
+                                        this->init_method);
 }
 #endif

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 12, 2023
+// Updated:      December 17, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,27 +27,65 @@ it will be corrected at the first run in the forward pass.
     this->z_buffer_size = std::max(input_size, this->z_buffer_size);
 
     // Stack layer
-    this->layers.push_back(std::move(layer));
+    if (this->device.compare("cpu") == 0) {
+        this->layers.push_back(std::move(layer));
+    } else if (this->device.compare("cuda") == 0) {
+        this->layers.push_back(std::move(layer->to_cuda()));
+    } else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid device: [" + this->device + "]");
+    }
 }
 
 void LayerStack::init_output_state_buffer()
 /*
  */
 {
-    this->output_z_buffer =
-        BaseHiddenStates(this->z_buffer_size, this->z_buffer_block_size);
-    this->input_z_buffer =
-        BaseHiddenStates(this->z_buffer_size, this->z_buffer_block_size);
+    if (this->device.compare("cpu") == 0) {
+        this->output_z_buffer = std::make_unique<BaseHiddenStates>(
+            this->z_buffer_size, this->z_buffer_block_size);
+        this->input_z_buffer = std::make_unique<BaseHiddenStates>(
+            this->z_buffer_size, this->z_buffer_block_size);
+    }
+#ifdef USE_CUDA
+    else if (this->device.compare("cuda") == 0) {
+        this->output_z_buffer = std::make_unique<HiddenStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
+        this->input_z_buffer = std::make_unique<HiddenStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
+    }
+#endif
+    else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid device: [" + this->device + "]");
+    }
 }
 
 void LayerStack::init_delta_state_buffer()
 /*
  */
 {
-    this->output_delta_z_buffer =
-        BaseDeltaStates(this->z_buffer_size, this->z_buffer_block_size);
-    this->input_delta_z_buffer =
-        BaseDeltaStates(this->z_buffer_size, this->z_buffer_block_size);
+    if (this->device.compare("cpu") == 0) {
+        this->output_delta_z_buffer = std::make_unique<BaseDeltaStates>(
+            this->z_buffer_size, this->z_buffer_block_size);
+        this->input_delta_z_buffer = std::make_unique<BaseDeltaStates>(
+            this->z_buffer_size, this->z_buffer_block_size);
+    }
+#ifdef USE_CUDA
+    else if (this->device.compare("cuda") == 0) {
+        this->output_delta_z_buffer = std::make_unique<DeltaStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
+        this->input_delta_z_buffer = std::make_unique<DeltaStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
+    }
+#endif
+    else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid device: [" + this->device + "]");
+    }
 }
 
 void LayerStack::set_threads(unsigned int num_threads)
@@ -101,13 +139,27 @@ void LayerStack::forward(const std::vector<float> &mu_x,
     }
 
     // Merge input data to the input buffer
-    this->to_z_buffer(mu_x, var_x, this->input_z_buffer);
+    this->to_z_buffer(mu_x, var_x, *this->input_z_buffer);
 
     // Forward pass for all layers
-    for (const auto &layer : this->layers) {
-        layer->forward(this->input_z_buffer, this->output_z_buffer,
-                       this->temp_states);
-        this->input_z_buffer = this->output_z_buffer;
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        // Current layer
+        BaseLayer *current_layer = this->layers[i].get();
+        // if ((i + 1) % 2 != 0) {
+        //     current_layer->forward(*this->input_z_buffer,
+        //                            *this->output_z_buffer,
+        //                            *this->temp_states);
+        // } else {
+        //     current_layer->forward(*this->output_z_buffer,
+        //                            *this->input_z_buffer,
+        //                            *this->temp_states);
+        // }
+        current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
+                               *this->temp_states);
+        *this->input_z_buffer = *this->output_z_buffer;
+    }
+    if (this->layers.size() % 2 == 0) {
+        *this->output_z_buffer = *this->input_z_buffer;
     }
 }
 
@@ -119,39 +171,63 @@ void LayerStack::backward()
     int last_layer_idx = this->layers.size() - 1;
 
     // Hidden layers
-    for (int i = last_layer_idx; i > 0; --i) {
+    for (int i = last_layer_idx, j = 0; i > 0; --i, ++j) {
         // Current layer
         BaseLayer *current_layer = this->layers[i].get();
 
-        // Backward pass for parameters
+        // // Backward pass for parameters and hidden states
+        // if ((j + 1) % 2 != 0) {
+        //     if (this->param_update) {
+        //         current_layer->param_backward(current_layer->bwd_states,
+        //                                       *this->input_delta_z_buffer,
+        //                                       *this->temp_states);
+        //     }
+
+        //     // Backward pass for hidden states
+        //     current_layer->state_backward(
+        //         current_layer->bwd_states, *this->input_delta_z_buffer,
+        //         *this->output_delta_z_buffer, *this->temp_states);
+
+        // } else {
+        //     if (this->param_update) {
+        //         current_layer->param_backward(current_layer->bwd_states,
+        //                                       *this->output_delta_z_buffer,
+        //                                       *this->temp_states);
+        //     }
+        //     current_layer->state_backward(
+        //         current_layer->bwd_states, *this->output_delta_z_buffer,
+        //         *this->input_delta_z_buffer, *this->temp_states);
+        // }
+
         if (this->param_update) {
             current_layer->param_backward(current_layer->bwd_states,
-                                          this->input_delta_z_buffer,
-                                          this->temp_states);
+                                          *this->input_delta_z_buffer,
+                                          *this->temp_states);
         }
 
         // Backward pass for hidden states
         current_layer->state_backward(
-            current_layer->bwd_states, this->input_delta_z_buffer,
-            this->output_delta_z_buffer, this->temp_states);
+            current_layer->bwd_states, *this->input_delta_z_buffer,
+            *this->output_delta_z_buffer, *this->temp_states);
 
         // Pass new input data for next iteration
-        this->input_delta_z_buffer = this->output_delta_z_buffer;
+        // std::swap(this->input_delta_z_buffer, this->output_delta_z_buffer);
+        *this->input_delta_z_buffer = *this->output_delta_z_buffer;
     }
 
     // Parameter update for input layer
     if (this->param_update) {
         this->layers[0]->param_backward(this->layers[0]->bwd_states,
-                                        this->input_delta_z_buffer,
-                                        this->temp_states);
+                                        *this->input_delta_z_buffer,
+                                        *this->temp_states);
     }
 
-    // State update for input layer
-    if (this->input_hidden_state_update) {
-        this->layers[0]->state_backward(
-            this->layers[0]->bwd_states, this->input_delta_z_buffer,
-            this->output_delta_z_buffer, this->temp_states);
-    }
+    // // State update for input layer
+    // if (this->input_hidden_state_update) {
+    //     this->layers[0]->state_backward(
+    //         this->layers[0]->bwd_states, *this->input_delta_z_buffer,
+    //         *this->output_delta_z_buffer, *this->temp_states);
+    // }
 }
 
 void LayerStack::step()
