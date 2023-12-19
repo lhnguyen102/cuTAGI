@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "base_layer.h"
 #include "base_layer_cuda.cuh"
 #include "data_struct.h"
 #include "param_init.h"
@@ -68,6 +69,8 @@ class LinearCuda : public BaseLayerCuda {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     void init_weight_bias();
 

@@ -48,6 +48,13 @@ std::string Linear::get_layer_name() const
     return "Linear";
 }
 
+LayerType Linear::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Linear;
+}
+
 void Linear::allocate_param_delta()
 /*
  */

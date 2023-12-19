@@ -16,6 +16,8 @@
 
 #include "data_struct.h"
 
+enum class LayerType { Linear, CNN, LSTM, Activation };
+
 class BaseLayer {
    public:
     size_t input_size = 0, output_size = 0;
@@ -40,6 +42,8 @@ class BaseLayer {
     virtual std::string get_layer_info() const = 0;
 
     virtual std::string get_layer_name() const = 0;
+
+    virtual LayerType get_layer_type() const = 0;
 
     int get_input_size();
 

@@ -37,6 +37,8 @@ class Linear : public BaseLayer {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void init_weight_bias();
 
     void allocate_param_delta();

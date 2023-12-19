@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 16, 2023
+// Updated:      December 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,13 @@ std::string ReluCuda::get_layer_name() const
  */
 {
     return "ReluCuda";
+}
+
+LayerType ReluCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void ReluCuda::forward(HiddenStateCuda &input_states,
@@ -74,6 +81,13 @@ std::string SigmoidCuda::get_layer_name() const
     return "SigmoidCuda";
 }
 
+LayerType SigmoidCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void SigmoidCuda::forward(HiddenStateCuda &input_states,
                           HiddenStateCuda &output_states,
                           TempStateCuda &temp_states)
@@ -117,6 +131,13 @@ std::string TanhCuda::get_layer_name() const
  */
 {
     return "TanhCuda";
+}
+
+LayerType TanhCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void TanhCuda::forward(HiddenStateCuda &input_states,
@@ -164,6 +185,13 @@ std::string MixtureReluCuda::get_layer_name() const
     return "MixtureReluCuda";
 }
 
+LayerType MixtureReluCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void MixtureReluCuda::forward(HiddenStateCuda &input_states,
                               HiddenStateCuda &output_states,
                               TempStateCuda &temp_states)
@@ -207,6 +235,13 @@ std::string MixtureSigmoidCuda::get_layer_name() const
  */
 {
     return "MixtureSigmoidCuda";
+}
+
+LayerType MixtureSigmoidCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void MixtureSigmoidCuda::forward(HiddenStateCuda &input_states,
@@ -254,6 +289,13 @@ std::string MixtureTanhCuda::get_layer_name() const
     return "MixtureTanhCuda";
 }
 
+LayerType MixtureTanhCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void MixtureTanhCuda::forward(HiddenStateCuda &input_states,
                               HiddenStateCuda &output_states,
                               TempStateCuda &temp_states)
@@ -297,6 +339,13 @@ std::string SoftplusCuda::get_layer_name() const
  */
 {
     return "SoftplusCuda";
+}
+
+LayerType SoftplusCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void SoftplusCuda::forward(HiddenStateCuda &input_states,
@@ -344,6 +393,13 @@ std::string LeakyReluCuda::get_layer_name() const
     return "leakyReluCuda";
 }
 
+LayerType LeakyReluCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void LeakyReluCuda::forward(HiddenStateCuda &input_states,
                             HiddenStateCuda &output_states,
                             TempStateCuda &temp_states)
@@ -387,6 +443,13 @@ std::string SoftmaxCuda::get_layer_name() const
  */
 {
     return "SoftmaxCuda";
+}
+
+LayerType SoftmaxCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void SoftmaxCuda::forward(HiddenStateCuda &input_states,

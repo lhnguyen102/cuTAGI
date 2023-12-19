@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 17, 2023
+// Updated:      December 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,6 +30,8 @@ class Relu : public BaseLayer {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     static void relu_mean_var(std::vector<float> const &mu_z,
                               std::vector<float> const &var_z, int start_chunk,
@@ -76,6 +78,8 @@ class Sigmoid : public BaseLayer {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     static void sigmoid_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int start_chunk,
                                  int end_chunk, std::vector<float> &mu_a,
@@ -121,6 +125,8 @@ class Tanh : public BaseLayer {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     static void tanh_mean_var(std::vector<float> &mu_z,
                               std::vector<float> &var_z, int start_chunk,
                               int end_chunk, std::vector<float> &mu_a,
@@ -164,6 +170,8 @@ class MixtureRelu : public BaseLayer {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     static void mixture_relu_mean_var(std::vector<float> &mu_z,
                                       std::vector<float> &var_z,
@@ -209,6 +217,8 @@ class MixtureSigmoid : public BaseLayer {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     static void mixture_sigmoid_mean_var(
         std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
         int start_chunk, int end_chunk, std::vector<float> &mu_a,
@@ -251,6 +261,8 @@ class MixtureTanh : public BaseLayer {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     static void mixture_tanh_mean_var(std::vector<float> &mu_z,
                                       std::vector<float> &var_z,
@@ -295,6 +307,8 @@ class Softplus : public BaseLayer {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     static void softplus_mean_var(std::vector<float> &mu_z,
                                   std::vector<float> &var_z, int start_chunk,
@@ -342,6 +356,8 @@ class LeakyRelu : public BaseLayer {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     static void leaky_relu_mean_var(std::vector<float> &mu_z,
                                     std::vector<float> &var_z, float alpha,
                                     int start_chunk, int end_chunk,
@@ -388,6 +404,8 @@ class Softmax : public BaseLayer {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     static void softmax_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int no,

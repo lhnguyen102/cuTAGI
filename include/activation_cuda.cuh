@@ -65,6 +65,8 @@ class ReluCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
 
@@ -95,6 +97,8 @@ class SigmoidCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
 
@@ -124,6 +128,8 @@ class TanhCuda : public BaseLayerCuda {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
@@ -156,6 +162,8 @@ class MixtureReluCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
 
@@ -186,6 +194,8 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
@@ -218,6 +228,8 @@ class MixtureTanhCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
 
@@ -247,6 +259,8 @@ class SoftplusCuda : public BaseLayerCuda {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
@@ -279,6 +293,8 @@ class LeakyReluCuda : public BaseLayerCuda {
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;
 
@@ -308,6 +324,8 @@ class SoftmaxCuda : public BaseLayerCuda {
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
 
     void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
                  TempStateCuda &temp_states) override;

@@ -230,6 +230,13 @@ std::string LinearCuda::get_layer_name() const
     return "LinearCuda";
 }
 
+LayerType LinearCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void LinearCuda::init_weight_bias()
 /*
  */

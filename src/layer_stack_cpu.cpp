@@ -145,22 +145,23 @@ void LayerStack::forward(const std::vector<float> &mu_x,
     for (size_t i = 0; i < this->layers.size(); i++) {
         // Current layer
         BaseLayer *current_layer = this->layers[i].get();
-        // if ((i + 1) % 2 != 0) {
-        //     current_layer->forward(*this->input_z_buffer,
-        //                            *this->output_z_buffer,
-        //                            *this->temp_states);
-        // } else {
-        //     current_layer->forward(*this->output_z_buffer,
-        //                            *this->input_z_buffer,
-        //                            *this->temp_states);
-        // }
-        current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
-                               *this->temp_states);
-        *this->input_z_buffer = *this->output_z_buffer;
+
+        // Decide the input and output buffers based on the layer's index
+        auto &input_buffer =
+            (i % 2 == 0) ? *this->input_z_buffer : *this->output_z_buffer;
+        auto &output_buffer =
+            (i % 2 == 0) ? *this->output_z_buffer : *this->input_z_buffer;
+
+        // Forward pass of the current layer
+        current_layer->forward(input_buffer, output_buffer, *this->temp_states);
+
+        // current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
+        //                        *this->temp_states);
+        // std::swap(this->input_z_buffer, this->output_z_buffer);
     }
-    if (this->layers.size() % 2 == 0) {
-        *this->output_z_buffer = *this->input_z_buffer;
-    }
+    // if (this->layers.size() % 2 == 0) {
+    //     std::swap(this->output_z_buffer, this->input_z_buffer);
+    // }
 }
 
 void LayerStack::backward()
@@ -171,34 +172,11 @@ void LayerStack::backward()
     int last_layer_idx = this->layers.size() - 1;
 
     // Hidden layers
-    for (int i = last_layer_idx, j = 0; i > 0; --i, ++j) {
+    for (int i = last_layer_idx; i > 0; --i) {
         // Current layer
         BaseLayer *current_layer = this->layers[i].get();
 
-        // // Backward pass for parameters and hidden states
-        // if ((j + 1) % 2 != 0) {
-        //     if (this->param_update) {
-        //         current_layer->param_backward(current_layer->bwd_states,
-        //                                       *this->input_delta_z_buffer,
-        //                                       *this->temp_states);
-        //     }
-
-        //     // Backward pass for hidden states
-        //     current_layer->state_backward(
-        //         current_layer->bwd_states, *this->input_delta_z_buffer,
-        //         *this->output_delta_z_buffer, *this->temp_states);
-
-        // } else {
-        //     if (this->param_update) {
-        //         current_layer->param_backward(current_layer->bwd_states,
-        //                                       *this->output_delta_z_buffer,
-        //                                       *this->temp_states);
-        //     }
-        //     current_layer->state_backward(
-        //         current_layer->bwd_states, *this->output_delta_z_buffer,
-        //         *this->input_delta_z_buffer, *this->temp_states);
-        // }
-
+        // Backward pass for parameters and hidden states
         if (this->param_update) {
             current_layer->param_backward(current_layer->bwd_states,
                                           *this->input_delta_z_buffer,
@@ -211,8 +189,9 @@ void LayerStack::backward()
             *this->output_delta_z_buffer, *this->temp_states);
 
         // Pass new input data for next iteration
-        // std::swap(this->input_delta_z_buffer, this->output_delta_z_buffer);
-        *this->input_delta_z_buffer = *this->output_delta_z_buffer;
+        if (current_layer->get_layer_type() != LayerType::Activation) {
+            std::swap(this->input_delta_z_buffer, this->output_delta_z_buffer);
+        }
     }
 
     // Parameter update for input layer
@@ -222,12 +201,12 @@ void LayerStack::backward()
                                         *this->temp_states);
     }
 
-    // // State update for input layer
-    // if (this->input_hidden_state_update) {
-    //     this->layers[0]->state_backward(
-    //         this->layers[0]->bwd_states, *this->input_delta_z_buffer,
-    //         *this->output_delta_z_buffer, *this->temp_states);
-    // }
+    // State update for input layer
+    if (this->input_hidden_state_update) {
+        this->layers[0]->state_backward(
+            this->layers[0]->bwd_states, *this->input_delta_z_buffer,
+            *this->output_delta_z_buffer, *this->temp_states);
+    }
 }
 
 void LayerStack::step()

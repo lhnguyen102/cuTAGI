@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 17, 2023
+// Updated:      December 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,13 @@ std::string Relu::get_layer_name() const
  */
 {
     return "ReLU";
+}
+
+LayerType Relu::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void Relu::relu_mean_var(std::vector<float> const &mu_z,
@@ -143,6 +150,13 @@ std::string Sigmoid::get_layer_name() const
     return "Sigmoid";
 }
 
+LayerType Sigmoid::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void Sigmoid::sigmoid_mean_var(std::vector<float> &mu_z,
                                std::vector<float> &var_z, int start_chunk,
                                int end_chunk, std::vector<float> &mu_a,
@@ -250,6 +264,13 @@ std::string Tanh::get_layer_name() const
     return "Tanh";
 }
 
+LayerType Tanh::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void Tanh::tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                          int start_chunk, int end_chunk,
                          std::vector<float> &mu_a, std::vector<float> &jcb,
@@ -350,6 +371,13 @@ std::string MixtureRelu::get_layer_name() const
 
 {
     return "MixtureReLU";
+}
+
+LayerType MixtureRelu::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void MixtureRelu::mixture_relu_mean_var(std::vector<float> &mu_z,
@@ -475,6 +503,13 @@ std::string MixtureSigmoid::get_layer_name() const
 
 {
     return "MixtureSigmoid";
+}
+
+LayerType MixtureSigmoid::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void MixtureSigmoid::mixture_sigmoid_mean_var(
@@ -603,6 +638,13 @@ std::string MixtureTanh::get_layer_name() const
 
 {
     return "MixtureTanh";
+}
+
+LayerType MixtureTanh::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void MixtureTanh::mixture_tanh_mean_var(std::vector<float> &mu_z,
@@ -734,6 +776,13 @@ std::string Softplus::get_layer_name() const
     return "Softplus";
 }
 
+LayerType Softplus::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
 void Softplus::softplus_mean_var(std::vector<float> &mu_z,
                                  std::vector<float> &var_z, int start_chunk,
                                  int end_chunk, std::vector<float> &mu_a,
@@ -839,6 +888,13 @@ std::string LeakyRelu::get_layer_name() const
 
 {
     return "leakReLU";
+}
+
+LayerType LeakyRelu::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void LeakyRelu::leaky_relu_mean_var(std::vector<float> &mu_z,
@@ -956,6 +1012,13 @@ std::string Softmax::get_layer_name() const
 
 {
     return "Softmax";
+}
+
+LayerType Softmax::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
 }
 
 void Softmax::softmax_mean_var(std::vector<float> &mu_z,
