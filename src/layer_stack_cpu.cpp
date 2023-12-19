@@ -3,17 +3,33 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 17, 2023
+// Updated:      December 19q, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/layer_stack_cpu.h"
 
-LayerStack::LayerStack() {}
-LayerStack::~LayerStack() {}
+Sequential::Sequential() {}
+Sequential::~Sequential() {}
 
-void LayerStack::add_layer(std::unique_ptr<BaseLayer> layer)
+void Sequential::switch_to_cuda() {
+    if (this->device == "cuda") {
+        for (size_t i = 0; i < this->layers.size(); ++i) {
+            layers[i] = layers[i]->to_cuda();
+            layers[i]->device = "cuda";
+        }
+    }
+}
+
+void Sequential::to_device(const std::string &new_device) {
+    this->device = new_device;
+    if (this->device == "cuda") {
+        switch_to_cuda();
+    }
+}
+
+void Sequential::add_layer(std::unique_ptr<BaseLayer> layer)
 /*
 NOTE: The output buffer size is determinated based on the output size for each
 layer assuming that batch size = 1. If the batch size in the forward pass > 1,
@@ -38,7 +54,7 @@ it will be corrected at the first run in the forward pass.
     }
 }
 
-void LayerStack::init_output_state_buffer()
+void Sequential::init_output_state_buffer()
 /*
  */
 {
@@ -63,7 +79,7 @@ void LayerStack::init_output_state_buffer()
     }
 }
 
-void LayerStack::init_delta_state_buffer()
+void Sequential::init_delta_state_buffer()
 /*
  */
 {
@@ -88,7 +104,7 @@ void LayerStack::init_delta_state_buffer()
     }
 }
 
-void LayerStack::set_threads(unsigned int num_threads)
+void Sequential::set_threads(unsigned int num_threads)
 /*
  */
 {
@@ -98,7 +114,7 @@ void LayerStack::set_threads(unsigned int num_threads)
     }
 }
 
-void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
+void Sequential::to_z_buffer(const std::vector<float> &mu_x,
                              const std::vector<float> &var_x,
                              BaseHiddenStates &hidden_states)
 /*
@@ -120,7 +136,7 @@ void LayerStack::to_z_buffer(const std::vector<float> &mu_x,
     hidden_states.actual_size = this->layers.front()->input_size;
 }
 
-void LayerStack::forward(const std::vector<float> &mu_x,
+void Sequential::forward(const std::vector<float> &mu_x,
                          const std::vector<float> &var_x)
 /*
  */
@@ -142,39 +158,27 @@ void LayerStack::forward(const std::vector<float> &mu_x,
     this->to_z_buffer(mu_x, var_x, *this->input_z_buffer);
 
     // Forward pass for all layers
-    for (size_t i = 0; i < this->layers.size(); i++) {
-        // Current layer
-        BaseLayer *current_layer = this->layers[i].get();
+    for (auto &layer : this->layers) {
+        auto *current_layer = layer.get();
 
-        // Decide the input and output buffers based on the layer's index
-        auto &input_buffer =
-            (i % 2 == 0) ? *this->input_z_buffer : *this->output_z_buffer;
-        auto &output_buffer =
-            (i % 2 == 0) ? *this->output_z_buffer : *this->input_z_buffer;
+        current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
+                               *this->temp_states);
 
-        // Forward pass of the current layer
-        current_layer->forward(input_buffer, output_buffer, *this->temp_states);
-
-        // current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
-        //                        *this->temp_states);
-        // std::swap(this->input_z_buffer, this->output_z_buffer);
+        std::swap(this->input_z_buffer, this->output_z_buffer);
     }
-    // if (this->layers.size() % 2 == 0) {
-    //     std::swap(this->output_z_buffer, this->input_z_buffer);
-    // }
+
+    // Output buffer is considered as the final output of network
+    std::swap(this->output_z_buffer, this->input_z_buffer);
 }
 
-void LayerStack::backward()
+void Sequential::backward()
 /*
  */
 {
-    //  Output layer
-    int last_layer_idx = this->layers.size() - 1;
-
     // Hidden layers
-    for (int i = last_layer_idx; i > 0; --i) {
-        // Current layer
-        BaseLayer *current_layer = this->layers[i].get();
+    for (auto layer = this->layers.rbegin(); layer != this->layers.rend() - 1;
+         ++layer) {
+        auto *current_layer = layer->get();
 
         // Backward pass for parameters and hidden states
         if (this->param_update) {
@@ -209,7 +213,7 @@ void LayerStack::backward()
     }
 }
 
-void LayerStack::step()
+void Sequential::step()
 /*
  */
 {
@@ -220,7 +224,7 @@ void LayerStack::step()
 }
 
 // Utility function to get layer stack info
-std::string LayerStack::get_layer_stack_info() const {
+std::string Sequential::get_layer_stack_info() const {
     std::stringstream ss;
     for (const auto &layer : this->layers) {
         if (layer) {
@@ -230,7 +234,7 @@ std::string LayerStack::get_layer_stack_info() const {
     return ss.str();
 }
 
-void LayerStack::save(const std::string &filename)
+void Sequential::save(const std::string &filename)
 /**/
 {
     // Extract the directory path from the filename
@@ -250,7 +254,7 @@ void LayerStack::save(const std::string &filename)
     file.close();
 }
 
-void LayerStack::load(const std::string &filename)
+void Sequential::load(const std::string &filename)
 /**/
 {
     std::ifstream file(filename, std::ios::binary);
@@ -266,7 +270,7 @@ void LayerStack::load(const std::string &filename)
     file.close();
 }
 
-void LayerStack::save_csv(const std::string &filename)
+void Sequential::save_csv(const std::string &filename)
 /*
 This allows saving network's parameters in csv so that
     (1) we can test on the previous version
@@ -316,7 +320,7 @@ This allows saving network's parameters in csv so that
     write_csv(var_b_path, var_b);
 }
 
-void LayerStack::load_csv(const std::string &filename)
+void Sequential::load_csv(const std::string &filename)
 /*
  */
 {

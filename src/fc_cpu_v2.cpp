@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 16, 2023
+// Updated:      December 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,6 +19,8 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
 {
     this->input_size = ip_size;
     this->output_size = op_size;
+    this->num_weights = this->input_size * this->output_size;
+    this->num_biases = this->output_size;
 
     // Initalize weights and bias
     if (this->device.compare("cpu") == 0) {
@@ -633,6 +635,7 @@ Args:
 }
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Linear::to_cuda() {
+    std::cout << "CUDA is activated" << std::endl;
     return std::make_unique<LinearCuda>(this->input_size, this->output_size,
                                         this->gain_w, this->gain_b,
                                         this->init_method);

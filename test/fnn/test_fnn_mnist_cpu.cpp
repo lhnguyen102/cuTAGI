@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      November 26, 2023
+// Updated:      December 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,9 +47,10 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    LayerStack model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
+    Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
                      Linear(100, 11));
     model.set_threads(4);
+    // model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
     // Training

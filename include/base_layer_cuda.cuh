@@ -57,4 +57,8 @@ class BaseLayerCuda : public BaseLayer {
     virtual void param_backward(BackwardStateCuda &bwd_states,
                                 DeltaStateCuda &delta_states,
                                 TempStateCuda &temp_states);
+
+    void update_weights() override;
+
+    void update_biases() override;
 };

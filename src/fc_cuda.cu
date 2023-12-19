@@ -3,17 +3,17 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 13, 2023
+// Updated:      December 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cuda.cuh"
 
-__global__ void fwd_mean_var(float const *mu_w, float const *var_w,
-                             float const *mu_b, float const *var_b,
-                             const float *mu_a, const float *var_a,
-                             size_t input_size, size_t output_size,
-                             int batch_size, float *mu_z, float *var_z)
+__global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
+                                    float const *mu_b, float const *var_b,
+                                    const float *mu_a, const float *var_a,
+                                    size_t input_size, size_t output_size,
+                                    int batch_size, float *mu_z, float *var_z)
 /*
  */
 {
@@ -42,9 +42,9 @@ __global__ void fwd_mean_var(float const *mu_w, float const *var_w,
     }
 }
 
-__global__ void fwd_full_cov(float const *mu_w, float const *var_a_f,
-                             size_t input_size, size_t output_size,
-                             int batch_size, float *var_z_fp)
+__global__ void linear_fwd_full_cov(float const *mu_w, float const *var_a_f,
+                                    size_t input_size, size_t output_size,
+                                    int batch_size, float *var_z_fp)
 /*
  */
 {
@@ -79,11 +79,12 @@ __global__ void fwd_full_cov(float const *mu_w, float const *var_a_f,
     }
 }
 
-__global__ void fwd_full_var(float const *mu_w, float const *var_w,
-                             float const *var_b, float const *mu_a,
-                             float const *var_a, float const *var_z_fp,
-                             size_t input_size, size_t output_size,
-                             int batch_size, float *var_z, float *var_z_f)
+__global__ void linear_fwd_full_var(float const *mu_w, float const *var_w,
+                                    float const *var_b, float const *mu_a,
+                                    float const *var_a, float const *var_z_fp,
+                                    size_t input_size, size_t output_size,
+                                    int batch_size, float *var_z,
+                                    float *var_z_f)
 /*
  */
 {
@@ -108,11 +109,12 @@ __global__ void fwd_full_var(float const *mu_w, float const *var_w,
     }
 }
 
-__global__ void bwd_delta_z(float const *mu_w, float const *jcb,
-                            float const *delta_mu_out,
-                            float const *delta_var_out, size_t input_size,
-                            size_t output_size, int batch_size,
-                            float *delta_mu_in, float *delta_var_in)
+__global__ void linear_bwd_delta_z(float const *mu_w, float const *jcb,
+                                   float const *delta_mu_out,
+                                   float const *delta_var_out,
+                                   size_t input_size, size_t output_size,
+                                   int batch_size, float *delta_mu_in,
+                                   float *delta_var_in)
 /*
  */
 {
@@ -137,11 +139,12 @@ __global__ void bwd_delta_z(float const *mu_w, float const *jcb,
     }
 }
 
-__global__ void bwd_delta_w(float const *var_w, float const *mu_a,
-                            float const *delta_mu_out,
-                            float const *delta_var_out, size_t input_size,
-                            size_t output_size, int batch_size,
-                            float *delta_mu_w, float *delta_var_w)
+__global__ void linear_bwd_delta_w(float const *var_w, float const *mu_a,
+                                   float const *delta_mu_out,
+                                   float const *delta_var_out,
+                                   size_t input_size, size_t output_size,
+                                   int batch_size, float *delta_mu_w,
+                                   float *delta_var_w)
 /**/
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -167,10 +170,12 @@ __global__ void bwd_delta_w(float const *var_w, float const *mu_a,
     }
 }
 
-__global__ void bwd_delta_b(float const *var_b, float const *delta_mu_out,
-                            float const *delta_var_out, size_t input_size,
-                            size_t output_size, int batch_size,
-                            float *delta_mu_b, float *delta_var_b)
+__global__ void linear_bwd_delta_b(float const *var_b,
+                                   float const *delta_mu_out,
+                                   float const *delta_var_out,
+                                   size_t input_size, size_t output_size,
+                                   int batch_size, float *delta_mu_b,
+                                   float *delta_var_b)
 /*
  */
 {
@@ -208,6 +213,8 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
 {
     this->input_size = ip_size;
     this->output_size = op_size;
+    this->num_weights = this->input_size * this->output_size;
+    this->num_biases = this->output_size;
 
     // Initalize weights and bias
     this->init_weight_bias();
@@ -234,7 +241,7 @@ LayerType LinearCuda::get_layer_type() const
 /*
  */
 {
-    return LayerType::Activation;
+    return LayerType::Linear;
 }
 
 void LinearCuda::init_weight_bias()
@@ -264,19 +271,21 @@ void LinearCuda::forward(HiddenStateCuda &input_states,
 /*
  */
 {
-    // Gert batch size
+    // Get batch size
+    std::cout << "Linear CUDA is activated" << std::endl;
+    input_states.to_device();
+
     int batch_size = input_states.block_size;
+    int threads = this->num_cuda_threads;
 
     // Forward pass
-    unsigned int grid_rows = (this->output_size + this->num_cuda_threads - 1) /
-                             this->num_cuda_threads;
-    unsigned int grid_cols =
-        (batch_size + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    unsigned int grid_rows = (this->output_size + threads - 1) / threads;
+    unsigned int grid_cols = (batch_size + threads - 1) / threads;
 
     dim3 grid_dim(grid_cols, grid_rows);
-    dim3 block_dim(this->num_cuda_threads, this->num_cuda_threads);
+    dim3 block_dim(threads, threads);
 
-    fwd_mean_var<<<grid_dim, block_dim>>>(
+    linear_fwd_mean_var<<<grid_dim, block_dim>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         input_states.d_mu_a, input_states.d_var_a, this->input_size,
         this->output_size, input_states.block_size, output_states.d_mu_z,
@@ -288,21 +297,19 @@ void LinearCuda::forward(HiddenStateCuda &input_states,
         this->bwd_states.allocate_memory();
     }
 
-    // Update backward state for inferring parameres
+    // Update backward state for inferring parameters
     if (this->training) {
         int act_size = input_states.actual_size * batch_size;
-        unsigned int blocks =
-            (act_size + this->num_cuda_threads - 1) / this->num_cuda_threads;
+        unsigned int blocks = (act_size + threads - 1) / threads;
 
-        fill_bwd_states_on_device<<<blocks, this->num_cuda_threads>>>(
+        fill_bwd_states_on_device<<<blocks, threads>>>(
             input_states.d_mu_a, input_states.d_jcb, act_size,
             this->bwd_states.d_mu_a, this->bwd_states.d_jcb);
 
         int out_size = this->output_size * batch_size;
-        unsigned int out_blocks =
-            (out_size + this->num_cuda_threads - 1) / this->num_cuda_threads;
+        unsigned int out_blocks = (out_size + threads - 1) / threads;
 
-        fill_output_states_on_device<<<out_blocks, this->num_cuda_threads>>>(
+        fill_output_states_on_device<<<out_blocks, threads>>>(
             output_states.d_mu_z, output_states.d_var_z, out_size,
             output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
     }
@@ -322,17 +329,16 @@ void LinearCuda::state_backward(BackwardStateCuda &next_bwd_states,
 {
     // Initialization
     int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
 
     // Compute inovation vector
-    unsigned int grid_row = (this->input_size + this->num_cuda_threads - 1) /
-                            this->num_cuda_threads;
-    unsigned int grid_col =
-        (batch_size + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    unsigned int grid_row = (this->input_size + threads - 1) / threads;
+    unsigned int grid_col = (batch_size + threads - 1) / threads;
 
     dim3 grid_dim(grid_col, grid_row);
-    dim3 block_dim(this->num_cuda_threads, this->num_cuda_threads);
+    dim3 block_dim(threads, threads);
 
-    bwd_delta_z<<<grid_dim, block_dim>>>(
+    linear_bwd_delta_z<<<grid_dim, block_dim>>>(
         this->d_mu_w, this->bwd_states.d_jcb, input_delta_states.d_delta_mu,
         input_delta_states.d_delta_var, this->input_size, this->output_size,
         batch_size, output_delta_states.d_delta_mu,
@@ -347,26 +353,24 @@ void LinearCuda::param_backward(BackwardStateCuda &bwd_states,
 {
     // Initalization
     int batch_size = delta_states.block_size;
-    dim3 block_dim(this->num_cuda_threads, this->num_cuda_threads);
+    int threads = this->num_cuda_threads;
+    dim3 block_dim(threads, threads);
 
     // Updated values for weights
-    unsigned int grid_row_w = (this->input_size + this->num_cuda_threads - 1) /
-                              this->num_cuda_threads;
-    unsigned int grid_col_w = (this->output_size + this->num_cuda_threads - 1) /
-                              this->num_cuda_threads;
+    unsigned int grid_row_w = (this->input_size + threads - 1) / threads;
+    unsigned int grid_col_w = (this->output_size + threads - 1) / threads;
     dim3 grid_dim_w(grid_col_w, grid_row_w);
 
-    bwd_delta_w<<<grid_dim_w, block_dim>>>(
+    linear_bwd_delta_w<<<grid_dim_w, block_dim>>>(
         this->d_var_w, bwd_states.d_mu_a, delta_states.d_delta_mu,
         delta_states.d_delta_var, this->input_size, this->output_size,
         batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
     // Updated values for biases
-    unsigned int grid_row_b = (this->output_size + this->num_cuda_threads - 1) /
-                              this->num_cuda_threads;
+    unsigned int grid_row_b = (this->output_size + threads - 1) / threads;
     dim3 grid_dim_b(1, grid_row_b);
 
-    bwd_delta_b<<<grid_dim_b, block_dim>>>(
+    linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
         this->d_var_b, delta_states.d_delta_mu, delta_states.d_delta_var,
         this->input_size, this->output_size, batch_size, this->d_delta_mu_b,
         this->d_delta_var_b);

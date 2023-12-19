@@ -42,6 +42,8 @@ void ReluCuda::forward(HiddenStateCuda &input_states,
 /*
  */
 {
+    std::cout << "Activation CUDA is activated" << std::endl;
+    input_states.to_device();
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;

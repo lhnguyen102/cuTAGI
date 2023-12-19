@@ -3,12 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 01, 2023
-// Updated:      December 12, 2023
+// Updated:      December 19, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iostream>
+#include <string>
 #include <vector>
 
 class BaseHiddenStates {
@@ -25,6 +26,7 @@ class BaseHiddenStates {
     BaseHiddenStates(size_t n, size_t m);
     BaseHiddenStates();
     ~BaseHiddenStates() = default;
+    virtual std::string get_name() const { return "BaseHidden"; };
 };
 
 class BaseDeltaStates {

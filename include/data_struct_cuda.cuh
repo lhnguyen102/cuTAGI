@@ -25,6 +25,7 @@ class HiddenStateCuda : public BaseHiddenStates {
     HiddenStateCuda();
     ~HiddenStateCuda();
 
+    std::string get_name() const override { return "cudaHidden"; };
     void allocate_memory();
     void to_device();
     void to_host();

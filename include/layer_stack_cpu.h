@@ -23,7 +23,7 @@
 #include "data_struct_cuda.cuh"
 #endif
 
-class LayerStack {
+class Sequential {
    public:
     std::unique_ptr<BaseHiddenStates> output_z_buffer;
     std::unique_ptr<BaseHiddenStates> input_z_buffer;
@@ -42,13 +42,17 @@ class LayerStack {
     // Variadic template. Note that for the template function the definition of
     // template must be included in the herder
     template <typename... Layers>
-    LayerStack(Layers&&... layers) {
+    Sequential(Layers&&... layers) {
         add_layers(std::forward<Layers>(layers)...);
     }
 
-    LayerStack();
+    Sequential();
 
-    ~LayerStack();
+    ~Sequential();
+
+    void switch_to_cuda();
+
+    void to_device(const std::string& new_device);
 
     void add_layer(std::unique_ptr<BaseLayer> layer);
 
