@@ -30,13 +30,22 @@ class BaseLayer {
     std::vector<float> delta_var_w;
     std::vector<float> delta_mu_b;
     std::vector<float> delta_var_b;
-    BaseBackwardStates bwd_states;
+    std::unique_ptr<BaseBackwardStates> bwd_states;
+
     unsigned int num_threads = 1;
     bool training = true;
     std::string device = "cpu";
 
     BaseLayer();
-    ~BaseLayer() = default;
+    virtual ~BaseLayer() = default;
+
+    // Delete copy constructor and copy assignment
+    BaseLayer(const BaseLayer &) = delete;
+    BaseLayer &operator=(const BaseLayer &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    BaseLayer(BaseLayer &&) = default;
+    BaseLayer &operator=(BaseLayer &&) = default;
 
     virtual const char *get_layer_type_name() const;
 

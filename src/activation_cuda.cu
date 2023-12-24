@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 18, 2023
+// Updated:      December 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,21 +36,31 @@ LayerType ReluCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void ReluCuda::forward(HiddenStateCuda &input_states,
-                       HiddenStateCuda &output_states,
-                       TempStateCuda &temp_states)
+void ReluCuda::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     std::cout << "Activation CUDA is activated" << std::endl;
-    input_states.to_device();
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     relu_mean_var<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -58,9 +68,9 @@ void ReluCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,19 +100,30 @@ LayerType SigmoidCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void SigmoidCuda::forward(HiddenStateCuda &input_states,
-                          HiddenStateCuda &output_states,
-                          TempStateCuda &temp_states)
+void SigmoidCuda::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     sigmoid_mean_var<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -110,9 +131,9 @@ void SigmoidCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,19 +163,30 @@ LayerType TanhCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void TanhCuda::forward(HiddenStateCuda &input_states,
-                       HiddenStateCuda &output_states,
-                       TempStateCuda &temp_states)
+void TanhCuda::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     tanh_mean_var<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -162,9 +194,9 @@ void TanhCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -194,19 +226,30 @@ LayerType MixtureReluCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureReluCuda::forward(HiddenStateCuda &input_states,
-                              HiddenStateCuda &output_states,
-                              TempStateCuda &temp_states)
+void MixtureReluCuda::forward(BaseHiddenStates &input_states,
+                              BaseHiddenStates &output_states,
+                              BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_relu<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -214,9 +257,9 @@ void MixtureReluCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -246,19 +289,30 @@ LayerType MixtureSigmoidCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureSigmoidCuda::forward(HiddenStateCuda &input_states,
-                                 HiddenStateCuda &output_states,
-                                 TempStateCuda &temp_states)
+void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
+                                 BaseHiddenStates &output_states,
+                                 BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_sigmoid<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -266,9 +320,9 @@ void MixtureSigmoidCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -298,19 +352,30 @@ LayerType MixtureTanhCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureTanhCuda::forward(HiddenStateCuda &input_states,
-                              HiddenStateCuda &output_states,
-                              TempStateCuda &temp_states)
+void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
+                              BaseHiddenStates &output_states,
+                              BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_tanh<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, this->omega_tol, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -318,9 +383,9 @@ void MixtureTanhCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -350,19 +415,30 @@ LayerType SoftplusCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void SoftplusCuda::forward(HiddenStateCuda &input_states,
-                           HiddenStateCuda &output_states,
-                           TempStateCuda &temp_states)
+void SoftplusCuda::forward(BaseHiddenStates &input_states,
+                           BaseHiddenStates &output_states,
+                           BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     softplus<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -370,9 +446,9 @@ void SoftplusCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -402,19 +478,30 @@ LayerType LeakyReluCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void LeakyReluCuda::forward(HiddenStateCuda &input_states,
-                            HiddenStateCuda &output_states,
-                            TempStateCuda &temp_states)
+void LeakyReluCuda::forward(BaseHiddenStates &input_states,
+                            BaseHiddenStates &output_states,
+                            BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     leakyrelu<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, this->alpha, num_states,
-        output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->alpha,
+        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -422,9 +509,9 @@ void LeakyReluCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -454,20 +541,31 @@ LayerType SoftmaxCuda::get_layer_type() const
     return LayerType::Activation;
 }
 
-void SoftmaxCuda::forward(HiddenStateCuda &input_states,
-                          HiddenStateCuda &output_states,
-                          TempStateCuda &temp_states)
+void SoftmaxCuda::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    cu_input_states->to_device();
+
     unsigned int blocks =
         (input_states.block_size + this->num_cuda_threads - 1) /
         this->num_cuda_threads;
 
     softmax<<<blocks, this->num_cuda_threads>>>(
-        input_states.d_mu_z, input_states.d_var_z, input_states.actual_size,
-        input_states.block_size, output_states.d_mu_a, output_states.d_jcb,
-        output_states.d_var_a);
+        cu_input_states->d_mu_z, cu_input_states->d_var_z,
+        cu_input_states->actual_size, cu_input_states->block_size,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -475,9 +573,9 @@ void SoftmaxCuda::forward(HiddenStateCuda &input_states,
     }
 
     // Update number of actual states.
-    output_states.size = input_states.size;
-    output_states.block_size = input_states.block_size;
-    output_states.actual_size = input_states.actual_size;
+    cu_output_states->size = cu_input_states->size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

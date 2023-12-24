@@ -71,6 +71,14 @@ class LinearCuda : public BaseLayerCuda {
 
     ~LinearCuda();
 
+    // Delete copy constructor and copy assignment
+    LinearCuda(const LinearCuda &) = delete;
+    LinearCuda &operator=(const LinearCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    LinearCuda(LinearCuda &&) = default;
+    LinearCuda &operator=(LinearCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -81,20 +89,16 @@ class LinearCuda : public BaseLayerCuda {
 
     void allocate_param_delta();
 
-    // Overloaded functions from base layer designed for cpu version
-    using BaseLayerCuda::forward;
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
+    void state_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &input_delta_states,
+                        BaseDeltaStates &output_delta_states,
+                        BaseTempStates &temp_states) override;
 
-    void state_backward(BackwardStateCuda &next_bwd_states,
-                        DeltaStateCuda &input_delta_states,
-                        DeltaStateCuda &output_delta_states,
-                        TempStateCuda &temp_states) override;
-
-    void param_backward(BackwardStateCuda &bwd_states,
-                        DeltaStateCuda &delta_states,
-                        TempStateCuda &temp_states) override;
+    void param_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &delta_states,
+                        BaseTempStates &temp_states) override;
 };

@@ -67,17 +67,9 @@ class ReluCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -99,17 +91,9 @@ class SigmoidCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -131,17 +115,9 @@ class TanhCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -164,17 +140,9 @@ class MixtureReluCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -197,17 +165,9 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -230,17 +190,9 @@ class MixtureTanhCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -262,17 +214,9 @@ class SoftplusCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -295,17 +239,9 @@ class LeakyReluCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 
@@ -327,17 +263,9 @@ class SoftmaxCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void forward(HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-                 TempStateCuda &temp_states) override;
-
-    // Overloaded function from base layer
-    using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
-
-    // Cuda base layer
-    using BaseLayerCuda::param_backward;
-    using BaseLayerCuda::state_backward;
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void update_weights() override{};
 

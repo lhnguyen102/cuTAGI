@@ -3,12 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 29, 2023
-// Updated:      December 13, 2023
+// Updated:      December 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include "base_layer.h"
@@ -35,28 +36,22 @@ class BaseLayerCuda : public BaseLayer {
     float *d_delta_mu_b;
     float *d_delta_var_b;
     unsigned int num_cuda_threads = 16;
-    // TODO does it overide the base layer
-    BackwardStateCuda bwd_states;
 
     BaseLayerCuda();
 
     ~BaseLayerCuda();
+
+    // Delete copy constructor and copy assignment
+    BaseLayerCuda(const BaseLayerCuda &) = delete;
+    BaseLayerCuda &operator=(const BaseLayerCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    BaseLayerCuda(BaseLayerCuda &&) = default;
+    BaseLayerCuda &operator=(BaseLayerCuda &&) = default;
+
     using BaseLayer::forward;
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
-
-    virtual void forward(HiddenStateCuda &input_states,
-                         HiddenStateCuda &output_states,
-                         TempStateCuda &temp_states);
-
-    virtual void state_backward(BackwardStateCuda &next_bwd_states,
-                                DeltaStateCuda &input_delta_states,
-                                DeltaStateCuda &output_delta_states,
-                                TempStateCuda &temp_states);
-
-    virtual void param_backward(BackwardStateCuda &bwd_states,
-                                DeltaStateCuda &delta_states,
-                                TempStateCuda &temp_states);
 
     void update_weights() override;
 

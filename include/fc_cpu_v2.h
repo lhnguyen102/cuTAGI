@@ -33,6 +33,14 @@ class Linear : public BaseLayer {
 
     ~Linear();
 
+    // Delete copy constructor and copy assignment
+    Linear(const Linear &) = delete;
+    Linear &operator=(const Linear &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    Linear(Linear &&) = default;
+    Linear &operator=(Linear &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;

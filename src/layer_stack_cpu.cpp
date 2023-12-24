@@ -182,14 +182,14 @@ void Sequential::backward()
 
         // Backward pass for parameters and hidden states
         if (this->param_update) {
-            current_layer->param_backward(current_layer->bwd_states,
+            current_layer->param_backward(*current_layer->bwd_states,
                                           *this->input_delta_z_buffer,
                                           *this->temp_states);
         }
 
         // Backward pass for hidden states
         current_layer->state_backward(
-            current_layer->bwd_states, *this->input_delta_z_buffer,
+            *current_layer->bwd_states, *this->input_delta_z_buffer,
             *this->output_delta_z_buffer, *this->temp_states);
 
         // Pass new input data for next iteration
@@ -200,7 +200,7 @@ void Sequential::backward()
 
     // Parameter update for input layer
     if (this->param_update) {
-        this->layers[0]->param_backward(this->layers[0]->bwd_states,
+        this->layers[0]->param_backward(*this->layers[0]->bwd_states,
                                         *this->input_delta_z_buffer,
                                         *this->temp_states);
     }
@@ -208,7 +208,7 @@ void Sequential::backward()
     // State update for input layer
     if (this->input_hidden_state_update) {
         this->layers[0]->state_backward(
-            this->layers[0]->bwd_states, *this->input_delta_z_buffer,
+            *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
             *this->output_delta_z_buffer, *this->temp_states);
     }
 }

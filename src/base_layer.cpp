@@ -3,14 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      December 12, 2023
+// Updated:      December 22, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer.h"
 
-BaseLayer::BaseLayer() {}
+BaseLayer::BaseLayer() : bwd_states(std::make_unique<BaseBackwardStates>()) {}
 
 const char *BaseLayer::get_layer_type_name() const {
     return typeid(*this).name();
@@ -22,34 +22,16 @@ int BaseLayer::get_output_size() { return static_cast<int>(this->output_size); }
 
 void BaseLayer::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
-                        BaseTempStates &temp_states) {
-    if (this->device.compare("cpu") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+                        BaseTempStates &temp_states) {}
 
 void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
                                BaseDeltaStates &input_delta_states,
                                BaseDeltaStates &output_hidden_states,
-                               BaseTempStates &temp_states) {
-    if (this->device.compare("cpu") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+                               BaseTempStates &temp_states) {}
 
 void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
                                BaseDeltaStates &delta_states,
-                               BaseTempStates &temp_states) {
-    if (this->device.compare("cpu") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+                               BaseTempStates &temp_states) {}
 
 void BaseLayer::allocate_bwd_vector(int size)
 /*
@@ -61,8 +43,8 @@ void BaseLayer::allocate_bwd_vector(int size)
                                     " - Invalid size: " + std::to_string(size));
     }
 
-    this->bwd_states.mu_a.resize(size, 0.0f);
-    this->bwd_states.jcb.resize(size, 0.0f);
+    this->bwd_states->mu_a.resize(size, 0.0f);
+    this->bwd_states->jcb.resize(size, 0.0f);
 }
 
 void BaseLayer::fill_output_states(BaseHiddenStates &output_states)
@@ -82,8 +64,8 @@ void BaseLayer::fill_bwd_vector(BaseHiddenStates &input_states)
 {
     for (int i = 0; i < input_states.actual_size * input_states.block_size;
          i++) {
-        this->bwd_states.mu_a[i] = input_states.mu_a[i];
-        this->bwd_states.jcb[i] = input_states.jcb[i];
+        this->bwd_states->mu_a[i] = input_states.mu_a[i];
+        this->bwd_states->jcb[i] = input_states.jcb[i];
     }
 }
 

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 19, 2023
+// Updated:      December 21, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +218,7 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
 
     // Initalize weights and bias
     this->init_weight_bias();
+    this->bwd_states = std::make_unique<BackwardStateCuda>();
 }
 
 LinearCuda::~LinearCuda() {}
@@ -265,15 +266,23 @@ void LinearCuda::allocate_param_delta()
     cudaMalloc(&this->d_delta_var_b, this->output_size * sizeof(float));
 }
 
-void LinearCuda::forward(HiddenStateCuda &input_states,
-                         HiddenStateCuda &output_states,
-                         TempStateCuda &temp_state)
+void LinearCuda::forward(BaseHiddenStates &input_states,
+                         BaseHiddenStates &output_states,
+                         BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
     // Get batch size
     std::cout << "Linear CUDA is activated" << std::endl;
-    input_states.to_device();
+    cu_input_states->to_device();
 
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
@@ -287,14 +296,16 @@ void LinearCuda::forward(HiddenStateCuda &input_states,
 
     linear_fwd_mean_var<<<grid_dim, block_dim>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        input_states.d_mu_a, input_states.d_var_a, this->input_size,
-        this->output_size, input_states.block_size, output_states.d_mu_z,
-        output_states.d_var_z);
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
+        this->output_size, input_states.block_size, cu_output_states->d_mu_z,
+        cu_output_states->d_var_z);
 
     // Lazy initialization
-    if (this->bwd_states.size == 0 && this->training) {
-        this->bwd_states.size = input_states.actual_size * batch_size;
-        this->bwd_states.allocate_memory();
+    BackwardStateCuda *cu_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    if (cu_bwd_states->size == 0 && this->training) {
+        cu_bwd_states->size = input_states.actual_size * batch_size;
+        cu_bwd_states->allocate_memory();
     }
 
     // Update backward state for inferring parameters
@@ -303,15 +314,16 @@ void LinearCuda::forward(HiddenStateCuda &input_states,
         unsigned int blocks = (act_size + threads - 1) / threads;
 
         fill_bwd_states_on_device<<<blocks, threads>>>(
-            input_states.d_mu_a, input_states.d_jcb, act_size,
-            this->bwd_states.d_mu_a, this->bwd_states.d_jcb);
+            cu_input_states->d_mu_a, cu_input_states->d_jcb, act_size,
+            cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
 
         int out_size = this->output_size * batch_size;
         unsigned int out_blocks = (out_size + threads - 1) / threads;
 
         fill_output_states_on_device<<<out_blocks, threads>>>(
-            output_states.d_mu_z, output_states.d_var_z, out_size,
-            output_states.d_mu_a, output_states.d_jcb, output_states.d_var_a);
+            cu_output_states->d_mu_z, cu_output_states->d_var_z, out_size,
+            cu_output_states->d_mu_a, cu_output_states->d_jcb,
+            cu_output_states->d_var_a);
     }
 
     // Update number of actual states.
@@ -320,13 +332,23 @@ void LinearCuda::forward(HiddenStateCuda &input_states,
     output_states.actual_size = this->output_size;
 }
 
-void LinearCuda::state_backward(BackwardStateCuda &next_bwd_states,
-                                DeltaStateCuda &input_delta_states,
-                                DeltaStateCuda &output_delta_states,
-                                TempStateCuda &temp_states)
+void LinearCuda::state_backward(BaseBackwardStates &next_bwd_states,
+                                BaseDeltaStates &input_delta_states,
+                                BaseDeltaStates &output_delta_states,
+                                BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
     // Initialization
     int batch_size = input_delta_states.block_size;
     int threads = this->num_cuda_threads;
@@ -339,18 +361,27 @@ void LinearCuda::state_backward(BackwardStateCuda &next_bwd_states,
     dim3 block_dim(threads, threads);
 
     linear_bwd_delta_z<<<grid_dim, block_dim>>>(
-        this->d_mu_w, this->bwd_states.d_jcb, input_delta_states.d_delta_mu,
-        input_delta_states.d_delta_var, this->input_size, this->output_size,
-        batch_size, output_delta_states.d_delta_mu,
-        output_delta_states.d_delta_var);
+        this->d_mu_w, cu_next_bwd_states->d_jcb,
+        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
+        this->input_size, this->output_size, batch_size,
+        cu_output_delta_states->d_delta_mu,
+        cu_output_delta_states->d_delta_var);
 }
 
-void LinearCuda::param_backward(BackwardStateCuda &bwd_states,
-                                DeltaStateCuda &delta_states,
-                                TempStateCuda &temp_states)
+void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
+                                BaseDeltaStates &delta_states,
+                                BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&delta_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
     // Initalization
     int batch_size = delta_states.block_size;
     int threads = this->num_cuda_threads;
@@ -362,8 +393,8 @@ void LinearCuda::param_backward(BackwardStateCuda &bwd_states,
     dim3 grid_dim_w(grid_col_w, grid_row_w);
 
     linear_bwd_delta_w<<<grid_dim_w, block_dim>>>(
-        this->d_var_w, bwd_states.d_mu_a, delta_states.d_delta_mu,
-        delta_states.d_delta_var, this->input_size, this->output_size,
+        this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
+        cu_delta_states->d_delta_var, this->input_size, this->output_size,
         batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
     // Updated values for biases
@@ -371,7 +402,7 @@ void LinearCuda::param_backward(BackwardStateCuda &bwd_states,
     dim3 grid_dim_b(1, grid_row_b);
 
     linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
-        this->d_var_b, delta_states.d_delta_mu, delta_states.d_delta_var,
-        this->input_size, this->output_size, batch_size, this->d_delta_mu_b,
-        this->d_delta_var_b);
+        this->d_var_b, cu_delta_states->d_delta_mu,
+        cu_delta_states->d_delta_var, this->input_size, this->output_size,
+        batch_size, this->d_delta_mu_b, this->d_delta_var_b);
 }

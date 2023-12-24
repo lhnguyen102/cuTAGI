@@ -21,6 +21,7 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
     this->output_size = op_size;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = this->output_size;
+    bwd_states = std::make_unique<BaseBackwardStates>();
 
     // Initalize weights and bias
     if (this->device.compare("cpu") == 0) {
@@ -29,6 +30,7 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
 
     // Allocate the update quantities for parameters
     if (this->training && this->device.compare("cpu") == 0) {
+        this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
     }
 }
@@ -546,7 +548,7 @@ void Linear::forward(BaseHiddenStates &input_states,
     // TODO: Group the following if statements
     // Save activation mean and jacobian from the previous layer for the
     // backward pass
-    if (this->bwd_states.mu_a.size() == 0 && this->training) {
+    if (this->bwd_states->mu_a.size() == 0 && this->training) {
         int act_size = input_states.actual_size * input_states.block_size;
         this->allocate_bwd_vector(act_size);
     }

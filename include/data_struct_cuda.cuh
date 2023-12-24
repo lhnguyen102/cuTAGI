@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 15, 2023
+// Updated:      December 20, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +25,7 @@ class HiddenStateCuda : public BaseHiddenStates {
     HiddenStateCuda();
     ~HiddenStateCuda();
 
-    std::string get_name() const override { return "cudaHidden"; };
+    std::string get_name() const override { return "HiddenStateCuda"; };
     void allocate_memory();
     void to_device();
     void to_host();
@@ -40,6 +40,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     DeltaStateCuda();
     ~DeltaStateCuda();
 
+    std::string get_name() const override { return "DeltaStateCuda"; };
     void allocate_memory();
     void to_device();
     void to_host();
@@ -54,6 +55,8 @@ class TempStateCuda : public BaseTempStates {
     TempStateCuda();
     ~TempStateCuda();
 
+    std::string get_name() const override { return "TempStateCuda"; };
+
     void allocate_memory();
     void to_device();
     void to_host();
@@ -61,12 +64,14 @@ class TempStateCuda : public BaseTempStates {
 
 class BackwardStateCuda : public BaseBackwardStates {
    public:
-    float *d_mu_a;
-    float *d_jcb;
+    float *d_mu_a = nullptr;
+    float *d_jcb = nullptr;
     int size = 0;
 
     BackwardStateCuda();
     ~BackwardStateCuda();
+
+    std::string get_name() const override { return "BackwardStateCuda"; };
 
     void allocate_memory();
     void to_device();

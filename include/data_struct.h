@@ -26,7 +26,7 @@ class BaseHiddenStates {
     BaseHiddenStates(size_t n, size_t m);
     BaseHiddenStates();
     ~BaseHiddenStates() = default;
-    virtual std::string get_name() const { return "BaseHidden"; };
+    virtual std::string get_name() const { return "BaseHiddenStates"; };
 };
 
 class BaseDeltaStates {
@@ -38,6 +38,7 @@ class BaseDeltaStates {
     BaseDeltaStates(size_t n, size_t m);
     BaseDeltaStates();
     ~BaseDeltaStates() = default;
+    virtual std::string get_name() const { return "BaseDeltaStates"; };
 };
 
 class BaseTempStates {
@@ -49,6 +50,7 @@ class BaseTempStates {
     BaseTempStates(size_t n, size_t m);
     BaseTempStates();
     ~BaseTempStates() = default;
+    virtual std::string get_name() const { return "BaseTempStates"; };
 };
 
 class BaseBackwardStates {
@@ -58,4 +60,5 @@ class BaseBackwardStates {
 
     BaseBackwardStates();
     ~BaseBackwardStates() = default;
+    virtual std::string get_name() const { return "BaseBackwardStates"; };
 };

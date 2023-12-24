@@ -27,6 +27,14 @@ class Relu : public BaseLayer {
     Relu();
     ~Relu();
 
+    // Delete copy constructor and copy assignment
+    Relu(const Relu &) = delete;
+    Relu &operator=(const Relu &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    Relu(Relu &&) = default;
+    Relu &operator=(Relu &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;

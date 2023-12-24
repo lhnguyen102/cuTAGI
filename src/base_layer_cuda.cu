@@ -104,7 +104,9 @@ __global__ void device_bias_update_with_limit(float const *delta_mu_b,
     }
 }
 
-BaseLayerCuda::BaseLayerCuda() {}
+BaseLayerCuda::BaseLayerCuda() {
+    this->bwd_states = std::make_unique<BackwardStateCuda>();
+}
 
 BaseLayerCuda::~BaseLayerCuda()
 /*
@@ -120,45 +122,27 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_delta_var_b);
 }
 
-void BaseLayerCuda::forward(HiddenStateCuda &input_states,
-                            HiddenStateCuda &output_states,
-                            TempStateCuda &temp_states)
-/*
- */
-{
-    if (this->device.compare("cuda") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+// void BaseLayerCuda::forward(BaseHiddenStates &input_states,
+//                             BaseHiddenStates &output_states,
+//                             BaseTempStates &temp_states)
+// /*
+//  */
+// {}
 
-void BaseLayerCuda::state_backward(BackwardStateCuda &next_bwd_states,
-                                   DeltaStateCuda &input_delta_states,
-                                   DeltaStateCuda &output_delta_states,
-                                   TempStateCuda &temp_states)
-/*
- */
-{
-    if (this->device.compare("cuda") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+// void BaseLayerCuda::state_backward(BaseBackwardStates &next_bwd_states,
+//                                    BaseDeltaStates &input_delta_states,
+//                                    BaseDeltaStates &output_delta_states,
+//                                    BaseTempStates &temp_states)
+// /*
+//  */
+// {}
 
-void BaseLayerCuda::param_backward(BackwardStateCuda &bwd_states,
-                                   DeltaStateCuda &delta_states,
-                                   TempStateCuda &temp_states)
-/*
- */
-{
-    if (this->device.compare("cuda") != 0) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Device mismatch");
-    }
-}
+// void BaseLayerCuda::param_backward(BaseBackwardStates &next_bwd_states,
+//                                    BaseDeltaStates &delta_states,
+//                                    BaseTempStates &temp_states)
+// /*
+//  */
+// {}
 
 void BaseLayerCuda::update_weights()
 /*
