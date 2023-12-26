@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 18, 2023
+// Updated:      December 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,6 +82,15 @@ class Sigmoid : public BaseLayer {
     Sigmoid();
     ~Sigmoid();
 
+    // Delete copy constructor and copy assignment
+    Sigmoid(const Sigmoid &) = delete;
+    Sigmoid &operator=(const Sigmoid &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Sigmoid(Sigmoid &&) = default;
+    Sigmoid &operator=(Sigmoid &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -129,6 +138,15 @@ class Tanh : public BaseLayer {
     Tanh();
     ~Tanh();
 
+    // Delete copy constructor and copy assignment
+    Tanh(const Tanh &) = delete;
+    Tanh &operator=(const Tanh &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Tanh(Tanh &&) = default;
+    Tanh &operator=(Tanh &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -174,6 +192,15 @@ class MixtureRelu : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureRelu();
     ~MixtureRelu();
+
+    // Delete copy constructor and copy assignment
+    MixtureRelu(const MixtureRelu &) = delete;
+    MixtureRelu &operator=(const MixtureRelu &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureRelu(MixtureRelu &&) = default;
+    MixtureRelu &operator=(MixtureRelu &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -221,6 +248,15 @@ class MixtureSigmoid : public BaseLayer {
     MixtureSigmoid();
     ~MixtureSigmoid();
 
+    // Delete copy constructor and copy assignment
+    MixtureSigmoid(const MixtureSigmoid &) = delete;
+    MixtureSigmoid &operator=(const MixtureSigmoid &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureSigmoid(MixtureSigmoid &&) = default;
+    MixtureSigmoid &operator=(MixtureSigmoid &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -265,6 +301,15 @@ class MixtureTanh : public BaseLayer {
     float omega_tol = 0.0000001f;
     MixtureTanh();
     ~MixtureTanh();
+
+    // Delete copy constructor and copy assignment
+    MixtureTanh(const MixtureTanh &) = delete;
+    MixtureTanh &operator=(const MixtureTanh &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureTanh(MixtureTanh &&) = default;
+    MixtureTanh &operator=(MixtureTanh &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -311,6 +356,15 @@ class Softplus : public BaseLayer {
    public:
     Softplus();
     ~Softplus();
+
+    // Delete copy constructor and copy assignment
+    Softplus(const Softplus &) = delete;
+    Softplus &operator=(const Softplus &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Softplus(Softplus &&) = default;
+    Softplus &operator=(Softplus &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -360,6 +414,15 @@ class LeakyRelu : public BaseLayer {
     LeakyRelu();
     ~LeakyRelu();
 
+    // Delete copy constructor and copy assignment
+    LeakyRelu(const LeakyRelu &) = delete;
+    LeakyRelu &operator=(const LeakyRelu &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    LeakyRelu(LeakyRelu &&) = default;
+    LeakyRelu &operator=(LeakyRelu &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -408,6 +471,15 @@ class Softmax : public BaseLayer {
     float alpha = 0.1f;
     Softmax();
     ~Softmax();
+
+    // Delete copy constructor and copy assignment
+    Softmax(const Softmax &) = delete;
+    Softmax &operator=(const Softmax &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Softmax(Softmax &&) = default;
+    Softmax &operator=(Softmax &&) = default;
 
     std::string get_layer_info() const override;
 

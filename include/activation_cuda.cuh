@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 04, 2023
+// Updated:      December 24, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +61,15 @@ class ReluCuda : public BaseLayerCuda {
     ReluCuda();
     ~ReluCuda();
 
+    // Delete copy constructor and copy assignment
+    ReluCuda(const ReluCuda &) = delete;
+    ReluCuda &operator=(const ReluCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    ReluCuda(ReluCuda &&) = default;
+    ReluCuda &operator=(ReluCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -85,6 +94,15 @@ class SigmoidCuda : public BaseLayerCuda {
     SigmoidCuda();
     ~SigmoidCuda();
 
+    // Delete copy constructor and copy assignment
+    SigmoidCuda(const SigmoidCuda &) = delete;
+    SigmoidCuda &operator=(const SigmoidCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    SigmoidCuda(SigmoidCuda &&) = default;
+    SigmoidCuda &operator=(SigmoidCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -107,7 +125,17 @@ class SigmoidCuda : public BaseLayerCuda {
 class TanhCuda : public BaseLayerCuda {
    public:
     TanhCuda();
+
     ~TanhCuda();
+
+    // Delete copy constructor and copy assignment
+    TanhCuda(const TanhCuda &) = delete;
+    TanhCuda &operator=(const TanhCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    TanhCuda(TanhCuda &&) = default;
+    TanhCuda &operator=(TanhCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -134,6 +162,15 @@ class MixtureReluCuda : public BaseLayerCuda {
     MixtureReluCuda();
     ~MixtureReluCuda();
 
+    // Delete copy constructor and copy assignment
+    MixtureReluCuda(const MixtureReluCuda &) = delete;
+    MixtureReluCuda &operator=(const MixtureReluCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureReluCuda(MixtureReluCuda &&) = default;
+    MixtureReluCuda &operator=(MixtureReluCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -158,6 +195,15 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
     float omega_tol = 0.0000001f;
     MixtureSigmoidCuda();
     ~MixtureSigmoidCuda();
+
+    // Delete copy constructor and copy assignment
+    MixtureSigmoidCuda(const MixtureSigmoidCuda &) = delete;
+    MixtureSigmoidCuda &operator=(const MixtureSigmoidCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureSigmoidCuda(MixtureSigmoidCuda &&) = default;
+    MixtureSigmoidCuda &operator=(MixtureSigmoidCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -184,6 +230,15 @@ class MixtureTanhCuda : public BaseLayerCuda {
     MixtureTanhCuda();
     ~MixtureTanhCuda();
 
+    // Delete copy constructor and copy assignment
+    MixtureTanhCuda(const MixtureTanhCuda &) = delete;
+    MixtureTanhCuda &operator=(const MixtureTanhCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    MixtureTanhCuda(MixtureTanhCuda &&) = default;
+    MixtureTanhCuda &operator=(MixtureTanhCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -207,6 +262,15 @@ class SoftplusCuda : public BaseLayerCuda {
    public:
     SoftplusCuda();
     ~SoftplusCuda();
+
+    // Delete copy constructor and copy assignment
+    SoftplusCuda(const SoftplusCuda &) = delete;
+    SoftplusCuda &operator=(const SoftplusCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    SoftplusCuda(SoftplusCuda &&) = default;
+    SoftplusCuda &operator=(SoftplusCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -233,6 +297,15 @@ class LeakyReluCuda : public BaseLayerCuda {
     LeakyReluCuda();
     ~LeakyReluCuda();
 
+    // Delete copy constructor and copy assignment
+    LeakyReluCuda(const LeakyReluCuda &) = delete;
+    LeakyReluCuda &operator=(const LeakyReluCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    LeakyReluCuda(LeakyReluCuda &&) = default;
+    LeakyReluCuda &operator=(LeakyReluCuda &&) = default;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -256,6 +329,15 @@ class SoftmaxCuda : public BaseLayerCuda {
    public:
     SoftmaxCuda();
     ~SoftmaxCuda();
+
+    // Delete copy constructor and copy assignment
+    SoftmaxCuda(const SoftmaxCuda &) = delete;
+    SoftmaxCuda &operator=(const SoftmaxCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    SoftmaxCuda(SoftmaxCuda &&) = default;
+    SoftmaxCuda &operator=(SoftmaxCuda &&) = default;
 
     std::string get_layer_info() const override;
 

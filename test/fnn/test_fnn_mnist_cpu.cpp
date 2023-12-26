@@ -50,7 +50,7 @@ void fnn_mnist() {
     Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
                      Linear(100, 11));
     // model.set_threads(4);
-    // model.to_device("cuda");
+    model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
     // Training

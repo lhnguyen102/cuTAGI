@@ -75,7 +75,8 @@ class LinearCuda : public BaseLayerCuda {
     LinearCuda(const LinearCuda &) = delete;
     LinearCuda &operator=(const LinearCuda &) = delete;
 
-    // Optionally implement move constructor and move assignment
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
     LinearCuda(LinearCuda &&) = default;
     LinearCuda &operator=(LinearCuda &&) = default;
 
@@ -86,8 +87,6 @@ class LinearCuda : public BaseLayerCuda {
     LayerType get_layer_type() const override;
 
     void init_weight_bias();
-
-    void allocate_param_delta();
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -101,4 +100,9 @@ class LinearCuda : public BaseLayerCuda {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+   protected:
+    void allocate_param_delta();
+    using BaseLayerCuda::allocate_param_memory;
+    using BaseLayerCuda::params_to_device;
 };

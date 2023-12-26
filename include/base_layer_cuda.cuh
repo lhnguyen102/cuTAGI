@@ -27,14 +27,14 @@ __global__ void fill_output_states_on_device(float const *mu_z,
 
 class BaseLayerCuda : public BaseLayer {
    public:
-    float *d_mu_w;
-    float *d_var_w;
-    float *d_mu_b;
-    float *d_var_b;
-    float *d_delta_mu_w;
-    float *d_delta_var_w;
-    float *d_delta_mu_b;
-    float *d_delta_var_b;
+    float *d_mu_w = nullptr;
+    float *d_var_w = nullptr;
+    float *d_mu_b = nullptr;
+    float *d_var_b = nullptr;
+    float *d_delta_mu_w = nullptr;
+    float *d_delta_var_w = nullptr;
+    float *d_delta_mu_b = nullptr;
+    float *d_delta_var_b = nullptr;
     unsigned int num_cuda_threads = 16;
 
     BaseLayerCuda();
@@ -56,4 +56,8 @@ class BaseLayerCuda : public BaseLayer {
     void update_weights() override;
 
     void update_biases() override;
+
+   protected:
+    virtual void allocate_param_memory();
+    virtual void params_to_device();
 };

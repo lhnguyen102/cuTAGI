@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 21, 2023
+// Updated:      December 25, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,18 +184,18 @@ __global__ void linear_bwd_delta_b(float const *var_b,
     float sum_mu = 0.0f;
     float sum_var = 0.0f;
 
-    if (col < output_size && row < input_size) {
+    if (col < 1 && row < output_size) {
         for (int i = 0; i < batch_size; i++) {
-            sum_mu += delta_mu_out[input_size * i + row];
-            sum_var += delta_var_out[input_size * i + row];
+            sum_mu += delta_mu_out[output_size * i + row];
+            sum_var += delta_var_out[output_size * i + row];
         }
 
-        delta_mu_b[col * input_size + row] =
-            sum_mu * var_b[col * input_size + row];
+        delta_mu_b[col * output_size + row] =
+            sum_mu * var_b[col * output_size + row];
 
-        delta_var_b[col * input_size + row] = sum_var *
-                                              var_b[col * input_size + row] *
-                                              var_b[col * input_size + row];
+        delta_var_b[col * output_size + row] = sum_var *
+                                               var_b[col * output_size + row] *
+                                               var_b[col * output_size + row];
     }
 }
 
@@ -217,8 +217,12 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
     this->num_biases = this->output_size;
 
     // Initalize weights and bias
+    this->allocate_param_memory();
     this->init_weight_bias();
-    this->bwd_states = std::make_unique<BackwardStateCuda>();
+    if (this->training) {
+        this->bwd_states = std::make_unique<BackwardStateCuda>();
+        this->allocate_param_delta();
+    }
 }
 
 LinearCuda::~LinearCuda() {}
@@ -252,18 +256,18 @@ void LinearCuda::init_weight_bias()
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
                                 this->input_size, this->output_size);
+
+    this->params_to_device();
 }
 
 void LinearCuda::allocate_param_delta()
 /*
  */
 {
-    cudaMalloc(&this->d_delta_mu_w,
-               this->input_size * this->output_size * sizeof(float));
-    cudaMalloc(&this->d_delta_var_w,
-               this->input_size * this->output_size * sizeof(float));
-    cudaMalloc(&this->d_delta_mu_b, this->output_size * sizeof(float));
-    cudaMalloc(&this->d_delta_var_b, this->output_size * sizeof(float));
+    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
+    cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
 }
 
 void LinearCuda::forward(BaseHiddenStates &input_states,
@@ -281,7 +285,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     // *>(&temp_states);
 
     // Get batch size
-    std::cout << "Linear CUDA is activated" << std::endl;
     cu_input_states->to_device();
 
     int batch_size = input_states.block_size;

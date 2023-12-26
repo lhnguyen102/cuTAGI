@@ -52,7 +52,6 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
 
     cu_input_states->to_device();
 
-    std::cout << "Activation CUDA is activated" << std::endl;
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
@@ -590,10 +589,18 @@ __global__ void relu_mean_var(float const *mu_z, float const *var_z,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float one_pad = 1.0f;
+    float zero_pad = 0;
+    float tmp = 0;
     if (col < num_states) {
-        mu_a[col] = mu_z[col];
-        jcb[col] = one_pad;
-        var_a[col] = var_z[col];
+        tmp = max(mu_z[col], zero_pad);
+        mu_a[col] = tmp;
+        if (tmp == 0) {
+            jcb[col] = zero_pad;
+            var_a[col] = zero_pad;
+        } else {
+            jcb[col] = one_pad;
+            var_a[col] = var_z[col];
+        }
     }
 }
 

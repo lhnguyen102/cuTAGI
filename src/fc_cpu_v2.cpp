@@ -637,7 +637,6 @@ Args:
 }
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Linear::to_cuda() {
-    std::cout << "CUDA is activated" << std::endl;
     return std::make_unique<LinearCuda>(this->input_size, this->output_size,
                                         this->gain_w, this->gain_b,
                                         this->init_method);

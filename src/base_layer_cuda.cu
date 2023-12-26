@@ -166,6 +166,45 @@ void BaseLayerCuda::update_biases()
                           this->num_cuda_threads;
 
     device_bias_update<<<blocks, this->num_cuda_threads>>>(
-        this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_w,
-        this->d_var_w);
+        this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_b,
+        this->d_var_b);
+}
+
+void BaseLayerCuda::allocate_param_memory()
+/*
+ */
+{
+    cudaMalloc(&this->d_mu_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_var_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_mu_b, this->num_biases * sizeof(float));
+    cudaMalloc(&this->d_var_b, this->num_biases * sizeof(float));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
+}
+
+void BaseLayerCuda::params_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_mu_w, this->mu_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_w, this->var_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_b, this->mu_b.data(),
+               this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_b, this->var_b.data(),
+               this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying host to device.");
+    }
 }

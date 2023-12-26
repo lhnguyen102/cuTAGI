@@ -15,11 +15,11 @@
 
 class HiddenStateCuda : public BaseHiddenStates {
    public:
-    float *d_mu_z;
-    float *d_var_z;
-    float *d_mu_a;
-    float *d_var_a;
-    float *d_jcb;
+    float *d_mu_z = nullptr;
+    float *d_var_z = nullptr;
+    float *d_mu_a = nullptr;
+    float *d_var_a = nullptr;
+    float *d_jcb = nullptr;
 
     HiddenStateCuda(size_t size, size_t block_size);
     HiddenStateCuda();
@@ -33,8 +33,8 @@ class HiddenStateCuda : public BaseHiddenStates {
 
 class DeltaStateCuda : public BaseDeltaStates {
    public:
-    float *d_delta_mu;
-    float *d_delta_var;
+    float *d_delta_mu = nullptr;
+    float *d_delta_var = nullptr;
 
     DeltaStateCuda(size_t size, size_t block_size);
     DeltaStateCuda();
@@ -48,8 +48,8 @@ class DeltaStateCuda : public BaseDeltaStates {
 
 class TempStateCuda : public BaseTempStates {
    public:
-    float *d_tmp_1;
-    float *d_tmp_2;
+    float *d_tmp_1 = nullptr;
+    float *d_tmp_2 = nullptr;
 
     TempStateCuda(size_t size, size_t block_size);
     TempStateCuda();
