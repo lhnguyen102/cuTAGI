@@ -53,13 +53,18 @@ void fnn_mnist() {
     model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
+    // Output Updater
+    //////////////////////////////////////////////////////////////////////
+    OutputUpdater output_updater(model.device);
+
+    //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
     unsigned seed =
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 50;
-    int batch_size = 20;
+    int n_epochs = 1;
+    int batch_size = 256;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -97,10 +102,10 @@ void fnn_mnist() {
             model.forward(x_batch);
 
             // Output layer
-            update_selected_output_delta_z(
-                *model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-                model.input_delta_z_buffer->delta_mu,
-                model.input_delta_z_buffer->delta_var);
+            // update_selected_output_delta_z(
+            //     *model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            //     model.input_delta_z_buffer->delta_mu,
+            //     model.input_delta_z_buffer->delta_var);
 
             // Backward pass
             model.backward();

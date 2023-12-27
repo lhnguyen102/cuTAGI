@@ -142,6 +142,7 @@ set(CPU_SOURCES
   src/base_layer.cpp
   src/data_struct.cpp
   src/param_init.cpp
+  src/base_output_updater.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -179,6 +180,7 @@ set(GPU_SOURCES
   src/fc_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
+  src/output_updater_cuda.cu
 
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu

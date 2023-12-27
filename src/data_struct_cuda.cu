@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 15, 2023
+// Updated:      December 27, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,6 +156,11 @@ void DeltaStateCuda::to_host()
                this->delta_var.size() * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
+void DeltaStateCuda::reset_zeros() {
+    cudaMemset(d_delta_mu, 0, sizeof(float) * size);
+    cudaMemset(d_delta_var, 0, sizeof(float) * size);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////
@@ -244,4 +249,60 @@ void BackwardStateCuda::to_host()
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->jcb.data(), this->d_jcb, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Observation
+////////////////////////////////////////////////////////////////////////////////
+
+ObservationCuda::ObservationCuda() {}
+ObservationCuda::~ObservationCuda() {
+    cudaFree(d_mu_obs);
+    cudaFree(d_var_obs);
+    cudaFree(d_selected_idx);
+}
+
+void ObservationCuda::allocate_memory() {
+    cudaMalloc(&this->d_mu_obs, this->size * sizeof(float));
+    cudaMalloc(&this->d_var_obs, this->size * sizeof(float));
+    cudaMalloc(&this->d_selected_idx, this->idx_size * sizeof(int));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
+}
+
+void ObservationCuda::to_device() {
+    cudaMemcpy(this->d_mu_obs, this->mu_obs.data(), this->size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_obs, this->var_obs.data(),
+               this->size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_selected_idx, this->selected_idx.data(),
+               this->size * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying host to device.");
+    }
+}
+
+void ObservationCuda::to_host() {
+    cudaMemcpy(this->mu_obs.data(), this->d_mu_obs, this->size * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_obs.data(), this->d_var_obs,
+               this->size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->selected_idx.data(), this->d_selected_idx,
+               this->size * sizeof(int), cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying device to host.");
+    }
 }

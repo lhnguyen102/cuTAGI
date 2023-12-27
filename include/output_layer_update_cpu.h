@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "base_output_updater.h"
 #include "data_struct.h"
 #include "struct_var.h"
 

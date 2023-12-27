@@ -28,14 +28,12 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
             mu_a_tmp = mu_a[input_size * col + i];
             var_a_tmp = var_a[input_size * col + i];
 
-            if (mu_a_tmp != 0) {
-                sum_mu += mu_w[row * input_size + i] * mu_a_tmp;
-                sum_var +=
-                    (mu_w[row * input_size + i] * mu_w[row * input_size + i] +
-                     var_w[row * input_size + i]) *
-                        var_a_tmp +
-                    var_w[row * input_size + i] * mu_a_tmp * mu_a_tmp;
-            }
+            sum_mu += mu_w[row * input_size + i] * mu_a_tmp;
+            sum_var +=
+                (mu_w[row * input_size + i] * mu_w[row * input_size + i] +
+                 var_w[row * input_size + i]) *
+                    var_a_tmp +
+                var_w[row * input_size + i] * mu_a_tmp * mu_a_tmp;
         }
         mu_z[col * output_size + row] = sum_mu + mu_b[row];
         var_z[col * output_size + row] = sum_var + var_b[row];

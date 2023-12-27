@@ -57,8 +57,27 @@ class BaseBackwardStates {
    public:
     std::vector<float> mu_a;
     std::vector<float> jcb;
+    int size = 0;
 
+    BaseBackwardStates(int num);
     BaseBackwardStates();
     ~BaseBackwardStates() = default;
     virtual std::string get_name() const { return "BaseBackwardStates"; };
+};
+
+class BaseObservation {
+   public:
+    std::vector<float> mu_obs;
+    std::vector<float> var_obs;
+    std::vector<int> selected_idx;
+    int size = 0, block_size = 1, actual_size = 0;
+    int idx_size = 0;
+
+    BaseObservation(size_t n, size_t m, size_t k);
+    BaseObservation();
+    ~BaseObservation() = default;
+
+    virtual std::string get_name() const { return "BaseObservation"; };
+
+    void set_obs(std::vector<float> &mu_obs, std::vector<float> &var_obs);
 };

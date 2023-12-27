@@ -44,6 +44,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void allocate_memory();
     void to_device();
     void to_host();
+    void reset_zeros();
 };
 
 class TempStateCuda : public BaseTempStates {
@@ -66,12 +67,27 @@ class BackwardStateCuda : public BaseBackwardStates {
    public:
     float *d_mu_a = nullptr;
     float *d_jcb = nullptr;
-    int size = 0;
 
     BackwardStateCuda();
     ~BackwardStateCuda();
 
     std::string get_name() const override { return "BackwardStateCuda"; };
+
+    void allocate_memory();
+    void to_device();
+    void to_host();
+};
+
+class ObservationCuda : public BaseObservation {
+   public:
+    float *d_mu_obs = nullptr;
+    float *d_var_obs = nullptr;
+    int *d_selected_idx = nullptr;
+
+    ObservationCuda();
+    ~ObservationCuda();
+
+    std::string get_name() const override { return "ObservationCuda"; };
 
     void allocate_memory();
     void to_device();
