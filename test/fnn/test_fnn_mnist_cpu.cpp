@@ -52,10 +52,16 @@ void fnn_mnist() {
     // model.set_threads(4);
     model.to_device("cuda");
 
+    // CPU Model
+    Sequential cpu_model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
+                         Linear(100, 11));
+    cpu_model.params_from(model);
+
     //////////////////////////////////////////////////////////////////////
     // Output Updater
     //////////////////////////////////////////////////////////////////////
     OutputUpdater output_updater(model.device);
+    OutputUpdater cpu_output_updater(cpu_model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -64,7 +70,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 256;
+    int batch_size = 20;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -99,19 +105,30 @@ void fnn_mnist() {
                                     y_batch, idx_ud_batch, label_batch);
 
             // Forward pass
+            // cpu_model.params_from(model);
             model.forward(x_batch);
+            // cpu_model.forward(x_batch);
+            // model.output_to_host();
 
             // Output layer
-            // update_selected_output_delta_z(
-            //     *model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            //     model.input_delta_z_buffer->delta_mu,
-            //     model.input_delta_z_buffer->delta_var);
+            output_updater.update_using_indices(*model.output_z_buffer, y_batch,
+                                                var_obs, idx_ud_batch,
+                                                *model.input_delta_z_buffer);
+            // cpu_output_updater.update_using_indices(
+            //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            //     *cpu_model.input_delta_z_buffer);
 
             // Backward pass
             model.backward();
             model.step();
 
+            // cpu_model.backward();
+            // cpu_model.step();
+
             // Extract output
+            model.output_to_host();
+            // model.delta_z_to_host();
+
             for (int j = 0; j < batch_size * n_y; j++) {
                 mu_a_output[j] = model.output_z_buffer->mu_a[j];
                 var_a_output[j] = model.output_z_buffer->var_a[j];

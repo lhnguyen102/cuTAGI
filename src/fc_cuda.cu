@@ -3,10 +3,11 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 25, 2023
+// Updated:      December 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
+#include "../include/fc_cpu_v2.h"
 #include "../include/fc_cuda.cuh"
 
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
@@ -282,8 +283,8 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    // Get batch size
-    cu_input_states->to_device();
+    // // Get batch size
+    // cu_input_states->to_device();
 
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
@@ -300,6 +301,11 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
         this->output_size, input_states.block_size, cu_output_states->d_mu_z,
         cu_output_states->d_var_z);
+
+    // Update number of actual states.
+    output_states.size = this->output_size * batch_size;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
 
     // Lazy initialization
     BackwardStateCuda *cu_bwd_states =
@@ -326,11 +332,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
             cu_output_states->d_mu_a, cu_output_states->d_jcb,
             cu_output_states->d_var_a);
     }
-
-    // Update number of actual states.
-    output_states.size = this->output_size * batch_size;
-    output_states.block_size = batch_size;
-    output_states.actual_size = this->output_size;
 }
 
 void LinearCuda::state_backward(BaseBackwardStates &next_bwd_states,
@@ -406,4 +407,19 @@ void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
         this->d_var_b, cu_delta_states->d_delta_mu,
         cu_delta_states->d_delta_var, this->input_size, this->output_size,
         batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+}
+
+std::unique_ptr<BaseLayer> LinearCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_linear =
+        std::make_unique<Linear>(this->input_size, this->output_size,
+                                 this->gain_w, this->gain_b, this->init_method);
+    host_linear->mu_w = this->mu_w;
+    host_linear->var_w = this->var_w;
+    host_linear->mu_b = this->mu_b;
+    host_linear->var_b = this->var_b;
+
+    return host_linear;
 }

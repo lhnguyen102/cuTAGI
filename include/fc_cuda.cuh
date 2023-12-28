@@ -101,6 +101,8 @@ class LinearCuda : public BaseLayerCuda {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    std::unique_ptr<BaseLayer> to_host() override;
+
    protected:
     void allocate_param_delta();
     using BaseLayerCuda::allocate_param_memory;

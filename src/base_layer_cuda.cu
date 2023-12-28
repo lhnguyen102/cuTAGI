@@ -155,6 +155,8 @@ void BaseLayerCuda::update_weights()
     device_weight_update<<<blocks, this->num_cuda_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->num_weights,
         this->d_mu_w, this->d_var_w);
+
+    this->params_to_host();
 }
 
 void BaseLayerCuda::update_biases()
@@ -168,6 +170,8 @@ void BaseLayerCuda::update_biases()
     device_bias_update<<<blocks, this->num_cuda_threads>>>(
         this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_b,
         this->d_var_b);
+
+    this->params_to_host();
 }
 
 void BaseLayerCuda::allocate_param_memory()
@@ -205,6 +209,34 @@ void BaseLayerCuda::params_to_device()
         fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
-                                    ". Copying host to device.");
+                                    ". Params host to device.");
     }
+}
+
+void BaseLayerCuda::params_to_host()
+/*
+ */
+{
+    cudaMemcpy(this->mu_w.data(), this->d_mu_w,
+               this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_w.data(), this->d_var_w,
+               this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_b.data(), this->d_mu_b,
+               this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_b.data(), this->d_var_b,
+               this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Params device to host.");
+    }
+}
+
+std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
+    throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                             " at line: " + std::to_string(__LINE__) +
+                             ". ErrorNotImplemented");
 }

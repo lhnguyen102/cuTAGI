@@ -72,16 +72,19 @@ class BaseOutputUpdater {
 class OutputUpdater {
    public:
     std::unique_ptr<BaseOutputUpdater> updater;
+    std::unique_ptr<BaseObservation> obs;
     std::string device = "cpu";
 
     OutputUpdater(const std::string &model_device);
 
     ~OutputUpdater() = default;
 
-    void update(BaseHiddenStates &output_states, BaseObservation &obs,
-                BaseDeltaStates &delta_states);
+    void update(BaseHiddenStates &output_states, std::vector<float> &mu_obs,
+                std::vector<float> &var_obs, BaseDeltaStates &delta_states);
 
     void update_using_indices(BaseHiddenStates &output_states,
-                              BaseObservation &obs,
+                              std::vector<float> &mu_obs,
+                              std::vector<float> &var_obs,
+                              std::vector<int> &selected_idx,
                               BaseDeltaStates &delta_states);
 };

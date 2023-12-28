@@ -73,6 +73,10 @@ class Sequential {
 
     void step();
 
+    // DEBUG
+    void output_to_host();
+    void delta_z_to_host();
+
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
 
@@ -84,6 +88,9 @@ class Sequential {
     void save_csv(const std::string& filename);
 
     void load_csv(const std::string& filename);
+
+    // Copy model params
+    void params_from(const Sequential& ref_model);
 
    private:
     std::vector<std::unique_ptr<BaseLayer>> layers;

@@ -57,7 +57,10 @@ class BaseLayerCuda : public BaseLayer {
 
     void update_biases() override;
 
+    virtual std::unique_ptr<BaseLayer> to_host();
+
    protected:
     virtual void allocate_param_memory();
     virtual void params_to_device();
+    virtual void params_to_host();
 };

@@ -3,11 +3,12 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 22, 2023
+// Updated:      December 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/activation_cuda.cuh"
+#include "../include/activation_layer_cpu.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -50,7 +51,7 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    cu_input_states->to_device();
+    // cu_input_states->to_device();
 
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
@@ -70,6 +71,17 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> ReluCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Relu>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +147,17 @@ void SigmoidCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
+std::unique_ptr<BaseLayer> SigmoidCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Sigmoid>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Tanh
 ////////////////////////////////////////////////////////////////////////////////
@@ -196,6 +219,17 @@ void TanhCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> TanhCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Tanh>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,6 +295,17 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
+std::unique_ptr<BaseLayer> MixtureReluCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<MixtureRelu>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Sigmoid
 ////////////////////////////////////////////////////////////////////////////////
@@ -322,6 +367,17 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> MixtureSigmoidCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<MixtureSigmoid>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -387,6 +443,17 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
+std::unique_ptr<BaseLayer> MixtureTanhCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<MixtureTanh>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
 ////////////////////////////////////////////////////////////////////////////////
@@ -448,6 +515,17 @@ void SoftplusCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> SoftplusCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Softplus>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -513,6 +591,17 @@ void LeakyReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
+std::unique_ptr<BaseLayer> LeakyReluCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<LeakyRelu>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Softmax
 ////////////////////////////////////////////////////////////////////////////////
@@ -575,6 +664,17 @@ void SoftmaxCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> SoftmaxCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Softmax>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

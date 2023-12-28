@@ -35,6 +35,26 @@ Free GPU memory using cudaFree
     cudaFree(this->d_jcb);
 }
 
+void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
+                                  const std::vector<float> &var_x)
+/*
+ */
+{
+    int data_size = mu_x.size();
+    for (int i = 0; i < data_size; i++) {
+        this->mu_z[i] = mu_x[i];
+        this->mu_a[i] = mu_x[i];
+    }
+    if (var_x.size() == data_size) {
+        for (int i = 0; i < data_size; i++) {
+            this->var_z[i] = var_x[i];
+            this->var_a[i] = var_x[i];
+        }
+    }
+
+    this->to_device();
+}
+
 void HiddenStateCuda::allocate_memory() {
     // Allocate memory on the GPU using cudaMalloc
     cudaMalloc(&this->d_mu_z, size * sizeof(float));
@@ -151,9 +171,9 @@ void DeltaStateCuda::to_host()
  */
 {
     cudaMemcpy(this->delta_mu.data(), this->d_delta_mu,
-               this->delta_mu.size() * sizeof(float), cudaMemcpyDeviceToHost);
+               this->size * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->delta_var.data(), this->d_delta_var,
-               this->delta_var.size() * sizeof(float), cudaMemcpyDeviceToHost);
+               this->size * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 void DeltaStateCuda::reset_zeros() {
@@ -265,7 +285,10 @@ ObservationCuda::~ObservationCuda() {
 void ObservationCuda::allocate_memory() {
     cudaMalloc(&this->d_mu_obs, this->size * sizeof(float));
     cudaMalloc(&this->d_var_obs, this->size * sizeof(float));
-    cudaMalloc(&this->d_selected_idx, this->idx_size * sizeof(int));
+
+    if (this->idx_size != 0) {
+        cudaMalloc(&this->d_selected_idx, this->idx_size * sizeof(int));
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -280,8 +303,10 @@ void ObservationCuda::to_device() {
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_obs, this->var_obs.data(),
                this->size * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_selected_idx, this->selected_idx.data(),
-               this->size * sizeof(int), cudaMemcpyHostToDevice);
+    if (this->idx_size != 0) {
+        cudaMemcpy(this->d_selected_idx, this->selected_idx.data(),
+                   this->size * sizeof(int), cudaMemcpyHostToDevice);
+    }
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {

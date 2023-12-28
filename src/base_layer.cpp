@@ -56,6 +56,7 @@ void BaseLayer::fill_output_states(BaseHiddenStates &output_states)
         output_states.var_a[j] = output_states.var_z[j];
         output_states.jcb[j] = 1.0f;
     }
+    int check = 0;
 }
 
 void BaseLayer::fill_bwd_vector(BaseHiddenStates &input_states)

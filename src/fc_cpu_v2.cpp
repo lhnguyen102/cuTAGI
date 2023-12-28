@@ -8,6 +8,9 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/fc_cpu_v2.h"
+#ifdef USE_CUDA
+#include "fc_cuda.cuh"
+#endif
 
 Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
                float gain_bias, std::string method)
@@ -112,7 +115,7 @@ Args:
             sum_mu_z += mu_w[row * n + j] * mu_a_tmp;
             sum_var_z +=
                 (mu_w[row * n + j] * mu_w[row * n + j] + var_w[row * n + j]) *
-                    mu_a_tmp +
+                    var_a_tmp +
                 var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
         }
         mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
@@ -545,6 +548,11 @@ void Linear::forward(BaseHiddenStates &input_states,
                            end_chunk, this->input_size, this->output_size,
                            batch_size, output_states.mu_z, output_states.var_z);
     }
+    // Update number of actual states.
+    output_states.size = this->output_size * batch_size;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
     // TODO: Group the following if statements
     // Save activation mean and jacobian from the previous layer for the
     // backward pass
@@ -561,11 +569,6 @@ void Linear::forward(BaseHiddenStates &input_states,
         // TODO: consider to have only mu_a and var_a in struct HiddenStates
         this->fill_output_states(output_states);
     }
-
-    // Update number of actual states.
-    output_states.size = this->output_size * batch_size;
-    output_states.block_size = batch_size;
-    output_states.actual_size = this->output_size;
 }
 
 void Linear::state_backward(BaseBackwardStates &next_bwd_states,

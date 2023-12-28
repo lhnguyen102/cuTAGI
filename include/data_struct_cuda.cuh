@@ -25,6 +25,9 @@ class HiddenStateCuda : public BaseHiddenStates {
     HiddenStateCuda();
     ~HiddenStateCuda();
 
+    void set_input_x(const std::vector<float> &mu_x,
+                     const std::vector<float> &var_x) override;
+
     std::string get_name() const override { return "HiddenStateCuda"; };
     void allocate_memory();
     void to_device();

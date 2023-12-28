@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 24, 2023
+// Updated:      December 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +87,8 @@ class ReluCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class SigmoidCuda : public BaseLayerCuda {
@@ -120,6 +122,8 @@ class SigmoidCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class TanhCuda : public BaseLayerCuda {
@@ -154,6 +158,8 @@ class TanhCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class MixtureReluCuda : public BaseLayerCuda {
@@ -188,6 +194,8 @@ class MixtureReluCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class MixtureSigmoidCuda : public BaseLayerCuda {
@@ -222,6 +230,8 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class MixtureTanhCuda : public BaseLayerCuda {
@@ -256,6 +266,8 @@ class MixtureTanhCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class SoftplusCuda : public BaseLayerCuda {
@@ -289,6 +301,8 @@ class SoftplusCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class LeakyReluCuda : public BaseLayerCuda {
@@ -323,6 +337,8 @@ class LeakyReluCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };
 
 class SoftmaxCuda : public BaseLayerCuda {
@@ -356,4 +372,6 @@ class SoftmaxCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override{};
 
     void load(std::ifstream &file) override{};
+
+    std::unique_ptr<BaseLayer> to_host() override;
 };

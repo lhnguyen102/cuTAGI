@@ -182,27 +182,48 @@ OutputUpdater::OutputUpdater(const std::string &model_device) {
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {
         this->updater = std::make_unique<OutputUpdaterCuda>();
+        this->obs = std::make_unique<ObservationCuda>();
     } else
 #endif
     {
         this->updater = std::make_unique<BaseOutputUpdater>();
+        this->obs = std::make_unique<BaseObservation>();
     }
 }
 
 void OutputUpdater::update(BaseHiddenStates &output_states,
-                           BaseObservation &obs, BaseDeltaStates &delta_states)
+                           std::vector<float> &mu_obs,
+                           std::vector<float> &var_obs,
+                           BaseDeltaStates &delta_states)
 /*
  */
 {
-    this->updater->update_output_delta_z(output_states, obs, delta_states);
+    this->obs->set_obs(mu_obs, var_obs);
+    this->obs->block_size = output_states.block_size;
+    this->obs->size = mu_obs.size();
+    this->obs->actual_size = mu_obs.size() / output_states.block_size;
+
+    this->updater->update_output_delta_z(output_states, *this->obs,
+                                         delta_states);
 }
 
 void OutputUpdater::update_using_indices(BaseHiddenStates &output_states,
-                                         BaseObservation &obs,
+                                         std::vector<float> &mu_obs,
+                                         std::vector<float> &var_obs,
+                                         std::vector<int> &selected_idx,
                                          BaseDeltaStates &delta_states)
 /*
  */
 {
-    this->updater->update_selected_output_delta_z(output_states, obs,
+    this->obs->set_obs(mu_obs, var_obs);
+    this->obs->set_selected_idx(selected_idx);
+    if (this->obs->size != mu_obs.size()) {
+        this->obs->block_size = output_states.block_size;
+        this->obs->size = mu_obs.size();
+        this->obs->actual_size = mu_obs.size() / output_states.block_size;
+        this->obs->idx_size = selected_idx.size();
+    }
+
+    this->updater->update_selected_output_delta_z(output_states, *this->obs,
                                                   delta_states);
 }

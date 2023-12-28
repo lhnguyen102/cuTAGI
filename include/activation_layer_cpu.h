@@ -15,9 +15,6 @@
 #include "base_layer.h"
 #include "common.h"
 #include "data_struct.h"
-#ifdef USE_CUDA
-#include "activation_cuda.cuh"
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu

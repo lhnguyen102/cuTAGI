@@ -134,6 +134,11 @@ void Sequential::to_z_buffer(const std::vector<float> &mu_x,
     hidden_states.size = data_size;
     hidden_states.block_size = data_size / this->layers.front()->input_size;
     hidden_states.actual_size = this->layers.front()->input_size;
+
+    // int data_size = mu_x.size();
+    // hidden_states.set_input_x(mu_x, var_x);
+    // hidden_states.block_size = data_size / this->layers.front()->input_size;
+    // hidden_states.actual_size = this->layers.front()->input_size;
 }
 
 void Sequential::forward(const std::vector<float> &mu_x,
@@ -156,6 +161,12 @@ void Sequential::forward(const std::vector<float> &mu_x,
 
     // Merge input data to the input buffer
     this->to_z_buffer(mu_x, var_x, *this->input_z_buffer);
+
+    if (this->device.compare("cuda") == 0) {
+        HiddenStateCuda *in_s =
+            dynamic_cast<HiddenStateCuda *>(this->input_z_buffer.get());
+        in_s->to_device();
+    }
 
     // Forward pass for all layers
     for (auto &layer : this->layers) {
@@ -221,6 +232,30 @@ void Sequential::step()
         layer->update_weights();
         layer->update_biases();
     }
+}
+
+void Sequential::output_to_host() {
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {
+        HiddenStateCuda *cu_output_states =
+            dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get());
+        cu_output_states->to_host();
+    }
+#endif
+}
+
+void Sequential::delta_z_to_host() {
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {
+        DeltaStateCuda *cu_input_delta_z =
+            dynamic_cast<DeltaStateCuda *>(this->input_delta_z_buffer.get());
+        DeltaStateCuda *cu_output_delta_z =
+            dynamic_cast<DeltaStateCuda *>(this->output_delta_z_buffer.get());
+
+        cu_input_delta_z->to_host();
+        cu_output_delta_z->to_host();
+    }
+#endif
 }
 
 // Utility function to get layer stack info
@@ -366,5 +401,21 @@ void Sequential::load_csv(const std::string &filename)
 
         weight_start_idx += layer->mu_w.size();
         bias_start_idx += layer->mu_b.size();
+    }
+}
+
+void Sequential::params_from(const Sequential &model_ref) {
+    if (this->layers.size() != model_ref.layers.size()) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Model architecture is different");
+    }
+
+    // TODO: need to add more checks before copying
+    for (int i = 0; i < this->layers.size(); i++) {
+        this->layers[i]->mu_w = model_ref.layers[i]->mu_w;
+        this->layers[i]->var_w = model_ref.layers[i]->var_w;
+        this->layers[i]->mu_b = model_ref.layers[i]->mu_b;
+        this->layers[i]->var_b = model_ref.layers[i]->var_b;
     }
 }

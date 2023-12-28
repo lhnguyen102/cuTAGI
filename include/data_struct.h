@@ -26,6 +26,10 @@ class BaseHiddenStates {
     BaseHiddenStates(size_t n, size_t m);
     BaseHiddenStates();
     ~BaseHiddenStates() = default;
+
+    virtual void set_input_x(const std::vector<float> &mu_x,
+                             const std::vector<float> &var_x);
+
     virtual std::string get_name() const { return "BaseHiddenStates"; };
 };
 
@@ -80,4 +84,5 @@ class BaseObservation {
     virtual std::string get_name() const { return "BaseObservation"; };
 
     void set_obs(std::vector<float> &mu_obs, std::vector<float> &var_obs);
+    void set_selected_idx(std::vector<int> &selected_idx);
 };

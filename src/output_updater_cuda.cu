@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      December 27, 2023
+// Updated:      December 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,27 +14,12 @@ __global__ void update_delta_z_using_indices_cuda(
     float const *var_obs, int const *selected_idx, int n_obs, int n_enc,
     int size, float *delta_mu, float *delta_var)
 /* Update output layer based on selected indices.
-
-Args:
-    Sz: Variance of hidden states
-    ma: Mean of activation units
-    Sa: Variance of activation units
-    J: Jacobian vector
-    y: Observation
-    Sv: Observation noise
-    udIdx: Selected indiced to update
-    deltaMz: Updated quantities for the mean of output's hidden states
-    deltaSz: Updated quantities for the varaince of output's hidden states
-    zpos: Hidden state's position for output layer
-    ny: Size of the output layer
-    nye: Number of observation to be updated for an observation
-    n: Number of batches x size of output layer
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float zero_pad = 0;
-    float tmp = 0;
-    int idx = 0;
+    float zero_pad = 0.0f;
+    float tmp = 0.0f;
+    int idx;
     if (col < size) {
         // minus 1 because the encoder index starts at 1
         idx = selected_idx[col] + (col / n_enc) * n_obs - 1;
@@ -86,6 +71,12 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
     DeltaStateCuda *cu_delta_states =
         dynamic_cast<DeltaStateCuda *>(&delta_states);
 
+    if (cu_obs->d_mu_obs == nullptr) {
+        cu_obs->allocate_memory();
+    }
+
+    cu_output_states->to_device();
+
     // Kernel
     int num_states = cu_obs->size;
     int blocks =
@@ -110,19 +101,25 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
     DeltaStateCuda *cu_delta_states =
         dynamic_cast<DeltaStateCuda *>(&delta_states);
 
+    if (cu_obs->d_mu_obs == nullptr) {
+        cu_obs->allocate_memory();
+    }
+
+    cu_obs->to_device();
+
     // Reset delta to zero
     cu_delta_states->reset_zeros();
 
     // Kernel
     int num_states = cu_obs->idx_size;
     int num_enc = cu_obs->idx_size / cu_obs->block_size;
-    int num_obs = cu_obs->actual_size;
-    int blocks =
+    int num_outputs = cu_output_states->actual_size;
+    unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     update_delta_z_using_indices_cuda<<<blocks, this->num_cuda_threads>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
         cu_output_states->d_jcb, cu_obs->d_mu_obs, cu_obs->d_var_obs,
-        cu_obs->d_selected_idx, num_obs, num_enc, num_states,
+        cu_obs->d_selected_idx, num_outputs, num_enc, num_states,
         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var);
 }

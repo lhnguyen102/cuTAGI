@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 17, 2023
+// Updated:      December 28, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,9 +18,6 @@
 #include "base_layer.h"
 #include "data_struct.h"
 #include "param_init.h"
-#ifdef USE_CUDA
-#include "fc_cuda.cuh"
-#endif
 
 class Linear : public BaseLayer {
    public:
