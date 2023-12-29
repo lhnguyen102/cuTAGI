@@ -105,6 +105,8 @@ find_package(PythonInterp)
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
+include_directories(${pybind11_INCLUDE_DIRS})
+
 include_directories("include")
 include_directories("test")
 
@@ -181,6 +183,7 @@ set(GPU_SOURCES
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
+  src/bindings/linear_layer_binding.cpp
 
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu
