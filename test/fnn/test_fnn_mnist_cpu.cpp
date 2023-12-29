@@ -52,16 +52,16 @@ void fnn_mnist() {
     // model.set_threads(4);
     model.to_device("cuda");
 
-    // CPU Model
-    Sequential cpu_model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
-                         Linear(100, 11));
-    cpu_model.params_from(model);
+    // // CPU Model
+    // Sequential cpu_model(Linear(784, 400), Relu(), Linear(400, 400), Relu(),
+    //                      Linear(400, 11));
+    // cpu_model.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
     //////////////////////////////////////////////////////////////////////
     OutputUpdater output_updater(model.device);
-    OutputUpdater cpu_output_updater(cpu_model.device);
+    // OutputUpdater cpu_output_updater(cpu_model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 19q, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,7 +17,6 @@ void Sequential::switch_to_cuda() {
     if (this->device == "cuda") {
         for (size_t i = 0; i < this->layers.size(); ++i) {
             layers[i] = layers[i]->to_cuda();
-            layers[i]->device = "cuda";
         }
     }
 }
@@ -114,33 +113,6 @@ void Sequential::set_threads(unsigned int num_threads)
     }
 }
 
-void Sequential::to_z_buffer(const std::vector<float> &mu_x,
-                             const std::vector<float> &var_x,
-                             BaseHiddenStates &hidden_states)
-/*
- */
-{
-    int data_size = mu_x.size();
-    for (int i = 0; i < data_size; i++) {
-        hidden_states.mu_z[i] = mu_x[i];
-        hidden_states.mu_a[i] = mu_x[i];
-    }
-    if (var_x.size() == data_size) {
-        for (int i = 0; i < data_size; i++) {
-            hidden_states.var_z[i] = var_x[i];
-            hidden_states.var_a[i] = var_x[i];
-        }
-    }
-    hidden_states.size = data_size;
-    hidden_states.block_size = data_size / this->layers.front()->input_size;
-    hidden_states.actual_size = this->layers.front()->input_size;
-
-    // int data_size = mu_x.size();
-    // hidden_states.set_input_x(mu_x, var_x);
-    // hidden_states.block_size = data_size / this->layers.front()->input_size;
-    // hidden_states.actual_size = this->layers.front()->input_size;
-}
-
 void Sequential::forward(const std::vector<float> &mu_x,
                          const std::vector<float> &var_x)
 /*
@@ -160,13 +132,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
     }
 
     // Merge input data to the input buffer
-    this->to_z_buffer(mu_x, var_x, *this->input_z_buffer);
-
-    if (this->device.compare("cuda") == 0) {
-        HiddenStateCuda *in_s =
-            dynamic_cast<HiddenStateCuda *>(this->input_z_buffer.get());
-        in_s->to_device();
-    }
+    this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
 
     // Forward pass for all layers
     for (auto &layer : this->layers) {

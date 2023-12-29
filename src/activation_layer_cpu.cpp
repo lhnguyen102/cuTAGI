@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 18, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,6 +129,7 @@ void Relu::forward(BaseHiddenStates &input_states,
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Relu::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<ReluCuda>();
 }
 #endif
@@ -235,13 +236,13 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Sigmoid::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<SigmoidCuda>();
 }
 #endif
@@ -344,13 +345,13 @@ void Tanh::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Tanh::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<TanhCuda>();
 }
 #endif
@@ -476,13 +477,13 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> MixtureRelu::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<MixtureReluCuda>();
 }
 #endif
@@ -611,13 +612,13 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> MixtureSigmoid::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<MixtureSigmoidCuda>();
 }
 #endif
@@ -748,13 +749,13 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> MixtureTanh::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<MixtureTanhCuda>();
 }
 #endif
@@ -861,13 +862,13 @@ void Softplus::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Softplus::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<SoftplusCuda>();
 }
 #endif
@@ -986,13 +987,13 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
     this->output_size = input_states.actual_size;
 
     // Update number of actual states.
-    output_states.size = input_states.size;
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LeakyRelu::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<LeakyReluCuda>();
 }
 #endif
@@ -1087,6 +1088,7 @@ void Softmax::forward(BaseHiddenStates &input_states,
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Softmax::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<SoftmaxCuda>();
 }
 #endif

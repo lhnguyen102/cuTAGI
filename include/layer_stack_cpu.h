@@ -65,10 +65,6 @@ class Sequential {
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());
 
-    void to_z_buffer(const std::vector<float>& mu_x,
-                     const std::vector<float>& var_x,
-                     BaseHiddenStates& hidden_states);
-
     void backward();
 
     void step();

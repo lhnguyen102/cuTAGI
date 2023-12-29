@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 27, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,11 +21,14 @@ BaseHiddenStates::BaseHiddenStates(size_t n, size_t m)
 BaseHiddenStates::BaseHiddenStates() {}
 
 void BaseHiddenStates::set_input_x(const std::vector<float> &mu_x,
-                                   const std::vector<float> &var_x)
+                                   const std::vector<float> &var_x,
+                                   const size_t block_size)
 /*
  */
 {
     int data_size = mu_x.size();
+    this->actual_size = data_size / block_size;
+    this->block_size = block_size;
     for (int i = 0; i < data_size; i++) {
         this->mu_z[i] = mu_x[i];
         this->mu_a[i] = mu_x[i];

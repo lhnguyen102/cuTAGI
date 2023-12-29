@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         fc_cuda.cu
+// File:         linear_layer_cuda.cu
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 28, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../include/fc_cpu_v2.h"
-#include "../include/fc_cuda.cuh"
+#include "../include/linear_layer.h"
+#include "../include/linear_layer_cuda.cuh"
 
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
@@ -22,19 +22,17 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mu = 0.0f;
     float sum_var = 0.0f;
-    float mu_a_tmp = 0.0f;
-    float var_a_tmp = 0.0f;
+
     if (col < batch_size && row < output_size) {
         for (int i = 0; i < input_size; i++) {
-            mu_a_tmp = mu_a[input_size * col + i];
-            var_a_tmp = var_a[input_size * col + i];
+            float mu_a_tmp = mu_a[input_size * col + i];
+            float var_a_tmp = var_a[input_size * col + i];
+            float mu_w_tmp = mu_w[row * input_size + i];
+            float var_w_tmp = var_w[row * input_size + i];
 
-            sum_mu += mu_w[row * input_size + i] * mu_a_tmp;
-            sum_var +=
-                (mu_w[row * input_size + i] * mu_w[row * input_size + i] +
-                 var_w[row * input_size + i]) *
-                    var_a_tmp +
-                var_w[row * input_size + i] * mu_a_tmp * mu_a_tmp;
+            sum_mu += mu_w_tmp * mu_a_tmp;
+            sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                       var_w_tmp * mu_a_tmp * mu_a_tmp;
         }
         mu_z[col * output_size + row] = sum_mu + mu_b[row];
         var_z[col * output_size + row] = sum_var + var_b[row];
@@ -283,9 +281,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    // // Get batch size
-    // cu_input_states->to_device();
-
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
 
@@ -303,7 +298,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         cu_output_states->d_var_z);
 
     // Update number of actual states.
-    output_states.size = this->output_size * batch_size;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 

@@ -21,7 +21,7 @@
 #include "../../include/base_output_updater.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
-#include "../../include/fc_cpu_v2.h"
+#include "../../include/linear_layer.h"
 #include "../../include/layer_stack_cpu.h"
 
 int test_fnn_mnist();

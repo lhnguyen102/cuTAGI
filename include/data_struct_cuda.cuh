@@ -11,6 +11,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include <cassert>
+
 #include "data_struct.h"
 
 class HiddenStateCuda : public BaseHiddenStates {
@@ -26,11 +28,13 @@ class HiddenStateCuda : public BaseHiddenStates {
     ~HiddenStateCuda();
 
     void set_input_x(const std::vector<float> &mu_x,
-                     const std::vector<float> &var_x) override;
+                     const std::vector<float> &var_x,
+                     const size_t block_size) override;
 
     std::string get_name() const override { return "HiddenStateCuda"; };
     void allocate_memory();
     void to_device();
+    void chunks_to_device(const size_t chunk_size);
     void to_host();
 };
 

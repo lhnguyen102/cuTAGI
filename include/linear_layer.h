@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         fc_cpu_v2.h
+// File:         linear_layer.h
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023

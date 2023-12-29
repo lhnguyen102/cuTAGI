@@ -19,7 +19,7 @@
 
 class OutputUpdaterCuda : public BaseOutputUpdater {
    public:
-    unsigned int num_cuda_threads = 32;
+    unsigned int num_cuda_threads = 16;
 
     OutputUpdaterCuda();
     ~OutputUpdaterCuda() = default;

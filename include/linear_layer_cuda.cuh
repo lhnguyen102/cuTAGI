@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         fc_cuda.cuh
+// File:         linear_layer_cuda.cuh
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 28, 2023

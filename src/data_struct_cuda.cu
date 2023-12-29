@@ -3,10 +3,11 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 27, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
+
 #include "../include/data_struct_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,11 +37,15 @@ Free GPU memory using cudaFree
 }
 
 void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
-                                  const std::vector<float> &var_x)
+                                  const std::vector<float> &var_x,
+                                  const size_t block_size)
 /*
  */
 {
-    int data_size = mu_x.size();
+    size_t data_size = mu_x.size();
+    this->actual_size = data_size / block_size;
+    this->block_size = block_size;
+
     for (int i = 0; i < data_size; i++) {
         this->mu_z[i] = mu_x[i];
         this->mu_a[i] = mu_x[i];
@@ -51,8 +56,7 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
             this->var_a[i] = var_x[i];
         }
     }
-
-    this->to_device();
+    this->chunks_to_device(data_size);
 }
 
 void HiddenStateCuda::allocate_memory() {
@@ -93,6 +97,24 @@ void HiddenStateCuda::to_device()
     //                                 " at line: " + std::to_string(__LINE__) +
     //                                 ". Copying host to device.");
     // }
+}
+
+void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
+/*
+ */
+{
+    assert(chunk_size <= this->size);
+
+    cudaMemcpy(this->d_mu_z, this->mu_z.data(), chunk_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_z, this->var_z.data(), chunk_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_a, this->mu_a.data(), chunk_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_a, this->var_a.data(), chunk_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_jcb, this->jcb.data(), chunk_size * sizeof(float),
+               cudaMemcpyHostToDevice);
 }
 
 void HiddenStateCuda::to_host()

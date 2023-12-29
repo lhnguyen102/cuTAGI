@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 28, 2023
+// Updated:      December 29, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,8 +51,6 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    // cu_input_states->to_device();
-
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
@@ -68,7 +66,6 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -125,8 +122,6 @@ void SigmoidCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    cu_input_states->to_device();
-
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
@@ -142,7 +137,6 @@ void SigmoidCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -216,7 +210,6 @@ void TanhCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -290,7 +283,6 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -364,7 +356,6 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -438,7 +429,6 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -512,7 +502,6 @@ void SoftplusCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -586,7 +575,6 @@ void LeakyReluCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
@@ -661,7 +649,6 @@ void SoftmaxCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Update number of actual states.
-    cu_output_states->size = cu_input_states->size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 }

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         fc_cpu_v2.cpp
+// File:         linear_layer.cpp
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
@@ -7,9 +7,9 @@
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../include/fc_cpu_v2.h"
+#include "../include/linear_layer.h"
 #ifdef USE_CUDA
-#include "fc_cuda.cuh"
+#include "linear_layer_cuda.cuh"
 #endif
 
 Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
@@ -549,7 +549,6 @@ void Linear::forward(BaseHiddenStates &input_states,
                            batch_size, output_states.mu_z, output_states.var_z);
     }
     // Update number of actual states.
-    output_states.size = this->output_size * batch_size;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
@@ -640,6 +639,7 @@ Args:
 }
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Linear::to_cuda() {
+    this->device = "cuda";
     return std::make_unique<LinearCuda>(this->input_size, this->output_size,
                                         this->gain_w, this->gain_b,
                                         this->init_method);

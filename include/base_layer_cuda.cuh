@@ -35,7 +35,7 @@ class BaseLayerCuda : public BaseLayer {
     float *d_delta_var_w = nullptr;
     float *d_delta_mu_b = nullptr;
     float *d_delta_var_b = nullptr;
-    unsigned int num_cuda_threads = 32;
+    unsigned int num_cuda_threads = 16;
 
     BaseLayerCuda();
 
