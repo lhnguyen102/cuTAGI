@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 24, 2023
+// Updated:      December 30, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,7 @@
 
 #include "data_struct.h"
 
-enum class LayerType { Linear, CNN, LSTM, Activation };
+enum class LayerType { Base, Linear, CNN, LSTM, Activation };
 
 class BaseLayer {
    public:
@@ -50,11 +50,11 @@ class BaseLayer {
 
     virtual const char *get_layer_type_name() const;
 
-    virtual std::string get_layer_info() const = 0;
+    virtual std::string get_layer_info() const;
 
-    virtual std::string get_layer_name() const = 0;
+    virtual std::string get_layer_name() const;
 
-    virtual LayerType get_layer_type() const = 0;
+    virtual LayerType get_layer_type() const;
 
     int get_input_size();
 

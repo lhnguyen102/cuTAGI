@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         layer_stack_cpu.cpp
+// File:         sequential.cpp
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 29, 2023
+// Updated:      December 30, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "../include/layer_stack_cpu.h"
+#include "../include/sequential.h"
 
 Sequential::Sequential() {}
 Sequential::~Sequential() {}

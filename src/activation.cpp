@@ -7,7 +7,7 @@
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../include/activation_layer_cpu.h"
+#include "../include/activation.h"
 #ifdef USE_CUDA
 #include "activation_cuda.cuh"
 #endif

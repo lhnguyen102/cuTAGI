@@ -138,13 +138,17 @@ set(CPU_SOURCES
   src/fc_layer_cpu.cpp
   src/embedding_cpu.cpp
   src/linear_layer.cpp
-  src/activation_layer_cpu.cpp
-  src/layer_stack_cpu.cpp
+  src/activation.cpp
+  src/sequential.cpp
   src/output_layer_update_cpu.cpp
   src/base_layer.cpp
   src/data_struct.cpp
   src/param_init.cpp
   src/base_output_updater.cpp
+
+  src/bindings/base_layer_bindings.cpp
+  src/bindings/linear_layer_bindings.cpp
+  src/bindings/activation_bindings.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -183,7 +187,6 @@ set(GPU_SOURCES
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
-  src/bindings/linear_layer_binding.cpp
 
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu

@@ -2,30 +2,29 @@
 // File:         linear_layer_binding.cpp
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 29, 2023
-// Updated:      December 29, 2023
+// Created:      December 30, 2023
+// Updated:      December 30, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "../include/bindings/linear_layer_binding.h"
+#include "../include/bindings/linear_layer_bindings.h"
 
 void bind_linear_layer(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<Linear>(modo, "Linear")
-        .def(pybind11::init<>())
-        .def_readwrite("mu_w", &Linear::mu_w)
-        .def_readwrite("var_w", &Linear::var_w)
-        .def_readwrite("mu_b", &Linear::mu_b)
-        .def_readwrite("var_b", &Linear::var_b)
-        .def_readwrite("delta_mu_w", &Linear::delta_mu_w)
-        .def_readwrite("delta_var_w", &Linear::delta_var_w)
-        .def_readwrite("delta_mu_b", &Linear::delta_mu_b)
-        .def_readwrite("delta_var_b", &Linear::delta_var_b)
-        .def_readwrite("num_threads", &Linear::num_threads)
-        .def_readwrite("training", &Linear::training)
+    pybind11::class_<Linear, std::shared_ptr<Linear>, BaseLayer>(modo, "Linear")
+        .def(pybind11::init<size_t, size_t, float, float, std::string>(),
+             pybind11::arg("ip_size"), pybind11::arg("op_size"),
+             pybind11::arg("gain_weight") = 1.0f,
+             pybind11::arg("gain_bias") = 1.0f, pybind11::arg("method") = "He")
+        .def("get_layer_info", &Linear::get_layer_info)
+        .def("get_layer_name", &Linear::get_layer_name)
+        .def_readwrite("gain_w", &Linear::gain_w)
+        .def_readwrite("gain_b", &Linear::gain_b)
+        .def_readwrite("init_method", &Linear::init_method)
+        .def("init_weight_bias", &Linear::init_weight_bias)
         .def("forward", &Linear::forward)
         .def("state_backward", &Linear::state_backward)
         .def("param_backward", &Linear::param_backward);

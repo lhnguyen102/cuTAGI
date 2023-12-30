@@ -17,10 +17,10 @@
 #include <stdexcept>
 #include <string>
 
-#include "../../include/activation_layer_cpu.h"
+#include "../../include/activation.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
 #include "../../include/linear_layer.h"
-#include "../../include/layer_stack_cpu.h"
+#include "../../include/sequential.h"
 
 int test_fnn_cpu_v2();

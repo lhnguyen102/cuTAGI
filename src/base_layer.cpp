@@ -3,18 +3,24 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      December 22, 2023
+// Updated:      December 30, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer.h"
 
-BaseLayer::BaseLayer() : bwd_states(std::make_unique<BaseBackwardStates>()) {}
+BaseLayer::BaseLayer() {}
 
 const char *BaseLayer::get_layer_type_name() const {
     return typeid(*this).name();
 }
+
+std::string BaseLayer::get_layer_info() const { return "Base()"; }
+
+std::string BaseLayer::get_layer_name() const { return "Base"; }
+
+LayerType BaseLayer::get_layer_type() const { return LayerType::Base; };
 
 int BaseLayer::get_input_size() { return static_cast<int>(this->input_size); }
 
