@@ -214,6 +214,9 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
+  # Embedding Python into a C++ program
+  target_link_libraries(cutagi_lib PRIVATE pybind11::embed)
+
   # Executablecode i.e. application
   add_executable(main main.cu)
 
@@ -224,13 +227,19 @@ else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
   target_link_libraries(cutagi_lib ${CMAKE_DL_LIBS})
 
+  # Embedding Python into a C++ program
+  target_link_libraries(cutagi_lib PRIVATE pybind11::embed)
+
   # Executable code i.e. application
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
-  pybind11_add_module(cutagi "src/python_api_cpu.cpp")
+  # pybind11_add_module(cutagi "src/python_api_cpu.cpp")
+  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 endif()
 
 target_link_libraries(main PUBLIC cutagi_lib)
 # target_link_libraries(cutagi PRIVATE cutagi_lib)
 target_link_libraries(cutagitest PRIVATE cutagi_lib)
+
+

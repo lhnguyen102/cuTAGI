@@ -387,9 +387,8 @@ void Sequential::params_from(const Sequential &model_ref) {
 }
 
 // Wrapper
-void Sequential::forward_py(
-    pybind11::array_t<float> mu_a_np,
-    pybind11::array_t<float> var_a_np = pybind11::array_t<float>())
+void Sequential::forward_py(pybind11::array_t<float> mu_a_np,
+                            pybind11::array_t<float> var_a_np)
 /*
  */
 {

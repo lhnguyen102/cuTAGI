@@ -98,7 +98,7 @@ void bind_mixture_tanh(pybind11::module_& modo)
  */
 {
     pybind11::class_<MixtureTanh, std::shared_ptr<MixtureTanh>, BaseLayer>(
-        modo, "MixtureSigmoid")
+        modo, "MixtureTanh")
         .def(pybind11::init<>())
         .def("get_layer_info", &MixtureTanh::get_layer_info)
         .def("get_layer_name", &MixtureTanh::get_layer_name)
@@ -115,7 +115,7 @@ void bind_softplus(pybind11::module_& modo)
  */
 {
     pybind11::class_<Softplus, std::shared_ptr<Softplus>, BaseLayer>(
-        modo, "MixtureSigmoid")
+        modo, "MixtureSoftplus")
         .def(pybind11::init<>())
         .def("get_layer_info", &Softplus::get_layer_info)
         .def("get_layer_name", &Softplus::get_layer_name)
@@ -132,7 +132,7 @@ void bind_leakyrelu(pybind11::module_& modo)
  */
 {
     pybind11::class_<LeakyRelu, std::shared_ptr<LeakyRelu>, BaseLayer>(
-        modo, "MixtureSigmoid")
+        modo, "LeakyRelu")
         .def(pybind11::init<>())
         .def("get_layer_info", &LeakyRelu::get_layer_info)
         .def("get_layer_name", &LeakyRelu::get_layer_name)
@@ -148,8 +148,8 @@ void bind_softmax(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<Softmax, std::shared_ptr<Softmax>, BaseLayer>(
-        modo, "MixtureSigmoid")
+    pybind11::class_<Softmax, std::shared_ptr<Softmax>, BaseLayer>(modo,
+                                                                   "Softmax")
         .def(pybind11::init<>())
         .def("get_layer_info", &Softmax::get_layer_info)
         .def("get_layer_name", &Softmax::get_layer_name)

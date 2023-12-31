@@ -8,9 +8,6 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 #include <algorithm>
 #include <memory>
@@ -26,6 +23,10 @@
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
 #endif
+
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 class Sequential {
    public:

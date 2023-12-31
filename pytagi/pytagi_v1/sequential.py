@@ -23,7 +23,8 @@ class Sequential:
         Args:
             layers: A variable number of layers (instances of BaseLayer or derived classes).
         """
-        self._sequential = cutagitest.Sequential(list(layers))
+        backend_layers = [layer._backend_layer for layer in layers]
+        self._sequential = cutagitest.Sequential(backend_layers)
 
     @property
     def z_buffer_size(self) -> int:
