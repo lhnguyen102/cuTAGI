@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from pytagi  import Normalizer, Utils
+from pytagi import Normalizer, Utils
 
 
 class DataloaderBase(ABC):
@@ -24,11 +24,9 @@ class DataloaderBase(ABC):
 
     @abstractmethod
     def process_data(self) -> dict:
-
         raise NotImplementedError
 
-    def create_data_loader(self, raw_input: np.ndarray,
-                           raw_output: np.ndarray) -> list:
+    def create_data_loader(self, raw_input: np.ndarray, raw_output: np.ndarray) -> list:
         """Create dataloader based on batch size"""
         num_input_data = raw_input.shape[0]
         num_output_data = raw_output.shape[0]
@@ -51,9 +49,7 @@ class DataloaderBase(ABC):
         return dataset
 
     @staticmethod
-    def split_data(data: int,
-                   test_ratio: float = 0.2,
-                   val_ratio: float = 0.0) -> dict:
+    def split_data(data: int, test_ratio: float = 0.2, val_ratio: float = 0.0) -> dict:
         """Split data into training, validation, and test sets"""
         num_data = data.shape[1]
         splited_data = {}
@@ -100,16 +96,16 @@ class DataloaderBase(ABC):
 
 class RegressionDataLoader(DataloaderBase):
     """Load and format data that are feeded to the neural network.
-     The user must provide the input and output data file in *csv"""
+    The user must provide the input and output data file in *csv"""
 
-    def __init__(self, batch_size: int, num_inputs: int,
-                 num_outputs: int) -> None:
+    def __init__(self, batch_size: int, num_inputs: int, num_outputs: int) -> None:
         super().__init__(batch_size)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
 
-    def process_data(self, x_train_file: str, y_train_file: str,
-                     x_test_file: str, y_test_file: str) -> dict:
+    def process_data(
+        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
+    ) -> dict:
         """Process data from the csv file"""
 
         # Load data
@@ -119,23 +115,29 @@ class RegressionDataLoader(DataloaderBase):
         y_test = self.load_data_from_csv(y_test_file)
 
         # Normalizer
+<<<<<<< HEAD
         x_mean, x_std = self.normalizer.compute_mean_std(x_train)
         y_mean, y_std = self.normalizer.compute_mean_std(y_train)
+=======
+        x_mean, x_std = self.normalizer.compute_mean_std(
+            np.concatenate((x_train, x_test))
+        )
+        y_mean, y_std = self.normalizer.compute_mean_std(
+            np.concatenate((y_train, y_test))
+        )
+>>>>>>> e384953 (feat: adding Python frontend)
 
-        x_train = self.normalizer.standardize(data=x_train,
-                                              mu=x_mean,
-                                              std=x_std)
-        y_train = self.normalizer.standardize(data=y_train,
-                                              mu=y_mean,
-                                              std=y_std)
+        x_train = self.normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
+        y_train = self.normalizer.standardize(data=y_train, mu=y_mean, std=y_std)
         x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
         y_test = self.normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
 
         # Dataloader
         data_loader = {}
         data_loader["train"] = (x_train, y_train)
-        data_loader["test"] = self.create_data_loader(raw_input=x_test,
-                                                      raw_output=y_test)
+        data_loader["test"] = self.create_data_loader(
+            raw_input=x_test, raw_output=y_test
+        )
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
         data_loader["y_norm_param_1"] = y_mean
@@ -147,8 +149,9 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
-    def process_data(self, x_train_file: str, y_train_file: str,
-                     x_test_file: str, y_test_file: str) -> dict:
+    def process_data(
+        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
+    ) -> dict:
         """Process mnist images"""
         # Initialization
         utils = Utils()
@@ -159,26 +162,23 @@ class MnistDataloader(DataloaderBase):
         train_images, train_labels = utils.load_mnist_images(
             image_file=x_train_file,
             label_file=y_train_file,
-            num_images=num_train_images)
+            num_images=num_train_images,
+        )
 
         y_train, y_train_idx, num_enc_obs = utils.label_to_obs(
-            labels=train_labels, num_classes=10)
+            labels=train_labels, num_classes=10
+        )
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
         x_std = 1
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
-            image_file=x_test_file,
-            label_file=y_test_file,
-            num_images=num_test_images)
+            image_file=x_test_file, label_file=y_test_file, num_images=num_test_images
+        )
 
         # Normalizer
-        x_train = self.normalizer.standardize(data=train_images,
-                                              mu=x_mean,
-                                              std=x_std)
-        x_test = self.normalizer.standardize(data=test_images,
-                                             mu=x_mean,
-                                             std=x_std)
+        x_train = self.normalizer.standardize(data=train_images, mu=x_mean, std=x_std)
+        x_test = self.normalizer.standardize(data=test_images, mu=x_mean, std=x_std)
 
         y_train = y_train.reshape((num_train_images, num_enc_obs))
         y_train_idx = y_train_idx.reshape((num_train_images, num_enc_obs))
@@ -188,8 +188,9 @@ class MnistDataloader(DataloaderBase):
         # Data loader
         data_loader = {}
         data_loader["train"] = (x_train, y_train, y_train_idx, train_labels)
-        data_loader["test"] = self.create_data_loader(raw_input=x_test,
-                                                      raw_output=test_labels)
+        data_loader["test"] = self.create_data_loader(
+            raw_input=x_test, raw_output=test_labels
+        )
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
 
@@ -199,8 +200,9 @@ class MnistDataloader(DataloaderBase):
 class MnistOneHotDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
-    def process_data(self, x_train_file: str, y_train_file: str,
-                     x_test_file: str, y_test_file: str) -> dict:
+    def process_data(
+        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
+    ) -> dict:
         """Process mnist images"""
         # Initialization
         utils = Utils()
@@ -211,7 +213,8 @@ class MnistOneHotDataloader(DataloaderBase):
         train_images, train_labels = utils.load_mnist_images(
             image_file=x_train_file,
             label_file=y_train_file,
-            num_images=num_train_images)
+            num_images=num_train_images,
+        )
 
         y_train = utils.label_to_one_hot(labels=train_labels, num_classes=10)
         x_mean, x_std = self.normalizer.compute_mean_std(train_images)
@@ -219,17 +222,12 @@ class MnistOneHotDataloader(DataloaderBase):
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
-            image_file=x_test_file,
-            label_file=y_test_file,
-            num_images=num_test_images)
+            image_file=x_test_file, label_file=y_test_file, num_images=num_test_images
+        )
 
         # Normalizer
-        x_train = self.normalizer.standardize(data=train_images,
-                                              mu=x_mean,
-                                              std=x_std)
-        x_test = self.normalizer.standardize(data=test_images,
-                                             mu=x_mean,
-                                             std=x_std)
+        x_train = self.normalizer.standardize(data=train_images, mu=x_mean, std=x_std)
+        x_test = self.normalizer.standardize(data=test_images, mu=x_mean, std=x_std)
 
         y_train = y_train.reshape((num_train_images, 10))
         x_train = x_train.reshape((num_train_images, 28, 28))
@@ -238,8 +236,9 @@ class MnistOneHotDataloader(DataloaderBase):
         # Data loader
         data_loader = {}
         data_loader["train"] = (x_train, y_train, train_labels)
-        data_loader["test"] = self.create_data_loader(raw_input=x_test,
-                                                      raw_output=test_labels)
+        data_loader["test"] = self.create_data_loader(
+            raw_input=x_test, raw_output=test_labels
+        )
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
 
@@ -249,9 +248,15 @@ class MnistOneHotDataloader(DataloaderBase):
 class TimeSeriesDataloader(DataloaderBase):
     """Data loader for time series"""
 
-    def __init__(self, batch_size: int, output_col: np.ndarray,
-                 input_seq_len: int, output_seq_len: int, num_features: int,
-                 stride: int) -> None:
+    def __init__(
+        self,
+        batch_size: int,
+        output_col: np.ndarray,
+        input_seq_len: int,
+        output_seq_len: int,
+        num_features: int,
+        stride: int,
+    ) -> None:
         super().__init__(batch_size)
         self.output_col = output_col
         self.input_seq_len = input_seq_len
@@ -259,8 +264,13 @@ class TimeSeriesDataloader(DataloaderBase):
         self.num_features = num_features
         self.stride = stride
 
-    def process_data(self, x_train_file: str, datetime_train_file: str,
-                     x_test_file: str, datetime_test_file: str) -> dict:
+    def process_data(
+        self,
+        x_train_file: str,
+        datetime_train_file: str,
+        x_test_file: str,
+        datetime_test_file: str,
+    ) -> dict:
         """Process time series"""
         # Initialization
         utils = Utils()
@@ -274,9 +284,7 @@ class TimeSeriesDataloader(DataloaderBase):
 
         # Normalizer
         x_mean, x_std = self.normalizer.compute_mean_std(x_train)
-        x_train = self.normalizer.standardize(data=x_train,
-                                              mu=x_mean,
-                                              std=x_std)
+        x_train = self.normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
         x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
 
         # Create rolling windows
@@ -286,7 +294,8 @@ class TimeSeriesDataloader(DataloaderBase):
             input_seq_len=self.input_seq_len,
             output_seq_len=self.output_seq_len,
             num_features=self.num_features,
-            stride=self.stride)
+            stride=self.stride,
+        )
 
         x_test_rolled, y_test_rolled = utils.create_rolling_window(
             data=x_test,
@@ -294,13 +303,15 @@ class TimeSeriesDataloader(DataloaderBase):
             input_seq_len=self.input_seq_len,
             output_seq_len=self.output_seq_len,
             num_features=self.num_features,
-            stride=self.stride)
+            stride=self.stride,
+        )
 
         # Dataloader
         data_loader = {}
         data_loader["train"] = (x_train_rolled, y_train_rolled)
-        data_loader["test"] = self.create_data_loader(raw_input=x_test_rolled,
-                                                      raw_output=y_test_rolled)
+        data_loader["test"] = self.create_data_loader(
+            raw_input=x_test_rolled, raw_output=y_test_rolled
+        )
         # Store normalization parameters
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std

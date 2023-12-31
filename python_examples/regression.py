@@ -25,12 +25,14 @@ class Regression:
 
     utils: Utils = Utils()
 
-    def __init__(self,
-                 num_epochs: int,
-                 data_loader: dict,
-                 net_prop: NetProp,
-                 dtype=np.float32,
-                 viz: Union[PredictionViz, None] = None) -> None:
+    def __init__(
+        self,
+        num_epochs: int,
+        data_loader: dict,
+        net_prop: NetProp,
+        dtype=np.float32,
+        viz: Union[PredictionViz, None] = None,
+    ) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.net_prop = net_prop
@@ -57,7 +59,8 @@ class Regression:
                 curr_v=self.net_prop.sigma_v,
                 min_v=self.net_prop.sigma_v_min,
                 decaying_factor=self.net_prop.decay_factor_sigma_v,
-                curr_iter=epoch)
+                curr_iter=epoch,
+            )
             V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
 
             for i in range(num_iter):
@@ -70,8 +73,7 @@ class Regression:
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
 
                 # Update hidden states
-                self.network.state_feed_backward(y_batch, V_batch,
-                                                 ud_idx_batch)
+                self.network.state_feed_backward(y_batch, V_batch, ud_idx_batch)
 
                 # Update parameters
                 self.network.param_feed_backward()
@@ -81,11 +83,13 @@ class Regression:
                 pred = normalizer.unstandardize(
                     norm_data=norm_pred,
                     mu=self.data_loader["y_norm_param_1"],
-                    std=self.data_loader["y_norm_param_2"])
+                    std=self.data_loader["y_norm_param_2"],
+                )
                 obs = normalizer.unstandardize(
                     norm_data=y_batch,
                     mu=self.data_loader["y_norm_param_1"],
-                    std=self.data_loader["y_norm_param_2"])
+                    std=self.data_loader["y_norm_param_2"],
+                )
                 mse = metric.mse(pred, obs)
                 pbar.set_description(
                     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t mse: {mse:>7.2f}"
@@ -112,7 +116,7 @@ class Regression:
             y_test.append(y_batch)
 
         mean_predictions = np.stack(mean_predictions).flatten()
-        std_predictions = (np.stack(variance_predictions).flatten())**0.5
+        std_predictions = (np.stack(variance_predictions).flatten()) ** 0.5
         y_test = np.stack(y_test).flatten()
         x_test = np.stack(x_test).flatten()
 
@@ -120,24 +124,28 @@ class Regression:
         mean_predictions = normalizer.unstandardize(
             norm_data=mean_predictions,
             mu=self.data_loader["y_norm_param_1"],
-            std=self.data_loader["y_norm_param_2"])
+            std=self.data_loader["y_norm_param_2"],
+        )
         std_predictions = normalizer.unstandardize_std(
-            norm_std=std_predictions, std=self.data_loader["y_norm_param_2"])
+            norm_std=std_predictions, std=self.data_loader["y_norm_param_2"]
+        )
 
         x_test = normalizer.unstandardize(
             norm_data=x_test,
             mu=self.data_loader["x_norm_param_1"],
-            std=self.data_loader["x_norm_param_2"])
+            std=self.data_loader["x_norm_param_2"],
+        )
         y_test = normalizer.unstandardize(
             norm_data=y_test,
             mu=self.data_loader["y_norm_param_1"],
-            std=self.data_loader["y_norm_param_2"])
+            std=self.data_loader["y_norm_param_2"],
+        )
 
         # Compute log-likelihood
         mse = metric.mse(mean_predictions, y_test)
-        log_lik = metric.log_likelihood(prediction=mean_predictions,
-                                        observation=y_test,
-                                        std=std_predictions)
+        log_lik = metric.log_likelihood(
+            prediction=mean_predictions, observation=y_test, std=std_predictions
+        )
 
         # Visualization
         if self.viz is not None:
@@ -157,9 +165,9 @@ class Regression:
         print(f"MSE           : {mse: 0.2f}")
         print(f"Log-likelihood: {log_lik: 0.2f}")
 
-    def compute_derivatives(self,
-                            layer: int = 0,
-                            truth_derv_file: Union[None, str] = None) -> None:
+    def compute_derivatives(
+        self, layer: int = 0, truth_derv_file: Union[None, str] = None
+    ) -> None:
         """Compute dervative of a given layer"""
         # Inputs
         batch_size = self.net_prop.batch_size
@@ -178,20 +186,20 @@ class Regression:
             x_test.append(x_batch)
 
         mean_derv = np.stack(mean_derv).flatten()
-        std_derv = (np.stack(variance_derv).flatten())**0.5
+        std_derv = (np.stack(variance_derv).flatten()) ** 0.5
         x_test = np.stack(x_test).flatten()
 
         # Unnormalization
         x_test = normalizer.unstandardize(
             norm_data=x_test,
             mu=self.data_loader["x_norm_param_1"],
-            std=self.data_loader["x_norm_param_2"])
+            std=self.data_loader["x_norm_param_2"],
+        )
 
         if truth_derv_file is not None:
-            truth_dev_test = pd.read_csv(truth_derv_file,
-                                         skiprows=1,
-                                         delimiter=",",
-                                         header=None)
+            truth_dev_test = pd.read_csv(
+                truth_derv_file, skiprows=1, delimiter=",", header=None
+            )
             self.viz.plot_predictions(
                 x_train=None,
                 y_train=None,
@@ -206,15 +214,15 @@ class Regression:
 
     def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for inputs"""
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=self.dtype)
+        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]), dtype=self.dtype)
 
         Sx_f_batch = np.array([], dtype=self.dtype)
         if self.net_prop.is_full_cov:
             Sx_f_batch = self.utils.get_upper_triu_cov(
                 batch_size=batch_size,
                 num_data=self.net_prop.nodes[0],
-                sigma=self.net_prop.sigma_x)
+                sigma=self.net_prop.sigma_x,
+            )
             Sx_batch = Sx_batch + self.net_prop.sigma_x**2
 
         return Sx_batch, Sx_f_batch
@@ -222,8 +230,10 @@ class Regression:
     def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for outputs"""
         # Outputs
-        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                           dtype=self.dtype) + self.net_prop.sigma_v**2
+        V_batch = (
+            np.zeros((batch_size, self.net_prop.nodes[-1]), dtype=self.dtype)
+            + self.net_prop.sigma_v**2
+        )
         ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
         return V_batch, ud_idx_batch

@@ -1,7 +1,7 @@
 layers: 	[1,     1,       1,       1]
-nodes:		[784,   800,     800,     11]
+nodes:		[784,   100,     100,     11]
 activations:[0,     4,       4,       12]
-batch_size: 128
+batch_size: 20
 init_method: He
 sigma_v: 	1
 sigma_v_min: 0.1

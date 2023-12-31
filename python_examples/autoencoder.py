@@ -22,15 +22,17 @@ class Autoencoder:
 
     utils: Utils = Utils
 
-    def __init__(self,
-                 num_epochs: int,
-                 data_loader: dict,
-                 encoder_prop: NetProp,
-                 decoder_prop: NetProp,
-                 encoder_param: Union[Param, None] = None,
-                 decoder_param: Union[Param, None] = None,
-                 viz: Union[ImageViz, None] = None,
-                 dtype=np.float32) -> None:
+    def __init__(
+        self,
+        num_epochs: int,
+        data_loader: dict,
+        encoder_prop: NetProp,
+        decoder_prop: NetProp,
+        encoder_param: Union[Param, None] = None,
+        decoder_param: Union[Param, None] = None,
+        viz: Union[ImageViz, None] = None,
+        dtype=np.float32,
+    ) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
 
@@ -70,12 +72,13 @@ class Autoencoder:
                 curr_v=self.decoder_prop.sigma_v,
                 min_v=self.decoder_prop.sigma_v_min,
                 decaying_factor=self.decoder_prop.decay_factor_sigma_v,
-                curr_iter=epoch)
+                curr_iter=epoch,
+            )
             V_batch = V_batch * 0.0 + self.decoder_prop.sigma_v**2
 
             for i in range(num_iter):
                 # Momentum for batch norm layer
-                if (i == 0 and epoch == 0):
+                if i == 0 and epoch == 0:
                     self.encoder.net_prop.ra_mt = 0.0
                     self.decoder.net_prop.ra_mt = 0.0
                 else:
@@ -91,25 +94,22 @@ class Autoencoder:
 
                 # Decoder's feed forward
                 ma, va, mz, vz, jcb = self.encoder.get_all_network_outputs()
-                self.decoder.connected_feed_forward(ma=ma,
-                                                    va=va,
-                                                    mz=mz,
-                                                    vz=vz,
-                                                    jcb=jcb)
+                self.decoder.connected_feed_forward(ma=ma, va=va, mz=mz, vz=vz, jcb=jcb)
 
                 # Decoder's feed backward for states & parameters
-                self.decoder.state_feed_backward(x_batch, V_batch,
-                                                 empty_ud_idx_batch)
+                self.decoder.state_feed_backward(x_batch, V_batch, empty_ud_idx_batch)
                 self.decoder.param_feed_backward()
 
                 # Encoder's feed backward for states & parameters
-                enc_delta_mz_init, enc_delta_vz_init = self.encoder.get_state_delta_mean_var(
-                )
+                (
+                    enc_delta_mz_init,
+                    enc_delta_vz_init,
+                ) = self.encoder.get_state_delta_mean_var()
 
                 # Encoder's feed backward for state & parameters
-                self.encoder.state_feed_backward(enc_delta_mz_init,
-                                                 enc_delta_vz_init,
-                                                 empty_ud_idx_batch)
+                self.encoder.state_feed_backward(
+                    enc_delta_mz_init, enc_delta_vz_init, empty_ud_idx_batch
+                )
                 self.encoder.param_feed_backward()
 
                 # Progress bar
@@ -136,11 +136,7 @@ class Autoencoder:
 
             # Decoder's feed forward
             ma, va, mz, vz, jcb = self.encoder.get_all_network_outputs()
-            self.decoder.connected_feed_forward(ma=ma,
-                                                va=va,
-                                                mz=mz,
-                                                vz=vz,
-                                                jcb=jcb)
+            self.decoder.connected_feed_forward(ma=ma, va=va, mz=mz, vz=vz, jcb=jcb)
 
             # Get images
             norm_pred, _ = self.decoder.get_network_predictions()
@@ -151,20 +147,17 @@ class Autoencoder:
                 break
 
         generated_images = np.stack(generated_images).flatten()
-        generated_images = generated_images[:self.encoder_prop.nodes[0] * 100]
+        generated_images = generated_images[: self.encoder_prop.nodes[0] * 100]
 
         # Visualization
         if self.viz is not None:
             n_row = 10
             n_col = 10
-            self.viz.plot_images(n_row=n_row,
-                                 n_col=n_col,
-                                 imgs=generated_images)
+            self.viz.plot_images(n_row=n_row, n_col=n_col, imgs=generated_images)
 
     def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for inputs"""
-        Sx_batch = np.zeros((batch_size, self.encoder_prop.nodes[0]),
-                            dtype=self.dtype)
+        Sx_batch = np.zeros((batch_size, self.encoder_prop.nodes[0]), dtype=self.dtype)
 
         Sx_f_batch = np.array([], dtype=self.dtype)
 
@@ -173,8 +166,10 @@ class Autoencoder:
     def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for outputs"""
         # Outputs
-        V_batch = np.zeros((batch_size, self.decoder_prop.nodes[-1]),
-                           dtype=self.dtype) + self.decoder_prop.sigma_v**2
+        V_batch = (
+            np.zeros((batch_size, self.decoder_prop.nodes[-1]), dtype=self.dtype)
+            + self.decoder_prop.sigma_v**2
+        )
         ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
         return V_batch, ud_idx_batch

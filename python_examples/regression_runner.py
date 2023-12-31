@@ -20,20 +20,21 @@ def main():
     net_prop = RegressionMLP()
 
     # Data loader
-    reg_data_loader = RegressionDataLoader(num_inputs=num_inputs,
-                                           num_outputs=num_outputs,
-                                           batch_size=net_prop.batch_size)
-    data_loader = reg_data_loader.process_data(x_train_file=x_train_file,
-                                               y_train_file=y_train_file,
-                                               x_test_file=x_test_file,
-                                               y_test_file=y_test_file)
+    reg_data_loader = RegressionDataLoader(
+        num_inputs=num_inputs, num_outputs=num_outputs, batch_size=net_prop.batch_size
+    )
+    data_loader = reg_data_loader.process_data(
+        x_train_file=x_train_file,
+        y_train_file=y_train_file,
+        x_test_file=x_test_file,
+        y_test_file=y_test_file,
+    )
 
     # Train and test
-    viz = None #PredictionViz(task_name="regression", data_name="toy1D")
-    reg_task = Regression(num_epochs=num_epochs,
-                          data_loader=data_loader,
-                          net_prop=net_prop,
-                          viz=viz)
+    viz = None  # PredictionViz(task_name="regression", data_name="toy1D")
+    reg_task = Regression(
+        num_epochs=num_epochs, data_loader=data_loader, net_prop=net_prop, viz=viz
+    )
     reg_task.train()
     reg_task.predict(std_factor=3)
 

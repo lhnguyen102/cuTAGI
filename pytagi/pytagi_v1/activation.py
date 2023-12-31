@@ -1,0 +1,128 @@
+# Temporary import. It will be removed in the final vserion
+import sys
+import os
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+)
+
+import cutagitest
+from base_layer import BaseLayer
+
+
+class Relu(BaseLayer):
+    """ReLU"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.Relu()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class Sigmoid(BaseLayer):
+    """Sigmoid"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.Sigmoid()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class Tanh(BaseLayer):
+    """Tanh"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.Tanh()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class MixtureRelu(BaseLayer):
+    """Mixture Relu"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.MixtureRelu()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class MixtureSigmoid(BaseLayer):
+    """Mixture Sigmoid"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.MixtureSigmoid()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class MixtureTanh(BaseLayer):
+    """Mixture Tanh"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.MixtureTanh()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class Softplus(BaseLayer):
+    """Softplus"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.Softplus()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class LeakyRelu(BaseLayer):
+    """Leaky Relu"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.LeakyRelu()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()
+
+
+class Softmax(BaseLayer):
+    """Softmax"""
+
+    def __init__(self):
+        self._backend_layer = cutagitest.Softmax()
+
+    def get_layer_info(self) -> str:
+        return self._backend_layer.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._backend_layer.get_layer_name()

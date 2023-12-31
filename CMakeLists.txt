@@ -149,6 +149,8 @@ set(CPU_SOURCES
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
+  src/bindings/sequential_bindings.cpp
+  src/bindings/main_bindings.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -216,7 +218,8 @@ if(CMAKE_CUDA_COMPILER)
   add_executable(main main.cu)
 
   # Python wrapper for C++/CUDA code
-  pybind11_add_module(cutagi "src/python_api.cu")
+  # pybind11_add_module(cutagi "src/python_api.cu")
+  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
   target_link_libraries(cutagi_lib ${CMAKE_DL_LIBS})
@@ -229,4 +232,5 @@ else()
 endif()
 
 target_link_libraries(main PUBLIC cutagi_lib)
-target_link_libraries(cutagi PRIVATE cutagi_lib)
+# target_link_libraries(cutagi PRIVATE cutagi_lib)
+target_link_libraries(cutagitest PRIVATE cutagi_lib)

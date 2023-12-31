@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         sequential_bindings.h
+// File:         main_bindings.h
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
@@ -13,9 +13,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <memory>
-
-#include "../include/base_layer.h"
-#include "../include/sequential.h"
-
-void bind_sequential(pybind11::module_& modo);
+#include "activation_bindings.h"
+#include "base_layer_bindings.h"
+#include "linear_layer_bindings.h"
+#include "sequential_bindings.h"

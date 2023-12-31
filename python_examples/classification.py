@@ -23,8 +23,9 @@ class Classifier:
     hr_softmax: HierarchicalSoftmax
     utils: Utils = Utils()
 
-    def __init__(self, num_epochs: int, data_loader: dict, net_prop: NetProp,
-                 num_classes: int) -> None:
+    def __init__(
+        self, num_epochs: int, data_loader: dict, net_prop: NetProp, num_classes: int
+    ) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.net_prop = net_prop
@@ -41,8 +42,7 @@ class Classifier:
     def num_classes(self, value: int) -> None:
         """Set number of classes"""
         self._num_classes = value
-        self.hr_softmax = self.utils.get_hierarchical_softmax(
-            self._num_classes)
+        self.hr_softmax = self.utils.get_hierarchical_softmax(self._num_classes)
         self.net_prop.nye = self.hr_softmax.num_obs
 
     def train(self) -> None:
@@ -73,22 +73,22 @@ class Classifier:
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
 
                 # Update hidden states
-                self.network.state_feed_backward(y_batch, V_batch,
-                                                 ud_idx_batch)
+                self.network.state_feed_backward(y_batch, V_batch, ud_idx_batch)
 
                 # Update parameters
                 self.network.param_feed_backward()
 
                 # Error rate
                 ma_pred, Sa_pred = self.network.get_network_outputs()
-                pred, _ = self.utils.get_labels(ma=ma_pred,
-                                                Sa=Sa_pred,
-                                                hr_softmax=self.hr_softmax,
-                                                num_classes=self.num_classes,
-                                                batch_size=batch_size)
+                pred, _ = self.utils.get_labels(
+                    ma=ma_pred,
+                    Sa=Sa_pred,
+                    hr_softmax=self.hr_softmax,
+                    num_classes=self.num_classes,
+                    batch_size=batch_size,
+                )
 
-                error_rate = metric.classification_error(prediction=pred,
-                                                         label=label)
+                error_rate = metric.classification_error(prediction=pred, label=label)
                 error_rates.append(error_rate)
                 if i % 100 == 0 and i > 0:
                     extracted_error_rate = np.hstack(error_rates)
@@ -112,11 +112,13 @@ class Classifier:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
             ma, Sa = self.network.get_network_outputs()
-            pred, _ = self.utils.get_labels(ma=ma,
-                                            Sa=Sa,
-                                            hr_softmax=self.hr_softmax,
-                                            num_classes=self.num_classes,
-                                            batch_size=batch_size)
+            pred, _ = self.utils.get_labels(
+                ma=ma,
+                Sa=Sa,
+                hr_softmax=self.hr_softmax,
+                num_classes=self.num_classes,
+                batch_size=batch_size,
+            )
 
             # Store data
             preds.append(pred)
@@ -126,8 +128,7 @@ class Classifier:
         labels = np.stack(labels).flatten()
 
         # Compute classification error rate
-        error_rate = metric.classification_error(prediction=preds,
-                                                 label=labels)
+        error_rate = metric.classification_error(prediction=preds, label=labels)
 
         print("#############")
         print(f"Error rate    : {error_rate * 100: 0.2f}%")
@@ -159,8 +160,7 @@ class Classifier:
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
 
                 # Update hidden states
-                self.network.state_feed_backward(y_batch, V_batch,
-                                                 ud_idx_batch)
+                self.network.state_feed_backward(y_batch, V_batch, ud_idx_batch)
 
                 # Update parameters
                 self.network.param_feed_backward()
@@ -170,8 +170,7 @@ class Classifier:
                 pred = ma_pred.reshape((batch_size, self.num_classes))
                 pred = np.argmax(pred, axis=1)
 
-                error_rate = metric.classification_error(prediction=pred,
-                                                         label=label)
+                error_rate = metric.classification_error(prediction=pred, label=label)
                 error_rates.append(error_rate)
                 if i % 1000 == 0 and i > 0:
                     extracted_error_rate = np.hstack(error_rates)
@@ -206,16 +205,14 @@ class Classifier:
         labels = np.stack(labels).flatten()
 
         # Compute classification error rate
-        error_rate = metric.classification_error(prediction=preds,
-                                                 label=labels)
+        error_rate = metric.classification_error(prediction=preds, label=labels)
 
         print("#############")
         print(f"Error rate    : {error_rate * 100: 0.2f}%")
 
     def init_inputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for inputs"""
-        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]),
-                            dtype=np.float32)
+        Sx_batch = np.zeros((batch_size, self.net_prop.nodes[0]), dtype=np.float32)
 
         Sx_f_batch = np.array([], dtype=np.float32)
 
@@ -224,8 +221,10 @@ class Classifier:
     def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for outputs"""
         # Outputs
-        V_batch = np.zeros((batch_size, self.net_prop.nodes[-1]),
-                           dtype=np.float32) + self.net_prop.sigma_v**2
+        V_batch = (
+            np.zeros((batch_size, self.net_prop.nodes[-1]), dtype=np.float32)
+            + self.net_prop.sigma_v**2
+        )
         ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
         return V_batch, ud_idx_batch

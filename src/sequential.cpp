@@ -28,7 +28,7 @@ void Sequential::to_device(const std::string &new_device) {
     }
 }
 
-void Sequential::add_layer(std::unique_ptr<BaseLayer> layer)
+void Sequential::add_layer(std::shared_ptr<BaseLayer> layer)
 /*
 NOTE: The output buffer size is determinated based on the output size for each
 layer assuming that batch size = 1. If the batch size in the forward pass > 1,
@@ -43,9 +43,9 @@ it will be corrected at the first run in the forward pass.
 
     // Stack layer
     if (this->device.compare("cpu") == 0) {
-        this->layers.push_back(std::move(layer));
+        this->layers.push_back(layer);
     } else if (this->device.compare("cuda") == 0) {
-        this->layers.push_back(std::move(layer->to_cuda()));
+        this->layers.push_back(layer->to_cuda());
     } else {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
@@ -383,5 +383,27 @@ void Sequential::params_from(const Sequential &model_ref) {
         this->layers[i]->var_w = model_ref.layers[i]->var_w;
         this->layers[i]->mu_b = model_ref.layers[i]->mu_b;
         this->layers[i]->var_b = model_ref.layers[i]->var_b;
+    }
+}
+
+// Wrapper
+void Sequential::forward_py(
+    pybind11::array_t<float> mu_a_np,
+    pybind11::array_t<float> var_a_np = pybind11::array_t<float>())
+/*
+ */
+{
+    // Get pointers to the data in the arrays
+    auto mu_a_buf = mu_a_np.request();
+    float *mu_a_ptr = static_cast<float *>(mu_a_buf.ptr);
+    std::vector<float> mu_a(mu_a_ptr, mu_a_ptr + mu_a_buf.size);
+
+    if (!var_a_np.is_none()) {
+        auto var_a_buf = var_a_np.request();
+        float *var_a_ptr = static_cast<float *>(var_a_buf.ptr);
+        std::vector<float> var_a(var_a_ptr, var_a_ptr + var_a_buf.size);
+        this->forward(mu_a, var_a);
+    } else {
+        this->forward(mu_a);
     }
 }

@@ -3,11 +3,15 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 17, 2023
+// Updated:      December 31, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
 #include <algorithm>
 #include <memory>
 #include <sstream>
@@ -54,7 +58,7 @@ class Sequential {
 
     void to_device(const std::string& new_device);
 
-    void add_layer(std::unique_ptr<BaseLayer> layer);
+    void add_layer(std::shared_ptr<BaseLayer> layer);
 
     void init_output_state_buffer();
 
@@ -88,8 +92,13 @@ class Sequential {
     // Copy model params
     void params_from(const Sequential& ref_model);
 
+    // Python Wrapper
+    void forward_py(
+        pybind11::array_t<float> mu_a_np,
+        pybind11::array_t<float> var_a_np = pybind11::array_t<float>());
+
    private:
-    std::vector<std::unique_ptr<BaseLayer>> layers;
+    std::vector<std::shared_ptr<BaseLayer>> layers;
 
     // Recursive variadic template
     template <typename T, typename... Rest>
@@ -104,8 +113,8 @@ class Sequential {
                 "Error: Type T must be derived from BaseLayer");
         }
 
-        // Add layer
-        add_layer(std::make_unique<T>(std::forward<T>(first)));
+        // Add layer using shared_ptr
+        add_layer(std::make_shared<T>(std::forward<T>(first)));
 
         // Recursively adding next layer
         add_layers(std::forward<Rest>(rest)...);

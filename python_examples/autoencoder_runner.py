@@ -24,24 +24,30 @@ def main():
 
     # Data loader
     reg_data_loader = MnistDataloader(batch_size=encoder_prop.batch_size)
-    data_loader = reg_data_loader.process_data(x_train_file=x_train_file,
-                                               y_train_file=y_train_file,
-                                               x_test_file=x_test_file,
-                                               y_test_file=y_test_file)
+    data_loader = reg_data_loader.process_data(
+        x_train_file=x_train_file,
+        y_train_file=y_train_file,
+        x_test_file=x_test_file,
+        y_test_file=y_test_file,
+    )
 
     # Visualization
-    viz = ImageViz(task_name="autoencoder",
-                   data_name="mnist",
-                   mu=mu,
-                   sigma=sigma,
-                   img_size=img_size)
+    viz = ImageViz(
+        task_name="autoencoder",
+        data_name="mnist",
+        mu=mu,
+        sigma=sigma,
+        img_size=img_size,
+    )
 
     # Train and test
-    reg_task = Autoencoder(num_epochs=num_epochs,
-                           data_loader=data_loader,
-                           encoder_prop=encoder_prop,
-                           decoder_prop=decoder_prop,
-                           viz=viz)
+    reg_task = Autoencoder(
+        num_epochs=num_epochs,
+        data_loader=data_loader,
+        encoder_prop=encoder_prop,
+        decoder_prop=decoder_prop,
+        viz=viz,
+    )
     reg_task.train()
     reg_task.predict()
 

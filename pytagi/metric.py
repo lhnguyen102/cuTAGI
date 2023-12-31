@@ -11,16 +11,18 @@ import numpy as np
 
 
 def mse(prediction: np.ndarray, observation: np.ndarray) -> float:
-    """ Mean squared error"""
-    return np.nanmean((prediction - observation)**2)
+    """Mean squared error"""
+    return np.nanmean((prediction - observation) ** 2)
 
 
-def log_likelihood(prediction: np.ndarray, observation: np.ndarray,
-                   std: np.ndarray) -> float:
+def log_likelihood(
+    prediction: np.ndarray, observation: np.ndarray, std: np.ndarray
+) -> float:
     """Compute the averaged log-likelihood"""
 
-    log_lik = -0.5 * np.log(2 * np.pi * (std**2)) - 0.5 * ((
-        (observation - prediction) / std)**2)
+    log_lik = -0.5 * np.log(2 * np.pi * (std**2)) - 0.5 * (
+        ((observation - prediction) / std) ** 2
+    )
 
     return np.nanmean(log_lik)
 

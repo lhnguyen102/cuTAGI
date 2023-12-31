@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 class DataGeneration:
     """Generate the sin-like time series"""
+
     data_frame: pd.DataFrame
 
     def __init__(self, date_time: list) -> None:
@@ -32,29 +33,29 @@ class DataGeneration:
         self.data_frame = self.create_dataframe(self._date_time)
 
     def create_dataframe(self, date_time: list) -> pd.DataFrame:
-        """ Create a time series x sin wave dataframe. """
-        data_frame = pd.DataFrame(columns=['datetime', 'sin'])
-        data_frame["datetime"] = pd.date_range(start=date_time[0],
-                                               end=date_time[1],
-                                               freq='D')
+        """Create a time series x sin wave dataframe."""
+        data_frame = pd.DataFrame(columns=["datetime", "sin"])
+        data_frame["datetime"] = pd.date_range(
+            start=date_time[0], end=date_time[1], freq="D"
+        )
         data_frame["sin"] = 1 + np.sin(
-            data_frame["datetime"].astype('int64') // 1E9 *
-            (2 * np.pi / (365.24 * 24 * 60 * 60)))
-        data_frame["sin"] = (data_frame["sin"] * 5)
+            data_frame["datetime"].astype("int64")
+            // 1e9
+            * (2 * np.pi / (365.24 * 24 * 60 * 60))
+        )
+        data_frame["sin"] = data_frame["sin"] * 5
         data_frame = data_frame.set_index("datetime")
 
         return data_frame
 
-    def split_data(self,
-                   col_name: Union[str, List[str]],
-                   ratio: float = 0.8) -> None:
+    def split_data(self, col_name: Union[str, List[str]], ratio: float = 0.8) -> None:
         """Split data into training and test sets"""
 
         # Split data
         last_idx = int(len(self.data_frame) * ratio)
         last_date_time = self.data_frame.index[last_idx]
-        train_idx = (self.data_frame.index < last_date_time)
-        test_idx = (self.data_frame.index >= last_date_time)
+        train_idx = self.data_frame.index < last_date_time
+        test_idx = self.data_frame.index >= last_date_time
         x_train_data = self.data_frame[col_name][train_idx]
         x_test_data = self.data_frame[col_name][test_idx]
         y_train_data = self.data_frame["sin"][train_idx]
@@ -83,20 +84,16 @@ class DataGeneration:
     def add_weekly_feature(self) -> None:
         """Add weekly features"""
 
-        week_sin = np.sin(2 * np.pi *
-                          (self.data_frame.index.isocalendar().day / 7))
-        week_cos = np.cos(2 * np.pi *
-                          (self.data_frame.index.isocalendar().day / 7))
+        week_sin = np.sin(2 * np.pi * (self.data_frame.index.isocalendar().day / 7))
+        week_cos = np.cos(2 * np.pi * (self.data_frame.index.isocalendar().day / 7))
         self.data_frame["week_sin"] = week_sin
         self.data_frame["week_cos"] = week_cos
 
     def add_yearly_feature(self) -> None:
         """Add yearly feature"""
 
-        year_sin = np.sin(2 * np.pi *
-                          (self.data_frame.index.isocalendar().day / 52))
-        year_cos = np.cos(2 * np.pi *
-                          (self.data_frame.index.isocalendar().day / 52))
+        year_sin = np.sin(2 * np.pi * (self.data_frame.index.isocalendar().day / 52))
+        year_cos = np.cos(2 * np.pi * (self.data_frame.index.isocalendar().day / 52))
         self.data_frame["year_sin"] = year_sin
         self.data_frame["year_cos"] = year_cos
 
@@ -104,8 +101,7 @@ class DataGeneration:
         """Visualize time series"""
         _ = plt.figure(figsize=(12, 4))
         axes = plt.axes()
-        axes.plot(self.data_frame["datetime"].values,
-                  self.data_frame["sin"].values)
+        axes.plot(self.data_frame["datetime"].values, self.data_frame["sin"].values)
         plt.show()
 
 
@@ -117,7 +113,7 @@ def main():
     ratio = 0.8
 
     dg = DataGeneration(date_time)
-    #dg.visualize_data()
+    # dg.visualize_data()
     dg.add_weekly_feature()
     dg.add_yearly_feature()
     dg.split_data(col_name=col_name, ratio=ratio)
