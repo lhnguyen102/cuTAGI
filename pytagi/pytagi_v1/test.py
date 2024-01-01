@@ -1,16 +1,20 @@
+import cProfile
+import pstats
+from io import StringIO
 from typing import Tuple
 
+import fire
+import memory_profiler
 import numpy as np
 from activation import Relu
+from data_loader import MnistDataloader
 from linear import Linear
+from output_updater import OutputUpdater
 from sequential import Sequential
 from tqdm import tqdm
 
-from pytagi import HierarchicalSoftmax, Utils
-from output_updater import OutputUpdater
-from data_loader import MnistDataloader
-
 import pytagi.metric as metric
+from pytagi import HierarchicalSoftmax, Utils
 
 
 class Classifier:
@@ -23,9 +27,12 @@ class Classifier:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.num_classes = num_classes
+
+        # Network architecture
         self.network = Sequential(
             Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
         )
+        self.network.set_threads(4)
         # self.network.to_device("cuda")
 
     @property
@@ -43,38 +50,41 @@ class Classifier:
     def train(self) -> None:
         """Train the network using TAGI"""
 
-        # Updater
+        # Updater for output layer (i.e., equivalent to loss function)
         output_updater = OutputUpdater(self.network.device)
 
         # Inputs
         batch_size = 20
 
         # Outputs
-        V_batch, _ = self.init_outputs(batch_size)
+        var_obs, _ = self.init_outputs(batch_size)
 
+        # Data
         input_data, output_data, output_idx, labels = self.data_loader["train"]
+
+        # Progress bar
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
+
         error_rates = []
         for epoch in pbar:
             for i in range(num_iter):
                 # Get data
                 idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
-                y_batch = output_data[idx, :]
+                mu_obs_batch = output_data[idx, :]
                 ud_idx_batch = output_idx[idx, :]
                 label = labels[idx]
 
                 # Feed forward
                 self.network(x_batch.flatten())
-                ma_pred, Sa_pred = self.network.get_outputs()
 
                 # Update output layer
                 output_updater.update_using_indices(
                     output_states=self.network.output_z_buffer,
-                    mu_obs=y_batch.flatten(),
-                    var_obs=V_batch.flatten(),
+                    mu_obs=mu_obs_batch.flatten(),
+                    var_obs=var_obs.flatten(),
                     selected_idx=ud_idx_batch.flatten(),
                     delta_states=self.network.input_delta_z_buffer,
                 )
@@ -84,6 +94,7 @@ class Classifier:
                 self.network.step()
 
                 # Error rate
+                ma_pred, Sa_pred = self.network.get_outputs()
                 pred, _ = self.utils.get_labels(
                     ma=ma_pred,
                     Sa=Sa_pred,
@@ -114,7 +125,7 @@ class Classifier:
         for x_batch, y_batch in self.data_loader["test"]:
             # Predicitons
             self.network(x_batch)
-            ma, Sa = self.network.get_network_outputs()
+            ma, Sa = self.network.get_outputs()
             pred, _ = self.utils.get_labels(
                 ma=ma,
                 Sa=Sa,
@@ -147,10 +158,11 @@ class Classifier:
         return V_batch, ud_idx_batch
 
 
-def main():
-    """Training API"""
+# @memory_profiler.profile
+def clsf_runner():
+    """Run classification training"""
     # User-input
-    num_epochs = 50
+    num_epochs = 1
     x_train_file = "../../data/mnist/train-images-idx3-ubyte"
     y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
     x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
@@ -172,5 +184,37 @@ def main():
     reg_task.train()
 
 
+def memory_profiling_main():
+    clsf_runner()
+
+
+def profiler():
+    """Run profiler"""
+    pr = cProfile.Profile()
+    pr.enable()
+
+    # Run the main function
+    memory_profiling_main()
+
+    pr.disable()
+    s = StringIO()
+    ps = pstats.Stats(pr, stream=s).sort_stats("time")
+    ps.print_stats(20)  # Print only the top 20 functions
+
+    # Print cProfile output to console
+    print("Top 20 time-consuming functions:")
+    print(s.getvalue())
+
+
+def main(profile: bool = False):
+    """Test API"""
+    if profile:
+        print("Profile training")
+        profiler()
+    else:
+        print("Training..")
+        clsf_runner()
+
+
 if __name__ == "__main__":
-    main()
+    fire.Fire(main)
