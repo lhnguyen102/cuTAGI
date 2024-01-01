@@ -30,11 +30,11 @@
 
 class Sequential {
    public:
-    std::unique_ptr<BaseHiddenStates> output_z_buffer;
-    std::unique_ptr<BaseHiddenStates> input_z_buffer;
-    std::unique_ptr<BaseDeltaStates> output_delta_z_buffer;
-    std::unique_ptr<BaseDeltaStates> input_delta_z_buffer;
-    std::unique_ptr<BaseTempStates> temp_states;
+    std::shared_ptr<BaseHiddenStates> output_z_buffer;
+    std::shared_ptr<BaseHiddenStates> input_z_buffer;
+    std::shared_ptr<BaseDeltaStates> output_delta_z_buffer;
+    std::shared_ptr<BaseDeltaStates> input_delta_z_buffer;
+    std::shared_ptr<BaseTempStates> temp_states;
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
     int input_size = 0;

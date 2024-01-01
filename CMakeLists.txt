@@ -146,10 +146,12 @@ set(CPU_SOURCES
   src/param_init.cpp
   src/base_output_updater.cpp
 
+  src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
+  src/bindings/base_output_updater_bindings.cpp
   src/bindings/main_bindings.cpp
 
   test/act_func/test_act_func_cpu.cpp

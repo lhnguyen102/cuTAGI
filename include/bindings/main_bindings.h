@@ -15,5 +15,7 @@
 
 #include "activation_bindings.h"
 #include "base_layer_bindings.h"
+#include "base_output_updater_bindings.h"
+#include "data_struct_bindings.h"
 #include "linear_layer_bindings.h"
 #include "sequential_bindings.h"

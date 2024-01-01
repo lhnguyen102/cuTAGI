@@ -58,16 +58,16 @@ void Sequential::init_output_state_buffer()
  */
 {
     if (this->device.compare("cpu") == 0) {
-        this->output_z_buffer = std::make_unique<BaseHiddenStates>(
+        this->output_z_buffer = std::make_shared<BaseHiddenStates>(
             this->z_buffer_size, this->z_buffer_block_size);
-        this->input_z_buffer = std::make_unique<BaseHiddenStates>(
+        this->input_z_buffer = std::make_shared<BaseHiddenStates>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
-        this->output_z_buffer = std::make_unique<HiddenStateCuda>(
+        this->output_z_buffer = std::make_shared<HiddenStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
-        this->input_z_buffer = std::make_unique<HiddenStateCuda>(
+        this->input_z_buffer = std::make_shared<HiddenStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #endif
@@ -83,16 +83,16 @@ void Sequential::init_delta_state_buffer()
  */
 {
     if (this->device.compare("cpu") == 0) {
-        this->output_delta_z_buffer = std::make_unique<BaseDeltaStates>(
+        this->output_delta_z_buffer = std::make_shared<BaseDeltaStates>(
             this->z_buffer_size, this->z_buffer_block_size);
-        this->input_delta_z_buffer = std::make_unique<BaseDeltaStates>(
+        this->input_delta_z_buffer = std::make_shared<BaseDeltaStates>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
-        this->output_delta_z_buffer = std::make_unique<DeltaStateCuda>(
+        this->output_delta_z_buffer = std::make_shared<DeltaStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
-        this->input_delta_z_buffer = std::make_unique<DeltaStateCuda>(
+        this->input_delta_z_buffer = std::make_shared<DeltaStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #endif

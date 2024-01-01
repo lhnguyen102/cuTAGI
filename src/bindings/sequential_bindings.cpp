@@ -10,6 +10,15 @@
 
 #include "../include/bindings/sequential_bindings.h"
 
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+#include <memory>
+
+#include "../include/base_layer.h"
+#include "../include/sequential.h"
+
 void bind_sequential(pybind11::module_& m) {
     pybind11::class_<Sequential, std::shared_ptr<Sequential>>(m, "Sequential")
         .def(pybind11::init<>())
@@ -21,7 +30,9 @@ void bind_sequential(pybind11::module_& m) {
                 }
                 return seq;
             }))
-
+        .def_readwrite("output_z_buffer", &Sequential::output_z_buffer)
+        .def_readwrite("input_delta_z_buffer",
+                       &Sequential::input_delta_z_buffer)
         .def_readwrite("z_buffer_size", &Sequential::z_buffer_size)
         .def_readwrite("z_buffer_block_size", &Sequential::z_buffer_block_size)
         .def_readwrite("input_size", &Sequential::input_size)
