@@ -98,6 +98,9 @@ class Sequential {
         pybind11::array_t<float> mu_a_np,
         pybind11::array_t<float> var_a_np = pybind11::array_t<float>());
 
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+    get_outputs();
+
    private:
     std::vector<std::shared_ptr<BaseLayer>> layers;
 

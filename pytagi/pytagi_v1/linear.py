@@ -29,15 +29,15 @@ class Linear(BaseLayer):
         self.gain_bias = gain_bias
         self.init_method = init_method
 
-        self._backend_layer = cutagitest.Linear(
+        self._cpp_backend = cutagitest.Linear(
             input_size, output_size, gain_weight, gain_bias, init_method
         )
 
     def get_layer_info(self) -> str:
-        return self._backend_layer.get_layer_info()
+        return self._cpp_backend.get_layer_info()
 
     def get_layer_name(self) -> str:
-        return self._backend_layer.get_layer_name()
+        return self._cpp_backend.get_layer_name()
 
     def init_weight_bias(self):
-        self._backend_layer.init_weight_bias()
+        self._cpp_backend.init_weight_bias()

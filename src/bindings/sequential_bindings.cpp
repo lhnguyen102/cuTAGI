@@ -38,6 +38,7 @@ void bind_sequential(pybind11::module_& m) {
         .def_readwrite("input_size", &Sequential::input_size)
         .def_readwrite("training", &Sequential::training)
         .def_readwrite("param_update", &Sequential::param_update)
+        .def_readwrite("device", &Sequential::device)
         .def_readwrite("input_hidden_state_update",
                        &Sequential::input_hidden_state_update)
         .def_readwrite("num_threads", &Sequential::num_threads)
@@ -54,5 +55,6 @@ void bind_sequential(pybind11::module_& m) {
         .def("load", &Sequential::load)
         .def("save_csv", &Sequential::save_csv)
         .def("load_csv", &Sequential::load_csv)
-        .def("params_from", &Sequential::params_from);
+        .def("params_from", &Sequential::params_from)
+        .def("get_outputs", &Sequential::get_outputs);
 }

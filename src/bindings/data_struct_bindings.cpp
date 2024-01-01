@@ -17,7 +17,8 @@
 #include "../include/data_struct.h"
 
 void bind_base_hidden_states(pybind11::module_ &m) {
-    pybind11::class_<BaseHiddenStates>(m, "BaseHiddenStates")
+    pybind11::class_<BaseHiddenStates, std::shared_ptr<BaseHiddenStates>>(
+        m, "BaseHiddenStates")
         .def(pybind11::init<size_t, size_t>())
         .def(pybind11::init<>())
         .def_readwrite("mu_z", &BaseHiddenStates::mu_z)
@@ -33,7 +34,8 @@ void bind_base_hidden_states(pybind11::module_ &m) {
 }
 
 void bind_base_delta_states(pybind11::module_ &m) {
-    pybind11::class_<BaseDeltaStates>(m, "BaseDeltaStates")
+    pybind11::class_<BaseDeltaStates, std::shared_ptr<BaseDeltaStates>>(
+        m, "BaseDeltaStates")
         .def(pybind11::init<size_t, size_t>())
         .def(pybind11::init<>())
         .def_readwrite("delta_mu", &BaseDeltaStates::delta_mu)

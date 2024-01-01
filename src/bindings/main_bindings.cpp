@@ -17,7 +17,7 @@ PYBIND11_MODULE(cutagitest, modo) {
         "TEST";
 
     bind_base_hidden_states(modo);
-    bind_base_delta_state_states(modo);
+    bind_base_delta_states(modo);
     bind_base_layer(modo);
     bind_relu(modo);
     bind_sigmoid(modo);

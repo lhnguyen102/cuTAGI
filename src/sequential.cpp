@@ -386,7 +386,7 @@ void Sequential::params_from(const Sequential &model_ref) {
     }
 }
 
-// Wrapper
+// Python Wrapper
 void Sequential::forward_py(pybind11::array_t<float> mu_a_np,
                             pybind11::array_t<float> var_a_np)
 /*
@@ -405,4 +405,29 @@ void Sequential::forward_py(pybind11::array_t<float> mu_a_np,
     } else {
         this->forward(mu_a);
     }
+}
+
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+Sequential::get_outputs()
+/*
+ */
+{
+    if (this->device.compare("cuda") == 0) {
+        this->output_to_host();
+    }
+    int batch_size = this->output_z_buffer->block_size;
+    int num_outputs = this->layers.back()->output_size;
+    std::vector<float> mu_a_output(batch_size * num_outputs);
+    std::vector<float> var_a_output(batch_size * num_outputs);
+
+    for (int j = 0; j < batch_size * num_outputs; j++) {
+        mu_a_output[j] = this->output_z_buffer->mu_a[j];
+        var_a_output[j] = this->output_z_buffer->var_a[j];
+    }
+    auto py_m_pred =
+        pybind11::array_t<float>(mu_a_output.size(), mu_a_output.data());
+    auto py_v_pred =
+        pybind11::array_t<float>(var_a_output.size(), var_a_output.data());
+
+    return {py_m_pred, py_v_pred};
 }

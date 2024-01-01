@@ -20,9 +20,14 @@ void bind_output_updater(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<OutputUpdater>(modo, "OutputUpdater")
-        .def(pybind11::init<const std::string&>())
+    pybind11::class_<OutputUpdater, std::shared_ptr<OutputUpdater>>(
+        modo, "OutputUpdater")
+        .def(pybind11::init<const std::string>())
         .def("update", &OutputUpdater::update)
-        .def("update_using_indices", &OutputUpdater::update_using_indices)
+        .def("update_using_indices", &OutputUpdater::update_using_indices,
+             pybind11::arg("output_states"), pybind11::arg("mu_obs"),
+             pybind11::arg("var_obs"), pybind11::arg("selected_idx"),
+             pybind11::arg("delta_states"),
+             "Updates the output states using specified indices.")
         .def_readwrite("device", &OutputUpdater::device);
 }
