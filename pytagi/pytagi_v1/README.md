@@ -2,7 +2,7 @@
 
 
 ## Installation & Run
-Please ensure having a conda environmment activated
+Please ensure having a conda environmment activated and compiling the C++ code by following [README.md ](https://github.com/lhnguyen102/cuTAGI?tab=readme-ov-file#mac-os-cpu-version) at the root directory
 1. Navigate to `pytagi_v1`` folder
     ```
     cd pytagi/pytagi_v1
