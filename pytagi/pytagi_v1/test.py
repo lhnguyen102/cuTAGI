@@ -32,7 +32,8 @@ class Classifier:
         self.network = Sequential(
             Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
         )
-        self.network.set_threads(4)
+
+        # self.network.set_threads(4)
         # self.network.to_device("cuda")
 
     @property

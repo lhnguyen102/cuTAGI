@@ -25,9 +25,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 endif()
 
-if(APPLE)
-  set(CMAKE_MACOSX_RPATH ON)
-endif()
+# if(APPLE)
+#   set(CMAKE_MACOSX_RPATH ON)
+#   set(CMAKE_OSX_ARCHITECTURES arm64)
+# endif()
 
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
@@ -216,8 +217,6 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
-  # Embedding Python into a C++ program
-  target_link_libraries(cutagi_lib PRIVATE pybind11::embed)
 
   # Executablecode i.e. application
   add_executable(main main.cu)
@@ -230,7 +229,7 @@ else()
   target_link_libraries(cutagi_lib ${CMAKE_DL_LIBS})
 
   # Embedding Python into a C++ program
-  target_link_libraries(cutagi_lib PRIVATE pybind11::embed)
+  target_link_libraries(cutagi_lib PRIVATE pybind11::module)
 
   # Executable code i.e. application
   add_executable(main main.cpp)
@@ -240,7 +239,10 @@ else()
   pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 endif()
 
+# Embedding Python into a C++ program
+target_link_libraries(main PRIVATE pybind11::embed)
 target_link_libraries(main PUBLIC cutagi_lib)
+
 # target_link_libraries(cutagi PRIVATE cutagi_lib)
 target_link_libraries(cutagitest PRIVATE cutagi_lib)
 

@@ -50,7 +50,7 @@ void fnn_mnist() {
     Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
                      Linear(100, 11));
     // model.set_threads(4);
-    // model.to_device("cuda");
+    model.to_device("cuda");
 
     // // CPU Model
     // Sequential cpu_model(Linear(784, 400), Relu(), Linear(400, 400), Relu(),
@@ -99,7 +99,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 20; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
