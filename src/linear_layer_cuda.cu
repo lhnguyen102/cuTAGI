@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      December 29, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,8 +294,8 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     linear_fwd_mean_var<<<grid_dim, block_dim>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-        this->output_size, input_states.block_size, cu_output_states->d_mu_z,
-        cu_output_states->d_var_z);
+        this->output_size, input_states.block_size, cu_output_states->d_mu_a,
+        cu_output_states->d_var_a);
 
     // Update number of actual states.
     output_states.block_size = batch_size;
@@ -322,9 +322,7 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         unsigned int out_blocks = (out_size + threads - 1) / threads;
 
         fill_output_states_on_device<<<out_blocks, threads>>>(
-            cu_output_states->d_mu_z, cu_output_states->d_var_z, out_size,
-            cu_output_states->d_mu_a, cu_output_states->d_jcb,
-            cu_output_states->d_var_a);
+            out_size, cu_output_states->d_jcb);
     }
 }
 

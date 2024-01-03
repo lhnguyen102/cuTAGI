@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 13, 2023
-// Updated:      December 19, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,17 +23,12 @@ __global__ void fill_bwd_states_on_device(float const *mu_a_in,
     }
 }
 
-__global__ void fill_output_states_on_device(float const *mu_z,
-                                             float const *var_z, int size,
-                                             float *mu_a, float *jcb,
-                                             float *var_a)
+__global__ void fill_output_states_on_device(int size, float *jcb)
 /*
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < size) {
-        mu_a[col] = mu_z[col];
-        var_a[col] = var_z[col];
         jcb[col] = 1.0f;
     }
 }
@@ -122,28 +117,6 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_delta_var_b);
 }
 
-// void BaseLayerCuda::forward(BaseHiddenStates &input_states,
-//                             BaseHiddenStates &output_states,
-//                             BaseTempStates &temp_states)
-// /*
-//  */
-// {}
-
-// void BaseLayerCuda::state_backward(BaseBackwardStates &next_bwd_states,
-//                                    BaseDeltaStates &input_delta_states,
-//                                    BaseDeltaStates &output_delta_states,
-//                                    BaseTempStates &temp_states)
-// /*
-//  */
-// {}
-
-// void BaseLayerCuda::param_backward(BaseBackwardStates &next_bwd_states,
-//                                    BaseDeltaStates &delta_states,
-//                                    BaseTempStates &temp_states)
-// /*
-//  */
-// {}
-
 void BaseLayerCuda::update_weights()
 /*
  */
@@ -155,8 +128,6 @@ void BaseLayerCuda::update_weights()
     device_weight_update<<<blocks, this->num_cuda_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->num_weights,
         this->d_mu_w, this->d_var_w);
-
-    this->params_to_host();
 }
 
 void BaseLayerCuda::update_biases()
@@ -170,8 +141,6 @@ void BaseLayerCuda::update_biases()
     device_bias_update<<<blocks, this->num_cuda_threads>>>(
         this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_b,
         this->d_var_b);
-
-    this->params_to_host();
 }
 
 void BaseLayerCuda::allocate_param_memory()

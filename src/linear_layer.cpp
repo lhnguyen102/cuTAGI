@@ -539,14 +539,14 @@ void Linear::forward(BaseHiddenStates &input_states,
         this->fwd_mean_var_mp(
             this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
             input_states.var_a, this->input_size, this->output_size, batch_size,
-            this->num_threads, output_states.mu_z, output_states.var_z);
+            this->num_threads, output_states.mu_a, output_states.var_a);
     } else {
         int start_chunk = 0;
         int end_chunk = this->output_size * batch_size;
         this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
                            input_states.mu_a, input_states.var_a, start_chunk,
                            end_chunk, this->input_size, this->output_size,
-                           batch_size, output_states.mu_z, output_states.var_z);
+                           batch_size, output_states.mu_a, output_states.var_a);
     }
     // Update number of actual states.
     output_states.block_size = batch_size;

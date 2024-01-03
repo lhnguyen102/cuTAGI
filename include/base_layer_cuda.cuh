@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 29, 2023
-// Updated:      December 24, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,10 +20,7 @@ __global__ void fill_bwd_states_on_device(float const *mu_a_in,
                                           float const *jcb_in, int size,
                                           float *mu_a, float *jcb);
 
-__global__ void fill_output_states_on_device(float const *mu_z,
-                                             float const *var_z, int size,
-                                             float *mu_a, float *jcb,
-                                             float *var_a);
+__global__ void fill_output_states_on_device(int size, float *jcb);
 
 class BaseLayerCuda : public BaseLayer {
    public:

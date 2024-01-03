@@ -99,7 +99,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -126,7 +126,7 @@ void fnn_mnist() {
             // cpu_model.step();
 
             // Extract output
-            model.output_to_host();
+            // model.output_to_host();
             // model.delta_z_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {

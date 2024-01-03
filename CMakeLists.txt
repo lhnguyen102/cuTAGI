@@ -216,6 +216,7 @@ if(CMAKE_CUDA_COMPILER)
 
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
+  target_link_libraries(cutagi_lib PRIVATE pybind11::module)
 
 
   # Executablecode i.e. application

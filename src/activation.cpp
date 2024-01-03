@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 29, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,11 +109,11 @@ void Relu::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
-        this->relu_mean_var_mp(input_states.mu_z, input_states.var_z, end_chunk,
+        this->relu_mean_var_mp(input_states.mu_a, input_states.var_a, end_chunk,
                                this->num_threads, output_states.mu_a,
                                output_states.jcb, output_states.var_a);
     } else {
-        this->relu_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+        this->relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
                             end_chunk, output_states.mu_a, output_states.jcb,
                             output_states.var_a);
     }
@@ -227,7 +227,7 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->sigmoid_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+    this->sigmoid_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
                            end_chunk, output_states.mu_a, output_states.jcb,
                            output_states.var_a);
 
@@ -336,7 +336,7 @@ void Tanh::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->tanh_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+    this->tanh_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
                         end_chunk, output_states.mu_a, output_states.jcb,
                         output_states.var_a);
 
@@ -469,7 +469,7 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_relu_mean_var(
-        input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -604,7 +604,7 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_sigmoid_mean_var(
-        input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -741,7 +741,7 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     this->mixture_tanh_mean_var(
-        input_states.mu_z, input_states.var_z, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -853,7 +853,7 @@ void Softplus::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->softplus_mean_var(input_states.mu_z, input_states.var_z, start_chunk,
+    this->softplus_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
                             end_chunk, output_states.mu_a, output_states.jcb,
                             output_states.var_a);
 
@@ -977,7 +977,7 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->leaky_relu_mean_var(input_states.mu_z, input_states.var_z,
+    this->leaky_relu_mean_var(input_states.mu_a, input_states.var_a,
                               start_chunk, end_chunk, this->alpha,
                               output_states.mu_a, output_states.jcb,
                               output_states.var_a);
@@ -1073,7 +1073,7 @@ void Softmax::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int batch_size = input_states.size / input_states.block_size;
     this->softmax_mean_var(
-        input_states.mu_z, input_states.var_z, input_states.block_size,
+        input_states.mu_a, input_states.var_a, input_states.block_size,
         batch_size, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass

@@ -3,20 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 29, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/data_struct.h"
 
 BaseHiddenStates::BaseHiddenStates(size_t n, size_t m)
-    : mu_z(n, 0.0f),
-      var_z(n, 0.0f),
-      mu_a(n, 0.0f),
-      var_a(n, 0.0f),
-      jcb(n, 1.0f),
-      size(n),
-      block_size(m) {}
+    : mu_a(n, 0.0f), var_a(n, 0.0f), jcb(n, 1.0f), size(n), block_size(m) {}
 
 BaseHiddenStates::BaseHiddenStates() {}
 
@@ -30,12 +24,10 @@ void BaseHiddenStates::set_input_x(const std::vector<float> &mu_x,
     this->actual_size = data_size / block_size;
     this->block_size = block_size;
     for (int i = 0; i < data_size; i++) {
-        this->mu_z[i] = mu_x[i];
         this->mu_a[i] = mu_x[i];
     }
     if (var_x.size() == data_size) {
         for (int i = 0; i < data_size; i++) {
-            this->var_z[i] = var_x[i];
             this->var_a[i] = var_x[i];
         }
     }

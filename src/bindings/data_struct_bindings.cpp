@@ -21,8 +21,6 @@ void bind_base_hidden_states(pybind11::module_ &m) {
         m, "BaseHiddenStates")
         .def(pybind11::init<size_t, size_t>())
         .def(pybind11::init<>())
-        .def_readwrite("mu_z", &BaseHiddenStates::mu_z)
-        .def_readwrite("var_z", &BaseHiddenStates::var_z)
         .def_readwrite("mu_a", &BaseHiddenStates::mu_a)
         .def_readwrite("var_a", &BaseHiddenStates::var_a)
         .def_readwrite("jcb", &BaseHiddenStates::jcb)

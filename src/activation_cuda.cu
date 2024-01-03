@@ -3,12 +3,12 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 29, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../include/activation_cuda.cuh"
 #include "../include/activation.h"
+#include "../include/activation_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -56,7 +56,7 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     relu_mean_var<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -127,7 +127,7 @@ void SigmoidCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     sigmoid_mean_var<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -200,7 +200,7 @@ void TanhCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     tanh_mean_var<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -273,7 +273,7 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_relu<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -346,7 +346,7 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_sigmoid<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -419,7 +419,7 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_tanh<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -492,7 +492,7 @@ void SoftplusCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     softplus<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, num_states,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -565,7 +565,7 @@ void LeakyReluCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     leakyrelu<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z, this->alpha,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->alpha,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -638,7 +638,7 @@ void SoftmaxCuda::forward(BaseHiddenStates &input_states,
         this->num_cuda_threads;
 
     softmax<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_z, cu_input_states->d_var_z,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
         cu_input_states->actual_size, cu_input_states->block_size,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);

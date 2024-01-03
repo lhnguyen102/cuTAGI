@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 29, 2023
+// Updated:      January 03, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,8 +29,6 @@ HiddenStateCuda::~HiddenStateCuda()
 Free GPU memory using cudaFree
 */
 {
-    cudaFree(this->d_mu_z);
-    cudaFree(this->d_var_z);
     cudaFree(this->d_mu_a);
     cudaFree(this->d_var_a);
     cudaFree(this->d_jcb);
@@ -47,12 +45,10 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
     this->block_size = block_size;
 
     for (int i = 0; i < data_size; i++) {
-        this->mu_z[i] = mu_x[i];
         this->mu_a[i] = mu_x[i];
     }
     if (var_x.size() == data_size) {
         for (int i = 0; i < data_size; i++) {
-            this->var_z[i] = var_x[i];
             this->var_a[i] = var_x[i];
         }
     }
@@ -61,8 +57,6 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
 
 void HiddenStateCuda::allocate_memory() {
     // Allocate memory on the GPU using cudaMalloc
-    cudaMalloc(&this->d_mu_z, size * sizeof(float));
-    cudaMalloc(&this->d_var_z, size * sizeof(float));
     cudaMalloc(&this->d_mu_a, size * sizeof(float));
     cudaMalloc(&this->d_var_a, size * sizeof(float));
     cudaMalloc(&this->d_jcb, size * sizeof(float));
@@ -79,10 +73,6 @@ void HiddenStateCuda::to_device()
 /*
  */
 {
-    cudaMemcpy(this->d_mu_z, this->mu_z.data(), this->size * sizeof(float),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_z, this->var_z.data(), this->size * sizeof(float),
-               cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_a, this->var_a.data(), this->size * sizeof(float),
@@ -105,10 +95,6 @@ void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
 {
     assert(chunk_size <= this->size);
 
-    cudaMemcpy(this->d_mu_z, this->mu_z.data(), chunk_size * sizeof(float),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_z, this->var_z.data(), chunk_size * sizeof(float),
-               cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), chunk_size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_a, this->var_a.data(), chunk_size * sizeof(float),
@@ -121,10 +107,6 @@ void HiddenStateCuda::to_host()
 /*
  */
 {
-    cudaMemcpy(this->mu_z.data(), this->d_mu_z,
-               this->mu_z.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->var_z.data(), this->d_var_z,
-               this->var_z.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->mu_a.data(), this->d_mu_a,
                this->mu_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_a.data(), this->d_var_a,

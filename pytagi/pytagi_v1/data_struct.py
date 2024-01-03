@@ -20,22 +20,6 @@ class BaseHiddenStates:
             self._cpp_backend = cutagitest.BaseHiddenStates()
 
     @property
-    def mu_z(self) -> List[float]:
-        return self._cpp_backend.mu_z
-
-    @mu_z.setter
-    def mu_z(self, value: List[float]):
-        self._cpp_backend.mu_z = value
-
-    @property
-    def var_z(self) -> List[float]:
-        return self._cpp_backend.var_z
-
-    @var_z.setter
-    def var_z(self, value: List[float]):
-        self._cpp_backend.var_z = value
-
-    @property
     def mu_a(self) -> List[float]:
         return self._cpp_backend.mu_a
 

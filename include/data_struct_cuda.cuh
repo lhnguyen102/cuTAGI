@@ -17,8 +17,6 @@
 
 class HiddenStateCuda : public BaseHiddenStates {
    public:
-    float *d_mu_z = nullptr;
-    float *d_var_z = nullptr;
     float *d_mu_a = nullptr;
     float *d_var_a = nullptr;
     float *d_jcb = nullptr;
