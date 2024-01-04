@@ -50,6 +50,14 @@ __global__ void permute_delta(float const *delta_mu_0, float const *delta_var_0,
 
 class Conv2dCuda : public BaseLayerCuda {
    public:
+    int *d_idx_mwa_2;
+    int *d_idx_cov_zwa_1;
+    int *d_idx_var_z_ud;
+    std::vector<int> idx_mwa_2;
+    std::vector<int> idx_cov_zwa_1;
+    std::vector<int> idx_var_z_ud;
+    int row_zw = 0, col_z_ud = 0;
+
     float gain_w;
     float gain_b;
     std::string init_method;
@@ -57,13 +65,12 @@ class Conv2dCuda : public BaseLayerCuda {
     size_t out_channels = 0;
     size_t kernel_size = 0;
     int padding = 0;
-    std::vector<int> idx_mwa_2;
-    std::vector<int> idx_cov_zwa_1;
-    std::vector<int> idx_var_z_ud;
-    int row_zw = 0, col_z_ud = 0;
+    int stride = 1;
+    int padding_type = 1;
 
     Conv2dCuda(size_t in_channels, size_t out_channels, size_t kernel_size,
-               int padding = 0, float gain_w = 1.0f, float gain_b = 1.0f,
+               int stride = 1, int padding = 0, int padding_type = 1,
+               float gain_w = 1.0f, float gain_b = 1.0f,
                std::string init_method = "He", bool bias = true);
 
     ~Conv2dCuda();
@@ -83,7 +90,7 @@ class Conv2dCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void get_number_param_conv2d(int kernel, int fi, int fo, bool use_bias);
+    void get_number_param_conv2d();
 
     void init_weight_bias();
 
@@ -104,6 +111,8 @@ class Conv2dCuda : public BaseLayerCuda {
 
    protected:
     void allocate_param_delta();
+    void allocate_conv_index();
+    void conv_index_to_device();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

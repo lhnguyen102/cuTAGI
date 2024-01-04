@@ -20,7 +20,7 @@ class BaseHiddenStates {
     size_t size = 0;         // size of data including buffer
     size_t block_size = 1;   // batch size
     size_t actual_size = 0;  // actual size of data
-    size_t weight = 0, height = 0, depth = 0;
+    size_t width = 0, height = 0, depth = 0;
 
     BaseHiddenStates(size_t n, size_t m);
     BaseHiddenStates();

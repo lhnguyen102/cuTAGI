@@ -27,12 +27,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
-                       size_t kernel_size, int padding, float gain_w,
-                       float gain_b, std::string init_method, bool bias)
+                       size_t kernel_size, int stride, int padding,
+                       int padding_type, float gain_w, float gain_b,
+                       std::string init_method, bool bias)
     : in_channels(in_channels),
       out_channels(out_channels),
       kernel_size(kernel_size),
+      stride(stride),
       padding(padding),
+      padding_type(padding_type),
       gain_w(gain_w),
       gain_b(gain_b),
       init_method(init_method)
@@ -44,18 +47,18 @@ Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
 
 Conv2dCuda::~Conv2dCuda() {}
 
-std::string Conv2dCuda::get_layer_info() const { return "Conv2d()"; }
-
-std::string Conv2dCuda::get_layer_name() const {
+std::string Conv2dCuda::get_layer_info() const {
     return "Conv2d(" + std::to_string(this->in_channels) + "," +
            std::to_string(this->out_channels) + "," +
            std::to_string(this->kernel_size) + ")";
+    ;
 }
+
+std::string Conv2dCuda::get_layer_name() const { return "Conv2dCuda"; }
 
 LayerType Conv2dCuda::get_layer_type() const { return LayerType::Conv2d; };
 
-void Conv2dCuda::get_number_param_conv2d(int kernel, int fi, int fo,
-                                         bool use_bias)
+void Conv2dCuda::get_number_param_conv2d()
 
 /* Get the number of parameters for conv. and tconv. layer.
  *
@@ -71,14 +74,15 @@ void Conv2dCuda::get_number_param_conv2d(int kernel, int fi, int fo,
  *    */
 {
     int n_w, n_b;
-    n_w = kernel * kernel * fi * fo;
-    if (use_bias) {
-        n_b = fo;
+    n_w = this->kernel_size * this->kernel_size * this->in_channels *
+          this->out_channels;
+    if (this->bias) {
+        n_b = this->out_channels;
     } else {
         n_b = 0;
     }
     this->num_weights = n_w;
-    this->bias = n_b;
+    this->num_biases = n_b;
 }
 
 void Conv2dCuda::init_weight_bias()
@@ -90,16 +94,43 @@ void Conv2dCuda::init_weight_bias()
                                 this->out_channels, this->init_method,
                                 this->gain_w, this->gain_b, this->num_weights,
                                 this->num_biases);
+
+    this->params_to_device();
 }
 
 void Conv2dCuda::allocate_param_delta()
 /*
  */
 {
-    this->delta_mu_w.resize(this->num_weights);
-    this->delta_var_w.resize(this->num_weights);
-    this->delta_mu_b.resize(this->num_biases);
-    this->delta_var_b.resize(this->num_biases);
+    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
+    if (this->bias) {
+        cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
+        cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
+    }
+}
+
+void Conv2dCuda::allocate_conv_index()
+/*
+ */
+{
+    cudaMalloc(&this->d_idx_mwa_2, this->idx_mwa_2.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_zwa_1,
+               this->idx_cov_zwa_1.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
+}
+
+void Conv2dCuda::conv_index_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_idx_mwa_2, this->idx_mwa_2.data(),
+               this->idx_mwa_2.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_cov_zwa_1, this->idx_cov_zwa_1.data(),
+               this->idx_cov_zwa_1.size() * sizeof(int),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_var_z_ud, this->idx_var_z_ud.data(),
+               this->idx_var_z_ud.size() * sizeof(int), cudaMemcpyHostToDevice);
 }
 
 void Conv2dCuda::forward(BaseHiddenStates &input_states,
@@ -107,7 +138,72 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
                          BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+    int batch_size = input_states.block_size;
+
+    if (this->num_weights == 0) {
+        std::tie(this->width, this->height) = compute_downsample_img_size_v2(
+            this->kernel_size, this->stride, cu_input_states->width,
+            cu_input_states->height, this->padding, this->padding_type);
+
+        this->get_number_param_conv2d();
+        this->init_weight_bias();
+        this->allocate_param_delta();
+
+        int in_pad_idx = cu_input_states->width * cu_input_states->height *
+                             this->in_channels * batch_size +
+                         1;
+        int out_pad_idx =
+            this->width * this->height * this->out_channels * batch_size + 1;
+
+        int param_pad_idx =
+            pow(this->kernel_size, 2) * this->in_channels * this->out_channels +
+            1;
+
+        auto conv_idx = get_conv2d_idx(
+            this->kernel_size, this->stride, cu_input_states->width,
+            cu_input_states->height, this->width, this->height, this->padding,
+            this->padding_type, in_pad_idx, out_pad_idx, param_pad_idx);
+
+        this->input_size = cu_input_states->width * cu_input_states->height *
+                           this->in_channels;
+        this->output_size = this->width * this->height * this->out_channels;
+    }
+
+    cu_output_states->width = this->width;
+    cu_output_states->height = this->height;
+    cu_output_states->block_size = batch_size;
+    cu_output_states->actual_size = this->output_size;
+
+    // Launch kernel
+    int threads = this->num_cuda_threads;
+    unsigned int grid_row = (this->out_channels + threads - 1) / threads;
+    unsigned int grid_col =
+        (this->width * this->height * batch_size + threads - 1) / threads;
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(threads, threads);
+
+    int woho = this->width * this->height;
+    int wihi = cu_input_states->width * cu_input_states->height;
+    int ki2 = this->kernel_size * kernel_size;
+    int ki2_m_ki = ki2 * this->kernel_size;
+    int woho_batch = woho * batch_size;
+    int pad_idx = wihi * this->in_channels * batch_size + 1;
+
+    conv2d_fwd_mean_var<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_2,
+        woho, this->out_channels, wihi, this->in_channels, ki2, batch_size,
+        ki2_m_ki, woho_batch, pad_idx, this->bias, cu_output_states->d_mu_a,
+        cu_output_states->d_var_a);
+}
 
 void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
                                 BaseDeltaStates &input_delta_states,
@@ -126,8 +222,9 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<Conv2d>(
-        this->in_channels, this->out_channels, this->kernel_size, this->padding,
-        this->gain_w, this->gain_b, this->init_method, this->bias);
+        this->in_channels, this->out_channels, this->kernel_size, this->stride,
+        this->padding, this->padding_type, this->gain_w, this->gain_b,
+        this->init_method, this->bias);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;
