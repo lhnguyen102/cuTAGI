@@ -3,13 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      December 19, 2023
+// Updated:      January 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/linear_layer.h"
 #ifdef USE_CUDA
-#include "linear_layer_cuda.cuh"
+#include "../include/linear_layer_cuda.cuh"
 #endif
 
 Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 30, 2023
+// Updated:      January 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,12 +16,15 @@
 
 #include "data_struct.h"
 
-enum class LayerType { Base, Linear, CNN, LSTM, Activation };
+enum class LayerType { Base, Linear, Conv2d, LSTM, Activation };
 
 class BaseLayer {
    public:
     size_t input_size = 0, output_size = 0;
     size_t num_weights = 0, num_biases = 0;
+    size_t width = 0, height = 0, depth = 0;
+    bool bias = true;
+
     std::vector<float> mu_w;
     std::vector<float> var_w;
     std::vector<float> mu_b;
