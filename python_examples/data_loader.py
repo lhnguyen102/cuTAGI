@@ -119,10 +119,8 @@ class RegressionDataLoader(DataloaderBase):
         y_test = self.load_data_from_csv(y_test_file)
 
         # Normalizer
-        x_mean, x_std = self.normalizer.compute_mean_std(
-            np.concatenate((x_train, x_test)))
-        y_mean, y_std = self.normalizer.compute_mean_std(
-            np.concatenate((y_train, y_test)))
+        x_mean, x_std = self.normalizer.compute_mean_std(x_train)
+        y_mean, y_std = self.normalizer.compute_mean_std(y_train)
 
         x_train = self.normalizer.standardize(data=x_train,
                                               mu=x_mean,

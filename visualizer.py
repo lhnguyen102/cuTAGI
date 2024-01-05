@@ -208,14 +208,14 @@ class PredictionViz:
                         y_pred + std_factor * sy_pred,
                         facecolor="red",
                         alpha=0.3,
-                        label=r"$\mathbb{E}[Y^{'}]\pm\sigma$")
+                        label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(std_factor))
         if sy_test is not None:
             ax.fill_between(x_test,
                             y_test - std_factor * sy_test,
                             y_test + std_factor * sy_test,
                             facecolor="blue",
                             alpha=0.3,
-                            label=r"$y_{true}\pm\sigma$")
+                            label=r"$y_{{test}}\pm{}\sigma$".format(std_factor))
         if x_train is not None:
             if time_series:
                 marker = ""
