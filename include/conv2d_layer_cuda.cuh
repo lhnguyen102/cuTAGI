@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 04, 2024
+// Updated:      January 05, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,9 +28,8 @@ __global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
                                    int nr, int n, int k, int pad_idx,
                                    float *delta_mu, float *delta_var);
 
-__global__ void permmute_mean_var(float const *var_z_0, float const *jcb_0,
-                                  int wihi, int fi, int batch_size,
-                                  float *var_z, float *jcb);
+__global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
+                                  int batch_size, float *jcb);
 
 __global__ void conv2d_bwd_delta_w(float const *var_w, float const *mu_a,
                                    float const *delta_mu_out,
@@ -69,9 +68,10 @@ class Conv2dCuda : public BaseLayerCuda {
     int padding_type = 1;
 
     Conv2dCuda(size_t in_channels, size_t out_channels, size_t kernel_size,
-               int stride = 1, int padding = 0, int padding_type = 1,
-               float gain_w = 1.0f, float gain_b = 1.0f,
-               std::string init_method = "He", bool bias = true);
+               size_t in_width = 0, size_t in_height = 0, int stride = 1,
+               int padding = 0, int padding_type = 1, float gain_w = 1.0f,
+               float gain_b = 1.0f, std::string init_method = "He",
+               bool bias = true);
 
     ~Conv2dCuda();
 
@@ -113,6 +113,7 @@ class Conv2dCuda : public BaseLayerCuda {
     void allocate_param_delta();
     void allocate_conv_index();
     void conv_index_to_device();
+    void lazy_init(size_t width, size_t height, int batch_size);
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

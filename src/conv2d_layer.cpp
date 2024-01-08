@@ -17,8 +17,9 @@
 #endif
 
 Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
-               int stride, int padding, int padding_type, float gain_w,
-               float gain_b, std::string init_method, bool bias)
+               size_t in_width, size_t in_height, int stride, int padding,
+               int padding_type, float gain_w, float gain_b,
+               std::string init_method, bool bias)
     : in_channels(in_channels),
       out_channels(out_channels),
       kernel_size(kernel_size),
@@ -31,6 +32,8 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
 /*
  */
 {
+    this->in_width = in_width;
+    this->in_height = in_height;
     this->bias = bias;
 }
 
@@ -183,7 +186,9 @@ std::tuple<int, int> compute_downsample_img_size_v2(int kernel, int stride,
         ho = nom_h / stride + 1;
     } else {
         throw std::invalid_argument(
-            "Input hyper-parameters for conv. layer are invalid ");
+            "Error in file: " + std::string(__FILE__) +
+            " at line: " + std::to_string(__LINE__) +
+            ". Invalid hyperparameters for conv2d layer");
     }
 
     return {wo, ho};

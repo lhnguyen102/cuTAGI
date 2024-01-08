@@ -43,9 +43,10 @@ class Conv2d : public BaseLayer {
     int row_zw = 0, col_z_ud = 0;
 
     Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
-           int stride = 1, int padding = 0, int padding_type = 1,
-           float gain_w = 1.0f, float gain_b = 1.0f,
-           std::string init_method = "He", bool bias = true);
+           size_t in_width = 0, size_t in_height = 0, int stride = 1,
+           int padding = 0, int padding_type = 1, float gain_w = 1.0f,
+           float gain_b = 1.0f, std::string init_method = "He",
+           bool bias = true);
     ~Conv2d();
 
     // Delete copy constructor and copy assignment

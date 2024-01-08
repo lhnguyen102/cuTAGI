@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      January 04, 2024
+// Updated:      January 05, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,8 @@ class BaseLayer {
    public:
     size_t input_size = 0, output_size = 0;
     size_t num_weights = 0, num_biases = 0;
-    size_t width = 0, height = 0, depth = 0;
+    size_t in_width = 0, in_height = 0;
+    size_t out_width = 0, out_height = 0;
     bool bias = true;
 
     std::vector<float> mu_w;
