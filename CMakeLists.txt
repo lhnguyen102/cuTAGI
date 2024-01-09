@@ -140,6 +140,7 @@ set(CPU_SOURCES
   src/embedding_cpu.cpp
   src/linear_layer.cpp
   src/conv2d_layer.cpp
+  src/pooling_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -191,6 +192,7 @@ set(GPU_SOURCES
   src/data_struct_cuda.cu
   src/linear_layer_cuda.cu
   src/conv2d_layer_cuda.cu
+  src/pooling_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu

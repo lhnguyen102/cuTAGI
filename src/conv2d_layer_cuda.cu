@@ -335,9 +335,10 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<Conv2d>(
-        this->in_channels, this->out_channels, this->kernel_size, this->stride,
-        this->padding, this->padding_type, this->gain_w, this->gain_b,
-        this->init_method, this->bias);
+        this->in_channels, this->out_channels, this->kernel_size,
+        this->in_width, this->in_height, this->stride, this->padding,
+        this->padding_type, this->gain_w, this->gain_b, this->init_method,
+        this->bias);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;

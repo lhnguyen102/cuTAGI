@@ -136,9 +136,10 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
 std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
     this->device = "cuda";
     return std::make_unique<Conv2dCuda>(
-        this->in_channels, this->out_channels, this->kernel_size, this->stride,
-        this->padding, this->padding_type, this->gain_w, this->gain_b,
-        this->init_method, this->bias);
+        this->in_channels, this->out_channels, this->kernel_size,
+        this->in_width, this->in_height, this->stride, this->padding,
+        this->padding_type, this->gain_w, this->gain_b, this->init_method,
+        this->bias);
 }
 #endif
 
