@@ -14,9 +14,13 @@
 class AvgPool2dCuda : public BaseLayerCuda {
    public:
     size_t kernel_size = 0;
+    size_t in_channels = 0;
+    size_t out_channels = 0;
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
+
+    int *d_pool_idx, *d_z_ud_idx;
 
     AvgPool2dCuda(size_t kernel_size, int stride = -1, int padding = 0,
                   int padding_type = 1);
@@ -49,4 +53,7 @@ class AvgPool2dCuda : public BaseLayerCuda {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+   protected:
+    void lazy_init(size_t width, size_t height, size_t depth, int batch_size);
 };

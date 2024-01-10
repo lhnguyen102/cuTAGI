@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 08, 2024
+// Updated:      January 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,12 +11,25 @@
 #pragma once
 #include "base_layer.h"
 
+struct Pool2dIndex {
+    std::vector<int> pool_idx, z_ud_idx;
+    int w, h;
+};
+
+PoolIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo, int ho,
+                         int pad, int pad_type, int pad_idx_in,
+                         int pad_idx_out);
+
 class AvgPool2d : public BaseLayer {
    public:
     size_t kernel_size = 0;
+    size_t in_channels = 0;
+    size_t out_channels = 0;
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
+    std::vector<int> pool_idx, z_ud_idx;
+    size_t row_zw = 0, col_z_ud = 0;
 
     AvgPool2d(size_t kernel_size, int stride = -1, int padding = 0,
               int padding_type = 1);
@@ -55,4 +68,6 @@ class AvgPool2d : public BaseLayer {
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
+   protected:
+    void lazy_init(size_t width, size_t height, int batch_size);
 };

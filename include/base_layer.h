@@ -16,7 +16,7 @@
 
 #include "data_struct.h"
 
-enum class LayerType { Base, Linear, Conv2d, LSTM, Activation };
+enum class LayerType { Base, Linear, Conv2d, AvgPool2d, LSTM, Activation };
 
 class BaseLayer {
    public:

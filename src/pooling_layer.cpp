@@ -9,6 +9,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/pooling_layer.h"
+
+#include "../include/indices.h"
 #ifdef USE_CUDA
 #include "../include/pooling_layer_cuda.cuh"
 #endif
@@ -65,3 +67,41 @@ std::unique_ptr<BaseLayer> AvgPool2d::to_cuda() {
                                            this->padding, this->padding_type);
 }
 #endif
+
+void AvgPool2d::lazy_init(size_t width, size_t height, int batch_size) {}
+
+////////////////////////////////////////////////////////////////////////////////
+// Utility functions
+////////////////////////////////////////////////////////////////////////////////
+
+PoolIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo, int ho,
+                         int pad, int pad_type, int pad_idx_in,
+                         int pad_idx_out) {
+    // Initialize pointers
+    std::vector<int> raw_img, img, padded_img, Fmwa_2_idx, tmp;
+    std::vector<int> Szz_ud_idx;
+    RefIndexOut Fmwa_2;
+    int w_p, h_p;
+
+    // Generate image indices
+    std::tie(raw_img, img, padded_img, w_p, h_p) =
+        image_construction(wi, hi, pad, pad_idx_in, pad_type);
+
+    // Get indices for receptive field
+    tmp =
+        get_receptive_field(img, padded_img, kernel, stride, wo, ho, w_p, h_p);
+    if (!(kernel == stride || (kernel == wi && stride == 1))) {
+        // Get unique indices and its frequency of the receptive field
+        Fmwa_2 = get_ref_idx(tmp, pad, pad_idx_in);
+
+        // Get indices for Szz ud
+        Szz_ud_idx =
+            get_Szz_ud_idx(kernel, wo, ho, pad, Fmwa_2.pad_pos, Fmwa_2.ref,
+                           Fmwa_2.base_idx, pad_idx_out, Fmwa_2.w, Fmwa_2.h);
+    }
+
+    // NOTE THAT DOUBLE CHECK WHY WE NEED THE TRANSPOSE HEAR AND SIZE OF MATRIX
+    Fmwa_2_idx = transpose_matrix(tmp, kernel * kernel, wo * ho);
+
+    return {Fmwa_2_idx, Szz_ud_idx, Fmwa_2.w, Fmwa_2.h};
+}
