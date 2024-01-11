@@ -3,13 +3,33 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 08, 2024
+// Updated:      January 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 #include "base_layer_cuda.cuh"
+
+__global__ void avgpool2d_fwd_overlapped_mean_var(
+    float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
+    int ki2, int k, int pad_idx, float *mu_z, float *var_z);
+
+__global__ void avgpool2d_fwd_mean_var(float const *mu_a, float const *var_a,
+                                       int const *a_idx, int woho, int wihi,
+                                       int ki2, int k, float *mu_z,
+                                       float *var_z);
+
+__global__ void avgpool2d_bwd_overlapped_delta_z(
+    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
+    int const *z_ud_idx, int woho, int wihi, int ki2, int n, int k, int pad_idx,
+    float *delta_mu, float *delta_var);
+
+__global__ void avgpool2d_bwd_delta_z(float const *jcb,
+                                      float const *delta_mu_out,
+                                      float const *delta_var_out, int wo,
+                                      int ki, int ki2, int m, int k,
+                                      float *delta_mu, float *delta_var);
 
 class AvgPool2dCuda : public BaseLayerCuda {
    public:
@@ -19,6 +39,9 @@ class AvgPool2dCuda : public BaseLayerCuda {
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
+    std::vector<int> pool_idx, z_ud_idx;
+    size_t row_zw = 0, col_z_ud = 0;
+    bool overlap = true;
 
     int *d_pool_idx, *d_z_ud_idx;
 
@@ -47,7 +70,7 @@ class AvgPool2dCuda : public BaseLayerCuda {
 
     void state_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_hidden_states,
+                        BaseDeltaStates &output_delta_states,
                         BaseTempStates &temp_states) override;
 
     void param_backward(BaseBackwardStates &next_bwd_states,
@@ -56,4 +79,6 @@ class AvgPool2dCuda : public BaseLayerCuda {
 
    protected:
     void lazy_init(size_t width, size_t height, size_t depth, int batch_size);
+    void allocate_avgpool2d_index();
+    void avgpool2d_index_to_device();
 };

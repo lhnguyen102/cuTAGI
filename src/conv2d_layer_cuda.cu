@@ -200,6 +200,7 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     // Assign output dimensions
     cu_output_states->width = this->out_width;
     cu_output_states->height = this->out_height;
+    cu_output_states->depth = this->out_channels;
     cu_output_states->block_size = batch_size;
     cu_output_states->actual_size = this->output_size;
 

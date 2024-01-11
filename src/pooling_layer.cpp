@@ -24,6 +24,15 @@ AvgPool2d::AvgPool2d(size_t kernel_size, int stride, int padding,
 
 AvgPool2d::~AvgPool2d() {}
 
+std::string AvgPool2d::get_layer_info() const {
+    return "AvgPool2d(" + std::to_string(this->kernel_size) + ")";
+    ;
+}
+
+std::string AvgPool2d::get_layer_name() const { return "AvgPool2d"; }
+
+LayerType AvgPool2d::get_layer_type() const { return LayerType::AvgPool2d; }
+
 void AvgPool2d::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states)
@@ -74,9 +83,9 @@ void AvgPool2d::lazy_init(size_t width, size_t height, int batch_size) {}
 // Utility functions
 ////////////////////////////////////////////////////////////////////////////////
 
-PoolIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo, int ho,
-                         int pad, int pad_type, int pad_idx_in,
-                         int pad_idx_out) {
+Pool2dIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo,
+                           int ho, int pad, int pad_type, int pad_idx_in,
+                           int pad_idx_out) {
     // Initialize pointers
     std::vector<int> raw_img, img, padded_img, Fmwa_2_idx, tmp;
     std::vector<int> Szz_ud_idx;

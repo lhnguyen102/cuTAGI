@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 09, 2024
+// Updated:      January 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,15 +41,102 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
                             BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    int batch_size = input_states.block_size;
+    unsigned int threads = this->num_cuda_threads;
+
+    if (this->pool_idx.size() == 0) {
+        this->lazy_init(cu_input_states->width, cu_input_states->height,
+                        cu_input_states->depth, batch_size);
+    }
+
+    // Assign output dimensions
+    cu_output_states->width = this->out_width;
+    cu_output_states->height = this->out_height;
+    cu_output_states->depth = this->out_channels;
+    cu_output_states->block_size = batch_size;
+    cu_output_states->actual_size = this->output_size;
+
+    // Launch kernels
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int ki2 = this->kernel_size * this->kernel_size;
+    int num_states = woho * this->out_channels * batch_size;
+    int pad_idx_in = wihi * this->in_channels * batch_size + 1;
+
+    unsigned int grid_size = (num_states + threads - 1) / threads;
+
+    if (this->overlap) {
+        avgpool2d_fwd_overlapped_mean_var<<<grid_size, threads>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
+            woho, wihi, ki2, num_states, pad_idx_in, cu_output_states->d_mu_a,
+            cu_output_states->d_var_a);
+    } else {
+        avgpool2d_fwd_mean_var<<<grid_size, threads>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
+            woho, wihi, ki2, num_states, cu_output_states->d_mu_a,
+            cu_output_states->d_var_a);
+    }
+}
 
 void AvgPool2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
                                    BaseDeltaStates &input_delta_states,
-                                   BaseDeltaStates &output_hidden_states,
+                                   BaseDeltaStates &output_delta_states,
                                    BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    unsigned int num_threads = this->num_cuda_threads;
+
+    // Launch kernel
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int ki2 = this->kernel_size * this->kernel_size;
+    int pad_out_idx = woho * this->out_channels * batch_size + 1;
+    if (overlap) {
+        int num_in_states =
+            this->in_width * this->in_height * this->in_channels * batch_size;
+        unsigned grid_size = (num_in_states + num_threads - 1) / num_threads;
+
+        avgpool2d_bwd_overlapped_delta_z<<<grid_size, num_threads>>>(
+            cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->d_z_ud_idx, woho, wihi,
+            ki2, this->col_z_ud, num_in_states, pad_out_idx,
+            cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    } else {
+        int kiwo = this->kernel_size * this->out_width;
+        int nums = wihi * this->in_channels * batch_size / kiwo;
+        unsigned int grid_row = (kiwo + num_threads - 1) / num_threads;
+        unsigned int grid_col = (nums + num_threads - 1) / num_threads;
+        dim3 dim_grid(grid_col, grid_row);
+        dim3 dim_block(num_threads, num_threads);
+
+        avgpool2d_bwd_delta_z<<<dim_grid, grid_row>>>(
+            cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->out_width,
+            this->kernel_size, ki2, kiwo, nums,
+            cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    }
+}
 
 void AvgPool2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
                                    BaseDeltaStates &delta_states,
@@ -65,20 +152,54 @@ void AvgPool2dCuda::lazy_init(size_t width, size_t height, size_t depth,
 {
     this->in_width = width;
     this->in_height = height;
+    this->in_channels = depth;
     std::tie(this->out_width, this->out_height) =
         compute_downsample_img_size_v2(this->kernel_size, this->stride, width,
                                        height, this->padding,
                                        this->padding_type);
 
-    // int pad_idx_in =
-    //     net.widths[j] * net.heights[j] * net.filters[j] * net.batch_size + 1;
-    // int pad_idx_out = net.widths[j + 1] * net.heights[j + 1] *
-    //                       net.filters[j + 1] * net.batch_size +
-    //                   1;
-    // auto pool_idx = get_pool_index(
-    //     this->kernel_size, this->stride, this->in_width, this->in_height,
-    //     this->out_width, this->out_height, this->padding,
-    //     this->padding_type);
+    if (this->kernel_size == this->stride ||
+        (this->kernel_size == this->in_width && this->stride == 1)) {
+        this->overlap = false;
+    }
+
+    int pad_idx_in =
+        this->in_width * this->in_height * this->in_channels * batch_size + 1;
+    int pad_idx_out =
+        this->out_width * this->out_height * this->out_channels * batch_size +
+        1;
+
+    auto idx = get_pool_index(this->kernel_size, this->stride, this->in_width,
+                              this->in_height, this->out_width,
+                              this->out_height, this->padding,
+                              this->padding_type, pad_idx_in, pad_idx_out);
+
+    this->pool_idx = idx.pool_idx;
+    this->z_ud_idx = idx.z_ud_idx;
+    this->row_zw = idx.w;
+    this->col_z_ud = idx.h;
+
+    // cuda device
+    this->allocate_avgpool2d_index();
+    this->avgpool2d_index_to_device();
+}
+
+void AvgPool2dCuda::allocate_avgpool2d_index()
+/*
+ */
+{
+    cudaMalloc(&this->d_pool_idx, this->pool_idx.size() * sizeof(int));
+    cudaMalloc(&this->d_z_ud_idx, this->z_ud_idx.size() * sizeof(int));
+}
+
+void AvgPool2dCuda::avgpool2d_index_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_pool_idx, this->pool_idx.data(),
+               this->pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_z_ud_idx, this->z_ud_idx.data(),
+               this->z_ud_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,13 +212,12 @@ __global__ void avgpool2d_fwd_overlapped_mean_var(
 there is the overlap when sliding kernel size.
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mu_z = 0;
     float sum_var_z = 0;
     int a_idx_tmp = 0;
 
-    if (col < k && row < 1) {
+    if (col < k) {
         for (int i = 0; i < ki2; i++) {
             a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi;
             if (a_idx_tmp < pad_idx) {
@@ -119,12 +239,11 @@ __global__ void avgpool2d_fwd_mean_var(float const *mu_a, float const *var_a,
 is no overlap when sliding kernel size.
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mu_z = 0;
     float sum_var_z = 0;
     int a_idx_tmp = 0;
-    if (col < k && row < 1) {
+    if (col < k) {
         for (int i = 0; i < ki2; i++) {
             // index in a_idx starts at 1
             a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi - 1;
@@ -137,20 +256,19 @@ is no overlap when sliding kernel size.
 }
 
 __global__ void avgpool2d_bwd_overlapped_delta_z(
-    float const *var_z, float const *jcb, float const *delta_mu_out,
-    float const *delta_var_out, int const *z_ud_idx, int woho, int wihi,
-    int ki2, int n, int k, int pad_idx, float *delta_mu, float *delta_var)
+    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
+    int const *z_ud_idx, int woho, int wihi, int ki2, int n, int k, int pad_idx,
+    float *delta_mu, float *delta_var)
 /* Compute updated quantities for the mean and variance of hidden states for
  average pooling layer. Note that this case the kernel size overlap each other
  when scaning images.
  */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_delta_mu = 0;
     float sum_delta_var = 0;
     int z_idx_tmp = 0;
-    if (col < k && row < 1) {
+    if (col < k) {
         for (int i = 0; i < n; i++) {
             z_idx_tmp = z_ud_idx[col % wihi + wihi * i] + (col / wihi) * woho;
             if (z_idx_tmp < pad_idx) {
@@ -163,7 +281,7 @@ __global__ void avgpool2d_bwd_overlapped_delta_z(
     }
 }
 
-__global__ void avgpool2d_bwd_delta_z(float const *var_z, float const *jcb,
+__global__ void avgpool2d_bwd_delta_z(float const *jcb,
                                       float const *delta_mu_out,
                                       float const *delta_var_out, int wo,
                                       int ki, int ki2, int m, int k,

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 09, 2024
+// Updated:      January 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,9 +16,9 @@ struct Pool2dIndex {
     int w, h;
 };
 
-PoolIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo, int ho,
-                         int pad, int pad_type, int pad_idx_in,
-                         int pad_idx_out);
+Pool2dIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo,
+                           int ho, int pad, int pad_type, int pad_idx_in,
+                           int pad_idx_out);
 
 class AvgPool2d : public BaseLayer {
    public:
@@ -30,6 +30,7 @@ class AvgPool2d : public BaseLayer {
     int padding = 0;
     std::vector<int> pool_idx, z_ud_idx;
     size_t row_zw = 0, col_z_ud = 0;
+    bool overlap = true;
 
     AvgPool2d(size_t kernel_size, int stride = -1, int padding = 0,
               int padding_type = 1);
