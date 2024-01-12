@@ -99,7 +99,6 @@ void AvgPool2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
     DeltaStateCuda *cu_output_delta_states =
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     // Initialization
     int batch_size = input_delta_states.block_size;

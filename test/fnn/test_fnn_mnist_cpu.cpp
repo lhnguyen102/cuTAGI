@@ -3,12 +3,28 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      December 19, 2023
+// Updated:      January 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "test_fnn_mnist_cpu.h"
+
+#include <chrono>
+#include <cstdlib>
+#include <ctime>
+#include <memory>
+#include <stdexcept>
+#include <string>
+
+#include "../../include/activation.h"
+#include "../../include/base_output_updater.h"
+#include "../../include/conv2d_layer.h"
+#include "../../include/data_struct.h"
+#include "../../include/dataloader.h"
+#include "../../include/linear_layer.h"
+#include "../../include/pooling_layer.h"
+#include "../../include/sequential.h"
 
 void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
@@ -49,6 +65,9 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
                      Linear(100, 11));
+
+    // Sequential model(Conv2d(1, 16, 4, 28, 28, 1, 1, 1), Conv2d(16, 32, 3));
+
     // model.set_threads(4);
     model.to_device("cuda");
 
