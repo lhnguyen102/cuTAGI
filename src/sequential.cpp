@@ -3,12 +3,15 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 30, 2023
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/sequential.h"
+
+#include "../include/conv2d_layer.h"
+#include "../include/pooling_layer.h"
 
 Sequential::Sequential() {}
 Sequential::~Sequential() {}
@@ -26,6 +29,20 @@ void Sequential::to_device(const std::string &new_device) {
     if (this->device == "cuda") {
         switch_to_cuda();
     }
+
+    // TODO: We should not run this again when switching device
+    this->compute_input_output_size();
+    this->set_buffer_size();
+}
+
+void Sequential::add_layers()
+/*
+ */
+{
+    if (this->device == "cpu") {
+        this->compute_input_output_size();
+        this->set_buffer_size();
+    }
 }
 
 void Sequential::add_layer(std::shared_ptr<BaseLayer> layer)
@@ -35,12 +52,6 @@ layer assuming that batch size = 1. If the batch size in the forward pass > 1,
 it will be corrected at the first run in the forward pass.
  */
 {
-    // Get buffer size
-    int output_size = layer->get_output_size();
-    int input_size = layer->get_input_size();
-    this->z_buffer_size = std::max(output_size, this->z_buffer_size);
-    this->z_buffer_size = std::max(input_size, this->z_buffer_size);
-
     // Stack layer
     if (this->device.compare("cpu") == 0) {
         this->layers.push_back(layer);
@@ -50,6 +61,36 @@ it will be corrected at the first run in the forward pass.
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Invalid device: [" + this->device + "]");
+    }
+}
+
+void Sequential::set_buffer_size()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        int output_size = layer->get_output_size();
+        int input_size = layer->get_input_size();
+        this->z_buffer_size = std::max(output_size, this->z_buffer_size);
+        this->z_buffer_size = std::max(input_size, this->z_buffer_size);
+    }
+}
+
+void Sequential::compute_input_output_size()
+/**/
+{
+    int in_width = this->layers.front()->in_width;
+    int in_height = this->layers.front()->in_height;
+    int in_depth = this->layers.front()->in_channels;
+
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        InitArgs args = InitArgs(in_width, in_height, in_depth);
+        this->layers[i]->compute_input_output_size(args);
+
+        // For next iteration
+        in_width = this->layers[i]->out_width;
+        in_height = this->layers[i]->out_height;
+        in_depth = this->layers[i]->out_channels;
     }
 }
 

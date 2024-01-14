@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 11, 2024
+// Updated:      January 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,8 +34,6 @@ __global__ void avgpool2d_bwd_delta_z(float const *jcb,
 class AvgPool2dCuda : public BaseLayerCuda {
    public:
     size_t kernel_size = 0;
-    size_t in_channels = 0;
-    size_t out_channels = 0;
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
@@ -46,9 +44,9 @@ class AvgPool2dCuda : public BaseLayerCuda {
     int *d_pool_idx, *d_z_ud_idx;
 
     AvgPool2dCuda(size_t kernel_size, int stride = -1, int padding = 0,
-                  int padding_type = 1);
+                  int padding_type = 0);
 
-    ~AvgPool2dCuda();
+    virtual ~AvgPool2dCuda();
 
     // Delete copy constructor and copy assignment
     AvgPool2dCuda(const AvgPool2dCuda &) = delete;
@@ -64,6 +62,8 @@ class AvgPool2dCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
+    void compute_input_output_size(const InitArgs &args) override;
+
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
@@ -78,7 +78,7 @@ class AvgPool2dCuda : public BaseLayerCuda {
                         BaseTempStates &temp_states) override;
 
    protected:
-    void lazy_init(size_t width, size_t height, size_t depth, int batch_size);
+    void lazy_init(int batch_size);
     void allocate_avgpool2d_index();
     void avgpool2d_index_to_device();
 };

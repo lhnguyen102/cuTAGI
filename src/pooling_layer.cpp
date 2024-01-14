@@ -3,18 +3,22 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 08, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/pooling_layer.h"
 
+#include "../include/conv2d_layer.h"
 #include "../include/indices.h"
 #ifdef USE_CUDA
 #include "../include/pooling_layer_cuda.cuh"
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
+/// AvgPool2d
+////////////////////////////////////////////////////////////////////////////////
 AvgPool2d::AvgPool2d(size_t kernel_size, int stride, int padding,
                      int padding_type)
     : kernel_size(kernel_size),
@@ -31,7 +35,25 @@ std::string AvgPool2d::get_layer_info() const {
 
 std::string AvgPool2d::get_layer_name() const { return "AvgPool2d"; }
 
-LayerType AvgPool2d::get_layer_type() const { return LayerType::AvgPool2d; }
+LayerType AvgPool2d::get_layer_type() const { return LayerType::Pool2d; }
+
+void AvgPool2d::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    this->in_channels = args.depth;
+    this->out_channels = args.depth;
+
+    std::tie(this->out_width, this->out_height) =
+        compute_downsample_img_size_v2(this->kernel_size, this->stride,
+                                       this->in_width, this->in_height,
+                                       this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
 
 void AvgPool2d::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,

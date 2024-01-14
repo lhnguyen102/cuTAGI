@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 11, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,8 +23,6 @@ Pool2dIndex get_pool_index(int kernel, int stride, int wi, int hi, int wo,
 class AvgPool2d : public BaseLayer {
    public:
     size_t kernel_size = 0;
-    size_t in_channels = 0;
-    size_t out_channels = 0;
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
@@ -33,9 +31,9 @@ class AvgPool2d : public BaseLayer {
     bool overlap = true;
 
     AvgPool2d(size_t kernel_size, int stride = -1, int padding = 0,
-              int padding_type = 1);
+              int padding_type = 0);
 
-    ~AvgPool2d();
+    virtual ~AvgPool2d();
 
     // Delete copy constructor and copy assignment
     AvgPool2d(const AvgPool2d &) = delete;
@@ -50,6 +48,8 @@ class AvgPool2d : public BaseLayer {
     std::string get_layer_name() const override;
 
     LayerType get_layer_type() const override;
+
+    void compute_input_output_size(const InitArgs &args) override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

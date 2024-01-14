@@ -63,10 +63,12 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
-                     Linear(100, 11));
+    // Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
+    //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, 28, 28, 1, 1, 1), Conv2d(16, 32, 3));
+    Sequential model(Conv2d(1, 4, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3, 2),
+                     Conv2d(4, 32, 5), Relu(), AvgPool2d(3, 2),
+                     Linear(8 * 3 * 3, 10), Relu(), Linear(10, 11));
 
     // model.set_threads(4);
     model.to_device("cuda");
@@ -89,7 +91,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 20;
+    int batch_size = 2;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 11, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,7 +34,25 @@ std::string AvgPool2dCuda::get_layer_info() const {
 
 std::string AvgPool2dCuda::get_layer_name() const { return "AvgPool2dCuda"; }
 
-LayerType AvgPool2dCuda::get_layer_type() const { return LayerType::AvgPool2d; }
+LayerType AvgPool2dCuda::get_layer_type() const { return LayerType::Pool2d; }
+
+void AvgPool2dCuda::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    this->in_channels = args.depth;
+    this->out_channels = args.depth;
+
+    std::tie(this->out_width, this->out_height) =
+        compute_downsample_img_size_v2(this->kernel_size, this->stride,
+                                       this->in_width, this->in_height,
+                                       this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
 
 void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
                             BaseHiddenStates &output_states,
@@ -52,8 +70,7 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
     unsigned int threads = this->num_cuda_threads;
 
     if (this->pool_idx.size() == 0) {
-        this->lazy_init(cu_input_states->width, cu_input_states->height,
-                        cu_input_states->depth, batch_size);
+        this->lazy_init(batch_size);
     }
 
     // Assign output dimensions
@@ -144,19 +161,10 @@ void AvgPool2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
  */
 {}
 
-void AvgPool2dCuda::lazy_init(size_t width, size_t height, size_t depth,
-                              int batch_size)
+void AvgPool2dCuda::lazy_init(int batch_size)
 /*
  */
 {
-    this->in_width = width;
-    this->in_height = height;
-    this->in_channels = depth;
-    std::tie(this->out_width, this->out_height) =
-        compute_downsample_img_size_v2(this->kernel_size, this->stride, width,
-                                       height, this->padding,
-                                       this->padding_type);
-
     if (this->kernel_size == this->stride ||
         (this->kernel_size == this->in_width && this->stride == 1)) {
         this->overlap = false;

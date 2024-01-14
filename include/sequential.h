@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 31, 2023
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +60,8 @@ class Sequential {
     void to_device(const std::string& new_device);
 
     void add_layer(std::shared_ptr<BaseLayer> layer);
+
+    void set_buffer_size();
 
     void init_output_state_buffer();
 
@@ -124,6 +126,8 @@ class Sequential {
         add_layers(std::forward<Rest>(rest)...);
     }
 
-    // Base case for recursive variadic template
-    void add_layers(){};
+    // Base case for recursive variadic template. This function is called after
+    // the last argument
+    void add_layers();
+    void compute_input_output_size();
 };

@@ -10,6 +10,9 @@
 
 #include "../include/base_layer.h"
 
+InitArgs::InitArgs(size_t width, size_t height, size_t depth, int batch_size)
+    : width(width), height(height), depth(depth), batch_size(batch_size) {}
+
 BaseLayer::BaseLayer() {}
 
 const char *BaseLayer::get_layer_type_name() const {
@@ -91,6 +94,20 @@ void BaseLayer::update_biases()
         this->mu_b[i] += this->delta_mu_b[i];
         this->var_b[i] += this->delta_var_b[i];
     }
+}
+
+void BaseLayer::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    // TODO: find a way to add specialized paramters for each layer
+    this->in_width = args.width;
+    this->in_height = args.height;
+    this->in_channels = args.depth;
+
+    this->out_width = args.width;
+    this->out_height = args.height;
+    this->out_channels = args.depth;
 }
 
 void BaseLayer::save(std::ofstream &file)

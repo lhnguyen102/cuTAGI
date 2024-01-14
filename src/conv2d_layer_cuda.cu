@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 05, 2024
+// Updated:      January 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,12 +27,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
-                       size_t kernel_size, size_t in_width, size_t in_height,
-                       int stride, int padding, int padding_type, float gain_w,
-                       float gain_b, std::string init_method, bool bias)
-    : in_channels(in_channels),
-      out_channels(out_channels),
-      kernel_size(kernel_size),
+                       size_t kernel_size, int stride, int padding,
+                       int padding_type, size_t in_width, size_t in_height,
+                       float gain_w, float gain_b, std::string init_method,
+                       bool bias)
+    : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
       padding_type(padding_type),
@@ -44,7 +43,17 @@ Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
 {
     this->in_width = in_width;
     this->in_height = in_height;
+    this->in_channels = in_channels;
+    this->out_channels = out_channels;
     this->bias = bias;
+
+    // TODO: remove this after deciding how to initialize the input dimension
+    // either through forward pass or conv layer
+    // this->input_size = this->in_width * this->in_height * this->in_channels;
+    // if (in_width != 0 && in_height != 0) {
+    //     InitArgs args(in_width, in_height);
+    //     this->compute_input_output_size(args);
+    // }
 }
 
 Conv2dCuda::~Conv2dCuda() {}
@@ -59,6 +68,21 @@ std::string Conv2dCuda::get_layer_info() const {
 std::string Conv2dCuda::get_layer_name() const { return "Conv2dCuda"; }
 
 LayerType Conv2dCuda::get_layer_type() const { return LayerType::Conv2d; };
+
+void Conv2dCuda::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    std::tie(this->out_width, this->out_height) =
+        compute_downsample_img_size_v2(this->kernel_size, this->stride,
+                                       this->in_width, this->in_height,
+                                       this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
 
 void Conv2dCuda::get_number_param_conv2d()
 
@@ -135,22 +159,17 @@ void Conv2dCuda::conv_index_to_device()
                this->idx_var_z_ud.size() * sizeof(int), cudaMemcpyHostToDevice);
 }
 
-void Conv2dCuda::lazy_init(size_t width, size_t height, int batch_size)
+void Conv2dCuda::lazy_init(int batch_size)
 /*
  */
 {
-    this->in_width = width;
-    this->in_height = height;
-    std::tie(this->out_width, this->out_height) =
-        compute_downsample_img_size_v2(this->kernel_size, this->stride, width,
-                                       height, this->padding,
-                                       this->padding_type);
-
     this->get_number_param_conv2d();
     this->init_weight_bias();
 
     // Get precomputed conv indices
-    int in_pad_idx = width * height * this->in_channels * batch_size + 1;
+    int in_pad_idx =
+        this->in_width * this->in_height * this->in_channels * batch_size + 1;
+
     int out_pad_idx =
         this->out_width * this->out_height * this->out_channels * batch_size +
         1;
@@ -158,15 +177,13 @@ void Conv2dCuda::lazy_init(size_t width, size_t height, int batch_size)
     int param_pad_idx =
         pow(this->kernel_size, 2) * this->in_channels * this->out_channels + 1;
 
-    auto conv_idx = get_conv2d_idx(this->kernel_size, this->stride, width,
-                                   height, this->out_width, this->out_height,
-                                   this->padding, this->padding_type,
-                                   in_pad_idx, out_pad_idx, param_pad_idx);
+    auto conv_idx = get_conv2d_idx(
+        this->kernel_size, this->stride, this->in_width, this->in_height,
+        this->out_width, this->out_height, this->padding, this->padding_type,
+        in_pad_idx, out_pad_idx, param_pad_idx);
+
     this->row_zw = conv_idx.h;
     this->col_z_ud = conv_idx.h;
-
-    this->input_size = width * height * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
 
     this->allocate_param_delta();
     this->conv_index_to_device();
@@ -189,11 +206,10 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     if (this->num_weights == 0) {
         if (this->in_width != 0 && this->in_height != 0) {
             // First conv2d layer
-            this->lazy_init(this->in_width, this->in_height, batch_size);
+            this->lazy_init(batch_size);
         } else {
             // Other conv2d layer
-            this->lazy_init(cu_input_states->width, cu_input_states->height,
-                            batch_size);
+            this->lazy_init(batch_size);
         }
     }
 
@@ -336,10 +352,9 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<Conv2d>(
-        this->in_channels, this->out_channels, this->kernel_size,
-        this->in_width, this->in_height, this->stride, this->padding,
-        this->padding_type, this->gain_w, this->gain_b, this->init_method,
-        this->bias);
+        this->in_channels, this->out_channels, this->kernel_size, this->stride,
+        this->padding, this->padding_type, this->in_width, this->in_height,
+        this->gain_w, this->gain_b, this->init_method, this->bias);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;

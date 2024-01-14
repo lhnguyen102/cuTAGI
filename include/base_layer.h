@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      January 11, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,14 +16,24 @@
 
 #include "data_struct.h"
 
-enum class LayerType { Base, Linear, Conv2d, AvgPool2d, LSTM, Activation };
+enum class LayerType { Base, Linear, Conv2d, Pool2d, LSTM, Activation };
+
+class InitArgs {
+   public:
+    size_t width = 0;
+    size_t height = 0;
+    size_t depth = 0;
+    int batch_size = 1;
+    InitArgs(size_t width, size_t height, size_t depth = 1, int batch_size = 1);
+    virtual ~InitArgs() = default;
+};
 
 class BaseLayer {
    public:
     size_t input_size = 0, output_size = 0;
     size_t num_weights = 0, num_biases = 0;
-    size_t in_width = 0, in_height = 0;
-    size_t out_width = 0, out_height = 0;
+    size_t in_width = 0, in_height = 0, in_channels = 0;
+    size_t out_width = 0, out_height = 0, out_channels = 0;
     bool bias = true;
 
     std::vector<float> mu_w;
@@ -80,6 +90,8 @@ class BaseLayer {
     virtual void update_weights();
 
     virtual void update_biases();
+
+    virtual void compute_input_output_size(const InitArgs &args);
 
     virtual void save(std::ofstream &file);
     virtual void load(std::ifstream &file);

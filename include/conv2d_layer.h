@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 03, 2024
-// Updated:      January 04, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,8 +31,6 @@ class Conv2d : public BaseLayer {
     float gain_w;
     float gain_b;
     std::string init_method;
-    size_t in_channels = 0;
-    size_t out_channels = 0;
     size_t kernel_size = 0;
     int stride = 1;
     int padding_type = 1;
@@ -43,11 +41,11 @@ class Conv2d : public BaseLayer {
     int row_zw = 0, col_z_ud = 0;
 
     Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
-           size_t in_width = 0, size_t in_height = 0, int stride = 1,
-           int padding = 0, int padding_type = 1, float gain_w = 1.0f,
+           int stride = 1, int padding = 0, int padding_type = 1,
+           size_t in_width = 0, size_t in_height = 0, float gain_w = 1.0f,
            float gain_b = 1.0f, std::string init_method = "He",
            bool bias = true);
-    ~Conv2d();
+    virtual ~Conv2d();
 
     // Delete copy constructor and copy assignment
     Conv2d(const Conv2d &) = delete;
@@ -62,6 +60,8 @@ class Conv2d : public BaseLayer {
     std::string get_layer_name() const override;
 
     LayerType get_layer_type() const override;
+
+    void compute_input_output_size(const InitArgs &args) override;
 
     void get_number_param_conv2d(int kernel, int fi, int fo, bool use_bias);
 

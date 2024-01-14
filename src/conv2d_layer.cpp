@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 04, 2024
+// Updated:      January 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,13 +16,14 @@
 #include "../include/conv2d_layer_cuda.cuh"
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
+/// Conv2d
+////////////////////////////////////////////////////////////////////////////////
 Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
-               size_t in_width, size_t in_height, int stride, int padding,
-               int padding_type, float gain_w, float gain_b,
+               int stride, int padding, int padding_type, size_t in_width,
+               size_t in_height, float gain_w, float gain_b,
                std::string init_method, bool bias)
-    : in_channels(in_channels),
-      out_channels(out_channels),
-      kernel_size(kernel_size),
+    : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
       padding_type(padding_type),
@@ -34,7 +35,14 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
 {
     this->in_width = in_width;
     this->in_height = in_height;
+    this->in_channels = in_channels;
+    this->out_channels = out_channels;
     this->bias = bias;
+
+    // if (in_width != 0 && in_height != 0) {
+    //     InitArgs args(in_width, in_height);
+    //     this->compute_input_output_size(args);
+    // }
 }
 
 Conv2d::~Conv2d() {}
@@ -48,6 +56,21 @@ std::string Conv2d::get_layer_name() const {
 }
 
 LayerType Conv2d::get_layer_type() const { return LayerType::Conv2d; };
+
+void Conv2d::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    std::tie(this->out_width, this->out_height) =
+        compute_downsample_img_size_v2(this->kernel_size, this->stride,
+                                       this->in_width, this->in_height,
+                                       this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
 
 void Conv2d::get_number_param_conv2d(int kernel, int fi, int fo, bool use_bias)
 
@@ -136,10 +159,9 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
 std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
     this->device = "cuda";
     return std::make_unique<Conv2dCuda>(
-        this->in_channels, this->out_channels, this->kernel_size,
-        this->in_width, this->in_height, this->stride, this->padding,
-        this->padding_type, this->gain_w, this->gain_b, this->init_method,
-        this->bias);
+        this->in_channels, this->out_channels, this->kernel_size, this->stride,
+        this->padding, this->padding_type, this->in_width, this->in_height,
+        this->gain_w, this->gain_b, this->init_method, this->bias);
 }
 #endif
 
