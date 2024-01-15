@@ -67,8 +67,8 @@ void fnn_mnist() {
     //                  Linear(100, 11));
 
     Sequential model(Conv2d(1, 4, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3, 2),
-                     Conv2d(4, 32, 5), Relu(), AvgPool2d(3, 2),
-                     Linear(8 * 3 * 3, 10), Relu(), Linear(10, 11));
+                     Conv2d(4, 8, 5), Relu(), AvgPool2d(3, 2),
+                     Linear(8 * 4 * 4, 10), Relu(), Linear(10, 11));
 
     // model.set_threads(4);
     model.to_device("cuda");

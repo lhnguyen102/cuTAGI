@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 13, 2024
+// Updated:      January 15, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ void Conv2dCuda::init_weight_bias()
                                 this->out_channels, this->init_method,
                                 this->gain_w, this->gain_b, this->num_weights,
                                 this->num_biases);
-
+    this->allocate_param_memory();
     this->params_to_device();
 }
 
@@ -134,6 +134,12 @@ void Conv2dCuda::allocate_param_delta()
         cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
         cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
     }
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
 }
 
 void Conv2dCuda::allocate_conv_index()
@@ -144,6 +150,13 @@ void Conv2dCuda::allocate_conv_index()
     cudaMalloc(&this->d_idx_cov_zwa_1,
                this->idx_cov_zwa_1.size() * sizeof(int));
     cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
 }
 
 void Conv2dCuda::conv_index_to_device()
@@ -157,6 +170,14 @@ void Conv2dCuda::conv_index_to_device()
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_idx_var_z_ud, this->idx_var_z_ud.data(),
                this->idx_var_z_ud.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Host to device.");
+    }
 }
 
 void Conv2dCuda::lazy_init(int batch_size)
@@ -177,15 +198,22 @@ void Conv2dCuda::lazy_init(int batch_size)
     int param_pad_idx =
         pow(this->kernel_size, 2) * this->in_channels * this->out_channels + 1;
 
+    // TODO: need to assign indices
     auto conv_idx = get_conv2d_idx(
         this->kernel_size, this->stride, this->in_width, this->in_height,
         this->out_width, this->out_height, this->padding, this->padding_type,
         in_pad_idx, out_pad_idx, param_pad_idx);
 
+    this->idx_mwa_2 = conv_idx.Fmwa_2_idx;
+    this->idx_cov_zwa_1 = conv_idx.FCzwa_1_idx;
+    this->idx_var_z_ud = conv_idx.Szz_ud_idx;
+
     this->row_zw = conv_idx.h;
     this->col_z_ud = conv_idx.h;
 
+    // Allocate memory for indices and send them to cuda device
     this->allocate_param_delta();
+    this->allocate_conv_index();
     this->conv_index_to_device();
 }
 
@@ -204,13 +232,7 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
 
     if (this->num_weights == 0) {
-        if (this->in_width != 0 && this->in_height != 0) {
-            // First conv2d layer
-            this->lazy_init(batch_size);
-        } else {
-            // Other conv2d layer
-            this->lazy_init(batch_size);
-        }
+        this->lazy_init(batch_size);
     }
 
     // Assign output dimensions

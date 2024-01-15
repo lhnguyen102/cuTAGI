@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      January 03, 2024
+// Updated:      January 15, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -214,7 +214,6 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
     this->num_biases = this->output_size;
 
     // Initalize weights and bias
-    this->allocate_param_memory();
     this->init_weight_bias();
     if (this->training) {
         this->bwd_states = std::make_unique<BackwardStateCuda>();
@@ -254,6 +253,7 @@ void LinearCuda::init_weight_bias()
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
                                 this->input_size, this->output_size);
 
+    this->allocate_param_memory();
     this->params_to_device();
 }
 

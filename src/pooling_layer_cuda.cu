@@ -86,6 +86,9 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
     int ki2 = this->kernel_size * this->kernel_size;
     int num_states = woho * this->out_channels * batch_size;
     int pad_idx_in = wihi * this->in_channels * batch_size + 1;
+    // std::cout << "out width " << this->out_width << "\n";
+    // std::cout << "out height " << this->out_height << "\n";
+    // std::cout << "out channel " << this->out_channels << "\n";
 
     unsigned int grid_size = (num_states + threads - 1) / threads;
 
@@ -186,7 +189,7 @@ void AvgPool2dCuda::lazy_init(int batch_size)
     this->row_zw = idx.w;
     this->col_z_ud = idx.h;
 
-    // cuda device
+    // Allocate memory for indices and send them to cuda device
     this->allocate_avgpool2d_index();
     this->avgpool2d_index_to_device();
 }
@@ -197,6 +200,12 @@ void AvgPool2dCuda::allocate_avgpool2d_index()
 {
     cudaMalloc(&this->d_pool_idx, this->pool_idx.size() * sizeof(int));
     cudaMalloc(&this->d_z_ud_idx, this->z_ud_idx.size() * sizeof(int));
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
 }
 
 void AvgPool2dCuda::avgpool2d_index_to_device()
@@ -207,6 +216,14 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
                this->pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_z_ud_idx, this->z_ud_idx.data(),
                this->z_ud_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Host to device.");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
