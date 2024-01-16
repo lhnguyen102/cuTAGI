@@ -244,9 +244,9 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
 
     // Launch kernel
     int woho = this->out_width * this->out_height;
-    int wihi = cu_input_states->width * cu_input_states->height;
+    int wihi = this->in_width * this->in_height;
     int ki2 = this->kernel_size * kernel_size;
-    int ki2_m_ki = ki2 * this->kernel_size;
+    int ki2fi = ki2 * this->in_channels;
     int woho_batch = woho * batch_size;
     int pad_idx = wihi * this->in_channels * batch_size + 1;
 
@@ -261,7 +261,7 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_2,
         woho, this->out_channels, wihi, this->in_channels, ki2, batch_size,
-        ki2_m_ki, woho_batch, pad_idx, this->bias, cu_output_states->d_mu_a,
+        ki2fi, woho_batch, pad_idx, this->bias, cu_output_states->d_mu_a,
         cu_output_states->d_var_a);
 }
 
@@ -399,27 +399,6 @@ __global__ void conv2d_fwd_mean_var(float const *mu_w, float const *var_w,
 /*Compute mean of product WA for convolutional layer
 
 Args:
-    mw: Mean of weights
-    mb: Mean of the biases
-    ma: Mean of activation units
-    mz: Mean of hidden states
-    aidx: Activation indices for mean product WA
-    wpos: Weight position for this layer in the weight vector of network
-    bpos: Bias position for this layer in the bias vector of network
-    zposIn: Input-hidden-state position for this layer in the hidden-state
-        vector of network
-    zposOut: Output-hidden-state position for this layer in the hidden-state
-        vector of network
-    aidxpos: Position of weight indices for mean product WA
-    woho: Width x heights for the output layer
-    fo: Number of filters for the output layer
-    wihi: Width x heights for the input layer
-    fi: Number of filters for the input layer
-    ki2: Kernel size x kernel size
-    B: Number of batches
-    n: ki2 x fi
-    k: woho x B
-    padIdx: Size of the hidden state vector for this layer + 1
 */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
