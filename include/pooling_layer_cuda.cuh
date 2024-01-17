@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 13, 2024
+// Updated:      January 17, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -13,23 +13,23 @@
 
 __global__ void avgpool2d_fwd_overlapped_mean_var(
     float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
-    int ki2, int k, int pad_idx, float *mu_z, float *var_z);
+    int ki, int k, int pad_idx, float *mu_z, float *var_z);
 
 __global__ void avgpool2d_fwd_mean_var(float const *mu_a, float const *var_a,
                                        int const *a_idx, int woho, int wihi,
-                                       int ki2, int k, float *mu_z,
+                                       int ki, int k, float *mu_z,
                                        float *var_z);
 
 __global__ void avgpool2d_bwd_overlapped_delta_z(
     float const *jcb, float const *delta_mu_out, float const *delta_var_out,
-    int const *z_ud_idx, int woho, int wihi, int ki2, int n, int k, int pad_idx,
+    int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
     float *delta_mu, float *delta_var);
 
 __global__ void avgpool2d_bwd_delta_z(float const *jcb,
                                       float const *delta_mu_out,
                                       float const *delta_var_out, int wo,
-                                      int ki, int ki2, int m, int k,
-                                      float *delta_mu, float *delta_var);
+                                      int ki, int k, float *delta_mu,
+                                      float *delta_var);
 
 class AvgPool2dCuda : public BaseLayerCuda {
    public:
@@ -76,6 +76,10 @@ class AvgPool2dCuda : public BaseLayerCuda {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void update_weights() override{};
+
+    void update_biases() override{};
 
    protected:
     void lazy_init(int batch_size);

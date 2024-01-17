@@ -245,8 +245,6 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     // Launch kernel
     int woho = this->out_width * this->out_height;
     int wihi = this->in_width * this->in_height;
-    int ki2 = this->kernel_size * kernel_size;
-    int ki2fi = ki2 * this->in_channels;
     int woho_batch = woho * batch_size;
     int pad_idx = wihi * this->in_channels * batch_size + 1;
 
@@ -260,9 +258,18 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     conv2d_fwd_mean_var<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_2,
-        woho, this->out_channels, wihi, this->in_channels, ki2, batch_size,
-        ki2fi, woho_batch, pad_idx, this->bias, cu_output_states->d_mu_a,
+        woho, this->out_channels, wihi, this->in_channels, this->kernel_size,
+        batch_size, pad_idx, this->bias, cu_output_states->d_mu_a,
         cu_output_states->d_var_a);
+
+    // Update backward state for inferring parameters
+    if (this->training) {
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        this->store_states_for_training(*cu_input_states, *cu_output_states,
+                                        *cu_bwd_states);
+    }
 }
 
 void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
@@ -287,9 +294,7 @@ void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
 
     // Launch kernel
     int wihi = this->in_width * this->in_height;
-    int wihi_batch = wihi * batch_size;
     int woho = this->out_width * this->out_height;
-    int ki2 = this->kernel_size * this->kernel_size;
     int row_zw_fo = this->row_zw * this->out_channels;
     int pad_idx = woho * this->out_channels * batch_size + 1;
 
@@ -311,8 +316,8 @@ void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         this->d_mu_w, cu_temp_states->d_tmp_1,
         cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
         this->d_idx_cov_zwa_1, this->d_idx_var_z_ud, woho, this->out_channels,
-        wihi, this->in_channels, ki2, this->row_zw, row_zw_fo, wihi_batch,
-        pad_idx, cu_output_delta_states->d_delta_mu,
+        wihi, this->in_channels, this->kernel_size, this->row_zw, row_zw_fo,
+        batch_size, pad_idx, cu_output_delta_states->d_delta_mu,
         cu_output_delta_states->d_delta_var);
 }
 
@@ -336,8 +341,6 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
     // Lauch kernel
     int woho = this->out_width * this->out_height;
     int wihi = this->in_width * this->in_height;
-    int ki2 = this->kernel_size * this->kernel_size;
-    int ki2_fi = ki2 * this->in_channels;
     int woho_batch = woho * batch_size;
     int wohofo = woho * this->out_channels;
     int pad_idx = wihi * this->in_channels * batch_size + 1;
@@ -353,18 +356,18 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
 
     conv2d_bwd_delta_w<<<dim_grid, dim_block>>>(
         this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
-        cu_delta_states->d_delta_var, this->d_idx_mwa_2, ki2_fi, woho_batch,
-        this->out_channels, woho, wihi, this->in_channels, ki2, pad_idx,
-        this->d_delta_mu_w, this->d_delta_var_w);
+        cu_delta_states->d_delta_var, this->d_idx_mwa_2, batch_size,
+        this->out_channels, woho, wihi, this->in_channels, this->kernel_size,
+        pad_idx, this->d_delta_mu_w, this->d_delta_var_w);
 
     if (this->bias) {
         unsigned int grid_col_bias =
             (this->out_channels + threads - 1) / threads;
-        dim3 dim_grid_bias(grid_col_bias, 1);
+        // dim3 dim_grid_bias(grid_col_bias, 1);
 
-        conv2d_bwd_delta_b<<<dim_grid_bias, dim_block>>>(
+        conv2d_bwd_delta_b<<<grid_col_bias, threads>>>(
             this->d_var_b, cu_delta_states->d_delta_mu,
-            cu_delta_states->d_delta_var, 1, woho_batch, this->out_channels,
+            cu_delta_states->d_delta_var, woho_batch, this->out_channels,
             this->d_delta_mu_b, this->d_delta_var_b);
     }
 }
@@ -393,9 +396,8 @@ __global__ void conv2d_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     float const *mu_a, float const *var_a,
                                     int const *aidx, int woho, int fo, int wihi,
-                                    int fi, int ki2, int B, int n, int k,
-                                    int pad_idx, bool bias, float *mu_z,
-                                    float *var_z)
+                                    int fi, int ki, int B, int pad_idx,
+                                    bool bias, float *mu_z, float *var_z)
 /*Compute mean of product WA for convolutional layer
 
 Args:
@@ -411,7 +413,9 @@ Args:
     float var_a_tmp = 0;
     float mu_w_tmp = 0;
     float var_w_tmp = 0;
-    if (col < k && row < fo) {
+    int ki2 = ki * ki;
+    int n = ki2 * fi;
+    if (col < woho * B && row < fo) {
         for (int i = 0; i < n; i++) {
             aidx_tmp = aidx[(col % woho) * ki2 + i % ki2] + (i / ki2) * wihi +
                        (col / woho) * wihi * fi;
@@ -446,8 +450,8 @@ __global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
                                    float const *delta_mu_out,
                                    const float *delta_var_out,
                                    int const *zw_idx, int const *zud_idx,
-                                   int woho, int fo, int wihi, int fi, int ki2,
-                                   int nr, int n, int k, int pad_idx,
+                                   int woho, int fo, int wihi, int fi, int ki,
+                                   int nr, int n, int B, int pad_idx,
                                    float *delta_mu, float *delta_var)
 /* Compute updated quantities of the mean of hidden states for convolutional
  layer.
@@ -488,7 +492,8 @@ __global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
     int widx_tmp = 0;
     int aidx_tmp = 0;
     float mu_w_tmp;
-
+    int k = wihi * B;
+    int ki2 = ki * ki;
     if (col < k && row < fi)  // k = wihi * B
     {
         for (int i = 0; i < n; i++) {
@@ -536,9 +541,9 @@ __global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
 __global__ void conv2d_bwd_delta_w(float const *var_w, float const *mu_a,
                                    float const *delta_mu_out,
                                    float const *delta_var_out, int const *aidx,
-                                   int m, int n, int k, int woho, int wihi,
-                                   int fi, int ki2, int pad_idx,
-                                   float *delta_mu_w, float *delta_var_w)
+                                   int B, int k, int woho, int wihi, int fi,
+                                   int ki, int pad_idx, float *delta_mu_w,
+                                   float *delta_var_w)
 /* Compute update quantities for the mean of weights for convolutional layer.
 
 Args:
@@ -568,6 +573,9 @@ Args:
     float sum_var = 0;
     float mu_a_tmp;
     int aidx_tmp = 0;
+    int ki2 = ki * ki;
+    int m = ki2 * fi;
+    int n = woho * B;
     if (col < k && row < m) {
         for (int i = 0; i < n; i++) {
             aidx_tmp = aidx[ki2 * (i % woho) + row % ki2] + (row / ki2) * wihi +
@@ -580,42 +588,39 @@ Args:
                 sum_var += mu_a_tmp * delta_var_out[col * n + i] * mu_a_tmp;
             }
         }
-
-        delta_mu_w[col * m + row] = sum_mu * var_w[col * m + row];
-        delta_var_w[col * m + row] =
-            sum_var * var_w[col * m + row] * var_w[col * m + row];
+        float var_w_tmp = var_w[col * m + row];
+        delta_mu_w[col * m + row] = sum_mu * var_w_tmp;
+        delta_var_w[col * m + row] = sum_var * var_w_tmp * var_w_tmp;
     }
 }
 
 __global__ void conv2d_bwd_delta_b(float const *var_b,
                                    float const *delta_mu_out,
-                                   const float *delta_var_out, int m, int n,
-                                   int k, float *delta_mu_b, float *delta_var_b)
+                                   const float *delta_var_out, int n, int k,
+                                   float *delta_mu_b, float *delta_var_b)
 /* Compute update quantities for the mean of biases for convolutional layer.
 
 Args:
     Cbz: Covariance b|Z+
     deltaM: Inovation vector for mean i.e. (M_observation - M_prediction)
     bpos: Bias position for this layer in the bias vector of network
-    m: ki x ki x fi
     n: wo x ho xB
     k: fo
     deltaMb: Updated quantities for the mean of biases
 
 */
 {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    // int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum_mu = 0;
     float sum_var = 0;
-    if (col < k && row < m) {
+    if (col < k) {
         for (int i = 0; i < n; i++) {
             sum_mu += delta_mu_out[col * n + i];
             sum_var += delta_var_out[col * n + i];
         }
-        delta_mu_b[col * m + row] = sum_mu * var_b[col * m + row];
-        delta_var_b[col * m + row] =
-            sum_var * var_b[col * m + row] * var_b[col * m + row];
+        delta_mu_b[col] = sum_mu * var_b[col];
+        delta_var_b[col] = sum_var * var_b[col] * var_b[col];
     }
 }
 

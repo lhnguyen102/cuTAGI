@@ -66,9 +66,9 @@ void fnn_mnist() {
     // Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 4, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3, 2),
-                     Conv2d(4, 8, 5), Relu(), AvgPool2d(3, 2),
-                     Linear(8 * 4 * 4, 10), Relu(), Linear(10, 11));
+    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3, 2),
+                     Conv2d(16, 32, 5), Relu(), AvgPool2d(3, 2),
+                     Linear(32 * 4 * 4, 100), Relu(), Linear(100, 11));
 
     // model.set_threads(4);
     model.to_device("cuda");
@@ -91,7 +91,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 2;
+    int batch_size = 32;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -120,7 +120,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -147,7 +147,7 @@ void fnn_mnist() {
             // cpu_model.step();
 
             // Extract output
-            // model.output_to_host();
+            model.output_to_host();
             // model.delta_z_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {

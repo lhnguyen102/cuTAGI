@@ -216,6 +216,7 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
     // Initalize weights and bias
     this->init_weight_bias();
     if (this->training) {
+        // TODO: to be removed
         this->bwd_states = std::make_unique<BackwardStateCuda>();
         this->allocate_param_delta();
     }

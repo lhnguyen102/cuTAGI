@@ -100,7 +100,9 @@ __global__ void device_bias_update_with_limit(float const *delta_mu_b,
 }
 
 BaseLayerCuda::BaseLayerCuda() {
-    this->bwd_states = std::make_unique<BackwardStateCuda>();
+    if (this->training) {
+        this->bwd_states = std::make_unique<BackwardStateCuda>();
+    }
 }
 
 BaseLayerCuda::~BaseLayerCuda()
@@ -208,4 +210,31 @@ std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
     throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                              " at line: " + std::to_string(__LINE__) +
                              ". ErrorNotImplemented");
+}
+
+void BaseLayerCuda::store_states_for_training(HiddenStateCuda &input_states,
+                                              HiddenStateCuda &output_states,
+                                              BackwardStateCuda &bwd_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    int threads = this->num_cuda_threads;
+    if (bwd_states.size == 0) {
+        bwd_states.size = input_states.actual_size * batch_size;
+        bwd_states.allocate_memory();
+    }
+
+    int act_size = input_states.actual_size * batch_size;
+    unsigned int blocks = (act_size + threads - 1) / threads;
+
+    fill_bwd_states_on_device<<<blocks, threads>>>(
+        input_states.d_mu_a, input_states.d_jcb, act_size, bwd_states.d_mu_a,
+        bwd_states.d_jcb);
+
+    int out_size = this->output_size * batch_size;
+    unsigned int out_blocks = (out_size + threads - 1) / threads;
+
+    fill_output_states_on_device<<<out_blocks, threads>>>(out_size,
+                                                          output_states.d_jcb);
 }

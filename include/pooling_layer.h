@@ -64,6 +64,10 @@ class AvgPool2d : public BaseLayer {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    void update_weights() override{};
+
+    void update_biases() override{};
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

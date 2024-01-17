@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 13, 2024
+// Updated:      January 17, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,16 +16,15 @@ __global__ void conv2d_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     float const *mu_a, float const *var_a,
                                     int const *aidx, int woho, int fo, int wihi,
-                                    int fi, int ki2, int B, int n, int k,
-                                    int pad_idx, bool bias, float *mu_z,
-                                    float *var_z);
+                                    int fi, int ki, int B, int pad_idx,
+                                    bool bias, float *mu_z, float *var_z);
 
 __global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
                                    float const *delta_mu_out,
                                    const float *delta_var_out,
                                    int const *zw_idx, int const *zud_idx,
-                                   int woho, int fo, int wihi, int fi, int ki2,
-                                   int nr, int n, int k, int pad_idx,
+                                   int woho, int fo, int wihi, int fi, int ki,
+                                   int nr, int n, int B, int pad_idx,
                                    float *delta_mu, float *delta_var);
 
 __global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
@@ -34,14 +33,14 @@ __global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
 __global__ void conv2d_bwd_delta_w(float const *var_w, float const *mu_a,
                                    float const *delta_mu_out,
                                    float const *delta_var_out, int const *aidx,
-                                   int m, int n, int k, int woho, int wihi,
-                                   int fi, int ki2, int pad_idx,
-                                   float *delta_mu_w, float *delta_var_w);
+                                   int B, int k, int woho, int wihi, int fi,
+                                   int ki, int pad_idx, float *delta_mu_w,
+                                   float *delta_var_w);
+
 __global__ void conv2d_bwd_delta_b(float const *var_b,
                                    float const *delta_mu_out,
-                                   const float *delta_var_out, int m, int n,
-                                   int k, float *delta_mu_b,
-                                   float *delta_var_b);
+                                   const float *delta_var_out, int n, int k,
+                                   float *delta_mu_b, float *delta_var_b);
 
 __global__ void permute_delta(float const *delta_mu_0, float const *delta_var_0,
                               int woho, int kp, int batch_size, float *delta_mu,
