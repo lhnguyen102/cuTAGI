@@ -37,6 +37,62 @@ class BaseLayer:
         self._cpp_backend.output_size = value
 
     @property
+    def in_width(self) -> int:
+        return self._cpp_backend.in_width
+
+    @in_width.setter
+    def in_width(self, value: int):
+        self._cpp_backend.in_width = value
+
+    @property
+    def in_height(self) -> int:
+        return self._cpp_backend.in_height
+
+    @in_height.setter
+    def in_height(self, value: int):
+        self._cpp_backend.in_height = value
+
+    @property
+    def in_channels(self) -> int:
+        return self._cpp_backend.in_channels
+
+    @in_channels.setter
+    def in_channels(self, value: int):
+        self._cpp_backend.in_channels = value
+
+    @property
+    def out_width(self) -> int:
+        return self._cpp_backend.out_width
+
+    @out_width.setter
+    def out_width(self, value: int):
+        self._cpp_backend.out_width = value
+
+    @property
+    def out_height(self) -> int:
+        return self._cpp_backend.out_height
+
+    @out_height.setter
+    def out_height(self, value: int):
+        self._cpp_backend.out_height = value
+
+    @property
+    def out_channels(self) -> int:
+        return self._cpp_backend.out_channels
+
+    @out_channels.setter
+    def out_channels(self, value: int):
+        self._cpp_backend.out_channels = value
+
+    @property
+    def bias(self) -> bool:
+        return self._cpp_backend.bias
+
+    @bias.setter
+    def bias(self, value: bool):
+        self._cpp_backend.bias = value
+
+    @property
     def num_weights(self) -> int:
         return self._cpp_backend.num_weights
 

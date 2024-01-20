@@ -85,22 +85,29 @@ void avgpool2d_fwd_overlapped_mean_var(const std::vector<float> &mu_a,
                                        const std::vector<float> &var_a,
                                        const std::vector<int> &a_idx, int woho,
                                        int wihi, int ki, int k, int pad_idx,
+                                       int start_chunk, int end_chunk,
                                        std::vector<float> &mu_z,
                                        std::vector<float> &var_z);
 
 void avgpool2d_fwd_mean_var(const std::vector<float> &mu_a,
                             const std::vector<float> &var_a,
                             const std::vector<int> a_idx, int woho, int wihi,
-                            int ki, int k, std::vector<float> &mu_z,
+                            int ki, int k, int start_chunk, int end_chunk,
+                            std::vector<float> &mu_z,
                             std::vector<float> &var_z);
 
-void avgpool2d_bwd_overlapped_delta_z(const std::vector<float> &jcb,
-                                      const std::vector<float> &delta_mu_out,
-                                      const std::vector<float> &delta_var_out,
-                                      const std::vector<int> &z_ud_idx,
-                                      int woho, int wihi, int ki, int n, int k,
-                                      int pad_idx, std::vector<float> &delta_mu,
-                                      std::vector<float> &delta_var);
+void avgpool2d_bwd_overlapped_delta_z(
+    const std::vector<float> &jcb, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &z_ud_idx,
+    int woho, int wihi, int ki, int n, int k, int pad_idx, int start_chunk,
+    int end_chunk, std::vector<float> &delta_mu, std::vector<float> &delta_var);
+
+void avgpool2d_bwd_delta_z(const std::vector<float> &jcb,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out, int wo,
+                           int ki, int k, int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var);
 
 void avgpool2d_fwd_overlapped_mean_var_mp(const std::vector<float> &mu_a,
                                           const std::vector<float> &var_a,
@@ -109,12 +116,6 @@ void avgpool2d_fwd_overlapped_mean_var_mp(const std::vector<float> &mu_a,
                                           int pad_idx, unsigned int num_threads,
                                           std::vector<float> &mu_z,
                                           std::vector<float> &var_z);
-
-void avgpool2d_bwd_delta_z(const std::vector<float> &jcb,
-                           const std::vector<float> &delta_mu_out,
-                           const std::vector<float> &delta_var_out, int wo,
-                           int ki, int k, std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var);
 
 void avgpool2d_fwd_mean_var_mp(const std::vector<float> &mu_a,
                                const std::vector<float> &var_a,

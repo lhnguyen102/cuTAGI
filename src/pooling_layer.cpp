@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 19, 2024
+// Updated:      January 20, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,16 +86,30 @@ void AvgPool2d::forward(BaseHiddenStates &input_states,
     int num_states = woho * this->out_channels * batch_size;
     int pad_idx_in = wihi * this->in_channels * batch_size + 1;
 
-    if (this->overlap) {
-        avgpool2d_fwd_overlapped_mean_var_mp(
-            input_states.mu_a, input_states.var_a, this->pool_idx, woho, wihi,
-            this->kernel_size, num_states, pad_idx_in, this->num_threads,
-            output_states.mu_a, output_states.var_a);
+    if (this->num_threads > 1) {
+        if (this->overlap) {
+            avgpool2d_fwd_overlapped_mean_var_mp(
+                input_states.mu_a, input_states.var_a, this->pool_idx, woho,
+                wihi, this->kernel_size, num_states, pad_idx_in,
+                this->num_threads, output_states.mu_a, output_states.var_a);
+        } else {
+            avgpool2d_fwd_mean_var_mp(
+                input_states.mu_a, input_states.var_a, this->pool_idx, woho,
+                wihi, this->kernel_size, num_states, this->num_threads,
+                output_states.mu_a, output_states.var_a);
+        }
     } else {
-        avgpool2d_fwd_mean_var_mp(input_states.mu_a, input_states.var_a,
-                                  this->pool_idx, woho, wihi, this->kernel_size,
-                                  num_states, this->num_threads,
-                                  output_states.mu_a, output_states.var_a);
+        if (this->overlap) {
+            avgpool2d_fwd_overlapped_mean_var(
+                input_states.mu_a, input_states.var_a, this->pool_idx, woho,
+                wihi, this->kernel_size, num_states, pad_idx_in, 0, num_states,
+                output_states.mu_a, output_states.var_a);
+        } else {
+            avgpool2d_fwd_mean_var(input_states.mu_a, input_states.var_a,
+                                   this->pool_idx, woho, wihi,
+                                   this->kernel_size, num_states, 0, num_states,
+                                   output_states.mu_a, output_states.var_a);
+        }
     }
 
     if (training) {
@@ -118,25 +132,49 @@ void AvgPool2d::state_backward(BaseBackwardStates &next_bwd_states,
     int wihi = this->in_width * this->in_height;
     int pad_out_idx = woho * this->out_channels * batch_size + 1;
 
-    if (this->overlap) {
-        int num_in_states =
-            this->in_width * this->in_height * this->in_channels * batch_size;
+    if (this->num_threads > 1) {
+        if (this->overlap) {
+            int num_in_states = this->in_width * this->in_height *
+                                this->in_channels * batch_size;
 
-        avgpool2d_bwd_overlapped_delta_z_mp(
-            next_bwd_states.jcb, input_delta_states.delta_mu,
-            input_delta_states.delta_var, this->z_ud_idx, woho, wihi,
-            this->kernel_size, this->col_z_ud, num_in_states, pad_out_idx,
-            this->num_threads, output_delta_states.delta_mu,
-            output_delta_states.delta_var);
+            avgpool2d_bwd_overlapped_delta_z_mp(
+                next_bwd_states.jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->z_ud_idx, woho, wihi,
+                this->kernel_size, this->col_z_ud, num_in_states, pad_out_idx,
+                this->num_threads, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        } else {
+            int kiwo = this->kernel_size * this->out_width;
+            int nums = wihi * this->in_channels * batch_size / kiwo;
+
+            avgpool2d_bwd_delta_z_mp(
+                next_bwd_states.jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->out_channels,
+                this->kernel_size, nums, this->num_threads,
+                output_delta_states.delta_mu, output_delta_states.delta_var);
+        }
     } else {
-        int kiwo = this->kernel_size * this->out_width;
-        int nums = wihi * this->in_channels * batch_size / kiwo;
+        if (this->overlap) {
+            int num_in_states = this->in_width * this->in_height *
+                                this->in_channels * batch_size;
 
-        avgpool2d_bwd_delta_z_mp(
-            next_bwd_states.jcb, input_delta_states.delta_mu,
-            input_delta_states.delta_var, this->out_channels, this->kernel_size,
-            nums, this->num_threads, output_delta_states.delta_mu,
-            output_delta_states.delta_var);
+            avgpool2d_bwd_overlapped_delta_z(
+                next_bwd_states.jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->z_ud_idx, woho, wihi,
+                this->kernel_size, this->col_z_ud, num_in_states, pad_out_idx,
+                0, num_in_states, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        } else {
+            int kiwo = this->kernel_size * this->out_width;
+            int nums = wihi * this->in_channels * batch_size / kiwo;
+            int end_chunk = this->kernel_size * this->out_width * nums;
+
+            avgpool2d_bwd_delta_z(
+                next_bwd_states.jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->out_channels,
+                this->kernel_size, nums, 0, end_chunk,
+                output_delta_states.delta_mu, output_delta_states.delta_var);
+        }
     }
 }
 
@@ -188,32 +226,9 @@ void avgpool2d_fwd_overlapped_mean_var(const std::vector<float> &mu_a,
                                        const std::vector<float> &var_a,
                                        const std::vector<int> &a_idx, int woho,
                                        int wihi, int ki, int k, int pad_idx,
+                                       int start_chunk, int end_chunk,
                                        std::vector<float> &mu_z,
                                        std::vector<float> &var_z)
-/**/
-{
-    int ki2 = ki * ki;
-    for (int col = 0; col < k; col++) {
-        float sum_mu_z = 0;
-        float sum_var_z = 0;
-        for (int i = 0; i < ki2; i++) {
-            int a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi;
-            if (a_idx_tmp < pad_idx) {
-                // index in a_idx starts at 1
-                sum_mu_z += mu_a[a_idx_tmp - 1];
-                sum_var_z += var_a[a_idx_tmp - 1];
-            }
-        }
-        mu_z[col] = sum_mu_z / ki2;
-        var_z[col] = sum_var_z / (ki2 * ki2);
-    }
-}
-
-void avgpool2d_fwd_overlapped_mean_var_v2(
-    const std::vector<float> &mu_a, const std::vector<float> &var_a,
-    const std::vector<int> &a_idx, int woho, int wihi, int ki, int k,
-    int pad_idx, int start_chunk, int end_chunk, std::vector<float> &mu_z,
-    std::vector<float> &var_z)
 /**/
 {
     int ki2 = ki * ki;
@@ -254,9 +269,9 @@ void avgpool2d_fwd_overlapped_mean_var_mp(const std::vector<float> &mu_a,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_a, &var_a, &a_idx, &mu_z, &var_z] {
-            avgpool2d_fwd_overlapped_mean_var_v2(mu_a, var_a, a_idx, woho, wihi,
-                                                 ki, k, pad_idx, start_chunk,
-                                                 end_chunk, mu_z, var_z);
+            avgpool2d_fwd_overlapped_mean_var(mu_a, var_a, a_idx, woho, wihi,
+                                              ki, k, pad_idx, start_chunk,
+                                              end_chunk, mu_z, var_z);
         });
     }
 
@@ -270,33 +285,8 @@ void avgpool2d_fwd_overlapped_mean_var_mp(const std::vector<float> &mu_a,
 void avgpool2d_fwd_mean_var(const std::vector<float> &mu_a,
                             const std::vector<float> &var_a,
                             const std::vector<int> a_idx, int woho, int wihi,
-                            int ki, int k, std::vector<float> &mu_z,
-                            std::vector<float> &var_z)
-/*
- */
-{
-    int ki2 = ki * ki;
-    for (int col = 0; col < k; col++) {
-        float sum_mu_z = 0;
-        float sum_var_z = 0;
-        for (int i = 0; i < ki2; i++) {
-            // index in a_idx starts at 1
-            int a_idx_tmp =
-                a_idx[col % woho + woho * i] + (col / woho) * wihi - 1;
-            sum_mu_z += mu_a[a_idx_tmp];
-            sum_var_z += var_a[a_idx_tmp];
-        }
-        mu_z[col] = sum_mu_z / ki2;
-        var_z[col] = sum_var_z / (ki2 * ki2);
-    }
-}
-
-void avgpool2d_fwd_mean_var_v2(const std::vector<float> &mu_a,
-                               const std::vector<float> &var_a,
-                               const std::vector<int> a_idx, int woho, int wihi,
-                               int ki, int k, int start_chunk, int end_chunk,
-                               std::vector<float> &mu_z,
-                               std::vector<float> &var_z)
+                            int ki, int k, int start_chunk, int end_chunk,
+                            std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
 {
@@ -337,8 +327,8 @@ void avgpool2d_fwd_mean_var_mp(const std::vector<float> &mu_a,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_a, &var_a, &a_idx, &mu_z, &var_z] {
-            avgpool2d_fwd_mean_var_v2(mu_a, var_a, a_idx, woho, wihi, ki, k,
-                                      start_chunk, end_chunk, mu_z, var_z);
+            avgpool2d_fwd_mean_var(mu_a, var_a, a_idx, woho, wihi, ki, k,
+                                   start_chunk, end_chunk, mu_z, var_z);
         });
     }
 
@@ -349,34 +339,7 @@ void avgpool2d_fwd_mean_var_mp(const std::vector<float> &mu_a,
     }
 }
 
-void avgpool2d_bwd_overlapped_delta_z(const std::vector<float> &jcb,
-                                      const std::vector<float> &delta_mu_out,
-                                      const std::vector<float> &delta_var_out,
-                                      const std::vector<int> &z_ud_idx,
-                                      int woho, int wihi, int ki, int n, int k,
-                                      int pad_idx, std::vector<float> &delta_mu,
-                                      std::vector<float> &delta_var)
-/**/
-{
-    int ki2 = ki * ki;
-
-    for (int col = 0; col < k; col++) {
-        float sum_delta_mu = 0;
-        float sum_delta_var = 0;
-        for (int i = 0; i < n; i++) {
-            int z_idx_tmp =
-                z_ud_idx[col % wihi + wihi * i] + (col / wihi) * woho;
-            if (z_idx_tmp < pad_idx) {
-                sum_delta_mu += delta_mu_out[z_idx_tmp - 1];
-                sum_delta_var += delta_var_out[z_idx_tmp - 1];
-            }
-        }
-        delta_mu[col] = sum_delta_mu * jcb[col] / ki2;
-        delta_var[col] = sum_delta_var * jcb[col] * jcb[col] / (ki2 * ki2);
-    }
-}
-
-void avgpool2d_bwd_overlapped_delta_z_v2(
+void avgpool2d_bwd_overlapped_delta_z(
     const std::vector<float> &jcb, const std::vector<float> &delta_mu_out,
     const std::vector<float> &delta_var_out, const std::vector<int> &z_ud_idx,
     int woho, int wihi, int ki, int n, int k, int pad_idx, int start_chunk,
@@ -422,7 +385,7 @@ void avgpool2d_bwd_overlapped_delta_z_mp(
 
         threads.emplace_back([=, &jcb, &delta_mu_out, &delta_var_out, &z_ud_idx,
                               &delta_mu, &delta_var] {
-            avgpool2d_bwd_overlapped_delta_z_v2(
+            avgpool2d_bwd_overlapped_delta_z(
                 jcb, delta_mu_out, delta_var_out, z_ud_idx, woho, wihi, ki, n,
                 k, pad_idx, start_chunk, end_chunk, delta_mu, delta_var);
         });
@@ -438,31 +401,9 @@ void avgpool2d_bwd_overlapped_delta_z_mp(
 void avgpool2d_bwd_delta_z(const std::vector<float> &jcb,
                            const std::vector<float> &delta_mu_out,
                            const std::vector<float> &delta_var_out, int wo,
-                           int ki, int k, std::vector<float> &delta_mu,
+                           int ki, int k, int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu,
                            std::vector<float> &delta_var)
-/*
- */
-{
-    int ki2 = ki * ki;
-    int m = ki * wo;
-    for (int col = 0; col < k; col++) {
-        for (int row = 0; row < m; row++) {
-            delta_mu[row + col * m] = delta_mu_out[row / ki + (col / ki) * wo] *
-                                      jcb[row + col * m] / ki2;
-
-            delta_var[row + col * m] =
-                delta_var_out[row / ki + (col / ki) * wo] * jcb[row + col * m] *
-                jcb[row + col * m] / (ki2 * ki2);
-        }
-    }
-}
-
-void avgpool2d_bwd_delta_z_v2(const std::vector<float> &jcb,
-                              const std::vector<float> &delta_mu_out,
-                              const std::vector<float> &delta_var_out, int wo,
-                              int ki, int k, int start_chunk, int end_chunk,
-                              std::vector<float> &delta_mu,
-                              std::vector<float> &delta_var)
 /*
  */
 {
@@ -504,12 +445,11 @@ void avgpool2d_bwd_delta_z_mp(const std::vector<float> &jcb,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back(
-            [=, &jcb, &delta_mu_out, &delta_var_out, &delta_mu, &delta_var] {
-                avgpool2d_bwd_delta_z_v2(jcb, delta_mu_out, delta_var_out, wo,
-                                         ki, k, start_chunk, end_chunk,
-                                         delta_mu, delta_var);
-            });
+        threads.emplace_back([=, &jcb, &delta_mu_out, &delta_var_out, &delta_mu,
+                              &delta_var] {
+            avgpool2d_bwd_delta_z(jcb, delta_mu_out, delta_var_out, wo, ki, k,
+                                  start_chunk, end_chunk, delta_mu, delta_var);
+        });
     }
 
     for (auto &thread : threads) {

@@ -16,6 +16,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"

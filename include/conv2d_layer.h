@@ -98,18 +98,16 @@ void conv2d_fwd_mean_var(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
-    int batch_size, int pad_idx, bool bias, std::vector<float> &mu_z,
-    std::vector<float> &var_z);
+    int batch_size, int pad_idx, bool bias, int start_chunk, int end_chunk,
+    std::vector<float> &mu_z, std::vector<float> &var_z);
 
-void conv2d_bwd_delta_z(const std::vector<float> &mu_w,
-                        const std::vector<float> &jcb,
-                        const std::vector<float> &delta_mu_out,
-                        const std::vector<float> &delta_var_out,
-                        const std::vector<int> &zw_idx,
-                        const std::vector<int> &zud_idx, int woho, int fo,
-                        int wihi, int fi, int ki, int nr, int n, int batch_size,
-                        int pad_idx, std::vector<float> &delta_mu,
-                        std::vector<float> &delta_var);
+void conv2d_bwd_delta_z(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &zw_idx,
+    const std::vector<int> &zud_idx, int woho, int fo, int wihi, int fi, int ki,
+    int nr, int n, int batch_size, int pad_idx, int start_chunk, int end_chunk,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var);
 
 void permute_jacobian(std::vector<float> &jcb_0, int wihi, int fi,
                       int batch_size, std::vector<float> &jcb);
@@ -120,6 +118,7 @@ void conv2d_bwd_delta_w(const std::vector<float> &var_w,
                         const std::vector<float> &delta_var_out,
                         const std::vector<int> &aidx, int batch_size, int k,
                         int woho, int wihi, int fi, int ki, int pad_idx,
+                        int start_chunk, int end_chunk,
                         std::vector<float> &delta_mu_w,
                         std::vector<float> &delta_var_w);
 
