@@ -70,8 +70,8 @@ void fnn_mnist() {
                      Conv2d(16, 32, 5), Relu(), AvgPool2d(3, 2),
                      Linear(32 * 4 * 4, 100), Relu(), Linear(100, 11));
 
-    // model.set_threads(4);
-    model.to_device("cuda");
+    model.set_threads(8);
+    // model.to_device("cuda");
 
     // // CPU Model
     // Sequential cpu_model(Linear(784, 400), Relu(), Linear(400, 400), Relu(),
@@ -147,7 +147,9 @@ void fnn_mnist() {
             // cpu_model.step();
 
             // Extract output
-            model.output_to_host();
+            if (model.device == "cuda") {
+                model.output_to_host();
+            }
             // model.delta_z_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 13, 2023
-// Updated:      January 03, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -212,9 +212,9 @@ std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
                              ". ErrorNotImplemented");
 }
 
-void BaseLayerCuda::store_states_for_training(HiddenStateCuda &input_states,
-                                              HiddenStateCuda &output_states,
-                                              BackwardStateCuda &bwd_states)
+void BaseLayerCuda::store_states_for_training_cuda(
+    HiddenStateCuda &input_states, HiddenStateCuda &output_states,
+    BackwardStateCuda &bwd_states)
 /*
  */
 {

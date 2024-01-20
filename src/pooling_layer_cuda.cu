@@ -89,12 +89,12 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
     unsigned int grid_size = (num_states + threads - 1) / threads;
 
     if (this->overlap) {
-        avgpool2d_fwd_overlapped_mean_var<<<grid_size, threads>>>(
+        avgpool2d_fwd_overlapped_mean_var_cuda<<<grid_size, threads>>>(
             cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
             woho, wihi, this->kernel_size, num_states, pad_idx_in,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
-        avgpool2d_fwd_mean_var<<<grid_size, threads>>>(
+        avgpool2d_fwd_mean_var_cuda<<<grid_size, threads>>>(
             cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
             woho, wihi, this->kernel_size, num_states, cu_output_states->d_mu_a,
             cu_output_states->d_var_a);
@@ -105,8 +105,8 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
         BackwardStateCuda *cu_bwd_states =
             dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
 
-        this->store_states_for_training(*cu_input_states, *cu_output_states,
-                                        *cu_bwd_states);
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
     }
 }
 
@@ -139,7 +139,7 @@ void AvgPool2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         unsigned int grid_size =
             (num_in_states + num_threads - 1) / num_threads;
 
-        avgpool2d_bwd_overlapped_delta_z<<<grid_size, num_threads>>>(
+        avgpool2d_bwd_overlapped_delta_z_cuda<<<grid_size, num_threads>>>(
             cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->d_z_ud_idx, woho, wihi,
             this->kernel_size, this->col_z_ud, num_in_states, pad_out_idx,
@@ -153,7 +153,7 @@ void AvgPool2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dim3 dim_grid(grid_col, grid_row);
         dim3 dim_block(num_threads, num_threads);
 
-        avgpool2d_bwd_delta_z<<<dim_grid, grid_row>>>(
+        avgpool2d_bwd_delta_z_cuda<<<dim_grid, grid_row>>>(
             cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->out_width,
             this->kernel_size, nums, cu_output_delta_states->d_delta_mu,
@@ -233,7 +233,7 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA Kernels
 ////////////////////////////////////////////////////////////////////////////////
-__global__ void avgpool2d_fwd_overlapped_mean_var(
+__global__ void avgpool2d_fwd_overlapped_mean_var_cuda(
     float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
     int ki, int k, int pad_idx, float *mu_z, float *var_z)
 /*Compute product mean & variance WA for average pooling for the case where
@@ -259,9 +259,11 @@ there is the overlap when sliding kernel size.
     }
 }
 
-__global__ void avgpool2d_fwd_mean_var(float const *mu_a, float const *var_a,
-                                       int const *a_idx, int woho, int wihi,
-                                       int ki, int k, float *mu_z, float *var_z)
+__global__ void avgpool2d_fwd_mean_var_cuda(float const *mu_a,
+                                            float const *var_a,
+                                            int const *a_idx, int woho,
+                                            int wihi, int ki, int k,
+                                            float *mu_z, float *var_z)
 /* Compute product mean & variance WA for average pooling for the case there
 is no overlap when sliding kernel size.
 */
@@ -283,7 +285,7 @@ is no overlap when sliding kernel size.
     }
 }
 
-__global__ void avgpool2d_bwd_overlapped_delta_z(
+__global__ void avgpool2d_bwd_overlapped_delta_z_cuda(
     float const *jcb, float const *delta_mu_out, float const *delta_var_out,
     int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
     float *delta_mu, float *delta_var)
@@ -310,11 +312,11 @@ __global__ void avgpool2d_bwd_overlapped_delta_z(
     }
 }
 
-__global__ void avgpool2d_bwd_delta_z(float const *jcb,
-                                      float const *delta_mu_out,
-                                      float const *delta_var_out, int wo,
-                                      int ki, int k, float *delta_mu,
-                                      float *delta_var)
+__global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
+                                           float const *delta_mu_out,
+                                           float const *delta_var_out, int wo,
+                                           int ki, int k, float *delta_mu,
+                                           float *delta_var)
 /* Compute updated quantities for the mean and variance of hidden states for
  average pooling layer.
 

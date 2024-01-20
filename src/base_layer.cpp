@@ -110,6 +110,25 @@ void BaseLayer::compute_input_output_size(const InitArgs &args)
     this->out_channels = args.depth;
 }
 
+void BaseLayer::storing_states_for_training(BaseHiddenStates &input_states,
+                                            BaseHiddenStates &output_states)
+/*
+ */
+{
+    if (this->bwd_states->mu_a.size() == 0) {
+        int act_size = input_states.actual_size * input_states.block_size;
+        this->allocate_bwd_vector(act_size);
+    }
+
+    // Activation's jacobian and mean from the previous layer
+    this->fill_bwd_vector(input_states);
+
+    // Send a copy of activation's mean and variance to the output buffer
+    // for the current layer.
+    // TODO: consider to have only mu_a and var_a in struct HiddenStates
+    this->fill_output_states(output_states);
+}
+
 void BaseLayer::save(std::ofstream &file)
 /*
  */

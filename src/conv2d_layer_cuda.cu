@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 15, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -198,7 +198,6 @@ void Conv2dCuda::lazy_init(int batch_size)
     int param_pad_idx =
         pow(this->kernel_size, 2) * this->in_channels * this->out_channels + 1;
 
-    // TODO: need to assign indices
     auto conv_idx = get_conv2d_idx(
         this->kernel_size, this->stride, this->in_width, this->in_height,
         this->out_width, this->out_height, this->padding, this->padding_type,
@@ -255,7 +254,7 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(threads, threads);
 
-    conv2d_fwd_mean_var<<<dim_grid, dim_block>>>(
+    conv2d_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_2,
         woho, this->out_channels, wihi, this->in_channels, this->kernel_size,
@@ -267,8 +266,8 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
         BackwardStateCuda *cu_bwd_states =
             dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
 
-        this->store_states_for_training(*cu_input_states, *cu_output_states,
-                                        *cu_bwd_states);
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
     }
 }
 
@@ -308,11 +307,11 @@ void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(threads, threads);
 
-    permmute_jacobian<<<dim_grid_p, dim_block>>>(
+    permmute_jacobian_cuda<<<dim_grid_p, dim_block>>>(
         cu_next_bwd_states->d_jcb, wihi, this->in_channels, batch_size,
         cu_temp_states->d_tmp_1);
 
-    conv2d_bwd_delta_z<<<dim_grid, dim_block>>>(
+    conv2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, cu_temp_states->d_tmp_1,
         cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
         this->d_idx_cov_zwa_1, this->d_idx_var_z_ud, woho, this->out_channels,
@@ -350,11 +349,11 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(threads, threads);
 
-    permute_delta<<<dim_grid, dim_block>>>(
+    permute_delta_cuda<<<dim_grid, dim_block>>>(
         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var, woho, wohofo,
         batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
-    conv2d_bwd_delta_w<<<dim_grid, dim_block>>>(
+    conv2d_bwd_delta_w_cuda<<<dim_grid, dim_block>>>(
         this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
         cu_delta_states->d_delta_var, this->d_idx_mwa_2, batch_size,
         this->out_channels, woho, wihi, this->in_channels, this->kernel_size,
@@ -365,7 +364,7 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
             (this->out_channels + threads - 1) / threads;
         // dim3 dim_grid_bias(grid_col_bias, 1);
 
-        conv2d_bwd_delta_b<<<grid_col_bias, threads>>>(
+        conv2d_bwd_delta_b_cuda<<<grid_col_bias, threads>>>(
             this->d_var_b, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, woho_batch, this->out_channels,
             this->d_delta_mu_b, this->d_delta_var_b);
@@ -392,12 +391,13 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA Kernels
 ////////////////////////////////////////////////////////////////////////////////
-__global__ void conv2d_fwd_mean_var(float const *mu_w, float const *var_w,
-                                    float const *mu_b, float const *var_b,
-                                    float const *mu_a, float const *var_a,
-                                    int const *aidx, int woho, int fo, int wihi,
-                                    int fi, int ki, int B, int pad_idx,
-                                    bool bias, float *mu_z, float *var_z)
+__global__ void conv2d_fwd_mean_var_cuda(float const *mu_w, float const *var_w,
+                                         float const *mu_b, float const *var_b,
+                                         float const *mu_a, float const *var_a,
+                                         int const *aidx, int woho, int fo,
+                                         int wihi, int fi, int ki, int B,
+                                         int pad_idx, bool bias, float *mu_z,
+                                         float *var_z)
 /*Compute mean of product WA for convolutional layer
 
 Args:
@@ -446,13 +446,11 @@ Args:
     }
 }
 
-__global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
-                                   float const *delta_mu_out,
-                                   const float *delta_var_out,
-                                   int const *zw_idx, int const *zud_idx,
-                                   int woho, int fo, int wihi, int fi, int ki,
-                                   int nr, int n, int B, int pad_idx,
-                                   float *delta_mu, float *delta_var)
+__global__ void conv2d_bwd_delta_z_cuda(
+    float const *mu_w, float const *jcb, float const *delta_mu_out,
+    const float *delta_var_out, int const *zw_idx, int const *zud_idx, int woho,
+    int fo, int wihi, int fi, int ki, int nr, int n, int B, int pad_idx,
+    float *delta_mu, float *delta_var)
 /* Compute updated quantities of the mean of hidden states for convolutional
  layer.
 
@@ -522,8 +520,8 @@ __global__ void conv2d_bwd_delta_z(float const *mu_w, float const *jcb,
     }
 }
 
-__global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
-                                  int batch_size, float *jcb)
+__global__ void permmute_jacobian_cuda(float const *jcb_0, int wihi, int fi,
+                                       int batch_size, float *jcb)
 /*
  */
 {
@@ -538,12 +536,12 @@ __global__ void permmute_jacobian(float const *jcb_0, int wihi, int fi,
     }
 }
 
-__global__ void conv2d_bwd_delta_w(float const *var_w, float const *mu_a,
-                                   float const *delta_mu_out,
-                                   float const *delta_var_out, int const *aidx,
-                                   int B, int k, int woho, int wihi, int fi,
-                                   int ki, int pad_idx, float *delta_mu_w,
-                                   float *delta_var_w)
+__global__ void conv2d_bwd_delta_w_cuda(float const *var_w, float const *mu_a,
+                                        float const *delta_mu_out,
+                                        float const *delta_var_out,
+                                        int const *aidx, int B, int k, int woho,
+                                        int wihi, int fi, int ki, int pad_idx,
+                                        float *delta_mu_w, float *delta_var_w)
 /* Compute update quantities for the mean of weights for convolutional layer.
 
 Args:
@@ -594,10 +592,11 @@ Args:
     }
 }
 
-__global__ void conv2d_bwd_delta_b(float const *var_b,
-                                   float const *delta_mu_out,
-                                   const float *delta_var_out, int n, int k,
-                                   float *delta_mu_b, float *delta_var_b)
+__global__ void conv2d_bwd_delta_b_cuda(float const *var_b,
+                                        float const *delta_mu_out,
+                                        const float *delta_var_out, int n,
+                                        int k, float *delta_mu_b,
+                                        float *delta_var_b)
 /* Compute update quantities for the mean of biases for convolutional layer.
 
 Args:
@@ -624,9 +623,10 @@ Args:
     }
 }
 
-__global__ void permute_delta(float const *delta_mu_0, float const *delta_var_0,
-                              int woho, int kp, int batch_size, float *delta_mu,
-                              float *delta_var) {
+__global__ void permute_delta_cuda(float const *delta_mu_0,
+                                   float const *delta_var_0, int woho, int kp,
+                                   int batch_size, float *delta_mu,
+                                   float *delta_var) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 

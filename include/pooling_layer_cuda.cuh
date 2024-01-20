@@ -3,33 +3,13 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 17, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 #include "base_layer_cuda.cuh"
-
-__global__ void avgpool2d_fwd_overlapped_mean_var(
-    float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
-    int ki, int k, int pad_idx, float *mu_z, float *var_z);
-
-__global__ void avgpool2d_fwd_mean_var(float const *mu_a, float const *var_a,
-                                       int const *a_idx, int woho, int wihi,
-                                       int ki, int k, float *mu_z,
-                                       float *var_z);
-
-__global__ void avgpool2d_bwd_overlapped_delta_z(
-    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
-    int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
-    float *delta_mu, float *delta_var);
-
-__global__ void avgpool2d_bwd_delta_z(float const *jcb,
-                                      float const *delta_mu_out,
-                                      float const *delta_var_out, int wo,
-                                      int ki, int k, float *delta_mu,
-                                      float *delta_var);
 
 class AvgPool2dCuda : public BaseLayerCuda {
    public:
@@ -86,3 +66,27 @@ class AvgPool2dCuda : public BaseLayerCuda {
     void allocate_avgpool2d_index();
     void avgpool2d_index_to_device();
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// Pool2d Backward and Forward
+////////////////////////////////////////////////////////////////////////////////
+__global__ void avgpool2d_fwd_overlapped_mean_var_cuda(
+    float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
+    int ki, int k, int pad_idx, float *mu_z, float *var_z);
+
+__global__ void avgpool2d_fwd_mean_var_cuda(float const *mu_a,
+                                            float const *var_a,
+                                            int const *a_idx, int woho,
+                                            int wihi, int ki, int k,
+                                            float *mu_z, float *var_z);
+
+__global__ void avgpool2d_bwd_overlapped_delta_z_cuda(
+    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
+    int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
+    float *delta_mu, float *delta_var);
+
+__global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
+                                           float const *delta_mu_out,
+                                           float const *delta_var_out, int wo,
+                                           int ki, int k, float *delta_mu,
+                                           float *delta_var);

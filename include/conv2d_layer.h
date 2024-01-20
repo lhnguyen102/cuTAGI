@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 03, 2024
-// Updated:      January 14, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,28 +63,99 @@ class Conv2d : public BaseLayer {
 
     void compute_input_output_size(const InitArgs &args) override;
 
-    void get_number_param_conv2d(int kernel, int fi, int fo, bool use_bias);
+    void get_number_param_conv2d();
 
     void init_weight_bias();
-
-    void allocate_param_delta();
-
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
     void state_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_hidden_states,
+                        BaseDeltaStates &output_delta_states,
                         BaseTempStates &temp_states) override;
 
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    using BaseLayer::storing_states_for_training;
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
+   protected:
+    void allocate_param_delta();
+    void lazy_init(int batch_size);
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// Conv2d Backward and Forward
+////////////////////////////////////////////////////////////////////////////////
+void conv2d_fwd_mean_var(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int pad_idx, bool bias, std::vector<float> &mu_z,
+    std::vector<float> &var_z);
+
+void conv2d_bwd_delta_z(const std::vector<float> &mu_w,
+                        const std::vector<float> &jcb,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out,
+                        const std::vector<int> &zw_idx,
+                        const std::vector<int> &zud_idx, int woho, int fo,
+                        int wihi, int fi, int ki, int nr, int n, int batch_size,
+                        int pad_idx, std::vector<float> &delta_mu,
+                        std::vector<float> &delta_var);
+
+void permute_jacobian(std::vector<float> &jcb_0, int wihi, int fi,
+                      int batch_size, std::vector<float> &jcb);
+
+void conv2d_bwd_delta_w(const std::vector<float> &var_w,
+                        const std::vector<float> &mu_a,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out,
+                        const std::vector<int> &aidx, int batch_size, int k,
+                        int woho, int wihi, int fi, int ki, int pad_idx,
+                        std::vector<float> &delta_mu_w,
+                        std::vector<float> &delta_var_w);
+
+void conv2d_bwd_delta_b(const std::vector<float> &var_b,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out, int n, int k,
+                        std::vector<float> &delta_mu_b,
+                        std::vector<float> &delta_var_b);
+
+void permute_delta(const std::vector<float> &delta_mu_0,
+                   const std::vector<float> &delta_var_0, int woho, int kp,
+                   int batch_size, std::vector<float> &delta_mu,
+                   std::vector<float> &delta_var);
+
+void conv2d_fwd_mean_var_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int pad_idx, bool bias, unsigned int num_threads,
+    std::vector<float> &mu_z, std::vector<float> &var_z);
+
+void conv2d_bwd_delta_z_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &zw_idx,
+    const std::vector<int> &zud_idx, int woho, int fo, int wihi, int fi, int ki,
+    int nr, int n, int batch_size, int pad_idx, unsigned int num_threads,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var);
+
+void conv2d_bwd_delta_w_mp(const std::vector<float> &var_w,
+                           const std::vector<float> &mu_a,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           const std::vector<int> &aidx, int batch_size, int k,
+                           int woho, int wihi, int fi, int ki, int pad_idx,
+                           unsigned int num_threads,
+                           std::vector<float> &delta_mu_w,
+                           std::vector<float> &delta_var_w);

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 29, 2023
-// Updated:      January 03, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@ class BaseLayerCuda : public BaseLayer {
     virtual void allocate_param_memory();
     virtual void params_to_device();
     virtual void params_to_host();
-    virtual void store_states_for_training(HiddenStateCuda &input_states,
-                                           HiddenStateCuda &output_states,
-                                           BackwardStateCuda &bwd_states);
+    virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,
+                                                HiddenStateCuda &output_states,
+                                                BackwardStateCuda &bwd_states);
 };

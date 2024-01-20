@@ -57,7 +57,7 @@ class AvgPool2d : public BaseLayer {
 
     void state_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_hidden_states,
+                        BaseDeltaStates &ooutput_delta_states,
                         BaseTempStates &temp_states) override;
 
     void param_backward(BaseBackwardStates &next_bwd_states,
@@ -68,11 +68,71 @@ class AvgPool2d : public BaseLayer {
 
     void update_biases() override{};
 
+    using BaseLayer::storing_states_for_training;
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
    protected:
-    void lazy_init(size_t width, size_t height, int batch_size);
+    void lazy_init(int batch_size);
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// Pool2d Backward and Forward
+////////////////////////////////////////////////////////////////////////////////
+void avgpool2d_fwd_overlapped_mean_var(const std::vector<float> &mu_a,
+                                       const std::vector<float> &var_a,
+                                       const std::vector<int> &a_idx, int woho,
+                                       int wihi, int ki, int k, int pad_idx,
+                                       std::vector<float> &mu_z,
+                                       std::vector<float> &var_z);
+
+void avgpool2d_fwd_mean_var(const std::vector<float> &mu_a,
+                            const std::vector<float> &var_a,
+                            const std::vector<int> a_idx, int woho, int wihi,
+                            int ki, int k, std::vector<float> &mu_z,
+                            std::vector<float> &var_z);
+
+void avgpool2d_bwd_overlapped_delta_z(const std::vector<float> &jcb,
+                                      const std::vector<float> &delta_mu_out,
+                                      const std::vector<float> &delta_var_out,
+                                      const std::vector<int> &z_ud_idx,
+                                      int woho, int wihi, int ki, int n, int k,
+                                      int pad_idx, std::vector<float> &delta_mu,
+                                      std::vector<float> &delta_var);
+
+void avgpool2d_fwd_overlapped_mean_var_mp(const std::vector<float> &mu_a,
+                                          const std::vector<float> &var_a,
+                                          const std::vector<int> &a_idx,
+                                          int woho, int wihi, int ki, int k,
+                                          int pad_idx, unsigned int num_threads,
+                                          std::vector<float> &mu_z,
+                                          std::vector<float> &var_z);
+
+void avgpool2d_bwd_delta_z(const std::vector<float> &jcb,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out, int wo,
+                           int ki, int k, std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var);
+
+void avgpool2d_fwd_mean_var_mp(const std::vector<float> &mu_a,
+                               const std::vector<float> &var_a,
+                               const std::vector<int> a_idx, int woho, int wihi,
+                               int ki, int k, unsigned int num_threads,
+                               std::vector<float> &mu_z,
+                               std::vector<float> &var_z);
+
+void avgpool2d_bwd_overlapped_delta_z_mp(
+    const std::vector<float> &jcb, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &z_ud_idx,
+    int woho, int wihi, int ki, int n, int k, int pad_idx,
+    unsigned int num_threads, std::vector<float> &delta_mu,
+    std::vector<float> &delta_var);
+
+void avgpool2d_bwd_delta_z_mp(const std::vector<float> &jcb,
+                              const std::vector<float> &delta_mu_out,
+                              const std::vector<float> &delta_var_out, int wo,
+                              int ki, int k, unsigned int num_threads,
+                              std::vector<float> &delta_mu,
+                              std::vector<float> &delta_var);

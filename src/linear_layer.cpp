@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      September 20, 2023
-// Updated:      January 04, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,6 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
     this->output_size = op_size;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = this->output_size;
-    bwd_states = std::make_unique<BaseBackwardStates>();
 
     // Initalize weights and bias
     if (this->device.compare("cpu") == 0) {

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 14, 2024
+// Updated:      January 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,6 +15,7 @@
 #ifdef USE_CUDA
 #include "../include/conv2d_layer_cuda.cuh"
 #endif
+#include <thread>
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Conv2d
@@ -43,6 +44,9 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
     //     InitArgs args(in_width, in_height);
     //     this->compute_input_output_size(args);
     // }
+    if (this->training) {
+        this->bwd_states = std::make_unique<BaseBackwardStates>();
+    }
 }
 
 Conv2d::~Conv2d() {}
@@ -72,30 +76,22 @@ void Conv2d::compute_input_output_size(const InitArgs &args)
     this->output_size = this->out_width * this->out_height * this->out_channels;
 }
 
-void Conv2d::get_number_param_conv2d(int kernel, int fi, int fo, bool use_bias)
+void Conv2d::get_number_param_conv2d()
 
 /* Get the number of parameters for conv. and tconv. layer.
- *
- * Args:
- *    kernel: Size of the receptive field
- *    fi: Number of filters for input image
- *    fo: Number of filters for output image
- *    use_bias: Whether to include the bias parameters.
- *
- * Returns:
- *    n_w: Number of weight paramerers
- *    n_b: Number of bias parameters
+
  *    */
 {
     int n_w, n_b;
-    n_w = kernel * kernel * fi * fo;
-    if (use_bias) {
-        n_b = fo;
+    n_w = this->kernel_size * this->kernel_size * this->in_channels *
+          this->out_channels;
+    if (this->bias) {
+        n_b = this->out_channels;
     } else {
         n_b = 0;
     }
     this->num_weights = n_w;
-    this->bias = n_b;
+    this->num_biases = n_b;
 }
 
 void Conv2d::init_weight_bias()
@@ -109,14 +105,38 @@ void Conv2d::init_weight_bias()
                                 this->num_biases);
 }
 
-void Conv2d::allocate_param_delta()
+void Conv2d::lazy_init(int batch_size)
 /*
  */
 {
-    this->delta_mu_w.resize(this->num_weights);
-    this->delta_var_w.resize(this->num_weights);
-    this->delta_mu_b.resize(this->num_biases);
-    this->delta_var_b.resize(this->num_biases);
+    this->get_number_param_conv2d();
+    this->init_weight_bias();
+
+    // Get precomputed conv indices
+    int in_pad_idx =
+        this->in_width * this->in_height * this->in_channels * batch_size + 1;
+
+    int out_pad_idx =
+        this->out_width * this->out_height * this->out_channels * batch_size +
+        1;
+
+    int param_pad_idx =
+        pow(this->kernel_size, 2) * this->in_channels * this->out_channels + 1;
+
+    auto conv_idx = get_conv2d_idx(
+        this->kernel_size, this->stride, this->in_width, this->in_height,
+        this->out_width, this->out_height, this->padding, this->padding_type,
+        in_pad_idx, out_pad_idx, param_pad_idx);
+
+    this->idx_mwa_2 = conv_idx.Fmwa_2_idx;
+    this->idx_cov_zwa_1 = conv_idx.FCzwa_1_idx;
+    this->idx_var_z_ud = conv_idx.Szz_ud_idx;
+
+    this->row_zw = conv_idx.h;
+    this->col_z_ud = conv_idx.h;
+
+    // Allocate memory for indices and send them to cuda device
+    this->allocate_param_delta();
 }
 
 void Conv2d::forward(BaseHiddenStates &input_states,
@@ -125,22 +145,61 @@ void Conv2d::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                " at line: " + std::to_string(__LINE__) +
-                                ". Conv2d forward is unavaialble on CPU");
+    int batch_size = input_states.block_size;
+
+    if (this->num_weights == 0) {
+        this->lazy_init(batch_size);
+    }
+
+    // Assign output dimensions
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
+    // Launch kernel
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int woho_batch = woho * batch_size;
+    int pad_idx = wihi * this->in_channels * batch_size + 1;
+
+    conv2d_fwd_mean_var_mp(
+        this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
+        input_states.var_a, this->idx_mwa_2, woho, this->out_channels, wihi,
+        this->in_channels, this->kernel_size, batch_size, pad_idx, this->bias,
+        this->num_threads, output_states.mu_a, output_states.var_a);
+
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
+    }
 }
 
 void Conv2d::state_backward(BaseBackwardStates &next_bwd_states,
                             BaseDeltaStates &input_delta_states,
-                            BaseDeltaStates &output_hidden_states,
+                            BaseDeltaStates &output_delta_states,
                             BaseTempStates &temp_states)
 /*
  */
 {
-    throw std::invalid_argument(
-        "Error in file: " + std::string(__FILE__) +
-        " at line: " + std::to_string(__LINE__) +
-        ". Conv2d state backward is unavaialble on CPU");
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+
+    // Launch kernel
+    int wihi = this->in_width * this->in_height;
+    int woho = this->out_width * this->out_height;
+    int row_zw_fo = this->row_zw * this->out_channels;
+    int pad_idx = woho * this->out_channels * batch_size + 1;
+
+    permute_jacobian(next_bwd_states.jcb, wihi, this->in_channels, batch_size,
+                     temp_states.tmp_1);
+
+    conv2d_bwd_delta_z_mp(
+        this->mu_w, temp_states.tmp_1, input_delta_states.delta_mu,
+        input_delta_states.delta_var, this->idx_cov_zwa_1, this->idx_var_z_ud,
+        woho, this->out_channels, wihi, this->in_channels, this->kernel_size,
+        this->row_zw, row_zw_fo, batch_size, pad_idx, this->num_threads,
+        output_delta_states.delta_mu, output_delta_states.delta_var);
 }
 
 void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
@@ -149,10 +208,31 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
 /*
  */
 {
-    throw std::invalid_argument(
-        "Error in file: " + std::string(__FILE__) +
-        " at line: " + std::to_string(__LINE__) +
-        ". Conv2d param backward is unavaialble on CPU");
+    // Initalization
+    int batch_size = delta_states.block_size;
+
+    // Lauch kernel
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int woho_batch = woho * batch_size;
+    int wohofo = woho * this->out_channels;
+    int pad_idx = wihi * this->in_channels * batch_size + 1;
+
+    permute_delta(delta_states.delta_mu, delta_states.delta_var, woho, wohofo,
+                  batch_size, temp_states.tmp_1, temp_states.tmp_2);
+
+    conv2d_bwd_delta_w_mp(
+        this->var_w, next_bwd_states.mu_a, delta_states.delta_mu,
+        delta_states.delta_var, this->idx_mwa_2, batch_size, this->out_channels,
+        woho, wihi, this->in_channels, this->kernel_size, pad_idx,
+        this->num_threads, this->delta_mu_w, this->delta_var_w);
+
+    if (this->bias) {
+        conv2d_bwd_delta_b(this->var_b, delta_states.delta_mu,
+                           delta_states.delta_var, woho_batch,
+                           this->out_channels, this->delta_mu_b,
+                           this->delta_var_b);
+    }
 }
 
 #ifdef USE_CUDA
@@ -164,6 +244,457 @@ std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
         this->gain_w, this->gain_b, this->init_method, this->bias);
 }
 #endif
+
+void Conv2d::allocate_param_delta()
+/*
+ */
+{
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+    this->delta_mu_b.resize(this->num_biases, 0.0f);
+    this->delta_var_b.resize(this->num_biases, 0.0f);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Conv2d Backward and Forward
+////////////////////////////////////////////////////////////////////////////////
+void conv2d_fwd_mean_var(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int pad_idx, bool bias, std::vector<float> &mu_z,
+    std::vector<float> &var_z)
+/*
+ */
+{
+    int ki2 = ki * ki;
+    int n = ki2 * fi;
+    for (int col = 0; col < woho * batch_size; col++) {
+        for (int row = 0; row < fo; row++) {
+            float sum_mu = 0;
+            float sum_var = 0;
+            float mu_a_tmp = 0;
+            float var_a_tmp = 0;
+            float mu_w_tmp = 0;
+            float var_w_tmp = 0;
+            for (int i = 0; i < n; i++) {
+                int aidx_tmp = aidx[(col % woho) * ki2 + i % ki2] +
+                               (i / ki2) * wihi + (col / woho) * wihi * fi;
+
+                if (aidx_tmp < pad_idx) {
+                    // aidx's lowest value starts at 1
+                    mu_a_tmp = mu_a[aidx_tmp - 1];
+                    var_a_tmp = var_a[aidx_tmp - 1];
+
+                    mu_w_tmp = mu_w[row * n + i];
+                    var_w_tmp = var_w[row * n + i];
+
+                    sum_mu += mu_w_tmp * mu_a_tmp;
+                    sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                               var_w_tmp * mu_a_tmp * mu_a_tmp;
+                }
+            }
+
+            int out_idx = woho * (col / woho) * fo + col % woho + row * woho;
+            if (bias) {
+                mu_z[out_idx] = sum_mu + mu_b[row];
+                var_z[out_idx] = sum_var + var_b[row];
+            } else {
+                mu_z[out_idx] = sum_mu;
+                var_z[out_idx] = sum_var;
+            }
+        }
+    }
+}
+
+void conv2d_fwd_mean_var_v2(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int pad_idx, bool bias, int start_chunk, int end_chunk,
+    std::vector<float> &mu_z, std::vector<float> &var_z)
+/*
+ */
+{
+    int ki2 = ki * ki;
+    int n = ki2 * fi;
+
+    for (int j = start_chunk; j < end_chunk; j++) {
+        int row = j / (woho * batch_size);
+        int col = j % (woho * batch_size);
+        float sum_mu = 0;
+        float sum_var = 0;
+        float mu_a_tmp = 0;
+        float var_a_tmp = 0;
+        float mu_w_tmp = 0;
+        float var_w_tmp = 0;
+        for (int i = 0; i < n; i++) {
+            int aidx_tmp = aidx[(col % woho) * ki2 + i % ki2] +
+                           (i / ki2) * wihi + (col / woho) * wihi * fi;
+
+            if (aidx_tmp < pad_idx) {
+                // aidx's lowest value starts at 1
+                mu_a_tmp = mu_a[aidx_tmp - 1];
+                var_a_tmp = var_a[aidx_tmp - 1];
+
+                mu_w_tmp = mu_w[row * n + i];
+                var_w_tmp = var_w[row * n + i];
+
+                sum_mu += mu_w_tmp * mu_a_tmp;
+                sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                           var_w_tmp * mu_a_tmp * mu_a_tmp;
+            }
+        }
+
+        int out_idx = woho * (col / woho) * fo + col % woho + row * woho;
+        if (bias) {
+            mu_z[out_idx] = sum_mu + mu_b[row];
+            var_z[out_idx] = sum_var + var_b[row];
+        } else {
+            mu_z[out_idx] = sum_mu;
+            var_z[out_idx] = sum_var;
+        }
+    }
+}
+
+void conv2d_fwd_mean_var_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &aidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int pad_idx, bool bias, unsigned int num_threads,
+    std::vector<float> &mu_z, std::vector<float> &var_z)
+/*
+ */
+{
+    const int tot_ops = woho * batch_size * fo;
+
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
+                              &aidx, &mu_z, &var_z] {
+            conv2d_fwd_mean_var_v2(mu_w, var_w, mu_b, var_b, mu_a, var_a, aidx,
+                                   woho, fo, wihi, fi, ki, batch_size, pad_idx,
+                                   bias, start_chunk, end_chunk, mu_z, var_z);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void conv2d_bwd_delta_z(const std::vector<float> &mu_w,
+                        const std::vector<float> &jcb,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out,
+                        const std::vector<int> &zw_idx,
+                        const std::vector<int> &zud_idx, int woho, int fo,
+                        int wihi, int fi, int ki, int nr, int n, int batch_size,
+                        int pad_idx, std::vector<float> &delta_mu,
+                        std::vector<float> &delta_var)
+/**/
+{
+    float mu_w_tmp;
+    int k = wihi * batch_size;
+    int ki2 = ki * ki;
+
+    for (int col = 0; col < k; col++) {
+        for (int row = 0; row < fi; row++) {
+            float sum_mu = 0;
+            float sum_var = 0;
+            for (int i = 0; i < n; i++) {
+                // indices for mw. Note that nr = n / fo. Indices's lowest value
+                // starts at 1
+                int widx_tmp = zw_idx[(col % wihi) * nr + i % nr] +
+                               (i / nr) * ki2 * fi + row * ki2 - 1;
+
+                // indices for deltaM
+                int aidx_tmp = zud_idx[col % wihi + wihi * (i % nr)] +
+                               (i / nr) * woho + (col / wihi) * woho * fo;
+
+                if (aidx_tmp < pad_idx) {
+                    mu_w_tmp = mu_w[widx_tmp];
+
+                    sum_mu += delta_mu_out[aidx_tmp - 1] * mu_w_tmp;
+                    sum_var +=
+                        mu_w_tmp * delta_var_out[aidx_tmp - 1] * mu_w_tmp;
+                }
+            }
+
+            int out_idx = wihi * (col / wihi) * fi + col % wihi + row * wihi;
+
+            delta_mu[out_idx] = sum_mu * jcb[row * k + col];
+            delta_var[out_idx] =
+                sum_var * jcb[row * k + col] * jcb[row * k + col];
+        }
+    }
+}
+
+void conv2d_bwd_delta_z_v2(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &zw_idx,
+    const std::vector<int> &zud_idx, int woho, int fo, int wihi, int fi, int ki,
+    int nr, int n, int batch_size, int pad_idx, int start_chunk, int end_chunk,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var)
+/**/
+{
+    float mu_w_tmp;
+    int k = wihi * batch_size;
+    int ki2 = ki * ki;
+
+    for (int j = start_chunk; j < end_chunk; j++) {
+        int row = j / k;
+        int col = j % k;
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < n; i++) {
+            // indices for mw. Note that nr = n / fo. Indices's lowest value
+            // starts at 1
+            int widx_tmp = zw_idx[(col % wihi) * nr + i % nr] +
+                           (i / nr) * ki2 * fi + row * ki2 - 1;
+
+            // indices for deltaM
+            int aidx_tmp = zud_idx[col % wihi + wihi * (i % nr)] +
+                           (i / nr) * woho + (col / wihi) * woho * fo;
+
+            if (aidx_tmp < pad_idx) {
+                mu_w_tmp = mu_w[widx_tmp];
+
+                sum_mu += delta_mu_out[aidx_tmp - 1] * mu_w_tmp;
+                sum_var += mu_w_tmp * delta_var_out[aidx_tmp - 1] * mu_w_tmp;
+            }
+        }
+
+        int out_idx = wihi * (col / wihi) * fi + col % wihi + row * wihi;
+
+        delta_mu[out_idx] = sum_mu * jcb[row * k + col];
+        delta_var[out_idx] = sum_var * jcb[row * k + col] * jcb[row * k + col];
+    }
+}
+
+void conv2d_bwd_delta_z_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &zw_idx,
+    const std::vector<int> &zud_idx, int woho, int fo, int wihi, int fi, int ki,
+    int nr, int n, int batch_size, int pad_idx, unsigned int num_threads,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var)
+/**/
+{
+    const int tot_ops = wihi * batch_size * fi;
+
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_w, &jcb, &delta_mu_out, &delta_var_out,
+                              &zw_idx, &zud_idx, &delta_mu, &delta_var] {
+            conv2d_bwd_delta_z_v2(mu_w, jcb, delta_mu_out, delta_var_out,
+                                  zw_idx, zud_idx, woho, fo, wihi, fi, ki, nr,
+                                  n, batch_size, pad_idx, start_chunk,
+                                  end_chunk, delta_mu, delta_var);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void permute_jacobian(std::vector<float> &jcb_0, int wihi, int fi,
+                      int batch_size, std::vector<float> &jcb)
+/*
+ */
+{
+    for (int col = 0; col < wihi * fi; col++) {
+        for (int row = 0; row < batch_size; row++) {
+            // Note that (col/(w * h)) equivalent to floorf((col/(w * h)))
+            // because of interger division
+            jcb[wihi * (col / wihi) * batch_size + col % wihi + row * wihi] =
+                jcb_0[row * wihi * fi + col];
+        }
+    }
+}
+
+void conv2d_bwd_delta_w(const std::vector<float> &var_w,
+                        const std::vector<float> &mu_a,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out,
+                        const std::vector<int> &aidx, int batch_size, int k,
+                        int woho, int wihi, int fi, int ki, int pad_idx,
+                        std::vector<float> &delta_mu_w,
+                        std::vector<float> &delta_var_w)
+/*
+ */
+{
+    int ki2 = ki * ki;
+    int m = ki2 * fi;
+    int n = woho * batch_size;
+
+    for (int col = 0; col < k; col++) {
+        for (int row = 0; row < m; row++) {
+            float sum_mu = 0;
+            float sum_var = 0;
+            for (int i = 0; i < n; i++) {
+                int aidx_tmp = aidx[ki2 * (i % woho) + row % ki2] +
+                               (row / ki2) * wihi + (i / woho) * wihi * fi;
+
+                if (aidx_tmp < pad_idx) {
+                    // Indices's lowest value starts at 1
+                    float mu_a_tmp = mu_a[aidx_tmp - 1];
+                    sum_mu += mu_a_tmp * delta_mu_out[col * n + i];
+                    sum_var += mu_a_tmp * delta_var_out[col * n + i] * mu_a_tmp;
+                }
+            }
+            float var_w_tmp = var_w[col * m + row];
+            delta_mu_w[col * m + row] = sum_mu * var_w_tmp;
+            delta_var_w[col * m + row] = sum_var * var_w_tmp * var_w_tmp;
+        }
+    }
+}
+
+void conv2d_bwd_delta_w_v2(const std::vector<float> &var_w,
+                           const std::vector<float> &mu_a,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           const std::vector<int> &aidx, int batch_size, int k,
+                           int woho, int wihi, int fi, int ki, int pad_idx,
+                           int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu_w,
+                           std::vector<float> &delta_var_w)
+/*
+ */
+{
+    int ki2 = ki * ki;
+    int m = ki2 * fi;
+    int n = woho * batch_size;
+
+    for (int j = start_chunk; j < end_chunk; j++) {
+        int row = j / k;
+        int col = j % k;
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < n; i++) {
+            int aidx_tmp = aidx[ki2 * (i % woho) + row % ki2] +
+                           (row / ki2) * wihi + (i / woho) * wihi * fi;
+
+            if (aidx_tmp < pad_idx) {
+                // Indices's lowest value starts at 1
+                float mu_a_tmp = mu_a[aidx_tmp - 1];
+                sum_mu += mu_a_tmp * delta_mu_out[col * n + i];
+                sum_var += mu_a_tmp * delta_var_out[col * n + i] * mu_a_tmp;
+            }
+        }
+        float var_w_tmp = var_w[col * m + row];
+        delta_mu_w[col * m + row] = sum_mu * var_w_tmp;
+        delta_var_w[col * m + row] = sum_var * var_w_tmp * var_w_tmp;
+    }
+}
+
+void conv2d_bwd_delta_w_mp(const std::vector<float> &var_w,
+                           const std::vector<float> &mu_a,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           const std::vector<int> &aidx, int batch_size, int k,
+                           int woho, int wihi, int fi, int ki, int pad_idx,
+                           unsigned int num_threads,
+                           std::vector<float> &delta_mu_w,
+                           std::vector<float> &delta_var_w)
+/*
+ */
+{
+    int ki2 = ki * ki;
+    const int tot_ops = ki2 * fi * k;
+
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = tot_ops / num_threads;
+    int extra = tot_ops % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &var_w, &mu_a, &delta_mu_out, &delta_var_out,
+                              &aidx, &delta_mu_w, &delta_var_w] {
+            conv2d_bwd_delta_w_v2(var_w, mu_a, delta_mu_out, delta_var_out,
+                                  aidx, batch_size, k, woho, wihi, fi, ki,
+                                  pad_idx, start_chunk, end_chunk, delta_mu_w,
+                                  delta_var_w);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void conv2d_bwd_delta_b(const std::vector<float> &var_b,
+                        const std::vector<float> &delta_mu_out,
+                        const std::vector<float> &delta_var_out, int n, int k,
+                        std::vector<float> &delta_mu_b,
+                        std::vector<float> &delta_var_b)
+/*
+ */
+{
+    for (int col = 0; col < k; col++) {
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < n; i++) {
+            sum_mu += delta_mu_out[col * n + i];
+            sum_var += delta_var_out[col * n + i];
+        }
+        delta_mu_b[col] = sum_mu * var_b[col];
+        delta_var_b[col] = sum_var * var_b[col] * var_b[col];
+    }
+}
+
+void permute_delta(const std::vector<float> &delta_mu_0,
+                   const std::vector<float> &delta_var_0, int woho, int kp,
+                   int batch_size, std::vector<float> &delta_mu,
+                   std::vector<float> &delta_var)
+/*
+ */
+{
+    for (int col = 0; col < kp; col++) {
+        for (int row = 0; row < batch_size; row++) {
+            // Note that (col/(w * h)) equvalent to floorf((col/(w * h)))
+            // because of interger division
+            delta_mu[woho * (col / woho) * batch_size + col % woho +
+                     row * woho] = delta_mu_0[row * kp + col];
+            delta_var[woho * (col / woho) * batch_size + col % woho +
+                      row * woho] = delta_var_0[row * kp + col];
+        }
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utility functions
