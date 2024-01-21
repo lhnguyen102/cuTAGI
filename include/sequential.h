@@ -50,6 +50,28 @@ class Sequential {
     Sequential(Layers&&... layers) {
         add_layers(std::forward<Layers>(layers)...);
     }
+    // Recursive variadic template
+    template <typename T, typename... Rest>
+    void add_layers(T&& first, Rest&&... rest) {
+        // Runtime check to verify if T is derived from BaseLayer
+        if (!std::is_base_of<BaseLayer,
+                             typename std::remove_reference<T>::type>::value) {
+            std::cerr << "Error in file: " << __FILE__
+                      << " at line: " << __LINE__
+                      << ". Reason: Type T must be derived from BaseLayer.\n";
+            throw std::invalid_argument(
+                "Error: Type T must be derived from BaseLayer");
+        }
+
+        // Add layer using shared_ptr
+        add_layer(std::make_shared<T>(std::forward<T>(first)));
+
+        // Recursively adding next layer
+        add_layers(std::forward<Rest>(rest)...);
+    }
+    // Base case for recursive variadic template. This function is called after
+    // the last argument
+    void add_layers();
 
     Sequential();
 
@@ -106,28 +128,5 @@ class Sequential {
    private:
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Recursive variadic template
-    template <typename T, typename... Rest>
-    void add_layers(T&& first, Rest&&... rest) {
-        // Runtime check to verify if T is derived from BaseLayer
-        if (!std::is_base_of<BaseLayer,
-                             typename std::remove_reference<T>::type>::value) {
-            std::cerr << "Error in file: " << __FILE__
-                      << " at line: " << __LINE__
-                      << ". Reason: Type T must be derived from BaseLayer.\n";
-            throw std::invalid_argument(
-                "Error: Type T must be derived from BaseLayer");
-        }
-
-        // Add layer using shared_ptr
-        add_layer(std::make_shared<T>(std::forward<T>(first)));
-
-        // Recursively adding next layer
-        add_layers(std::forward<Rest>(rest)...);
-    }
-
-    // Base case for recursive variadic template. This function is called after
-    // the last argument
-    void add_layers();
     void compute_input_output_size();
 };

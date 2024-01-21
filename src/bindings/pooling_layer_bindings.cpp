@@ -20,7 +20,7 @@ void bind_avgpool2d_layer(pybind11::module_& modo)
  */
 {
     pybind11::class_<AvgPool2d, std::shared_ptr<AvgPool2d>, BaseLayer>(
-        modo, "AvgPoo2d")
+        modo, "AvgPool2d")
         .def(pybind11::init<size_t, int, int, int>(),
              pybind11::arg("kernel_size"), pybind11::arg("stride") = -1,
              pybind11::arg("padding") = 0, pybind11::arg("padding_type") = 0)

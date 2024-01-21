@@ -170,6 +170,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
     if (batch_size != this->z_buffer_block_size) {
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
+
         init_output_state_buffer();
         if (this->training) {
             init_delta_state_buffer();

@@ -9,6 +9,8 @@ import numpy as np
 from activation import Relu
 from data_loader import MnistDataloader
 from linear import Linear
+from conv2d import Conv2d
+from pooling import AvgPool2d
 from output_updater import OutputUpdater
 from sequential import Sequential
 from tqdm import tqdm
@@ -28,12 +30,32 @@ class Classifier:
         self.data_loader = data_loader
         self.num_classes = num_classes
 
-        # Network architecture
+        # FNN
+        # self.network = Sequential(
+        #     Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
+        # )
+
+        # CNN
         self.network = Sequential(
-            Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
+            Conv2d(
+                in_channels=1,
+                out_channels=16,
+                kernel_size=4,
+                padding=1,
+                in_width=28,
+                in_height=28,
+            ),
+            Relu(),
+            AvgPool2d(kernel_size=3, stride=2),
+            Conv2d(in_channels=16, out_channels=32, kernel_size=5),
+            Relu(),
+            AvgPool2d(kernel_size=3, stride=2),
+            Linear(32 * 4 * 4, 100),
+            Relu(),
+            Linear(100, 11),
         )
 
-        # self.network.set_threads(4)
+        self.network.set_threads(4)
         # self.network.to_device("cuda")
 
     @property
@@ -66,9 +88,11 @@ class Classifier:
         # Progress bar
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
-        pbar = tqdm(range(self.num_epochs))
+        pbar = tqdm(range(self.num_epochs), desc="Training Progress")
 
         error_rates = []
+        avg_error_rate = 0
+        val_error_rate = np.nan
         for epoch in pbar:
             for i in range(num_iter):
                 # Get data
@@ -106,15 +130,23 @@ class Classifier:
 
                 error_rate = metric.classification_error(prediction=pred, label=label)
                 error_rates.append(error_rate)
+
                 if i % 1000 == 0 and i > 0:
                     extracted_error_rate = np.hstack(error_rates)
                     avg_error_rate = np.mean(extracted_error_rate[-100:])
                     pbar.set_description(
-                        f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {avg_error_rate * 100:>7.2f}%"
+                        f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}| training error: {avg_error_rate * 100:.2f}% | validation error: {val_error_rate * 100:.2f}%",
+                        refresh=True,
                     )
 
             # Validate on test set after each epoch
-            # self.predict()
+            val_error_rate = self.predict()
+            pbar.set_description(
+                f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}| training error: {avg_error_rate * 100:.2f}% | validation error: {val_error_rate * 100:.2f}%",
+                refresh=True,
+            )
+
+        pbar.close()
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
@@ -125,7 +157,7 @@ class Classifier:
         labels = []
         for x_batch, y_batch in self.data_loader["test"]:
             # Predicitons
-            self.network(x_batch)
+            self.network(x_batch.flatten())
             ma, Sa = self.network.get_outputs()
             pred, _ = self.utils.get_labels(
                 ma=ma,
@@ -145,8 +177,10 @@ class Classifier:
         # Compute classification error rate
         error_rate = metric.classification_error(prediction=preds, label=labels)
 
-        print("#############")
-        print(f"Error rate    : {error_rate * 100: 0.2f}%")
+        # print("#############")
+        # print(f"Error rate    : {error_rate * 100: 0.2f}%")
+
+        return error_rate
 
     def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
         """Initnitalize the covariance matrix for outputs"""
@@ -163,7 +197,7 @@ class Classifier:
 def clsf_runner():
     """Run classification training"""
     # User-input
-    num_epochs = 1
+    num_epochs = 2
     x_train_file = "../../data/mnist/train-images-idx3-ubyte"
     y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
     x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
@@ -213,7 +247,6 @@ def main(profile: bool = False):
         print("Profile training")
         profiler()
     else:
-        print("Training..")
         clsf_runner()
 
 

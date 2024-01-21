@@ -29,6 +29,8 @@ PYBIND11_MODULE(cutagitest, modo) {
     bind_leakyrelu(modo);
     bind_softmax(modo);
     bind_linear_layer(modo);
+    bind_conv2d_layer(modo);
+    bind_avgpool2d_layer(modo);
     bind_sequential(modo);
     bind_output_updater(modo);
 }

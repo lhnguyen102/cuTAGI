@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 31, 2023
-// Updated:      December 31, 2023
+// Updated:      January 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +27,9 @@ void bind_base_hidden_states(pybind11::module_ &m) {
         .def_readwrite("size", &BaseHiddenStates::size)
         .def_readwrite("block_size", &BaseHiddenStates::block_size)
         .def_readwrite("actual_size", &BaseHiddenStates::actual_size)
+        .def_readwrite("width", &BaseHiddenStates::width)
+        .def_readwrite("height", &BaseHiddenStates::height)
+        .def_readwrite("depth", &BaseHiddenStates::depth)
         .def("set_input_x", &BaseHiddenStates::set_input_x)
         .def("get_name", &BaseHiddenStates::get_name);
 }

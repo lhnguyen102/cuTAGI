@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      December 31, 2023
+// Updated:      January 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,6 +28,9 @@ void bind_sequential(pybind11::module_& m) {
                 for (const auto& layer : layers) {
                     seq->add_layer(layer);
                 }
+
+                // Perform the pre-computation of the network's parameters
+                seq->add_layers();
                 return seq;
             }))
         .def_readwrite("output_z_buffer", &Sequential::output_z_buffer)
