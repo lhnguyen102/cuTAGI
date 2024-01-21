@@ -66,6 +66,7 @@ class Conv2d : public BaseLayer {
     void get_number_param_conv2d();
 
     void init_weight_bias();
+
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

@@ -13,6 +13,4 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../conv2d_layer.h"
-
 void bind_conv2d_layer(pybind11::module_& modo);
