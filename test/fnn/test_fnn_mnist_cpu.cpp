@@ -64,20 +64,23 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    // Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
-    //                  Linear(100, 11));
+    Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
+                     Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3, 2),
-                     Conv2d(16, 32, 5), Relu(), AvgPool2d(3, 2),
-                     Linear(32 * 4 * 4, 100), Relu(), Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3,
+    // 2),
+    //                  Conv2d(16, 32, 5), Relu(), AvgPool2d(3, 2),
+    //                  Linear(32 * 4 * 4, 100), Relu(), Linear(100, 11));
 
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // model.set_threads(8);
+    model.to_device("cuda");
 
     // // CPU Model
-    // Sequential cpu_model(Linear(784, 400), Relu(), Linear(400, 400), Relu(),
-    //                      Linear(400, 11));
-    // cpu_model.params_from(model);
+    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(),
+    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), Relu(),
+    //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), Relu(),
+    //                      Linear(100, 11));
+    // cpu_myodel.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -127,9 +130,13 @@ void fnn_mnist() {
                                     y_batch, idx_ud_batch, label_batch);
 
             // Forward pass
-            // cpu_model.params_from(model);
+            //
             model.forward(x_batch);
             // cpu_model.forward(x_batch);
+            // cpu_model.params_from(model);
+            // model.forward(x_batch);
+            // cpu_model.forward(x_batch);
+
             // model.output_to_host();
 
             // Output layer

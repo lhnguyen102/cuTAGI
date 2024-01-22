@@ -425,6 +425,12 @@ void Sequential::params_from(const Sequential &model_ref) {
 
     // TODO: need to add more checks before copying
     for (int i = 0; i < this->layers.size(); i++) {
+        if (this->layers[i]->mu_w.size() == 0) {
+            this->layers[i]->mu_w.resize(model_ref.layers[i]->mu_w.size());
+            this->layers[i]->var_w.resize(model_ref.layers[i]->var_w.size());
+            this->layers[i]->mu_b.resize(model_ref.layers[i]->mu_b.size());
+            this->layers[i]->var_b.resize(model_ref.layers[i]->var_b.size());
+        }
         this->layers[i]->mu_w = model_ref.layers[i]->mu_w;
         this->layers[i]->var_w = model_ref.layers[i]->var_w;
         this->layers[i]->mu_b = model_ref.layers[i]->mu_b;

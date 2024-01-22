@@ -25,15 +25,18 @@ class Classifier:
     hr_softmax: HierarchicalSoftmax
     utils: Utils = Utils()
 
-    def __init__(self, num_epochs: int, data_loader: dict, num_classes: int) -> None:
+    def __init__(
+        self, num_epochs: int, data_loader: dict, num_classes: int, batch_size: int
+    ) -> None:
         self.num_epochs = num_epochs
         self.data_loader = data_loader
         self.num_classes = num_classes
+        self.batch_size = batch_size
 
         # FNN
-        # self.network = Sequential(
-        #     Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
-        # )
+        self.network = Sequential(
+            Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
+        )
 
         # CNN
         self.network = Sequential(
@@ -55,8 +58,8 @@ class Classifier:
             Linear(100, 11),
         )
 
-        self.network.set_threads(4)
-        # self.network.to_device("cuda")
+        # self.network.set_threads(4)
+        self.network.to_device("cuda")
 
     @property
     def num_classes(self) -> int:
@@ -77,7 +80,7 @@ class Classifier:
         output_updater = OutputUpdater(self.network.device)
 
         # Inputs
-        batch_size = 20
+        batch_size = self.batch_size
 
         # Outputs
         var_obs, _ = self.init_outputs(batch_size)
@@ -151,7 +154,6 @@ class Classifier:
     def predict(self) -> None:
         """Make prediction using TAGI"""
         # Inputs
-        batch_size = 20
 
         preds = []
         labels = []
@@ -164,7 +166,7 @@ class Classifier:
                 Sa=Sa,
                 hr_softmax=self.hr_softmax,
                 num_classes=self.num_classes,
-                batch_size=batch_size,
+                batch_size=self.batch_size,
             )
 
             # Store data
@@ -198,13 +200,14 @@ def clsf_runner():
     """Run classification training"""
     # User-input
     num_epochs = 2
+    batch_size = 32
     x_train_file = "../../data/mnist/train-images-idx3-ubyte"
     y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
     x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
     y_test_file = "../../data/mnist/t10k-labels-idx1-ubyte"
 
     # Data loader
-    reg_data_loader = MnistDataloader(batch_size=20)
+    reg_data_loader = MnistDataloader(batch_size=batch_size)
     data_loader = reg_data_loader.process_data(
         x_train_file=x_train_file,
         y_train_file=y_train_file,
@@ -214,7 +217,10 @@ def clsf_runner():
 
     # Train and test
     reg_task = Classifier(
-        num_epochs=num_epochs, data_loader=data_loader, num_classes=10
+        num_epochs=num_epochs,
+        data_loader=data_loader,
+        num_classes=10,
+        batch_size=batch_size,
     )
     reg_task.train()
 
