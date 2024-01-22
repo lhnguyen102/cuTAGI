@@ -34,9 +34,9 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        self.network = Sequential(
-            Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
-        )
+        # self.network = Sequential(
+        #     Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
+        # )
 
         # CNN
         self.network = Sequential(
