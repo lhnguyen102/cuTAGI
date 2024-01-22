@@ -58,8 +58,8 @@ class Classifier:
             Linear(100, 11),
         )
 
-        # self.network.set_threads(4)
-        self.network.to_device("cuda")
+        self.network.set_threads(8)
+        # self.network.to_device("cuda")
 
     @property
     def num_classes(self) -> int:
