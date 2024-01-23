@@ -47,13 +47,13 @@ void fnn_v2()
     // Method 1: Stack layer one-by-one
     // Sequential model;
     // model.add_layer(std::make_unique<Linear>(13, 10));
-    // model.add_layer(std::make_unique<Relu>());
+    // model.add_layer(std::make_unique<ReLU>());
     // model.add_layer(std::make_unique<Linear>(10, 5));
-    // model.add_layer(std::make_unique<Relu>());
+    // model.add_layer(std::make_unique<ReLU>());
     // model.add_layer(std::make_unique<Linear>(5, 1));
 
     // Method 2: Stack layers all together when initializing the model
-    Sequential model(Linear(1, 50), Relu(), Linear(50, 1));
+    Sequential model(Linear(1, 50), ReLU(), Linear(50, 1));
 
     //////////////////////////////////////////////////////////////////////
     // Training

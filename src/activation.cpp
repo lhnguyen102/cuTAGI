@@ -15,31 +15,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
 ////////////////////////////////////////////////////////////////////////////////
-Relu::Relu(){};
-Relu::~Relu(){};
+ReLU::ReLU(){};
+ReLU::~ReLU(){};
 
-std::string Relu::get_layer_info() const
+std::string ReLU::get_layer_info() const
 /*
  */
 {
     return "ReLU()";
 }
 
-std::string Relu::get_layer_name() const
+std::string ReLU::get_layer_name() const
 /*
  */
 {
     return "ReLU";
 }
 
-LayerType Relu::get_layer_type() const
+LayerType ReLU::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void Relu::relu_mean_var(std::vector<float> const &mu_z,
+void ReLU::relu_mean_var(std::vector<float> const &mu_z,
                          std::vector<float> const &var_z, int start_chunk,
                          int end_chunk, std::vector<float> &mu_a,
                          std::vector<float> &jcb, std::vector<float> &var_a)
@@ -63,7 +63,7 @@ void Relu::relu_mean_var(std::vector<float> const &mu_z,
     }
 }
 
-void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
+void ReLU::relu_mean_var_mp(std::vector<float> const &mu_z,
                             std::vector<float> const &var_z, int n,
                             unsigned int num_threads, std::vector<float> &mu_a,
                             std::vector<float> &jcb, std::vector<float> &var_a)
@@ -82,7 +82,7 @@ void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-            Relu::relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+            ReLU::relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
                                 var_a);
         });
     }
@@ -94,7 +94,7 @@ void Relu::relu_mean_var_mp(std::vector<float> const &mu_z,
     }
 }
 
-void Relu::forward(BaseHiddenStates &input_states,
+void ReLU::forward(BaseHiddenStates &input_states,
                    BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
  */
@@ -128,9 +128,9 @@ void Relu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Relu::to_cuda() {
+std::unique_ptr<BaseLayer> ReLU::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<ReluCuda>();
+    return std::make_unique<ReLUCuda>();
 }
 #endif
 
@@ -357,7 +357,7 @@ std::unique_ptr<BaseLayer> Tanh::to_cuda() {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Mixture Relu
+/// Mixture ReLU
 ////////////////////////////////////////////////////////////////////////////////
 MixtureRelu::MixtureRelu() {}
 MixtureRelu::~MixtureRelu() {}

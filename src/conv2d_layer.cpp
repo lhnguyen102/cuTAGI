@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 20, 2024
+// Updated:      January 23, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,10 +40,6 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
     this->out_channels = out_channels;
     this->bias = bias;
 
-    // if (in_width != 0 && in_height != 0) {
-    //     InitArgs args(in_width, in_height);
-    //     this->compute_input_output_size(args);
-    // }
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
     }
@@ -105,28 +101,18 @@ void Conv2d::init_weight_bias()
                                 this->num_biases);
 }
 
-void Conv2d::lazy_init(int batch_size)
+void Conv2d::lazy_index_init()
 /*
  */
 {
-    this->get_number_param_conv2d();
-    this->init_weight_bias();
-
     // Get precomputed conv indices
-    int in_pad_idx =
-        this->in_width * this->in_height * this->in_channels * batch_size + 1;
-
-    int out_pad_idx =
-        this->out_width * this->out_height * this->out_channels * batch_size +
-        1;
-
     int param_pad_idx =
         pow(this->kernel_size, 2) * this->in_channels * this->out_channels + 1;
 
     auto conv_idx = get_conv2d_idx(
         this->kernel_size, this->stride, this->in_width, this->in_height,
         this->out_width, this->out_height, this->padding, this->padding_type,
-        in_pad_idx, out_pad_idx, param_pad_idx);
+        -1, -1, param_pad_idx);
 
     this->idx_mwa_2 = conv_idx.Fmwa_2_idx;
     this->idx_cov_zwa_1 = conv_idx.FCzwa_1_idx;
@@ -134,9 +120,6 @@ void Conv2d::lazy_init(int batch_size)
 
     this->row_zw = conv_idx.h;
     this->col_z_ud = conv_idx.h;
-
-    // Allocate memory for indices and send them to cuda device
-    this->allocate_param_delta();
 }
 
 void Conv2d::forward(BaseHiddenStates &input_states,
@@ -147,8 +130,14 @@ void Conv2d::forward(BaseHiddenStates &input_states,
 {
     int batch_size = input_states.block_size;
 
+    // Only need to initalize at the first iteration
     if (this->num_weights == 0) {
-        this->lazy_init(batch_size);
+        this->get_number_param_conv2d();
+        this->init_weight_bias();
+    }
+
+    if (this->idx_mwa_2.size() == 0) {
+        this->lazy_index_init();
     }
 
     // Assign output dimensions
@@ -231,6 +220,10 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
     // Initalization
     int batch_size = delta_states.block_size;
 
+    if (this->delta_mu_w.size() == 0) {
+        this->allocate_param_delta();
+    }
+
     // Lauch kernel
     int woho = this->out_width * this->out_height;
     int wihi = this->in_width * this->in_height;
@@ -242,27 +235,24 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
                   batch_size, temp_states.tmp_1, temp_states.tmp_2);
 
     if (this->num_threads > 1) {
-        conv2d_bwd_delta_w_mp(this->var_w, next_bwd_states.mu_a,
-                              delta_states.delta_mu, delta_states.delta_var,
-                              this->idx_mwa_2, batch_size, this->out_channels,
-                              woho, wihi, this->in_channels, this->kernel_size,
-                              pad_idx, this->num_threads, this->delta_mu_w,
-                              this->delta_var_w);
+        conv2d_bwd_delta_w_mp(
+            this->var_w, next_bwd_states.mu_a, temp_states.tmp_1,
+            temp_states.tmp_2, this->idx_mwa_2, batch_size, this->out_channels,
+            woho, wihi, this->in_channels, this->kernel_size, pad_idx,
+            this->num_threads, this->delta_mu_w, this->delta_var_w);
     } else {
         int end_chunk = this->kernel_size * this->kernel_size *
                         this->in_channels * this->out_channels;
-        conv2d_bwd_delta_w(this->var_w, next_bwd_states.mu_a,
-                           delta_states.delta_mu, delta_states.delta_var,
-                           this->idx_mwa_2, batch_size, this->out_channels,
-                           woho, wihi, this->in_channels, this->kernel_size,
-                           pad_idx, 0, end_chunk, this->delta_mu_w,
-                           this->delta_var_w);
+        conv2d_bwd_delta_w(this->var_w, next_bwd_states.mu_a, temp_states.tmp_1,
+                           temp_states.tmp_2, this->idx_mwa_2, batch_size,
+                           this->out_channels, woho, wihi, this->in_channels,
+                           this->kernel_size, pad_idx, 0, end_chunk,
+                           this->delta_mu_w, this->delta_var_w);
     }
 
     if (this->bias) {
-        conv2d_bwd_delta_b(this->var_b, delta_states.delta_mu,
-                           delta_states.delta_var, woho_batch,
-                           this->out_channels, this->delta_mu_b,
+        conv2d_bwd_delta_b(this->var_b, temp_states.tmp_1, temp_states.tmp_2,
+                           woho_batch, this->out_channels, this->delta_mu_b,
                            this->delta_var_b);
     }
 }
@@ -313,11 +303,11 @@ void conv2d_fwd_mean_var(
         float mu_w_tmp = 0;
         float var_w_tmp = 0;
         for (int i = 0; i < n; i++) {
-            int aidx_tmp = aidx[(col % woho) * ki2 + i % ki2] +
-                           (i / ki2) * wihi + (col / woho) * wihi * fi;
+            int aidx_tmp = aidx[(col % woho) * ki2 + i % ki2];
 
-            if (aidx_tmp < pad_idx) {
+            if (aidx_tmp > -1) {
                 // aidx's lowest value starts at 1
+                aidx_tmp += (i / ki2) * wihi + (col / woho) * wihi * fi;
                 mu_a_tmp = mu_a[aidx_tmp - 1];
                 var_a_tmp = var_a[aidx_tmp - 1];
 
@@ -404,10 +394,10 @@ void conv2d_bwd_delta_z(
                            (i / nr) * ki2 * fi + row * ki2 - 1;
 
             // indices for deltaM
-            int aidx_tmp = zud_idx[col % wihi + wihi * (i % nr)] +
-                           (i / nr) * woho + (col / wihi) * woho * fo;
+            int aidx_tmp = zud_idx[col % wihi + wihi * (i % nr)];
 
-            if (aidx_tmp < pad_idx) {
+            if (aidx_tmp > -1) {
+                aidx_tmp += (i / nr) * woho + (col / wihi) * woho * fo;
                 mu_w_tmp = mu_w[widx_tmp];
 
                 sum_mu += delta_mu_out[aidx_tmp - 1] * mu_w_tmp;
@@ -497,10 +487,10 @@ void conv2d_bwd_delta_w(const std::vector<float> &var_w,
         float sum_mu = 0;
         float sum_var = 0;
         for (int i = 0; i < n; i++) {
-            int aidx_tmp = aidx[ki2 * (i % woho) + row % ki2] +
-                           (row / ki2) * wihi + (i / woho) * wihi * fi;
+            int aidx_tmp = aidx[ki2 * (i % woho) + row % ki2];
 
-            if (aidx_tmp < pad_idx) {
+            if (aidx_tmp > -1) {
+                aidx_tmp += (row / ki2) * wihi + (i / woho) * wihi * fi;
                 // Indices's lowest value starts at 1
                 float mu_a_tmp = mu_a[aidx_tmp - 1];
                 sum_mu += mu_a_tmp * delta_mu_out[col * n + i];

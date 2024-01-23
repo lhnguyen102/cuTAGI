@@ -60,6 +60,7 @@ class BaseLayerCuda : public BaseLayer {
     virtual void allocate_param_memory();
     virtual void params_to_device();
     virtual void params_to_host();
+    virtual void delta_params_to_host();
     virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,
                                                 HiddenStateCuda &output_states,
                                                 BackwardStateCuda &bwd_states);

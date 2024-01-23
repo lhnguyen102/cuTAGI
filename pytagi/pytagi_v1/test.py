@@ -6,7 +6,7 @@ from typing import Tuple
 import fire
 import memory_profiler
 import numpy as np
-from activation import Relu
+from activation import ReLU
 from data_loader import MnistDataloader
 from linear import Linear
 from conv2d import Conv2d
@@ -35,26 +35,19 @@ class Classifier:
 
         # FNN
         # self.network = Sequential(
-        #     Linear(784, 100), Relu(), Linear(100, 100), Relu(), Linear(100, 11)
+        #     Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11)
         # )
 
         # CNN
         self.network = Sequential(
-            Conv2d(
-                in_channels=1,
-                out_channels=16,
-                kernel_size=4,
-                padding=1,
-                in_width=28,
-                in_height=28,
-            ),
-            Relu(),
-            AvgPool2d(kernel_size=3, stride=2),
-            Conv2d(in_channels=16, out_channels=32, kernel_size=5),
-            Relu(),
-            AvgPool2d(kernel_size=3, stride=2),
+            Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
+            ReLU(),
+            AvgPool2d(3, 2),
+            Conv2d(16, 32, 5),
+            ReLU(),
+            AvgPool2d(3, 2),
             Linear(32 * 4 * 4, 100),
-            Relu(),
+            ReLU(),
             Linear(100, 11),
         )
 

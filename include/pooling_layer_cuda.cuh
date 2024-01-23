@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 19, 2024
+// Updated:      January 23, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ class AvgPool2dCuda : public BaseLayerCuda {
     void update_biases() override{};
 
    protected:
-    void lazy_init(int batch_size);
+    void lazy_index_init();
     void allocate_avgpool2d_index();
     void avgpool2d_index_to_device();
 };

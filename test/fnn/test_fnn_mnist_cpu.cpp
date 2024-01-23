@@ -64,29 +64,28 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), Relu(), Linear(100, 100), Relu(),
-                     Linear(100, 11));
+    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
+    //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(), AvgPool2d(3,
-    // 2),
-    //                  Conv2d(16, 32, 5), Relu(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), Relu(), Linear(100, 11));
+    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
+                     Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
+                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    // model.set_threads(8);
-    model.to_device("cuda");
+    model.set_threads(8);
+    // model.to_device("cuda");
 
-    // // CPU Model
-    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), Relu(),
-    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), Relu(),
-    //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), Relu(),
-    //                      Linear(100, 11));
+    // CPU Model
+    Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
+                         AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+                         AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+                         Linear(100, 11));
     // cpu_myodel.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
     //////////////////////////////////////////////////////////////////////
     OutputUpdater output_updater(model.device);
-    // OutputUpdater cpu_output_updater(cpu_model.device);
+    OutputUpdater cpu_output_updater(cpu_model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -132,12 +131,10 @@ void fnn_mnist() {
             // Forward pass
             //
             model.forward(x_batch);
+            // if (i == 0) {
+            //     cpu_model.params_from(model);
+            // }
             // cpu_model.forward(x_batch);
-            // cpu_model.params_from(model);
-            // model.forward(x_batch);
-            // cpu_model.forward(x_batch);
-
-            // model.output_to_host();
 
             // Output layer
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
@@ -153,6 +150,18 @@ void fnn_mnist() {
 
             // cpu_model.backward();
             // cpu_model.step();
+
+            // for (int kk = 0; kk < cpu_model.layers[0]->mu_w.size(); kk++) {
+            //     if (cpu_model.layers[3]->mu_w[kk] !=
+            //         model.layers[3]->mu_w[kk]) {
+            //         int check = 1;
+            //     }
+
+            //     if (cpu_model.layers[3]->mu_b[kk] !=
+            //         model.layers[3]->mu_b[kk]) {
+            //         int check = 1;
+            //     }
+            // }
 
             // Extract output
             if (model.device == "cuda") {

@@ -14,16 +14,16 @@ void bind_relu(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<Relu, std::shared_ptr<Relu>, BaseLayer>(modo, "Relu")
+    pybind11::class_<ReLU, std::shared_ptr<ReLU>, BaseLayer>(modo, "ReLU")
         .def(pybind11::init<>())
-        .def("get_layer_info", &Relu::get_layer_info)
-        .def("get_layer_name", &Relu::get_layer_name)
-        .def("forward", &Relu::forward)
-        .def("update_weights", &Relu::update_weights)
-        .def("update_biases", &Relu::update_biases)
-        .def("load", &Relu::load)
-        .def("save", &Relu::save)
-        .def("to_cuda", &Relu::to_cuda);
+        .def("get_layer_info", &ReLU::get_layer_info)
+        .def("get_layer_name", &ReLU::get_layer_name)
+        .def("forward", &ReLU::forward)
+        .def("update_weights", &ReLU::update_weights)
+        .def("update_biases", &ReLU::update_biases)
+        .def("load", &ReLU::load)
+        .def("save", &ReLU::save)
+        .def("to_cuda", &ReLU::to_cuda);
 }
 
 void bind_sigmoid(pybind11::module_& modo)

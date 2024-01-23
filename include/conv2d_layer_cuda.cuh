@@ -78,7 +78,7 @@ class Conv2dCuda : public BaseLayerCuda {
     void allocate_param_delta();
     void allocate_conv_index();
     void conv_index_to_device();
-    void lazy_init(int batch_size);
+    void lazy_index_init();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

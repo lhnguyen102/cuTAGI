@@ -11,11 +11,11 @@ import cutagitest
 from base_layer import BaseLayer
 
 
-class Relu(BaseLayer):
+class ReLU(BaseLayer):
     """ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.Relu()
+        self._cpp_backend = cutagitest.ReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -51,7 +51,7 @@ class Tanh(BaseLayer):
 
 
 class MixtureRelu(BaseLayer):
-    """Mixture Relu"""
+    """Mixture ReLU"""
 
     def __init__(self):
         self._cpp_backend = cutagitest.MixtureRelu()
@@ -103,7 +103,7 @@ class Softplus(BaseLayer):
 
 
 class LeakyRelu(BaseLayer):
-    """Leaky Relu"""
+    """Leaky ReLU"""
 
     def __init__(self):
         self._cpp_backend = cutagitest.LeakyRelu()

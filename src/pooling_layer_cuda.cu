@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 14, 2024
+// Updated:      January 23, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
     unsigned int threads = this->num_cuda_threads;
 
     if (this->pool_idx.size() == 0) {
-        this->lazy_init(batch_size);
+        this->lazy_index_init();
     }
 
     // Assign output dimensions
@@ -145,6 +145,7 @@ void AvgPool2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
             this->kernel_size, this->col_z_ud, num_in_states, pad_out_idx,
             cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
+
     } else {
         int kiwo = this->kernel_size * this->out_width;
         int nums = wihi * this->in_channels * batch_size / kiwo;
@@ -168,7 +169,7 @@ void AvgPool2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
  */
 {}
 
-void AvgPool2dCuda::lazy_init(int batch_size)
+void AvgPool2dCuda::lazy_index_init()
 /*
  */
 {
@@ -177,11 +178,8 @@ void AvgPool2dCuda::lazy_init(int batch_size)
         this->overlap = false;
     }
 
-    int pad_idx_in =
-        this->in_width * this->in_height * this->in_channels * batch_size + 1;
-    int pad_idx_out =
-        this->out_width * this->out_height * this->out_channels * batch_size +
-        1;
+    int pad_idx_in = -1;
+    int pad_idx_out = -1;
 
     auto idx = get_pool_index(this->kernel_size, this->stride, this->in_width,
                               this->in_height, this->out_width,
@@ -247,8 +245,9 @@ there is the overlap when sliding kernel size.
     int ki2 = ki * ki;
     if (col < k) {
         for (int i = 0; i < ki2; i++) {
-            a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi;
-            if (a_idx_tmp < pad_idx) {
+            a_idx_tmp = a_idx[col % woho + woho * i];
+            if (a_idx_tmp > -1) {
+                a_idx_tmp += (col / woho) * wihi;
                 // index in a_idx starts at 1
                 sum_mu_z += mu_a[a_idx_tmp - 1];
                 sum_var_z += var_a[a_idx_tmp - 1];
@@ -301,8 +300,9 @@ __global__ void avgpool2d_bwd_overlapped_delta_z_cuda(
     int ki2 = ki * ki;
     if (col < k) {
         for (int i = 0; i < n; i++) {
-            z_idx_tmp = z_ud_idx[col % wihi + wihi * i] + (col / wihi) * woho;
-            if (z_idx_tmp < pad_idx) {
+            z_idx_tmp = z_ud_idx[col % wihi + wihi * i];
+            if (z_idx_tmp > -1) {
+                z_idx_tmp += (col / wihi) * woho;
                 sum_delta_mu += delta_mu_out[z_idx_tmp - 1];
                 sum_delta_var += delta_var_out[z_idx_tmp - 1];
             }

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      January 14, 2024
+// Updated:      January 23, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +77,9 @@ void Sequential::set_buffer_size()
 }
 
 void Sequential::compute_input_output_size()
-/**/
+/* TODO: this function is prone to error. Needs to come up with something more
+ * robust.
+ */
 {
     int in_width = this->layers.front()->in_width;
     int in_height = this->layers.front()->in_height;
@@ -431,6 +433,9 @@ void Sequential::params_from(const Sequential &model_ref) {
             this->layers[i]->mu_b.resize(model_ref.layers[i]->mu_b.size());
             this->layers[i]->var_b.resize(model_ref.layers[i]->var_b.size());
         }
+        this->layers[i]->num_weights = model_ref.layers[i]->num_weights;
+        this->layers[i]->num_biases = model_ref.layers[i]->num_biases;
+
         this->layers[i]->mu_w = model_ref.layers[i]->mu_w;
         this->layers[i]->var_w = model_ref.layers[i]->var_w;
         this->layers[i]->mu_b = model_ref.layers[i]->mu_b;

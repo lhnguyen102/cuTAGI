@@ -88,7 +88,7 @@ class Conv2d : public BaseLayer {
 #endif
    protected:
     void allocate_param_delta();
-    void lazy_init(int batch_size);
+    void lazy_index_init();
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -43,6 +43,7 @@ class Sequential {
     bool input_hidden_state_update = false;
     unsigned num_threads = 1;
     std::string device = "cpu";
+    std::vector<std::shared_ptr<BaseLayer>> layers;
 
     // Variadic template. Note that for the template function the definition of
     // template must be included in the herder
@@ -126,7 +127,5 @@ class Sequential {
     get_outputs();
 
    private:
-    std::vector<std::shared_ptr<BaseLayer>> layers;
-
     void compute_input_output_size();
 };

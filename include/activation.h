@@ -17,20 +17,20 @@
 #include "data_struct.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Relu
+/// ReLU
 ////////////////////////////////////////////////////////////////////////////////
-class Relu : public BaseLayer {
+class ReLU : public BaseLayer {
    public:
-    Relu();
-    ~Relu();
+    ReLU();
+    ~ReLU();
 
     // Delete copy constructor and copy assignment
-    Relu(const Relu &) = delete;
-    Relu &operator=(const Relu &) = delete;
+    ReLU(const ReLU &) = delete;
+    ReLU &operator=(const ReLU &) = delete;
 
     // Optionally implement move constructor and move assignment
-    Relu(Relu &&) = default;
-    Relu &operator=(Relu &&) = default;
+    ReLU(ReLU &&) = default;
+    ReLU &operator=(ReLU &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -182,7 +182,7 @@ class Tanh : public BaseLayer {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Mixture Relu
+/// Mixture ReLU
 ////////////////////////////////////////////////////////////////////////////////
 class MixtureRelu : public BaseLayer {
    public:

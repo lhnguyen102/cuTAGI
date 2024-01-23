@@ -56,19 +56,19 @@ __global__ void softmax(float const *mu_z, float *var_z, size_t output_size,
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
 ////////////////////////////////////////////////////////////////////////////////
-class ReluCuda : public BaseLayerCuda {
+class ReLUCuda : public BaseLayerCuda {
    public:
-    ReluCuda();
-    ~ReluCuda();
+    ReLUCuda();
+    ~ReLUCuda();
 
     // Delete copy constructor and copy assignment
-    ReluCuda(const ReluCuda &) = delete;
-    ReluCuda &operator=(const ReluCuda &) = delete;
+    ReLUCuda(const ReLUCuda &) = delete;
+    ReLUCuda &operator=(const ReLUCuda &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    ReluCuda(ReluCuda &&) = default;
-    ReluCuda &operator=(ReluCuda &&) = default;
+    ReLUCuda(ReLUCuda &&) = default;
+    ReLUCuda &operator=(ReLUCuda &&) = default;
 
     std::string get_layer_info() const override;
 

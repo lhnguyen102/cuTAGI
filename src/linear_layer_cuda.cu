@@ -262,6 +262,10 @@ void LinearCuda::allocate_param_delta()
 /*
  */
 {
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+    this->delta_mu_b.resize(this->num_biases, 0.0f);
+    this->delta_var_b.resize(this->num_biases, 0.0f);
     cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
     cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
     cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));

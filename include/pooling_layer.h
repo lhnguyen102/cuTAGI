@@ -75,7 +75,7 @@ class AvgPool2d : public BaseLayer {
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
    protected:
-    void lazy_init(int batch_size);
+    void lazy_index_init();
 };
 
 ////////////////////////////////////////////////////////////////////////////////

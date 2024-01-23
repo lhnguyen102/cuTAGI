@@ -13,31 +13,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
 ////////////////////////////////////////////////////////////////////////////////
-ReluCuda::ReluCuda() {}
-ReluCuda::~ReluCuda() {}
+ReLUCuda::ReLUCuda() {}
+ReLUCuda::~ReLUCuda() {}
 
-std::string ReluCuda::get_layer_info() const
+std::string ReLUCuda::get_layer_info() const
 /*
  */
 {
     return "Relu()";
 }
 
-std::string ReluCuda::get_layer_name() const
+std::string ReLUCuda::get_layer_name() const
 /*
  */
 {
-    return "ReluCuda";
+    return "ReLUCuda";
 }
 
-LayerType ReluCuda::get_layer_type() const
+LayerType ReLUCuda::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void ReluCuda::forward(BaseHiddenStates &input_states,
+void ReLUCuda::forward(BaseHiddenStates &input_states,
                        BaseHiddenStates &output_states,
                        BaseTempStates &temp_states)
 /*
@@ -70,11 +70,11 @@ void ReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
-std::unique_ptr<BaseLayer> ReluCuda::to_host()
+std::unique_ptr<BaseLayer> ReLUCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Relu>();
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<ReLU>();
     host_layer->input_size = this->input_size;
     host_layer->output_size = this->output_size;
 
