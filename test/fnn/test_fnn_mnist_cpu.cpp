@@ -74,18 +74,18 @@ void fnn_mnist() {
     model.set_threads(8);
     // model.to_device("cuda");
 
-    // CPU Model
-    Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
-                         AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
-                         AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-                         Linear(100, 11));
+    // // CPU Model
+    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
+    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                      Linear(100, 11));
     // cpu_myodel.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
     //////////////////////////////////////////////////////////////////////
     OutputUpdater output_updater(model.device);
-    OutputUpdater cpu_output_updater(cpu_model.device);
+    // OutputUpdater cpu_output_updater(cpu_model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -123,7 +123,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 100; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -156,9 +156,11 @@ void fnn_mnist() {
             //         model.layers[3]->mu_w[kk]) {
             //         int check = 1;
             //     }
+            // }
 
-            //     if (cpu_model.layers[3]->mu_b[kk] !=
-            //         model.layers[3]->mu_b[kk]) {
+            // for (int bb = 0; bb < cpu_model.layers[0]->mu_b.size(); bb++) {
+            //     if (cpu_model.layers[3]->mu_b[bb] !=
+            //         model.layers[3]->mu_b[bb]) {
             //         int check = 1;
             //     }
             // }

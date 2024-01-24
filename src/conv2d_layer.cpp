@@ -385,8 +385,8 @@ void conv2d_bwd_delta_z(
     for (int j = start_chunk; j < end_chunk; j++) {
         int row = j / k;
         int col = j % k;
-        float sum_mu = 0;
-        float sum_var = 0;
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
         for (int i = 0; i < n; i++) {
             // indices for mw. Note that nr = n / fo. Indices's lowest value
             // starts at 1
@@ -484,8 +484,8 @@ void conv2d_bwd_delta_w(const std::vector<float> &var_w,
     for (int j = start_chunk; j < end_chunk; j++) {
         int row = j / k;
         int col = j % k;
-        float sum_mu = 0;
-        float sum_var = 0;
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
         for (int i = 0; i < n; i++) {
             int aidx_tmp = aidx[ki2 * (i % woho) + row % ki2];
 
@@ -553,8 +553,8 @@ void conv2d_bwd_delta_b(const std::vector<float> &var_b,
  */
 {
     for (int col = 0; col < k; col++) {
-        float sum_mu = 0;
-        float sum_var = 0;
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
         for (int i = 0; i < n; i++) {
             sum_mu += delta_mu_out[col * n + i];
             sum_var += delta_var_out[col * n + i];

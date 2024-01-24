@@ -342,17 +342,22 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
     int woho_batch = woho * batch_size;
     int wohofo = woho * this->out_channels;
     int pad_idx = wihi * this->in_channels * batch_size + 1;
+    int ki2_fi = this->kernel_size * this->kernel_size * this->in_channels;
 
     unsigned int grid_row = (batch_size + threads - 1) / threads;
-    unsigned int grid_col = (woho * this->out_channels + threads - 1) / threads;
+    unsigned int grid_col = (wohofo + threads - 1) / threads;
+    unsigned int grid_row_w = (ki2_fi + threads - 1) / threads;
+    unsigned int grid_col_w = (this->out_channels + threads - 1) / threads;
+
     dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_grid_w(grid_col_w, grid_row_w);
     dim3 dim_block(threads, threads);
 
     permute_delta_cuda<<<dim_grid, dim_block>>>(
         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var, woho, wohofo,
         batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
-    conv2d_bwd_delta_w_cuda<<<dim_grid, dim_block>>>(
+    conv2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
         this->d_var_w, cu_next_bwd_states->d_mu_a, cu_temp_states->d_tmp_1,
         cu_temp_states->d_tmp_2, this->d_idx_mwa_2, batch_size,
         this->out_channels, woho, wihi, this->in_channels, this->kernel_size,
@@ -405,13 +410,13 @@ Args:
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    float sum_mu = 0;
-    float sum_var = 0;
-    int aidx_tmp = 0;
-    float mu_a_tmp = 0;
-    float var_a_tmp = 0;
-    float mu_w_tmp = 0;
-    float var_w_tmp = 0;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    int aidx_tmp;
+    float mu_a_tmp;
+    float var_a_tmp;
+    float mu_w_tmp;
+    float var_w_tmp;
     int ki2 = ki * ki;
     int n = ki2 * fi;
     if (col < woho * B && row < fo) {
@@ -484,10 +489,10 @@ __global__ void conv2d_bwd_delta_z_cuda(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    float sum_mu = 0;
-    float sum_var = 0;
-    int widx_tmp = 0;
-    int aidx_tmp = 0;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    int widx_tmp;
+    int aidx_tmp;
     float mu_w_tmp;
     int k = wihi * B;
     int ki2 = ki * ki;
@@ -566,10 +571,10 @@ Args:
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_mu = 0;
-    float sum_var = 0;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
     float mu_a_tmp;
-    int aidx_tmp = 0;
+    int aidx_tmp;
     int ki2 = ki * ki;
     int m = ki2 * fi;
     int n = woho * B;
@@ -610,8 +615,8 @@ Args:
 {
     // int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_mu = 0;
-    float sum_var = 0;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
     if (col < k) {
         for (int i = 0; i < n; i++) {
             sum_mu += delta_mu_out[col * n + i];
