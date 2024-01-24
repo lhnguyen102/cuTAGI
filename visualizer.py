@@ -14,11 +14,13 @@ import numpy as np
 import pandas as pd
 import numpy.typing as npt
 
-plt.rcParams.update({
-    "font.size": 18,
-    "text.usetex": True,
-    "text.latex.preamble": r"\usepackage{amsfonts}"
-})
+plt.rcParams.update(
+    {
+        "font.size": 18,
+        "text.usetex": True,
+        "text.latex.preamble": r"\usepackage{amsfonts}",
+    }
+)
 
 
 class ImageViz:
@@ -31,8 +33,14 @@ class ImageViz:
         img_size: Size of image input e.g. mnist size = [28, 28, 1]
     """
 
-    def __init__(self, task_name: str, data_name: str, mu: npt.NDArray,
-                 sigma: npt.NDArray, img_size: npt.NDArray) -> None:
+    def __init__(
+        self,
+        task_name: str,
+        data_name: str,
+        mu: npt.NDArray,
+        sigma: npt.NDArray,
+        img_size: npt.NDArray,
+    ) -> None:
         self.task_name = task_name
         self.data_name = data_name
         self.mu = mu
@@ -52,11 +60,13 @@ class ImageViz:
 
         return imgs
 
-    def plot_images(self,
-                    n_row: int,
-                    n_col: int,
-                    imgs: Union[None, np.ndarray] = None,
-                    save_folder: Union[str, None] = None) -> None:
+    def plot_images(
+        self,
+        n_row: int,
+        n_col: int,
+        imgs: Union[None, np.ndarray] = None,
+        save_folder: Union[str, None] = None,
+    ) -> None:
         """Plot and save figure
         Args:
             n_row: Number of rows for exported image
@@ -70,8 +80,8 @@ class ImageViz:
         # Reshape data for plot
         num_imgs = int(len(imgs) / np.prod(self.img_size))
         imgs = np.reshape(
-            imgs,
-            (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2]))
+            imgs, (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2])
+        )
         mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
         sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))
 
@@ -107,15 +117,17 @@ class PredictionViz:
         ndiv_y: Number of division for y-direciton
     """
 
-    def __init__(self,
-                 task_name: str,
-                 data_name: str,
-                 figsize: tuple = (12, 12),
-                 fontsize: int = 28,
-                 lw: int = 3,
-                 ms: int = 10,
-                 ndiv_x: int = 4,
-                 ndiv_y: int = 4) -> None:
+    def __init__(
+        self,
+        task_name: str,
+        data_name: str,
+        figsize: tuple = (12, 12),
+        fontsize: int = 28,
+        lw: int = 3,
+        ms: int = 10,
+        ndiv_x: int = 4,
+        ndiv_y: int = 4,
+    ) -> None:
         self.task_name = task_name
         self.data_name = data_name
         self.figsize = figsize
@@ -125,9 +137,7 @@ class PredictionViz:
         self.ndiv_x = ndiv_x
         self.ndiv_y = ndiv_y
 
-    def load_dataset(self,
-                     file_path: str,
-                     header: bool = False) -> npt.NDArray:
+    def load_dataset(self, file_path: str, header: bool = False) -> npt.NDArray:
         """Load dataset (*.csv)
         Args:
             file_path: File path to the data file
@@ -143,22 +153,24 @@ class PredictionViz:
 
         return df[0].values
 
-    def plot_predictions(self,
-                         x_train: Union[np.ndarray, None],
-                         y_train: Union[np.ndarray, None],
-                         x_test: npt.NDArray,
-                         y_test: npt.NDArray,
-                         y_pred: npt.NDArray,
-                         sy_pred: npt.NDArray,
-                         std_factor: int,
-                         sy_test: Union[np.ndarray, None] = None,
-                         label: str = "diag",
-                         title: Union[str, None] = None,
-                         eq: Union[str, None] = None,
-                         x_eq: Union[float, None] = None,
-                         y_eq: Union[float, None] = None,
-                         time_series: bool = False,
-                         save_folder: Union[str, None] = None) -> None:
+    def plot_predictions(
+        self,
+        x_train: Union[np.ndarray, None],
+        y_train: Union[np.ndarray, None],
+        x_test: npt.NDArray,
+        y_test: npt.NDArray,
+        y_pred: npt.NDArray,
+        sy_pred: npt.NDArray,
+        std_factor: int,
+        sy_test: Union[np.ndarray, None] = None,
+        label: str = "diag",
+        title: Union[str, None] = None,
+        eq: Union[str, None] = None,
+        x_eq: Union[float, None] = None,
+        y_eq: Union[float, None] = None,
+        time_series: bool = False,
+        save_folder: Union[str, None] = None,
+    ) -> None:
         """Compare prediciton distribution with theorical distribution
 
         x_train: Input train data
@@ -203,19 +215,23 @@ class PredictionViz:
         ax.plot(x_test, y_pred, "r", lw=self.lw, label=r"$\mathbb{E}[Y^{'}]$")
         ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}$")
 
-        ax.fill_between(x_test,
-                        y_pred - std_factor * sy_pred,
-                        y_pred + std_factor * sy_pred,
-                        facecolor="red",
-                        alpha=0.3,
-                        label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(std_factor))
+        ax.fill_between(
+            x_test,
+            y_pred - std_factor * sy_pred,
+            y_pred + std_factor * sy_pred,
+            facecolor="red",
+            alpha=0.3,
+            label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(std_factor),
+        )
         if sy_test is not None:
-            ax.fill_between(x_test,
-                            y_test - std_factor * sy_test,
-                            y_test + std_factor * sy_test,
-                            facecolor="blue",
-                            alpha=0.3,
-                            label=r"$y_{{test}}\pm{}\sigma$".format(std_factor))
+            ax.fill_between(
+                x_test,
+                y_test - std_factor * sy_test,
+                y_test + std_factor * sy_test,
+                facecolor="blue",
+                alpha=0.3,
+                label=r"$y_{{test}}\pm{}\sigma$".format(std_factor),
+            )
         if x_train is not None:
             if time_series:
                 marker = ""
@@ -223,15 +239,17 @@ class PredictionViz:
             else:
                 marker = "o"
                 line_style = ""
-            ax.plot(x_train,
-                    y_train,
-                    "b",
-                    marker=marker,
-                    mfc="none",
-                    lw=self.lw,
-                    ms=0.2 * self.ms,
-                    linestyle=line_style,
-                    label=r"$y_{train}$")
+            ax.plot(
+                x_train,
+                y_train,
+                "b",
+                marker=marker,
+                mfc="none",
+                lw=self.lw,
+                ms=0.2 * self.ms,
+                linestyle=line_style,
+                label=r"$y_{train}$",
+            )
 
         ax.set_xlabel(r"$x$", fontsize=self.fontsize)
         ax.set_ylabel(r"$y$", fontsize=self.fontsize)
@@ -242,10 +260,9 @@ class PredictionViz:
         y_ticks = np.linspace(min_y, max_y, self.ndiv_y)
         ax.set_yticks(y_ticks)
         ax.set_xticks(x_ticks)
-        ax.tick_params(axis="both",
-                       which="both",
-                       direction="inout",
-                       labelsize=self.fontsize)
+        ax.tick_params(
+            axis="both", which="both", direction="inout", labelsize=self.fontsize
+        )
         ax.legend(
             loc="upper right",
             edgecolor="black",
@@ -277,11 +294,9 @@ def autoencoder():
     n_row = 10
     n_col = 10
 
-    viz = ImageViz(task_name=task_name,
-                   data_name=data_name,
-                   mu=mu,
-                   sigma=sigma,
-                   img_size=img_size)
+    viz = ImageViz(
+        task_name=task_name, data_name=data_name, mu=mu, sigma=sigma, img_size=img_size
+    )
     viz.plot_images(n_row=n_row, n_col=n_col, save_folder=save_folder)
 
 
@@ -299,8 +314,8 @@ def regression():
     y_train_path = "./data/toy_example/y_train_1D.csv"
     x_test_path = "./data/toy_example/x_test_1D.csv"
     y_test_path = "./data/toy_example/y_test_1D.csv"
-    y_pred_path = "./saved_results/y_prediction.csv"
-    sy_pred_path = "./saved_results/sy_prediction.csv"
+    y_pred_path = "./saved_results/y_prediction_fc_v2.csv"
+    sy_pred_path = "./saved_results/sy_prediction_fc_v2.csv"
 
     viz = PredictionViz(task_name=task_name, data_name=data_name)
 
@@ -314,19 +329,21 @@ def regression():
 
     # Plot
     std_factor = 1
-    viz.plot_predictions(x_train=x_train,
-                         y_train=y_train,
-                         x_test=x_test,
-                         y_test=y_test,
-                         y_pred=y_pred,
-                         sy_pred=sy_pred,
-                         std_factor=std_factor,
-                         label="diag",
-                         title=r"\textbf{Diagonal covariance}",
-                         eq=eq,
-                         x_eq=x_eq,
-                         y_eq=y_eq,
-                         save_folder=None)
+    viz.plot_predictions(
+        x_train=x_train,
+        y_train=y_train,
+        x_test=x_test,
+        y_test=y_test,
+        y_pred=y_pred,
+        sy_pred=sy_pred,
+        std_factor=std_factor,
+        label="test_fc_v2",
+        title=r"\textbf{Diagonal covariance}",
+        eq=eq,
+        x_eq=x_eq,
+        y_eq=y_eq,
+        save_folder=None,
+    )
 
 
 def input_uncertainty_prop():
@@ -368,24 +385,26 @@ def input_uncertainty_prop():
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
 
     # Compute theorical standard deviation for the output
-    sy_test = ((3 * (x_test**2))**2 * (sigma_x**2) + sigma_v**2)**0.5
+    sy_test = ((3 * (x_test**2)) ** 2 * (sigma_x**2) + sigma_v**2) ** 0.5
 
     # Plot
     std_factor = 1
-    viz.plot_predictions(x_train=None,
-                         y_train=y_train,
-                         x_test=x_test,
-                         y_test=y_test,
-                         y_pred=y_pred,
-                         sy_pred=sy_pred,
-                         std_factor=std_factor,
-                         sy_test=sy_test,
-                         label="full_cov",
-                         title=r"\textbf{Full covariance",
-                         eq=eq,
-                         x_eq=x_eq,
-                         y_eq=y_eq,
-                         save_folder=save_folder)
+    viz.plot_predictions(
+        x_train=None,
+        y_train=y_train,
+        x_test=x_test,
+        y_test=y_test,
+        y_pred=y_pred,
+        sy_pred=sy_pred,
+        std_factor=std_factor,
+        sy_test=sy_test,
+        label="full_cov",
+        title=r"\textbf{Full covariance",
+        eq=eq,
+        x_eq=x_eq,
+        y_eq=y_eq,
+        save_folder=save_folder,
+    )
 
 
 def noise_inference():
@@ -422,17 +441,19 @@ def noise_inference():
 
     # Plot
     std_factor = 1
-    viz.plot_predictions(x_train=x_train,
-                         y_train=y_train,
-                         x_test=x_test,
-                         y_test=y_test,
-                         y_pred=y_pred,
-                         sy_pred=sy_pred,
-                         std_factor=std_factor,
-                         sy_test=sy_test,
-                         label="hete_2",
-                         title=r"\textbf{Heteroscedastic Nosie Inference}",
-                         save_folder=save_folder)
+    viz.plot_predictions(
+        x_train=x_train,
+        y_train=y_train,
+        x_test=x_test,
+        y_test=y_test,
+        y_pred=y_pred,
+        sy_pred=sy_pred,
+        std_factor=std_factor,
+        sy_test=sy_test,
+        label="hete_2",
+        title=r"\textbf{Heteroscedastic Nosie Inference}",
+        save_folder=save_folder,
+    )
 
 
 def derivative():
@@ -472,19 +493,21 @@ def derivative():
 
     # Plot
     std_factor = 3
-    viz.plot_predictions(x_train=None,
-                         y_train=None,
-                         x_test=x_test,
-                         y_test=dy_test,
-                         y_pred=md_pred,
-                         sy_pred=sd_pred,
-                         std_factor=std_factor,
-                         label="derivative",
-                         title=r"\textbf{Neural Network's Derivative}",
-                         eq=eq,
-                         x_eq=x_eq,
-                         y_eq=y_eq,
-                         save_folder=save_folder)
+    viz.plot_predictions(
+        x_train=None,
+        y_train=None,
+        x_test=x_test,
+        y_test=dy_test,
+        y_pred=md_pred,
+        sy_pred=sd_pred,
+        std_factor=std_factor,
+        label="derivative",
+        title=r"\textbf{Neural Network's Derivative}",
+        eq=eq,
+        x_eq=x_eq,
+        y_eq=y_eq,
+        save_folder=save_folder,
+    )
 
 
 def time_series_forecasting():
@@ -500,9 +523,7 @@ def time_series_forecasting():
     y_pred_path = "./saved_results/y_time_series_prediction.csv"
     sy_pred_path = "./saved_results/sy_time_series_prediction.csv"
 
-    viz = PredictionViz(task_name=task_name,
-                        data_name=data_name,
-                        figsize=(18, 6))
+    viz = PredictionViz(task_name=task_name, data_name=data_name, figsize=(18, 6))
 
     # Load data
     x_train = viz.load_dataset(file_path=x_train_path, header=True)
@@ -511,31 +532,33 @@ def time_series_forecasting():
     y_test = viz.load_dataset(file_path=y_test_path, header=True)
     y_pred = viz.load_dataset(file_path=y_pred_path)
     sy_pred = viz.load_dataset(file_path=sy_pred_path)
-    x_test = x_test[:y_pred.shape[0]]
-    y_test = y_test[:y_pred.shape[0]]
+    x_test = x_test[: y_pred.shape[0]]
+    y_test = y_test[: y_pred.shape[0]]
 
     x_test = [np.datetime64(date) for date in x_test]
     x_train = [np.datetime64(date) for date in x_train]
 
     # Plot
     std_factor = 1
-    viz.plot_predictions(x_train=x_train,
-                         y_train=y_train,
-                         x_test=x_test,
-                         y_test=y_test,
-                         y_pred=y_pred,
-                         sy_pred=sy_pred,
-                         std_factor=std_factor,
-                         label="forecasting",
-                         title=r"\textbf{Time Series Forecasting}",
-                         time_series=True,
-                         save_folder=save_folder)
+    viz.plot_predictions(
+        x_train=x_train,
+        y_train=y_train,
+        x_test=x_test,
+        y_test=y_test,
+        y_pred=y_pred,
+        sy_pred=sy_pred,
+        std_factor=std_factor,
+        label="forecasting",
+        title=r"\textbf{Time Series Forecasting}",
+        time_series=True,
+        save_folder=save_folder,
+    )
 
 
 if __name__ == "__main__":
-    #regression()
-    #autoencoder()
-    #input_uncertainty_prop()
-    #noise_inference()
-    #derivative()
-    time_series_forecasting()
+    regression()
+    # autoencoder()
+    # input_uncertainty_prop()
+    # noise_inference()
+    # derivative()
+    # time_series_forecasting()

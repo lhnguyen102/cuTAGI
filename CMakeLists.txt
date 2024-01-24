@@ -25,9 +25,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 endif()
 
-if(APPLE)
-  set(CMAKE_MACOSX_RPATH ON)
-endif()
+# if(APPLE)
+#   set(CMAKE_MACOSX_RPATH ON)
+#   set(CMAKE_OSX_ARCHITECTURES arm64)
+# endif()
 
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
@@ -52,6 +53,7 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   message(STATUS "DEVICE -> CUDA")
+  add_definitions(-DUSE_CUDA)
 else()
   message(STATUS "DEVICE -> CPU")
 endif()
@@ -96,6 +98,9 @@ else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
 
+
+
+
 # ###########################################################################################
 # # PYTHON SETUP
 # ###########################################################################################
@@ -104,6 +109,8 @@ find_package(PythonInterp)
 
 # Header files for source code
 add_subdirectory(extern/pybind11)
+include_directories(${pybind11_INCLUDE_DIRS})
+
 include_directories("include")
 include_directories("test")
 
@@ -134,6 +141,26 @@ set(CPU_SOURCES
   src/struct_var.cpp
   src/fc_layer_cpu.cpp
   src/embedding_cpu.cpp
+  src/linear_layer.cpp
+  src/conv2d_layer.cpp
+  src/pooling_layer.cpp
+  src/activation.cpp
+  src/sequential.cpp
+  src/output_layer_update_cpu.cpp
+  src/base_layer.cpp
+  src/data_struct.cpp
+  src/param_init.cpp
+  src/base_output_updater.cpp
+
+  src/bindings/data_struct_bindings.cpp
+  src/bindings/base_layer_bindings.cpp
+  src/bindings/linear_layer_bindings.cpp
+  src/bindings/conv2d_layer_bindings.cpp
+  src/bindings/pooling_layer_bindings.cpp
+  src/bindings/activation_bindings.cpp
+  src/bindings/sequential_bindings.cpp
+  src/bindings/base_output_updater_bindings.cpp
+  src/bindings/main_bindings.cpp
 
   test/act_func/test_act_func_cpu.cpp
   test/fnn/test_fnn_cpu.cpp
@@ -148,6 +175,8 @@ set(CPU_SOURCES
   test/test_dataloader.cpp
   test/mha/test_mha_cpu.cpp
   test/embedding/test_emb_cpu.cpp
+  test/fnn/test_fnn_cpu_v2.cpp
+  test/fnn/test_fnn_mnist_cpu.cpp
 )
 
 # Sources code for CUDA
@@ -165,6 +194,14 @@ set(GPU_SOURCES
   src/task.cu
   src/tagi_network.cu
   src/gpu_debug_utils.cpp
+  src/data_struct_cuda.cu
+  src/linear_layer_cuda.cu
+  src/conv2d_layer_cuda.cu
+  src/pooling_layer_cuda.cu
+  src/base_layer_cuda.cu
+  src/activation_cuda.cu
+  src/output_updater_cuda.cu
+
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu
   test/cnn/test_cnn_gpu.cu
@@ -189,21 +226,39 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
+
   # Executablecode i.e. application
   add_executable(main main.cu)
 
   # Python wrapper for C++/CUDA code
   pybind11_add_module(cutagi "src/python_api.cu")
+
+  # TODO: Remove when releasing new version
+  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
-  target_link_libraries(cutagi_lib ${CMAKE_DL_LIBS})
+  target_link_libraries(cutagi_lib PRIVATE ${CMAKE_DL_LIBS})
+
+
 
   # Executable code i.e. application
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
   pybind11_add_module(cutagi "src/python_api_cpu.cpp")
+
+  #TODO: Remove when releasing new version
+  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 endif()
 
+# Embedding Python into a C++ program
+target_link_libraries(main PRIVATE pybind11::embed)
+target_link_libraries(cutagi_lib PRIVATE pybind11::module)
 target_link_libraries(main PUBLIC cutagi_lib)
+
 target_link_libraries(cutagi PRIVATE cutagi_lib)
+
+# TODO: Remove when releasing new version
+target_link_libraries(cutagitest PRIVATE cutagi_lib)
+
+

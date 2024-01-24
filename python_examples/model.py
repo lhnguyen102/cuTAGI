@@ -61,7 +61,7 @@ class DervMLP(NetProp):
 
 class FullCovMLP(NetProp):
     """Multi-layer perceptron for performing full-covariance prediction and
-     inference"""
+    inference"""
 
     def __init__(self) -> None:
         super().__init__()
@@ -98,6 +98,7 @@ class MnistMLP(NetProp):
         self.multithreading = True
         self.device = "cpu"
 
+
 class SoftmaxMnistMLP(NetProp):
     """Multi-layer perceptron for mnist classificaiton."""
 
@@ -116,12 +117,14 @@ class SoftmaxMnistMLP(NetProp):
 class TimeSeriesLSTM(NetProp):
     """LSTM for time series forecasting"""
 
-    def __init__(self,
-                 input_seq_len: int,
-                 output_seq_len: int,
-                 seq_stride: int = 1,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        input_seq_len: int,
+        output_seq_len: int,
+        seq_stride: int = 1,
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.layers: list = [1, 7, 7, 1]
         self.nodes: list = [1, 5, 5, 1]

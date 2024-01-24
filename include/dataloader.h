@@ -79,6 +79,13 @@ ImageData get_images(std::string data_name,
                      std::vector<float> &mu, std::vector<float> &sigma, int num,
                      int num_classes, Network &net_prop);
 
+ImageData get_images_v2(std::string data_name,
+                        std::vector<std::string> &image_file,
+                        std::vector<std::string> &label_file,
+                        std::vector<float> &mu, std::vector<float> &sigma,
+                        int num, int num_classes, int width, int height,
+                        int channel, bool is_hr_softmax);
+
 Dataloader get_dataloader(std::vector<std::string> &input_file,
                           std::vector<std::string> &output_file,
                           std::vector<float> mu_x, std::vector<float> sigma_x,

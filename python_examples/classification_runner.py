@@ -17,16 +17,20 @@ def main():
 
     # Data loader
     reg_data_loader = MnistDataloader(batch_size=net_prop.batch_size)
-    data_loader = reg_data_loader.process_data(x_train_file=x_train_file,
-                                               y_train_file=y_train_file,
-                                               x_test_file=x_test_file,
-                                               y_test_file=y_test_file)
+    data_loader = reg_data_loader.process_data(
+        x_train_file=x_train_file,
+        y_train_file=y_train_file,
+        x_test_file=x_test_file,
+        y_test_file=y_test_file,
+    )
 
     # Train and test
-    reg_task = Classifier(num_epochs=num_epochs,
-                          data_loader=data_loader,
-                          net_prop=net_prop,
-                          num_classes=10)
+    reg_task = Classifier(
+        num_epochs=num_epochs,
+        data_loader=data_loader,
+        net_prop=net_prop,
+        num_classes=10,
+    )
     reg_task.train()
     # reg_task.predict()
 
