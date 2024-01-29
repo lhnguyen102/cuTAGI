@@ -410,7 +410,14 @@ void MixtureRelu::mixture_relu_mean_var(std::vector<float> &mu_z,
             mu_a[i] = omega * mu_z_til;
             var_a[i] =
                 omega * var_z_til + omega * (1 - omega) * powf(var_z_til, 2);
-            jcb[i] = powf(omega * kappa, 0.5);
+            // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
+            jcb[i] =
+                (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
+                      normcdf_cpu(mu_z[i] / pow(var_z[i], 0.5)) +
+                  mu_z[i] * var_z[i] *
+                      normpdf_cpu(0.0f, mu_z[i], pow(var_z[i], 0.5))) -
+                 (mu_a[i] * mu_z[i])) /
+                var_z[i];
         } else {
             mu_a[i] = omega_tol;
             var_a[i] =
@@ -552,7 +559,7 @@ void MixtureSigmoid::mixture_sigmoid_mean_var(
                     cdf_lower * powf(1 + mu_a[i], 2) +
                     (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
                    4.0f;
-        jcb[i] = powf(omega * kappa, 0.5);
+        jcb[i] = powf(omega * kappa, 0.5);  // Approximate formulation
     }
 }
 void MixtureSigmoid::mixture_sigmoid_mean_var_mp(

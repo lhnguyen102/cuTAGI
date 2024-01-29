@@ -135,7 +135,14 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
             ma[apos + col] = omega * mz_til;
             Sa[apos + col] =
                 omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-            J[apos + col] = powf(omega * kappa, 0.5);
+            // J[apos + col] = powf(omega * kappa, 0.5); // Approx. formulation
+            J[apos + col] = (((powf(mz[zpos + col], 2) + Sz[zpos + col]) *
+                                  normcdff(-alpha) +
+                              mz[zpos + col] * powf(Sz[zpos + col], 0.5) *
+                                  (1.0f / powf(2.0f * pi, 0.5)) *
+                                  expf(-powf(-alpha, 2) / 2.0f)) -
+                             (ma[apos + col] * mz[zpos + col])) /
+                            Sz[zpos + col];
         } else {
             ma[apos + col] = omega_tol;
             Sa[apos + col] =

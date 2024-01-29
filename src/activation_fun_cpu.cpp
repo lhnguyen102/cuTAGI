@@ -240,7 +240,16 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
             ma[i + a_pos] = omega * mz_til;
             Sa[i + a_pos] =
                 omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-            J[i + a_pos] = powf(omega * kappa, 0.5);
+            // J[i + a_pos] = powf(omega * kappa, 0.5); // Approximate
+            // formulation
+            J[i + a_pos] =  // Exact(Huber, 2020)
+                (((pow(mz[z_pos + i], 2) + Sz[z_pos + i]) *
+                      normcdf_cpu(mz[z_pos + i] / pow(Sz[z_pos + i], 0.5)) +
+                  mz[z_pos + i] * Sz[z_pos + i] *
+                      normpdf_cpu(0.0f, mz[z_pos + i],
+                                  pow(Sz[z_pos + i], 0.5))) -
+                 (ma[i + a_pos] * mz[z_pos + i])) /
+                Sz[z_pos + i];
         } else {
             ma[i + a_pos] = omega_tol;
             Sa[i + a_pos] =

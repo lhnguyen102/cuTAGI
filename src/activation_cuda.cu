@@ -750,7 +750,14 @@ __global__ void mixture_relu(float const *mu_z, float const *var_z,
             mu_a[col] = omega * mu_z_til;
             var_a[col] =
                 omega * var_z_til + omega * (1.0f - omega) * powf(mu_z_til, 2);
-            jcb[col] = powf(omega * kappa, 0.5);
+            // jcb[col] = powf(omega * kappa, 0.5); //Approx. formulation
+            jcb[col] =  // Exact form. (Huber, 2020)
+                ((powf(mu_z[col], 2) + var_z[col]) * normcdff(-alpha) +
+                 mu_z[col] * powf(var_z[col], 0.5) *
+                     (1.0f / powf(2.0f * pi, 0.5)) *
+                     expf(-powf(-alpha, 2) / 2.0f) -
+                 (mu_a[col] * mu_z[col])) /
+                var_z[col];
         } else {
             mu_a[col] = omega_tol;
             var_a[col] =
