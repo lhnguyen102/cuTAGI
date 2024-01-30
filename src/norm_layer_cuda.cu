@@ -3,13 +3,185 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 24, 2024
+// Updated:      January 30, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "../include/norm_layer.h"
 #include "../include/norm_layer_cuda.cuh"
 
+LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
+                             float eps, bool bias)
+    : /*
+       */
+{
+    this->normalized_shape = normalized_shape;
+    this->epsilon = eps;
+    this->bias = bias;
+    this->init_weight_bias();
+    if (this->training) {
+        this->allocate_param_delta();
+    }
+    if (normalized_shape.size() = 1) {
+        this->input_size = normalized_shape[0];
+        this->output_size = normalized_shape[0];
+    } else if (normalized_shape.size() == 3) {
+        this->in_channels = normalized_shape[0];
+        this->in_width = normalized_shape[1];
+        this->in_height = normalized_shape[2];
+        this->out_channels = normalized_shape[0];
+        this->out_width = normalized_shape[1];
+        this->out_height = normalized_shape[2];
+        this->input_size = this->in_channels * this->in_width * this->in_height;
+        this->output_size =
+            this->out_channels * this->out_width * this->out_height;
+    } else {
+        throw std::runtime_error(
+            "Error in file: " + std::string(__FILE__) +
+            " at line: " + std::to_string(__LINE__) +
+            ". Normalized shape provided are not supported.");
+    }
+}
+
+LayerNormCuda::~LayerNormCuda() {
+    cudaFree(d_mu_ra);
+    cudaFree(d_var_ra);
+}
+
+std::string LayerNormCuda::get_layer_info() const
+/*
+ */
+{
+    return "LayerNorm()";
+}
+
+std::string LayerNormCuda::get_layer_name() const
+/*
+ */
+{
+    return "LayerNormCuda";
+}
+
+LayerType LayerNormCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Norm;
+}
+
+void LayerNormCuda::init_weight_bias()
+/*
+ */
+{
+    std::tie(this->num_weights, this->num_biases) =
+        get_number_params_layer_norm(this->normalized_shape);
+
+    this->mu_w.resize(this->num_weights, 1.0f);
+    this->var_w.resize(this->num_weights, 1.0f);
+    if (this->bias) {
+        this->mu_b.resize(this->num_weights, 0.0f);
+        this->var_b.resize(this->num_weights, 0.0001f);
+
+    } else {
+        this->num_biases = 0;
+    }
+    this->allocate_param_memory();
+    this->params_to_device();
+}
+
+void LayerNormCuda::allocate_param_delta()
+/*
+ */
+{
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+    this->delta_mu_b.resize(this->num_biases, 0.0f);
+    this->delta_var_b.resize(this->num_biases, 0.0f);
+    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
+    cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
+}
+
+void LayerNormCuda::forward(BaseHiddenStates &input_states,
+                            BaseHiddenStates &output_states,
+                            BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
+
+    int batch_size = input_states.block_size;
+    int num_threads = this->num_cuda_threads;
+    unsigned int grid_size_ra = (batch_size + num_threads - 1) / num_threads;
+
+    if (this->normalized_shape.size() == 1) {
+        layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
+            batch_size, cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2);
+
+        layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+            cu_input_states->d_mu_a, cu_temp_states.d_tmp_1,
+            cu_temp_states.d_tmp_2, this->input_size, batch_size,
+            cu_temp_states.d_tmp_2);
+
+        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+            cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2);
+    } else {
+    }
+}
+
+void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
+                                   BaseDeltaStates &input_delta_states,
+                                   BaseDeltaStates &output_delta_states,
+                                   BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
+}
+
+void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
+                                   BaseDeltaStates &delta_states,
+                                   BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&delta_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    // Initalization
+    int batch_size = delta_states.block_size;
+    int threads = this->num_cuda_threads;
+    dim3 block_dim(threads, threads);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//// CUDA Kernels
+////////////////////////////////////////////////////////////////////////////////
 __global__ void layernorm_stat_mean_var_cuda(float const *mu_a,
                                              float const *var_a, int ni,
                                              int batch_size, float *mu_s,
@@ -47,6 +219,32 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
                    (mu_a[col * ni + i] - mu_s[col]);
         }
         var_sample[col] = (sum + var_s[col]) / (ni - 1);
+    }
+}
+
+__global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
+                                      float const *mu_ra_prev,
+                                      float const *var_ra_prev, float momentum,
+                                      int num_states, float *mu_ra,
+                                      float *var_ra)
+/*Copute the running average for the normalization layers.
+
+Args:
+    ms: New statistical mean of samples
+    Ss: New statistical variance of samples
+    mraprev: Previous mean for the normalization layers
+    Sraprev: Previous statistical variance for the normalization layers
+    momentum: Running average factor
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
+    N: Size of mra
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < num_states) {
+        float tmp = mu_ra_prev[col] * momentum + mu_s[col] * (1 - momentum);
+        var_ra[col] = var_ra_prev[col] * momentum + var_s[col] * (1 - momentum);
+        mu_ra[col] = tmp;
     }
 }
 

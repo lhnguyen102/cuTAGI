@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 29, 2024
+// Updated:      January 30, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,6 +45,32 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
                    (mu_a[col * ni + i] - mu_s[col]);
         }
         var_sample[col] = (sum + var_s[col]) / (ni - 1);
+    }
+}
+
+void running_mean_var(const std::vector<float> &mu_s,
+                      const std::vector<float> &var_s,
+                      const std::vector<float> &mu_ra_prev,
+                      const std::vector<float> &var_ra_prev, float momentum,
+                      int num_states, std::vector<float> &mu_ra,
+                      std::vector<float> &var_ra)
+/*Copute the running average for the normalization layers.
+
+Args:
+    ms: New statistical mean of samples
+    Ss: New statistical variance of samples
+    mraprev: Previous mean for the normalization layers
+    Sraprev: Previous statistical variance for the normalization layers
+    momentum: Running average factor
+    mra: Statistical mean for the normalization layers
+    Sra: Statistical variance for the normalization layers
+    N: Size of mra
+ */
+{
+    for (int col = 0; col < num_states; col++) {
+        float tmp = mu_ra_prev[col] * momentum + mu_s[col] * (1 - momentum);
+        var_ra[col] = var_ra_prev[col] * momentum + var_s[col] * (1 - momentum);
+        mu_ra[col] = tmp;
     }
 }
 
@@ -151,12 +177,12 @@ void layernorm_bwd_delta_w(const std::vector<float> &var_w,
     }
 }
 
-void layernorm_bwd_delta_b_cuda(const std::vector<float> &var_b,
-                                const std::vector<float> &delta_mu_out,
-                                const std::vector<float> &delta_var_out,
-                                float epsilon, int ni, int batch_size,
-                                std::vector<float> &delta_mu_b,
-                                std::vector<float> &delta_var_b)
+void layernorm_bwd_delta_b(const std::vector<float> &var_b,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           float epsilon, int ni, int batch_size,
+                           std::vector<float> &delta_mu_b,
+                           std::vector<float> &delta_var_b)
 /*
  */
 {
@@ -173,7 +199,7 @@ void layernorm_bwd_delta_b_cuda(const std::vector<float> &var_b,
     }
 }
 
-void layernorm2d_bwd_delta_z_cuda(
+void layernorm2d_bwd_delta_z(
     const std::vector<float> &mu_w, const std::vector<float> &jcb,
     const std::vector<float> &var_hat, const std::vector<float> &delta_mu_out,
     const std::vector<float> &delta_var_out, float epsilon, int wihi, int fi,

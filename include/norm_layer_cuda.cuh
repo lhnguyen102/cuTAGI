@@ -13,6 +13,41 @@
 
 class LayerNormCuda : public : BaseLayerCuda {
    public:
-    LayerNormCuda(const std::vector<int>& normalized_shape, float eps = 1e-5);
+    std::vector<int> normalized_shape;
+    std::vector<float> mu_ra, var_ra;
+    float *d_mu_ra, *d_var_ra;
+    float epsilon;
+    bool bias;
+
+    LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
+                  bool bias = true);
     ~LayerNormCuda;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void init_weight_bias();
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    void state_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &input_delta_states,
+                        BaseDeltaStates &output_delta_states,
+                        BaseTempStates &temp_states) override;
+
+    void param_backward(BaseBackwardStates &next_bwd_states,
+                        BaseDeltaStates &delta_states,
+                        BaseTempStates &temp_states) override;
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+   protected:
+    void allocate_param_delta();
+    using BaseLayerCuda::allocate_param_memory;
+    using BaseLayerCuda::params_to_device;
 };
