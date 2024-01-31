@@ -17,10 +17,11 @@ class LayerNormCuda : public : BaseLayerCuda {
     std::vector<float> mu_ra, var_ra;
     float *d_mu_ra, *d_var_ra;
     float epsilon;
+    float momentum;
     bool bias;
 
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
-                  bool bias = true);
+                  float mometum = 0.9, bool bias = true);
     ~LayerNormCuda;
 
     std::string get_layer_info() const override;
@@ -48,6 +49,9 @@ class LayerNormCuda : public : BaseLayerCuda {
 
    protected:
     void allocate_param_delta();
+    void allocate_running_mean_var(int batch_size);
+    void running_mean_var_to_host();
+    void running_mean_var_to_device();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

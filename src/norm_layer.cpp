@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 30, 2024
+// Updated:      January 31, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -254,6 +254,25 @@ void layernorm2d_bwd_delta_b(const std::vector<float> &var_b,
             delta_mu_b[col + row * k] = A * delta_mu_out[col + row * k];
             delta_var_b[col + row * k] = A * delta_var_out[col + row * k] * A;
         }
+    }
+}
+
+void delta_param_sum(const std::vector<float> delta_mu_e,
+                     const std::vector<float> delta_var_e, int wihi, int fi,
+                     int n, std::vector<float> delta_mu,
+                     std::vector<float> delta_var) {
+    for (int col = 0; col < fi; col++) {
+        float sum_delta_mu = 0.0f;
+        float sum_delta_var = 0.0f;
+        for (int i = 0; i < n; i++)  // n = wihi * fi
+        {
+            sum_delta_mu +=
+                delta_mu_e[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+            sum_delta_var +=
+                delta_var_e[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+        }
+        delta_mu[col] = sum_delta_mu;
+        delta_var[col] = sum_delta_var;
     }
 }
 

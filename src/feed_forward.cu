@@ -1618,6 +1618,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
                 unsigned int gridCols2 = (Kln + THREADS - 1) / THREADS;
                 // Launch kernel
                 dim3 dimGrid2(gridCols2, gridCols);
+                // TODO: M might not be correct
                 convlnMean<<<dimGrid2, dimBlock>>>(
                     theta.d_mw, theta.d_mb, state.d_ma, state.d_mra,
                     state.d_Sra, net.epsilon, state.d_mz, state.d_Sz, wposIn,

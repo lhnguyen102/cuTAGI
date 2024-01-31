@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 30, 2024
+// Updated:      January 31, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,12 +12,13 @@
 #include "../include/norm_layer_cuda.cuh"
 
 LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
-                             float eps, bool bias)
+                             float eps, float momentum, bool bias)
     : /*
        */
 {
     this->normalized_shape = normalized_shape;
     this->epsilon = eps;
+    this->momentum = momentum;
     this->bias = bias;
     this->init_weight_bias();
     if (this->training) {
@@ -104,6 +105,59 @@ void LayerNormCuda::allocate_param_delta()
     cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
 }
 
+void LayerNormCuda::allocate_running_mean_var(int batch_size)
+/*
+ */
+{
+    this->mu_ra.resize(batch_size, 0.0f);
+    this->var_ra.resize(batch_size, 0.0f);
+    cudaMalloc(&this->d_mu_ra, batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_ra, batch_size * sizeof(float));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Running mean var memory allocation.");
+    }
+}
+
+void LayerNormCuda::running_mean_var_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_mu_ra, this->mu_ra.data(),
+               this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_ra, this->var_ra.data(),
+               this->var_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Running mean var host to device.");
+    }
+}
+
+void LayerNormCuda::running_mean_var_to_host()
+/*
+ */
+{
+    cudaMemcpy(this->mu_ra.data(), this->d_mu_ra,
+               this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_ra.data(), this->d_var_ra,
+               this->var_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Running mean var device to host.");
+    }
+}
+
 void LayerNormCuda::forward(BaseHiddenStates &input_states,
                             BaseHiddenStates &output_states,
                             BaseTempStates &temp_states)
@@ -120,20 +174,51 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
     int num_threads = this->num_cuda_threads;
     unsigned int grid_size_ra = (batch_size + num_threads - 1) / num_threads;
+    dim3 block_dim(num_threads, num_threads);
+
+    // Lazy intialization
+    if (this->mu_ra.size() == 0) {
+        this->allocate_running_mean_var(batch_size);
+        this->running_mean_var_to_device();
+    }
+    layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
+        batch_size, cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2);
+
+    layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+        cu_input_states->d_mu_a, cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2,
+        this->input_size, batch_size, cu_temp_states.d_tmp_2);
+
+    // TODO: how to handle running average with different batch size !?
+    running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+        cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2, this->momentum,
+        batch_size, this->d_mu_ra, this->d_var_ra);
+
+    unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
+    unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
+    dim3 grid_size(grid_col, grid_row);
 
     if (this->normalized_shape.size() == 1) {
-        layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-            batch_size, cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2);
-
-        layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_temp_states.d_tmp_1,
-            cu_temp_states.d_tmp_2, this->input_size, batch_size,
-            cu_temp_states.d_tmp_2);
-
-        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_temp_states.d_tmp_1, cu_temp_states.d_tmp_2);
+        layernorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
+            this->mu_w, this->var_w, this->mu_b, this->var_b,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
+            this->d_var_ra, this->epsilon, this->input_size, batch_size,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
+        int wihi = this->in_height * this->in_width;
+        layernorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
+            this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
+            this->d_var_ra, this->epsilon, wihi, batch_size, this->input_size,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    }
+    // Update backward state for inferring parameters
+    if (this->training) {
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
     }
 }
 
@@ -156,7 +241,30 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
 
     // Initialization
     int batch_size = input_delta_states.block_size;
-    int threads = this->num_cuda_threads;
+    int num_threads = this->num_cuda_threads;
+    dim3 block_dim(num_threads, num_threads);
+
+    unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
+    unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
+    dim3 grid_size(grid_col, grid_row);
+
+    if (this->normalized_shape.size() == 1) {
+        layernorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
+            batch_size, cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    } else {
+        int wihi = this->in_height * this->in_width;
+
+        layernorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            cu_input_delta_states->d_delta_mu, cu_input_delta_states->delta_var,
+            this->epsilon, wihi, this->in_channels, batch_size,
+            cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    }
 }
 
 void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
@@ -170,13 +278,26 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
         dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
     DeltaStateCuda *cu_delta_states =
         dynamic_cast<DeltaStateCuda *>(&delta_states);
-    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
-    // *>(&temp_states);
+    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     // Initalization
     int batch_size = delta_states.block_size;
-    int threads = this->num_cuda_threads;
+    int num_threads = this->num_cuda_threads;
     dim3 block_dim(threads, threads);
+
+    unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
+    unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
+    dim3 grid_size(grid_col, grid_row);
+
+    if (this->normalized_shape.size() == 1) {
+        layernorm_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+            this->d_var_ra, cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
+            batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+    } else {
+        int wihi = this->in_height * this->in_width;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -223,28 +344,15 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
 }
 
 __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
-                                      float const *mu_ra_prev,
-                                      float const *var_ra_prev, float momentum,
-                                      int num_states, float *mu_ra,
-                                      float *var_ra)
+                                      float momentum, int num_states,
+                                      float *mu_ra, float *var_ra)
 /*Copute the running average for the normalization layers.
-
-Args:
-    ms: New statistical mean of samples
-    Ss: New statistical variance of samples
-    mraprev: Previous mean for the normalization layers
-    Sraprev: Previous statistical variance for the normalization layers
-    momentum: Running average factor
-    mra: Statistical mean for the normalization layers
-    Sra: Statistical variance for the normalization layers
-    N: Size of mra
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < num_states) {
-        float tmp = mu_ra_prev[col] * momentum + mu_s[col] * (1 - momentum);
-        var_ra[col] = var_ra_prev[col] * momentum + var_s[col] * (1 - momentum);
-        mu_ra[col] = tmp;
+        mu_ra[col] = mu_ra[col] * momentum + mu_s[col] * (1 - momentum);
+        var_ra[col] = var_ra[col] * momentum + var_s[col] * (1 - momentum);
     }
 }
 
@@ -376,14 +484,13 @@ __global__ void layernorm2d_bwd_delta_z_cuda(
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < wihi && row < m)  // k = wihi * fi, m = B
+    if (col < wihi * fi && row < m)  // k = wihi * fi, m = B
     {
-        float tmp = (1.0f / sqrtf(var_hat[row % fi] + epsilon)) *
-                    mu_w[row % fi] * jcb[col + row * wihi];
+        float tmp = (1 / sqrtf(var_hat[row] + epsilon)) * mw[col / wihi] *
+                    jcb[col + row * k];
 
-        delta_mu[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
-        delta_var[col + row * wihi] =
-            tmp * delta_var_out[col + row * wihi] * tmp;
+        delta_mu[col + row * k] = tmp * delta_mu_out[col + row * k];
+        delta_var[col + row * k] = tmp * delta_var_out[col + row * k] * tmp;
     }
 }
 
@@ -422,5 +529,24 @@ __global__ void layernorm2d_bwd_delta_b_cuda(float const *var_b,
         float A = var_b[col / wihi];
         delta_mu_b[col + row * k] = A * delta_mu_out[col + row * k];
         delta_var_b[col + row * k] = A * delta_var_out[col + row * k] * A;
+    }
+}
+
+__global__ void delta_param_sum(float const *delta_mu_e,
+                                float const *delta_var_e, int wihi, int fi,
+                                int n, float *delta_mu, float *delta_var) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < fi) {
+        float sum_delta_mu = 0.0f;
+        float sum_delta_var = 0.0f;
+        for (int i = 0; i < n; i++)  // n = wihi * fi
+        {
+            sum_delta_mu +=
+                delta_mu_e[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+            sum_delta_var +=
+                delta_var_e[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+        }
+        delta_mu[col] = sum_delta_mu;
+        delta_var[col] = sum_delta_var;
     }
 }
