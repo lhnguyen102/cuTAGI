@@ -26,10 +26,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # if(APPLE)
-#   set(CMAKE_MACOSX_RPATH ON)
-#   set(CMAKE_OSX_ARCHITECTURES arm64)
+# set(CMAKE_MACOSX_RPATH ON)
+# set(CMAKE_OSX_ARCHITECTURES arm64)
 # endif()
-
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
@@ -98,9 +97,6 @@ else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
 
-
-
-
 # ###########################################################################################
 # # PYTHON SETUP
 # ###########################################################################################
@@ -144,6 +140,7 @@ set(CPU_SOURCES
   src/linear_layer.cpp
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
+  src/norm_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -226,7 +223,6 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
-
   # Executablecode i.e. application
   add_executable(main main.cu)
 
@@ -239,15 +235,13 @@ else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
   target_link_libraries(cutagi_lib PRIVATE ${CMAKE_DL_LIBS})
 
-
-
   # Executable code i.e. application
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
   pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 
-  #TODO: Remove when releasing new version
+  # TODO: Remove when releasing new version
   pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 endif()
 
@@ -260,5 +254,3 @@ target_link_libraries(cutagi PRIVATE cutagi_lib)
 
 # TODO: Remove when releasing new version
 target_link_libraries(cutagitest PRIVATE cutagi_lib)
-
-

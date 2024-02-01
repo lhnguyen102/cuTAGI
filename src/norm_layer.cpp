@@ -3,16 +3,19 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 31, 2024
+// Updated:      February 01, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/norm_layer.h"
 
-void layernorm_state_mean_var(const std::vector<float> &mu_a,
-                              const std::vector<float> &var_a, int ni,
-                              int batch_size, std::vector<float> &mu_s,
-                              std::vector<float> &var_s)
+////////////////////////////////////////////////////////////////////////////////
+///
+////////////////////////////////////////////////////////////////////////////////
+void layernorm_stat_mean_var(const std::vector<float> &mu_a,
+                             const std::vector<float> &var_a, int ni,
+                             int batch_size, std::vector<float> &mu_s,
+                             std::vector<float> &var_s)
 /*
  */
 {
@@ -49,9 +52,7 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
 }
 
 void running_mean_var(const std::vector<float> &mu_s,
-                      const std::vector<float> &var_s,
-                      const std::vector<float> &mu_ra_prev,
-                      const std::vector<float> &var_ra_prev, float momentum,
+                      const std::vector<float> &var_s, float momentum,
                       int num_states, std::vector<float> &mu_ra,
                       std::vector<float> &var_ra)
 /*Copute the running average for the normalization layers.
@@ -68,9 +69,8 @@ Args:
  */
 {
     for (int col = 0; col < num_states; col++) {
-        float tmp = mu_ra_prev[col] * momentum + mu_s[col] * (1 - momentum);
-        var_ra[col] = var_ra_prev[col] * momentum + var_s[col] * (1 - momentum);
-        mu_ra[col] = tmp;
+        mu_ra[col] = mu_ra[col] * momentum + mu_s[col] * (1 - momentum);
+        var_ra[col] = var_ra[col] * momentum + var_s[col] * (1 - momentum);
     }
 }
 
@@ -224,11 +224,12 @@ void layernorm2d_bwd_delta_w(
     const std::vector<float> &mu_hat, const std::vector<float> &var_hat,
     const std::vector<float> &delta_mu_out,
     const std::vector<float> &delta_var_out, float epsilon, int wihi, int m,
-    int k, std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
+    int fi, std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
 /*
  */
 {
-    // k = wihi, m = fi*B
+    // k = wihi, m = B
+    int k = wihi * fi;
     for (int row = 0; row < m; row++) {
         for (int col = 0; col < k; col++) {
             float A = (1.0f / sqrtf(var_hat[row] + epsilon)) *
@@ -241,13 +242,14 @@ void layernorm2d_bwd_delta_w(
 void layernorm2d_bwd_delta_b(const std::vector<float> &var_b,
                              const std::vector<float> &delta_mu_out,
                              const std::vector<float> &delta_var_out,
-                             float epsilon, int wihi, int m, int k,
+                             float epsilon, int wihi, int m, int fi,
                              std::vector<float> &delta_mu_b,
                              std::vector<float> &delta_var_b)
 /*
  */
 {
-    // k = wihi, m = fi*B
+    // k = wihi*fi, m = B
+    int k = wihi * fi;
     for (int row = 0; row < m; row++) {
         for (int col = 0; col < k; col++) {
             float A = var_b[col / wihi];
@@ -295,5 +297,208 @@ std::tuple<int, int> get_number_params_layer_norm(
             "Error in file: " + std::string(__FILE__) +
             " at line: " + std::to_string(__LINE__) +
             ". Normalized shape provided are not supported.");
+    }
+    return {num_weights, num_biases};
+}
+
+LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
+                     float momentum, bool bias)
+    : normalized_shape(normalized_shape),
+      epsilon(eps),
+      momentum(momentum),
+      bias(bias)
+/*
+ */
+{
+    this->init_weight_bias();
+    if (this->training) {
+        this->allocate_param_delta();
+    }
+    if (this->normalized_shape.size() == 1) {
+        this->input_size = this->normalized_shape[0];
+        this->output_size = normalized_shape[0];
+    } else if (this->normalized_shape.size() == 3) {
+        this->in_channels = this->normalized_shape[0];
+        this->in_width = this->normalized_shape[1];
+        this->in_height = this->normalized_shape[2];
+        this->out_channels = this->normalized_shape[0];
+        this->out_width = this->normalized_shape[1];
+        this->out_height = this->normalized_shape[2];
+        this->input_size = this->in_channels * this->in_width * this->in_height;
+        this->output_size =
+            this->out_channels * this->out_width * this->out_height;
+    } else {
+        throw std::runtime_error(
+            "Error in file: " + std::string(__FILE__) +
+            " at line: " + std::to_string(__LINE__) +
+            ". Normalized shape provided are not supported.");
+    }
+}
+
+std::string LayerNorm::get_layer_info() const
+/*
+ */
+{
+    return "LayerNorm()";
+}
+
+std::string LayerNorm::get_layer_name() const
+/*
+ */
+{
+    return "LayerNorm";
+}
+
+LayerType LayerNorm::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Norm;
+}
+
+void LayerNorm::init_weight_bias()
+/*
+ */
+{
+    std::tie(this->num_weights, this->num_biases) =
+        get_number_params_layer_norm(this->normalized_shape);
+
+    this->mu_w.resize(this->num_weights, 1.0f);
+    this->var_w.resize(this->num_weights, 1.0f);
+    if (this->bias) {
+        this->mu_b.resize(this->num_weights, 0.0f);
+        this->var_b.resize(this->num_weights, 0.0001f);
+
+    } else {
+        this->num_biases = 0;
+    }
+}
+
+void LayerNorm::allocate_param_delta()
+/*
+ */
+{
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+    this->delta_mu_b.resize(this->num_biases, 0.0f);
+    this->delta_var_b.resize(this->num_biases, 0.0f);
+}
+
+void LayerNorm::allocate_running_mean_var(int batch_size)
+/*
+ */
+{
+    this->mu_ra.resize(batch_size, 0.0f);
+    this->var_ra.resize(batch_size, 0.0f);
+}
+
+void LayerNorm::forward(BaseHiddenStates &input_states,
+                        BaseHiddenStates &output_states,
+                        BaseTempStates &temp_states)
+/**/
+{
+    int batch_size = input_states.block_size;
+    // Lazy intialization
+    if (this->mu_ra.size() == 0) {
+        this->allocate_running_mean_var(batch_size);
+    }
+
+    layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
+                            this->input_size, batch_size, temp_states.tmp_1,
+                            temp_states.tmp_2);
+
+    layernorm_sample_var(input_states.mu_a, temp_states.tmp_1,
+                         temp_states.tmp_2, this->input_size, batch_size,
+                         temp_states.tmp_2);
+
+    running_mean_var(temp_states.tmp_1, temp_states.tmp_2, this->momentum,
+                     batch_size, this->mu_ra, this->var_ra);
+
+    if (this->normalized_shape.size() == 1) {
+        layernorm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
+                               input_states.mu_a, input_states.var_a,
+                               this->mu_ra, this->var_ra, this->epsilon,
+                               this->input_size, batch_size, output_states.mu_a,
+                               output_states.var_a);
+    } else {
+        int wihi = this->in_height * this->in_width;
+        layernorm2d_fwd_mean_var(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
+            input_states.var_a, this->mu_ra, this->var_ra, this->epsilon, wihi,
+            batch_size, this->input_size, output_states.mu_a,
+            output_states.var_a);
+    }
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
+    }
+}
+
+void LayerNorm::state_backward(BaseBackwardStates &next_bwd_states,
+                               BaseDeltaStates &input_delta_states,
+                               BaseDeltaStates &output_delta_states,
+                               BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_delta_states.block_size;
+    if (this->normalized_shape.size() == 1) {
+        layernorm_bwd_delta_z(
+            this->mu_w, next_bwd_states.jcb, this->var_ra,
+            input_delta_states.delta_mu, input_delta_states.delta_var,
+            this->epsilon, this->input_size, batch_size,
+            output_delta_states.delta_mu, output_delta_states.delta_var);
+    } else {
+        int wihi = this->in_height * this->in_width;
+
+        layernorm2d_bwd_delta_z(
+            this->mu_w, next_bwd_states.jcb, this->var_ra,
+            input_delta_states.delta_mu, input_delta_states.delta_var,
+            this->epsilon, wihi, this->in_channels, batch_size,
+            output_delta_states.delta_mu, output_delta_states.delta_var);
+    }
+}
+
+void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
+                               BaseDeltaStates &delta_states,
+                               BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = delta_states.block_size;
+    if (this->normalized_shape.size() == 1) {
+        layernorm_bwd_delta_w(
+            this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
+            delta_states.delta_mu, delta_states.delta_var, this->epsilon,
+            this->input_size, batch_size, this->delta_mu_w, this->delta_var_w);
+
+        if (this->bias) {
+            layernorm_bwd_delta_b(this->var_b, delta_states.delta_mu,
+                                  delta_states.delta_var, this->epsilon,
+                                  this->input_size, batch_size,
+                                  this->delta_mu_b, this->delta_var_b);
+        }
+    } else {
+        int wihi = this->in_height * this->in_width;
+
+        layernorm2d_bwd_delta_w(this->var_w, next_bwd_states.mu_a, this->mu_ra,
+                                this->var_ra, delta_states.delta_mu,
+                                delta_states.delta_var, this->epsilon, wihi,
+                                batch_size, this->in_channels,
+                                temp_states.tmp_1, temp_states.tmp_2);
+
+        delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                        this->in_channels, batch_size, this->delta_mu_w,
+                        this->delta_var_w);
+
+        if (this->bias) {
+            layernorm2d_bwd_delta_b(this->var_b, delta_states.delta_mu,
+                                    delta_states.delta_var, this->epsilon, wihi,
+                                    batch_size, this->in_channels,
+                                    temp_states.tmp_1, temp_states.tmp_2);
+
+            delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                            this->in_channels, batch_size, this->delta_mu_b,
+                            this->delta_var_b);
+        }
     }
 }

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      January 31, 2024
+// Updated:      February 01, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -13,8 +13,8 @@
 
 LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
                              float eps, float momentum, bool bias)
-    : /*
-       */
+/*
+ */
 {
     this->normalized_shape = normalized_shape;
     this->epsilon = eps;
@@ -24,16 +24,16 @@ LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
     if (this->training) {
         this->allocate_param_delta();
     }
-    if (normalized_shape.size() = 1) {
-        this->input_size = normalized_shape[0];
+    if (this->normalized_shape.size() == 1) {
+        this->input_size = this->normalized_shape[0];
         this->output_size = normalized_shape[0];
-    } else if (normalized_shape.size() == 3) {
-        this->in_channels = normalized_shape[0];
-        this->in_width = normalized_shape[1];
-        this->in_height = normalized_shape[2];
-        this->out_channels = normalized_shape[0];
-        this->out_width = normalized_shape[1];
-        this->out_height = normalized_shape[2];
+    } else if (this->normalized_shape.size() == 3) {
+        this->in_channels = this->normalized_shape[0];
+        this->in_width = this->normalized_shape[1];
+        this->in_height = this->normalized_shape[2];
+        this->out_channels = this->normalized_shape[0];
+        this->out_width = this->normalized_shape[1];
+        this->out_height = this->normalized_shape[2];
         this->input_size = this->in_channels * this->in_width * this->in_height;
         this->output_size =
             this->out_channels * this->out_width * this->out_height;
@@ -285,18 +285,55 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
     int num_threads = this->num_cuda_threads;
     dim3 block_dim(threads, threads);
 
-    unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
     unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
-    dim3 grid_size(grid_col, grid_row);
 
     if (this->normalized_shape.size() == 1) {
-        layernorm_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
+        layernorm_bwd_delta_w_cuda<<<grid_col, num_threads>>>(
             this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
-            this->d_var_ra, cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
-            batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+            this->d_var_ra, cu_delta_states->d_delta_mu,
+            cu_delta_states->d_delta_var, this->epsilon, this->input_size,
+            batch_size, this->d_delta_mu_w, this->d_delta_var_w);
+
+        if (this->bias) {
+            layernorm_bwd_delta_b_cuda<<<grid_col, num_threads>>>(
+                this->d_var_b, cu_delta_states->d_delta_mu,
+                cu_delta_states->d_delta_var, this->epsilon, this->input_size,
+                batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+        }
+
     } else {
         int wihi = this->in_height * this->in_width;
+        int unsigned int grid_row =
+            (batch_size + num_threads - 1) / num_threads;
+        dim3 grid_size(grid_col, grid_row);
+        unsigned int sum_grid_size =
+            (this->in_channels + num_threads - 1) / num_threads;
+
+        // Weights
+        // TODO: Not sure if it should be batch_size or batch_size * fi
+        layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+            this->d_var_ra, cu_delta_states->d_delta_mu,
+            cu_delta_states->d_delta_var, this->epsilon, wihi, batch_size, wihi,
+            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+
+        delta_param_sum<<<sum_grid_size, num_threads>>>(
+            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+            this->in_channels, batch_size, this->d_delta_mu_w,
+            this->d_delta_var_w);
+
+        // Biases
+        if (this->bias) {
+            layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(
+                this->d_var_b, cu_delta_states->d_delta_mu,
+                cu_delta_states->d_delta_var, this->epsilon, batch_size, wihi,
+                cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+
+            delta_param_sum<<<sum_grid_size, num_threads>>>(
+                cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+                this->in_channels, batch_size, this->d_delta_mu_b,
+                this->d_delta_var_b);
+        }
     }
 }
 
@@ -534,12 +571,13 @@ __global__ void layernorm2d_bwd_delta_b_cuda(float const *var_b,
 
 __global__ void delta_param_sum(float const *delta_mu_e,
                                 float const *delta_var_e, int wihi, int fi,
-                                int n, float *delta_mu, float *delta_var) {
+                                int batch_size, float *delta_mu,
+                                float *delta_var) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < fi) {
         float sum_delta_mu = 0.0f;
         float sum_delta_var = 0.0f;
-        for (int i = 0; i < n; i++)  // n = wihi * fi
+        for (int i = 0; i < wihi * batch_size; i++)  // n = wihi * B
         {
             sum_delta_mu +=
                 delta_mu_e[(i / wihi) * wihi * fi + i % wihi + col * wihi];
