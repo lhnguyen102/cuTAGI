@@ -314,7 +314,7 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
         layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
             this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
             this->d_var_ra, cu_delta_states->d_delta_mu,
-            cu_delta_states->d_delta_var, this->epsilon, wihi, batch_size, wihi,
+            cu_delta_states->d_delta_var, this->epsilon, wihi, fi, batch_size,
             cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
         delta_param_sum<<<sum_grid_size, num_threads>>>(
@@ -326,8 +326,8 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
         if (this->bias) {
             layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(
                 this->d_var_b, cu_delta_states->d_delta_mu,
-                cu_delta_states->d_delta_var, this->epsilon, batch_size, wihi,
-                cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+                cu_delta_states->d_delta_var, this->epsilon, wihi, fi,
+                batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
             delta_param_sum<<<sum_grid_size, num_threads>>>(
                 cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
@@ -515,13 +515,14 @@ __global__ void layernorm_bwd_delta_b_cuda(float const *var_b,
 __global__ void layernorm2d_bwd_delta_z_cuda(
     float const *mu_w, float const *jcb, float const *var_hat,
     float const *delta_mu_out, float const *delta_var_out, float epsilon,
-    int wihi, int fi, int m, float *delta_mu, float *delta_var)
+    int wihi, int fi, int batch_size, float *delta_mu, float *delta_var)
 /*
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < wihi * fi && row < m)  // k = wihi * fi, m = B
+    int k = wihi * fi;
+    if (col < k && row < batch_size)  // k = wihi * fi, m = B
     {
         float tmp = (1 / sqrtf(var_hat[row] + epsilon)) * mw[col / wihi] *
                     jcb[col + row * k];
@@ -534,14 +535,15 @@ __global__ void layernorm2d_bwd_delta_z_cuda(
 __global__ void layernorm2d_bwd_delta_w_cuda(
     float const *var_w, float const *mu_a, float const *mu_hat,
     float const *var_hat, float const *delta_mu_out, float const *delta_var_out,
-    float epsilon, int wihi, int m, int k, float *delta_mu_w,
+    float epsilon, int wihi, int fi, int batch_size, float *delta_mu_w,
     float *delta_var_w)
 /*
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < k && row < m)  // k = wihi, m = fi*B
+    int k = wihi * fi;
+    if (col < k && row < batch_size)  // k = wihi*fi, m = B
     {
         float A = (1.0f / sqrtf(var_hat[row] + epsilon)) *
                   (mu_a[col + row * k] - mu_hat[row]) * var_w[col / wihi];

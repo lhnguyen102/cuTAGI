@@ -201,48 +201,54 @@ void layernorm_bwd_delta_b(const std::vector<float> &var_b,
 
 void layernorm2d_bwd_delta_z(
     const std::vector<float> &mu_w, const std::vector<float> &jcb,
-    const std::vector<float> &var_hat, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &var_ra, const std::vector<float> &delta_mu_out,
     const std::vector<float> &delta_var_out, float epsilon, int wihi, int fi,
     int m, std::vector<float> &delta_mu, std::vector<float> &delta_var)
 /*
  */
 {
+    // k = wihi * fi, m = B
+    int k = wihi * fi;
     for (int row = 0; row < m; row++) {
-        for (int col = 0; col < wihi; col++) {
-            float tmp = (1.0f / sqrtf(var_hat[row % fi] + epsilon)) *
-                        mu_w[row % fi] * jcb[col + row * wihi];
+        for (int col = 0; col < wihi * fi; col++) {
+            float tmp = (1 / sqrtf(var_ra[row] + epsilon)) * mu_w[col / wihi] *
+                        jcb[col + row * k];
 
-            delta_mu[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
-            delta_var[col + row * wihi] =
-                tmp * delta_var_out[col + row * wihi] * tmp;
+            delta_mu[col + row * k] = tmp * delta_mu_out[col + row * k];
+            delta_var[col + row * k] = tmp * delta_var_out[col + row * k] * tmp;
         }
     }
 }
 
-void layernorm2d_bwd_delta_w(
-    const std::vector<float> &var_w, const std::vector<float> &mu_a,
-    const std::vector<float> &mu_hat, const std::vector<float> &var_hat,
-    const std::vector<float> &delta_mu_out,
-    const std::vector<float> &delta_var_out, float epsilon, int wihi, int m,
-    int fi, std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
+void layernorm2d_bwd_delta_w(const std::vector<float> &var_w,
+                             const std::vector<float> &mu_a,
+                             const std::vector<float> &mu_hat,
+                             const std::vector<float> &var_hat,
+                             const std::vector<float> &delta_mu_out,
+                             const std::vector<float> &delta_var_out,
+                             float epsilon, int wihi, int fi, int batch_size,
+                             std::vector<float> &delta_mu_w,
+                             std::vector<float> &delta_var_w)
 /*
  */
 {
     // k = wihi, m = B
     int k = wihi * fi;
-    for (int row = 0; row < m; row++) {
+    for (int row = 0; row < batch_size; row++) {
         for (int col = 0; col < k; col++) {
-            float A = (1.0f / sqrtf(var_hat[row] + epsilon)) *
-                      (mu_a[col + row * k] - mu_hat[row]) * var_w[col / wihi];
-            delta_mu_w[col + row * k] = A * delta_mu_out[col + row * k];
-            delta_var_w[col + row * k] = A * delta_var_out[col + row * k] * A;
+            float tmp = (1.0f / sqrtf(var_hat[row] + epsilon)) *
+                        (mu_a[col + row * k] - mu_hat[row]) * var_w[col / wihi];
+
+            delta_mu_w[col + row * k] = tmp * delta_mu_out[col + row * k];
+            delta_var_w[col + row * k] =
+                tmp * delta_var_out[col + row * k] * tmp;
         }
     }
 }
 void layernorm2d_bwd_delta_b(const std::vector<float> &var_b,
                              const std::vector<float> &delta_mu_out,
                              const std::vector<float> &delta_var_out,
-                             float epsilon, int wihi, int m, int fi,
+                             float epsilon, int wihi, int fi, int batch_size,
                              std::vector<float> &delta_mu_b,
                              std::vector<float> &delta_var_b)
 /*
@@ -250,7 +256,7 @@ void layernorm2d_bwd_delta_b(const std::vector<float> &var_b,
 {
     // k = wihi*fi, m = B
     int k = wihi * fi;
-    for (int row = 0; row < m; row++) {
+    for (int row = 0; row < batch_size; row++) {
         for (int col = 0; col < k; col++) {
             float A = var_b[col / wihi];
             delta_mu_b[col + row * k] = A * delta_mu_out[col + row * k];
@@ -483,7 +489,7 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
         layernorm2d_bwd_delta_w(this->var_w, next_bwd_states.mu_a, this->mu_ra,
                                 this->var_ra, delta_states.delta_mu,
                                 delta_states.delta_var, this->epsilon, wihi,
-                                batch_size, this->in_channels,
+                                this->in_channels, batch_size,
                                 temp_states.tmp_1, temp_states.tmp_2);
 
         delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
@@ -493,7 +499,7 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
         if (this->bias) {
             layernorm2d_bwd_delta_b(this->var_b, delta_states.delta_mu,
                                     delta_states.delta_var, this->epsilon, wihi,
-                                    batch_size, this->in_channels,
+                                    this->in_channels, batch_size,
                                     temp_states.tmp_1, temp_states.tmp_2);
 
             delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
