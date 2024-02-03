@@ -3,7 +3,7 @@
 # Description:  Prepare data for neural networks
 # Authors:      Luong-Ha Nguyen & James-A. Goulet
 # Created:      October 12, 2022
-# Updated:      January 27, 2023
+# Updated:      February 02, 2024
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # License:      This code is released under the MIT License.
 ###############################################################################
@@ -115,17 +115,8 @@ class RegressionDataLoader(DataloaderBase):
         y_test = self.load_data_from_csv(y_test_file)
 
         # Normalizer
-<<<<<<< HEAD
         x_mean, x_std = self.normalizer.compute_mean_std(x_train)
         y_mean, y_std = self.normalizer.compute_mean_std(y_train)
-=======
-        x_mean, x_std = self.normalizer.compute_mean_std(
-            np.concatenate((x_train, x_test))
-        )
-        y_mean, y_std = self.normalizer.compute_mean_std(
-            np.concatenate((y_train, y_test))
-        )
->>>>>>> e384953 (feat: adding Python frontend)
 
         x_train = self.normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
         y_train = self.normalizer.standardize(data=y_train, mu=y_mean, std=y_std)
