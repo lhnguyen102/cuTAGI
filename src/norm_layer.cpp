@@ -3,14 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 01, 2024
+// Updated:      February 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/norm_layer.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-///
+/// CPU kernels for Layer Norm
 ////////////////////////////////////////////////////////////////////////////////
 void layernorm_stat_mean_var(const std::vector<float> &mu_a,
                              const std::vector<float> &var_a, int ni,
@@ -285,6 +285,286 @@ void delta_param_sum(const std::vector<float> delta_mu_e,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// CPU kernels for Batch Norm
+////////////////////////////////////////////////////////////////////////////////
+void batchnorm_stat_mean_var(const std::vector<float> &mu_a,
+                             const std::vector<float> &var_a, int ni,
+                             int batch_size, std::vector<float> &mu_s,
+                             std::vector<float> &var_s)
+/*Compute sample mean and variance of activation units of full-connected layer
+for each batch.
+*/
+{
+    for (int col = 0; col < ni; col++) {
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < batch_size; i++)  // n = wihi*B
+        {
+            sum_mu += mu_a[col + i * ni];
+            sum_var += var_a[col + i * ni];
+        }
+        mu_s[col] = sum_mu / batch_size;
+        var_s[col] = sum_var;
+    }
+}
+
+void batchnorm_sample_var(const std::vector<float> &mu_a,
+                          const std::vector<float> &mu_s,
+                          const std::vector<float> &var_s, int ni,
+                          int batch_size, std::vector<float> &var)
+/*Compute statistical mean and variance of activation units for full-connected
+layer for each batch.
+*/
+{
+    for (int col = 0; col < ni; col++) {
+        float sum = 0;
+        for (int i = 0; i < batch_size; i++) {
+            sum += (mu_a[col + i * ni] - mu_s[col]) *
+                   (mu_a[col + i * ni] - mu_s[col]);
+        }
+        var[col] = (sum + var_s[col]) / (batch_size - 1);
+    }
+}
+
+void batchnorm_fwd_mean_var(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
+    float epsilon, int ni, int batch_size, std::vector<float> &mu_z,
+    std::vector<float> &var_z)
+/*Compute pmean of product WA of batch-normalization layer.
+ */
+{
+    for (int row = 0; row < batch_size; row++) {
+        for (int col = 0; col < ni; col++) {
+            mu_z[col + row * ni] = (1 / sqrtf(var_ra[col] + epsilon)) *
+                                       (mu_a[col + row * ni] - mu_ra[col]) *
+                                       mu_w[col] +
+                                   mu_b[col];
+            var_z[col + row * ni] =
+                (1 / (var_ra[col] + epsilon)) *
+                    (var_a[col + row * ni] * mu_w[col] * mu_w[col] +
+                     var_w[col] *
+                         (mu_a[col + row * ni] * mu_a[col + row * ni] -
+                          mu_ra[col] * mu_ra[col] + var_a[col + row * ni])) +
+                var_b[col];
+        }
+    }
+}
+
+void batchnorm2d_stat_mean_var(const std::vector<float> &mu_a,
+                               const std::vector<float> &var_a, int wihi,
+                               int fi, int batch_size, std::vector<float> &mu_s,
+                               std::vector<float> &var_s)
+/*Compute sample mean and variance of activation units for batch-normalization
+layer.
+*/
+{
+    for (int col = 0; col < fi; col++) {
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < wihi * batch_size; i++)  // n = wihi*B
+        {
+            sum_mu += mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+            sum_var += var_a[(i / wihi) * wihi * fi + i % wihi + col * wihi];
+        }
+        mu_s[col] = sum_mu / (wihi * batch_size);
+        var_s[col] = sum_var;
+    }
+}
+
+void batchnorm2d_sample_var(const std::vector<float> &mu_a,
+                            const std::vector<float> &mu_s,
+                            const std::vector<float> &var_s, int wihi, int fi,
+                            int batch_size, std::vector<float> &var)
+/*Compute statistical mean and variance of activation units for
+batch-normalization layer.
+*/
+{
+    for (int col = 0; col < fi; col++) {
+        float sum = 0;
+        for (int i = 0; i < wihi * batch_size; i++) {
+            sum += (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
+                    mu_s[col]) *
+                   (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
+                    mu_s[col]);
+        }
+        var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+    }
+}
+
+void batchnorm2d_fwd_mean_var(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
+    float epsilon, int wihi, int fi, int m, std::vector<float> &mu_z,
+    std::vector<float> &var_z)
+/*Compute mean of product WA of batch-normalization. Note that the previous
+layer is a convolutional layer.
+*/
+{
+    int k = wihi;
+    for (int row = 0; row < m; row++) {
+        for (int col = 0; col < k; col++)  // k = wihi, m = fi*B
+        {
+            mu_z[col + row * k] = (1 / sqrtf(var_ra[row % fi] + epsilon)) *
+                                      (mu_a[col + row * k] - mu_ra[row % fi]) *
+                                      mu_w[row % fi] +
+                                  mu_b[row % fi];
+
+            var_z[col + row * k] =
+                (1 / (var_ra[row % fi] + epsilon)) *
+                    (var_a[col + row * k] * mu_w[row % fi] * mu_w[row % fi] +
+                     var_w[row % fi] *
+                         (mu_a[col + row * k] * mu_a[col + row * k] -
+                          mu_ra[row % fi] * mu_ra[row % fi] +
+                          var_a[col + row * k])) +
+                var_b[row % fi];
+        }
+    }
+}
+
+void batchnorm_bwd_delta_z(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &var_hat, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, float epsilon, int ni,
+    int batch_size, std::vector<float> &delta_mu, std::vector<float> &delta_var)
+/* Compute updated quantities for the mean and variance of hidden states for
+BATCH-NORMALIZATION layer whose the previous layer is full-connected layer.
+*/
+{
+    for (int row = 0; row < batch_size; row++) {
+        for (int col = 0; col < ni; col++) {
+            float tmp = (1 / sqrtf(var_hat[col] + epsilon)) * mu_w[col] *
+                        jcb[col + row * ni];
+
+            delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
+
+            delta_var[col + row * ni] =
+                tmp * delta_var_out[col + row * ni] * tmp;
+        }
+    }
+}
+
+void batchnorm2d_bwd_delta_z(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &var_hat, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, float epsilon, int wihi, int fi,
+    int m, std::vector<float> &delta_mu, std::vector<float> &delta_var)
+/* Compute updated quantities for the mean and variance of hidden states for
+BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
+ */
+{
+    for (int row = 0; row < m; row++)  // k = wihi * fi, m = B
+        for (int col = 0; col < wihi; col++) {
+            float tmp = (1 / sqrtf(var_hat[row % fi] + epsilon)) *
+                        mu_w[row % fi] * jcb[col + row * wihi];
+
+            delta_mu[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
+
+            delta_var[col + row * wihi] =
+                tmp * delta_var_out[col + row * wihi] * tmp;
+        }
+}
+
+void batchnorm_bwd_delta_w(const std::vector<float> &var_w,
+                           const std::vector<float> &mu_a,
+                           const std::vector<float> &mu_hat,
+                           const std::vector<float> &var_hat,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           float epsilon, int ni, int batch_size,
+                           std::vector<float> &delta_mu_w,
+                           std::vector<float> &delta_var_w)
+/* Compute update quantities for the mean & variance of weights for
+batch-normalization layer applied to full-connected layer.
+*/
+{
+    for (int col = 0; col < ni; col++) {
+        float sum_mu = 0;
+        float sum_var = 0;
+        for (int i = 0; i < batch_size; i++) {
+            float tmp = (1 / sqrtf(var_hat[col] + epsilon)) *
+                        (mu_a[col + i * ni] - mu_hat[col]) * var_w[col];
+            sum_var += tmp * delta_mu_out[col + i * ni];
+            sum_var += tmp * delta_var_out[col + i * ni] * tmp;
+        }
+        delta_mu_w[col] = sum_mu;
+        delta_var_w[col] = sum_var;
+    }
+}
+
+void batchnorm_bwd_delta_b(const std::vector<float> &var_b,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           float epsilon, int ni, int batch_size,
+                           std::vector<float> &delta_mu_b,
+                           std::vector<float> &delta_var_b)
+/* Compute update quantities for the mean & variance of biases for
+batch-normalization layer applied to full-connected layer.
+*/
+{
+    for (int col = 0; col < ni; col++) {
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int i = 0; i < batch_size; i++) {
+            float tmp = var_b[col];
+            sum_mu += tmp * delta_mu_out[col + i * ni];
+            sum_var += tmp * delta_var_out[col + i * ni] * tmp;
+        }
+        delta_mu_b[col] = sum_mu;
+        delta_var_b[col] = sum_var;
+    }
+}
+
+void batchnorm2d_bwd_delta_w(
+    const std::vector<float> &var_w, const std::vector<float> &mu_a,
+    const std::vector<float> &mu_hat, const std::vector<float> &var_hat,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, float epsilon, int wihi, int fi,
+    int m, std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
+/* Compute update quantities for the mean & variance of weights for
+batch-normalization layer applied to convolutional layer.
+*/
+{
+    for (int row = 0; row < m; row++)
+        for (int col = 0; col < wihi; col++)  // k = wihi, m = fi*B
+        {
+            float tmp = (1 / sqrtf(var_hat[row % fi] + epsilon)) *
+                        (mu_a[col + row * wihi] - mu_hat[row % fi]) *
+                        var_w[row % fi];
+
+            delta_mu_w[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
+            delta_var_w[col + row * wihi] =
+                tmp * delta_var_out[col + row * wihi] * tmp;
+        }
+}
+
+void batchnorm2d_bwd_delta_b(const std::vector<float> &var_b,
+                             const std::vector<float> &delta_mu_out,
+                             const std::vector<float> &delta_var_out,
+                             float epsilon, int wihi, int fi, int m,
+                             std::vector<float> &delta_mu_b,
+                             std::vector<float> &delta_var_b)
+/* Compute update quantities for the mean & variance of biases for
+batch-normalization layer applied to convolutional layer.
+*/
+{
+    for (int row = 0; row < m; row++) {
+        for (int col = 0; col < wihi; col++)  // k = wihi, m = fi*B
+        {
+            float tmp = var_b[row % fi];
+
+            delta_mu_b[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
+            delta_var_b[col + row * wihi] =
+                tmp * delta_var_out[col + row * wihi] * tmp;
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Utility functions
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -306,6 +586,10 @@ std::tuple<int, int> get_number_params_layer_norm(
     }
     return {num_weights, num_biases};
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Layer Norm
+////////////////////////////////////////////////////////////////////////////////
 
 LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
                      float momentum, bool bias)
@@ -506,5 +790,67 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
                             this->in_channels, batch_size, this->delta_mu_b,
                             this->delta_var_b);
         }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//// Batch Norm
+////////////////////////////////////////////////////////////////////////////////
+BatchNorm::BatchNorm(const int num_features, float eps, float momentum,
+                     bool bias)
+    : num_features(num_features),
+      epsilon(eps),
+      momentum(momentum),
+      bias(bias)
+/*
+ */
+{}
+
+BatchNorm::~BatchNorm()
+/*
+ */
+{}
+
+std::string BatchNorm::get_layer_info() const
+/*
+ */
+{
+    return "BatchNorm()";
+}
+
+std::string BatchNorm::get_layer_name() const
+/*
+ */
+{
+    return "BatchNorm";
+}
+
+LayerType BatchNorm::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Norm;
+}
+
+void BatchNorm::init_weight_bias()
+/*
+ */
+{
+    if (this->in_channels == 0) {
+        this->num_weights = this->input_size;
+        this->num_biases = this->input_size;
+    } else {
+        this->num_weights = this->in_channels;
+        this->num_biases = this->in_channels;
+    }
+
+    this->mu_w.resize(this->num_weights, 1.0f);
+    this->var_w.resize(this->num_weights, 1.0f);
+    if (this->bias) {
+        this->mu_b.resize(this->num_weights, 0.0f);
+        this->var_b.resize(this->num_weights, 0.0001f);
+
+    } else {
+        this->num_biases = 0;
     }
 }
