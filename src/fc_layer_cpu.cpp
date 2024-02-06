@@ -35,14 +35,30 @@ Args:
 {
     float sum = 0;
     float ma_tmp = 0;
-    for (int row = 0; row < m; row++) {
+    /*for (int row = 0; row < m; row++) {
         for (int col = 0; col < k; col++) {
             sum = 0;
             for (int i = 0; i < n; i++) {
                 ma_tmp = ma[n * col + i + z_pos_in];
-                sum += mw[row * n + i + w_pos] * ma_tmp;
+                if (ma_tmp != 0) {
+                    sum += mw[row * n + i + w_pos] * ma_tmp;
+                }
             }
             mz[col * m + row + z_pos_out] = sum + mb[row + b_pos];
+        }
+    }*/
+    for (int col = 0; col < k; col++) {
+        for (int row = 0; row < m; row++) {
+            mz[col * m + row + z_pos_out] = mb[row + b_pos];
+        }
+        for (int i = 0; i < n; i++) {
+            ma_tmp = ma[n * col + i + z_pos_in];
+            if (ma_tmp != 0) {
+                for (int row = 0; row < m; row++) {
+                    mz[col * m + row + z_pos_out] +=
+                        mw[row * n + i + w_pos] * ma_tmp;
+                }
+            }
         }
     }
 }
@@ -397,7 +413,7 @@ Args:
 */
 {
     float sum = 0;
-    for (int row = 0; row < ni; row++) {
+    /*for (int row = 0; row < ni; row++) {
         for (int col = 0; col < B; col++) {
             sum = 0;
             for (int i = 0; i < no; i++) {
@@ -408,6 +424,21 @@ Args:
             // order to reduce number of operation because Sz / Sz = no ops
             delta_mz[col * ni + row] = sum * Sz[col * ni + row + z_pos_in] *
                                        J[col * ni + row + z_pos_in];
+        }
+    }*/
+    for (int col = 0; col < B; col++) {
+        for (int row = 0; row < ni; row++) {
+            if (J[col * ni + row + z_pos_in] != 0) {
+                sum = 0;
+                for (int i = 0; i < no; i++) {
+                    sum += mw[ni * i + row + w_pos] *
+                           delta_m[col * no + i + z_pos_out];
+                }
+                delta_mz[col * ni + row] = sum * Sz[col * ni + row + z_pos_in] *
+                                           J[col * ni + row + z_pos_in];
+            } else {
+                delta_mz[col * ni + row] = 0;
+            }
         }
     }
 }
@@ -461,7 +492,7 @@ void fc_delta_mzSz_worker(std::vector<float> &mw, std::vector<float> &Sz,
                           std::vector<float> &delta_Sz)
 
 {
-    for (int j = start_idx; j < end_idx; j++) {
+    /*for (int j = start_idx; j < end_idx; j++) {
         int row = j / B;
         int col = j % B;
         float sum_mz = 0.0f;
@@ -480,6 +511,31 @@ void fc_delta_mzSz_worker(std::vector<float> &mw, std::vector<float> &Sz,
                                    Sz[col * ni + row + z_pos_in] *
                                    J[col * ni + row + z_pos_in] *
                                    J[col * ni + row + z_pos_in];
+    }*/
+    for (int j = start_idx; j < end_idx; j++) {
+        int row = j / B;
+        int col = j % B;
+        float sum_mz = 0.0f;
+        float sum_Sz = 0.0f;
+        if (J[col * ni + row + z_pos_in] != 0) {
+            for (int i = 0; i < no; i++) {
+             sum_mz +=
+                  mw[ni * i + row + w_pos] * delta_m[col * no + i + z_pos_out];
+
+               sum_Sz += mw[ni * i + row + w_pos] *
+                         delta_S[col * no + i + z_pos_out] *
+                         mw[ni * i + row + w_pos];
+         }
+            delta_mz[col * ni + row] = sum_mz * Sz[col * ni + row + z_pos_in] *
+                                       J[col * ni + row + z_pos_in];
+            delta_Sz[col * ni + row] = sum_Sz * Sz[col * ni + row + z_pos_in] *
+                                      Sz[col * ni + row + z_pos_in] *
+                                      J[col * ni + row + z_pos_in] *
+                                     J[col * ni + row + z_pos_in];
+        } else {
+                delta_mz[col * ni + row] = 0;
+                delta_Sz[col * ni + row] = 0;
+        }
     }
 }
 
@@ -776,21 +832,27 @@ void fc_delta_w_worker(std::vector<float> &Sw, std::vector<float> &ma,
                        int w_pos, int z_pos_in, int z_pos_out, int m, int n,
                        int k, int start_idx, int end_idx,
                        std::vector<float> &delta_mw,
-                       std::vector<float> &delta_Sw) {
+                       std::vector<float> &delta_Sw,
+                       std::vector<float> &J) {
     for (int j = start_idx; j < end_idx; j++) {
         int row = j / k;
         int col = j % k;
         float sum_mw = 0.0f;
         float sum_Sw = 0.0f;
-        for (int i = 0; i < n; i++) {
-            sum_mw +=
-                ma[m * i + row + z_pos_in] * delta_m[col + k * i + z_pos_out];
-            sum_Sw += ma[m * i + row + z_pos_in] * ma[m * i + row + z_pos_in] *
-                      delta_S[col + k * i + z_pos_out];
-        }
-        delta_mw[col * m + row + w_pos] = sum_mw * Sw[col * m + row + w_pos];
-        delta_Sw[col * m + row + w_pos] =
+        if (J[col * m + row + z_pos_in]  != 0) {
+            for (int i = 0; i < n; i++) {
+                sum_mw +=
+                    ma[m * i + row + z_pos_in] * delta_m[col + k * i + z_pos_out];
+             sum_Sw += ma[m * i + row + z_pos_in] * ma[m * i + row + z_pos_in] *
+                          delta_S[col + k * i + z_pos_out];
+            }
+            delta_mw[col * m + row + w_pos] = sum_mw * Sw[col * m + row + w_pos];
+            delta_Sw[col * m + row + w_pos] =
             sum_Sw * Sw[col * m + row + w_pos] * Sw[col * m + row + w_pos];
+        } else{
+            delta_mw[col * m + row + w_pos] = 0;
+            delta_Sw[col * m + row + w_pos] = 0;
+        }
     }
 }
 
@@ -800,7 +862,8 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
                                int z_pos_in, int z_pos_out, int m, int n, int k,
                                unsigned int NUM_THREADS,
                                std::vector<float> &delta_mw,
-                               std::vector<float> &delta_Sw)
+                               std::vector<float> &delta_Sw,
+                               std::vector<float> &J)
 
 {
     const int tot_ops = m * k;
@@ -820,7 +883,7 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
         threads[i] = std::thread(
             fc_delta_w_worker, std::ref(Sw), std::ref(ma), std::ref(delta_m),
             std::ref(delta_S), w_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
-            end_idx, std::ref(delta_mw), std::ref(delta_Sw));
+            end_idx, std::ref(delta_mw), std::ref(delta_Sw), std::ref(J));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -829,10 +892,11 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
 }
 
 void fc_delta_b_worker(std::vector<float> &C_bz, std::vector<float> &delta_m,
-                       std::vector<float> &delta_S, int b_pos, int z_pos_out,
+                       std::vector<float> &delta_S, int b_pos, int z_pos_in, int z_pos_out,
                        int m, int n, int k, int start_idx, int end_idx,
                        std::vector<float> &delta_mb,
-                       std::vector<float> &delta_Sb)
+                       std::vector<float> &delta_Sb,
+                       std::vector<float> &J)
 
 {
     for (int j = start_idx; j < end_idx; j++) {
@@ -840,6 +904,7 @@ void fc_delta_b_worker(std::vector<float> &C_bz, std::vector<float> &delta_m,
         int col = j % k;
         float sum_mb = 0.0f;
         float sum_Sb = 0.0f;
+        if (J[col * m + row + z_pos_in]  != 0) {
         for (int i = 0; i < n; i++) {
             sum_mb += delta_m[m * i + row + z_pos_out];
             sum_Sb += delta_S[m * i + row + z_pos_out];
@@ -847,16 +912,21 @@ void fc_delta_b_worker(std::vector<float> &C_bz, std::vector<float> &delta_m,
         delta_mb[col * m + row + b_pos] = sum_mb * C_bz[col * m + row + b_pos];
         delta_Sb[col * m + row + b_pos] =
             sum_Sb * C_bz[col * m + row + b_pos] * C_bz[col * m + row + b_pos];
+            } else{
+            delta_mb[col * m + row + b_pos] = 0;
+            delta_Sb[col * m + row + b_pos] = 0;
+        }
     }
 }
 
 void fc_delta_b_multithreading(std::vector<float> &C_bz,
                                std::vector<float> &delta_m,
                                std::vector<float> &delta_S, int b_pos,
-                               int z_pos_out, int m, int n, int k,
+                               int z_pos_in, int z_pos_out, int m, int n, int k,
                                unsigned int NUM_THREADS,
                                std::vector<float> &delta_mb,
-                               std::vector<float> &delta_Sb)
+                               std::vector<float> &delta_Sb,
+                               std::vector<float> &J)
 
 {
     const int tot_ops = m * k;
@@ -875,8 +945,8 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
         }
         threads[i] =
             std::thread(fc_delta_b_worker, std::ref(C_bz), std::ref(delta_m),
-                        std::ref(delta_S), b_pos, z_pos_out, m, n, k, start_idx,
-                        end_idx, std::ref(delta_mb), std::ref(delta_Sb));
+                        std::ref(delta_S), b_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
+                        end_idx, std::ref(delta_mb), std::ref(delta_Sb), std::ref(J));
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
