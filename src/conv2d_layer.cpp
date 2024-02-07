@@ -47,11 +47,13 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
 
 Conv2d::~Conv2d() {}
 
-std::string Conv2d::get_layer_info() const { return "Conv2d()"; }
+std::string Conv2d::get_layer_name() const { return "Conv2d()"; }
 
-std::string Conv2d::get_layer_name() const {
+std::string Conv2d::get_layer_info() const {
     return "Conv2d(" + std::to_string(this->in_channels) + "," +
            std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
            std::to_string(this->kernel_size) + ")";
 }
 

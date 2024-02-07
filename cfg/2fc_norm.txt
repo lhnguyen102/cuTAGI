@@ -1,0 +1,8 @@
+layers: 	[1,     5,      1,       5,     1,       1]
+nodes:		[784,   100,    100,     100,   100,     11]
+activations:[0,     0,      7,       0,     7,       12]
+batch_size: 20
+init_method: He
+sigma_v: 	1
+sigma_v_min: 0.1
+decay_factor_sigma_v: 0.95

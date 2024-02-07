@@ -22,9 +22,17 @@ class LayerNorm : public BaseLayer {
     float momentum;
     bool bias;
 
-    LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-5,
+    LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-4,
               float mometum = 0.9, bool bias = true);
     ~LayerNorm();
+
+    // Delete copy constructor and copy assignment
+    LayerNorm(const LayerNorm &) = delete;
+    LayerNorm &operator=(const LayerNorm &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    LayerNorm(LayerNorm &&) = default;
+    LayerNorm &operator=(LayerNorm &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -60,9 +68,16 @@ class BatchNorm : public BaseLayer {
     float momentum;
     bool bias;
 
-    BatchNorm(const int num_features, float eps = 1e-5, float mometum = 0.9,
-              bool bias = true);
+    BatchNorm(float eps = 1e-4, float mometum = 0.9, bool bias = true);
     ~BatchNorm();
+
+    // Delete copy constructor and copy assignment
+    BatchNorm(const BatchNorm &) = delete;
+    BatchNorm &operator=(const BatchNorm &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    BatchNorm(BatchNorm &&) = default;
+    BatchNorm &operator=(BatchNorm &&) = default;
 
     std::string get_layer_info() const override;
 

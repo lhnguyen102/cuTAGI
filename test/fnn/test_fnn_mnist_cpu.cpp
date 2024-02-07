@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      January 12, 2024
+// Updated:      February 07, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,6 +24,7 @@
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
 #include "../../include/linear_layer.h"
+#include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 
@@ -67,9 +68,29 @@ void fnn_mnist() {
     // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
-                     Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
-                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Linear(784, 100), BatchNorm(), ReLU(), Linear(100, 100),
+    //                  BatchNorm(), ReLU(), Linear(100, 11));
+
+    // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+    //                  ReLU(), Linear(100, 100),
+    //                  LayerNorm(std::vector<int>({100})), ReLU(),
+    //                  Linear(100, 11));
+
+    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3,
+    // 2),
+    //                  Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
+    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
+    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), BatchNorm(), ReLU(),
+                     AvgPool2d(3, 2), Conv2d(16, 32, 5), BatchNorm(), ReLU(),
+                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+                     Linear(100, 11));
+
+    // Sequential model(
+    //     Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
+    //     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
+    //     Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     model.set_threads(8);
     // model.to_device("cuda");
@@ -79,7 +100,7 @@ void fnn_mnist() {
     //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
     //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                      Linear(100, 11));
-    // cpu_myodel.params_from(model);
+    // cpu_model.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -93,8 +114,8 @@ void fnn_mnist() {
     unsigned seed =
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
-    int batch_size = 32;
+    int n_epochs = 5;
+    int batch_size = 16;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -123,7 +144,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -182,7 +203,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 1000 == 0 && i != 0) {
+            if (i % 500 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);

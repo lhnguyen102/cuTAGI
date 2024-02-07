@@ -90,7 +90,6 @@ endif()
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
-# CUDA debug (-g) & device debug (- G)
 if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
 else()

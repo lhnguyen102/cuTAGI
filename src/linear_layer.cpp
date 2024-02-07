@@ -548,6 +548,9 @@ void Linear::forward(BaseHiddenStates &input_states,
                            batch_size, output_states.mu_a, output_states.var_a);
     }
     // Update number of actual states.
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 

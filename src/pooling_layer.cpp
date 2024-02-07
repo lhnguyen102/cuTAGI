@@ -36,8 +36,11 @@ AvgPool2d::AvgPool2d(size_t kernel_size, int stride, int padding,
 AvgPool2d::~AvgPool2d() {}
 
 std::string AvgPool2d::get_layer_info() const {
-    return "AvgPool2d(" + std::to_string(this->kernel_size) + ")";
-    ;
+    return "AvgPool2d(" + std::to_string(this->in_channels) + "," +
+           std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
+           std::to_string(this->kernel_size) + ")";
 }
 
 std::string AvgPool2d::get_layer_name() const { return "AvgPool2d"; }

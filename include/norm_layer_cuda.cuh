@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 04, 2024
+// Updated:      February 05, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,14 @@ class LayerNormCuda : public : BaseLayerCuda {
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
                   float mometum = 0.9, bool bias = true);
     ~LayerNormCuda;
+
+    // Delete copy constructor and copy assignment
+    LayerNormCuda(const LayerNormCuda &) = delete;
+    LayerNormCuda &operator=(const LayerNormCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    LayerNormCuda(LayerNormCuda &&) = default;
+    LayerNormCuda &operator=(LayerNormCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -68,6 +76,14 @@ class BatchNormCuda : public BaseLayerCuda {
     BatchNormCuda(const int num_features, float eps = 1e-5, float mometum = 0.9,
                   bool bias = true);
     ~BatchNormCuda;
+
+    // Delete copy constructor and copy assignment
+    BatchNormCuda(const BatchNormCuda &) = delete;
+    BatchNormCuda &operator=(const BatchNormCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    BatchNormCuda(BatchNormCuda &&) = default;
+    BatchNormCuda &operator=(BatchNormCuda &&) = default;
 
     std::string get_layer_info() const override;
 
