@@ -60,7 +60,7 @@ class LayerNorm : public BaseLayer {
     void allocate_running_mean_var(int batch_size);
 };
 
-class BatchNorm : public BaseLayer {
+class BatchNorm2d : public BaseLayer {
    public:
     int num_features;
     std::vector<float> mu_ra, var_ra;
@@ -68,16 +68,16 @@ class BatchNorm : public BaseLayer {
     float momentum;
     bool bias;
 
-    BatchNorm(float eps = 1e-4, float mometum = 0.9, bool bias = true);
-    ~BatchNorm();
+    BatchNorm2d(float eps = 1e-4, float mometum = 0.9, bool bias = true);
+    ~BatchNorm2d();
 
     // Delete copy constructor and copy assignment
-    BatchNorm(const BatchNorm &) = delete;
-    BatchNorm &operator=(const BatchNorm &) = delete;
+    BatchNorm2d(const BatchNorm2d &) = delete;
+    BatchNorm2d &operator=(const BatchNorm2d &) = delete;
 
     // Optionally implement move constructor and move assignment
-    BatchNorm(BatchNorm &&) = default;
-    BatchNorm &operator=(BatchNorm &&) = default;
+    BatchNorm2d(BatchNorm2d &&) = default;
+    BatchNorm2d &operator=(BatchNorm2d &&) = default;
 
     std::string get_layer_info() const override;
 

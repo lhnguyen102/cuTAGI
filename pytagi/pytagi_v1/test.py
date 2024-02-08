@@ -14,6 +14,8 @@ from pooling import AvgPool2d
 from output_updater import OutputUpdater
 from sequential import Sequential
 from tqdm import tqdm
+from batch_norm import BatchNorm2d
+from layer_norm import LayerNorm
 
 import pytagi.metric as metric
 from pytagi import HierarchicalSoftmax, Utils
@@ -34,24 +36,30 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        # self.network = Sequential(
-        #     Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11)
-        # )
-
-        # CNN
         self.network = Sequential(
-            Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
+            Linear(784, 100),
+            BatchNorm2d(),
             ReLU(),
-            AvgPool2d(3, 2),
-            Conv2d(16, 32, 5),
-            ReLU(),
-            AvgPool2d(3, 2),
-            Linear(32 * 4 * 4, 100),
+            Linear(100, 100),
+            BatchNorm2d(),
             ReLU(),
             Linear(100, 11),
         )
 
-        self.network.set_threads(8)
+        # # CNN
+        # self.network = Sequential(
+        #     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
+        #     ReLU(),
+        #     AvgPool2d(3, 2),
+        #     Conv2d(16, 32, 5),
+        #     ReLU(),
+        #     AvgPool2d(3, 2),
+        #     Linear(32 * 4 * 4, 100),
+        #     ReLU(),
+        #     Linear(100, 11),
+        # )
+
+        self.network.set_threads(4)
         # self.network.to_device("cuda")
 
     @property

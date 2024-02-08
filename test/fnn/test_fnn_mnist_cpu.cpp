@@ -68,8 +68,8 @@ void fnn_mnist() {
     // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Linear(784, 100), BatchNorm(), ReLU(), Linear(100, 100),
-    //                  BatchNorm(), ReLU(), Linear(100, 11));
+    Sequential model(Linear(784, 100), BatchNorm2d(), ReLU(), Linear(100, 100),
+                     BatchNorm2d(), ReLU(), Linear(100, 11));
 
     // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
     //                  ReLU(), Linear(100, 100),
@@ -81,10 +81,11 @@ void fnn_mnist() {
     //                  Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
     //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), BatchNorm(), ReLU(),
-                     AvgPool2d(3, 2), Conv2d(16, 32, 5), BatchNorm(), ReLU(),
-                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-                     Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), BatchNorm2d(),
+    // ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), BatchNorm2d(),
+    //                  ReLU(), AvgPool2d(3, 2), Linear(32 * 4 * 4, 100),
+    //                  ReLU(), Linear(100, 11));
 
     // Sequential model(
     //     Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
@@ -114,7 +115,7 @@ void fnn_mnist() {
     unsigned seed =
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 5;
+    int n_epochs = 1;
     int batch_size = 16;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
