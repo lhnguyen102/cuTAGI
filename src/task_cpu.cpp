@@ -27,7 +27,8 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
  */
 {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 123456;
     std::default_random_engine seed_e(seed);
 
     // Compute number of data points
@@ -188,7 +189,8 @@ void classification_cpu(TagiNetworkCPU &net, ImageData &imdb,
 void regression_cpu(TagiNetworkCPU &net, Dataloader &db, int n_epochs,
                     SavePath &path, bool train_mode, bool debug) {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 123456;
     std::default_random_engine seed_e(seed);
     int derivative_layer = 0;
 

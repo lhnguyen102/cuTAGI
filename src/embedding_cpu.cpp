@@ -21,7 +21,8 @@ std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
     std::vector<float> var_w(num_classes * emb_size, pow(scale, 2));
 
     // Mersenne twister PRGN - seed
-    std::mt19937 gen(seed ? *seed : std::random_device{}());
+    // std::mt19937 gen(seed ? *seed : std::random_device{}());
+    std::mt19937 gen(123456);
 
     // Create normal distribution
     std::normal_distribution<float> norm_dist(0.0f, scale);

@@ -53,14 +53,13 @@ Returns:
                 fc_delta_w_multithreading(
                     theta.Sw, state.ma, d_state.delta_m, d_state.delta_S,
                     w_pos_in, z_pos_in, z_pos_out, ni, B, no,
-                    net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw, state.J);
+                    net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw);
 
                 // Compute updated quantities for biases
                 fc_delta_b_multithreading(theta.Sb, d_state.delta_m,
                                           d_state.delta_S, b_pos_in, z_pos_in,
                                           z_pos_out, no, B, 1, net.num_cpu_threads,
-                                          d_theta.delta_mb, d_theta.delta_Sb
-                                          , state.J);
+                                          d_theta.delta_mb, d_theta.delta_Sb);
             } else {
                 // Compute updated quantites for weigh ts
                 fc_delta_mw(theta.Sw, state.ma, d_state.delta_m, w_pos_in,

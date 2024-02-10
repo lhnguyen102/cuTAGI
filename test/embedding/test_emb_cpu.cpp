@@ -35,7 +35,8 @@ std::vector<float> gen_uniform_rand_float(size_t num_data, float max_val,
  */
 {
     // Mersenne twister PRGN - seed
-    std::mt19937 gen(seed ? *seed : std::random_device{}());
+    // std::mt19937 gen(seed ? *seed : std::random_device{}());
+    std::mt19937 gen(123456);
 
     // Create uniform distribution
     std::uniform_real_distribution<float> dist(min_val, max_val);
@@ -55,7 +56,8 @@ std::vector<int> gen_randint(size_t num_data, size_t max_val,
  */
 {
     // Mersenne twister PRGN - seed
-    std::mt19937 gen(seed ? *seed : std::random_device{}());
+    //std::mt19937 gen(seed ? *seed : std::random_device{}());
+    std::mt19937 gen(123456);
 
     // Create a uniform distribution
     std::uniform_int_distribution<> dist(0, max_val - 1);

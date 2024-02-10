@@ -92,7 +92,8 @@ void fc_mean_var_multithreading(std::vector<float> &mw, std::vector<float> &Sw,
                                 int w_pos, int b_pos, int z_pos_in,
                                 int z_pos_out, int m, int n, int k,
                                 unsigned int NUM_THREADS,
-                                std::vector<float> &mz, std::vector<float> &Sz);
+                                std::vector<float> &mz, std::vector<float> &Sz,
+                                std::vector<float> &J);
 
 void fc_delta_mzSz_multithreading(std::vector<float> &mw,
                                   std::vector<float> &Sz, std::vector<float> &J,
@@ -109,8 +110,7 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
                                int z_pos_in, int z_pos_out, int m, int n, int k,
                                unsigned int NUM_THREADS,
                                std::vector<float> &delta_mw,
-                               std::vector<float> &delta_Sw,
-                               std::vector<float> &J);
+                               std::vector<float> &delta_Sw);
 
 void fc_delta_b_multithreading(std::vector<float> &C_bz,
                                std::vector<float> &delta_m,
@@ -118,5 +118,4 @@ void fc_delta_b_multithreading(std::vector<float> &C_bz,
                                int z_pos_in, int z_pos_out, int m, int n, int k,
                                unsigned int NUM_THREADS,
                                std::vector<float> &delta_mb,
-                               std::vector<float> &delta_Sb,
-                               std::vector<float> &J);
+                               std::vector<float> &delta_Sb);
