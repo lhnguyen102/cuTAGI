@@ -110,7 +110,9 @@ void fc_delta_w_multithreading(std::vector<float> &Sw, std::vector<float> &ma,
                                int z_pos_in, int z_pos_out, int m, int n, int k,
                                unsigned int NUM_THREADS,
                                std::vector<float> &delta_mw,
-                               std::vector<float> &delta_Sw);
+                               std::vector<float> &delta_Sw,
+                               std::vector<int> &J_in_idx,
+                               std::vector<int> &J_out_idx);
 
 void fc_delta_b_multithreading(std::vector<float> &C_bz,
                                std::vector<float> &delta_m,

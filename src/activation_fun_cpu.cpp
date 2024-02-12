@@ -743,13 +743,15 @@ void relu_mean_var_worker(std::vector<float> &mz, std::vector<float> &Sz,
     float onePad = 1;
     float tmp;
     int col;
+    float offset = 0.0;
     for (col = start_idx; col < end_idx; col++) {
-        tmp = std::max(mz[col + zpos], zeroPad);
+        tmp = std::max(mz[col + zpos] - offset, zeroPad);
         ma[col + zpos] = tmp;
         if (tmp == 0) {
             J[col + zpos] = zeroPad;
             Sa[col + zpos] = zeroPad;
         } else {
+            ma[col + zpos] += offset;
             J[col + zpos] = onePad;
             Sa[col + zpos] = Sz[col + zpos];
         }

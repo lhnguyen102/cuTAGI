@@ -9,6 +9,8 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "../include/param_feed_backward_cpu.h"
+#include <iostream>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////
 /// PARAMETER BACKWARD
@@ -32,6 +34,8 @@ Returns:
     int B = net.batch_size;
     // Reset delta value vector to zero
     d_theta.reset_zero();
+    std::vector<bool> J_bool(state.J.begin(), state.J.end());
+
     for (int k = net.layers.size() - 2; k >= 0; k--) {
         no = net.nodes[k + 1];
         ni = net.nodes[k];
@@ -44,6 +48,55 @@ Returns:
         w_pos_in = net.w_pos[k];
         b_pos_in = net.b_pos[k];
 
+        // k-th layer non-zero input idx
+        std::vector<int> J_in_idx;
+        for(int i = z_pos_in; i < z_pos_in + B * ni; i++) {
+            if(state.J[i] != 0) J_in_idx.push_back(i);
+        }
+        // k-th layer non-zero output idx
+        std::vector<int> J_out_idx;
+        for(int i = z_pos_out; i < z_pos_out + B * no; i++) {
+            if(state.J[i] != 0) J_out_idx.push_back(i);
+        }
+        // Zero-initialize the delta_mw vector
+        std::fill(d_theta.delta_mw.begin(),
+                    d_theta.delta_mw.begin() + w_pos_in, 0);
+
+        /*
+        std::vector<bool> J_in(state.J.begin() + z_pos_in,
+                                state.J.begin() + z_pos_in + B * ni);
+        std::vector<bool> J_out(state.J.begin() + z_pos_out,
+                                 state.J.begin() + z_pos_out + B * no);
+
+        std::cout << "J_out[" << k << "]: ";
+        for (int i = 0; i < J_out.size(); i++) {
+            std::cout << J_out[i] << " ";
+        }
+        std::cout << '\n';
+
+        std::cout << "J_in[" << k << "]: ";
+        for (int i = 0; i < J_in.size(); i++) {
+            std::cout << J_in[i] << " ";
+        }
+        std::cout << '\n';
+
+        std::cout << "J_in_idx[" << k << "]: ";
+        for (int i = 0; i < J_in_idx.size(); i++) {
+            std::cout << J_in_idx[i] << " ";
+        }
+        std::cout << '\n';
+        std::cout << "J_out_idx[" << k << "]: ";
+        for (int i = 0; i < J_out_idx.size(); i++) {
+            std::cout << J_out_idx[i] << " ";
+        }
+        std::cout << '\n' << '\n';
+
+        std::cout << "J_bool: ";
+        for (int i = 0; i < J_bool.size(); i++) {
+            std::cout << J_bool[i] << " ";
+        }
+        std::cout << '\n' << '\n';*/
+
         //**
         // 1: Fully connected
         //
@@ -53,7 +106,8 @@ Returns:
                 fc_delta_w_multithreading(
                     theta.Sw, state.ma, d_state.delta_m, d_state.delta_S,
                     w_pos_in, z_pos_in, z_pos_out, ni, B, no,
-                    net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw);
+                    net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw,
+                    J_in_idx, J_out_idx);
 
                 // Compute updated quantities for biases
                 fc_delta_b_multithreading(theta.Sb, d_state.delta_m,

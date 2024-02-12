@@ -263,7 +263,8 @@ Args:
  */
 {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 123456;
     std::default_random_engine seed_e(seed);
 
     // Compute number of data points
@@ -452,7 +453,8 @@ Args:
 */
 {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 123456;
     std::default_random_engine seed_e(seed);
     int derivative_layer = 0;
 
@@ -651,7 +653,8 @@ Args:
 */
 {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 123456;
     std::default_random_engine seed_e(seed);
 
     // Compute number of data
