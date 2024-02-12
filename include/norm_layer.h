@@ -55,6 +55,12 @@ class LayerNorm : public BaseLayer {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
+
    protected:
     void allocate_param_delta();
     void allocate_running_mean_var(int batch_size);
@@ -99,6 +105,12 @@ class BatchNorm2d : public BaseLayer {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
 
    protected:
     void allocate_param_delta();

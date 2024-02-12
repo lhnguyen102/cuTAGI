@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 05, 2024
+// Updated:      February 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,17 +76,19 @@ __global__ void layernorm_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (col < ni && row < B) {
-        mu_z[col + row * ni] = (1 / sqrtf(var_ra[row] + epsilon)) *
-                                   (mu_a[col + row * ni] - mu_ra[row]) *
-                                   mu_w[col] +
-                               mu_b[col];
-        var_z[col + row * ni] =
-            (1.0f / (var_ra[row] + epsilon)) *
-                (var_a[col + row * ni] * mu_w[col] * mu_w[col] +
-                 var_w[col] *
-                     (mu_a[col + row * ni] * mu_a[col + row * ni] -
-                      mu_ra[row] * mu_ra[row] + var_a[col + row * ni])) +
-            var_b[col];
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        int idx = col + row * ni;
+        float mu_w_term = mu_w[div_idx];
+        float mu_a_term = mu_a[idx];
+        float mu_ra_term = mu_ra[row];
+
+        mu_z[idx] =
+            inv_sqrt_var_ra * (mu_a_term - mu_ra_term) * mu_w_term + mu_b[col];
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                         (var_a[idx] * mu_w_term * mu_w_term +
+                          var_w[col] * (mu_a_term * mu_a_term -
+                                        mu_ra_term * mu_ra_term + var_a[idx])) +
+                     var_b[col];
     }
 }
 
@@ -102,17 +104,20 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < k && row < m)  // k = wihi * fi, m = B
     {
-        mu_z[col + row * k] = (1.0f / sqrtf(var_ra[row] + epsilon)) *
-                                  (mu_a[col + row * k] - mu_ra[row]) *
-                                  mu_w[col / wihi] +
-                              mu_b[col / wihi];
-        var_z[col + row * k] =
-            (1.0f / (var_ra[row] + epsilon)) *
-                (var_a[col + row * k] * mu_w[col / wihi] * mu_w[col / wihi] +
-                 var_w[col / wihi] *
-                     (mu_a[col + row * k] * mu_a[col + row * k] -
-                      mu_ra[row] * mu_ra[row] + var_a[col + row * k])) +
-            var_b[col / wihi];
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        int idx = col + row * k;
+        int div_idx = col / wihi;
+        float mu_w_term = mu_w[div_idx];
+        float mu_a_term = mu_a[idx];
+
+        mu_z[idx] = inv_sqrt_var_ra * (mu_a_term - mu_ra[row]) * mu_w_term +
+                    mu_b[div_idx];
+        var_z[idx] =
+            inv_sqrt_var_ra * inv_sqrt_var_ra *
+                (var_a[idx] * mu_w_term * mu_w_term +
+                 var_w[div_idx] * (mu_a_term * mu_a_term -
+                                   mu_ra[row] * mu_ra[row] + var_a[idx])) +
+            var_b[div_idx];
     }
 }
 
@@ -204,8 +209,8 @@ __global__ void layernorm2d_bwd_delta_z_cuda(
 }
 
 __global__ void layernorm2d_bwd_delta_w_cuda(
-    float const *var_w, float const *mu_a, float const *mu_hat,
-    float const *var_hat, float const *delta_mu_out, float const *delta_var_out,
+    float const *var_w, float const *mu_a, float const *mu_ra,
+    float const *var_ra, float const *delta_mu_out, float const *delta_var_out,
     float epsilon, int wihi, int fi, int batch_size, float *delta_mu_w,
     float *delta_var_w)
 /*
@@ -216,8 +221,8 @@ __global__ void layernorm2d_bwd_delta_w_cuda(
     int k = wihi * fi;
     if (col < k && row < batch_size)  // k = wihi*fi, m = B
     {
-        float A = (1.0f / sqrtf(var_hat[row] + epsilon)) *
-                  (mu_a[col + row * k] - mu_hat[row]) * var_w[col / wihi];
+        float A = (1.0f / sqrtf(var_ra[row] + epsilon)) *
+                  (mu_a[col + row * k] - mu_ra[row]) * var_w[col / wihi];
         delta_mu_w[col + row * k] = A * delta_mu_out[col + row * k];
         delta_var_w[col + row * k] = A * delta_var_out[col + row * k] * A;
     }
@@ -313,17 +318,17 @@ __global__ void batchnorm_fwd_mean_var_cuda(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
-        mu_z[col + row * ni] = (1 / sqrtf(var_ra[col] + epsilon)) *
-                                   (mu_a[col + row * ni] - mu_ra[col]) *
-                                   mu_w[col] +
-                               mu_b[col];
-        var_z[col + row * ni] =
-            (1 / (var_ra[col] + epsilon)) *
-                (var_a[col + row * ni] * mu_w[col] * mu_w[col] +
-                 var_w[col] *
-                     (mu_a[col + row * ni] * mu_a[col + row * ni] -
-                      mu_ra[col] * mu_ra[col] + var_a[col + row * ni])) +
-            var_b[col];
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[col] + epsilon);
+        int idx = col + row * ni;
+
+        mu_z[idx] =
+            inv_sqrt_var_ra * (mu_a[idx] - mu_ra[col]) * mu_w[col] + mu_b[col];
+
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                         (var_a[idx] * mu_w[col] * mu_w[col] +
+                          var_w[col] * (mu_a[idx] * mu_a[idx] -
+                                        mu_ra[col] * mu_ra[col] + var_a[idx])) +
+                     var_b[col];
     }
 }
 
@@ -384,18 +389,21 @@ layer is a convolutional layer.
     int k = wihi;
     if (col < k && row < m)  // k = wihi, m = fi*B
     {
-        mu_z[col + row * k] = (1 / sqrtf(var_ra[row % fi] + epsilon)) *
-                                  (mu_a[col + row * k] - mu_ra[row % fi]) *
-                                  mu_w[row % fi] +
-                              mu_b[row % fi];
+        float inv_sqrt_var_ra = (1.0f / sqrtf(var_ra[div_idx] + epsilon));
 
-        var_z[col + row * k] =
-            (1 / (var_ra[row % fi] + epsilon)) *
-                (var_a[col + row * k] * mu_w[row % fi] * mu_w[row % fi] +
-                 var_w[row % fi] * (mu_a[col + row * k] * mu_a[col + row * k] -
-                                    mu_ra[row % fi] * mu_ra[row % fi] +
-                                    var_a[col + row * k])) +
-            var_b[row % fi];
+        int idx = col + row * k;
+        int div_idx = row % fi;
+
+        mu_z[idx] =
+            inv_sqrt_var_ra * (mu_a[idx] - mu_ra[div_idx]) * mu_w[div_idx] +
+            mu_b[div_idx];
+
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                         (var_a[idx] * mu_w[div_idx] * mu_w[div_idx] +
+                          var_w[div_idx] *
+                              (mu_a[idx] * mu_a[idx] -
+                               mu_ra[div_idx] * mu_ra[div_idx] + var_a[idx])) +
+                     var_b[div_idx];
     }
 }
 
@@ -442,8 +450,8 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
 }
 
 __global__ void batchnorm_bwd_delta_w_cuda(
-    float const *var_w, float const *mu_a, float const *mu_hat,
-    float const *var_hat, float const *delta_mu_out, float const *delta_var_out,
+    float const *var_w, float const *mu_a, float const *mu_ra,
+    float const *var_ra, float const *delta_mu_out, float const *delta_var_out,
     float epsilon, int ni, int batch_size, float *delta_mu_w,
     float *delta_var_w)
 /* Compute update quantities for the mean & variance of weights for
@@ -455,8 +463,8 @@ batch-normalization layer applied to full-connected layer.
         float sum_mu = 0;
         float sum_var = 0;
         for (int i = 0; i < B; i++) {
-            float tmp = (1 / sqrtf(var_hat[col] + epsilon)) *
-                        (mu_a[col + i * ni] - mu_hat[col]) * var_w[col];
+            float tmp = (1 / sqrtf(var_ra[col] + epsilon)) *
+                        (mu_a[col + i * ni] - mu_ra[col]) * var_w[col];
             sum_mu += tmp * delta_mu_out[col + i * ni];
             sum_var += tmp * delta_var_out[col + i * ni] * tmp;
         }
@@ -491,8 +499,8 @@ batch-normalization layer applied to full-connected layer.
 }
 
 __global__ void batchnorm2d_bwd_delta_w_cuda(
-    float const *var_w, float const *mu_a, float const *mu_hat,
-    float const *var_hat, float const *delta_mu_out, float const *delta_var_out,
+    float const *var_w, float const *mu_a, float const *mu_ra,
+    float const *var_ra, float const *delta_mu_out, float const *delta_var_out,
     float epsilon, int wihi, int fi, int m, float *delta_mu_w,
     float *delta_var_w)
 /* Compute update quantities for the mean & variance of weights for
@@ -504,8 +512,8 @@ batch-normalization layer applied to convolutional layer.
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < wihi && row < m)  // k = wihi, m = fi*B
     {
-        float tmp = (1 / sqrtf(var_hat[row % fi] + epsilon)) *
-                    (mu_a[col + row * wihi] - mu_hat[row % fi]) *
+        float tmp = (1 / sqrtf(var_ra[row % fi] + epsilon)) *
+                    (mu_a[col + row * wihi] - mu_ra[row % fi]) *
                     var_w[row % fi];
 
         delta_mu_w[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
@@ -865,15 +873,14 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
-BatchNormCuda::BatchNormCuda(const int num_features, float eps, float momentum,
-                             bool bias)
-    : num_features(num_features),
-      epsilon(eps),
-      momentum(momentum),
-      bias(bias)
+BatchNormCuda::BatchNormCuda(float eps, float momentum, bool bias)
+    : epsilon(eps),
+      momentum(momentum)
 /*
  */
-{}
+{
+    this->bias = bias;
+}
 
 BatchNormCuda::~BatchNormCuda()
 /*
