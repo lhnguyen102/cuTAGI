@@ -71,11 +71,11 @@ Returns:
         std::cout << '\n' << '\n';*/
 
 
-        std::cout << "B * ni = " << B * ni << '\n';
+        /*std::cout << "B * ni = " << B * ni << '\n';
         std::cout << "B * no = " << B * no << '\n';
         std::cout << "J_in_idx.size() = " << J_in_idx.size() << '\n';
         std::cout << "J_out_idx.size() = " << J_out_idx.size() << '\n';
-        std::cout << '\n' << '\n';
+        std::cout << '\n' << '\n';*/
 
         // Zero-initialize the delta_mw vector
         std::fill(d_theta.delta_mw.begin(),
