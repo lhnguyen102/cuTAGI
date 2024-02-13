@@ -902,8 +902,7 @@ void fc_delta_w_multithreading(
     std::vector<float> &Sw, std::vector<float> &ma, std::vector<float> &delta_m,
     std::vector<float> &delta_S, int w_pos, int z_pos_in, int z_pos_out, int m,
     int n, int k, unsigned int NUM_THREADS, std::vector<float> &delta_mw,
-    std::vector<float> &delta_Sw, std::vector<int> &J_in_idx,
-    std::vector<int> &J_out_idx)
+    std::vector<float> &delta_Sw, std::vector<float> &J)
 
 {   // m = ni : #inputs
     // n = B  : Batch size
@@ -930,25 +929,47 @@ void fc_delta_w_multithreading(
     int tot_ops;
     int n_batch;
     int rem_batch;
-    //int idx_in_start;
-    //int idx_in_end;
-    //int idx_out_start;
-    //int idx_out_end;
     int n_in;
     int n_out;
-    std::thread threads[NUM_THREADS];
+    //std::thread threads[NUM_THREADS];
     for (int b = 0; b < n; b++) { // loop over batches
-        auto idx_in_start = std::find(J_in_idx.begin(), J_in_idx.end(),
-                                        b * m + 1) - J_in_idx.begin();
-        auto idx_in_end = std::find(J_in_idx.begin(), J_in_idx.end(),
-                                        (b + 1) * m) - J_in_idx.begin();
-        auto idx_out_start = std::find(J_out_idx.begin(), J_out_idx.end(),
-                                        b * n + 1) - J_out_idx.begin();
-        auto idx_out_end = std::find(J_out_idx.begin(), J_out_idx.end(),
-                                        (b + 1) * n) - J_out_idx.begin();
-        n_in = (idx_in_end - idx_in_start);
-        n_out = (idx_out_end - idx_out_start);
-        tot_ops = n_in * n_out;
+        // k-th layer non-zero input idx
+        std::vector<int> J_in_idx;
+        for(int i = z_pos_in + (b * m); i < z_pos_in + ((b + 1) * m); i++) {
+            if(J[i] != 0) J_in_idx.push_back(i);
+        }
+        // k-th layer non-zero output idx
+        std::vector<int> J_out_idx;
+        for(int i = z_pos_out + (b * k); i < z_pos_out + ((b + 1) * k); i++) {
+            if(J[i] != 0) J_out_idx.push_back(i);
+        }
+
+        /*auto idx_in_start = z_pos_in + b * m;
+        auto idx_in_end = std::find(    J_in_idx.begin(), // It should not be find() as the criteria is >=
+                                        J_in_idx.end(),
+                                        z_pos_in + (b + 1) * m);
+        auto idx_out_start = z_pos_out + b * k;
+        auto idx_out_end = std::find(   J_out_idx.begin(),
+                                        J_out_idx.end(),
+                                        z_pos_out + (b + 1) * k);
+        n_in = (idx_in_end[0] - idx_in_start);
+        n_out = (idx_out_end[0] - idx_out_start);*/
+
+
+        tot_ops = J_in_idx.size() * J_out_idx.size();
+        //for (int i = 0; i < J_in_idx.size(); i++) {
+        //    std::cout << J_in_idx[i] << " ";
+        //}
+        std::cout << "J_in_idx.size() = " << J_in_idx.size() << '\n';
+        std::cout << "J_out_idx.size() = " << J_out_idx.size() << '\n';
+
+        /*std::cout << '\n';
+        std::cout << "idx_in_start = " << idx_in_start << '\n';
+        std::cout << "idx_in_end = " << idx_in_end[0] << '\n';
+        std::cout << "n_in = " << n_in  << " : " << m << '\n';
+        std::cout << "n_out = " << n_out << " : " << k << '\n' ;*/
+        std::cout << "tot_ops = " << tot_ops << " : " << m * k;
+        std::cout << '\n';
         n_batch = tot_ops / NUM_THREADS;
         rem_batch = tot_ops % NUM_THREADS;
         int start_idx, end_idx;
@@ -961,13 +982,33 @@ void fc_delta_w_multithreading(
                 start_idx = n_batch * i + rem_batch;
                 end_idx = (n_batch * (i + 1)) + rem_batch;
             }
-            threads[i] = std::thread(
+            /*threads[i] = std::thread(
                 fc_delta_w_worker_sum, std::ref(Sw), std::ref(ma),
                 std::ref(delta_m), std ::ref(delta_S), w_pos, z_pos_in,
                 z_pos_out, m, n, k, start_idx, end_idx, std::ref(delta_mw),
                 std::ref(delta_Sw), std::ref(J_in_idx), std::ref(J_in_idx), b);
+            */
+            for (int j = start_idx; j < end_idx; j++) {
+                int row = J_in_idx[j / k]; // Output unit idx // Probably an error here
+                int col = J_out_idx[j % k]; // Input unit idx
+                //std::cout << "j / k = " << j / k << '\n';
+                //std::cout << "j % k = " << j % k << '\n';
+                std::cout << "row = " << row << '\n';
+                std::cout << "col = " << col << '\n';
+
+
+                delta_mw[col * m + row + w_pos] += ma[m * b + row]
+                                        * delta_m[col + k * b];
+                delta_Sw[col * m + row + w_pos] += ma[m * b + row]
+                                        * ma[m * b + row]
+                                        * delta_S[col + k * b ];
+            }
+
         }
     }
+    //for (int i = 0; i < NUM_THREADS; i++) {
+     //   threads[i].join();
+    //}
 
     tot_ops = m * k;
     n_batch = tot_ops / NUM_THREADS;
@@ -982,13 +1023,18 @@ void fc_delta_w_multithreading(
             start_idx = n_batch * i + rem_batch;
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
+        /*threads[i] = std::thread(
             fc_delta_w_worker_prod, std::ref(Sw), std::ref(ma), std::ref(delta_m),
             std::ref(delta_S), w_pos, z_pos_in, z_pos_out, m, n, k, start_idx,
             end_idx, std::ref(delta_mw), std::ref(delta_Sw));
-    }
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
+        */
+        for (int j = start_idx; j < end_idx; j++) {
+            int row = j / k; // Input unit idx
+            int col = j % k; // Output unit idx
+            delta_mw[col * m + row + w_pos] *= Sw[col * m + row + w_pos];
+            delta_Sw[col * m + row + w_pos] *= Sw[col * m + row + w_pos]
+                                            * Sw[col * m + row + w_pos];
+        }
     }
 }
 

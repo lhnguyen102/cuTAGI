@@ -58,6 +58,25 @@ Returns:
         for(int i = z_pos_out; i < z_pos_out + B * no; i++) {
             if(state.J[i] != 0) J_out_idx.push_back(i);
         }
+
+        /*std::cout << "J_in_idx[" << k << "]: ";
+        for (int i = 0; i < J_in_idx.size(); i++) {
+            std::cout << J_in_idx[i] << " ";
+        }
+        std::cout << '\n';
+        std::cout << "J_out_idx[" << k << "]: ";
+        for (int i = 0; i < J_out_idx.size(); i++) {
+            std::cout << J_out_idx[i] << " ";
+        }
+        std::cout << '\n' << '\n';*/
+
+
+        std::cout << "B * ni = " << B * ni << '\n';
+        std::cout << "B * no = " << B * no << '\n';
+        std::cout << "J_in_idx.size() = " << J_in_idx.size() << '\n';
+        std::cout << "J_out_idx.size() = " << J_out_idx.size() << '\n';
+        std::cout << '\n' << '\n';
+
         // Zero-initialize the delta_mw vector
         std::fill(d_theta.delta_mw.begin(),
                     d_theta.delta_mw.begin() + w_pos_in, 0);
@@ -107,7 +126,7 @@ Returns:
                     theta.Sw, state.ma, d_state.delta_m, d_state.delta_S,
                     w_pos_in, z_pos_in, z_pos_out, ni, B, no,
                     net.num_cpu_threads, d_theta.delta_mw, d_theta.delta_Sw,
-                    J_in_idx, J_out_idx);
+                    state.J);
 
                 // Compute updated quantities for biases
                 fc_delta_b_multithreading(theta.Sb, d_state.delta_m,
