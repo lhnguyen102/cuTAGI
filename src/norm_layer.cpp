@@ -12,7 +12,7 @@
 #ifdef USE_CUDA
 #include "../include/norm_layer_cuda.cuh"
 #endif
-
+#include <cmath>
 #include <thread>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +82,7 @@ void layernorm_fwd_mean_var(
  */
 {
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row] + epsilon);
         float mu_ra_term = mu_ra[row];
         for (int col = 0; col < ni; col++) {
             int index = col + row * ni;
@@ -169,7 +169,7 @@ void layernorm_bwd_delta_w(
         float sum_mu = 0.0f;
         float sum_var = 0.0f;
         for (int row = 0; row < batch_size; row++) {
-            float tmp = (1.0f / sqrtf(var_ra[row] + epsilon)) *
+            float tmp = (1.0f / std::sqrt(var_ra[row] + epsilon)) *
                         (mu_a[col + row * ni] - mu_ra[row]) * var_w[col];
 
             sum_mu += tmp * delta_mu_out[col + row * ni];
@@ -348,7 +348,7 @@ void batchnorm_fwd_mean_var(
     for (int row = start_chunk; row < end_chunk; row++) {
         for (int col = 0; col < ni; col++) {
             int idx = col + row * ni;
-            float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[col] + epsilon);
+            float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[col] + epsilon);
             float adjusted_mu_a =
                 (mu_a[idx] * mu_a[idx] - mu_ra[col] * mu_ra[col] + var_a[idx]);
 
@@ -419,7 +419,7 @@ layer is a convolutional layer.
     int k = wihi;
     // m = fi * batch_size;
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row % fi] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row % fi] + epsilon);
         float mu_ra_term = mu_ra[row % fi];
         float mu_w_term = mu_w[row % fi];
 
@@ -454,7 +454,7 @@ BATCH-NORMALIZATION layer whose the previous layer is full-connected layer.
 {
     for (int row = start_chunk; row < end_chunk; row++) {
         for (int col = 0; col < ni; col++) {
-            float tmp = (1 / sqrtf(var_ra[col] + epsilon)) * mu_w[col] *
+            float tmp = (1 / std::sqrt(var_ra[col] + epsilon)) * mu_w[col] *
                         jcb[col + row * ni];
 
             delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
@@ -478,7 +478,7 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
     // m = fi * batch_size;
     for (int row = start_chunk; row < end_chunk; row++)  // k = wihi, m = fi*B
     {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row % fi] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row % fi] + epsilon);
         for (int col = 0; col < wihi; col++) {
             int idx = col + row * wihi;
             float tmp = inv_sqrt_var_ra * mu_w[row % fi] * jcb[idx];
@@ -503,7 +503,7 @@ batch-normalization layer applied to full-connected layer.
     for (int col = start_chunk; col < end_chunk; col++) {
         float sum_mu = 0;
         float sum_var = 0;
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[col] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[col] + epsilon);
         for (int i = 0; i < batch_size; i++) {
             float tmp = inv_sqrt_var_ra * (mu_a[col + i * ni] - mu_ra[col]) *
                         var_w[col];
@@ -552,7 +552,7 @@ batch-normalization layer applied to convolutional layer.
 {
     // m = batch_size * fi;
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row % fi] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row % fi] + epsilon);
         float mu_ra_term = mu_ra[row % fi];
         for (int col = 0; col < wihi; col++)  // k = wihi, m = fi*B
         {
@@ -1721,7 +1721,7 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
 std::unique_ptr<BaseLayer> LayerNorm::to_cuda() {
     this->device = "cuda";
     return std::make_unique<LayerNormCuda>(
-        this->normalized_shape, this->epsilon, this->momentum, this->bias)
+        this->normalized_shape, this->epsilon, this->momentum, this->bias);
 }
 #endif
 
@@ -2093,9 +2093,9 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> BatchNorm::to_cuda() {
+std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<BatchNormCuda>(this->epsilon, this->momentum,
-                                           this->bias)
+    return std::make_unique<BatchNorm2dCuda>(this->epsilon, this->momentum,
+                                             this->bias);
 }
 #endif

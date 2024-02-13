@@ -195,6 +195,7 @@ set(GPU_SOURCES
   src/linear_layer_cuda.cu
   src/conv2d_layer_cuda.cu
   src/pooling_layer_cuda.cu
+  src/norm_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu

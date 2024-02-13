@@ -65,11 +65,12 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
+                     Linear(100, 11));
 
-    Sequential model(Linear(784, 100), BatchNorm2d(), ReLU(), Linear(100, 100),
-                     BatchNorm2d(), ReLU(), Linear(100, 11));
+    // Sequential model(Linear(784, 100), BatchNorm2d(), ReLU(), Linear(100,
+    // 100),
+    //                  BatchNorm2d(), ReLU(), Linear(100, 11));
 
     // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
     //                  ReLU(), Linear(100, 100),
@@ -93,8 +94,8 @@ void fnn_mnist() {
     //     Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
     //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // model.set_threads(8);
+    model.to_device("cuda");
 
     // // CPU Model
     // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),

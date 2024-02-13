@@ -11,7 +11,7 @@
 
 #include "base_layer_cuda.cuh"
 
-class LayerNormCuda : public : BaseLayerCuda {
+class LayerNormCuda : public BaseLayerCuda {
    public:
     std::vector<int> normalized_shape;
     std::vector<float> mu_ra, var_ra;
@@ -22,7 +22,7 @@ class LayerNormCuda : public : BaseLayerCuda {
 
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
                   float mometum = 0.9, bool bias = true);
-    ~LayerNormCuda;
+    ~LayerNormCuda();
 
     // Delete copy constructor and copy assignment
     LayerNormCuda(const LayerNormCuda &) = delete;
@@ -64,7 +64,7 @@ class LayerNormCuda : public : BaseLayerCuda {
     using BaseLayerCuda::params_to_device;
 };
 
-class BatchNormCuda : public BaseLayerCuda {
+class BatchNorm2dCuda : public BaseLayerCuda {
    public:
     int num_features;
     std::vector<float> mu_ra, var_ra;
@@ -73,16 +73,16 @@ class BatchNormCuda : public BaseLayerCuda {
     float momentum;
     bool bias;
 
-    BatchNormCuda(float eps = 1e-5, float mometum = 0.9, bool bias = true);
-    ~BatchNormCuda;
+    BatchNorm2dCuda(float eps = 1e-5, float mometum = 0.9, bool bias = true);
+    ~BatchNorm2dCuda();
 
     // Delete copy constructor and copy assignment
-    BatchNormCuda(const BatchNormCuda &) = delete;
-    BatchNormCuda &operator=(const BatchNormCuda &) = delete;
+    BatchNorm2dCuda(const BatchNorm2dCuda &) = delete;
+    BatchNorm2dCuda &operator=(const BatchNorm2dCuda &) = delete;
 
     // Optionally implement move constructor and move assignment
-    BatchNormCuda(BatchNormCuda &&) = default;
-    BatchNormCuda &operator=(BatchNormCuda &&) = default;
+    BatchNorm2dCuda(BatchNorm2dCuda &&) = default;
+    BatchNorm2dCuda &operator=(BatchNorm2dCuda &&) = default;
 
     std::string get_layer_info() const override;
 

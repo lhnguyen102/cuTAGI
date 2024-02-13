@@ -310,7 +310,7 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     BackwardStateCuda *cu_bwd_states =
         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     if (cu_bwd_states->size == 0 && this->training) {
-        cu_bwd_states->size = input_states.actual_size * batch_size;
+        cu_bwd_states->size = cu_input_states->actual_size * batch_size;
         cu_bwd_states->allocate_memory();
     }
 
