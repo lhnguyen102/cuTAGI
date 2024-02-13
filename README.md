@@ -1,3 +1,30 @@
+# Sparse version
+The sparse implementation is intended to avoid computing the 0 that are induced by the usage of the ReLU function. 
+The three main steps where there are possible gains are
+
+`fc_mean_var_worker()` That allows for a ~40% reduction in CPU computational time. 
+
+`fc_delta_mzSz_worker()` That allows for a ~15% reduction in CPU computational time
+
+`fc_delta_w_multithreading()` That does not allow for any savings
+
+The first two functions are quite straight forward to optimize for multi-thread cpu as we can simply flip the order of the loops and omit 0 calculations. For the last one, this not possible anymore and fliping the order slows down the code. The tables below show the change in performance for different network sizes. Note that for small networks with MNIST, the time is slower because there is no check for the initial layer in order to remove if(=0) checks.
+
+Boston housing [CPU] 
+| #hidden units |2x200	| 2x400 |	2x800 |	2x1600 |	2x3200 |	2x6400 |
+| ------------- | ---- | ----- | ----- | ----- | ----- | ------ |
+| Default [sec]	|0.044 |	0.091 |	0.365 |	1.79 |	7.70 |	49 |
+| Sparse [sec]  |0.046	| 0.090	| 0.270	| 0.98 |	3.81 |	28 |
+| Delta [1/x]	  | 0	   | 0     |	1.4	  | 1.8	 | 2.0  |	1.75|
+
+MNIST [CPU]
+|#hidden units |		2x200	| 2x400 |	2x800	| 2x1600 |
+| ------------- | ---- | ----- | ----- | ----- | 
+|Default [sec] | 9.1 |	19.5 |	70 |	269|	
+|Sparse [sec] |	15.9 |	27.8 |	61 |	172 |
+|Delta [1/x] |		0.6 |	0.7 |	1.1 |	1.6|	
+
+
 # Table of Contents
 * [What is cuTAGI ?](#What-is-cuTAGI)
 * [Python Installation](#pytagi-installation)
