@@ -554,7 +554,7 @@ void forget_gate_cpu(Network &net, NetState &state, Param &theta, int l) {
             theta.mw, theta.Sw, theta.mb, theta.Sb, state.lstm.mha,
             state.lstm.Sha, w_pos_f, b_pos_f, z_pos_i_lstm, net.z_pos_lstm[l],
             net.nodes[l], ni_c, b_seq, net.num_cpu_threads, state.lstm.mf_ga,
-            state.lstm.Sf_ga);
+            state.lstm.Sf_ga, state.J);
         mixture_sigmoid_multithreading(
             state.lstm.mf_ga, state.lstm.Sf_ga, net.omega_tol,
             net.z_pos_lstm[l], no_b_seq, net.num_cpu_threads, state.lstm.mf_ga,
@@ -589,7 +589,7 @@ void input_gate_cpu(Network &net, NetState &state, Param &theta, int l) {
             theta.mw, theta.Sw, theta.mb, theta.Sb, state.lstm.mha,
             state.lstm.Sha, w_pos_i, b_pos_i, z_pos_i_lstm, net.z_pos_lstm[l],
             net.nodes[l], ni_c, b_seq, net.num_cpu_threads, state.lstm.mi_ga,
-            state.lstm.Si_ga);
+            state.lstm.Si_ga, state.J);
         mixture_sigmoid_multithreading(
             state.lstm.mi_ga, state.lstm.Si_ga, net.omega_tol,
             net.z_pos_lstm[l], no_b_seq, net.num_cpu_threads, state.lstm.mi_ga,
@@ -622,7 +622,7 @@ void cell_state_gate_cpu(Network &net, NetState &state, Param &theta, int l) {
             theta.mw, theta.Sw, theta.mb, theta.Sb, state.lstm.mha,
             state.lstm.Sha, w_pos_c, b_pos_c, z_pos_i_lstm, net.z_pos_lstm[l],
             net.nodes[l], ni_c, b_seq, net.num_cpu_threads, state.lstm.mc_ga,
-            state.lstm.Sc_ga);
+            state.lstm.Sc_ga, state.J);
         mixture_tanh_multithreading(state.lstm.mc_ga, state.lstm.Sc_ga,
                                     net.omega_tol, net.z_pos_lstm[l], no_b_seq,
                                     net.num_cpu_threads, state.lstm.mc_ga,
@@ -655,7 +655,7 @@ void output_gate_cpu(Network &net, NetState &state, Param &theta, int l) {
             theta.mw, theta.Sw, theta.mb, theta.Sb, state.lstm.mha,
             state.lstm.Sha, w_pos_o, b_pos_o, z_pos_i_lstm, net.z_pos_lstm[l],
             net.nodes[l], ni_c, b_seq, net.num_cpu_threads, state.lstm.mo_ga,
-            state.lstm.So_ga);
+            state.lstm.So_ga, state.J);
         mixture_sigmoid_multithreading(
             state.lstm.mo_ga, state.lstm.So_ga, net.omega_tol,
             net.z_pos_lstm[l], no_b_seq, net.num_cpu_threads, state.lstm.mo_ga,

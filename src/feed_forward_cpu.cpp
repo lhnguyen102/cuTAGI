@@ -150,7 +150,7 @@ void feed_forward_cpu(Network &net, Param &theta, IndexOut &idx,
                     fc_mean_var_multithreading(
                         theta.mw, theta.Sw, theta.mb, theta.Sb, state.ma,
                         state.Sa, w_pos_in, b_pos_in, z_pos_in, z_pos_out, no,
-                        ni, B, net.num_cpu_threads, state.mz, state.Sz);
+                        ni, B, net.num_cpu_threads, state.mz, state.Sz, state.J);
 
                     fc_full_cov_multithreading(theta.mw, state.Sa_f, w_pos_in,
                                                no, ni, B, net.num_cpu_threads,
