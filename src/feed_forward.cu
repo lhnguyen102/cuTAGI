@@ -36,14 +36,18 @@ Args:
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx_in;
+    //int idx_in;
     float sum = 0;
+    int idx_mw;
+    int idx_ma;
     if (col < k && row < m) {
+        idx_mw = row * n + wpos;
+        idx_ma = n * col + zposIn;
         for (int i = 0; i < n; i++) {
-            idx_in = n * col + i + zposIn;
-            if (J[idx_in] != 0) {
-                sum += mw[row * n + i + wpos] * ma[idx_in];
-            }
+            //idx_in = idx_ma + i;
+            //if (J[idx_ma + i] != 0) {
+                sum += mw[idx_mw + i] * ma[idx_ma + i];
+            //}
         }
     }
     mz[col * m + row + zposOut] = sum + mb[row + bpos];
@@ -77,14 +81,16 @@ Args:
     float sum = 0;
     float ma_tmp = 0;
     float Sa_tmp = 0;
+    int idx_mw;
+    int idx_ma;
     if (col < k && row < m) {
+        idx_mw = row * n + wpos;
+        idx_ma = n * col + zposIn;
         for (int i = 0; i < n; i++) {
-            ma_tmp = ma[n * col + i + zposIn];
-            Sa_tmp = Sa[n * col + i + zposIn];
-            sum += (mw[row * n + i + wpos] * mw[row * n + i + wpos] +
-                    Sw[row * n + i + wpos]) *
-                       Sa_tmp +
-                   Sw[row * n + i + wpos] * ma_tmp * ma_tmp;
+            ma_tmp = ma[idx_ma + i];
+            Sa_tmp = Sa[idx_ma + i];
+            sum += (mw[idx_mw + i] * mw[idx_mw + i] + Sw[idx_mw + i]) *
+                    Sa_tmp + Sw[idx_mw + i] * ma_tmp * ma_tmp;
         }
         Sz[col * m + row + zposOut] = sum + Sb[row + bpos];
     }
