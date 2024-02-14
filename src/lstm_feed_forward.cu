@@ -273,7 +273,7 @@ void forget_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
     fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.lstm.d_mha,
                                   state.lstm.d_mf_ga, net.w_pos[l - 1],
                                   net.b_pos[l - 1], z_pos_i_lstm,
-                                  net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq);
+                                  net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq, state.d_J);
     fcVar<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
         state.lstm.d_Sf_ga, net.w_pos[l - 1], net.b_pos[l - 1], z_pos_i_lstm,
@@ -304,7 +304,7 @@ void input_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
 
     fcMean<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mi_ga, w_pos_i,
-        b_pos_i, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq);
+        b_pos_i, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq, state.d_J);
     fcVar<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
         state.lstm.d_Si_ga, w_pos_i, b_pos_i, z_pos_i_lstm, net.z_pos_lstm[l],
@@ -334,7 +334,7 @@ void cell_state_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
 
     fcMean<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mc_ga, w_pos_c,
-        b_pos_c, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq);
+        b_pos_c, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq, state.d_J);
     fcVar<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
         state.lstm.d_Sc_ga, w_pos_c, b_pos_c, z_pos_i_lstm, net.z_pos_lstm[l],
@@ -363,7 +363,7 @@ void output_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
     int b_pos_o = net.b_pos[l - 1] + 3 * net.nodes[l];
     fcMean<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_mb, state.lstm.d_mha, state.lstm.d_mo_ga, w_pos_o,
-        b_pos_o, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq);
+        b_pos_o, z_pos_i_lstm, net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq, state.d_J);
     fcVar<<<dimGrid, dimBlock>>>(
         theta.d_mw, theta.d_Sw, theta.d_Sb, state.lstm.d_mha, state.lstm.d_Sha,
         state.lstm.d_So_ga, w_pos_o, b_pos_o, z_pos_i_lstm, net.z_pos_lstm[l],

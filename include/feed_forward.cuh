@@ -20,7 +20,7 @@
 
 __global__ void fcMean(float const *mw, float const *mb, float const *ma,
                        float *mz, int wpos, int bpos, int zposIn, int zposOut,
-                       int m, int n, int k, bool const *J);
+                       int m, int n, int k, float const *J);
 
 __global__ void fcVar(float const *mw, float const *Sw, float const *Sb,
                       float const *ma, float const *Sa, float *Sz, int wpos,

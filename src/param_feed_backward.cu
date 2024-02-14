@@ -38,16 +38,16 @@ Args:
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
-    float null = 0;
+    //float null = 0;
     if (col < k && row < m) {
-        if (J[col + zposIn] != 0) {
+        //if (J[col + zposIn] != 0) {
             for (int i = 0; i < n; i++) {
                 sum += ma[m * i + row + zposIn] * deltaM[col + k * i + zposOut];
             }
             deltaMw[col * m + row + wpos] = sum * Sw[col * m + row + wpos];
-        } else {
-            deltaMw[col * m + row + wpos] = null ;
-        }
+        //} else {
+        //    deltaMw[col * m + row + wpos] = null ;
+        //}
     }
 }
 // This function computes the update amount for weight variance

@@ -15,7 +15,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 __global__ void fcMean(float const *mw, float const *mb, float const *ma,
                        float *mz, int wpos, int bpos, int zposIn, int zposOut,
-                       int m, int n, int k, bool const *J)
+                       int m, int n, int k, float const *J)
 /*Compute mean of product WA for full connected layer
 
 Args:
@@ -36,12 +36,12 @@ Args:
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx_in
+    int idx_in;
     float sum = 0;
     if (col < k && row < m) {
         for (int i = 0; i < n; i++) {
-            idx = [n * col + i + zposIn]
-            if (J[idx_in]) {
+            idx_in = n * col + i + zposIn;
+            if (J[idx_in] != 0) {
                 sum += mw[row * n + i + wpos] * ma[idx_in];
             }
         }
@@ -1476,7 +1476,7 @@ void feedForward(Network &net, ParamGPU &theta, IndexGPU &idx, StateGPU &state)
             // Compute mean and variance
             fcMean<<<dimGrid, dimBlock>>>(theta.d_mw, theta.d_mb, state.d_ma,
                                           state.d_mz, wposIn, bposIn, zposIn,
-                                          zposOut, M, N, B, state.J);
+                                          zposOut, M, N, B, state.d_J);
             if (!net.is_full_cov) {
                 fcVar<<<dimGrid, dimBlock>>>(
                     theta.d_mw, theta.d_Sw, theta.d_Sb, state.d_ma, state.d_Sa,
