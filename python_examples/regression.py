@@ -234,6 +234,6 @@ class Regression:
             np.zeros((batch_size, self.net_prop.nodes[-1]), dtype=self.dtype)
             + self.net_prop.sigma_v**2
         )
-        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+        ud_idx_batch = np.zeros((batch_size, 1), dtype=np.int32)
 
         return V_batch, ud_idx_batch

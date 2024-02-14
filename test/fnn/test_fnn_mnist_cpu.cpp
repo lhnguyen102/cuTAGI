@@ -65,17 +65,17 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
-                     Linear(100, 11));
+    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Linear(784, 100), BatchNorm2d(), ReLU(), Linear(100,
     // 100),
     //                  BatchNorm2d(), ReLU(), Linear(100, 11));
 
-    // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
-    //                  ReLU(), Linear(100, 100),
-    //                  LayerNorm(std::vector<int>({100})), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+                     ReLU(), Linear(100, 100),
+                     LayerNorm(std::vector<int>({100})), ReLU(),
+                     Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3,
     // 2),
@@ -102,7 +102,12 @@ void fnn_mnist() {
     //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
     //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                      Linear(100, 11));
-    // cpu_model.params_from(model);
+
+    Sequential cpu_model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+                         ReLU(), Linear(100, 100),
+                         LayerNorm(std::vector<int>({100})), ReLU(),
+                         Linear(100, 11));
+    cpu_model.params_from(model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -117,7 +122,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 16;
+    int batch_size = 2;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -154,10 +159,10 @@ void fnn_mnist() {
             // Forward pass
             //
             model.forward(x_batch);
-            // if (i == 0) {
-            //     cpu_model.params_from(model);
-            // }
-            // cpu_model.forward(x_batch);
+            if (i == 0) {
+                cpu_model.params_from(model);
+            }
+            cpu_model.forward(x_batch);
 
             // Output layer
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
@@ -167,9 +172,9 @@ void fnn_mnist() {
             //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
             //     *cpu_model.input_delta_z_buffer);
 
-            // Backward pass
-            model.backward();
-            model.step();
+            // // Backward pass
+            // model.backward();
+            // model.step();
 
             // cpu_model.backward();
             // cpu_model.step();
@@ -205,7 +210,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 500 == 0 && i != 0) {
+            if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);

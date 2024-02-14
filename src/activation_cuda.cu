@@ -55,6 +55,13 @@ void ReLUCuda::forward(BaseHiddenStates &input_states,
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
+    // Assign output dimensions
+    cu_output_states->height = cu_input_states->height;
+    cu_output_states->depth = cu_input_states->depth;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
+
     relu_mean_var<<<blocks, this->num_cuda_threads>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
@@ -64,10 +71,6 @@ void ReLUCuda::forward(BaseHiddenStates &input_states,
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
     }
-
-    // Update number of actual states.
-    cu_output_states->block_size = cu_input_states->block_size;
-    cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
 std::unique_ptr<BaseLayer> ReLUCuda::to_host()

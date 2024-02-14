@@ -238,7 +238,7 @@ __global__ void layernorm2d_bwd_delta_b_cuda(float const *var_b,
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (col < k && row < m)  // k = wihi, m = fi*B
+    if (col < k && row < m)  // k = wihi*f, m = B
     {
         float A = var_b[col / wihi];
         delta_mu_b[col + row * k] = A * delta_mu_out[col + row * k];
@@ -708,6 +708,13 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     unsigned int grid_size_ra = (batch_size + num_threads - 1) / num_threads;
     dim3 block_dim(num_threads, num_threads);
 
+    // Assign output dimensions
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
     // Lazy intialization
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var(batch_size);
@@ -964,6 +971,13 @@ void BatchNorm2dCuda::allocate_param_delta()
     cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
     cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
     cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
 }
 
 void BatchNorm2dCuda::allocate_running_mean_var()
@@ -1051,6 +1065,10 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
             this->out_channels = cu_input_states->depth;
             this->out_width = cu_input_states->width;
             this->out_height = cu_input_states->height;
+            this->input_size =
+                this->in_channels * this->in_width * this->in_height;
+            this->output_size =
+                this->out_channels * this->out_width * this->out_height;
         } else {
             this->input_size = cu_input_states->actual_size;
             this->output_size = cu_input_states->actual_size;
