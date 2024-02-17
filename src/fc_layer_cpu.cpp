@@ -930,6 +930,18 @@ void fc_delta_w_multithreading(
         threads[i].join();
     }
 
+    /////////////////////////////////////////////// Share \sigma_W across layers
+    float sum_dSw = 0;
+    for (int i = 0; i < tot_ops; i++) {
+        sum_dSw += delta_Sw[w_pos + i];
+    }
+    sum_dSw /= tot_ops;
+
+    for (int i = 0; i < tot_ops; i++) {
+        delta_Sw[w_pos + i] = sum_dSw;
+    }
+    ////////////////////////////////////////////////////////////////////////////
+
     // Same results but slower
     // The idea is to reorganize the calculations so that only the non-zero
     // calculations are sent on the threads.
@@ -1056,4 +1068,15 @@ void fc_delta_b_multithreading(
     for (int i = 0; i < NUM_THREADS; i++) {
         threads[i].join();
     }
+    /////////////////////////////////////////////// Share \sigma_b across layers
+    float sum_dSb = 0;
+    for (int i = 0; i < tot_ops; i++) {
+        sum_dSb += delta_Sb[b_pos + i];
+    }
+    sum_dSb /= tot_ops;
+
+    for (int i = 0; i < tot_ops; i++) {
+        delta_Sb[b_pos + i] = sum_dSb;
+    }
+    ////////////////////////////////////////////////////////////////////////////
 }
