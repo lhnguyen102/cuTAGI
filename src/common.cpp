@@ -91,8 +91,11 @@ Returns:
     if (batch_size >= 100 && batch_size < 500) {
         return 10.0f;
     }
-    if (batch_size >= 500) {
+    if (batch_size >= 500 && batch_size < 1000) {
         return 20.0f;
+    }
+    if (batch_size >= 1000) {
+        return 30.0f;
     }
     return 1.0f;
 }

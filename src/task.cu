@@ -431,6 +431,8 @@ Args:
         ////////////////////////////////////////////////// Compute empirical S_V
         empirical_Sv /= (y_batch.size() * test_n_iter);
         net.prop.sigma_v = powf(empirical_Sv, 0.5) / 6;
+        std::cout << "Empirical sigma_v/6 = "<< net.prop.sigma_v << "\n";
+
 
         auto test_avg_error = compute_average_error_rate(
             test_error_rate, test_imdb.num_data, test_imdb.num_data);
