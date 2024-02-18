@@ -387,6 +387,8 @@ Args:
 
         /* TESTING */
         std::cout << "Testing...\n";
+        float empirical_Sv = 0;
+        int b;
         for (int i = 0; i < test_n_iter; i++) {
             // TODO: set = 0.9 when i > 0 or disable mean and variance in
             // feed forward
@@ -411,7 +413,24 @@ Args:
             }
             mt_idx = i * net.prop.batch_size;
             update_vector(test_error_rate, error_rate_batch, mt_idx, 1);
+
+            ///////////////////////////////////////////// Compute empirical S_V
+            get_batch_images_labels(test_imdb, test_data_idx,
+                                    net.prop.batch_size, i, x_batch, y_batch,
+                                    idx_ud_batch, label_batch);
+            for (int j = 0; j < y_batch.size(); j++) {
+                // std::cout << idx_ud_batch[j] << "\n";
+                b = j / imdb.output_len;
+                empirical_Sv +=
+                    powf(y_batch[j] - net.ma[(b * 11) + idx_ud_batch[j]-1], 2);
+                // std::cout << y_batch[j] << ":" <<net.ma[(b *
+                // 11)+idx_ud_batch[j]-1] << ":" << idx_ud_batch[j] << "\n";
+            }
+            ////////////////////////////////////////////////////////////////////
         }
+        ////////////////////////////////////////////////// Compute empirical S_V
+        empirical_Sv /= (y_batch.size() * test_n_iter);
+        net.prop.sigma_v = powf(empirical_Sv, 0.5) / 6;
 
         auto test_avg_error = compute_average_error_rate(
             test_error_rate, test_imdb.num_data, test_imdb.num_data);
