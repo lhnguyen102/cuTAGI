@@ -147,6 +147,7 @@ set(CPU_SOURCES
   src/data_struct.cpp
   src/param_init.cpp
   src/base_output_updater.cpp
+  src/debugger.cpp
 
   src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp

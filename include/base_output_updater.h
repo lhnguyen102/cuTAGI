@@ -76,6 +76,7 @@ class OutputUpdater {
     std::string device = "cpu";
 
     OutputUpdater(const std::string model_device);
+    OutputUpdater();
 
     ~OutputUpdater();
 

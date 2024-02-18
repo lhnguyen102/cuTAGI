@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      February 07, 2024
+// Updated:      February 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,7 @@
 #include "../../include/conv2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
+#include "../../include/debugger.h"
 #include "../../include/linear_layer.h"
 #include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
@@ -115,6 +116,10 @@ void fnn_mnist() {
     OutputUpdater output_updater(model.device);
     // OutputUpdater cpu_output_updater(cpu_model.device);
 
+    // DEBUGGER
+
+    ModelDebugger model_debugger(model, cpu_model, output_updater);
+
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
@@ -159,10 +164,10 @@ void fnn_mnist() {
             // Forward pass
             //
             model.forward(x_batch);
-            if (i == 0) {
-                cpu_model.params_from(model);
-            }
-            cpu_model.forward(x_batch);
+            // if (i == 0) {
+            //     cpu_model.params_from(model);
+            // }
+            // cpu_model.forward(x_batch);
 
             // Output layer
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,

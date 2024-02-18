@@ -191,6 +191,8 @@ OutputUpdater::OutputUpdater(const std::string model_device) {
     }
 }
 
+OutputUpdater::OutputUpdater() {}
+
 OutputUpdater::~OutputUpdater() {}
 
 void OutputUpdater::update(BaseHiddenStates &output_states,
