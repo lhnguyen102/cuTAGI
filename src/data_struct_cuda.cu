@@ -225,6 +225,20 @@ void TempStateCuda::allocate_memory()
     cudaMalloc(&this->d_tmp_2, size * sizeof(float));
 }
 
+void TempStateCuda::to_host() {
+    cudaMemcpy(this->tmp_1.data(), this->d_tmp_1, this->size * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->tmp_2.data(), this->d_tmp_2, this->size * sizeof(float),
+               cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying device to host.");
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Backward States
 ////////////////////////////////////////////////////////////////////////////////

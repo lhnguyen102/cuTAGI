@@ -1725,6 +1725,14 @@ std::unique_ptr<BaseLayer> LayerNorm::to_cuda() {
 }
 #endif
 
+std::tuple<std::vector<float>, std::vector<float>>
+LayerNorm::get_running_mean_var()
+/*
+ */
+{
+    return {this->mu_ra, this->var_ra};
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////

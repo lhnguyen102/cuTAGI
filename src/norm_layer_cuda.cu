@@ -642,7 +642,7 @@ void LayerNormCuda::allocate_running_mean_var(int batch_size)
  */
 {
     this->mu_ra.resize(batch_size, 0.0f);
-    this->var_ra.resize(batch_size, 0.0f);
+    this->var_ra.resize(batch_size, 1.0f);
     cudaMalloc(&this->d_mu_ra, batch_size * sizeof(float));
     cudaMalloc(&this->d_var_ra, batch_size * sizeof(float));
 
@@ -752,6 +752,7 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
             this->d_var_ra, this->epsilon, wihi, batch_size, this->input_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
+
     // Update backward state for inferring parameters
     if (this->training) {
         BackwardStateCuda *cu_bwd_states =
@@ -893,6 +894,14 @@ std::unique_ptr<BaseLayer> LayerNormCuda::to_host()
     return host_layer;
 }
 
+std::tuple<std::vector<float>, std::vector<float>>
+LayerNormCuda::get_running_mean_var()
+/*
+ */
+{
+    return {this->mu_ra, this->var_ra};
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
@@ -991,7 +1000,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
         num_ra = this->out_channels;
     }
     this->mu_ra.resize(num_ra, 0.0f);
-    this->var_ra.resize(num_ra, 0.0f);
+    this->var_ra.resize(num_ra, 1.0f);
     cudaMalloc(&this->d_mu_ra, num_ra * sizeof(float));
     cudaMalloc(&this->d_var_ra, num_ra * sizeof(float));
 

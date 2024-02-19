@@ -37,7 +37,7 @@ class ModelDebugger {
 
     void lazy_init(int batch_size, int z_buffer_size);
     void debug_forward(const std::vector<float> &mu_x,
-                       const std::vector<float> &var_x);
+                       const std::vector<float> &var_x = std::vector<float>());
     void debug_backward(std::vector<float> &y_batch,
                         std::vector<float> &var_obs,
                         std::vector<int> &idx_ud_batch);

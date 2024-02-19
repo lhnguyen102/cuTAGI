@@ -73,10 +73,10 @@ void fnn_mnist() {
     // 100),
     //                  BatchNorm2d(), ReLU(), Linear(100, 11));
 
-    Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
-                     ReLU(), Linear(100, 100),
-                     LayerNorm(std::vector<int>({100})), ReLU(),
-                     Linear(100, 11));
+    // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+    //                  ReLU(), Linear(100, 100),
+    //                  LayerNorm(std::vector<int>({100})), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3,
     // 2),
@@ -89,11 +89,11 @@ void fnn_mnist() {
     //                  ReLU(), AvgPool2d(3, 2), Linear(32 * 4 * 4, 100),
     //                  ReLU(), Linear(100, 11));
 
-    // Sequential model(
-    //     Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
-    //     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
-    //     Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-    //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(
+        Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
+        LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
+        Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+        AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // model.set_threads(8);
     model.to_device("cuda");
@@ -104,21 +104,17 @@ void fnn_mnist() {
     //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                      Linear(100, 11));
 
-    Sequential cpu_model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
-                         ReLU(), Linear(100, 100),
-                         LayerNorm(std::vector<int>({100})), ReLU(),
-                         Linear(100, 11));
-    cpu_model.params_from(model);
+    // Sequential cpu_model(Linear(784, 100),
+    // LayerNorm(std::vector<int>({100})),
+    //                      ReLU(), Linear(100, 100),
+    //                      LayerNorm(std::vector<int>({100})), ReLU(),
+    //                      Linear(100, 11));
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
     //////////////////////////////////////////////////////////////////////
     OutputUpdater output_updater(model.device);
     // OutputUpdater cpu_output_updater(cpu_model.device);
-
-    // DEBUGGER
-
-    ModelDebugger model_debugger(model, cpu_model, output_updater);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -127,7 +123,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 2;
+    int batch_size = 32;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -141,6 +137,13 @@ void fnn_mnist() {
     std::vector<float> mu_a_output(batch_size * n_y, 0);
     std::vector<float> var_a_output(batch_size * n_y, 0);
     auto data_idx = create_range(train_db.num_data);
+
+    // // DEBUGGER
+    // std::vector<float> x_batch_db(784 * batch_size, 0);
+    // model.forward(x_batch_db);
+    // cpu_model.params_from(model);
+    // cpu_model.forward(x_batch_db);
+    // ModelDebugger model_debugger(model, cpu_model, output_updater);
 
     // Error rate for training
     int mt_idx = 0;
@@ -164,6 +167,7 @@ void fnn_mnist() {
             // Forward pass
             //
             model.forward(x_batch);
+            // model_debugger.debug_forward(x_batch);
             // if (i == 0) {
             //     cpu_model.params_from(model);
             // }
@@ -177,9 +181,9 @@ void fnn_mnist() {
             //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
             //     *cpu_model.input_delta_z_buffer);
 
-            // // Backward pass
-            // model.backward();
-            // model.step();
+            // Backward pass
+            model.backward();
+            model.step();
 
             // cpu_model.backward();
             // cpu_model.step();

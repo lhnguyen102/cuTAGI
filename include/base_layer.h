@@ -104,6 +104,10 @@ class BaseLayer {
                                  ". Cuda device is not available");
     };
 
+    // DEBUG
+    virtual std::tuple<std::vector<float>, std::vector<float>>
+    get_running_mean_var();
+
    protected:
     void allocate_bwd_vector(int size);
     void fill_output_states(BaseHiddenStates &output_states);

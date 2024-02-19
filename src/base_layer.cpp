@@ -197,3 +197,11 @@ void BaseLayer::load(std::ifstream &file)
         file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
     }
 }
+
+std::tuple<std::vector<float>, std::vector<float>>
+BaseLayer::get_running_mean_var()
+/*
+ */
+{
+    return {std::vector<float>(), std::vector<float>()};
+}

@@ -61,6 +61,10 @@ class LayerNorm : public BaseLayer {
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
 
+    // DEBUG
+    std::tuple<std::vector<float>, std::vector<float>> get_running_mean_var()
+        override;
+
    protected:
     void allocate_param_delta();
     void allocate_running_mean_var(int batch_size);

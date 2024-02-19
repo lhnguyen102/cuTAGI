@@ -146,12 +146,22 @@ void ModelDebugger::debug_forward(const std::vector<float> &mu_x,
 
         // Test here
         auto layer_name = test_current_layer->get_layer_name();
-        for (int j = 0; j < this->test_output_z_buffer->mu_a.size(); i++) {
+        for (int j = 0; j < test_current_layer->output_size * batch_size; j++) {
             if (this->test_output_z_buffer->mu_a[j] !=
                 this->ref_output_z_buffer->mu_a[j]) {
                 std::cout << "Layer name: " << layer_name << " "
-                          << "Layer no" << i << "\n"
+                          << "Layer no " << i << "\n"
                           << std::endl;
+
+                // std::vector<float> test_mu_ra, test_var_ra, ref_mu_ra,
+                //     ref_var_ra;
+
+                // std::tie(test_mu_ra, test_var_ra) =
+                //     test_current_layer->get_running_mean_var();
+
+                // std::tie(ref_mu_ra, ref_var_ra) =
+                //     test_current_layer->get_running_mean_var();
+
                 int check = 1;
                 break;
             }
