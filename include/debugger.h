@@ -29,10 +29,10 @@ class ModelDebugger {
 
     Sequential test_model;
     Sequential ref_model;
-    OutputUpdater output_updater;
+    OutputUpdater cpu_output_updater;
+    OutputUpdater cuda_output_updater;
 
-    ModelDebugger(Sequential &test_model, Sequential &ref_model,
-                  OutputUpdater &output_updater);
+    ModelDebugger(Sequential &test_model, Sequential &ref_model);
     ~ModelDebugger();
 
     void lazy_init(int batch_size, int z_buffer_size);

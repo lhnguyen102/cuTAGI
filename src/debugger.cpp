@@ -18,11 +18,10 @@
 #include "data_struct_cuda.cuh"
 #endif
 
-ModelDebugger::ModelDebugger(Sequential &test_model, Sequential &ref_model,
-                             OutputUpdater &output_updater) {
+ModelDebugger::ModelDebugger(Sequential &test_model, Sequential &ref_model)
+    : cpu_output_updater("cpu"), cuda_output_updater("cuda") {
     this->test_model = test_model;
     this->ref_model = ref_model;
-    this->output_updater = output_updater;
 }
 
 ModelDebugger::~ModelDebugger() {}
@@ -70,16 +69,16 @@ void ModelDebugger::lazy_init(int batch_size, int z_buffer_size)
 #endif
 
     if (test_model.device.compare("cpu") == 0) {
-        test_output_delta_z_buffer =
+        this->test_output_delta_z_buffer =
             std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
-        test_input_delta_z_buffer =
+        this->test_input_delta_z_buffer =
             std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
     }
 #ifdef USE_CUDA
-    else if (ref_model.device.compare("cuda") == 0) {
-        test_output_delta_z_buffer =
+    else if (test_model.device.compare("cuda") == 0) {
+        this->test_output_delta_z_buffer =
             std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
-        test_input_delta_z_buffer =
+        this->test_input_delta_z_buffer =
             std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
     }
 #endif
@@ -145,14 +144,13 @@ void ModelDebugger::debug_forward(const std::vector<float> &mu_x,
 #endif
 
         // Test here
-        auto layer_name = test_current_layer->get_layer_name();
         for (int j = 0; j < test_current_layer->output_size * batch_size; j++) {
             if (this->test_output_z_buffer->mu_a[j] !=
                 this->ref_output_z_buffer->mu_a[j]) {
+                auto layer_name = test_current_layer->get_layer_name();
                 std::cout << "Layer name: " << layer_name << " "
                           << "Layer no " << i << "\n"
                           << std::endl;
-
                 // std::vector<float> test_mu_ra, test_var_ra, ref_mu_ra,
                 //     ref_var_ra;
 
@@ -181,17 +179,35 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
  */
 {
     // Output layer
-    this->output_updater.update_using_indices(*test_output_z_buffer, y_batch,
-                                              var_obs, idx_ud_batch,
-                                              *test_input_delta_z_buffer);
+    if (this->test_model.device.compare("cpu") == 0) {
+        this->cpu_output_updater.update_using_indices(
+            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->test_input_delta_z_buffer);
+    }
+#ifdef USE_CUDA
+    else {
+        this->cuda_output_updater.update_using_indices(
+            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->test_input_delta_z_buffer);
+    }
+#endif
 
-    this->output_updater.update_using_indices(*ref_output_z_buffer, y_batch,
-                                              var_obs, idx_ud_batch,
-                                              *ref_input_delta_z_buffer);
+    if (this->ref_model.device.compare("cpu") == 0) {
+        this->cpu_output_updater.update_using_indices(
+            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->test_input_delta_z_buffer);
+    }
+#ifdef USE_CUDA
+    else {
+        this->cuda_output_updater.update_using_indices(
+            *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->ref_input_delta_z_buffer);
+    }
+#endif
 
     int num_layers = test_model.layers.size();
 
-    for (int i = num_layers - 1; i < 1; i--) {
+    for (int i = num_layers - 1; i > 0; i--) {
         auto *test_current_layer = test_model.layers[i].get();
         auto *ref_current_layer = ref_model.layers[i].get();
 
@@ -220,7 +236,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
         if (this->test_model.device.compare("cuda") == 0) {
             DeltaStateCuda *test_output_delta_z_buffer_cu =
                 dynamic_cast<DeltaStateCuda *>(
-                    this->test_output_z_buffer.get());
+                    this->test_output_delta_z_buffer.get());
             test_output_delta_z_buffer_cu->to_host();
         }
         if (this->ref_model.device.compare("cuda") == 0) {
@@ -234,12 +250,14 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
         // Test here
         auto layer_name = test_current_layer->get_layer_name();
         for (int j = 0; j < this->test_output_delta_z_buffer->delta_mu.size();
-             i++) {
+             j++) {
             if (this->test_output_delta_z_buffer->delta_mu[j] !=
                 this->ref_output_delta_z_buffer->delta_mu[j]) {
                 std::cout << "Layer name: " << layer_name << " "
-                          << "Layer no" << i << "\n"
+                          << "Layer no " << i << "\n"
                           << std::endl;
+
+                int check = 0;
                 break;
             }
         }

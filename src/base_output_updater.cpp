@@ -176,9 +176,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
 ////////////////////////////////////////////////////////////////////////////////
 // Output Updater
 ////////////////////////////////////////////////////////////////////////////////
-OutputUpdater::OutputUpdater(const std::string model_device) {
-    this->device = model_device;
-
+OutputUpdater::OutputUpdater(const std::string model_device)
+    : device(model_device) {
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {
         this->updater = std::make_shared<OutputUpdaterCuda>();
