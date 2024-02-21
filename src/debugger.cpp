@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 14, 2024
-// Updated:      February 15, 2024
+// Updated:      February 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,8 @@
 
 #include "../include/data_struct.h"
 #ifdef USE_CUDA
-#include "data_struct_cuda.cuh"
+#include "../include/base_layer_cuda.cuh"
+#include "../include/data_struct_cuda.cuh"
 #endif
 
 ModelDebugger::ModelDebugger(Sequential &test_model, Sequential &ref_model)
@@ -178,6 +179,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
 /*
  */
 {
+    int batch_size = this->ref_output_z_buffer->block_size;
     // Output layer
     if (this->test_model.device.compare("cpu") == 0) {
         this->cpu_output_updater.update_using_indices(
@@ -194,8 +196,8 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
 
     if (this->ref_model.device.compare("cpu") == 0) {
         this->cpu_output_updater.update_using_indices(
-            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->test_input_delta_z_buffer);
+            *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->ref_input_delta_z_buffer);
     }
 #ifdef USE_CUDA
     else {
@@ -238,27 +240,66 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 dynamic_cast<DeltaStateCuda *>(
                     this->test_output_delta_z_buffer.get());
             test_output_delta_z_buffer_cu->to_host();
+
+            BaseLayerCuda *test_current_layer_cu =
+                dynamic_cast<BaseLayerCuda *>(test_current_layer);
+            test_current_layer_cu->params_to_host();
         }
         if (this->ref_model.device.compare("cuda") == 0) {
             DeltaStateCuda *ref_output_delta_z_buffer_cu =
                 dynamic_cast<DeltaStateCuda *>(
                     this->ref_output_delta_z_buffer.get());
             ref_output_delta_z_buffer_cu->to_host();
+
+            BaseLayerCuda *ref_current_layer_cu =
+                dynamic_cast<BaseLayerCuda *>(ref_current_layer);
+            ref_current_layer_cu->params_to_host();
         }
 #endif
 
         // Test here
-        auto layer_name = test_current_layer->get_layer_name();
-        for (int j = 0; j < this->test_output_delta_z_buffer->delta_mu.size();
-             j++) {
-            if (this->test_output_delta_z_buffer->delta_mu[j] !=
-                this->ref_output_delta_z_buffer->delta_mu[j]) {
-                std::cout << "Layer name: " << layer_name << " "
-                          << "Layer no " << i << "\n"
-                          << std::endl;
+        if (test_current_layer->get_layer_type() != LayerType::Activation) {
+            auto layer_name = test_current_layer->get_layer_name();
+            for (int j = 0; j < test_current_layer->input_size * batch_size;
+                 j++) {
+                if (this->test_output_delta_z_buffer->delta_mu[j] !=
+                    this->ref_output_delta_z_buffer->delta_mu[j]) {
+                    std::cout << "Layer name: " << layer_name << " "
+                              << "Hidden states "
+                              << " "
+                              << "Layer no " << i << "\n"
+                              << std::endl;
 
-                int check = 0;
-                break;
+                    int check = 0;
+                    break;
+                }
+            }
+            for (int k = 0; k < test_current_layer->delta_mu_w.size(); k++) {
+                if (test_current_layer->delta_mu_w[k] !=
+                    ref_current_layer->delta_mu_w[k]) {
+                    std::cout << "Layer name: " << layer_name << " "
+                              << "Weight "
+                              << " "
+                              << "Layer no " << i << "\n"
+                              << std::endl;
+
+                    int check = 0;
+                    break;
+                }
+            }
+
+            for (int k = 0; k < test_current_layer->delta_mu_b.size(); k++) {
+                if (test_current_layer->delta_mu_b[k] !=
+                    ref_current_layer->delta_mu_b[k]) {
+                    std::cout << "Layer name: " << layer_name << " "
+                              << "Bias "
+                              << " "
+                              << "Layer no " << i << "\n"
+                              << std::endl;
+
+                    int check = 0;
+                    break;
+                }
             }
         }
 
