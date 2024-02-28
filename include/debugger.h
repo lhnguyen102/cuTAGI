@@ -3,13 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 14, 2024
-// Updated:      February 15, 2024
+// Updated:      February 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "base_output_updater.h"
 #include "sequential.h"
+#include "tagi_network.cuh"
 
 class ModelDebugger {
    public:
@@ -41,4 +42,36 @@ class ModelDebugger {
     void debug_backward(std::vector<float> &y_batch,
                         std::vector<float> &var_obs,
                         std::vector<int> &idx_ud_batch);
+};
+
+class CrossValidator
+// Compare new version with the previous one
+{
+   public:
+    std::shared_ptr<BaseHiddenStates> test_output_z_buffer;
+    std::shared_ptr<BaseHiddenStates> test_input_z_buffer;
+    std::shared_ptr<BaseTempStates> test_temp_states;
+
+    std::shared_ptr<BaseDeltaStates> test_output_delta_z_buffer;
+    std::shared_ptr<BaseDeltaStates> test_input_delta_z_buffer;
+
+    Sequential test_model;
+    TagiNetwork ref_model;
+
+    OutputUpdater cpu_output_updater;
+    OutputUpdater cuda_output_updater;
+
+    CrossValidator(Sequential &test_model, TagiNetwork &ref_model,
+                   std::string &param_prefix);
+    ~CrossValidator();
+
+    void lazy_init(int batch_size, int z_buffer_size);
+
+    void validate_forward(
+        const std::vector<float> &mu_x,
+        const std::vector<float> &var_x = std::vector<float>());
+
+    void validate_backward(std::vector<float> &y_batch,
+                           std::vector<float> &var_obs,
+                           std::vector<int> &idx_ud_batch);
 };

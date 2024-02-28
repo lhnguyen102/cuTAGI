@@ -863,6 +863,11 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
             this->in_channels, batch_size, this->d_delta_mu_w,
             this->d_delta_var_w);
 
+        // cu_next_bwd_states->to_host();
+        // cu_delta_states->to_host();
+        // cu_temp_states->to_host();
+        // this->delta_params_to_host();
+
         // Biases
         if (this->bias) {
             layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(

@@ -175,6 +175,7 @@ set(CPU_SOURCES
   test/embedding/test_emb_cpu.cpp
   test/fnn/test_fnn_cpu_v2.cpp
   test/fnn/test_fnn_mnist_cpu.cpp
+  test/cross_val/cross_val.cpp
 )
 
 # Sources code for CUDA

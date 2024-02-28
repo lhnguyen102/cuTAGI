@@ -244,6 +244,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
             BaseLayerCuda *test_current_layer_cu =
                 dynamic_cast<BaseLayerCuda *>(test_current_layer);
             test_current_layer_cu->params_to_host();
+            test_current_layer_cu->delta_params_to_host();
         }
         if (this->ref_model.device.compare("cuda") == 0) {
             DeltaStateCuda *ref_output_delta_z_buffer_cu =
@@ -254,6 +255,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
             BaseLayerCuda *ref_current_layer_cu =
                 dynamic_cast<BaseLayerCuda *>(ref_current_layer);
             ref_current_layer_cu->params_to_host();
+            ref_current_layer_cu->delta_params_to_host();
         }
 #endif
 
@@ -337,5 +339,179 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
         ref_model.layers[0]->state_backward(
             *ref_model.layers[0]->bwd_states, *ref_model.input_delta_z_buffer,
             *ref_model.output_delta_z_buffer, *ref_model.temp_states);
+    }
+}
+
+CrossValidator::CrossValidator(Sequential &test_model, TagiNetwork &ref_model,
+                               std::string &param_prefix)
+    : cpu_output_updater("cpu"),
+      cuda_output_updater("cuda")
+//
+{
+    this->test_model = test_model;
+    this->ref_model = ref_model;
+    this->test_model.load_csv(param_prefix);
+}
+
+CrossValidator::~CrossValidator() {}
+
+void CrossValidator::lazy_init(int batch_size, int z_buffer_size)
+/*
+ */
+{
+    if (test_model.device.compare("cpu") == 0) {
+        test_output_z_buffer =
+            std::make_shared<BaseHiddenStates>(z_buffer_size, batch_size);
+        test_input_z_buffer =
+            std::make_shared<BaseHiddenStates>(z_buffer_size, batch_size);
+        test_temp_states =
+            std::make_shared<BaseTempStates>(z_buffer_size, batch_size);
+    }
+#ifdef USE_CUDA
+    else if (test_model.device.compare("cuda") == 0) {
+        test_output_z_buffer =
+            std::make_shared<HiddenStateCuda>(z_buffer_size, batch_size);
+        test_input_z_buffer =
+            std::make_shared<HiddenStateCuda>(z_buffer_size, batch_size);
+        test_temp_states =
+            std::make_shared<TempStateCuda>(z_buffer_size, batch_size);
+    }
+#endif
+
+    if (test_model.device.compare("cpu") == 0) {
+        this->test_output_delta_z_buffer =
+            std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
+        this->test_input_delta_z_buffer =
+            std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
+    }
+#ifdef USE_CUDA
+    else if (test_model.device.compare("cuda") == 0) {
+        this->test_output_delta_z_buffer =
+            std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
+        this->test_input_delta_z_buffer =
+            std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
+    }
+#endif
+}
+
+void CrossValidator::validate_forward(const std::vector<float> &mu_x,
+                                      const std::vector<float> &var_x)
+/*
+ */
+{
+    // Ref Model i.e., older version
+    std::vector<float> Sx_f_batch;
+    std::vector<float> x_batch = mu_x;
+    std::vector<float> Sx_batch(mu_x.size(), 0);
+    this->ref_model.feed_forward(x_batch, Sx_batch, Sx_f_batch);
+
+    // Test Model
+    int batch_size = mu_x.size() / test_model.layers.front()->input_size;
+    int z_buffer_size = batch_size * test_model.z_buffer_size;
+
+    this->lazy_init(batch_size, z_buffer_size);
+
+    // Merge input data to the input buffer
+    this->test_input_z_buffer->set_input_x(mu_x, var_x, batch_size);
+    int num_layers = this->test_model.layers.size();
+
+    for (int i = 0; i < num_layers; i++) {
+        auto *test_current_layer = this->test_model.layers[i].get();
+
+        test_current_layer->forward(*this->test_input_z_buffer,
+                                    *this->test_output_z_buffer,
+                                    *this->test_temp_states);
+
+        // Copy to host for gpu model
+#ifdef USE_CUDA
+        if (this->test_model.device.compare("cuda") == 0) {
+            HiddenStateCuda *test_output_z_buffer_cu =
+                dynamic_cast<HiddenStateCuda *>(
+                    this->test_output_z_buffer.get());
+            test_output_z_buffer_cu->to_host();
+        }
+#endif
+
+        std::swap(this->test_input_z_buffer, this->test_output_z_buffer);
+    }
+    // Output buffer is considered as the final output of network
+    std::swap(this->test_output_z_buffer, this->test_input_z_buffer);
+}
+
+void CrossValidator::validate_backward(std::vector<float> &y_batch,
+                                       std::vector<float> &var_obs,
+                                       std::vector<int> &idx_ud_batch)
+/*
+ */
+{
+    // Ref Model i.e., older version
+    this->ref_model.state_feed_backward(y_batch, var_obs, idx_ud_batch);
+    this->ref_model.param_feed_backward();
+
+    int batch_size = this->test_output_z_buffer->block_size;
+    // Output layer
+    if (this->test_model.device.compare("cpu") == 0) {
+        this->cpu_output_updater.update_using_indices(
+            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->test_input_delta_z_buffer);
+    }
+#ifdef USE_CUDA
+    else {
+        this->cuda_output_updater.update_using_indices(
+            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+            *this->test_input_delta_z_buffer);
+    }
+#endif
+
+    int num_layers = test_model.layers.size();
+
+    for (int i = num_layers - 1; i > 0; i--) {
+        auto *test_current_layer = test_model.layers[i].get();
+
+        // Backward pass for parameters and hidden states
+        if (test_model.param_update) {
+            test_current_layer->param_backward(*test_current_layer->bwd_states,
+                                               *test_input_delta_z_buffer,
+                                               *test_temp_states);
+        }
+
+        // Backward pass for hidden states
+        test_current_layer->state_backward(
+            *test_current_layer->bwd_states, *test_input_delta_z_buffer,
+            *test_output_delta_z_buffer, *test_temp_states);
+
+        // Copy to host for gpu model
+#ifdef USE_CUDA
+        if (this->test_model.device.compare("cuda") == 0) {
+            DeltaStateCuda *test_output_delta_z_buffer_cu =
+                dynamic_cast<DeltaStateCuda *>(
+                    this->test_output_delta_z_buffer.get());
+            test_output_delta_z_buffer_cu->to_host();
+
+            BaseLayerCuda *test_current_layer_cu =
+                dynamic_cast<BaseLayerCuda *>(test_current_layer);
+            test_current_layer_cu->params_to_host();
+            test_current_layer_cu->delta_params_to_host();
+        }
+#endif
+
+        // Pass new input data for next iteration
+        if (test_current_layer->get_layer_type() != LayerType::Activation) {
+            std::swap(test_input_delta_z_buffer, test_output_delta_z_buffer);
+        }
+    }
+
+    // Parameter update for input layer
+    if (test_model.param_update) {
+        test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
+                                             *test_model.input_delta_z_buffer,
+                                             *test_model.temp_states);
+    }
+
+    // State update for input layer
+    if (test_model.input_hidden_state_update) {
+        test_model.layers[0]->state_backward(
+            *test_model.layers[0]->bwd_states, *test_model.input_delta_z_buffer,
+            *test_model.output_delta_z_buffer, *test_model.temp_states);
     }
 }

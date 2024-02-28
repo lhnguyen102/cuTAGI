@@ -273,10 +273,10 @@ void layernorm2d_bwd_delta_b(const std::vector<float> &var_b,
     }
 }
 
-void delta_param_sum(const std::vector<float> delta_mu_e,
-                     const std::vector<float> delta_var_e, int wihi, int fi,
-                     int batch_size, std::vector<float> delta_mu,
-                     std::vector<float> delta_var) {
+void delta_param_sum(const std::vector<float> &delta_mu_e,
+                     const std::vector<float> &delta_var_e, int wihi, int fi,
+                     int batch_size, std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var) {
     for (int col = 0; col < fi; col++) {
         float sum_delta_mu = 0.0f;
         float sum_delta_var = 0.0f;

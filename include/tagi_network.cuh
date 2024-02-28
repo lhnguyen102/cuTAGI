@@ -35,6 +35,7 @@ class TagiNetwork : public TagiNetworkBase {
     size_t num_input_bytes;
 
     TagiNetwork(Network &net_prop);
+    TagiNetwork(){};
 
     ~TagiNetwork();
 

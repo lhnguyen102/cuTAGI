@@ -57,10 +57,10 @@ class BaseLayerCuda : public BaseLayer {
     virtual std::unique_ptr<BaseLayer> to_host();
     virtual void params_to_device();
     virtual void params_to_host();
+    virtual void delta_params_to_host();
 
    protected:
     virtual void allocate_param_memory();
-    virtual void delta_params_to_host();
     virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,
                                                 HiddenStateCuda &output_states,
                                                 BackwardStateCuda &bwd_states);

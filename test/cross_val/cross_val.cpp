@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_mnist_cpu.cpp
+// File:         cross_val.cpp
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      November 25, 2023
-// Updated:      February 18, 2024
+// Created:      February 28, 2024
+// Updated:      February 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "test_fnn_mnist_cpu.h"
+#include "cross_val.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -28,8 +28,27 @@
 #include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
+#include "../../include/struct_var.h"
+#include "../../include/utils.h"
 
-void fnn_mnist() {
+// Specify network properties
+const std::vector<int> LAYERS = {2, 2, 5, 4, 2, 5, 4, 1, 1};
+const std::vector<int> NODES = {784, 0, 0, 0, 0, 0, 0, 100, 11};
+const std::vector<int> KERNELS = {4, 1, 3, 5, 1, 3, 1, 1, 1};
+const std::vector<int> STRIDES = {1, 0, 2, 1, 0, 2, 0, 0, 0};
+const std::vector<int> WIDTHS = {28, 0, 0, 0, 0, 0, 0, 0, 0};
+const std::vector<int> HEIGHTS = {28, 0, 0, 0, 0, 0, 0, 0, 0};
+const std::vector<int> FILTERS = {1, 4, 4, 4, 8, 8, 8, 1, 1};
+const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0, 0, 0};
+const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0, 0, 0};
+const std::vector<int> ACTIVATIONS = {0, 4, 0, 0, 4, 0, 0, 4, 12};
+const int BATCH_SIZE = 2;
+const int SIGMA_V = 1;
+const int NUM_CLASSES = 10;
+const std::vector<float> MU = {0.1309};
+const std::vector<float> SIGMA = {1.0};
+
+void cross_val_mnist() {
     //////////////////////////////////////////////////////////////////////
     // Data preprocessing
     //////////////////////////////////////////////////////////////////////
@@ -98,29 +117,39 @@ void fnn_mnist() {
     // model.set_threads(8);
     // model.to_device("cuda");
 
-    // // CPU Model
-    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
-    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
-    //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-    //                      Linear(100, 11));
+    // Ref Model from older version
+    Network net;
 
-    // Sequential cpu_model(Linear(784, 100),
-    // LayerNorm(std::vector<int>({100})),
-    //                      ReLU(), Linear(100, 100),
-    //                      LayerNorm(std::vector<int>({100})), ReLU(),
-    //                      Linear(100, 11));
+    net.layers = LAYERS;
+    net.nodes = NODES;
+    net.kernels = KERNELS;
+    net.strides = STRIDES;
+    net.widths = WIDTHS;
+    net.heights = HEIGHTS;
+    net.filters = FILTERS;
+    net.pads = PADS;
+    net.pad_types = PAD_TYPES;
+    net.activations = ACTIVATIONS;
+    net.batch_size = BATCH_SIZE;
+    net.sigma_v = SIGMA_V;
 
-    // Sequential cpu_model(
-    //     Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
-    //     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
-    //     Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-    //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    std::string device = "cuda";
+    net.device = device;
+    auto hrs = class_to_obs(NUM_CLASSES);
+    net.nye = hrs.n_obs;
 
-    //////////////////////////////////////////////////////////////////////
-    // Output Updater
-    //////////////////////////////////////////////////////////////////////
-    OutputUpdater output_updater(model.device);
-    // OutputUpdater cpu_output_updater(cpu_model.device);
+    if (net.activations.back() == net.act_names.hr_softmax) {
+        net.is_idx_ud = true;
+        auto hrs = class_to_obs(NUM_CLASSES);
+        net.nye = hrs.n_obs;
+    }
+
+    TagiNetwork ref_model(net);
+
+    std::string param_path = "test/cross_val/saved_param/";
+    std::string model_name = "layernorm_cnn";
+    std::string test_name = "mnist";
+    save_net_param(test_name, model_name, param_path, ref_model.theta);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -144,14 +173,12 @@ void fnn_mnist() {
     std::vector<float> var_a_output(batch_size * n_y, 0);
     auto data_idx = create_range(train_db.num_data);
 
-    // // DEBUGGER
-    // get_batch_images_labels(train_db, data_idx, batch_size, 0, x_batch,
-    // y_batch,
-    //                         idx_ud_batch, label_batch);
-    // model.forward(x_batch);
-    // cpu_model.params_from(model);
-    // cpu_model.forward(x_batch);
-    // ModelDebugger model_debugger(model, cpu_model);
+    // VALIDATOR
+    get_batch_images_labels(train_db, data_idx, batch_size, 0, x_batch, y_batch,
+                            idx_ud_batch, label_batch);
+    model.forward(x_batch);
+    std::string param_prefix = test_name + "_" + model_name;
+    CrossValidator validator(model, ref_model, param_prefix);
 
     // Error rate for training
     int mt_idx = 0;
@@ -173,91 +200,13 @@ void fnn_mnist() {
                                     y_batch, idx_ud_batch, label_batch);
 
             // Forward pass
-            //
-            model.forward(x_batch);
-            // model_debugger.debug_forward(x_batch);
-            // model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
-            // if (i == 0) {
-            //     cpu_model.params_from(model);
-            // }
-            // cpu_model.forward(x_batch);
-
-            // Output layer
-            output_updater.update_using_indices(*model.output_z_buffer, y_batch,
-                                                var_obs, idx_ud_batch,
-                                                *model.input_delta_z_buffer);
-            // cpu_output_updater.update_using_indices(
-            //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            //     *cpu_model.input_delta_z_buffer);
-
-            // Backward pass
-            model.backward();
-            model.step();
-
-            // cpu_model.backward();
-            // cpu_model.step();
-
-            // for (int kk = 0; kk < cpu_model.layers[0]->mu_w.size(); kk++) {
-            //     if (cpu_model.layers[3]->mu_w[kk] !=
-            //         model.layers[3]->mu_w[kk]) {
-            //         int check = 1;
-            //     }
-            // }
-
-            // for (int bb = 0; bb < cpu_model.layers[0]->mu_b.size(); bb++) {
-            //     if (cpu_model.layers[3]->mu_b[bb] !=
-            //         model.layers[3]->mu_b[bb]) {
-            //         int check = 1;
-            //     }
-            // }
-
-            // Extract output
-            if (model.device == "cuda") {
-                model.output_to_host();
-            }
-            // model.delta_z_to_host();
-
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model.output_z_buffer->mu_a[j];
-                var_a_output[j] = model.output_z_buffer->var_a[j];
-            }
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(mu_a_output, var_a_output, label_batch, num_classes,
-                          batch_size);
-
-            mt_idx = i * batch_size;
-            update_vector(error_rate, error_rate_batch, mt_idx, 1);
-
-            if (i % 100 == 0 && i != 0) {
-                int curr_idx = mt_idx + batch_size;
-                auto avg_error =
-                    compute_average_error_rate(error_rate, curr_idx, 100);
-
-                std::cout << "\tError rate for last 100 observation: ";
-                std::cout << std::fixed;
-                std::cout << std::setprecision(3);
-                std::cout << avg_error << "\n";
-            }
+            validator.validate_forward(x_batch);
+            validator.validate_backward(y_batch, var_obs, idx_ud_batch);
         }
-        // Report computational time
-        std::cout << std::endl;
-        auto end = std::chrono::steady_clock::now();
-        auto run_time =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-                .count();
-        std::cout << " Time per epoch: " << run_time * 1e-9 << " sec\n";
-        std::cout << " Time left     : ";
-        std::cout << std::fixed;
-        std::cout << std::setprecision(3);
-        std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
-
-    //////////////////////////////////////////////////////////////////////
-    // Testing
-    //////////////////////////////////////////////////////////////////////
 }
 
-int test_fnn_mnist() {
-    fnn_mnist();
+int cross_val_with_old_version() {
+    cross_val_mnist();
     return 0;
 }
