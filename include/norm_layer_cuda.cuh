@@ -77,7 +77,8 @@ class BatchNorm2dCuda : public BaseLayerCuda {
     float momentum;
     bool bias;
 
-    BatchNorm2dCuda(float eps = 1e-5, float mometum = 0.9, bool bias = true);
+    BatchNorm2dCuda(int num_features, float eps = 1e-5, float mometum = 0.9,
+                    bool bias = true);
     ~BatchNorm2dCuda();
 
     // Delete copy constructor and copy assignment

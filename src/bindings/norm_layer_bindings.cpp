@@ -39,7 +39,8 @@ void bind_batchnorm_layer(pybind11::module_& modo)
 {
     pybind11::class_<BatchNorm2d, std::shared_ptr<BatchNorm2d>, BaseLayer>(
         modo, "BatchNorm2d")
-        .def(pybind11::init<float, float, bool>(), pybind11::arg("eps") = 1e-4,
+        .def(pybind11::init<int, float, float, bool>(),
+             pybind11::arg("num_features"), pybind11::arg("eps") = 1e-4,
              pybind11::arg("mometum") = 0.9, pybind11::arg("bias") = true)
         .def("get_layer_info", &BatchNorm2d::get_layer_info)
         .def("get_layer_name", &BatchNorm2d::get_layer_name)

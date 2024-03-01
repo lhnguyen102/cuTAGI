@@ -90,7 +90,7 @@ void fnn_mnist() {
     //                  ReLU(), Linear(100, 11));
 
     Sequential model(
-        Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
+        Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28),
         LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
         Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
         AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));

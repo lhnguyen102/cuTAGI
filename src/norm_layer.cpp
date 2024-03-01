@@ -1736,15 +1736,19 @@ LayerNorm::get_running_mean_var()
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
-BatchNorm2d::BatchNorm2d(float eps, float momentum, bool bias)
-    : epsilon(eps),
+BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias)
+    : num_features(num_features),
+      epsilon(eps),
       momentum(momentum)
 /*
  */
 {
     this->bias = bias;
+    this->init_weight_bias();
+    this->allocate_running_mean_var();
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
+        this->allocate_param_delta();
     }
 }
 
@@ -1778,13 +1782,8 @@ void BatchNorm2d::init_weight_bias()
 /*
  */
 {
-    if (this->in_channels == 0) {
-        this->num_weights = this->input_size;
-        this->num_biases = this->input_size;
-    } else {
-        this->num_weights = this->in_channels;
-        this->num_biases = this->in_channels;
-    }
+    this->num_weights = this->num_features;
+    this->num_biases = this->num_features;
 
     float scale = powf(1.0f / this->num_weights, 0.5);
     this->mu_w.resize(this->num_weights, 1.0f);
@@ -1812,14 +1811,8 @@ void BatchNorm2d::allocate_running_mean_var()
 /*
  */
 {
-    int num_ra;
-    if (this->out_channels == 0) {
-        num_ra = this->output_size;
-    } else {
-        num_ra = this->out_channels;
-    }
-    this->mu_ra.resize(num_ra, 0.0f);
-    this->var_ra.resize(num_ra, 1.0f);
+    this->mu_ra.resize(this->num_features, 0.0f);
+    this->var_ra.resize(this->num_features, 1.0f);
 }
 
 void BatchNorm2d::forward(BaseHiddenStates &input_states,
@@ -1830,30 +1823,21 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
 {
     int batch_size = input_states.block_size;
 
-    if (this->num_weights == 0) {
-        if (this->in_channels != 0 && input_states.depth != 0) {
-            this->in_channels = input_states.depth;
-            this->in_width = input_states.width;
-            this->in_height = input_states.height;
+    if (this->in_channels != 0 && input_states.depth != 0) {
+        this->in_channels = input_states.depth;
+        this->in_width = input_states.width;
+        this->in_height = input_states.height;
 
-            this->out_channels = input_states.depth;
-            this->out_width = input_states.width;
-            this->out_height = input_states.height;
-            this->input_size = input_states.actual_size;
-            this->output_size =
-                this->out_channels * this->out_width * this->out_height;
+        this->out_channels = input_states.depth;
+        this->out_width = input_states.width;
+        this->out_height = input_states.height;
+        this->input_size = input_states.actual_size;
+        this->output_size =
+            this->out_channels * this->out_width * this->out_height;
 
-        } else {
-            this->input_size = input_states.actual_size;
-            this->output_size = input_states.actual_size;
-        }
-        this->init_weight_bias();
-        if (this->training) {
-            this->allocate_param_delta();
-        }
-    }
-    if (this->mu_ra.size() == 0) {
-        this->allocate_running_mean_var();
+    } else {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
     }
 
     // Assign output dimensions
@@ -2103,7 +2087,7 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<BatchNorm2dCuda>(this->epsilon, this->momentum,
-                                             this->bias);
+    return std::make_unique<BatchNorm2dCuda>(this->num_features, this->epsilon,
+                                             this->momentum, this->bias);
 }
 #endif

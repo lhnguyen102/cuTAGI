@@ -42,6 +42,24 @@ const std::vector<int> FILTERS = {1, 4, 4, 4, 8, 8, 8, 1, 1};
 const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0, 0, 0};
 const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0, 0, 0};
 const std::vector<int> ACTIVATIONS = {0, 4, 0, 0, 4, 0, 0, 4, 12};
+
+// FC LAYER
+// const std::vector<int> LAYERS = {1, 1, 1, 1};
+// const std::vector<int> NODES = {784, 100, 100, 11};
+// const std::vector<int> ACTIVATIONS = {0, 4, 4, 12};
+
+// // Conv
+// const std::vector<int> LAYERS = {2, 2, 4, 2, 4, 1, 1};
+// const std::vector<int> NODES = {784, 0, 0, 0, 0, 100, 11};
+// const std::vector<int> KERNELS = {4, 3, 5, 3, 1, 1, 1};
+// const std::vector<int> STRIDES = {1, 2, 1, 2, 0, 0, 0};
+// const std::vector<int> WIDTHS = {28, 0, 0, 0, 0, 0, 0};
+// const std::vector<int> HEIGHTS = {28, 0, 0, 0, 0, 0, 0};
+// const std::vector<int> FILTERS = {1, 16, 16, 32, 32, 1, 1};
+// const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0};
+// const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0};
+// const std::vector<int> ACTIVATIONS = {0, 4, 0, 4, 0, 4, 12};
+
 const int BATCH_SIZE = 2;
 const int SIGMA_V = 1;
 const int NUM_CLASSES = 10;
@@ -97,10 +115,10 @@ void cross_val_mnist() {
     //                  LayerNorm(std::vector<int>({100})), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3,
-    // 2),
-    //                  Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), BatchNorm2d(),
     // ReLU(),
@@ -109,10 +127,10 @@ void cross_val_mnist() {
     //                  ReLU(), Linear(100, 11));
 
     Sequential model(
-        Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
-        LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
-        Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-        AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+        Conv2d(1, 4, 4, false, 1, 1, 1, 28, 28),
+        LayerNorm(std::vector<int>({4, 27, 27})), ReLU(), AvgPool2d(3, 2),
+        Conv2d(4, 8, 5, false), LayerNorm(std::vector<int>({8, 9, 9})), ReLU(),
+        AvgPool2d(3, 2), Linear(8 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // model.set_threads(8);
     // model.to_device("cuda");
@@ -149,7 +167,13 @@ void cross_val_mnist() {
     std::string param_path = "test/cross_val/saved_param/";
     std::string model_name = "layernorm_cnn";
     std::string test_name = "mnist";
-    save_net_param(test_name, model_name, param_path, ref_model.theta);
+    // save_net_param(test_name, model_name, param_path, ref_model.theta);
+    load_net_param(test_name, model_name, param_path, ref_model.theta);
+
+    // VALIDATOR
+    std::string param_prefix = param_path + test_name + "_" + model_name;
+    model.preinit_layer();
+    CrossValidator validator(model, ref_model, param_prefix);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -158,7 +182,7 @@ void cross_val_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
+    int batch_size = BATCH_SIZE;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -172,13 +196,6 @@ void cross_val_mnist() {
     std::vector<float> mu_a_output(batch_size * n_y, 0);
     std::vector<float> var_a_output(batch_size * n_y, 0);
     auto data_idx = create_range(train_db.num_data);
-
-    // VALIDATOR
-    get_batch_images_labels(train_db, data_idx, batch_size, 0, x_batch, y_batch,
-                            idx_ud_batch, label_batch);
-    model.forward(x_batch);
-    std::string param_prefix = test_name + "_" + model_name;
-    CrossValidator validator(model, ref_model, param_prefix);
 
     // Error rate for training
     int mt_idx = 0;

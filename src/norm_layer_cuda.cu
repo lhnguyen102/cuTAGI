@@ -910,13 +910,20 @@ LayerNormCuda::get_running_mean_var()
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
-BatchNorm2dCuda::BatchNorm2dCuda(float eps, float momentum, bool bias)
-    : epsilon(eps),
+BatchNorm2dCuda::BatchNorm2dCuda(int num_featues, float eps, float momentum,
+                                 bool bias)
+    : num_features(num_features),
+      epsilon(eps),
       momentum(momentum)
 /*
  */
 {
     this->bias = bias;
+    this->init_weight_bias();
+    this->allocate_running_mean_var();
+    if (this->training) {
+        this->allocate_param_delta();
+    }
 }
 
 BatchNorm2dCuda::~BatchNorm2dCuda()
@@ -952,13 +959,8 @@ void BatchNorm2dCuda::init_weight_bias()
 /*
  */
 {
-    if (this->in_channels == 0) {
-        this->num_weights = this->input_size;
-        this->num_biases = this->input_size;
-    } else {
-        this->num_weights = this->in_channels;
-        this->num_biases = this->in_channels;
-    }
+    this->num_weights = this->num_features;
+    this->num_biases = this->num_features;
 
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, 1.0f);
@@ -998,16 +1000,10 @@ void BatchNorm2dCuda::allocate_running_mean_var()
 /*
  */
 {
-    int num_ra;
-    if (this->out_channels == 0) {
-        num_ra = this->output_size;
-    } else {
-        num_ra = this->out_channels;
-    }
-    this->mu_ra.resize(num_ra, 0.0f);
-    this->var_ra.resize(num_ra, 1.0f);
-    cudaMalloc(&this->d_mu_ra, num_ra * sizeof(float));
-    cudaMalloc(&this->d_var_ra, num_ra * sizeof(float));
+    this->mu_ra.resize(this->num_features, 0.0f);
+    this->var_ra.resize(this->num_features, 1.0f);
+    cudaMalloc(&this->d_mu_ra, this->num_features * sizeof(float));
+    cudaMalloc(&this->d_var_ra, this->num_features * sizeof(float));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1070,30 +1066,20 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     int num_threads = this->num_cuda_threads;
     dim3 block_dim(num_threads, num_threads);
 
-    if (this->num_weights == 0) {
-        if (this->in_channels != 0 && cu_input_states->depth != 0) {
-            this->in_channels = cu_input_states->depth;
-            this->in_width = cu_input_states->width;
-            this->in_height = cu_input_states->height;
+    if (this->in_channels != 0 && cu_input_states->depth != 0) {
+        this->in_channels = cu_input_states->depth;
+        this->in_width = cu_input_states->width;
+        this->in_height = cu_input_states->height;
 
-            this->out_channels = cu_input_states->depth;
-            this->out_width = cu_input_states->width;
-            this->out_height = cu_input_states->height;
-            this->input_size =
-                this->in_channels * this->in_width * this->in_height;
-            this->output_size =
-                this->out_channels * this->out_width * this->out_height;
-        } else {
-            this->input_size = cu_input_states->actual_size;
-            this->output_size = cu_input_states->actual_size;
-        }
-        this->init_weight_bias();
-        if (this->training) {
-            this->allocate_param_delta();
-        }
-    }
-    if (this->mu_ra.size() == 0) {
-        this->allocate_running_mean_var();
+        this->out_channels = cu_input_states->depth;
+        this->out_width = cu_input_states->width;
+        this->out_height = cu_input_states->height;
+        this->input_size = this->in_channels * this->in_width * this->in_height;
+        this->output_size =
+            this->out_channels * this->out_width * this->out_height;
+    } else {
+        this->input_size = cu_input_states->actual_size;
+        this->output_size = cu_input_states->actual_size;
     }
 
     // Assign output dimensions

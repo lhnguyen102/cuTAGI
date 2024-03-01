@@ -219,6 +219,12 @@ void AvgPool2d::lazy_index_init()
     this->col_z_ud = idx.h;
 }
 
+void AvgPool2d::preinit_layer() {
+    if (this->pool_idx.size() == 0) {
+        this->lazy_index_init();
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Pool2d Backward and Forward
 ////////////////////////////////////////////////////////////////////////////////

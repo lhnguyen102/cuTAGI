@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      February 14, 2024
+// Updated:      February 29, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,6 +102,7 @@ class Sequential {
     // DEBUG
     void output_to_host();
     void delta_z_to_host();
+    void preinit_layer();
 
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;

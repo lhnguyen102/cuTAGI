@@ -19,6 +19,7 @@ class Conv2d(BaseLayer):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
+        bias: bool = True,
         stride: int = 1,
         padding: int = 0,
         padding_type: int = 1,
@@ -27,12 +28,12 @@ class Conv2d(BaseLayer):
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
         init_method: str = "He",
-        bias: bool = True,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
+        self.is_bias = bias
         self.stride = stride
         self.padding = padding
         self.padding_type = padding_type
@@ -46,6 +47,7 @@ class Conv2d(BaseLayer):
             in_channels,
             out_channels,
             kernel_size,
+            bias,
             stride,
             padding,
             padding_type,
@@ -54,7 +56,6 @@ class Conv2d(BaseLayer):
             gain_weight,
             gain_bias,
             init_method,
-            bias,
         )
 
     def get_layer_info(self) -> str:

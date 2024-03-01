@@ -80,9 +80,11 @@ void BaseLayer::update_weights()
 /*
  */
 {
-    for (int i = 0; i < this->mu_w.size(); i++) {
-        this->mu_w[i] += this->delta_mu_w[i];
-        this->var_w[i] += this->delta_var_w[i];
+    if (this->bias) {
+        for (int i = 0; i < this->mu_w.size(); i++) {
+            this->mu_w[i] += this->delta_mu_w[i];
+            this->var_w[i] += this->delta_var_w[i];
+        }
     }
 }
 
@@ -204,4 +206,11 @@ BaseLayer::get_running_mean_var()
  */
 {
     return {std::vector<float>(), std::vector<float>()};
+}
+
+void BaseLayer::preinit_layer()
+/* Pre-initialize the layer property e.g., number of weights & biases
+ */
+{
+    // We do nothing by default
 }

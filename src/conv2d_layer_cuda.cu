@@ -27,10 +27,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
-                       size_t kernel_size, int stride, int padding,
+                       size_t kernel_size, bool bias, int stride, int padding,
                        int padding_type, size_t in_width, size_t in_height,
-                       float gain_w, float gain_b, std::string init_method,
-                       bool bias)
+                       float gain_w, float gain_b, std::string init_method)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
@@ -380,9 +379,9 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<Conv2d>(
-        this->in_channels, this->out_channels, this->kernel_size, this->stride,
-        this->padding, this->padding_type, this->in_width, this->in_height,
-        this->gain_w, this->gain_b, this->init_method, this->bias);
+        this->in_channels, this->out_channels, this->kernel_size, this->bias,
+        this->stride, this->padding, this->padding_type, this->in_width,
+        this->in_height, this->gain_w, this->gain_b, this->init_method);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;
@@ -390,6 +389,18 @@ std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
     host_linear->var_b = this->var_b;
 
     return host_linear;
+}
+
+void Conv2dCuda::preinit_layer() {
+    if (this->num_weights == 0) {
+        this->get_number_param_conv2d();
+        this->init_weight_bias();
+        this->allocate_param_delta();
+    }
+
+    if (this->idx_mwa_2.size() == 0) {
+        this->lazy_index_init();
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

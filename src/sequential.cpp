@@ -283,6 +283,14 @@ std::string Sequential::get_layer_stack_info() const {
     return ss.str();
 }
 
+void Sequential::preinit_layer() {
+    for (const auto &layer : this->layers) {
+        if (layer) {
+            layer->preinit_layer();
+        }
+    }
+}
+
 void Sequential::save(const std::string &filename)
 /**/
 {
@@ -358,10 +366,10 @@ This allows saving network's parameters in csv so that
     }
 
     // Save parameters to csv
-    std::string mu_w_path = filename + "_mu_w.csv";
-    std::string var_w_path = filename + "_var_w.csv";
-    std::string mu_b_path = filename + "_mu_b.csv";
-    std::string var_b_path = filename + "_var_b.csv";
+    std::string mu_w_path = filename + "_1_mw.csv";
+    std::string var_w_path = filename + "_2_Sw.csv";
+    std::string mu_b_path = filename + "_3_mb.csv";
+    std::string var_b_path = filename + "_4_Sb.csv";
 
     write_csv(mu_w_path, mu_w);
     write_csv(var_w_path, var_w);
@@ -387,10 +395,10 @@ void Sequential::load_csv(const std::string &filename)
     std::vector<float> var_b(num_biases);
 
     // Read data from csv
-    std::string mu_w_path = filename + "_mu_w.csv";
-    std::string var_w_path = filename + "_var_w.csv";
-    std::string mu_b_path = filename + "_mu_b.csv";
-    std::string var_b_path = filename + "_var_b.csv";
+    std::string mu_w_path = filename + "_1_mw.csv";
+    std::string var_w_path = filename + "_2_Sw.csv";
+    std::string mu_b_path = filename + "_3_mb.csv";
+    std::string var_b_path = filename + "_4_Sb.csv";
 
     read_csv(mu_w_path, mu_w, 1, false);
     read_csv(var_w_path, var_w, 1, false);

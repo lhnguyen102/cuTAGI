@@ -403,7 +403,10 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     std::vector<float> Sx_f_batch;
     std::vector<float> x_batch = mu_x;
     std::vector<float> Sx_batch(mu_x.size(), 0);
+    this->ref_model.prop.ra_mt = 0.9;
     this->ref_model.feed_forward(x_batch, Sx_batch, Sx_f_batch);
+    this->ref_model.state_gpu.copy_device_to_host();
+    this->ref_model.get_network_outputs();
 
     // Test Model
     int batch_size = mu_x.size() / test_model.layers.front()->input_size;
@@ -436,6 +439,7 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     }
     // Output buffer is considered as the final output of network
     std::swap(this->test_output_z_buffer, this->test_input_z_buffer);
+    int check = 0;
 }
 
 void CrossValidator::validate_backward(std::vector<float> &y_batch,

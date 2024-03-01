@@ -31,10 +31,10 @@ class Conv2dCuda : public BaseLayerCuda {
     int padding_type = 1;
 
     Conv2dCuda(size_t in_channels, size_t out_channels, size_t kernel_size,
-               int stride = 1, int padding = 0, int padding_type = 0,
-               size_t in_width = 0, size_t in_height = 0, float gain_w = 1.0f,
-               float gain_b = 1.0f, std::string init_method = "He",
-               bool bias = true);
+               bool bias = true, int stride = 1, int padding = 0,
+               int padding_type = 0, size_t in_width = 0, size_t in_height = 0,
+               float gain_w = 1.0f, float gain_b = 1.0f,
+               std::string init_method = "He");
 
     virtual ~Conv2dCuda();
 
@@ -73,6 +73,8 @@ class Conv2dCuda : public BaseLayerCuda {
                         BaseTempStates &temp_states) override;
 
     std::unique_ptr<BaseLayer> to_host() override;
+
+    void preinit_layer() override;
 
    protected:
     void allocate_param_delta();

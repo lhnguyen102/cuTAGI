@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      January 19, 2024
+// Updated:      February 29, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,8 @@ class InitArgs {
     size_t height = 0;
     size_t depth = 0;
     int batch_size = 1;
-    InitArgs(size_t width, size_t height, size_t depth = 1, int batch_size = 1);
+    InitArgs(size_t width = 0, size_t height = 0, size_t depth = 0,
+             int batch_size = 1);
     virtual ~InitArgs() = default;
 };
 
@@ -107,6 +108,8 @@ class BaseLayer {
     // DEBUG
     virtual std::tuple<std::vector<float>, std::vector<float>>
     get_running_mean_var();
+
+    virtual void preinit_layer();
 
    protected:
     void allocate_bwd_vector(int size);
