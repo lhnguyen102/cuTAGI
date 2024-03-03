@@ -19,3 +19,6 @@ dist
 !test/fnn_full_cov/data/*.csv
 !test/fnn_heteros/data/*.csv
 !test/lstm/data/*.csv
+cuda-repo-ubuntu2004-12-3-local_12.3.2-545.23.08-1_amd64.deb
+cuda-repo-ubuntu2004-12-3-local_12.3.2-545.23.08-1_amd64.deb.1
+cuda-ubuntu2004.pin
