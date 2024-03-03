@@ -22,7 +22,7 @@ class LayerNorm : public BaseLayer {
     float momentum;
     bool bias;
 
-    LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-4,
+    LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-5,
               float mometum = 0.9, bool bias = true);
     ~LayerNorm();
 
@@ -78,7 +78,7 @@ class BatchNorm2d : public BaseLayer {
     float momentum;
     bool bias;
 
-    BatchNorm2d(int num_features, float eps = 1e-4, float mometum = 0.9,
+    BatchNorm2d(int num_features, float eps = 1e-5, float mometum = 0.9,
                 bool bias = true);
     ~BatchNorm2d();
 

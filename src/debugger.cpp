@@ -342,7 +342,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
     }
 }
 
-CrossValidator::CrossValidator(Sequential &test_model, TagiNetwork &ref_model,
+CrossValidator::CrossValidator(Sequential &test_model, TagiNetwork *ref_model,
                                std::string &param_prefix)
     : cpu_output_updater("cpu"),
       cuda_output_updater("cuda")
@@ -403,10 +403,10 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     std::vector<float> Sx_f_batch;
     std::vector<float> x_batch = mu_x;
     std::vector<float> Sx_batch(mu_x.size(), 0);
-    this->ref_model.prop.ra_mt = 0.9;
-    this->ref_model.feed_forward(x_batch, Sx_batch, Sx_f_batch);
-    this->ref_model.state_gpu.copy_device_to_host();
-    this->ref_model.get_network_outputs();
+    this->ref_model->prop.ra_mt = 0.9;
+    this->ref_model->feed_forward(x_batch, Sx_batch, Sx_f_batch);
+    this->ref_model->state_gpu.copy_device_to_host();
+    this->ref_model->get_network_outputs();
 
     // Test Model
     int batch_size = mu_x.size() / test_model.layers.front()->input_size;
@@ -449,8 +449,10 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
  */
 {
     // Ref Model i.e., older version
-    this->ref_model.state_feed_backward(y_batch, var_obs, idx_ud_batch);
-    this->ref_model.param_feed_backward();
+    this->ref_model->state_feed_backward(y_batch, var_obs, idx_ud_batch);
+    this->ref_model->param_feed_backward();
+    this->ref_model->d_state_gpu.copy_device_to_host();
+    this->ref_model->d_theta_gpu.copy_device_to_host();
 
     int batch_size = this->test_output_z_buffer->block_size;
     // Output layer
@@ -508,14 +510,14 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
     // Parameter update for input layer
     if (test_model.param_update) {
         test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
-                                             *test_model.input_delta_z_buffer,
-                                             *test_model.temp_states);
+                                             *test_input_delta_z_buffer,
+                                             *test_temp_states);
     }
 
     // State update for input layer
     if (test_model.input_hidden_state_update) {
         test_model.layers[0]->state_backward(
-            *test_model.layers[0]->bwd_states, *test_model.input_delta_z_buffer,
-            *test_model.output_delta_z_buffer, *test_model.temp_states);
+            *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
+            *test_output_delta_z_buffer, *test_temp_states);
     }
 }

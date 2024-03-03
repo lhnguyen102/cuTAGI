@@ -14,7 +14,20 @@ TagiNetwork::TagiNetwork(Network &net_prop) {
     this->init_net();
 }
 
-TagiNetwork::~TagiNetwork() {}
+TagiNetwork::TagiNetwork() {}
+
+TagiNetwork::~TagiNetwork() {
+    cudaFree(this->d_ma);
+    cudaFree(this->d_Sa);
+    cudaFree(this->d_mz);
+    cudaFree(this->d_Sz);
+    cudaFree(this->d_J);
+    cudaFree(this->d_ma_init);
+    cudaFree(this->d_Sa_init);
+    cudaFree(this->d_mz_init);
+    cudaFree(this->d_Sz_init);
+    cudaFree(this->d_J_init);
+}
 
 void TagiNetwork::feed_forward(std::vector<float> &x, std::vector<float> &Sx,
                                std::vector<float> &Sx_f) {

@@ -41,9 +41,9 @@ const std::vector<int> HEIGHTS = {28, 0, 0, 0, 0, 0, 0, 0, 0};
 const std::vector<int> FILTERS = {1, 4, 4, 4, 8, 8, 8, 1, 1};
 const std::vector<int> PADS = {1, 0, 0, 0, 0, 0, 0, 0, 0};
 const std::vector<int> PAD_TYPES = {1, 0, 0, 0, 0, 0, 0, 0, 0};
-const std::vector<int> ACTIVATIONS = {0, 4, 0, 0, 4, 0, 0, 4, 12};
+const std::vector<int> ACTIVATIONS = {0, 0, 4, 0, 0, 4, 0, 4, 12};
 
-// FC LAYER
+// // FC LAYER
 // const std::vector<int> LAYERS = {1, 1, 1, 1};
 // const std::vector<int> NODES = {784, 100, 100, 11};
 // const std::vector<int> ACTIVATIONS = {0, 4, 4, 12};
@@ -169,11 +169,12 @@ void cross_val_mnist() {
     std::string test_name = "mnist";
     // save_net_param(test_name, model_name, param_path, ref_model.theta);
     load_net_param(test_name, model_name, param_path, ref_model.theta);
+    ref_model.theta_gpu.copy_host_to_device();
 
     // VALIDATOR
     std::string param_prefix = param_path + test_name + "_" + model_name;
     model.preinit_layer();
-    CrossValidator validator(model, ref_model, param_prefix);
+    CrossValidator validator(model, &ref_model, param_prefix);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -211,12 +212,16 @@ void cross_val_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 2; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
 
-            // Forward pass
+            // // Forward pass
+            // std::vector<float> Sx_f_batch;
+            // std::vector<float> Sx_batch(x_batch.size(), 0);
+            // ref_model.prop.ra_mt = 0.9;
+            // ref_model.feed_forward(x_batch, Sx_batch, Sx_f_batch);
             validator.validate_forward(x_batch);
             validator.validate_backward(y_batch, var_obs, idx_ud_batch);
         }

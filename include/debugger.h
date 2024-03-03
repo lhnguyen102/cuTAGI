@@ -56,12 +56,12 @@ class CrossValidator
     std::shared_ptr<BaseDeltaStates> test_input_delta_z_buffer;
 
     Sequential test_model;
-    TagiNetwork ref_model;
+    TagiNetwork *ref_model;
 
     OutputUpdater cpu_output_updater;
     OutputUpdater cuda_output_updater;
 
-    CrossValidator(Sequential &test_model, TagiNetwork &ref_model,
+    CrossValidator(Sequential &test_model, TagiNetwork *ref_model,
                    std::string &param_prefix);
     ~CrossValidator();
 

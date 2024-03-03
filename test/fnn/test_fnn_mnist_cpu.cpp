@@ -69,9 +69,9 @@ void fnn_mnist() {
     // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Linear(784, 100), BatchNorm2d(), ReLU(), Linear(100,
-    // 100),
-    //                  BatchNorm2d(), ReLU(), Linear(100, 11));
+    // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
+    //                  Linear(100, 100), BatchNorm2d(100), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
     //                  ReLU(), Linear(100, 100),
@@ -83,17 +83,17 @@ void fnn_mnist() {
     //                  Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
     //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), BatchNorm2d(),
-    // ReLU(),
-    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), BatchNorm2d(),
-    //                  ReLU(), AvgPool2d(3, 2), Linear(32 * 4 * 4, 100),
-    //                  ReLU(), Linear(100, 11));
+    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+                     BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
+                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    Sequential model(
-        Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28),
-        LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
-        Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-        AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // model.set_threads(8);
     // model.to_device("cuda");
@@ -196,20 +196,6 @@ void fnn_mnist() {
 
             // cpu_model.backward();
             // cpu_model.step();
-
-            // for (int kk = 0; kk < cpu_model.layers[0]->mu_w.size(); kk++) {
-            //     if (cpu_model.layers[3]->mu_w[kk] !=
-            //         model.layers[3]->mu_w[kk]) {
-            //         int check = 1;
-            //     }
-            // }
-
-            // for (int bb = 0; bb < cpu_model.layers[0]->mu_b.size(); bb++) {
-            //     if (cpu_model.layers[3]->mu_b[bb] !=
-            //         model.layers[3]->mu_b[bb]) {
-            //         int check = 1;
-            //     }
-            // }
 
             // Extract output
             if (model.device == "cuda") {

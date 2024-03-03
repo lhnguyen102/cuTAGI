@@ -1070,6 +1070,8 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
                     d_state.d_dummy_m, d_state.d_dummy_S, wposIn, wihi, fi,
                     wihiB, d_theta.d_delta_mw, d_theta.d_delta_Sw);
 
+                d_theta.copy_device_to_host();
+
                 convlnDeltaMbSb<<<dimGrid, dimBlock>>>(
                     theta.d_Sb, d_state.d_delta_m, d_state.d_delta_S,
                     net.epsilon, bposIn, zposOut, wihi, B, wihifi,

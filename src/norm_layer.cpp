@@ -1552,6 +1552,7 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
                 this->var_ra, this->epsilon, wihi, this->input_size, 0,
                 batch_size, output_states.mu_a, output_states.var_a);
+            int check = 1;
         }
     } else {
         layernorm_stat_mean_var_mp(
