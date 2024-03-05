@@ -12,6 +12,10 @@
 
 #include "../include/conv2d_layer.h"
 #include "../include/pooling_layer.h"
+#ifdef USE_CUDA
+#include "../include/base_layer_cuda.cuh"
+#endif
+#include <memory>
 
 Sequential::Sequential() {}
 Sequential::~Sequential() {}
@@ -323,6 +327,12 @@ void Sequential::load(const std::string &filename)
 
     for (auto &layer : layers) {
         layer->load(file);
+#ifdef USE_CUDA
+        if (layer->device.compare("cuda") == 0) {
+            auto layer_cu = std::dynamic_pointer_cast<BaseLayerCuda>(layer);
+            layer_cu->params_to_device();
+        }
+#endif
     }
     file.close();
 }

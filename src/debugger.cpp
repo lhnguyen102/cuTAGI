@@ -318,27 +318,27 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
     // Parameter update for input layer
     if (test_model.param_update) {
         test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
-                                             *test_model.input_delta_z_buffer,
-                                             *test_model.temp_states);
+                                             *test_input_delta_z_buffer,
+                                             *test_temp_states);
     }
 
     // State update for input layer
     if (test_model.input_hidden_state_update) {
         test_model.layers[0]->state_backward(
-            *test_model.layers[0]->bwd_states, *test_model.input_delta_z_buffer,
-            *test_model.output_delta_z_buffer, *test_model.temp_states);
+            *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
+            *test_output_delta_z_buffer, *test_temp_states);
     }
 
     if (ref_model.param_update) {
         ref_model.layers[0]->param_backward(*ref_model.layers[0]->bwd_states,
-                                            *ref_model.input_delta_z_buffer,
-                                            *ref_model.temp_states);
+                                            *ref_input_delta_z_buffer,
+                                            *ref_temp_states);
     }
 
     if (ref_model.input_hidden_state_update) {
         ref_model.layers[0]->state_backward(
-            *ref_model.layers[0]->bwd_states, *ref_model.input_delta_z_buffer,
-            *ref_model.output_delta_z_buffer, *ref_model.temp_states);
+            *ref_model.layers[0]->bwd_states, *ref_input_delta_z_buffer,
+            *ref_output_delta_z_buffer, *ref_temp_states);
     }
 }
 

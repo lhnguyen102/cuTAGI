@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 12, 2024
+// Updated:      March 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -230,14 +230,15 @@ __global__ void layernorm2d_bwd_delta_w_cuda(
 __global__ void layernorm2d_bwd_delta_b_cuda(float const *var_b,
                                              float const *delta_mu_out,
                                              float const *delta_var_out,
-                                             float epsilon, int wihi, int m,
-                                             int k, float *delta_mu_b,
+                                             float epsilon, int wihi, int fi,
+                                             int m, float *delta_mu_b,
                                              float *delta_var_b)
 /*
  */
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int k = wihi * fi;
     if (col < k && row < m)  // k = wihi*f, m = B
     {
         float A = var_b[col / wihi];
@@ -389,7 +390,7 @@ layer is a convolutional layer.
     if (col < k && row < m)  // k = wihi, m = fi*B
     {
         int div_idx = row % fi;
-        float inv_sqrt_var_ra = (1.0f / sqrtf(var_ra[div_idx] + epsilon));
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[div_idx] + epsilon);
 
         int idx = col + row * k;
 
@@ -910,7 +911,7 @@ LayerNormCuda::get_running_mean_var()
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
-BatchNorm2dCuda::BatchNorm2dCuda(int num_featues, float eps, float momentum,
+BatchNorm2dCuda::BatchNorm2dCuda(int num_features, float eps, float momentum,
                                  bool bias)
     : num_features(num_features),
       epsilon(eps),
@@ -921,6 +922,7 @@ BatchNorm2dCuda::BatchNorm2dCuda(int num_featues, float eps, float momentum,
     this->bias = bias;
     this->init_weight_bias();
     this->allocate_running_mean_var();
+    this->running_mean_var_to_device();
     if (this->training) {
         this->allocate_param_delta();
     }
@@ -962,11 +964,12 @@ void BatchNorm2dCuda::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
+    float scale = powf(1.0f / this->num_weights, 0.5);
     this->mu_w.resize(this->num_weights, 1.0f);
-    this->var_w.resize(this->num_weights, 1.0f);
+    this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, 0.0001f);
+        this->var_b.resize(this->num_weights, scale);
 
     } else {
         this->num_biases = 0;
@@ -1066,20 +1069,9 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     int num_threads = this->num_cuda_threads;
     dim3 block_dim(num_threads, num_threads);
 
-    if (this->in_channels != 0 && cu_input_states->depth != 0) {
-        this->in_channels = cu_input_states->depth;
-        this->in_width = cu_input_states->width;
-        this->in_height = cu_input_states->height;
-
-        this->out_channels = cu_input_states->depth;
-        this->out_width = cu_input_states->width;
-        this->out_height = cu_input_states->height;
-        this->input_size = this->in_channels * this->in_width * this->in_height;
-        this->output_size =
-            this->out_channels * this->out_width * this->out_height;
-    } else {
-        this->input_size = cu_input_states->actual_size;
-        this->output_size = cu_input_states->actual_size;
+    if (this->input_size == 0 || this->output_size == 0) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
     }
 
     // Assign output dimensions
@@ -1285,7 +1277,7 @@ std::unique_ptr<BaseLayer> BatchNorm2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_layer = std::make_unique<BatchNorm2d>(
-        this->epsilon, this->momentum, this->bias);
+        this->num_features, this->epsilon, this->momentum, this->bias);
 
     host_layer->mu_w = this->mu_w;
     host_layer->var_w = this->var_w;

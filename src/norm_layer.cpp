@@ -1824,19 +1824,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
 {
     int batch_size = input_states.block_size;
 
-    if (this->in_channels != 0 && input_states.depth != 0) {
-        this->in_channels = input_states.depth;
-        this->in_width = input_states.width;
-        this->in_height = input_states.height;
-
-        this->out_channels = input_states.depth;
-        this->out_width = input_states.width;
-        this->out_height = input_states.height;
-        this->input_size = input_states.actual_size;
-        this->output_size =
-            this->out_channels * this->out_width * this->out_height;
-
-    } else {
+    if (this->input_size == 0 || this->output_size == 0) {
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
     }
@@ -1892,6 +1880,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                 this->var_ra, this->epsilon, wihi, this->in_channels,
                 batch_size, 0, end_chunk, output_states.mu_a,
                 output_states.var_a);
+            int check = 1;
         }
     } else {
         if (this->in_channels == 0) {

@@ -100,6 +100,7 @@ __global__ void device_bias_update_with_limit(float const *delta_mu_b,
 }
 
 BaseLayerCuda::BaseLayerCuda() {
+    this->device = "cuda";
     if (this->training) {
         this->bwd_states = std::make_unique<BackwardStateCuda>();
     }
@@ -139,13 +140,15 @@ void BaseLayerCuda::update_biases()
 /*
  */
 {
-    // TODO: replace with capped update version
-    unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
-                          this->num_cuda_threads;
+    if (this->bias) {
+        // TODO: replace with capped update version
+        unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
+                              this->num_cuda_threads;
 
-    device_bias_update<<<blocks, this->num_cuda_threads>>>(
-        this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_b,
-        this->d_var_b);
+        device_bias_update<<<blocks, this->num_cuda_threads>>>(
+            this->d_delta_mu_b, this->d_delta_var_b, this->num_biases,
+            this->d_mu_b, this->d_var_b);
+    }
 
     // this->params_to_host();
     // this->delta_params_to_host();

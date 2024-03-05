@@ -38,10 +38,10 @@ class Classifier:
         # FNN
         self.network = Sequential(
             Linear(784, 100),
-            BatchNorm2d(),
+            BatchNorm2d(100),
             ReLU(),
             Linear(100, 100),
-            BatchNorm2d(),
+            BatchNorm2d(100),
             ReLU(),
             Linear(100, 11),
         )

@@ -96,11 +96,15 @@ void fnn_mnist() {
     //                  Linear(100, 11));
 
     // model.set_threads(8);
-    // model.to_device("cuda");
+    model.to_device("cuda");
+    model.preinit_layer();
+    model.load("test_model/test_model.bin");
 
     // // CPU Model
-    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
-    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    // Sequential cpu_model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    //                      LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                      LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
     //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                      Linear(100, 11));
 
@@ -110,11 +114,15 @@ void fnn_mnist() {
     //                      LayerNorm(std::vector<int>({100})), ReLU(),
     //                      Linear(100, 11));
 
-    // Sequential cpu_model(
-    //     Conv2d(1, 16, 4, 1, 1, 1, 28, 28),
-    //     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(), AvgPool2d(3, 2),
-    //     Conv2d(16, 32, 5), LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-    //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential cpu_model(
+        Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16), ReLU(),
+        AvgPool2d(3, 2), Conv2d(16, 32, 5, false), BatchNorm2d(32), ReLU(),
+        AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
+    // DEBUGGER
+    cpu_model.preinit_layer();
+    cpu_model.params_from(model);
+    ModelDebugger model_debugger(model, cpu_model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -129,7 +137,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
+    int batch_size = 2;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -143,15 +151,6 @@ void fnn_mnist() {
     std::vector<float> mu_a_output(batch_size * n_y, 0);
     std::vector<float> var_a_output(batch_size * n_y, 0);
     auto data_idx = create_range(train_db.num_data);
-
-    // // DEBUGGER
-    // get_batch_images_labels(train_db, data_idx, batch_size, 0, x_batch,
-    // y_batch,
-    //                         idx_ud_batch, label_batch);
-    // model.forward(x_batch);
-    // cpu_model.params_from(model);
-    // cpu_model.forward(x_batch);
-    // ModelDebugger model_debugger(model, cpu_model);
 
     // Error rate for training
     int mt_idx = 0;
@@ -173,57 +172,55 @@ void fnn_mnist() {
                                     y_batch, idx_ud_batch, label_batch);
 
             // Forward pass
-            //
-            model.forward(x_batch);
-            // model_debugger.debug_forward(x_batch);
-            // model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
-            // if (i == 0) {
-            //     cpu_model.params_from(model);
+            // model.forward(x_batch);
+            model_debugger.debug_forward(x_batch);
+            model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
+
+            // // Output layer
+            // output_updater.update_using_indices(*model.output_z_buffer,
+            // y_batch,
+            //                                     var_obs, idx_ud_batch,
+            //                                     *model.input_delta_z_buffer);
+            // // // cpu_output_updater.update_using_indices(
+            // // //     *cpu_model.output_z_buffer, y_batch, var_obs,
+            // // idx_ud_batch,
+            // // //     *cpu_model.input_delta_z_buffer);
+
+            // // Backward pass
+            // model.backward();
+            // model.step();
+
+            // // // cpu_model.backward();
+            // // // cpu_model.step();
+
+            // // Extract output
+            // if (model.device == "cuda") {
+            //     model.output_to_host();
             // }
-            // cpu_model.forward(x_batch);
+            // // model.delta_z_to_host();
 
-            // Output layer
-            output_updater.update_using_indices(*model.output_z_buffer, y_batch,
-                                                var_obs, idx_ud_batch,
-                                                *model.input_delta_z_buffer);
-            // cpu_output_updater.update_using_indices(
-            //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            //     *cpu_model.input_delta_z_buffer);
+            // for (int j = 0; j < batch_size * n_y; j++) {
+            //     mu_a_output[j] = model.output_z_buffer->mu_a[j];
+            //     var_a_output[j] = model.output_z_buffer->var_a[j];
+            // }
+            // std::tie(error_rate_batch, prob_class_batch) =
+            //     get_error(mu_a_output, var_a_output, label_batch,
+            //     num_classes,
+            //               batch_size);
 
-            // Backward pass
-            model.backward();
-            model.step();
+            // mt_idx = i * batch_size;
+            // update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            // cpu_model.backward();
-            // cpu_model.step();
+            // if (i % 100 == 0 && i != 0) {
+            //     int curr_idx = mt_idx + batch_size;
+            //     auto avg_error =
+            //         compute_average_error_rate(error_rate, curr_idx, 100);
 
-            // Extract output
-            if (model.device == "cuda") {
-                model.output_to_host();
-            }
-            // model.delta_z_to_host();
-
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model.output_z_buffer->mu_a[j];
-                var_a_output[j] = model.output_z_buffer->var_a[j];
-            }
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(mu_a_output, var_a_output, label_batch, num_classes,
-                          batch_size);
-
-            mt_idx = i * batch_size;
-            update_vector(error_rate, error_rate_batch, mt_idx, 1);
-
-            if (i % 100 == 0 && i != 0) {
-                int curr_idx = mt_idx + batch_size;
-                auto avg_error =
-                    compute_average_error_rate(error_rate, curr_idx, 100);
-
-                std::cout << "\tError rate for last 100 observation: ";
-                std::cout << std::fixed;
-                std::cout << std::setprecision(3);
-                std::cout << avg_error << "\n";
-            }
+            //     std::cout << "\tError rate for last 100 observation: ";
+            //     std::cout << std::fixed;
+            //     std::cout << std::setprecision(3);
+            //     std::cout << avg_error << "\n";
+            // }
         }
         // Report computational time
         std::cout << std::endl;
