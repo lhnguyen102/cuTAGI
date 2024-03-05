@@ -18,29 +18,31 @@ from python_examples.regression import Regression
 from pytagi import NetProp
 
 ## Load the data
-# data_names = ["Boston_housing"] # "Concrete","Energy", "Yacht", "Wine", \
-            #   "Kin8nm","Naval",\
-            #   "Power-plant","Protein"
-data_names = ["Concrete","Energy", "Yacht", "Wine"]
+# data_names = ["Wine", \
+#               "Kin8nm","Naval",\
+#               "Power-plant","Protein"]
+data_names = ["Boston_housing"] # "Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
     # check if the results folder already exists; create it if does not exist or remove the existing one
-    if not os.path.exists("results_small_UCI_TAGI/{}".format(data_names[j])):
-        os.makedirs("results_small_UCI_TAGI/{}".format(data_names[j]))
-    elif os.path.isfile("results_small_UCI_TAGI/{}/RMSEtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_small_UCI_TAGI/{}/LLtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_small_UCI_TAGI/{}/runtime_train.txt".format(data_names[j])):
+    if not os.path.exists("results_small_UCI_TAGI_AGVI_Het/{}".format(data_names[j])):
+        os.makedirs("results_small_UCI_TAGI_AGVI_Het/{}".format(data_names[j]))
+    elif os.path.isfile("results_small_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j])) and \
+        os.path.isfile("results_small_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j])) and \
+        os.path.isfile("results_small_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j])):
 
-        os.remove("results_small_UCI_TAGI/{}/RMSEtest.txt".format(data_names[j]))
-        os.remove("results_small_UCI_TAGI/{}/LLtest.txt".format(data_names[j]))
-        os.remove("results_small_UCI_TAGI/{}/runtime_train.txt".format(data_names[j]))
+        os.remove("results_small_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j]))
+        os.remove("results_small_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j]))
+        os.remove("results_small_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j]))
 
 
     # File paths for the results
-    RESULTS_RMSEtest = "results_small_UCI_TAGI/"+data_names[j]+"/RMSEtest.txt"
-    RESULTS_LLtest = "results_small_UCI_TAGI/"+data_names[j]+"/LLtest.txt"
-    RESULTS_RUNTIME = "results_small_UCI_TAGI/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_RMSEtest = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSEtest.txt"
+    RESULTS_LLtest = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/LLtest.txt"
+    RESULTS_RUNTIME = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_LL_learning_curve = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/learning_curve_LL.txt"
+    RESULTS_RMSE_learning_curve = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/learning_curve_RMSE.txt"
 
     # getting data name
     data_name = 'data/UCI/' + data_names[j]
@@ -60,8 +62,14 @@ for j in range(len(data_names)):
     num_inputs  = len(index_features)     # 1 explanatory variable
     num_outputs = 1     # 1 predicted output
     num_epochs  = 100     # row for 40 epochs
-    BATCH_SIZE  = 10     # batch size
+    BATCH_SIZE  = 32     # batch size
     num_hidden_layers = 50
+
+    # Gain values for each dataset
+    # OUT_GAIN = {"Boston_housing": 0.5, "Concrete": 0.5, "Energy": 0.5, "Yacht": 1, "Wine": 0.1, \
+    #                     "Kin8nm": 0.5, "Naval": 0.5, "Power-plant": 0.5, "Protein": 0.5}
+    NOISE_GAIN = {"Boston_housing": 1, "Concrete": 0.05, "Energy": 0.1, "Yacht": 0.1, "Wine": 0.01, \
+                        "Kin8nm": 0.1, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
 
     # Change batch size for wine and yacht
     if data_names[j] == "Yacht":
@@ -74,9 +82,6 @@ for j in range(len(data_names)):
         n_splits = 5
         num_hidden_layers = 100
 
-    # sigma V values for each dataset obtained via grid-search
-    sigma_v_values = {"Boston_housing": 0.3, "Concrete": 0.3, "Energy": 0.1, "Yacht": 0.1, "Wine": 0.7, \
-                        "Kin8nm": 0.3, "Naval": 0.6, "Power-plant": 0.2, "Protein": 0.7}
 
     # Input data and output data
     X = data[ : , index_features.tolist() ]
@@ -92,13 +97,14 @@ for j in range(len(data_names)):
         def __init__(self) -> None:
             super().__init__()
             self.layers         =  [1, 1, 1]
-            self.nodes          =  [num_inputs, num_hidden_layers, 1]  # output layer = [mean, std]
+            self.nodes          =  [num_inputs, num_hidden_layers, 2]  # output layer = [mean, std]
             self.activations    =  [0, 4, 0]
             self.batch_size     =  BATCH_SIZE
-            self.sigma_v        =  sigma_v_values[data_names[j]]
+            self.sigma_v        =  0 # sigma_v_values[data_names[j]]
             self.sigma_v_min    =  0
-            self.noise_gain     =  1.0
-            # self.noise_type =   "homosce" # "heteros" or "homosce"
+            # self.out_gain       = OUT_GAIN[data_names[j]]
+            self.noise_gain     =  NOISE_GAIN[data_names[j]]
+            self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cpu" # cpu
 
@@ -195,8 +201,8 @@ for j in range(len(data_names)):
         x_test = normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
         y_test = normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
 
-        print(x_train.shape)
-        print(y_train.shape)
+        # print(x_train.shape)
+        # print(y_train.shape)
 
 
 
@@ -276,7 +282,7 @@ for j in range(len(data_names)):
     ax[1].set_ylabel('Log-likelihood')
     # set the main title for the figure
     fig.suptitle(data_names[j])
-    plt.savefig("results_small_UCI_TAGI/"+data_names[j]+"/RMSE_LL.png")
+    plt.savefig("results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSE_LL.png")
 
     # Print the average results
     print("Average MSE: ", np.mean(mse_list))
@@ -291,6 +297,10 @@ for j in range(len(data_names)):
         file.write(str(np.mean(log_lik_list)) + "\n")
     with open(RESULTS_RUNTIME, "a") as file:
         file.write(str(np.mean(runtime_list)) + "\n")
+    with open(RESULTS_LL_learning_curve, "a") as file:
+        file.write(str(mean_LL) + "\n")
+    with open(RESULTS_RMSE_learning_curve, "a") as file:
+        file.write(str(mean_RMSE) + "\n")
 
 
 
