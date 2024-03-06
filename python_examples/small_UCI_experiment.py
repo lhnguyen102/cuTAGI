@@ -9,9 +9,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 # go one level down to import the data_loader and regression classes
 # os.chdir('..')
-import sys
-print(sys.path)
-sys.path.append('/home/bd/projects/cuTAGI') # always append the path to the root directory
+# import sys
+# print(sys.path)
+# sys.path.append('/home/bd/documents/cuTAGI') # always append the path to the root directory
 
 from python_examples.data_loader import RegressionDataLoader
 from python_examples.regression import Regression
@@ -21,7 +21,7 @@ from pytagi import NetProp
 # data_names = ["Boston_housing"] # "Concrete","Energy", "Yacht", "Wine", \
             #   "Kin8nm","Naval",\
             #   "Power-plant","Protein"
-data_names = ["Concrete","Energy", "Yacht", "Wine"]
+data_names = ["Boston_housing"]
 
 for j in range(len(data_names)):
 
