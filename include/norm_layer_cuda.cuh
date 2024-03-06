@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 05, 2024
+// Updated:      March 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,8 +14,9 @@
 class LayerNormCuda : public BaseLayerCuda {
    public:
     std::vector<int> normalized_shape;
-    std::vector<float> mu_ra, var_ra;
-    float *d_mu_ra, *d_var_ra;
+    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
+    float *d_mu_ra, *d_var_ra, *d_mu_norm_batch, *d_var_norm_batch;
+
     float epsilon;
     float momentum;
     bool bias;
@@ -71,8 +72,8 @@ class LayerNormCuda : public BaseLayerCuda {
 class BatchNorm2dCuda : public BaseLayerCuda {
    public:
     int num_features;
-    std::vector<float> mu_ra, var_ra;
-    float *d_mu_ra, *d_var_ra;
+    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
+    float *d_mu_ra, *d_var_ra, *d_mu_norm_batch, *d_var_norm_batch;
     float epsilon;
     float momentum;
     bool bias;

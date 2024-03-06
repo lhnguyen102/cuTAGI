@@ -612,7 +612,7 @@ void LayerNormCuda::init_weight_bias()
  */
 {
     this->num_weights = this->normalized_shape[0];
-    float scale = pow(1.0f / this->num_weights, 0.5);
+    float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
@@ -644,8 +644,12 @@ void LayerNormCuda::allocate_running_mean_var(int batch_size)
 {
     this->mu_ra.resize(batch_size, 0.0f);
     this->var_ra.resize(batch_size, 1.0f);
+    this->mu_norm_batch.resize(batch_size, 0.0f);
+    this->var_norm_batch.resize(batch_size, 1.0f);
     cudaMalloc(&this->d_mu_ra, batch_size * sizeof(float));
     cudaMalloc(&this->d_var_ra, batch_size * sizeof(float));
+    cudaMalloc(&this->d_mu_norm_batch, batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_norm_batch, batch_size * sizeof(float));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -653,6 +657,7 @@ void LayerNormCuda::allocate_running_mean_var(int batch_size)
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Running mean var memory allocation.");
     }
+    this->running_mean_var_to_device();
 }
 
 void LayerNormCuda::running_mean_var_to_device()
@@ -663,6 +668,12 @@ void LayerNormCuda::running_mean_var_to_device()
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
                this->var_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_norm_batch, this->mu_norm_batch.data(),
+               this->mu_norm_batch.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_norm_batch, this->var_norm_batch.data(),
+               this->var_norm_batch.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -717,10 +728,14 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size;
 
     // Lazy intialization
+    float _momentum;
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var(batch_size);
-        this->running_mean_var_to_device();
+        _momentum = 0.0f;
+    } else {
+        _momentum = 0.0f;
     }
+
     layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
         batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
@@ -732,8 +747,8 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
 
     // TODO: how to handle running average with different batch size !?
     running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-        cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, this->momentum,
-        batch_size, this->d_mu_ra, this->d_var_ra);
+        cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, _momentum, batch_size,
+        this->d_mu_ra, this->d_var_ra);
 
     unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
     unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
@@ -864,11 +879,6 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
             this->in_channels, batch_size, this->d_delta_mu_w,
             this->d_delta_var_w);
 
-        // cu_next_bwd_states->to_host();
-        // cu_delta_states->to_host();
-        // cu_temp_states->to_host();
-        // this->delta_params_to_host();
-
         // Biases
         if (this->bias) {
             layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(
@@ -921,8 +931,6 @@ BatchNorm2dCuda::BatchNorm2dCuda(int num_features, float eps, float momentum,
 {
     this->bias = bias;
     this->init_weight_bias();
-    this->allocate_running_mean_var();
-    this->running_mean_var_to_device();
     if (this->training) {
         this->allocate_param_delta();
     }
@@ -964,7 +972,7 @@ void BatchNorm2dCuda::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
-    float scale = powf(1.0f / this->num_weights, 0.5);
+    float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
@@ -1005,8 +1013,12 @@ void BatchNorm2dCuda::allocate_running_mean_var()
 {
     this->mu_ra.resize(this->num_features, 0.0f);
     this->var_ra.resize(this->num_features, 1.0f);
+    this->mu_norm_batch.resize(this->num_features, 0.0f);
+    this->var_norm_batch.resize(this->num_features, 1.0f);
     cudaMalloc(&this->d_mu_ra, this->num_features * sizeof(float));
     cudaMalloc(&this->d_var_ra, this->num_features * sizeof(float));
+    cudaMalloc(&this->d_mu_norm_batch, this->num_features * sizeof(float));
+    cudaMalloc(&this->d_var_norm_batch, this->num_features * sizeof(float));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1014,6 +1026,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Running mean var memory allocation.");
     }
+    this->running_mean_var_to_device();
 }
 
 void BatchNorm2dCuda::running_mean_var_to_device()
@@ -1024,6 +1037,12 @@ void BatchNorm2dCuda::running_mean_var_to_device()
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
                this->var_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_norm_batch, this->mu_norm_batch.data(),
+               this->mu_norm_batch.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_norm_batch, this->var_norm_batch.data(),
+               this->var_norm_batch.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -1074,6 +1093,10 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         this->output_size = input_states.actual_size;
     }
 
+    if (this->mu_ra.size() == 0) {
+        this->allocate_running_mean_var();
+    }
+
     // Assign output dimensions
     output_states.width = this->out_width;
     output_states.height = this->out_height;
@@ -1081,7 +1104,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    if (this->in_channels == 0) {
+    if (this->num_features != this->in_channels) {
         unsigned int grid_size_ra =
             (this->input_size + num_threads - 1) / num_threads;
 
@@ -1095,7 +1118,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
             cu_temp_states->d_tmp_2);
 
         running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, this->momentum,
+            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, 0.0,
             this->input_size, this->d_mu_ra, this->d_var_ra);
 
         unsigned int grid_col =
@@ -1124,7 +1147,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
             cu_temp_states->d_tmp_2);
 
         running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, this->momentum,
+            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, 0.0,
             this->in_channels, this->d_mu_ra, this->d_var_ra);
 
         int fi_batch = this->in_channels * batch_size;

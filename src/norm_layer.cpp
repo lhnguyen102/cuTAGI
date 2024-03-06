@@ -1480,7 +1480,7 @@ void LayerNorm::init_weight_bias()
  */
 {
     this->num_weights = this->normalized_shape[0];
-    float scale = pow(1.0f / this->num_weights, 0.5);
+    float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
@@ -1506,6 +1506,8 @@ void LayerNorm::allocate_running_mean_var(int batch_size)
 {
     this->mu_ra.resize(batch_size, 0.0f);
     this->var_ra.resize(batch_size, 1.0f);
+    this->mu_norm_batch.resize(batch_size, 0.0f);
+    this->var_norm_batch.resize(batch_size, 1.0f);
 }
 
 void LayerNorm::forward(BaseHiddenStates &input_states,
@@ -1523,8 +1525,12 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size;
 
     // Lazy intialization
+    float _momentum;
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var(batch_size);
+        _momentum = 0.0f;
+    } else {
+        _momentum = this->momentum;
     }
 
     if (this->num_threads <= 1) {
@@ -1536,8 +1542,8 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
                              temp_states.tmp_2, this->input_size, 0, batch_size,
                              temp_states.tmp_2);
 
-        running_mean_var(temp_states.tmp_1, temp_states.tmp_2, this->momentum,
-                         0, batch_size, this->mu_ra, this->var_ra);
+        running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
+                         batch_size, this->mu_ra, this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var(
@@ -1552,7 +1558,6 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
                 this->var_ra, this->epsilon, wihi, this->input_size, 0,
                 batch_size, output_states.mu_a, output_states.var_a);
-            int check = 1;
         }
     } else {
         layernorm_stat_mean_var_mp(
@@ -1563,9 +1568,9 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
                                 temp_states.tmp_2, this->input_size, batch_size,
                                 this->num_threads, temp_states.tmp_2);
 
-        running_mean_var_mp(temp_states.tmp_1, temp_states.tmp_2,
-                            this->momentum, batch_size, this->num_threads,
-                            this->mu_ra, this->var_ra);
+        running_mean_var_mp(temp_states.tmp_1, temp_states.tmp_2, 0.0,
+                            batch_size, this->num_threads, this->mu_ra,
+                            this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var_mp(
@@ -1746,7 +1751,6 @@ BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias)
 {
     this->bias = bias;
     this->init_weight_bias();
-    this->allocate_running_mean_var();
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
@@ -1814,6 +1818,8 @@ void BatchNorm2d::allocate_running_mean_var()
 {
     this->mu_ra.resize(this->num_features, 0.0f);
     this->var_ra.resize(this->num_features, 1.0f);
+    this->mu_norm_batch.resize(this->num_features, 0.0f);
+    this->var_norm_batch.resize(this->num_features, 1.0f);
 }
 
 void BatchNorm2d::forward(BaseHiddenStates &input_states,
@@ -1828,6 +1834,13 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
     }
+    float _momentum;
+    if (this->mu_ra.size() == 0) {
+        this->allocate_running_mean_var();
+        _momentum = 0.0f;
+    } else {
+        _momentum = this->momentum;
+    }
 
     // Assign output dimensions
     output_states.width = this->out_width;
@@ -1837,7 +1850,8 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size;
 
     if (this->num_threads == 1) {
-        if (this->in_channels == 0) {
+        // This condition might not be robust!
+        if (this->num_features != this->in_channels) {
             batchnorm_stat_mean_var(input_states.mu_a, input_states.var_a,
                                     this->input_size, batch_size, 0,
                                     this->input_size, temp_states.tmp_1,
@@ -1848,7 +1862,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                                  batch_size, 0, this->input_size,
                                  temp_states.tmp_2);
 
-            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, momentum, 0,
+            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
                              this->input_size, this->mu_ra, this->var_ra);
 
             batchnorm_fwd_mean_var(
@@ -1870,7 +1884,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                                    batch_size, 0, this->in_channels,
                                    temp_states.tmp_2);
 
-            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, momentum, 0,
+            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
                              this->in_channels, this->mu_ra, this->var_ra);
 
             int end_chunk = this->in_channels * batch_size;
@@ -1880,10 +1894,9 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                 this->var_ra, this->epsilon, wihi, this->in_channels,
                 batch_size, 0, end_chunk, output_states.mu_a,
                 output_states.var_a);
-            int check = 1;
         }
     } else {
-        if (this->in_channels == 0) {
+        if (this->num_features != this->in_channels) {
             batchnorm_stat_mean_var_mp(input_states.mu_a, input_states.var_a,
                                        this->input_size, batch_size,
                                        this->num_threads, temp_states.tmp_1,

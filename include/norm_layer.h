@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 04, 2024
+// Updated:      March 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,7 +17,7 @@ std::tuple<int, int> get_number_params_layer_norm(
 class LayerNorm : public BaseLayer {
    public:
     std::vector<int> normalized_shape;
-    std::vector<float> mu_ra, var_ra;
+    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
     float epsilon;
     float momentum;
     bool bias;
@@ -73,7 +73,7 @@ class LayerNorm : public BaseLayer {
 class BatchNorm2d : public BaseLayer {
    public:
     int num_features;
-    std::vector<float> mu_ra, var_ra;
+    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
     float epsilon;
     float momentum;
     bool bias;
