@@ -1504,8 +1504,12 @@ void LayerNorm::allocate_running_mean_var(int batch_size)
 /*
  */
 {
-    this->mu_ra.resize(batch_size, 0.0f);
-    this->var_ra.resize(batch_size, 1.0f);
+    // For inference, we use the running average during the training
+    if (this->mu_ra.size() == 0) {
+        this->mu_ra.resize(batch_size, 0.0f);
+        this->var_ra.resize(batch_size, 1.0f);
+    }
+
     this->mu_norm_batch.resize(batch_size, 0.0f);
     this->var_norm_batch.resize(batch_size, 1.0f);
 }
@@ -1525,65 +1529,76 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size;
 
     // Lazy intialization
-    float _momentum;
+    float _momentum = this->momentum;
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var(batch_size);
-        _momentum = 0.0f;
-    } else {
-        _momentum = this->momentum;
+        if (this->training) {
+            _momentum = 0.0f;
+        }
     }
+    const std::vector<float> &mu_target =
+        this->training ? this->mu_norm_batch : this->mu_ra;
+    const std::vector<float> &var_target =
+        this->training ? this->var_norm_batch : this->var_ra;
 
     if (this->num_threads <= 1) {
-        layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
-                                this->input_size, 0, batch_size,
-                                temp_states.tmp_1, temp_states.tmp_2);
+        if (this->training) {
+            layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
+                                    this->input_size, 0, batch_size,
+                                    this->mu_norm_batch, temp_states.tmp_2);
 
-        layernorm_sample_var(input_states.mu_a, temp_states.tmp_1,
-                             temp_states.tmp_2, this->input_size, 0, batch_size,
-                             temp_states.tmp_2);
+            layernorm_sample_var(input_states.mu_a, this->mu_norm_batch,
+                                 temp_states.tmp_2, this->input_size, 0,
+                                 batch_size, this->var_norm_batch);
 
-        running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
-                         batch_size, this->mu_ra, this->var_ra);
+            running_mean_var(this->mu_norm_batch, this->var_norm_batch,
+                             _momentum, 0, batch_size, this->mu_ra,
+                             this->var_ra);
+        }
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, 0, batch_size,
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, this->input_size, 0, batch_size,
                 output_states.mu_a, output_states.var_a);
         } else {
             int wihi = this->in_height * this->in_width;
             layernorm2d_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, this->input_size, 0,
-                batch_size, output_states.mu_a, output_states.var_a);
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, wihi, this->input_size, 0, batch_size,
+                output_states.mu_a, output_states.var_a);
         }
     } else {
-        layernorm_stat_mean_var_mp(
-            input_states.mu_a, input_states.var_a, this->input_size, batch_size,
-            this->num_threads, temp_states.tmp_1, temp_states.tmp_2);
+        if (this->training) {
+            layernorm_stat_mean_var_mp(input_states.mu_a, input_states.var_a,
+                                       this->input_size, batch_size,
+                                       this->num_threads, this->mu_norm_batch,
+                                       temp_states.tmp_2);
 
-        layernorm_sample_var_mp(input_states.mu_a, temp_states.tmp_1,
-                                temp_states.tmp_2, this->input_size, batch_size,
-                                this->num_threads, temp_states.tmp_2);
+            layernorm_sample_var_mp(input_states.mu_a, this->mu_norm_batch,
+                                    temp_states.tmp_2, this->input_size,
+                                    batch_size, this->num_threads,
+                                    this->var_norm_batch);
 
-        running_mean_var_mp(temp_states.tmp_1, temp_states.tmp_2, 0.0,
-                            batch_size, this->num_threads, this->mu_ra,
-                            this->var_ra);
+            running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
+                                _momentum, batch_size, this->num_threads,
+                                this->mu_ra, this->var_ra);
+        }
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, batch_size,
-                this->num_threads, output_states.mu_a, output_states.var_a);
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, this->input_size, batch_size, this->num_threads,
+                output_states.mu_a, output_states.var_a);
         } else {
             int wihi = this->in_height * this->in_width;
             layernorm2d_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, batch_size, this->input_size,
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, wihi, batch_size, this->input_size,
                 this->num_threads, output_states.mu_a, output_states.var_a);
         }
     }
@@ -1739,6 +1754,91 @@ LayerNorm::get_running_mean_var()
     return {this->mu_ra, this->var_ra};
 }
 
+void LayerNorm::save(std::ofstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for saving");
+    }
+
+    // Save the name length and name
+    auto layer_name = this->get_layer_name();
+    size_t name_length = layer_name.length();
+    file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    file.write(layer_name.c_str(), name_length);
+
+    for (const auto &m_w : this->mu_w) {
+        file.write(reinterpret_cast<const char *>(&m_w), sizeof(m_w));
+    }
+    for (const auto &v_w : this->var_w) {
+        file.write(reinterpret_cast<const char *>(&v_w), sizeof(v_w));
+    }
+    for (const auto &m_b : this->mu_b) {
+        file.write(reinterpret_cast<const char *>(&m_b), sizeof(m_b));
+    }
+    for (const auto &v_b : this->var_b) {
+        file.write(reinterpret_cast<const char *>(&v_b), sizeof(v_b));
+    }
+
+    // Running average for nomalization
+    for (const auto &m_ra : this->mu_ra) {
+        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(mu_ra));
+    }
+    for (const auto &v_ra : this->var_ra) {
+        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(var_ra));
+    }
+}
+
+void LayerNorm::load(std::ifstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for loading");
+    }
+    // Load the name length and name
+    auto layer_name = this->get_layer_name();
+    std::string loaded_name;
+    size_t name_length;
+    file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    loaded_name.resize(name_length);
+    file.read(&loaded_name[0], name_length);
+
+    // Check layer name
+    if (layer_name != loaded_name) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Layer name are not match. Expected: " +
+                                 layer_name + ", Found: " + loaded_name);
+    }
+
+    for (auto &m_w : this->mu_w) {
+        file.read(reinterpret_cast<char *>(&m_w), sizeof(m_w));
+    }
+    for (auto &v_w : this->var_w) {
+        file.read(reinterpret_cast<char *>(&v_w), sizeof(v_w));
+    }
+    for (auto &m_b : this->mu_b) {
+        file.read(reinterpret_cast<char *>(&m_b), sizeof(m_b));
+    }
+    for (auto &v_b : this->var_b) {
+        file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
+    }
+
+    // Running average for nomalization
+    for (auto &m_ra : this->mu_ra) {
+        file.read(reinterpret_cast<char *>(&m_ra), sizeof(m_ra));
+    }
+    for (auto &v_ra : this->var_ra) {
+        file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
@@ -1816,8 +1916,12 @@ void BatchNorm2d::allocate_running_mean_var()
 /*
  */
 {
-    this->mu_ra.resize(this->num_features, 0.0f);
-    this->var_ra.resize(this->num_features, 1.0f);
+    // For inference, we use the running average during the training
+    if (this->mu_ra.size() == 0) {
+        this->mu_ra.resize(this->num_features, 0.0f);
+        this->var_ra.resize(this->num_features, 1.0f);
+    }
+
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 1.0f);
 }
@@ -1834,14 +1938,13 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
     }
-    float _momentum;
-    if (this->mu_ra.size() == 0) {
+    float _momentum = this->momentum;
+    if (this->mu_norm_batch.size() == 0) {
         this->allocate_running_mean_var();
-        _momentum = 0.0f;
-    } else {
-        _momentum = this->momentum;
+        if (this->training) {
+            _momentum = 0.0f;
+        }
     }
-
     // Assign output dimensions
     output_states.width = this->out_width;
     output_states.height = this->out_height;
@@ -1849,98 +1952,110 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
+    const std::vector<float> &mu_target =
+        this->training ? this->mu_norm_batch : this->mu_ra;
+    const std::vector<float> &var_target =
+        this->training ? this->var_norm_batch : this->var_ra;
+
     if (this->num_threads == 1) {
         // This condition might not be robust!
         if (this->num_features != this->in_channels) {
-            batchnorm_stat_mean_var(input_states.mu_a, input_states.var_a,
-                                    this->input_size, batch_size, 0,
-                                    this->input_size, temp_states.tmp_1,
-                                    temp_states.tmp_2);
+            if (this->training) {
+                batchnorm_stat_mean_var(input_states.mu_a, input_states.var_a,
+                                        this->input_size, batch_size, 0,
+                                        this->input_size, this->mu_norm_batch,
+                                        temp_states.tmp_2);
 
-            batchnorm_sample_var(input_states.mu_a, temp_states.tmp_1,
-                                 temp_states.tmp_2, this->input_size,
-                                 batch_size, 0, this->input_size,
-                                 temp_states.tmp_2);
+                batchnorm_sample_var(input_states.mu_a, this->mu_norm_batch,
+                                     temp_states.tmp_2, this->input_size,
+                                     batch_size, 0, this->input_size,
+                                     this->var_norm_batch);
 
-            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
-                             this->input_size, this->mu_ra, this->var_ra);
-
+                running_mean_var(this->mu_norm_batch, this->var_norm_batch,
+                                 _momentum, 0, this->input_size, this->mu_ra,
+                                 this->var_ra);
+            }
             batchnorm_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, 0, batch_size,
+                input_states.mu_a, input_states.var_a, mu_target, mu_target,
+                this->epsilon, this->input_size, 0, batch_size,
                 output_states.mu_a, output_states.var_a);
 
         } else {
             int wihi = this->in_height * this->in_width;
+            if (this->training) {
+                batchnorm2d_stat_mean_var(
+                    input_states.mu_a, input_states.var_a, wihi,
+                    this->in_channels, batch_size, 0, this->in_channels,
+                    this->mu_norm_batch, temp_states.tmp_2);
 
-            batchnorm2d_stat_mean_var(input_states.mu_a, input_states.var_a,
-                                      wihi, this->in_channels, batch_size, 0,
-                                      this->in_channels, temp_states.tmp_1,
-                                      temp_states.tmp_2);
+                batchnorm2d_sample_var(input_states.mu_a, this->mu_norm_batch,
+                                       temp_states.tmp_2, wihi,
+                                       this->in_channels, batch_size, 0,
+                                       this->in_channels, this->var_norm_batch);
 
-            batchnorm2d_sample_var(input_states.mu_a, temp_states.tmp_1,
-                                   temp_states.tmp_2, wihi, this->in_channels,
-                                   batch_size, 0, this->in_channels,
-                                   temp_states.tmp_2);
-
-            running_mean_var(temp_states.tmp_1, temp_states.tmp_2, _momentum, 0,
-                             this->in_channels, this->mu_ra, this->var_ra);
+                running_mean_var(this->mu_norm_batch, this->var_norm_batch,
+                                 _momentum, 0, this->in_channels, this->mu_ra,
+                                 this->var_ra);
+            }
 
             int end_chunk = this->in_channels * batch_size;
             batchnorm2d_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, this->in_channels,
-                batch_size, 0, end_chunk, output_states.mu_a,
-                output_states.var_a);
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, wihi, this->in_channels, batch_size, 0,
+                end_chunk, output_states.mu_a, output_states.var_a);
         }
     } else {
         if (this->num_features != this->in_channels) {
-            batchnorm_stat_mean_var_mp(input_states.mu_a, input_states.var_a,
-                                       this->input_size, batch_size,
-                                       this->num_threads, temp_states.tmp_1,
-                                       temp_states.tmp_2);
+            if (this->training) {
+                batchnorm_stat_mean_var_mp(
+                    input_states.mu_a, input_states.var_a, this->input_size,
+                    batch_size, this->num_threads, this->mu_norm_batch,
+                    temp_states.tmp_2);
 
-            batchnorm_sample_var_mp(input_states.mu_a, temp_states.tmp_1,
-                                    temp_states.tmp_2, this->input_size,
-                                    batch_size, this->num_threads,
-                                    temp_states.tmp_2);
+                batchnorm_sample_var_mp(input_states.mu_a, this->mu_norm_batch,
+                                        temp_states.tmp_2, this->input_size,
+                                        batch_size, this->num_threads,
+                                        this->var_norm_batch);
 
-            running_mean_var_mp(temp_states.tmp_1, temp_states.tmp_2, momentum,
-                                this->input_size, this->num_threads,
-                                this->mu_ra, this->var_ra);
+                running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
+                                    momentum, this->input_size,
+                                    this->num_threads, this->mu_ra,
+                                    this->var_ra);
+            }
 
             batchnorm_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, batch_size,
-                this->num_threads, output_states.mu_a, output_states.var_a);
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, this->input_size, batch_size, this->num_threads,
+                output_states.mu_a, output_states.var_a);
 
         } else {
             int wihi = this->in_height * this->in_width;
+            if (this->training) {
+                batchnorm2d_stat_mean_var_mp(
+                    input_states.mu_a, input_states.var_a, wihi,
+                    this->in_channels, batch_size, this->num_threads,
+                    this->mu_norm_batch, temp_states.tmp_2);
 
-            batchnorm2d_stat_mean_var_mp(input_states.mu_a, input_states.var_a,
-                                         wihi, this->in_channels, batch_size,
-                                         this->num_threads, temp_states.tmp_1,
-                                         temp_states.tmp_2);
+                batchnorm2d_sample_var_mp(
+                    input_states.mu_a, this->mu_norm_batch, temp_states.tmp_2,
+                    wihi, this->in_channels, batch_size, this->num_threads,
+                    this->var_norm_batch);
 
-            batchnorm2d_sample_var_mp(input_states.mu_a, temp_states.tmp_1,
-                                      temp_states.tmp_2, wihi,
-                                      this->in_channels, batch_size,
-                                      this->num_threads, temp_states.tmp_2);
-
-            running_mean_var_mp(temp_states.tmp_1, temp_states.tmp_2, momentum,
-                                this->in_channels, this->num_threads,
-                                this->mu_ra, this->var_ra);
+                running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
+                                    momentum, this->in_channels,
+                                    this->num_threads, this->mu_ra,
+                                    this->var_ra);
+            }
 
             int end_chunk = this->in_channels * batch_size;
             batchnorm2d_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, this->in_channels,
-                batch_size, this->num_threads, output_states.mu_a,
-                output_states.var_a);
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
+                this->epsilon, wihi, this->in_channels, batch_size,
+                this->num_threads, output_states.mu_a, output_states.var_a);
         }
     }
     if (this->training) {
@@ -2094,3 +2209,88 @@ std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda() {
                                              this->momentum, this->bias);
 }
 #endif
+
+void BatchNorm2d::save(std::ofstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for saving");
+    }
+
+    // Save the name length and name
+    auto layer_name = this->get_layer_name();
+    size_t name_length = layer_name.length();
+    file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    file.write(layer_name.c_str(), name_length);
+
+    for (const auto &m_w : this->mu_w) {
+        file.write(reinterpret_cast<const char *>(&m_w), sizeof(m_w));
+    }
+    for (const auto &v_w : this->var_w) {
+        file.write(reinterpret_cast<const char *>(&v_w), sizeof(v_w));
+    }
+    for (const auto &m_b : this->mu_b) {
+        file.write(reinterpret_cast<const char *>(&m_b), sizeof(m_b));
+    }
+    for (const auto &v_b : this->var_b) {
+        file.write(reinterpret_cast<const char *>(&v_b), sizeof(v_b));
+    }
+
+    // Running average for nomalization
+    for (const auto &m_ra : this->mu_ra) {
+        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(mu_ra));
+    }
+    for (const auto &v_ra : this->var_ra) {
+        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(var_ra));
+    }
+}
+
+void BatchNorm2d::load(std::ifstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for loading");
+    }
+    // Load the name length and name
+    auto layer_name = this->get_layer_name();
+    std::string loaded_name;
+    size_t name_length;
+    file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    loaded_name.resize(name_length);
+    file.read(&loaded_name[0], name_length);
+
+    // Check layer name
+    if (layer_name != loaded_name) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Layer name are not match. Expected: " +
+                                 layer_name + ", Found: " + loaded_name);
+    }
+
+    for (auto &m_w : this->mu_w) {
+        file.read(reinterpret_cast<char *>(&m_w), sizeof(m_w));
+    }
+    for (auto &v_w : this->var_w) {
+        file.read(reinterpret_cast<char *>(&v_w), sizeof(v_w));
+    }
+    for (auto &m_b : this->mu_b) {
+        file.read(reinterpret_cast<char *>(&m_b), sizeof(m_b));
+    }
+    for (auto &v_b : this->var_b) {
+        file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
+    }
+
+    // Running average for nomalization
+    for (auto &m_ra : this->mu_ra) {
+        file.read(reinterpret_cast<char *>(&m_ra), sizeof(m_ra));
+    }
+    for (auto &v_ra : this->var_ra) {
+        file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
+    }
+}

@@ -692,6 +692,12 @@ void LayerNormCuda::running_mean_var_to_host()
                this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
                this->var_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_norm_batch.data(), this->d_mu_norm_batch,
+               this->mu_norm_batch.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_norm_batch.data(), this->d_var_norm_batch,
+               this->var_norm_batch.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -728,44 +734,46 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size;
 
     // Lazy intialization
-    float _momentum;
+    float _momentum = this->momentum;
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var(batch_size);
-        _momentum = 0.0f;
-    } else {
-        _momentum = 0.0f;
+        if (this->training) {
+            _momentum = 0.0f;
+        }
     }
-
-    layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-        batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
-
-    layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-        cu_input_states->d_mu_a, cu_temp_states->d_tmp_1,
-        cu_temp_states->d_tmp_2, this->input_size, batch_size,
-        cu_temp_states->d_tmp_2);
-
-    // TODO: how to handle running average with different batch size !?
-    running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-        cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, _momentum, batch_size,
-        this->d_mu_ra, this->d_var_ra);
-
     unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
     unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
     dim3 grid_size(grid_col, grid_row);
+    auto d_mu_target = this->training ? this->d_mu_norm_batch : this->d_mu_ra;
+    auto d_var_target =
+        this->training ? this->d_var_norm_batch : this->d_var_ra;
+    if (this->training) {
+        layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
+            batch_size, this->d_mu_norm_batch, cu_temp_states->d_tmp_2);
 
+        layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+            cu_input_states->d_mu_a, this->d_mu_norm_batch,
+            cu_temp_states->d_tmp_2, this->input_size, batch_size,
+            this->d_var_norm_batch);
+
+        // TODO: how to handle running average with different batch size !?
+        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+            this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+            batch_size, this->d_mu_ra, this->d_var_ra);
+    }
     if (this->normalized_shape.size() == 1) {
         layernorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, this->input_size, batch_size,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
+            d_var_target, this->epsilon, this->input_size, batch_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         int wihi = this->in_height * this->in_width;
         layernorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, wihi, batch_size, this->input_size,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
+            d_var_target, this->epsilon, wihi, batch_size, this->input_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
 
@@ -1062,6 +1070,13 @@ void BatchNorm2dCuda::running_mean_var_to_host()
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
                this->var_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
 
+    cudaMemcpy(this->mu_norm_batch.data(), this->d_mu_norm_batch,
+               this->mu_norm_batch.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_norm_batch.data(), this->d_var_norm_batch,
+               this->var_norm_batch.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
@@ -1092,9 +1107,12 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
     }
-
+    float _momentum = this->momentum;
     if (this->mu_ra.size() == 0) {
         this->allocate_running_mean_var();
+        if (this->training) {
+            _momentum = 0.0f;
+        }
     }
 
     // Assign output dimensions
@@ -1104,23 +1122,29 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
+    auto d_mu_target = this->training ? this->d_mu_norm_batch : this->d_mu_ra;
+    auto d_var_target =
+        this->training ? this->d_var_norm_batch : this->d_var_ra;
+
     if (this->num_features != this->in_channels) {
         unsigned int grid_size_ra =
             (this->input_size + num_threads - 1) / num_threads;
 
-        batchnorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-            batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+        if (this->training) {
+            batchnorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                cu_input_states->d_mu_a, cu_input_states->d_var_a,
+                this->input_size, batch_size, this->d_mu_norm_batch,
+                cu_temp_states->d_tmp_2);
 
-        batchnorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_temp_states->d_tmp_1,
-            cu_temp_states->d_tmp_2, this->input_size, batch_size,
-            cu_temp_states->d_tmp_2);
+            batchnorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+                cu_input_states->d_mu_a, this->d_mu_norm_batch,
+                cu_temp_states->d_tmp_2, this->input_size, batch_size,
+                this->d_var_norm_batch);
 
-        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, 0.0,
-            this->input_size, this->d_mu_ra, this->d_var_ra);
-
+            running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+                this->input_size, this->d_mu_ra, this->d_var_ra);
+        }
         unsigned int grid_col =
             (this->input_size + num_threads - 1) / num_threads;
         unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
@@ -1128,27 +1152,29 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
         batchnorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, this->input_size, batch_size,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
+            d_var_target, this->epsilon, this->input_size, batch_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         int wihi = this->in_height * this->in_width;
         unsigned int grid_size_ra =
             (this->in_channels + num_threads - 1) / num_threads;
 
-        batchnorm2d_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, wihi,
-            this->in_channels, batch_size, cu_temp_states->d_tmp_1,
-            cu_temp_states->d_tmp_2);
+        if (this->training) {
+            batchnorm2d_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                cu_input_states->d_mu_a, cu_input_states->d_var_a, wihi,
+                this->in_channels, batch_size, this->d_mu_norm_batch,
+                cu_temp_states->d_tmp_2);
 
-        batchnorm2d_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_temp_states->d_tmp_1,
-            cu_temp_states->d_tmp_2, wihi, this->in_channels, batch_size,
-            cu_temp_states->d_tmp_2);
+            batchnorm2d_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+                cu_input_states->d_mu_a, this->d_mu_norm_batch,
+                cu_temp_states->d_tmp_2, wihi, this->in_channels, batch_size,
+                this->d_var_norm_batch);
 
-        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, 0.0,
-            this->in_channels, this->d_mu_ra, this->d_var_ra);
+            running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+                this->in_channels, this->d_mu_ra, this->d_var_ra);
+        }
 
         int fi_batch = this->in_channels * batch_size;
         unsigned int grid_row = (fi_batch + num_threads - 1) / num_threads;
@@ -1157,8 +1183,8 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
         batchnorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, wihi, this->in_channels, fi_batch,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
+            d_var_target, this->epsilon, wihi, this->in_channels, fi_batch,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
 

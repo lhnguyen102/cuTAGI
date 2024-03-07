@@ -200,6 +200,7 @@
         "__verbose_abort": "cpp",
         "charconv": "cpp",
         "ios": "cpp",
-        "locale": "cpp"
+        "locale": "cpp",
+        "__availability": "cpp"
     }
 }

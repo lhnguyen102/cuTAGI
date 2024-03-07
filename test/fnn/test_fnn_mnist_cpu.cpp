@@ -78,10 +78,10 @@ void fnn_mnist() {
     //                  LayerNorm(std::vector<int>({100})), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3,
-    // 2),
-    //                  Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     // BatchNorm2d(16),
@@ -210,7 +210,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 500 == 0 && i != 0) {
+            if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);
