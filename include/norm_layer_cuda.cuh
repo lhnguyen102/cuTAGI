@@ -60,6 +60,9 @@ class LayerNormCuda : public BaseLayerCuda {
     std::tuple<std::vector<float>, std::vector<float>> get_running_mean_var()
         override;
 
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
+
    protected:
     void allocate_param_delta();
     void allocate_running_mean_var(int batch_size);
@@ -112,6 +115,9 @@ class BatchNorm2dCuda : public BaseLayerCuda {
                         BaseTempStates &temp_states) override;
 
     std::unique_ptr<BaseLayer> to_host() override;
+
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
 
    protected:
     void allocate_param_delta();

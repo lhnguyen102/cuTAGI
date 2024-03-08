@@ -59,6 +59,9 @@ class BaseLayerCuda : public BaseLayer {
     virtual void params_to_host();
     virtual void delta_params_to_host();
 
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
+
    protected:
     virtual void allocate_param_memory();
     virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,

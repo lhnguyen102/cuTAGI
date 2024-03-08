@@ -310,12 +310,6 @@ void Sequential::save(const std::string &filename)
     }
 
     for (const auto &layer : layers) {
-#ifdef USE_CUDA
-        if (layer->device.compare("cuda") == 0) {
-            auto layer_cu = std::dynamic_pointer_cast<BaseLayerCuda>(layer);
-            layer_cu->params_to_host();
-        }
-#endif
         layer->save(file);
     }
     file.close();
@@ -333,12 +327,6 @@ void Sequential::load(const std::string &filename)
 
     for (auto &layer : layers) {
         layer->load(file);
-#ifdef USE_CUDA
-        if (layer->device.compare("cuda") == 0) {
-            auto layer_cu = std::dynamic_pointer_cast<BaseLayerCuda>(layer);
-            layer_cu->params_to_device();
-        }
-#endif
     }
     file.close();
 }
