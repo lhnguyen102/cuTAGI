@@ -97,7 +97,7 @@ void fnn_mnist() {
                      Linear(100, 11));
 
     // model.set_threads(8);
-    // model.to_device("cuda");
+    model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
@@ -213,7 +213,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 100 == 0 && i != 0) {
+            if (i % 500 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);

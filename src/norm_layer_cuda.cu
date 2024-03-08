@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 04, 2024
+// Updated:      March 08, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,14 +40,25 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
 {
     // ni in the case of conv2d will be wihi * fi
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+
     if (col < batch_size) {
         float sum = 0.0f;
         for (int i = 0; i < ni; i++) {
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        var_sample[col] += (sum + var_s[col]) / (ni - 1);
     }
+}
+
+__global__ void norm_sum_reduced(float *vec, float *result, int N)
+/*Reduced sum of a vector*/
+{
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
+    if (index < N) atomicAdd(result, vec[index] / N);
+}
+__global__ void layernorm_divide_by_interger(float *value, int batch_size) {
+    *value = *value / batch_size;
 }
 
 __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
@@ -75,11 +86,11 @@ __global__ void layernorm_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (col < ni && row < B) {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[0] + epsilon);
         int idx = col + row * ni;
         float mu_w_term = mu_w[col];
         float mu_a_term = mu_a[idx];
-        float mu_ra_term = mu_ra[row];
+        float mu_ra_term = mu_ra[0];
 
         mu_z[idx] =
             inv_sqrt_var_ra * (mu_a_term - mu_ra_term) * mu_w_term + mu_b[col];
@@ -103,20 +114,19 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < k && row < m)  // k = wihi * fi, m = B
     {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[0] + epsilon);
         int idx = col + row * k;
         int div_idx = col / wihi;
         float mu_w_term = mu_w[div_idx];
         float mu_a_term = mu_a[idx];
 
-        mu_z[idx] = inv_sqrt_var_ra * (mu_a_term - mu_ra[row]) * mu_w_term +
+        mu_z[idx] = inv_sqrt_var_ra * (mu_a_term - mu_ra[0]) * mu_w_term +
                     mu_b[div_idx];
-        var_z[idx] =
-            inv_sqrt_var_ra * inv_sqrt_var_ra *
-                (var_a[idx] * mu_w_term * mu_w_term +
-                 var_w[div_idx] * (mu_a_term * mu_a_term -
-                                   mu_ra[row] * mu_ra[row] + var_a[idx])) +
-            var_b[div_idx];
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                         (var_a[idx] * mu_w_term * mu_w_term +
+                          var_w[div_idx] * (mu_a_term * mu_a_term -
+                                            mu_ra[0] * mu_ra[0] + var_a[idx])) +
+                     var_b[div_idx];
     }
 }
 
@@ -133,7 +143,7 @@ __global__ void layernorm_bwd_delta_z_cuda(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
-        float tmp = (1.0f / sqrtf(var_hat[row] + epsilon)) * mu_w[col] *
+        float tmp = (1.0f / sqrtf(var_hat[0] + epsilon)) * mu_w[col] *
                     jcb[col + row * ni];
 
         delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
@@ -154,8 +164,8 @@ __global__ void layernorm_bwd_delta_w_cuda(
         float sum_mu = 0.0f;
         float sum_var = 0.0f;
         for (int i = 0; i < batch_size; i++) {
-            float A = (1.0f / sqrtf(var_hat[i] + epsilon)) *
-                      (mu_a[col + i * ni] - mu_hat[i]) * var_w[col];
+            float A = (1.0f / sqrtf(var_hat[0] + epsilon)) *
+                      (mu_a[col + i * ni] - mu_hat[0]) * var_w[col];
             sum_mu += A * delta_mu_out[col + i * ni];
             sum_var += A * delta_var_out[col + i * ni] * A;
         }
@@ -199,7 +209,7 @@ __global__ void layernorm2d_bwd_delta_z_cuda(
     int k = wihi * fi;
     if (col < k && row < batch_size)  // k = wihi * fi, m = B
     {
-        float tmp = (1 / sqrtf(var_hat[row] + epsilon)) * mu_w[col / wihi] *
+        float tmp = (1 / sqrtf(var_hat[0] + epsilon)) * mu_w[col / wihi] *
                     jcb[col + row * k];
 
         delta_mu[col + row * k] = tmp * delta_mu_out[col + row * k];
@@ -220,8 +230,8 @@ __global__ void layernorm2d_bwd_delta_w_cuda(
     int k = wihi * fi;
     if (col < k && row < batch_size)  // k = wihi*fi, m = B
     {
-        float A = (1.0f / sqrtf(var_ra[row] + epsilon)) *
-                  (mu_a[col + row * k] - mu_ra[row]) * var_w[col / wihi];
+        float A = (1.0f / sqrtf(var_ra[0] + epsilon)) *
+                  (mu_a[col + row * k] - mu_ra[0]) * var_w[col / wihi];
         delta_mu_w[col + row * k] = A * delta_mu_out[col + row * k];
         delta_var_w[col + row * k] = A * delta_var_out[col + row * k] * A;
     }
@@ -638,18 +648,21 @@ void LayerNormCuda::allocate_param_delta()
     cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
 }
 
-void LayerNormCuda::allocate_running_mean_var(int batch_size)
+void LayerNormCuda::allocate_running_mean_var()
 /*
  */
 {
-    this->mu_ra.resize(batch_size, 0.0f);
-    this->var_ra.resize(batch_size, 1.0f);
-    this->mu_norm_batch.resize(batch_size, 0.0f);
-    this->var_norm_batch.resize(batch_size, 1.0f);
-    cudaMalloc(&this->d_mu_ra, batch_size * sizeof(float));
-    cudaMalloc(&this->d_var_ra, batch_size * sizeof(float));
-    cudaMalloc(&this->d_mu_norm_batch, batch_size * sizeof(float));
-    cudaMalloc(&this->d_var_norm_batch, batch_size * sizeof(float));
+    if (this->mu_ra.size() == 0) {
+        this->mu_ra.resize(1, 0.0f);
+        this->var_ra.resize(1, 1.0f);
+        cudaMalloc(&this->d_mu_ra, sizeof(float));
+        cudaMalloc(&this->d_var_ra, sizeof(float));
+    }
+
+    this->mu_norm_batch.resize(1, 0.0f);
+    this->var_norm_batch.resize(1, 1.0f);
+    cudaMalloc(&this->d_mu_norm_batch, sizeof(float));
+    cudaMalloc(&this->d_var_norm_batch, sizeof(float));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -708,6 +721,26 @@ void LayerNormCuda::running_mean_var_to_host()
     }
 }
 
+void LayerNormCuda::reset_norm_mean_var()
+/*
+ */
+{
+    float zerof_ = 0.0f;
+
+    cudaMemcpy(this->d_mu_norm_batch, &zerof_, sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_norm_batch, &zerof_, sizeof(float),
+               cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Running mean var host to device.");
+    }
+}
+
 void LayerNormCuda::forward(BaseHiddenStates &input_states,
                             BaseHiddenStates &output_states,
                             BaseTempStates &temp_states)
@@ -736,7 +769,7 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     // Lazy intialization
     float _momentum = this->momentum;
     if (this->mu_ra.size() == 0) {
-        this->allocate_running_mean_var(batch_size);
+        this->allocate_running_mean_var();
         if (this->training) {
             _momentum = 0.0f;
         }
@@ -750,15 +783,29 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     if (this->training) {
         layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
             cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-            batch_size, this->d_mu_norm_batch, cu_temp_states->d_tmp_2);
+            batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
         layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, this->d_mu_norm_batch,
+            cu_input_states->d_mu_a, cu_temp_states->d_tmp_1,
             cu_temp_states->d_tmp_2, this->input_size, batch_size,
-            this->d_var_norm_batch);
+            cu_temp_states->d_tmp_2);
+
+        this->reset_norm_mean_var();
+        norm_sum_reduced<<<grid_row, num_threads>>>(
+            cu_temp_states->d_tmp_1, this->d_mu_norm_batch, batch_size);
+        norm_sum_reduced<<<grid_row, num_threads>>>(
+            cu_temp_states->d_tmp_2, this->d_var_norm_batch, batch_size);
+
+        // this->running_mean_var_to_host();
+        // cu_temp_states->to_host();
+
+        // layernorm_divide_by_interger<<<1, 1>>>(this->d_mu_norm_batch,
+        //                                        batch_size);
+        // layernorm_divide_by_interger<<<1, 1>>>(this->d_var_norm_batch,
+        //                                        batch_size);
 
         // TODO: how to handle running average with different batch size !?
-        running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+        running_mean_var_cuda<<<1, 1>>>(
             this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
             batch_size, this->d_mu_ra, this->d_var_ra);
     }
@@ -815,7 +862,7 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->normalized_shape.size() == 1) {
         layernorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, cu_output_delta_states->d_delta_mu,
@@ -824,7 +871,7 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
         int wihi = this->in_height * this->in_width;
 
         layernorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, batch_size, cu_output_delta_states->d_delta_mu,
@@ -854,8 +901,8 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->normalized_shape.size() == 1) {
         layernorm_bwd_delta_w_cuda<<<grid_col, num_threads>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
-            this->d_var_ra, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
+            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
@@ -876,8 +923,8 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
         // Weights
         // TODO: Not sure if it should be batch_size or batch_size * fi
         layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
-            this->d_var_ra, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
+            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, batch_size, cu_temp_states->d_tmp_1,
             cu_temp_states->d_tmp_2);
@@ -1318,7 +1365,7 @@ void BatchNorm2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dim3 grid_size(grid_col, grid_row);
 
         batchnorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, cu_output_delta_states->d_delta_mu,
@@ -1333,7 +1380,7 @@ void BatchNorm2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dim3 grid_size(grid_col, grid_row);
 
         batchnorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, fi_batch, cu_output_delta_states->d_delta_mu,
@@ -1364,8 +1411,8 @@ void BatchNorm2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
             (this->input_size + num_threads - 1) / num_threads;
 
         batchnorm_bwd_delta_w_cuda<<<grid_size, num_threads>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
-            this->d_var_ra, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
+            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
@@ -1387,8 +1434,8 @@ void BatchNorm2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
         dim3 grid_size(grid_col, grid_row);
 
         batchnorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
-            this->d_var_ra, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
+            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, fi_batch, cu_temp_states->d_tmp_1,
             cu_temp_states->d_tmp_2);

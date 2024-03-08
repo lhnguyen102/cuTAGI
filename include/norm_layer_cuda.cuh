@@ -65,9 +65,10 @@ class LayerNormCuda : public BaseLayerCuda {
 
    protected:
     void allocate_param_delta();
-    void allocate_running_mean_var(int batch_size);
+    void allocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
+    void reset_norm_mean_var();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

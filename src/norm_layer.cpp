@@ -43,19 +43,25 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
                           const std::vector<float> &mu_s,
                           const std::vector<float> &var_s, int ni,
                           int start_chunk, int end_chunk,
+                          std::vector<float> &mu_sample,
                           std::vector<float> &var_sample)
 /*
  */
 {
     // ni in the case of conv2d will be wihi * fi
+    float mu_norm_sum = 0.0f;
+    float var_norm_sum = 0.0f;
     for (int col = start_chunk; col < end_chunk; col++) {
         float sum = 0.0f;
         for (int i = 0; i < ni; i++) {
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        mu_norm_sum += mu_s[col];
+        var_norm_sum += (sum + var_s[col]) / (ni - 1);
     }
+    mu_sample[0] = mu_norm_sum;
+    var_sample[0] = var_norm_sum;
 }
 
 void running_mean_var(const std::vector<float> &mu_s,
@@ -82,8 +88,8 @@ void layernorm_fwd_mean_var(
  */
 {
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row] + epsilon);
-        float mu_ra_term = mu_ra[row];
+        float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[0] + epsilon);
+        float mu_ra_term = mu_ra[0];
         for (int col = 0; col < ni; col++) {
             int index = col + row * ni;
             float adjusted_mu_a = mu_a[index] - mu_ra_term;
@@ -111,8 +117,8 @@ void layernorm2d_fwd_mean_var(
  */
 {
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / powf(var_ra[row] + epsilon, 0.5);
-        float mu_ra_term = mu_ra[row];
+        float inv_sqrt_var_ra = 1.0f / powf(var_ra[0] + epsilon, 0.5);
+        float mu_ra_term = mu_ra[0];
         for (int col = 0; col < k; col++) {
             int idx = col + row * k;
             int idx_div = col / wihi;
@@ -144,7 +150,7 @@ void layernorm_bwd_delta_z(const std::vector<float> &mu_w,
  */
 {
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / powf(var_ra[row] + epsilon, 0.5);
+        float inv_sqrt_var_ra = 1.0f / powf(var_ra[0] + epsilon, 0.5);
         for (int col = 0; col < ni; col++) {
             float tmp = inv_sqrt_var_ra * mu_w[col] * jcb[col + row * ni];
 
@@ -169,8 +175,8 @@ void layernorm_bwd_delta_w(
         float sum_mu = 0.0f;
         float sum_var = 0.0f;
         for (int row = 0; row < batch_size; row++) {
-            float tmp = (1.0f / std::sqrt(var_ra[row] + epsilon)) *
-                        (mu_a[col + row * ni] - mu_ra[row]) * var_w[col];
+            float tmp = (1.0f / std::sqrt(var_ra[0] + epsilon)) *
+                        (mu_a[col + row * ni] - mu_ra[0]) * var_w[col];
 
             sum_mu += tmp * delta_mu_out[col + row * ni];
             sum_var += tmp * delta_var_out[col + row * ni] * tmp;
@@ -217,7 +223,7 @@ void layernorm2d_bwd_delta_z(const std::vector<float> &mu_w,
     // k = wihi * fi, m = B
     int k = wihi * fi;
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / powf(var_ra[row] + epsilon, 0.5);
+        float inv_sqrt_var_ra = 1.0f / powf(var_ra[0] + epsilon, 0.5);
         for (int col = 0; col < wihi * fi; col++) {
             float tmp = inv_sqrt_var_ra * mu_w[col / wihi] * jcb[col + row * k];
 
@@ -242,9 +248,9 @@ void layernorm2d_bwd_delta_w(const std::vector<float> &var_w,
     // k = wihi, m = B
     int k = wihi * fi;
     for (int row = start_chunk; row < end_chunk; row++) {
-        float inv_sqrt_var_ra = 1.0f / powf(var_ra[row] + epsilon, 0.5);
+        float inv_sqrt_var_ra = 1.0f / powf(var_ra[0] + epsilon, 0.5);
         for (int col = 0; col < k; col++) {
-            float tmp = inv_sqrt_var_ra * (mu_a[col + row * k] - mu_ra[row]) *
+            float tmp = inv_sqrt_var_ra * (mu_a[col + row * k] - mu_ra[0]) *
                         var_w[col / wihi];
 
             delta_mu_w[col + row * k] = tmp * delta_mu_out[col + row * k];
@@ -626,6 +632,7 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
                              const std::vector<float> &mu_s,
                              const std::vector<float> &var_s, int ni,
                              int batch_size, const int num_threads,
+                             std::vector<float> &mu_sample,
                              std::vector<float> &var_sample)
 /*
  */
@@ -640,10 +647,11 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var_sample] {
-            layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk, end_chunk,
-                                 var_sample);
-        });
+        threads.emplace_back(
+            [=, &mu_a, &mu_s, &var_s, &mu_sample, &var_sample] {
+                layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk,
+                                     end_chunk, mu_sample, var_sample);
+            });
     }
 
     for (auto &thread : threads) {
@@ -1500,18 +1508,18 @@ void LayerNorm::allocate_param_delta()
     this->delta_var_b.resize(this->num_biases, 0.0f);
 }
 
-void LayerNorm::allocate_running_mean_var(int batch_size)
+void LayerNorm::allocate_running_mean_var()
 /*
  */
 {
     // For inference, we use the running average during the training
     if (this->mu_ra.size() == 0) {
-        this->mu_ra.resize(batch_size, 0.0f);
-        this->var_ra.resize(batch_size, 1.0f);
+        this->mu_ra.resize(1, 0.0f);
+        this->var_ra.resize(1, 1.0f);
     }
 
-    this->mu_norm_batch.resize(batch_size, 0.0f);
-    this->var_norm_batch.resize(batch_size, 1.0f);
+    this->mu_norm_batch.resize(1, 0.0f);
+    this->var_norm_batch.resize(1, 1.0f);
 }
 
 void LayerNorm::forward(BaseHiddenStates &input_states,
@@ -1530,8 +1538,8 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 
     // Lazy intialization
     float _momentum = this->momentum;
-    if (this->mu_ra.size() == 0) {
-        this->allocate_running_mean_var(batch_size);
+    if (this->mu_norm_batch.size() == 0) {
+        this->allocate_running_mean_var();
         if (this->training) {
             _momentum = 0.0f;
         }
@@ -1545,15 +1553,20 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
         if (this->training) {
             layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
                                     this->input_size, 0, batch_size,
-                                    this->mu_norm_batch, temp_states.tmp_2);
+                                    temp_states.tmp_1, temp_states.tmp_2);
 
-            layernorm_sample_var(input_states.mu_a, this->mu_norm_batch,
+            layernorm_sample_var(input_states.mu_a, temp_states.tmp_1,
                                  temp_states.tmp_2, this->input_size, 0,
-                                 batch_size, this->var_norm_batch);
+                                 batch_size, this->mu_norm_batch,
+                                 this->var_norm_batch);
+
+            // TODO: mu_norm_batch and var_batch_norm must define as float for
+            // for redability after all the testing is done
+            this->mu_norm_batch[0] = this->mu_norm_batch[0] / batch_size;
+            this->var_norm_batch[0] = this->var_norm_batch[0] / batch_size;
 
             running_mean_var(this->mu_norm_batch, this->var_norm_batch,
-                             _momentum, 0, batch_size, this->mu_ra,
-                             this->var_ra);
+                             _momentum, 0, 1, this->mu_ra, this->var_ra);
         }
 
         if (this->normalized_shape.size() == 1) {
@@ -1574,17 +1587,19 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
         if (this->training) {
             layernorm_stat_mean_var_mp(input_states.mu_a, input_states.var_a,
                                        this->input_size, batch_size,
-                                       this->num_threads, this->mu_norm_batch,
+                                       this->num_threads, temp_states.tmp_1,
                                        temp_states.tmp_2);
 
-            layernorm_sample_var_mp(input_states.mu_a, this->mu_norm_batch,
+            layernorm_sample_var_mp(input_states.mu_a, temp_states.tmp_1,
                                     temp_states.tmp_2, this->input_size,
                                     batch_size, this->num_threads,
-                                    this->var_norm_batch);
+                                    this->mu_norm_batch, this->var_norm_batch);
 
-            running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
-                                _momentum, batch_size, this->num_threads,
-                                this->mu_ra, this->var_ra);
+            this->mu_norm_batch[0] = this->mu_norm_batch[0] / batch_size;
+            this->var_norm_batch[0] = this->var_norm_batch[0] / batch_size;
+
+            running_mean_var(this->mu_norm_batch, this->var_norm_batch,
+                             _momentum, 0, 1, this->mu_ra, this->var_ra);
         }
 
         if (this->normalized_shape.size() == 1) {
@@ -1619,7 +1634,7 @@ void LayerNorm::state_backward(BaseBackwardStates &next_bwd_states,
     if (this->num_threads <= 1) {
         if (this->normalized_shape.size() == 1) {
             layernorm_bwd_delta_z(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, 0, batch_size,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
@@ -1627,7 +1642,7 @@ void LayerNorm::state_backward(BaseBackwardStates &next_bwd_states,
             int wihi = this->in_height * this->in_width;
 
             layernorm2d_bwd_delta_z(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, wihi, this->in_channels, 0, batch_size,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
@@ -1635,7 +1650,7 @@ void LayerNorm::state_backward(BaseBackwardStates &next_bwd_states,
     } else {
         if (this->normalized_shape.size() == 1) {
             layernorm_bwd_delta_z_mp(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, batch_size, this->num_threads,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
@@ -1643,7 +1658,7 @@ void LayerNorm::state_backward(BaseBackwardStates &next_bwd_states,
             int wihi = this->in_height * this->in_width;
 
             layernorm2d_bwd_delta_z_mp(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, wihi, this->in_channels, batch_size,
                 this->num_threads, output_delta_states.delta_mu,
@@ -1661,11 +1676,12 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
     int batch_size = delta_states.block_size;
     if (this->num_threads <= 1) {
         if (this->normalized_shape.size() == 1) {
-            layernorm_bwd_delta_w(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                this->input_size, batch_size, 0, this->input_size,
-                this->delta_mu_w, this->delta_var_w);
+            layernorm_bwd_delta_w(this->var_w, next_bwd_states.mu_a,
+                                  this->mu_norm_batch, this->var_norm_batch,
+                                  delta_states.delta_mu, delta_states.delta_var,
+                                  this->epsilon, this->input_size, batch_size,
+                                  0, this->input_size, this->delta_mu_w,
+                                  this->delta_var_w);
 
             if (this->bias) {
                 layernorm_bwd_delta_b(
@@ -1677,10 +1693,10 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
             int wihi = this->in_height * this->in_width;
 
             layernorm2d_bwd_delta_w(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                wihi, this->in_channels, 0, batch_size, temp_states.tmp_1,
-                temp_states.tmp_2);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, wihi, this->in_channels,
+                0, batch_size, temp_states.tmp_1, temp_states.tmp_2);
 
             delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
                             this->in_channels, batch_size, this->delta_mu_w,
@@ -1700,10 +1716,11 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
     } else {
         if (this->normalized_shape.size() == 1) {
             layernorm_bwd_delta_w_mp(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                this->input_size, batch_size, this->num_threads,
-                this->delta_mu_w, this->delta_var_w);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, this->input_size,
+                batch_size, this->num_threads, this->delta_mu_w,
+                this->delta_var_w);
 
             if (this->bias) {
                 layernorm_bwd_delta_b_mp(
@@ -1715,10 +1732,11 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
             int wihi = this->in_height * this->in_width;
 
             layernorm2d_bwd_delta_w_mp(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                wihi, this->in_channels, batch_size, this->num_threads,
-                temp_states.tmp_1, temp_states.tmp_2);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, wihi, this->in_channels,
+                batch_size, this->num_threads, temp_states.tmp_1,
+                temp_states.tmp_2);
 
             delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
                             this->in_channels, batch_size, this->delta_mu_w,
@@ -1890,7 +1908,7 @@ void BatchNorm2d::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
-    float scale = powf(1.0f / this->num_weights, 0.5);
+    float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
@@ -2075,7 +2093,7 @@ void BatchNorm2d::state_backward(BaseBackwardStates &next_bwd_states,
     if (this->num_threads == 1) {
         if (this->in_channels == 0) {
             batchnorm_bwd_delta_z(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, 0, batch_size,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
@@ -2083,17 +2101,17 @@ void BatchNorm2d::state_backward(BaseBackwardStates &next_bwd_states,
             int wihi = this->in_width * this->in_height;
             int end_chunk = this->in_channels * batch_size;
 
-            batchnorm2d_bwd_delta_z(this->mu_w, next_bwd_states.jcb,
-                                    this->var_ra, input_delta_states.delta_mu,
-                                    input_delta_states.delta_var, this->epsilon,
-                                    wihi, this->in_channels, batch_size, 0,
-                                    end_chunk, output_delta_states.delta_mu,
-                                    output_delta_states.delta_var);
+            batchnorm2d_bwd_delta_z(
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->epsilon, wihi, this->in_channels, batch_size, 0,
+                end_chunk, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
         }
     } else {
         if (this->in_channels == 0) {
             batchnorm_bwd_delta_z_mp(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, batch_size, this->num_threads,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
@@ -2102,7 +2120,7 @@ void BatchNorm2d::state_backward(BaseBackwardStates &next_bwd_states,
             int end_chunk = this->in_channels * batch_size;
 
             batchnorm2d_bwd_delta_z_mp(
-                this->mu_w, next_bwd_states.jcb, this->var_ra,
+                this->mu_w, next_bwd_states.jcb, this->var_norm_batch,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, wihi, this->in_channels, batch_size,
                 this->num_threads, output_delta_states.delta_mu,
@@ -2121,11 +2139,12 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->num_threads == 1) {
         if (this->in_channels == 0) {
-            batchnorm_bwd_delta_w(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                this->input_size, batch_size, 0, this->input_size,
-                this->delta_mu_w, this->delta_var_w);
+            batchnorm_bwd_delta_w(this->var_w, next_bwd_states.mu_a,
+                                  this->mu_norm_batch, this->var_norm_batch,
+                                  delta_states.delta_mu, delta_states.delta_var,
+                                  this->epsilon, this->input_size, batch_size,
+                                  0, this->input_size, this->delta_mu_w,
+                                  this->delta_var_w);
 
             if (this->bias) {
                 batchnorm_bwd_delta_b(
@@ -2139,10 +2158,10 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
             int end_chunk = this->in_channels * batch_size;
 
             batchnorm2d_bwd_delta_w(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                wihi, this->in_channels, batch_size, 0, end_chunk,
-                temp_states.tmp_1, temp_states.tmp_2);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, wihi, this->in_channels,
+                batch_size, 0, end_chunk, temp_states.tmp_1, temp_states.tmp_2);
 
             delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
                             this->in_channels, batch_size, this->delta_mu_w,
@@ -2162,10 +2181,11 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
     } else {
         if (this->in_channels == 0) {
             batchnorm_bwd_delta_w_mp(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                this->input_size, batch_size, this->num_threads,
-                this->delta_mu_w, this->delta_var_w);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, this->input_size,
+                batch_size, this->num_threads, this->delta_mu_w,
+                this->delta_var_w);
 
             if (this->bias) {
                 batchnorm_bwd_delta_b_mp(
@@ -2179,10 +2199,11 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
             int end_chunk = this->in_channels * batch_size;
 
             batchnorm2d_bwd_delta_w_mp(
-                this->var_w, next_bwd_states.mu_a, this->mu_ra, this->var_ra,
-                delta_states.delta_mu, delta_states.delta_var, this->epsilon,
-                wihi, this->in_channels, batch_size, this->num_threads,
-                temp_states.tmp_1, temp_states.tmp_2);
+                this->var_w, next_bwd_states.mu_a, this->mu_norm_batch,
+                this->var_norm_batch, delta_states.delta_mu,
+                delta_states.delta_var, this->epsilon, wihi, this->in_channels,
+                batch_size, this->num_threads, temp_states.tmp_1,
+                temp_states.tmp_2);
 
             delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
                             this->in_channels, batch_size, this->delta_mu_w,

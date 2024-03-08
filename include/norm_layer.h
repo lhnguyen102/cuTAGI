@@ -70,7 +70,7 @@ class LayerNorm : public BaseLayer {
 
    protected:
     void allocate_param_delta();
-    void allocate_running_mean_var(int batch_size);
+    void allocate_running_mean_var();
 };
 
 class BatchNorm2d : public BaseLayer {
