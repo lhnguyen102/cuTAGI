@@ -342,6 +342,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
     }
 }
 
+#ifdef USE_CUDA
 CrossValidator::CrossValidator(Sequential &test_model, TagiNetwork *ref_model,
                                std::string &param_prefix)
     : cpu_output_updater("cpu"),
@@ -366,9 +367,7 @@ void CrossValidator::lazy_init(int batch_size, int z_buffer_size)
             std::make_shared<BaseHiddenStates>(z_buffer_size, batch_size);
         test_temp_states =
             std::make_shared<BaseTempStates>(z_buffer_size, batch_size);
-    }
-#ifdef USE_CUDA
-    else if (test_model.device.compare("cuda") == 0) {
+    } else if (test_model.device.compare("cuda") == 0) {
         test_output_z_buffer =
             std::make_shared<HiddenStateCuda>(z_buffer_size, batch_size);
         test_input_z_buffer =
@@ -376,22 +375,18 @@ void CrossValidator::lazy_init(int batch_size, int z_buffer_size)
         test_temp_states =
             std::make_shared<TempStateCuda>(z_buffer_size, batch_size);
     }
-#endif
 
     if (test_model.device.compare("cpu") == 0) {
         this->test_output_delta_z_buffer =
             std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
         this->test_input_delta_z_buffer =
             std::make_shared<BaseDeltaStates>(z_buffer_size, batch_size);
-    }
-#ifdef USE_CUDA
-    else if (test_model.device.compare("cuda") == 0) {
+    } else if (test_model.device.compare("cuda") == 0) {
         this->test_output_delta_z_buffer =
             std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
         this->test_input_delta_z_buffer =
             std::make_shared<DeltaStateCuda>(z_buffer_size, batch_size);
     }
-#endif
 }
 
 void CrossValidator::validate_forward(const std::vector<float> &mu_x,
@@ -426,14 +421,12 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
                                     *this->test_temp_states);
 
         // Copy to host for gpu model
-#ifdef USE_CUDA
         if (this->test_model.device.compare("cuda") == 0) {
             HiddenStateCuda *test_output_z_buffer_cu =
                 dynamic_cast<HiddenStateCuda *>(
                     this->test_output_z_buffer.get());
             test_output_z_buffer_cu->to_host();
         }
-#endif
 
         std::swap(this->test_input_z_buffer, this->test_output_z_buffer);
     }
@@ -442,7 +435,6 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     int check = 0;
 }
 
-#ifdef USE_CUDA
 void CrossValidator::validate_backward(std::vector<float> &y_batch,
                                        std::vector<float> &var_obs,
                                        std::vector<int> &idx_ud_batch)
