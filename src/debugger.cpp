@@ -442,6 +442,7 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     int check = 0;
 }
 
+#ifdef USE_CUDA
 void CrossValidator::validate_backward(std::vector<float> &y_batch,
                                        std::vector<float> &var_obs,
                                        std::vector<int> &idx_ud_batch)
@@ -460,14 +461,11 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
         this->cpu_output_updater.update_using_indices(
             *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
             *this->test_input_delta_z_buffer);
-    }
-#ifdef USE_CUDA
-    else {
+    } else {
         this->cuda_output_updater.update_using_indices(
             *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
             *this->test_input_delta_z_buffer);
     }
-#endif
 
     int num_layers = test_model.layers.size();
 
@@ -487,7 +485,6 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
             *test_output_delta_z_buffer, *test_temp_states);
 
         // Copy to host for gpu model
-#ifdef USE_CUDA
         if (this->test_model.device.compare("cuda") == 0) {
             DeltaStateCuda *test_output_delta_z_buffer_cu =
                 dynamic_cast<DeltaStateCuda *>(
@@ -499,7 +496,6 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
             test_current_layer_cu->params_to_host();
             test_current_layer_cu->delta_params_to_host();
         }
-#endif
 
         // Pass new input data for next iteration
         if (test_current_layer->get_layer_type() != LayerType::Activation) {
@@ -521,3 +517,4 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
             *test_output_delta_z_buffer, *test_temp_states);
     }
 }
+#endif

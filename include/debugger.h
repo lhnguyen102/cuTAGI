@@ -3,14 +3,16 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 14, 2024
-// Updated:      February 28, 2024
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "base_output_updater.h"
 #include "sequential.h"
+#ifdef USE_CUDA
 #include "tagi_network.cuh"
+#endif
 
 class ModelDebugger {
    public:
@@ -44,6 +46,7 @@ class ModelDebugger {
                         std::vector<int> &idx_ud_batch);
 };
 
+#ifdef USE_CUDA
 class CrossValidator
 // Compare new version with the previous one
 {
@@ -75,3 +78,5 @@ class CrossValidator
                            std::vector<float> &var_obs,
                            std::vector<int> &idx_ud_batch);
 };
+
+#endif
