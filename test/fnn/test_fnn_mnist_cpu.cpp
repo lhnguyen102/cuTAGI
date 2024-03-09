@@ -83,25 +83,24 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
+    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+                     BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
+                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-    // BatchNorm2d(16),
-    //                  ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-    //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-                     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
-                     AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-                     LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-                     Linear(100, 11));
-
-    // model.set_threads(8);
-    model.to_device("cuda");
+    model.set_threads(8);
+    // model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
-    // // CPU Model
+    // // // CPU Model
     // Sequential cpu_model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                      LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
     //                      AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
@@ -176,6 +175,7 @@ void fnn_mnist() {
             // Forward pass
             model.forward(x_batch);
             // model.save("test_model/test_model.bin");
+            // model.load("test_model/test_model.bin");
 
             // model_debugger.debug_forward(x_batch);
             // model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
@@ -213,7 +213,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 500 == 0 && i != 0) {
+            if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);

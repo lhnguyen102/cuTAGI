@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 03, 2023
-// Updated:      January 15, 2024
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,7 +14,8 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     const float *mu_a, const float *var_a,
                                     size_t input_size, size_t output_size,
-                                    int batch_size, float *mu_z, float *var_z)
+                                    int batch_size, bool bias, float *mu_z,
+                                    float *var_z)
 /*
  */
 {
@@ -34,8 +35,14 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
             sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
                        var_w_tmp * mu_a_tmp * mu_a_tmp;
         }
-        mu_z[col * output_size + row] = sum_mu + mu_b[row];
-        var_z[col * output_size + row] = sum_var + var_b[row];
+
+        if (bias) {
+            mu_z[col * output_size + row] = sum_mu + mu_b[row];
+            var_z[col * output_size + row] = sum_var + var_b[row];
+        } else {
+            mu_z[col * output_size + row] = sum_mu;
+            var_z[col * output_size + row] = sum_var;
+        }
     }
 }
 
@@ -200,8 +207,8 @@ __global__ void linear_bwd_delta_b(float const *var_b,
 // Fully Connected Layer
 ////////////////////////////////////////////////////////////////////////////////
 
-LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
-                       float gain_bias, std::string method)
+LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
+                       float gain_weight, float gain_bias, std::string method)
     : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
@@ -210,6 +217,7 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, float gain_weight,
 {
     this->input_size = ip_size;
     this->output_size = op_size;
+    this->bias = bias;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = this->output_size;
 
@@ -299,8 +307,8 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     linear_fwd_mean_var<<<grid_dim, block_dim>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-        this->output_size, input_states.block_size, cu_output_states->d_mu_a,
-        cu_output_states->d_var_a);
+        this->output_size, input_states.block_size, this->bias,
+        cu_output_states->d_mu_a, cu_output_states->d_var_a);
 
     // Update number of actual states.
     output_states.block_size = batch_size;
@@ -314,20 +322,28 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         cu_bwd_states->allocate_memory();
     }
 
+    // // Update backward state for inferring parameters
+    // if (this->training) {
+    //     int act_size = input_states.actual_size * batch_size;
+    //     unsigned int blocks = (act_size + threads - 1) / threads;
+
+    //     fill_bwd_states_on_device<<<blocks, threads>>>(
+    //         cu_input_states->d_mu_a, cu_input_states->d_jcb, act_size,
+    //         cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
+
+    //     int out_size = this->output_size * batch_size;
+    //     unsigned int out_blocks = (out_size + threads - 1) / threads;
+
+    //     fill_output_states_on_device<<<out_blocks, threads>>>(
+    //         out_size, cu_output_states->d_jcb);
+    // }
     // Update backward state for inferring parameters
     if (this->training) {
-        int act_size = input_states.actual_size * batch_size;
-        unsigned int blocks = (act_size + threads - 1) / threads;
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
 
-        fill_bwd_states_on_device<<<blocks, threads>>>(
-            cu_input_states->d_mu_a, cu_input_states->d_jcb, act_size,
-            cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
-
-        int out_size = this->output_size * batch_size;
-        unsigned int out_blocks = (out_size + threads - 1) / threads;
-
-        fill_output_states_on_device<<<out_blocks, threads>>>(
-            out_size, cu_output_states->d_jcb);
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
     }
 }
 
@@ -397,22 +413,24 @@ void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
         batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
     // Updated values for biases
-    unsigned int grid_row_b = (this->output_size + threads - 1) / threads;
-    dim3 grid_dim_b(1, grid_row_b);
+    if (this->bias) {
+        unsigned int grid_row_b = (this->output_size + threads - 1) / threads;
+        dim3 grid_dim_b(1, grid_row_b);
 
-    linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
-        this->d_var_b, cu_delta_states->d_delta_mu,
-        cu_delta_states->d_delta_var, this->input_size, this->output_size,
-        batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+        linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
+            this->d_var_b, cu_delta_states->d_delta_mu,
+            cu_delta_states->d_delta_var, this->input_size, this->output_size,
+            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+    }
 }
 
 std::unique_ptr<BaseLayer> LinearCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_linear =
-        std::make_unique<Linear>(this->input_size, this->output_size,
-                                 this->gain_w, this->gain_b, this->init_method);
+    std::unique_ptr<BaseLayer> host_linear = std::make_unique<Linear>(
+        this->input_size, this->output_size, this->bias, this->gain_w,
+        this->gain_b, this->init_method);
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;
     host_linear->mu_b = this->mu_b;

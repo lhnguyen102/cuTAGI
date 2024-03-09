@@ -12,7 +12,7 @@
 #include "../include/linear_layer_cuda.cuh"
 #endif
 
-Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
+Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
                float gain_bias, std::string method)
     : gain_w(gain_weight),
       gain_b(gain_bias),
@@ -22,6 +22,7 @@ Linear::Linear(size_t ip_size, size_t op_size, float gain_weight,
 {
     this->input_size = ip_size;
     this->output_size = op_size;
+    this->bias = bias;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = this->output_size;
 
@@ -84,7 +85,7 @@ void Linear::fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
                           std::vector<float> &mu_b, std::vector<float> &var_b,
                           std::vector<float> &mu_a, std::vector<float> &var_a,
                           int start_chunk, int end_chunk, size_t input_size,
-                          size_t output_size, int batch_size,
+                          size_t output_size, int batch_size, bool bias,
                           std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA for full connected layer
 
@@ -117,8 +118,12 @@ Args:
                     var_a_tmp +
                 var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
         }
-        mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
-        var_z[col * output_size + row] = sum_var_z + var_b[row];
+        mu_z[col * output_size + row] = sum_mu_z;
+        var_z[col * output_size + row] = sum_var_z;
+        if (bias) {
+            mu_z[col * output_size + row] += mu_b[row];
+            var_z[col * output_size + row] += var_b[row];
+        }
     }
 }
 
@@ -126,7 +131,7 @@ void Linear::fwd_mean_var_mp(
     std::vector<float> &mu_w, std::vector<float> &var_w,
     std::vector<float> &mu_b, std::vector<float> &var_b,
     std::vector<float> &mu_a, std::vector<float> &var_a, size_t input_size,
-    size_t output_size, int batch_size, unsigned int num_threads,
+    size_t output_size, int batch_size, bool bias, unsigned int num_threads,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Multi-processing verion of forward pass for fc layer
  */
@@ -145,11 +150,11 @@ void Linear::fwd_mean_var_mp(
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
-                              &input_size, &output_size, &batch_size, &mu_z,
-                              &var_z] {
+                              &input_size, &output_size, &batch_size, &bias,
+                              &mu_z, &var_z] {
             Linear::fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
                                  start_chunk, end_chunk, input_size,
-                                 output_size, batch_size, mu_z, var_z);
+                                 output_size, batch_size, bias, mu_z, var_z);
         });
     }
 
@@ -535,17 +540,19 @@ void Linear::forward(BaseHiddenStates &input_states,
 
     // Forward pass
     if (this->num_threads > 1) {
-        this->fwd_mean_var_mp(
-            this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
-            input_states.var_a, this->input_size, this->output_size, batch_size,
-            this->num_threads, output_states.mu_a, output_states.var_a);
+        this->fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
+                              input_states.mu_a, input_states.var_a,
+                              this->input_size, this->output_size, batch_size,
+                              this->bias, this->num_threads, output_states.mu_a,
+                              output_states.var_a);
     } else {
         int start_chunk = 0;
         int end_chunk = this->output_size * batch_size;
         this->fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
                            input_states.mu_a, input_states.var_a, start_chunk,
                            end_chunk, this->input_size, this->output_size,
-                           batch_size, output_states.mu_a, output_states.var_a);
+                           batch_size, this->bias, output_states.mu_a,
+                           output_states.var_a);
     }
     // Update number of actual states.
     output_states.width = this->out_width;
@@ -554,21 +561,24 @@ void Linear::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    // TODO: Group the following if statements
-    // Save activation mean and jacobian from the previous layer for the
-    // backward pass
-    if (this->bwd_states->mu_a.size() == 0 && this->training) {
-        int act_size = input_states.actual_size * input_states.block_size;
-        this->allocate_bwd_vector(act_size);
-    }
-    if (this->training) {
-        // Activation's jacobian and mean from the previous layer
-        this->fill_bwd_vector(input_states);
+    // // TODO: Group the following if statements
+    // // Save activation mean and jacobian from the previous layer for the
+    // // backward pass
+    // if (this->bwd_states->mu_a.size() == 0 && this->training) {
+    //     int act_size = input_states.actual_size * input_states.block_size;
+    //     this->allocate_bwd_vector(act_size);
+    // }
+    // if (this->training) {
+    //     // Activation's jacobian and mean from the previous layer
+    //     this->fill_bwd_vector(input_states);
 
-        // Send a copy of activation's mean and variance to the output buffer
-        // for the current layer.
-        // TODO: consider to have only mu_a and var_a in struct HiddenStates
-        this->fill_output_states(output_states);
+    //     // Send a copy of activation's mean and variance to the output buffer
+    //     // for the current layer.
+    //     // TODO: consider to have only mu_a and var_a in struct HiddenStates
+    //     this->fill_output_states(output_states);
+    // }
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
     }
 }
 
@@ -620,10 +630,12 @@ Args:
             delta_states.delta_var, this->input_size, this->output_size,
             batch_size, this->num_threads, this->delta_mu_w, this->delta_var_w);
 
-        this->bwd_fc_delta_b_mp(this->var_b, delta_states.delta_mu,
-                                delta_states.delta_var, this->output_size,
-                                batch_size, this->num_threads, this->delta_mu_b,
-                                this->delta_var_b);
+        if (this->bias) {
+            this->bwd_fc_delta_b_mp(this->var_b, delta_states.delta_mu,
+                                    delta_states.delta_var, this->output_size,
+                                    batch_size, this->num_threads,
+                                    this->delta_mu_b, this->delta_var_b);
+        }
     } else {
         int start_chunk = 0;
         int end_chunk = this->input_size * this->output_size;
@@ -633,17 +645,19 @@ Args:
                              start_chunk, end_chunk, this->delta_mu_w,
                              this->delta_var_w);
 
-        this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
-                             delta_states.delta_var, this->output_size,
-                             batch_size, start_chunk, this->output_size,
-                             this->delta_mu_b, this->delta_var_b);
+        if (this->bias) {
+            this->bwd_fc_delta_b(this->var_b, delta_states.delta_mu,
+                                 delta_states.delta_var, this->output_size,
+                                 batch_size, start_chunk, this->output_size,
+                                 this->delta_mu_b, this->delta_var_b);
+        }
     }
 }
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Linear::to_cuda() {
     this->device = "cuda";
     return std::make_unique<LinearCuda>(this->input_size, this->output_size,
-                                        this->gain_w, this->gain_b,
+                                        this->bias, this->gain_w, this->gain_b,
                                         this->init_method);
 }
 #endif

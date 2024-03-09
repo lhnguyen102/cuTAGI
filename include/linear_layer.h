@@ -25,8 +25,9 @@ class Linear : public BaseLayer {
     float gain_b;
     std::string init_method;
 
-    Linear(size_t ip_size, size_t op_size, float gain_weight = 1.0f,
-           float gain_bias = 1.0f, std::string method = "He");
+    Linear(size_t ip_size, size_t op_size, bool bias = true,
+           float gain_weight = 1.0f, float gain_bias = 1.0f,
+           std::string method = "He");
 
     ~Linear();
 
@@ -53,14 +54,14 @@ class Linear : public BaseLayer {
         std::vector<float> &mu_b, std::vector<float> &var_b,
         std::vector<float> &mu_a, std::vector<float> &var_a, int start_chunk,
         int end_chunk, size_t input_size, size_t output_size, int batch_size,
-        std::vector<float> &mu_z, std::vector<float> &var_z);
+        bool bias, std::vector<float> &mu_z, std::vector<float> &var_z);
 
     void fwd_mean_var_mp(std::vector<float> &mu_w, std::vector<float> &var_w,
                          std::vector<float> &mu_b, std::vector<float> &var_b,
                          std::vector<float> &mu_a, std::vector<float> &var_a,
                          size_t input_size, size_t output_size, int batch_size,
-                         unsigned int num_threads, std::vector<float> &mu_z,
-                         std::vector<float> &var_z);
+                         bool bias, unsigned int num_threads,
+                         std::vector<float> &mu_z, std::vector<float> &var_z);
 
     static void fwd_full_cov(std::vector<float> &mu_w,
                              std::vector<float> &var_a_f, size_t input_size,

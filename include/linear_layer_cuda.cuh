@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 28, 2023
-// Updated:      December 19, 2023
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,7 +26,8 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     const float *mu_a, const float *var_a,
                                     size_t input_size, size_t output_size,
-                                    int batch_size, float *mu_z, float *var_z);
+                                    int batch_size, bool bias, float *mu_z,
+                                    float *var_z);
 
 __global__ void linear_fwd_full_cov(float const *mu_w, float const *var_a_f,
                                     size_t input_size, size_t output_size,
@@ -66,8 +67,9 @@ class LinearCuda : public BaseLayerCuda {
     float gain_b;
     std::string init_method;
 
-    LinearCuda(size_t ip_size, size_t op_size, float gain_weight = 1.0f,
-               float gain_bias = 1.0f, std::string method = "He");
+    LinearCuda(size_t ip_size, size_t op_size, bool bias,
+               float gain_weight = 1.0f, float gain_bias = 1.0f,
+               std::string method = "He");
 
     ~LinearCuda();
 

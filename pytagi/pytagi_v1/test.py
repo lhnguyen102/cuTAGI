@@ -20,6 +20,74 @@ from layer_norm import LayerNorm
 import pytagi.metric as metric
 from pytagi import HierarchicalSoftmax, Utils
 
+FNN_NET = Sequential(
+    Linear(784, 100),
+    ReLU(),
+    Linear(100, 100),
+    ReLU(),
+    Linear(100, 11),
+)
+
+FNN_BATCHNORM_NET = Sequential(
+    Linear(784, 100, bias=False),
+    BatchNorm2d(100),
+    ReLU(),
+    Linear(100, 100, bias=False),
+    BatchNorm2d(100),
+    ReLU(),
+    Linear(100, 11),
+)
+
+FNN_LAYERNORM_NET = Sequential(
+    Linear(784, 100, bias=False),
+    LayerNorm((100,)),
+    ReLU(),
+    Linear(100, 100, bias=False),
+    LayerNorm((100,)),
+    ReLU(),
+    Linear(100, 11),
+)
+
+CNN_NET = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100),
+    ReLU(),
+    Linear(100, 11),
+)
+
+CNN_BATCHNORM_NET = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
+    BatchNorm2d(16),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False),
+    BatchNorm2d(32),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100),
+    ReLU(),
+    Linear(100, 11),
+)
+
+CNN_LAYERNORM_NET = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
+    LayerNorm((16, 27, 27)),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False),
+    LayerNorm((32, 9, 9)),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100),
+    ReLU(),
+    Linear(100, 11),
+)
+
 
 class Classifier:
     """Test classifier"""
@@ -36,31 +104,10 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        self.network = Sequential(
-            Linear(784, 100),
-            BatchNorm2d(100),
-            ReLU(),
-            Linear(100, 100),
-            BatchNorm2d(100),
-            ReLU(),
-            Linear(100, 11),
-        )
+        self.network = FNN_BATCHNORM_NET
 
-        # # CNN
-        # self.network = Sequential(
-        #     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
-        #     ReLU(),
-        #     AvgPool2d(3, 2),
-        #     Conv2d(16, 32, 5),
-        #     ReLU(),
-        #     AvgPool2d(3, 2),
-        #     Linear(32 * 4 * 4, 100),
-        #     ReLU(),
-        #     Linear(100, 11),
-        # )
-
-        self.network.set_threads(4)
-        # self.network.to_device("cuda")
+        # self.network.set_threads(8)
+        self.network.to_device("cuda")
 
     @property
     def num_classes(self) -> int:

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      February 10, 2024
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1431,6 +1431,7 @@ LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
 {
     this->bias = bias;
     this->init_weight_bias();
+    this->allocate_running_mean_var();
     if (this->training) {
         this->allocate_param_delta();
     }
@@ -1538,11 +1539,11 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 
     // Lazy intialization
     float _momentum = this->momentum;
-    if (this->mu_norm_batch.size() == 0) {
-        this->allocate_running_mean_var();
+    if (this->first_batch) {
         if (this->training) {
             _momentum = 0.0f;
         }
+        this->first_batch = false;
     }
     const std::vector<float> &mu_target =
         this->training ? this->mu_norm_batch : this->mu_ra;
@@ -1803,10 +1804,10 @@ void LayerNorm::save(std::ofstream &file)
 
     // Running average for nomalization
     for (const auto &m_ra : this->mu_ra) {
-        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(mu_ra));
+        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(m_ra));
     }
     for (const auto &v_ra : this->var_ra) {
-        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(var_ra));
+        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(v_ra));
     }
 }
 
@@ -1855,6 +1856,9 @@ void LayerNorm::load(std::ifstream &file)
     for (auto &v_ra : this->var_ra) {
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
     }
+
+    // It wont set momentum to zero for running average of norm's mean & var
+    this->first_batch = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1869,6 +1873,7 @@ BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias)
 {
     this->bias = bias;
     this->init_weight_bias();
+    this->allocate_running_mean_var();
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
@@ -1937,11 +1942,11 @@ void BatchNorm2d::allocate_running_mean_var()
     // For inference, we use the running average during the training
     if (this->mu_ra.size() == 0) {
         this->mu_ra.resize(this->num_features, 0.0f);
-        this->var_ra.resize(this->num_features, 1.0f);
+        this->var_ra.resize(this->num_features, 0.0f);
     }
 
     this->mu_norm_batch.resize(this->num_features, 0.0f);
-    this->var_norm_batch.resize(this->num_features, 1.0f);
+    this->var_norm_batch.resize(this->num_features, 0.0f);
 }
 
 void BatchNorm2d::forward(BaseHiddenStates &input_states,
@@ -1957,11 +1962,11 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
         this->output_size = input_states.actual_size;
     }
     float _momentum = this->momentum;
-    if (this->mu_norm_batch.size() == 0) {
-        this->allocate_running_mean_var();
+    if (this->first_batch) {
         if (this->training) {
             _momentum = 0.0f;
         }
+        this->first_batch = false;
     }
     // Assign output dimensions
     output_states.width = this->out_width;
@@ -2262,10 +2267,10 @@ void BatchNorm2d::save(std::ofstream &file)
 
     // Running average for nomalization
     for (const auto &m_ra : this->mu_ra) {
-        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(mu_ra));
+        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(m_ra));
     }
     for (const auto &v_ra : this->var_ra) {
-        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(var_ra));
+        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(v_ra));
     }
 }
 
@@ -2314,4 +2319,7 @@ void BatchNorm2d::load(std::ifstream &file)
     for (auto &v_ra : this->var_ra) {
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
     }
+
+    // It wont set momentum to zero for running average of norm's mean & var
+    this->first_batch = false;
 }

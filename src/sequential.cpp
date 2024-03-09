@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      January 23, 2024
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,6 +318,10 @@ void Sequential::save(const std::string &filename)
 void Sequential::load(const std::string &filename)
 /**/
 {
+    // Precalculate layer's properties e.g., number of parameres to load the
+    // saved model
+    this->preinit_layer();
+
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
