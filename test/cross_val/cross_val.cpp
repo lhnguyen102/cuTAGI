@@ -66,6 +66,7 @@ const int NUM_CLASSES = 10;
 const std::vector<float> MU = {0.1309};
 const std::vector<float> SIGMA = {1.0};
 
+#ifdef USE_CUDA
 void cross_val_mnist() {
     //////////////////////////////////////////////////////////////////////
     // Data preprocessing
@@ -227,8 +228,10 @@ void cross_val_mnist() {
         }
     }
 }
-
+#endif
 int cross_val_with_old_version() {
+#ifdef USE_CUDA
     cross_val_mnist();
+#endif
     return 0;
 }
