@@ -80,21 +80,22 @@ void BaseLayer::update_weights()
 /*
  */
 {
-    if (this->bias) {
-        for (int i = 0; i < this->mu_w.size(); i++) {
-            this->mu_w[i] += this->delta_mu_w[i];
-            this->var_w[i] += this->delta_var_w[i];
-        }
+    for (int i = 0; i < this->mu_w.size(); i++) {
+        this->mu_w[i] += this->delta_mu_w[i];
+        this->var_w[i] += this->delta_var_w[i];
     }
 }
 
 void BaseLayer::update_biases()
 /*
+
  */
 {
-    for (int i = 0; i < this->mu_b.size(); i++) {
-        this->mu_b[i] += this->delta_mu_b[i];
-        this->var_b[i] += this->delta_var_b[i];
+    if (this->bias) {
+        for (int i = 0; i < this->mu_b.size(); i++) {
+            this->mu_b[i] += this->delta_mu_b[i];
+            this->var_b[i] += this->delta_var_b[i];
+        }
     }
 }
 

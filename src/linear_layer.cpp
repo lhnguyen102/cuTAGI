@@ -118,11 +118,12 @@ Args:
                     var_a_tmp +
                 var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
         }
-        mu_z[col * output_size + row] = sum_mu_z;
-        var_z[col * output_size + row] = sum_var_z;
         if (bias) {
-            mu_z[col * output_size + row] += mu_b[row];
-            var_z[col * output_size + row] += var_b[row];
+            mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
+            var_z[col * output_size + row] = sum_var_z + var_b[row];
+        } else {
+            mu_z[col * output_size + row] = sum_mu_z;
+            var_z[col * output_size + row] = sum_var_z;
         }
     }
 }

@@ -43,7 +43,6 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
                           const std::vector<float> &mu_s,
                           const std::vector<float> &var_s, int ni,
                           int start_chunk, int end_chunk,
-                          std::vector<float> &mu_sample,
                           std::vector<float> &var_sample)
 /*
  */
@@ -57,11 +56,8 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        mu_norm_sum += mu_s[col];
-        var_norm_sum += (sum + var_s[col]) / (ni - 1);
+        var_sample[col] = (sum + var_s[col]) / (ni - 1);
     }
-    mu_sample[0] = mu_norm_sum;
-    var_sample[0] = var_norm_sum;
 }
 
 void running_mean_var(const std::vector<float> &mu_s,
@@ -632,7 +628,6 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
                              const std::vector<float> &mu_s,
                              const std::vector<float> &var_s, int ni,
                              int batch_size, const int num_threads,
-                             std::vector<float> &mu_sample,
                              std::vector<float> &var_sample)
 /*
  */
@@ -647,11 +642,10 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back(
-            [=, &mu_a, &mu_s, &var_s, &mu_sample, &var_sample] {
-                layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk,
-                                     end_chunk, mu_sample, var_sample);
-            });
+        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var_sample] {
+            layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk, end_chunk,
+                                 var_sample);
+        });
     }
 
     for (auto &thread : threads) {
@@ -1558,13 +1552,19 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 
             layernorm_sample_var(input_states.mu_a, temp_states.tmp_1,
                                  temp_states.tmp_2, this->input_size, 0,
-                                 batch_size, this->mu_norm_batch,
-                                 this->var_norm_batch);
+                                 batch_size, temp_states.tmp_2);
 
             // TODO: mu_norm_batch and var_batch_norm must define as float for
             // for redability after all the testing is done
-            this->mu_norm_batch[0] = this->mu_norm_batch[0] / batch_size;
-            this->var_norm_batch[0] = this->var_norm_batch[0] / batch_size;
+            float sum_mu = 0.0f;
+            float sum_var = 0.0f;
+            for (int i = 0; i < batch_size; i++) {
+                sum_mu += temp_states.tmp_1[i] / batch_size;
+                sum_var += temp_states.tmp_2[i] / batch_size;
+            }
+
+            this->mu_norm_batch[0] = sum_mu;
+            this->var_norm_batch[0] = sum_var;
 
             running_mean_var(this->mu_norm_batch, this->var_norm_batch,
                              _momentum, 0, 1, this->mu_ra, this->var_ra);
@@ -1594,10 +1594,17 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
             layernorm_sample_var_mp(input_states.mu_a, temp_states.tmp_1,
                                     temp_states.tmp_2, this->input_size,
                                     batch_size, this->num_threads,
-                                    this->mu_norm_batch, this->var_norm_batch);
+                                    temp_states.tmp_2);
 
-            this->mu_norm_batch[0] = this->mu_norm_batch[0] / batch_size;
-            this->var_norm_batch[0] = this->var_norm_batch[0] / batch_size;
+            float sum_mu = 0.0f;
+            float sum_var = 0.0f;
+            for (int i = 0; i < batch_size; i++) {
+                sum_mu += temp_states.tmp_1[i] / batch_size;
+                sum_var += temp_states.tmp_2[i] / batch_size;
+            }
+
+            this->mu_norm_batch[0] = sum_mu;
+            this->var_norm_batch[0] = sum_var;
 
             running_mean_var(this->mu_norm_batch, this->var_norm_batch,
                              _momentum, 0, 1, this->mu_ra, this->var_ra);
@@ -2000,7 +2007,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             }
             batchnorm_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
-                input_states.mu_a, input_states.var_a, mu_target, mu_target,
+                input_states.mu_a, input_states.var_a, mu_target, var_target,
                 this->epsilon, this->input_size, 0, batch_size,
                 output_states.mu_a, output_states.var_a);
 

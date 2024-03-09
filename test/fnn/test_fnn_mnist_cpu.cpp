@@ -66,27 +66,29 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
-    //                  Linear(100, 11));
+    // Sequential model(Linear(784, 100, false), ReLU(), Linear(100, 100,
+    // false),
+    //                  ReLU(), Linear(100, 11));
 
     // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
-    //                  ReLU(), Linear(100, 100),
-    //                  LayerNorm(std::vector<int>({100})), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+                     ReLU(), Linear(100, 100),
+                     LayerNorm(std::vector<int>({100})), ReLU(),
+                     Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
     //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
-                     ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-                     BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
-                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    // BatchNorm2d(16),
+    //                  ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
+    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
@@ -95,12 +97,17 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // model.set_threads(8);
+    model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
-    // // // CPU Model
+    // // CPU Model
+    // Sequential cpu_model(Linear(784, 100),
+    // LayerNorm(std::vector<int>({100})),
+    //                      ReLU(), Linear(100, 100),
+    //                      LayerNorm(std::vector<int>({100})), ReLU(),
+    //                      Linear(100, 11));
     // Sequential cpu_model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                      LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
     //                      AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
@@ -122,8 +129,8 @@ void fnn_mnist() {
     // // DEBUGGER
     // cpu_model.preinit_layer();
     // cpu_model.params_from(model);
+    // // cpu_model.set_threads(8);
     // ModelDebugger model_debugger(model, cpu_model);
-    // model.load("test_model/test_model.bin");
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -172,7 +179,7 @@ void fnn_mnist() {
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
 
-            // Forward pass
+            // // Forward pass
             model.forward(x_batch);
             // model.save("test_model/test_model.bin");
             // model.load("test_model/test_model.bin");
@@ -184,13 +191,13 @@ void fnn_mnist() {
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
                                                 var_obs, idx_ud_batch,
                                                 *model.input_delta_z_buffer);
-            // // cpu_output_updater.update_using_indices(
-            // //     *cpu_model.output_z_buffer, y_batch, var_obs,
-            // idx_ud_batch,
-            // //     *cpu_model.input_delta_z_buffer);
+            // cpu_output_updater.update_using_indices(
+            //     *cpu_model.output_z_buffer, y_batch, var_obs,
+            idx_ud_batch,
+                //     *cpu_model.input_delta_z_buffer);
 
-            // Backward pass
-            model.backward();
+                // Backward pass
+                model.backward();
             model.step();
 
             // // cpu_model.backward();

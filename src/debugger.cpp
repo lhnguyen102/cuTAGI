@@ -264,8 +264,8 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
             auto layer_name = test_current_layer->get_layer_name();
             for (int j = 0; j < test_current_layer->input_size * batch_size;
                  j++) {
-                if (this->test_output_delta_z_buffer->delta_mu[j] !=
-                    this->ref_output_delta_z_buffer->delta_mu[j]) {
+                if (this->test_output_delta_z_buffer->delta_var[j] !=
+                    this->ref_output_delta_z_buffer->delta_var[j]) {
                     std::cout << "Layer name: " << layer_name << " "
                               << "Hidden states "
                               << " "
@@ -277,8 +277,8 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 }
             }
             for (int k = 0; k < test_current_layer->delta_mu_w.size(); k++) {
-                if (test_current_layer->delta_mu_w[k] !=
-                    ref_current_layer->delta_mu_w[k]) {
+                if (test_current_layer->delta_var_w[k] !=
+                    ref_current_layer->delta_var_w[k]) {
                     std::cout << "Layer name: " << layer_name << " "
                               << "Weight "
                               << " "
@@ -290,19 +290,19 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 }
             }
 
-            for (int k = 0; k < test_current_layer->delta_mu_b.size(); k++) {
-                if (test_current_layer->delta_mu_b[k] !=
-                    ref_current_layer->delta_mu_b[k]) {
-                    std::cout << "Layer name: " << layer_name << " "
-                              << "Bias "
-                              << " "
-                              << "Layer no " << i << "\n"
-                              << std::endl;
+            // for (int k = 0; k < test_current_layer->delta_mu_b.size(); k++) {
+            //     if (test_current_layer->delta_mu_b[k] !=
+            //         ref_current_layer->delta_mu_b[k]) {
+            //         std::cout << "Layer name: " << layer_name << " "
+            //                   << "Bias "
+            //                   << " "
+            //                   << "Layer no " << i << "\n"
+            //                   << std::endl;
 
-                    int check = 0;
-                    break;
-                }
-            }
+            //         int check = 0;
+            //         break;
+            //     }
+            // }
         }
 
         // Pass new input data for next iteration

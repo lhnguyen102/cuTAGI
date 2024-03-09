@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      December 28, 2023
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -75,7 +75,10 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
         cu_obs->allocate_memory();
     }
 
-    cu_output_states->to_device();
+    cu_obs->to_device();
+
+    // Reset delta to zero
+    cu_delta_states->reset_zeros();
 
     // Kernel
     int num_states = cu_obs->size;
