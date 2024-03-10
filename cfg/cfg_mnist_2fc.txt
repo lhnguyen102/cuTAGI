@@ -1,7 +1,7 @@
 model_name: mnist_fc
 task_name: classification
 data_name: mnist
-net_name: 2fc
+net_name: 2fc_norm
 load_param: false
 num_epochs: 20
 num_classes: 10

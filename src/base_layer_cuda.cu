@@ -100,6 +100,7 @@ __global__ void device_bias_update_with_limit(float const *delta_mu_b,
 }
 
 BaseLayerCuda::BaseLayerCuda() {
+    this->device = "cuda";
     if (this->training) {
         this->bwd_states = std::make_unique<BackwardStateCuda>();
     }
@@ -139,13 +140,15 @@ void BaseLayerCuda::update_biases()
 /*
  */
 {
-    // TODO: replace with capped update version
-    unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
-                          this->num_cuda_threads;
+    if (this->bias) {
+        // TODO: replace with capped update version
+        unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
+                              this->num_cuda_threads;
 
-    device_bias_update<<<blocks, this->num_cuda_threads>>>(
-        this->d_delta_mu_b, this->d_delta_var_b, this->num_biases, this->d_mu_b,
-        this->d_var_b);
+        device_bias_update<<<blocks, this->num_cuda_threads>>>(
+            this->d_delta_mu_b, this->d_delta_var_b, this->num_biases,
+            this->d_mu_b, this->d_var_b);
+    }
 
     // this->params_to_host();
     // this->delta_params_to_host();
@@ -232,6 +235,80 @@ void BaseLayerCuda::delta_params_to_host()
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Delta params device to host.");
     }
+}
+
+void BaseLayerCuda::save(std::ofstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for saving");
+    }
+    // Transfer data to host
+    this->params_to_host();
+
+    // Save the name length and name
+    auto layer_name = this->get_layer_name();
+    size_t name_length = layer_name.length();
+    file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    file.write(layer_name.c_str(), name_length);
+
+    for (const auto &m_w : this->mu_w) {
+        file.write(reinterpret_cast<const char *>(&m_w), sizeof(m_w));
+    }
+    for (const auto &v_w : this->var_w) {
+        file.write(reinterpret_cast<const char *>(&v_w), sizeof(v_w));
+    }
+    for (const auto &m_b : this->mu_b) {
+        file.write(reinterpret_cast<const char *>(&m_b), sizeof(m_b));
+    }
+    for (const auto &v_b : this->var_b) {
+        file.write(reinterpret_cast<const char *>(&v_b), sizeof(v_b));
+    }
+}
+
+void BaseLayerCuda::load(std::ifstream &file)
+/*
+ */
+{
+    if (!file.is_open()) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Failed to open file for loading");
+    }
+    // Load the name length and name
+    auto layer_name = this->get_layer_name();
+    std::string loaded_name;
+    size_t name_length;
+    file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
+    loaded_name.resize(name_length);
+    file.read(&loaded_name[0], name_length);
+
+    // Check layer name
+    if (layer_name != loaded_name) {
+        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
+                                 " at line: " + std::to_string(__LINE__) +
+                                 ". Layer name are not match. Expected: " +
+                                 layer_name + ", Found: " + loaded_name);
+    }
+
+    for (auto &m_w : this->mu_w) {
+        file.read(reinterpret_cast<char *>(&m_w), sizeof(m_w));
+    }
+    for (auto &v_w : this->var_w) {
+        file.read(reinterpret_cast<char *>(&v_w), sizeof(v_w));
+    }
+    for (auto &m_b : this->mu_b) {
+        file.read(reinterpret_cast<char *>(&m_b), sizeof(m_b));
+    }
+    for (auto &v_b : this->var_b) {
+        file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
+    }
+
+    // Transfer data to device
+    this->params_to_device();
 }
 
 std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {

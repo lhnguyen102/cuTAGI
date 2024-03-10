@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 25, 2023
-// Updated:      January 12, 2024
+// Updated:      February 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,9 @@
 #include "../../include/conv2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
+#include "../../include/debugger.h"
 #include "../../include/linear_layer.h"
+#include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 
@@ -64,22 +66,71 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
+    // Sequential model(Linear(784, 100, false), ReLU(), Linear(100, 100,
+    // false),
+    //                  ReLU(), Linear(100, 11));
+
+    // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
+    //                  Linear(100, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
-                     Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2),
-                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+                     ReLU(), Linear(100, 100),
+                     LayerNorm(std::vector<int>({100})), ReLU(),
+                     Linear(100, 11));
 
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
+
+    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    // BatchNorm2d(16),
+    //                  ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
+    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
+    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
+
+    // model.set_threads(8);
+    model.to_device("cuda");
+    // model.preinit_layer();
+    // model.load("test_model/test_model.bin");
 
     // // CPU Model
-    // Sequential cpu_model(Conv2d(1, 16, 4, 1, 1, 1, 28, 28), ReLU(),
-    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+    // Sequential cpu_model(Linear(784, 100),
+    // LayerNorm(std::vector<int>({100})),
+    //                      ReLU(), Linear(100, 100),
+    //                      LayerNorm(std::vector<int>({100})), ReLU(),
+    //                      Linear(100, 11));
+    // Sequential cpu_model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    //                      LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                      AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                      LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
     //                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                      Linear(100, 11));
-    // cpu_myodel.params_from(model);
+
+    // Sequential cpu_model(Linear(784, 100),
+    // LayerNorm(std::vector<int>({100})),
+    //                      ReLU(), Linear(100, 100),
+    //                      LayerNorm(std::vector<int>({100})), ReLU(),
+    //                      Linear(100, 11));
+
+    // Sequential cpu_model(
+    //     Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16), ReLU(),
+    //     AvgPool2d(3, 2), Conv2d(16, 32, 5, false), BatchNorm2d(32), ReLU(),
+    //     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
+    // // DEBUGGER
+    // cpu_model.preinit_layer();
+    // cpu_model.params_from(model);
+    // // cpu_model.set_threads(8);
+    // ModelDebugger model_debugger(model, cpu_model);
 
     //////////////////////////////////////////////////////////////////////
     // Output Updater
@@ -123,47 +174,34 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
 
-            // Forward pass
-            //
+            // // Forward pass
             model.forward(x_batch);
-            // if (i == 0) {
-            //     cpu_model.params_from(model);
-            // }
-            // cpu_model.forward(x_batch);
+            // model.save("test_model/test_model.bin");
+            // model.load("test_model/test_model.bin");
+
+            // model_debugger.debug_forward(x_batch);
+            // model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
 
             // Output layer
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
                                                 var_obs, idx_ud_batch,
                                                 *model.input_delta_z_buffer);
             // cpu_output_updater.update_using_indices(
-            //     *cpu_model.output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            //     *cpu_model.input_delta_z_buffer);
+            //     *cpu_model.output_z_buffer, y_batch, var_obs,
+            idx_ud_batch,
+                //     *cpu_model.input_delta_z_buffer);
 
-            // Backward pass
-            model.backward();
+                // Backward pass
+                model.backward();
             model.step();
 
-            // cpu_model.backward();
-            // cpu_model.step();
-
-            // for (int kk = 0; kk < cpu_model.layers[0]->mu_w.size(); kk++) {
-            //     if (cpu_model.layers[3]->mu_w[kk] !=
-            //         model.layers[3]->mu_w[kk]) {
-            //         int check = 1;
-            //     }
-            // }
-
-            // for (int bb = 0; bb < cpu_model.layers[0]->mu_b.size(); bb++) {
-            //     if (cpu_model.layers[3]->mu_b[bb] !=
-            //         model.layers[3]->mu_b[bb]) {
-            //         int check = 1;
-            //     }
-            // }
+            // // cpu_model.backward();
+            // // cpu_model.step();
 
             // Extract output
             if (model.device == "cuda") {
@@ -182,7 +220,7 @@ void fnn_mnist() {
             mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-            if (i % 1000 == 0 && i != 0) {
+            if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
                     compute_average_error_rate(error_rate, curr_idx, 100);

@@ -150,6 +150,9 @@ void BaseOutputUpdater::update_output_delta_z(BaseHiddenStates &output_states,
 {
     int start_chunk = 0;
     int end_chunk = obs.size;
+
+    delta_states.reset_zeros();
+
     compute_delta_z_output(output_states.mu_a, output_states.var_a,
                            output_states.jcb, obs.mu_obs, obs.var_obs,
                            start_chunk, end_chunk, delta_states.delta_mu,
@@ -167,6 +170,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
     int n_enc = obs.idx_size / output_states.block_size;
     int n_obs = output_states.actual_size;
 
+    delta_states.reset_zeros();
+
     compute_selected_delta_z_output(
         output_states.mu_a, output_states.var_a, output_states.jcb, obs.mu_obs,
         obs.var_obs, obs.selected_idx, n_obs, n_enc, start_chunk, end_chunk,
@@ -176,9 +181,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
 ////////////////////////////////////////////////////////////////////////////////
 // Output Updater
 ////////////////////////////////////////////////////////////////////////////////
-OutputUpdater::OutputUpdater(const std::string model_device) {
-    this->device = model_device;
-
+OutputUpdater::OutputUpdater(const std::string model_device)
+    : device(model_device) {
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {
         this->updater = std::make_shared<OutputUpdaterCuda>();
@@ -190,6 +194,8 @@ OutputUpdater::OutputUpdater(const std::string model_device) {
         this->obs = std::make_shared<BaseObservation>();
     }
 }
+
+OutputUpdater::OutputUpdater() {}
 
 OutputUpdater::~OutputUpdater() {}
 

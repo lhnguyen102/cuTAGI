@@ -31,6 +31,8 @@ PYBIND11_MODULE(cutagitest, modo) {
     bind_linear_layer(modo);
     bind_conv2d_layer(modo);
     bind_avgpool2d_layer(modo);
+    bind_layernorm_layer(modo);
+    bind_batchnorm_layer(modo);
     bind_sequential(modo);
     bind_output_updater(modo);
 }

@@ -49,7 +49,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void allocate_memory();
     void to_device();
     void to_host();
-    void reset_zeros();
+    void reset_zeros() override;
 };
 
 class TempStateCuda : public BaseTempStates {

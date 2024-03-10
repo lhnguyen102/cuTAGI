@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 29, 2023
-// Updated:      January 19, 2024
+// Updated:      February 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,12 +55,15 @@ class BaseLayerCuda : public BaseLayer {
     void update_biases() override;
 
     virtual std::unique_ptr<BaseLayer> to_host();
-
-   protected:
-    virtual void allocate_param_memory();
     virtual void params_to_device();
     virtual void params_to_host();
     virtual void delta_params_to_host();
+
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
+
+   protected:
+    virtual void allocate_param_memory();
     virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,
                                                 HiddenStateCuda &output_states,
                                                 BackwardStateCuda &bwd_states);

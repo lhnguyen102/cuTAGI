@@ -61,6 +61,8 @@ class AvgPool2dCuda : public BaseLayerCuda {
 
     void update_biases() override{};
 
+    void preinit_layer() override;
+
    protected:
     void lazy_index_init();
     void allocate_avgpool2d_index();

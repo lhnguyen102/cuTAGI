@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      December 30, 2023
+// Updated:      March 09, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,9 +15,9 @@ void bind_linear_layer(pybind11::module_& modo)
  */
 {
     pybind11::class_<Linear, std::shared_ptr<Linear>, BaseLayer>(modo, "Linear")
-        .def(pybind11::init<size_t, size_t, float, float, std::string>(),
+        .def(pybind11::init<size_t, size_t, bool, float, float, std::string>(),
              pybind11::arg("ip_size"), pybind11::arg("op_size"),
-             pybind11::arg("gain_weight") = 1.0f,
+             pybind11::arg("bias"), pybind11::arg("gain_weight") = 1.0f,
              pybind11::arg("gain_bias") = 1.0f, pybind11::arg("method") = "He")
         .def("get_layer_info", &Linear::get_layer_info)
         .def("get_layer_name", &Linear::get_layer_name)

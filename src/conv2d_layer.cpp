@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 23, 2024
+// Updated:      February 29, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,9 +21,9 @@
 /// Conv2d
 ////////////////////////////////////////////////////////////////////////////////
 Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
-               int stride, int padding, int padding_type, size_t in_width,
-               size_t in_height, float gain_w, float gain_b,
-               std::string init_method, bool bias)
+               bool bias, int stride, int padding, int padding_type,
+               size_t in_width, size_t in_height, float gain_w, float gain_b,
+               std::string init_method)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
@@ -47,11 +47,13 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
 
 Conv2d::~Conv2d() {}
 
-std::string Conv2d::get_layer_info() const { return "Conv2d()"; }
+std::string Conv2d::get_layer_name() const { return "Conv2d()"; }
 
-std::string Conv2d::get_layer_name() const {
+std::string Conv2d::get_layer_info() const {
     return "Conv2d(" + std::to_string(this->in_channels) + "," +
            std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
            std::to_string(this->kernel_size) + ")";
 }
 
@@ -261,9 +263,9 @@ void Conv2d::param_backward(BaseBackwardStates &next_bwd_states,
 std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
     this->device = "cuda";
     return std::make_unique<Conv2dCuda>(
-        this->in_channels, this->out_channels, this->kernel_size, this->stride,
-        this->padding, this->padding_type, this->in_width, this->in_height,
-        this->gain_w, this->gain_b, this->init_method, this->bias);
+        this->in_channels, this->out_channels, this->kernel_size, this->bias,
+        this->stride, this->padding, this->padding_type, this->in_width,
+        this->in_height, this->gain_w, this->gain_b, this->init_method);
 }
 #endif
 
@@ -275,6 +277,17 @@ void Conv2d::allocate_param_delta()
     this->delta_var_w.resize(this->num_weights, 0.0f);
     this->delta_mu_b.resize(this->num_biases, 0.0f);
     this->delta_var_b.resize(this->num_biases, 0.0f);
+}
+
+void Conv2d::preinit_layer() {
+    if (this->num_weights == 0) {
+        this->get_number_param_conv2d();
+        this->init_weight_bias();
+    }
+
+    if (this->idx_mwa_2.size() == 0) {
+        this->lazy_index_init();
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

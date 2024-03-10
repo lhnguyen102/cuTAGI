@@ -29,12 +29,15 @@ class TagiNetwork : public TagiNetworkBase {
     InputGPU net_input_gpu;
     ConnectorInputGPU connected_input_gpu;
     ObsGPU obs_gpu;
-    float *d_ma, *d_Sa, *d_mz, *d_Sz, *d_J;
-    float *d_ma_init, *d_Sa_init, *d_mz_init, *d_Sz_init, *d_J_init;
+    float *d_ma = nullptr, *d_Sa = nullptr, *d_mz = nullptr, *d_Sz = nullptr,
+          *d_J = nullptr;
+    float *d_ma_init = nullptr, *d_Sa_init = nullptr, *d_mz_init = nullptr,
+          *d_Sz_init = nullptr, *d_J_init = nullptr;
     size_t num_output_bytes;
     size_t num_input_bytes;
 
     TagiNetwork(Network &net_prop);
+    TagiNetwork();
 
     ~TagiNetwork();
 

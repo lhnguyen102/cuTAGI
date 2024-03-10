@@ -210,7 +210,8 @@ class InputGPU {
 class ConnectorInputGPU {
    public:
     size_t num_input_bytes;
-    float *d_ma, *d_Sa, *d_mz, *d_Sz, *d_J;
+    float *d_ma = nullptr, *d_Sa = nullptr, *d_mz = nullptr, *d_Sz = nullptr,
+          *d_J = nullptr;
 
     ConnectorInputGPU();
     void set_values(int input_size);

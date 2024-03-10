@@ -43,6 +43,7 @@ class BaseDeltaStates {
     BaseDeltaStates();
     ~BaseDeltaStates() = default;
     virtual std::string get_name() const { return "BaseDeltaStates"; };
+    virtual void reset_zeros();
 };
 
 class BaseTempStates {

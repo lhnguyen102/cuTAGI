@@ -38,6 +38,11 @@ BaseDeltaStates::BaseDeltaStates(size_t n, size_t m)
 
 BaseDeltaStates::BaseDeltaStates() {}
 
+void BaseDeltaStates::reset_zeros() {
+    std::fill(this->delta_mu.begin(), this->delta_mu.end(), 0);
+    std::fill(this->delta_var.begin(), this->delta_var.end(), 0);
+}
+
 BaseTempStates::BaseTempStates(size_t n, size_t m)
     : tmp_1(n, 0.0f), tmp_2(n, 0.0f), size(n), block_size(m) {}
 

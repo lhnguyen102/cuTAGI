@@ -26,10 +26,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # if(APPLE)
-#   set(CMAKE_MACOSX_RPATH ON)
-#   set(CMAKE_OSX_ARCHITECTURES arm64)
+# set(CMAKE_MACOSX_RPATH ON)
+# set(CMAKE_OSX_ARCHITECTURES arm64)
 # endif()
-
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
@@ -91,15 +90,11 @@ endif()
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
 
-# CUDA debug (-g) & device debug (- G)
 if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
 else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
-
-
-
 
 # ###########################################################################################
 # # PYTHON SETUP
@@ -144,6 +139,7 @@ set(CPU_SOURCES
   src/linear_layer.cpp
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
+  src/norm_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -151,12 +147,14 @@ set(CPU_SOURCES
   src/data_struct.cpp
   src/param_init.cpp
   src/base_output_updater.cpp
+  src/debugger.cpp
 
   src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
   src/bindings/conv2d_layer_bindings.cpp
   src/bindings/pooling_layer_bindings.cpp
+  src/bindings/norm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
   src/bindings/base_output_updater_bindings.cpp
@@ -177,6 +175,7 @@ set(CPU_SOURCES
   test/embedding/test_emb_cpu.cpp
   test/fnn/test_fnn_cpu_v2.cpp
   test/fnn/test_fnn_mnist_cpu.cpp
+  test/cross_val/cross_val.cpp
 )
 
 # Sources code for CUDA
@@ -198,6 +197,7 @@ set(GPU_SOURCES
   src/linear_layer_cuda.cu
   src/conv2d_layer_cuda.cu
   src/pooling_layer_cuda.cu
+  src/norm_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
@@ -226,7 +226,6 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
-
   # Executablecode i.e. application
   add_executable(main main.cu)
 
@@ -239,15 +238,13 @@ else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
   target_link_libraries(cutagi_lib PRIVATE ${CMAKE_DL_LIBS})
 
-
-
   # Executable code i.e. application
   add_executable(main main.cpp)
 
   # Python wrapper for C++/CUDA code
   pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 
-  #TODO: Remove when releasing new version
+  # TODO: Remove when releasing new version
   pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
 endif()
 
@@ -260,5 +257,3 @@ target_link_libraries(cutagi PRIVATE cutagi_lib)
 
 # TODO: Remove when releasing new version
 target_link_libraries(cutagitest PRIVATE cutagi_lib)
-
-
