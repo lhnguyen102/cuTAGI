@@ -29,22 +29,22 @@ FNN_NET = Sequential(
 )
 
 FNN_BATCHNORM_NET = Sequential(
-    Linear(784, 100, bias=False),
-    BatchNorm2d(100),
+    Linear(784, 100),
     ReLU(),
-    Linear(100, 100, bias=False),
     BatchNorm2d(100),
+    Linear(100, 100),
     ReLU(),
+    BatchNorm2d(100),
     Linear(100, 11),
 )
 
 FNN_LAYERNORM_NET = Sequential(
     Linear(784, 100, bias=False),
-    LayerNorm((100,)),
     ReLU(),
+    LayerNorm((100,)),
     Linear(100, 100, bias=False),
-    LayerNorm((100,)),
     ReLU(),
+    LayerNorm((100,)),
     Linear(100, 11),
 )
 
@@ -62,12 +62,12 @@ CNN_NET = Sequential(
 
 CNN_BATCHNORM_NET = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-    BatchNorm2d(16),
     ReLU(),
+    BatchNorm2d(16),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5, bias=False),
-    BatchNorm2d(32),
     ReLU(),
+    BatchNorm2d(32),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     ReLU(),
@@ -104,10 +104,10 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        self.network = FNN_BATCHNORM_NET
+        self.network = CNN_LAYERNORM_NET
 
-        self.network.set_threads(4)
-        # self.network.to_device("cuda")
+        # self.network.set_threads(4)
+        self.network.to_device("cuda")
 
     @property
     def num_classes(self) -> int:
@@ -247,7 +247,7 @@ class Classifier:
 def clsf_runner():
     """Run classification training"""
     # User-input
-    num_epochs = 2
+    num_epochs = 10
     batch_size = 32
     x_train_file = "../../data/mnist/train-images-idx3-ubyte"
     y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
