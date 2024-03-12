@@ -269,16 +269,6 @@ std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
 }
 #endif
 
-void Conv2d::allocate_param_delta()
-/*
- */
-{
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-    this->delta_mu_b.resize(this->num_biases, 0.0f);
-    this->delta_var_b.resize(this->num_biases, 0.0f);
-}
-
 void Conv2d::preinit_layer() {
     if (this->num_weights == 0) {
         this->get_number_param_conv2d();

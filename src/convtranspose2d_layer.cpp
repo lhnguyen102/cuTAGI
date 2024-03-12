@@ -13,9 +13,9 @@
 #include "../include/base_layer.h"
 #include "../include/common.h"
 #include "../include/indices.h"
+#include "../include/param_init.h"
 
-ConvTranspose2dIndex get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
-                                   int pad_idx_in, int pad_idx_out,
+ConvTranspose2dIndex get_tconv_idx(int pad_idx_in, int pad_idx_out,
                                    int param_pad_idx, Conv2dIndex &convIndex)
 /**/
 {
@@ -121,7 +121,31 @@ std::tuple<int, int> compute_upsample_img_size_v2(int kernel, int stride,
     return {wo, ho};
 }
 
-ConvTranspose2d::ConvTranspose2d() {}
+ConvTranspose2d::ConvTranspose2d(size_t in_channels, size_t out_channels,
+                                 size_t kernel_size, bool bias, int stride,
+                                 int padding, int padding_type, size_t in_width,
+                                 size_t in_height, float gain_w, float gain_b,
+                                 std::string init_method)
+    : kernel_size(kernel_size),
+      stride(stride),
+      padding(padding),
+      padding_type(padding_type),
+      gain_w(gain_w),
+      gain_b(gain_b),
+      init_method(init_method)
+/**/
+{
+    this->in_width = in_width;
+    this->in_height = in_height;
+    this->in_channels = in_channels;
+    this->out_channels = out_channels;
+    this->bias = bias;
+
+    if (this->training) {
+        this->bwd_states = std::make_unique<BaseBackwardStates>();
+    }
+}
+
 ConvTranspose2d::~ConvTranspose2d() {}
 
 std::string ConvTranspose2d::get_layer_name() const {
@@ -139,3 +163,94 @@ std::string ConvTranspose2d::get_layer_info() const {
 LayerType ConvTranspose2d::get_layer_type() const {
     return LayerType::ConvTranspose2d;
 };
+
+void ConvTranspose2d::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    std::tie(this->out_width, this->out_height) = compute_upsample_img_size_v2(
+        this->kernel_size, this->stride, this->in_width, this->in_height,
+        this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
+
+void ConvTranspose2d::get_number_param()
+/*
+ */
+{
+    this->num_weights =
+        this->kernel_size * this->in_channels * this->out_channels;
+    this->num_bias = 0;
+    if (this->bias) {
+        this->num_bias = this->out_channels;
+    }
+}
+
+ConvTranspose2d::init_weight_bias()
+/**/
+{
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_conv2d(this->kernel_size, this->in_channels,
+                                this->out_channels, this->init_method,
+                                this->gain_w, this->gain_b, this->num_weights,
+                                this->num_biases);
+}
+
+void ConvTranspose2d::lazy_index_init()
+/*
+ */
+{
+    int ki2 = this->kernel_size * this->kernel_size;
+    int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
+
+    auto conv_idx = get_conv2d_idx(
+        this->kernel_size, this->stride, this->out_width, this->out_height,
+        this->in_width, this->in_height, this->padding, this->padding_type, -1,
+        -1, param_pad_idx);
+
+    auto conv_transpose_idx = get_tconv_idx(-1, -1, param_pad_idx, conv_idx);
+
+    this->idx_mwa_1 = conv_idx.FCzwa_1_idx;
+    this->idx_mwa_2 =
+        transpose_matrix(conv_index.Szz_ud_idx, conv_index.w, conv_index.h);
+    this->idx_cov_wz_2 = conv_transpose_idx.FCwz_2_idx;
+    this->idx_var_wz_ud = conv_transpose_idx.Swz_ud_idx;
+    this->idx_cov_z_wa_1 = conv_transpose_idx.FCzwa_1_idx;
+    this->idx_var_z_ud = conv_transpose_idx.Szz_ud_idx;
+
+    // Dimension
+    this->row_zw = conv_transpose_idx.w_wz;
+    this->col_z_ud = conv_transpose_idx.w_zz;
+    this->col_cov_mwa_1 = conv_transpose_idx.h;
+}
+
+void ConvTranspose2d::forward(BaseHiddenStates &input_states,
+                              BaseHiddenStates &output_states,
+                              BaseTempStates &temp_states)
+/*
+ */
+{}
+
+void ConvTranpose2d::state_backward(BaseBackwardStates &next_bwd_states,
+                                    BaseDeltaStates &input_delta_states,
+                                    BaseDeltaStates &output_delta_states,
+                                    BaseTempStates &temp_states)
+/*
+ */
+{}
+
+void ConvTranpose2d::param_backward(BaseBackwardStates &next_bwd_states,
+                                    BaseDeltaStates &delta_states,
+                                    BaseTempStates &temp_states)
+/**/
+{}
+
+void ConvTranpose2d::preinit_layer() {
+    this->get_number_param_conv2d();
+    this->init_weight_bias();
+    this->lazy_index_init();
+}

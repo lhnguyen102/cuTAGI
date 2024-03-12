@@ -106,7 +106,6 @@ class LinearCuda : public BaseLayerCuda {
     std::unique_ptr<BaseLayer> to_host() override;
 
    protected:
-    void allocate_param_delta();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

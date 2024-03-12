@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      January 23, 2024
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +55,11 @@ Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
     // }
 }
 
-Conv2dCuda::~Conv2dCuda() {}
+Conv2dCuda::~Conv2dCuda() {
+    cudaFree(d_idx_mwa_2);
+    cudaFree(d_idx_cov_zwa_1);
+    cudaFree(d_idx_var_z_ud);
+}
 
 std::string Conv2dCuda::get_layer_info() const {
     return "Conv2d(" + std::to_string(this->in_channels) + "," +
@@ -121,29 +125,6 @@ void Conv2dCuda::init_weight_bias()
                                 this->num_biases);
     this->allocate_param_memory();
     this->params_to_device();
-}
-
-void Conv2dCuda::allocate_param_delta()
-/*
- */
-{
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-
-    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
-    if (this->bias) {
-        this->delta_mu_b.resize(this->num_biases, 0.0f);
-        this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
-        cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
-    }
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
 }
 
 void Conv2dCuda::allocate_conv_index()

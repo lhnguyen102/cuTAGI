@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 10, 2024
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -168,4 +168,34 @@ __global__ void convtranspose2d_bwd_delta_b_cuda(
         delta_mu_b[col] = sum_mu * var_b[col];
         delta_var_b[col] = var_b[col] * sum_var * var_b[col];
     }
+}
+
+ConvTranspose2dCuda::ConvTranspose2dCuda(
+    size_t in_channels, size_t out_channels, size_t kernel_size, bool bias,
+    int stride, int padding, int padding_type, size_t in_width,
+    size_t in_height, float gain_w, float gain_b, std::string init_method)
+    : kernel_size(kernel_size),
+      stride(stride),
+      padding(padding),
+      padding_type(padding_type),
+      gain_w(gain_w),
+      gain_b(gain_b),
+      init_method(init_method)
+/*
+ */
+{
+    this->in_width = in_width;
+    this->in_height = in_height;
+    this->in_channels = in_channels;
+    this->out_channels = out_channels;
+    this->bias = bias;
+}
+
+ConvTranspose2dCuda::~ConvTranspose2dCuda() {
+    cudaFree(d_idx_mwa_1);
+    cudaFree(d_idx_mwa_2);
+    cudaFree(d_idx_cov_wz_2);
+    cudaFree(d_idx_var_wz_ud);
+    cudaFree(d_idx_cov_z_wa_1);
+    cudaFree(d_idx_var_z_ud);
 }

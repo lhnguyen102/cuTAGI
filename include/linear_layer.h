@@ -47,8 +47,6 @@ class Linear : public BaseLayer {
 
     void init_weight_bias();
 
-    void allocate_param_delta();
-
     static void fwd_mean_var(
         std::vector<float> &mu_w, std::vector<float> &var_w,
         std::vector<float> &mu_b, std::vector<float> &var_b,

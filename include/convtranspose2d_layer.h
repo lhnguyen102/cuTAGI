@@ -23,10 +23,27 @@ ConvTranspose2dIndex get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
 
 class ConvTranspose2d : public BaseLayer {
    public:
+    std::string init_method;
+    size_t kernel_size = 0;
+    int stride = 1;
+    int padding_type = 1;
+    int padding = 0;
     float gain_w;
     float gain_b;
+    std::vector<int> idx_mwa_1;
+    std::vector<int> idx_mwa_2;
+    std::vector<int> idx_cov_wz_2;
+    std::vector<int> idx_var_wz_ud;
+    std::vector<int> idx_cov_z_wa_1;
+    std::vector<int> idx_var_z_ud;
+    int row_zw = 0, col_z_ud = 0;
+    int col_cov_mwa_1 = 0;
 
-    ConvTranspose2d();
+    ConvTranspose2d(size_t in_channels, size_t out_channels, size_t kernel_size,
+                    bool bias = true, int stride = 1, int padding = 0,
+                    int padding_type = 1, size_t in_width = 0,
+                    size_t in_height = 0, float gain_w = 1.0f,
+                    float gain_b = 1.0f, std::string init_method = "He");
     ~ConvTranspose2d();
 
     // Delete copy constructor and copy assignment
@@ -72,6 +89,5 @@ class ConvTranspose2d : public BaseLayer {
     void preinit_layer() override;
 
    protected:
-    void allocate_param_delta();
     void lazy_index_init();
 }

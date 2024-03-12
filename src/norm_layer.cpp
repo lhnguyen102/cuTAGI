@@ -1493,16 +1493,6 @@ void LayerNorm::init_weight_bias()
     }
 }
 
-void LayerNorm::allocate_param_delta()
-/*
- */
-{
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-    this->delta_mu_b.resize(this->num_biases, 0.0f);
-    this->delta_var_b.resize(this->num_biases, 0.0f);
-}
-
 void LayerNorm::allocate_running_mean_var()
 /*
  */
@@ -1930,16 +1920,6 @@ void BatchNorm2d::init_weight_bias()
     } else {
         this->num_biases = 0;
     }
-}
-
-void BatchNorm2d::allocate_param_delta()
-/*
- */
-{
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-    this->delta_mu_b.resize(this->num_biases, 0.0f);
-    this->delta_var_b.resize(this->num_biases, 0.0f);
 }
 
 void BatchNorm2d::allocate_running_mean_var()

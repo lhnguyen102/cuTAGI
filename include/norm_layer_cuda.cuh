@@ -67,7 +67,6 @@ class LayerNormCuda : public BaseLayerCuda {
     void load(std::ifstream &file) override;
 
    protected:
-    void allocate_param_delta();
     void allocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
@@ -127,7 +126,6 @@ class BatchNorm2dCuda : public BaseLayerCuda {
     void load(std::ifstream &file) override;
 
    protected:
-    void allocate_param_delta();
     void allocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
