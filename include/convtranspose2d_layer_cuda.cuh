@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 11, 2024
+// Updated:      March 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,12 +20,12 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
     float gain_w;
     float gain_b;
 
-    int *d_idx_mwa_1;
-    int *d_idx_mwa_2;
-    int *d_idx_cov_wz_2;
-    int *d_idx_var_wz_ud;
-    int *d_idx_cov_z_wa_1;
-    int *d_idx_var_z_ud;
+    int *d_idx_mwa_1 = nullptr;
+    int *d_idx_mwa_2 = nullptr;
+    int *d_idx_cov_wz_2 = nullptr;
+    int *d_idx_var_wz_ud = nullptr;
+    int *d_idx_cov_z_wa_1 = nullptr;
+    int *d_idx_var_z_ud = nullptr;
 
     std::vector<int> idx_mwa_1;
     std::vector<int> idx_mwa_2;
@@ -33,6 +33,8 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
     std::vector<int> idx_var_wz_ud;
     std::vector<int> idx_cov_z_wa_1;
     std::vector<int> idx_var_z_ud;
+    int row_zw = 0, col_z_ud = 0;
+    int col_cov_mwa_1 = 0;
 
     ConvTranspose2dCuda(size_t in_channels, size_t out_channels,
                         size_t kernel_size, bool bias = true, int stride = 1,
@@ -81,9 +83,8 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
     void preinit_layer() override;
 
    protected:
-    void allocate_param_delta();
-    void allocate_conv_index();
-    void conv_index_to_device();
+    void allocate_convtranspose_index();
+    void convtranspose_index_to_device();
     void lazy_index_init();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;

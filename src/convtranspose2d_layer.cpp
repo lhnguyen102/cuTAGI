@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 10, 2024
+// Updated:      March 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,6 +14,10 @@
 #include "../include/common.h"
 #include "../include/indices.h"
 #include "../include/param_init.h"
+
+#ifdef USE_CUDA
+#include "../include/convtranspose2d_layer_cuda.cuh"
+#endif
 
 ConvTranspose2dIndex get_tconv_idx(int pad_idx_in, int pad_idx_out,
                                    int param_pad_idx, Conv2dIndex &convIndex)
@@ -149,7 +153,7 @@ ConvTranspose2d::ConvTranspose2d(size_t in_channels, size_t out_channels,
 ConvTranspose2d::~ConvTranspose2d() {}
 
 std::string ConvTranspose2d::get_layer_name() const {
-    return "ConvTranspose2d()";
+    return "ConvTranspose2d";
 }
 
 std::string ConvTranspose2d::get_layer_info() const {
@@ -184,13 +188,13 @@ void ConvTranspose2d::get_number_param()
 {
     this->num_weights =
         this->kernel_size * this->in_channels * this->out_channels;
-    this->num_bias = 0;
-    if (this->bias) {
-        this->num_bias = this->out_channels;
+    this->num_biases = 0;
+    if (this->num_biases) {
+        this->num_biases = this->out_channels;
     }
 }
 
-ConvTranspose2d::init_weight_bias()
+void ConvTranspose2d::init_weight_bias()
 /**/
 {
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
@@ -216,7 +220,7 @@ void ConvTranspose2d::lazy_index_init()
 
     this->idx_mwa_1 = conv_idx.FCzwa_1_idx;
     this->idx_mwa_2 =
-        transpose_matrix(conv_index.Szz_ud_idx, conv_index.w, conv_index.h);
+        transpose_matrix(conv_idx.Szz_ud_idx, conv_idx.w, conv_idx.h);
     this->idx_cov_wz_2 = conv_transpose_idx.FCwz_2_idx;
     this->idx_var_wz_ud = conv_transpose_idx.Swz_ud_idx;
     this->idx_cov_z_wa_1 = conv_transpose_idx.FCzwa_1_idx;
@@ -225,7 +229,7 @@ void ConvTranspose2d::lazy_index_init()
     // Dimension
     this->row_zw = conv_transpose_idx.w_wz;
     this->col_z_ud = conv_transpose_idx.w_zz;
-    this->col_cov_mwa_1 = conv_transpose_idx.h;
+    this->col_cov_mwa_1 = conv_idx.h;
 }
 
 void ConvTranspose2d::forward(BaseHiddenStates &input_states,
@@ -235,22 +239,32 @@ void ConvTranspose2d::forward(BaseHiddenStates &input_states,
  */
 {}
 
-void ConvTranpose2d::state_backward(BaseBackwardStates &next_bwd_states,
-                                    BaseDeltaStates &input_delta_states,
-                                    BaseDeltaStates &output_delta_states,
-                                    BaseTempStates &temp_states)
+void ConvTranspose2d::state_backward(BaseBackwardStates &next_bwd_states,
+                                     BaseDeltaStates &input_delta_states,
+                                     BaseDeltaStates &output_delta_states,
+                                     BaseTempStates &temp_states)
 /*
  */
 {}
 
-void ConvTranpose2d::param_backward(BaseBackwardStates &next_bwd_states,
-                                    BaseDeltaStates &delta_states,
-                                    BaseTempStates &temp_states)
+void ConvTranspose2d::param_backward(BaseBackwardStates &next_bwd_states,
+                                     BaseDeltaStates &delta_states,
+                                     BaseTempStates &temp_states)
 /**/
 {}
 
-void ConvTranpose2d::preinit_layer() {
-    this->get_number_param_conv2d();
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> ConvTranspose2d::to_cuda() {
+    this->device = "cuda";
+    return std::make_unique<ConvTranspose2dCuda>(
+        this->in_channels, this->out_channels, this->kernel_size, this->bias,
+        this->stride, this->padding, this->padding_type, this->in_width,
+        this->in_height, this->gain_w, this->gain_b, this->init_method);
+}
+#endif
+
+void ConvTranspose2d::preinit_layer() {
+    this->get_number_param();
     this->init_weight_bias();
     this->lazy_index_init();
 }

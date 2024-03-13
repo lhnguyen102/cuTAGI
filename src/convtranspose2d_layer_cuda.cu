@@ -3,12 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 11, 2024
+// Updated:      March 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/convtranspose2d_layer.h"
 #include "../include/convtranspose2d_layer_cuda.cuh"
+#include "../include/param_init.h"
 
 __global__ void convtranspose2d_fwd_mean_var_cuda(
     float const *mu_w, float const *var_w, float const *mu_b,
@@ -198,4 +200,184 @@ ConvTranspose2dCuda::~ConvTranspose2dCuda() {
     cudaFree(d_idx_var_wz_ud);
     cudaFree(d_idx_cov_z_wa_1);
     cudaFree(d_idx_var_z_ud);
+}
+
+std::string ConvTranspose2dCuda::get_layer_name() const {
+    return "ConvTranspose2dCuda";
+}
+
+std::string ConvTranspose2dCuda::get_layer_info() const {
+    return "ConvTranspose2d(" + std::to_string(this->in_channels) + "," +
+           std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
+           std::to_string(this->kernel_size) + ")";
+}
+
+LayerType ConvTranspose2dCuda::get_layer_type() const {
+    return LayerType::ConvTranspose2d;
+};
+
+void ConvTranspose2dCuda::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_width = args.width;
+    this->in_height = args.height;
+    std::tie(this->out_width, this->out_height) = compute_upsample_img_size_v2(
+        this->kernel_size, this->stride, this->in_width, this->in_height,
+        this->padding, this->padding_type);
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
+}
+
+void ConvTranspose2dCuda::get_number_param()
+/*
+ */
+{
+    this->num_weights =
+        this->kernel_size * this->in_channels * this->out_channels;
+    this->num_biases = 0;
+    if (this->num_biases) {
+        this->num_biases = this->out_channels;
+    }
+}
+
+void ConvTranspose2dCuda::init_weight_bias()
+/**/
+{
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_conv2d(this->kernel_size, this->in_channels,
+                                this->out_channels, this->init_method,
+                                this->gain_w, this->gain_b, this->num_weights,
+                                this->num_biases);
+    this->allocate_param_memory();
+    this->params_to_device();
+}
+
+void ConvTranspose2dCuda::lazy_index_init()
+/*
+ */
+{
+    int ki2 = this->kernel_size * this->kernel_size;
+    int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
+
+    auto conv_idx = get_conv2d_idx(
+        this->kernel_size, this->stride, this->out_width, this->out_height,
+        this->in_width, this->in_height, this->padding, this->padding_type, -1,
+        -1, param_pad_idx);
+
+    auto conv_transpose_idx = get_tconv_idx(-1, -1, param_pad_idx, conv_idx);
+
+    this->idx_mwa_1 = conv_idx.FCzwa_1_idx;
+    this->idx_mwa_2 =
+        transpose_matrix(conv_idx.Szz_ud_idx, conv_idx.w, conv_idx.h);
+    this->idx_cov_wz_2 = conv_transpose_idx.FCwz_2_idx;
+    this->idx_var_wz_ud = conv_transpose_idx.Swz_ud_idx;
+    this->idx_cov_z_wa_1 = conv_transpose_idx.FCzwa_1_idx;
+    this->idx_var_z_ud = conv_transpose_idx.Szz_ud_idx;
+
+    // Dimension
+    this->row_zw = conv_transpose_idx.w_wz;
+    this->col_z_ud = conv_transpose_idx.w_zz;
+    this->col_cov_mwa_1 = conv_idx.h;
+
+    this->allocate_convtranspose_index();
+    this->convtranspose_index_to_device();
+}
+
+void ConvTranspose2dCuda::allocate_convtranspose_index()
+/*
+ */
+{
+    cudaMalloc(&this->d_idx_mwa_1, this->idx_mwa_1.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_mwa_2, this->idx_mwa_2.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_wz_2, this->idx_cov_wz_2.size() * sizeof(int));
+
+    cudaMalloc(&this->d_idx_var_wz_ud,
+               this->idx_var_wz_ud.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_z_wa_1,
+               this->idx_cov_z_wa_1.size() * sizeof(int));
+    cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
+}
+
+void ConvTranspose2dCuda::convtranspose_index_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_idx_mwa_1, this->idx_mwa_1.data(),
+               this->idx_mwa_1.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_mwa_2, this->idx_mwa_2.data(),
+               this->idx_mwa_2.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_cov_wz_2, this->idx_cov_wz_2.data(),
+               this->idx_cov_wz_2.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(this->d_idx_var_wz_ud, this->idx_var_wz_ud.data(),
+               this->idx_var_wz_ud.size() * sizeof(int),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_cov_z_wa_1, this->idx_cov_z_wa_1.data(),
+               this->idx_cov_z_wa_1.size() * sizeof(int),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_idx_var_z_ud, this->idx_var_z_ud.data(),
+               this->idx_var_z_ud.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Host to device.");
+    }
+}
+
+void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
+                                  BaseHiddenStates &output_states,
+                                  BaseTempStates &temp_states)
+/*
+ */
+{}
+
+void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
+                                         BaseDeltaStates &input_delta_states,
+                                         BaseDeltaStates &output_delta_states,
+                                         BaseTempStates &temp_states)
+/*
+ */
+{}
+
+void ConvTranspose2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
+                                         BaseDeltaStates &delta_states,
+                                         BaseTempStates &temp_states)
+/**/
+{}
+
+std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_linear = std::make_unique<ConvTranspose2d>(
+        this->in_channels, this->out_channels, this->kernel_size, this->bias,
+        this->stride, this->padding, this->padding_type, this->in_width,
+        this->in_height, this->gain_w, this->gain_b, this->init_method);
+
+    host_linear->mu_w = this->mu_w;
+    host_linear->var_w = this->var_w;
+    host_linear->mu_b = this->mu_b;
+    host_linear->var_b = this->var_b;
+
+    return host_linear;
+}
+
+void ConvTranspose2dCuda::preinit_layer() {
+    this->get_number_param();
+    this->init_weight_bias();
+    this->lazy_index_init();
 }

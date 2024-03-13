@@ -3,13 +3,11 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 10, 2024
+// Updated:      March 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <vector.h>
-
 #include "conv2d_layer.h"
 
 struct ConvTranspose2dIndex {
@@ -17,9 +15,12 @@ struct ConvTranspose2dIndex {
     int w_wz, h_wz, w_zz, h_zz;
 };
 
-ConvTranspose2dIndex get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
-                                   int pad_idx_in, int pad_idx_out,
+ConvTranspose2dIndex get_tconv_idx(int pad_idx_in, int pad_idx_out,
                                    int param_pad_idx, Conv2dIndex &convIndex);
+
+std::tuple<int, int> compute_upsample_img_size_v2(int kernel, int stride,
+                                                  int wi, int hi, int pad,
+                                                  int pad_type);
 
 class ConvTranspose2d : public BaseLayer {
    public:
@@ -90,4 +91,4 @@ class ConvTranspose2d : public BaseLayer {
 
    protected:
     void lazy_index_init();
-}
+};

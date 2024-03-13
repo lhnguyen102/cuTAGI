@@ -140,6 +140,7 @@ set(CPU_SOURCES
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
   src/norm_layer.cpp
+  src/convtranspose2d_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -198,6 +199,7 @@ set(GPU_SOURCES
   src/conv2d_layer_cuda.cu
   src/pooling_layer_cuda.cu
   src/norm_layer_cuda.cu
+  src/convtranspose2d_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
