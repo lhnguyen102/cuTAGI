@@ -183,14 +183,14 @@ class Regression:
         mse_Epochlist, rmse_Epochlist, LL_Epochlist, normal_LL_Epochlist = [], [], [], []
         for epoch in pbar:
             # Decaying observation's variance
-            self.net_prop.sigma_v = exponential_scheduler(
-                curr_v=self.net_prop.sigma_v,
-                min_v=self.net_prop.sigma_v_min,
-                decaying_factor=self.net_prop.decay_factor_sigma_v,
-                curr_iter=epoch,
-            )
-            # self.net_prop.sigma_v = 0.3
-            V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
+            # self.net_prop.sigma_v = exponential_scheduler(
+            #     curr_v=self.net_prop.sigma_v,
+            #     min_v=self.net_prop.sigma_v_min,
+            #     decaying_factor=self.net_prop.decay_factor_sigma_v,
+            #     curr_iter=epoch,
+            # )
+            # # self.net_prop.sigma_v = 0.3
+            # V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
             # V_batch = self.net_prop.sigma_v**2
 
             mse_list, rmse_list, LL_list = [], [], []
@@ -199,6 +199,32 @@ class Regression:
                 idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]
+
+                # if i < num_iter:
+                #     start_index = i * batch_size
+                #     end_index = (i + 1) * batch_size
+                #     # idx = np.random.choice(num_data, size=batch_size)
+                #     x_batch = input_data[start_index:end_index, :]
+                #     y_batch = output_data[start_index:end_index, :]
+                # else:
+                #     start_index = num_iter * batch_size
+                #     idx1 = np.arange(start_index, num_data)
+                #     idx2 = np.random.choice(np.arange(0,start_index), size=batch_size - num_data + start_index)
+                #     end_index = np.concatenate((idx1, idx2))
+                #     x_batch = input_data[end_index, :]
+                #     y_batch = output_data[end_index, :]
+                # numObs = input_data.shape[0]
+                # numDataPerBatch = batch_size
+                # if numDataPerBatch == 1:
+                #     idxBatch = np.arange(i, i + batch_size)
+                # else:
+                #     if numObs - i >= numDataPerBatch:
+                #         idxBatch = np.arange(i, i + numDataPerBatch)
+                #     else:
+                #         idxBatch = np.concatenate((np.arange(i, numObs), np.random.permutation(np.arange(i), numDataPerBatch - numObs + i)))
+
+                # x_batch = input_data[idxBatch, :]
+                # y_batch = output_data[idxBatch, :]
 
                 # Feed forward
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
@@ -235,6 +261,7 @@ class Regression:
                 std_pred = normalizer.unstandardize_std(
                     norm_std=np.sqrt(v_pred), std=self.data_loader["y_norm_param_2"]
                 )
+                # print(std_pred**2)
                 obs = normalizer.unstandardize(
                     norm_data=y_batch,
                     mu=self.data_loader["y_norm_param_1"],
@@ -292,6 +319,8 @@ class Regression:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
             ma, Sa = self.network.get_network_predictions()
+            print(f"The mean predictions are: {ma}")
+            print(f"The variance predictions are: {Sa}")
 
             mean_predictions.append(ma)
             variance_predictions.append(Sa + self.net_prop.sigma_v**2)
@@ -356,7 +385,7 @@ class Regression:
         print(f"RMSE          : {rmse: 0.2f}")
 
         return mse, log_lik, rmse, normal_log_lik
-    
+
 
     def compute_derivatives(
         self, layer: int = 0, truth_derv_file: Union[None, str] = None

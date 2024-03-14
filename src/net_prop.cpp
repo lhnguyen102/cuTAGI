@@ -382,7 +382,7 @@ float xavier_init(float fan_in, float fan_out)
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
-    float scale, float gain, int N)
+    float scale, float out_gain, int N)
 /* Parmeter initialization of TAGI neural networks.
  *
  * Args:
@@ -398,10 +398,10 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 {
     // Initialize device
     std::random_device rd;
-
+    //unsigned int rand_seed = 1;
     // Mersenne twister PRNG - seed
     std::mt19937 gen(rd());
-
+    //std::mt19937 gen(rand_seed);
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
@@ -409,7 +409,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     // Weights
     for (int i = 0; i < N; i++) {
         // Variance
-        S[i] = gain * pow(scale, 2);
+        S[i] = out_gain * pow(scale, 2);
 
         // Get normal distribution
         std::normal_distribution<float> d(0.0f, scale);
@@ -422,7 +422,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
-    float scale, float gain, float noise_gain, int N)
+    float scale, float out_gain, float noise_gain, int N)
 /* Parmeter initialization of TAGI neural network including the noise's hidden
  * states
  *
@@ -439,9 +439,11 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
 {
     // Initialize device
     std::random_device rd;
+    //unsigned int rand_seed = 1;
 
     // Mersenne twister PRNG - seed
     std::mt19937 gen(rd());
+    //std::mt19937 gen(rand_seed);
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -451,7 +453,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     for (int i = 0; i < N; i++) {
         // Variance for output and noise's hidden states
         if (i < N / 2) {
-            S[i] = gain * pow(scale, 2);
+            S[i] = out_gain * pow(scale, 2);
         } else {
             S[i] = noise_gain * pow(scale, 2);
             scale = pow(S[i], 0.5);
@@ -463,6 +465,50 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
 
         // Get sample for weights
         m[i] = d(gen);
+    }
+
+    return {m, S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_bias(
+    float scale, float out_gain, int N)
+/* Parmeter initialization of TAGI neural networks.
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+    //unsigned int rand_seed = 1;
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    //std::mt19937 gen(rand_seed);
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    //std::default_random_engine gen;
+    //std::normal_distribution<float> d(0.0f, scale);
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Variance
+        S[i] = pow(scale, 2);
+
+        // Get normal distribution
+        std::normal_distribution<float> d(0.0f, scale);
+
+        // Get sample for weights
+        m[i] = d(gen); //d(gen)
+
     }
 
     return {m, S};
@@ -1028,36 +1074,36 @@ Param initialize_param(Network &net) {
             }
             fan_out = net.nodes[j];
 
-            // Compute variance
+            //Compute variance
             if (net.init_method.compare("Xavier") == 0) {
                 scale = xavier_init(fan_in, fan_out);
             } else {
                 scale = he_init(fan_in);
             }
 
-            // Weight
+            //Weight
             if (net.num_weights[j] > 0) {
                 if (net.noise_type.compare("heteros") == 0 &&
                     j == num_layers - 1) {
                     std::tie(mw_j, Sw_j) = gaussian_param_init_ni(
-                        scale, net.gain_w[j], net.noise_gain,
+                        scale, net.out_gain, net.noise_gain,
                         net.num_weights[j]);
                 } else {
                     std::tie(mw_j, Sw_j) = gaussian_param_init(
-                        scale, net.gain_w[j], net.num_weights[j]);
+                        scale, net.out_gain, net.num_weights[j]); //net.gain_w[j]
                 }
             }
 
-            // Biases
+            //Biases
             if (net.num_biases[j] > 0) {
                 if (net.noise_type.compare("heteros") == 0 &&
                     j == num_layers - 1) {
-                    std::tie(mb_j, Sb_j) = gaussian_param_init_ni(
-                        scale, net.gain_b[j], net.noise_gain,
+                    std::tie(mb_j, Sb_j) = gaussian_param_init_bias(
+                        scale, 1.0,//net.noise_gain, net.gain_b[j] instead of 1.0
                         net.num_biases[j]);
                 } else {
                     std::tie(mb_j, Sb_j) = gaussian_param_init(
-                        scale, net.gain_b[j], net.num_biases[j]);
+                        scale, 1.0, net.num_biases[j]);
                 }
             }
         }
@@ -1229,7 +1275,7 @@ void load_cfg(std::string net_file, Network &net)
                                "sigma_v_min",    "sigma_x",
                                "init_method",    "is_full_cov",
                                "noise_type",     "mu_v2b",
-                               "sigma_v2b",      "noise_gain",
+                               "sigma_v2b",      "noise_gain", "out_gain"
                                "multithreading", "collect_derivative",
                                "input_seq_len",  "output_seq_len",
                                "seq_stride",     "gain_w",
@@ -1371,6 +1417,12 @@ void load_cfg(std::string net_file, Network &net)
                     if (ss.good()) {
                         ss >> f;
                         net.noise_gain = f;
+                    }
+                } else if (key_words[k] == "out_gain") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.out_gain = f;
                     }
                 } else if (key_words[k] == "multithreading") {
                     std::stringstream ss(line.substr(pos + key.size()));

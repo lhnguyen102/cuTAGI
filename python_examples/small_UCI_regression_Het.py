@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # os.chdir('..')
 import sys
 print(sys.path)
-sys.path.append('/home/bd/projects/cuTAGI') # always append the path to the root directory
+sys.path.append('/home/bd/documents/cuTAGI') # always append the path to the root directory
 
 from python_examples.data_loader import RegressionDataLoader
 from python_examples.regression import Regression
@@ -21,7 +21,7 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Boston_housing"] # "Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+data_names = ["Wine"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
@@ -35,7 +35,8 @@ for j in range(len(data_names)):
         os.remove("results_small_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j]))
-
+        os.remove("results_small_UCI_TAGI_AGVI_Het/{}/learning_curve_LL.txt".format(data_names[j]))
+        os.remove("results_small_UCI_TAGI_AGVI_Het/{}/learning_curve_RMSE.txt".format(data_names[j]))
 
     # File paths for the results
     RESULTS_RMSEtest = "results_small_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSEtest.txt"
@@ -58,24 +59,28 @@ for j in range(len(data_names)):
     # print(index_target)
 
     # User-input (Default values)
-    n_splits    = 20    # number of splits
+    n_splits    = 20   # number of splits
     num_inputs  = len(index_features)     # 1 explanatory variable
     num_outputs = 1     # 1 predicted output
     num_epochs  = 100     # row for 40 epochs
-    BATCH_SIZE  = 32     # batch size
+    BATCH_SIZE  = 10     # batch size
     num_hidden_layers = 50
 
     # Gain values for each dataset
-    # OUT_GAIN = {"Boston_housing": 0.5, "Concrete": 0.5, "Energy": 0.5, "Yacht": 1, "Wine": 0.1, \
-    #                     "Kin8nm": 0.5, "Naval": 0.5, "Power-plant": 0.5, "Protein": 0.5}
-    NOISE_GAIN = {"Boston_housing": 1, "Concrete": 0.05, "Energy": 0.1, "Yacht": 0.1, "Wine": 0.01, \
-                        "Kin8nm": 0.1, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
+    OUT_GAIN = {"Boston_housing": 0.5, "Concrete": 0.5, "Energy": 0.5, "Yacht": 0.1, "Wine": 0.1, \
+                        "Kin8nm": 1, "Naval": 0.5, "Power-plant": 0.5, "Protein": 0.5}
+    NOISE_GAIN = {"Boston_housing": 0.01, "Concrete": 0.01, "Energy": 0.01, "Yacht": 0.1, "Wine": 0.01, \
+                        "Kin8nm": 0.01, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
 
-    # Change batch size for wine and yacht
-    if data_names[j] == "Yacht":
-        BATCH_SIZE = 5
-    if data_names[j] == "Energy":
-        BATCH_SIZE = 10
+    # optimal epochs for each dataset found by cross-validation
+    EPOCHS = {"Boston_housing": 17, "Concrete": 18, "Energy": 30, "Yacht": 41, "Wine": 21, \
+                        "Kin8nm": 22, "Naval": 28, "Power-plant": 21, "Protein": 20}
+
+    # Change batch size for Boston
+    if data_names[j] == "Boston_housing":
+        BATCH_SIZE = 32
+    # if data_names[j] == "Kin8nm":
+    #     BATCH_SIZE = 10
 
     # Change number of splits for Protein data to 5
     if data_names[j] == "Protein":
@@ -88,7 +93,7 @@ for j in range(len(data_names)):
     Y = data[ : , index_target.tolist() ]
     input_dim = X.shape[1]
 
-
+    # num_epochs = EPOCHS[data_names[j]]
     ## classes
     class HeterosUCIMLP(NetProp):
         """Multi-layer preceptron for regression task where the
@@ -102,7 +107,7 @@ for j in range(len(data_names)):
             self.batch_size     =  BATCH_SIZE
             self.sigma_v        =  0 # sigma_v_values[data_names[j]]
             self.sigma_v_min    =  0
-            # self.out_gain       = OUT_GAIN[data_names[j]]
+            self.out_gain       =  OUT_GAIN[data_names[j]]
             self.noise_gain     =  NOISE_GAIN[data_names[j]]
             self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
@@ -201,8 +206,8 @@ for j in range(len(data_names)):
         x_test = normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
         y_test = normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
 
-        # print(x_train.shape)
-        # print(y_train.shape)
+        # print(x_train[0:5,:])
+        # print(y_train[0:5])
 
 
 
@@ -217,7 +222,7 @@ for j in range(len(data_names)):
         data_loader["y_norm_param_1"] = y_mean
         data_loader["y_norm_param_2"] = y_std
 
-        print(data_loader["train"][0].shape)
+        # print(data_loader["train"][0].shape)
 
 
         # Model

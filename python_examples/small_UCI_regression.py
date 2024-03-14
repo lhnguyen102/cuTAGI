@@ -18,10 +18,10 @@ from python_examples.regression import Regression
 from pytagi import NetProp
 
 ## Load the data
-# data_names = ["Boston_housing"] # "Concrete","Energy", "Yacht", "Wine", \
-            #   "Kin8nm","Naval",\
-            #   "Power-plant","Protein"
-data_names = ["Boston_housing"]
+data_names = ["Boston_housing","Concrete","Energy", "Yacht", "Wine", \
+              "Kin8nm","Naval",\
+              "Power-plant","Protein"]
+# data_names = ["Yacht"]
 
 for j in range(len(data_names)):
 

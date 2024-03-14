@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
@@ -15,15 +15,6 @@
                 "PYTHONPATH": "${workspaceFolder}"
             }
         },
-        {
-            "name": "Launch (lldb)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/main",
-            "args": [
-                "cfg_mnist_2fc.txt"
-            ],
-            "cwd": "${workspaceFolder}",
-        }
+
     ]
 }

@@ -98,6 +98,7 @@ class NetProp(tagi.Network):
     is_output_ud: bool
     last_backward_layer: int
     nye: int
+    out_gain: float
     noise_gain: float
     noise_type: str
     batch_size: int

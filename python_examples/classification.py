@@ -99,6 +99,66 @@ class Classifier:
 
             # Validate on test set after each epoch
             # self.predict()
+    def train_AGVI(self) -> None:
+        """Train the network using TAGI"""
+
+        # Inputs
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
+
+        # Outputs
+        V_batch, _ = self.init_outputs(batch_size)
+
+        input_data, output_data, output_idx, labels = self.data_loader["train"]
+        num_data = input_data.shape[0]
+        num_iter = int(num_data / batch_size)
+        pbar = tqdm(range(self.num_epochs))
+        error_rates = []
+        for epoch in pbar:
+            # initialize parameters from the LL model
+            A, mLA, PLA = self.init_LL()
+            print(A)
+            print(mLA)
+            print(PLA)
+            for i in range(num_iter):
+                # Get data
+                idx = np.random.choice(num_data, size=batch_size)
+                x_batch = input_data[idx, :]
+                y_batch = output_data[idx, :]
+                ud_idx_batch = output_idx[idx, :]
+                label = labels[idx]
+
+                # Feed forward
+                self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+
+                # Update hidden states
+                self.network.state_feed_backward(y_batch, V_batch, ud_idx_batch)
+
+                # Update parameters
+                self.network.param_feed_backward()
+
+                # Error rate
+                ma_pred, Sa_pred = self.network.get_network_outputs()
+                pred, _ = self.utils.get_labels(
+                    ma=ma_pred,
+                    Sa=Sa_pred,
+                    hr_softmax=self.hr_softmax,
+                    num_classes=self.num_classes,
+                    batch_size=batch_size,
+                )
+
+                error_rate = metric.classification_error(prediction=pred, label=label)
+                error_rates.append(error_rate)
+                if i % 100 == 0 and i > 0:
+                    extracted_error_rate = np.hstack(error_rates)
+                    avg_error_rate = np.mean(extracted_error_rate[-100:])
+                    pbar.set_description(
+                        f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t Error rate: {avg_error_rate * 100:>7.2f}%"
+                    )
+
+            # Validate on test set after each epoch
+            # self.predict()
+
 
     def predict(self) -> None:
         """Make prediction using TAGI"""
@@ -228,3 +288,9 @@ class Classifier:
         ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
         return V_batch, ud_idx_batch
+    def init_LL(self):
+        A = self.net_prop.A
+        maxEpochs = self.num_epochs
+        mLA = np.zeros((A.shape[0] + 1, maxEpochs + 1))  # to accommodate softplus
+        PLA = np.zeros((A.shape[0] + 1, A.shape[0] + 1, maxEpochs + 1))
+        return A, mLA, PLA

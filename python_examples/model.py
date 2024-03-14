@@ -21,7 +21,7 @@ class RegressionMLP(NetProp):
         self.batch_size = 4
         self.sigma_v = 0.06
         self.sigma_v_min: float = 0.06
-        self.device = "cpu"
+        self.device = "cpu" #cpu, cuda
 
 
 class HeterosMLP(NetProp):
@@ -96,7 +96,32 @@ class MnistMLP(NetProp):
         self.sigma_v = 1
         self.is_idx_ud = True
         self.multithreading = True
-        self.device = "cpu"
+        self.device = "cuda" #cuda, cpu
+
+class MnistMLP_AGVI_LL(NetProp):
+    """Multi-layer perceptron for mnist classificaiton.
+
+    NOTE: The number of hidden states for last layer is 11 because
+    TAGI use the hierarchical softmax for the classification task.
+    Further details can be found in
+    https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.layers = [1, 1, 1, 1]
+        self.nodes = [784, 100, 100, 11]
+        self.activations = [0, 7, 7, 12]
+        self.batch_size = 100
+        self.sigma_v = 1
+        self.is_idx_ud = True
+        self.multithreading = True
+        self.device = "cuda" #cuda, cpu
+        self.sv = [1,0.1]
+        self.A = [1]
+        self.LA = 1
+        self.EX = 1
+        self.PX = 0.1
 
 
 class SoftmaxMnistMLP(NetProp):
