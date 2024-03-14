@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 13, 2024
+// Updated:      March 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -343,7 +343,58 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
                                   BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    int batch_size = input_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    if (this->num_weights == 0) {
+        this->get_number_param();
+        this->init_weight_bias();
+        this->allocate_param_delta();
+    }
+
+    if (this->idx_mwa_1.size() == 0) {
+        this->lazy_index_init();
+    }
+
+    // Assign output dimensions
+    cu_output_states->width = this->out_width;
+    cu_output_states->height = this->out_height;
+    cu_output_states->depth = this->out_channels;
+    cu_output_states->block_size = batch_size;
+    cu_output_states->actual_size = this->output_size;
+
+    // Launch kernel
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    unsigned int grid_row = (batch_size + threads - 1) / threads;
+    unsigned int grid_col = (woho * this->out_channels + threads - 1) / threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(threads, threads);
+
+    convtranspose2d_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_1,
+        this->d_idx_mwa_2, woho, this->out_channels, wihi, this->in_channels,
+        this->kernel_size, this->col_cov_mwa_1, batch_size, this->bias,
+        cu_output_states->d_mu_a, cu_output_states->d_var_a);
+
+    // Update backward state for inferring parameters
+    if (this->training) {
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
+    }
+}
 
 void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
                                          BaseDeltaStates &input_delta_states,
@@ -351,13 +402,78 @@ void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
                                          BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    // Lauch kernel
+    int wihi = this->in_height * this->in_width;
+    int woho = this->out_width * this->out_height;
+    unsigned int grid_row = (batch_size + threads - 1) / threads;
+    unsigned int grid_col = (wihi * this->in_channels + threads - 1) / threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(threads, threads);
+
+    convtranspose2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
+        this->d_mu_w, cu_next_bwd_states->d_jcb,
+        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
+        this->d_idx_cov_z_wa_1, this->d_idx_var_z_ud, woho, this->out_channels,
+        wihi, this->in_channels, this->kernel_size, this->row_zw, batch_size,
+        cu_output_delta_states->d_delta_mu,
+        cu_output_delta_states->d_delta_var);
+}
 
 void ConvTranspose2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
                                          BaseDeltaStates &delta_states,
                                          BaseTempStates &temp_states)
 /**/
-{}
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&delta_states);
+
+    // Initalization
+    int batch_size = delta_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    // Launch kernel
+    int ki2 = this->kernel_size * this->kernel_size;
+    int wihi = this->in_height * this->in_width;
+    int woho = this->out_width * this->out_height;
+    unsigned int grid_row_w = (this->in_channels + threads - 1) / threads;
+    unsigned int grid_col_w =
+        (ki2 * this->out_channels + threads - 1) / threads;
+
+    dim3 dim_grid_w(grid_col_w, grid_row_w);
+    dim3 dim_block(threads, threads);
+
+    convtranspose2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
+        this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
+        cu_delta_states->d_delta_var, this->d_idx_cov_wz_2,
+        this->d_idx_var_wz_ud, woho, this->out_channels, wihi,
+        this->in_channels, this->kernel_size, batch_size, this->d_delta_mu_w,
+        this->d_delta_var_w);
+
+    if (this->bias) {
+        unsigned int grid_size = (this->out_channels + threads - 1) / threads;
+
+        convtranspose2d_bwd_delta_b_cuda<<<grid_size, threads>>>(
+            this->d_var_b, cu_delta_states->d_delta_mu,
+            cu_delta_states->d_delta_var, woho, this->out_channels, batch_size,
+            this->d_delta_mu_b, this->d_delta_var_b);
+    }
+}
 
 std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()
 /* Transfer to cpu version
