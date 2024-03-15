@@ -177,6 +177,7 @@ set(CPU_SOURCES
   test/fnn/test_fnn_cpu_v2.cpp
   test/fnn/test_fnn_mnist_cpu.cpp
   test/cross_val/cross_val.cpp
+  test/autoencoder/test_autoencoder_v2.cpp
 )
 
 # Sources code for CUDA

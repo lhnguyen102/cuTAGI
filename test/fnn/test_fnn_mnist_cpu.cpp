@@ -193,11 +193,11 @@ void fnn_mnist() {
                                                 *model.input_delta_z_buffer);
             // cpu_output_updater.update_using_indices(
             //     *cpu_model.output_z_buffer, y_batch, var_obs,
-            idx_ud_batch,
-                //     *cpu_model.input_delta_z_buffer);
+            // idx_ud_batch,
+            //     *cpu_model.input_delta_z_buffer);
 
-                // Backward pass
-                model.backward();
+            // Backward pass
+            model.backward();
             model.step();
 
             // // cpu_model.backward();
