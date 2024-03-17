@@ -95,6 +95,8 @@ class Sequential {
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());
 
+    void forward(BaseHiddenStates& input_states);
+
     void backward();
 
     void step();

@@ -44,6 +44,7 @@ class BaseDeltaStates {
     ~BaseDeltaStates() = default;
     virtual std::string get_name() const { return "BaseDeltaStates"; };
     virtual void reset_zeros();
+    virtual void copy_from(const BaseDeltaStates &source);
 };
 
 class BaseTempStates {

@@ -43,6 +43,14 @@ void BaseDeltaStates::reset_zeros() {
     std::fill(this->delta_var.begin(), this->delta_var.end(), 0);
 }
 
+void BaseDeltaStates::copy_from(const BaseDeltaStates &source)
+/*
+ */
+{
+    this->delta_mu = source.delta_mu;
+    this->delta_var = source.delta_var;
+}
+
 BaseTempStates::BaseTempStates(size_t n, size_t m)
     : tmp_1(n, 0.0f), tmp_2(n, 0.0f), size(n), block_size(m) {}
 

@@ -185,6 +185,32 @@ void DeltaStateCuda::reset_zeros() {
     cudaMemset(d_delta_var, 0, sizeof(float) * size);
 }
 
+void DeltaStateCuda::copy_from(const BaseDeltaStates &source)
+/*
+ */
+{
+    const DeltaStateCuda *cu_source =
+        dynamic_cast<const DeltaStateCuda *>(&source);
+
+    if (!cu_source) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid source.");
+    }
+
+    cudaMemcpy(this->d_delta_mu, cu_source->d_delta_mu,
+               this->size * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->d_delta_var, cu_source->d_delta_var,
+               this->size * sizeof(float), cudaMemcpyDeviceToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying data on device.");
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////

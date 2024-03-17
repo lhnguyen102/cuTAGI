@@ -76,8 +76,10 @@ void Conv2dCuda::compute_input_output_size(const InitArgs &args)
 /*
  */
 {
-    this->in_width = args.width;
-    this->in_height = args.height;
+    if (this->in_height == 0 || this->in_height == 0) {
+        this->in_width = args.width;
+        this->in_height = args.height;
+    }
     std::tie(this->out_width, this->out_height) =
         compute_downsample_img_size_v2(this->kernel_size, this->stride,
                                        this->in_width, this->in_height,

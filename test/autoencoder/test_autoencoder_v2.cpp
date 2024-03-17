@@ -50,7 +50,7 @@ void cnn_autoencoder()
 
     std::string data_name = "mnist";
     std::vector<float> mu = {0.1309};
-    std::vector<float> sigma = {2.0f};
+    std::vector<float> sigma = {1.0f};
     int num_train_data = 60000;
     int num_test_data = 10000;
     int num_classes = 10;
@@ -76,10 +76,13 @@ void cnn_autoencoder()
                        ReLU(), AvgPool2d(3, 2, 1, 2), Linear(32 * 7 * 7, 100),
                        ReLU(), Linear(100, 10));
 
+    encoder.set_threads(8);
+
     Sequential decoder(Linear(10, 32 * 7 * 7), ReLU(),
                        ConvTranspose2d(32, 32, 3, true, 2, 1, 2, 7, 7), ReLU(),
                        ConvTranspose2d(32, 16, 3, true, 2, 1, 2), ReLU(),
                        ConvTranspose2d(16, 1, 3, true, 1, 1, 1));
+    decoder.set_threads(8);
 
     OutputUpdater output_updater(encoder.device);
 
@@ -90,19 +93,15 @@ void cnn_autoencoder()
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
-    float sigma_obs = 1.0;
+    int batch_size = 20;
+    float sigma_obs = 8.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
-    std::vector<float> var_obs(batch_size * train_db.output_len,
-                               pow(sigma_obs, 2));
-    std::vector<float> y_batch(batch_size * train_db.output_len, 0.0f);
+    std::vector<float> var_obs(batch_size * n_y, pow(sigma_obs, 2));
     std::vector<int> batch_idx(batch_size);
-    std::vector<int> idx_ud_batch(train_db.output_len * batch_size, 0);
     std::vector<int> label_batch(batch_size, 0);
-    std::vector<float> mu_a_output(batch_size * n_y, 0);
-    std::vector<float> var_a_output(batch_size * n_y, 0);
+
     auto data_idx = create_range(train_db.num_data);
 
     for (int e = 0; e < n_epochs; e++) {
@@ -120,18 +119,23 @@ void cnn_autoencoder()
             get_batch_data(train_db.images, batch_idx, n_x, x_batch);
             get_batch_data(train_db.labels, batch_idx, 1, label_batch);
 
+            // Forward pass
             encoder.forward(x_batch);
+            decoder.forward(*encoder.output_z_buffer);
 
-            // Extract output
-            if (encoder.device == "cuda") {
-                encoder.output_to_host();
-            }
+            // Output layer's update i.e., loss function
+            output_updater.update(*decoder.output_z_buffer, x_batch, var_obs,
+                                  *decoder.input_delta_z_buffer);
 
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = encoder.output_z_buffer->mu_a[j];
-                var_a_output[j] = encoder.output_z_buffer->var_a[j];
-            }
-            decoder.forward(mu_a_output, var_a_output);
+            // Backward pass
+            decoder.backward();
+            decoder.step();
+
+            encoder.output_delta_z_buffer->copy_from(
+                *decoder.output_delta_z_buffer);
+
+            encoder.backward();
+            encoder.step();
         }
 
         // Report computational time
@@ -146,11 +150,45 @@ void cnn_autoencoder()
         std::cout << std::setprecision(3);
         std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Testing
+    ////////////////////////////////////////////////////////////////////////////
+    std::cout << "################\n";
+    std::cout << "Testing...\n";
+    std::vector<float> mu_a_output(batch_size * n_y, 0);
+    std::vector<float> var_a_output(batch_size * n_y, 0);
+    for (int i = 0; i < 1; i++) {
+        // Load input data for encoder and output data for decoder
+        get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
+        get_batch_data(test_db.images, batch_idx, n_x, x_batch);
+        get_batch_data(test_db.labels, batch_idx, 1, label_batch);
+
+        // Forward pass
+        encoder.forward(x_batch);
+        decoder.forward(*encoder.output_z_buffer);
+
+        // Extract output
+        if (decoder.device == "cuda") {
+            decoder.output_to_host();
+        }
+
+        for (int j = 0; j < batch_size * n_y; j++) {
+            mu_a_output[j] = decoder.output_z_buffer->mu_a[j];
+            var_a_output[j] = decoder.output_z_buffer->var_a[j];
+        }
+    }
+
+    // Save generated images
+    std::string suffix = "test";
+    std::string saved_inference_path = "./saved_results/";
+    save_generated_images(saved_inference_path, mu_a_output, suffix);
 }
 
 int test_autoecoder_v2()
 /*
  */
 {
+    cnn_autoencoder();
     return 0;
 }

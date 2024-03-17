@@ -37,13 +37,13 @@ __global__ void convtranspose2d_fwd_mean_var_cuda(
             int i_div_rf = i / rf;
 
             // minus 1 due to the index starting at 1
-            widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki * ki +
-                       i_div_rf * ki * ki * fo - 1;
+            aidx_tmp = aidx[mod_idx * rf + i % rf];
 
-            aidx_tmp = aidx[mod_idx * rf + i % rf] + row * wihi * fi +
-                       i_div_rf * wihi - 1;
+            if (aidx_tmp > -1) {
+                widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki * ki +
+                           i_div_rf * ki * ki * fo - 1;
+                aidx_tmp += row * wihi * fi + i_div_rf * wihi - 1;
 
-            if (aidx_tmp + 1 < wihi * fi * batch_size + 1) {
                 sum_mu += mu_w[widx_tmp] * mu_a[aidx_tmp];
 
                 sum_var += (mu_w[widx_tmp] * mu_w[widx_tmp] + var_w[widx_tmp]) *
@@ -82,13 +82,12 @@ __global__ void convtranspose2d_bwd_delta_z_cuda(
         for (int i = 0; i < rf * fo; i++)  // n = ki2 * fo
         {
             // minus 1 due to the index starting at 1
-            widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
-                       (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
+            zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf];
+            if (zidx_tmp > -1) {
+                widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
+                           (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
+                zidx_tmp += (i / rf) * woho + row * woho * fo - 1;
 
-            // indices for deltaM
-            zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf] + (i / rf) * woho +
-                       row * woho * fo - 1;
-            if (zidx_tmp + 1 < woho * fo * batch_size + 1) {
                 sum_mu += delta_mu_out[zidx_tmp] * mu_w[widx_tmp];
                 sum_var +=
                     mu_w[widx_tmp] * delta_var_out[zidx_tmp] * mu_w[widx_tmp];
@@ -127,14 +126,14 @@ __global__ void convtranspose2d_bwd_delta_w_cuda(
             int i_mod_wihi = i % wihi;
 
             // minus 1 due to the index starting at 1
-            aidx_tmp = aidx[col_mod_ki2 * wihi + i_mod_wihi] + row * wihi +
-                       i_div_wihi * wihi * fi - 1;
+            aidx_tmp = aidx[col_mod_ki2 * wihi + i_mod_wihi];
 
-            zidx_tmp = zidx[col_mod_ki2 * wihi + i_mod_wihi] +
-                       col_div_ki2 * woho + i_div_wihi * woho * fo - 1;
-
-            if (aidx_tmp < wihi * fi * batch_size) {
+            if (aidx_tmp > -1) {
                 // minus 1 due to the index starting at 1
+                zidx_tmp = zidx[col_mod_ki2 * wihi + i_mod_wihi] +
+                           col_div_ki2 * woho + i_div_wihi * woho * fo - 1;
+                aidx_tmp += row * wihi + i_div_wihi * wihi * fi - 1;
+
                 sum_mu += mu_a[aidx_tmp] * delta_mu_out[zidx_tmp];
                 sum_var +=
                     mu_a[aidx_tmp] * mu_a[aidx_tmp] * delta_var_out[zidx_tmp];
@@ -222,8 +221,10 @@ void ConvTranspose2dCuda::compute_input_output_size(const InitArgs &args)
 /*
  */
 {
-    this->in_width = args.width;
-    this->in_height = args.height;
+    if (this->in_height == 0 || this->in_height == 0) {
+        this->in_width = args.width;
+        this->in_height = args.height;
+    }
     std::tie(this->out_width, this->out_height) = compute_upsample_img_size_v2(
         this->kernel_size, this->stride, this->in_width, this->in_height,
         this->padding, this->padding_type);
@@ -236,10 +237,10 @@ void ConvTranspose2dCuda::get_number_param()
 /*
  */
 {
-    this->num_weights =
-        this->kernel_size * this->in_channels * this->out_channels;
+    this->num_weights = this->kernel_size * this->kernel_size *
+                        this->in_channels * this->out_channels;
     this->num_biases = 0;
-    if (this->num_biases) {
+    if (this->bias) {
         this->num_biases = this->out_channels;
     }
 }

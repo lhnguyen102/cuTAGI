@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 10, 2024
-// Updated:      March 14, 2024
+// Updated:      March 17, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,18 +21,19 @@
 #ifdef USE_CUDA
 #include "../include/convtranspose2d_layer_cuda.cuh"
 #endif
+#include <thread>
 
 void convtranspose2d_fwd_mean_var(
     const std::vector<float> &mu_w, const std::vector<float> &var_w,
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<int> &widx, const std::vector<int> &aidx, int woho,
-    int fo, int wihi, int fi, int ki, int rf, int batch_size, bool bias,
-    std::vector<float> &mu_z, std::vector<float> &var_z)
+    int fo, int wihi, int fi, int ki, int rf, int start_chunk, int end_chunk,
+    bool bias, std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
 {
-    for (int row = 0; row < batch_size; row++) {
+    for (int row = start_chunk; row < end_chunk; row++) {
         for (int col = 0; col < woho * fo; col++) {
             int div_idx = col / woho;
             int mod_idx = col % woho;
@@ -45,13 +46,13 @@ void convtranspose2d_fwd_mean_var(
                 int i_div_rf = i / rf;
 
                 // minus 1 due to the index starting at 1
-                widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki * ki +
-                           i_div_rf * ki * ki * fo - 1;
+                aidx_tmp = aidx[mod_idx * rf + i % rf];
 
-                aidx_tmp = aidx[mod_idx * rf + i % rf] + row * wihi * fi +
-                           i_div_rf * wihi - 1;
+                if (aidx_tmp > -1) {
+                    widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki * ki +
+                               i_div_rf * ki * ki * fo - 1;
+                    aidx_tmp += +row * wihi * fi + i_div_rf * wihi - 1;
 
-                if (aidx_tmp + 1 < wihi * fi * batch_size + 1) {
                     sum_mu += mu_w[widx_tmp] * mu_a[aidx_tmp];
 
                     sum_var +=
@@ -71,21 +72,57 @@ void convtranspose2d_fwd_mean_var(
     }
 }
 
-void convtranspose2d_bwd_delta_z(const std::vector<float> &mu_w,
-                                 const std::vector<float> &jcb,
-                                 const std::vector<float> &delta_mu_out,
-                                 const std::vector<float> &delta_var_out,
-                                 const std::vector<int> &widx,
-                                 const std::vector<int> &zidx, int woho, int fo,
-                                 int wihi, int fi, int ki, int rf,
-                                 int batch_size, std::vector<float> &delta_mu,
-                                 std::vector<float> &delta_var)
+void convtranspose2d_fwd_mean_var_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &var_w,
+    const std::vector<float> &mu_b, const std::vector<float> &var_b,
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &widx, const std::vector<int> &aidx, int woho,
+    int fo, int wihi, int fi, int ki, int rf, int batch_size, bool bias,
+    unsigned int num_threads, std::vector<float> &mu_z,
+    std::vector<float> &var_z)
+/*
+ */
+{
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    int batch_per_thread = batch_size / num_threads;
+
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        int start_chunk = i * batch_per_thread;
+        int end_chunk = (i + 1) * batch_per_thread;
+
+        if (i == num_threads - 1) {
+            end_chunk = batch_size;
+        }
+
+        threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
+                              &widx, &aidx, &mu_z, &var_z]() {
+            convtranspose2d_fwd_mean_var(
+                mu_w, var_w, mu_b, var_b, mu_a, var_a, widx, aidx, woho, fo,
+                wihi, fi, ki, rf, start_chunk, end_chunk, bias, mu_z, var_z);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        };
+    }
+}
+
+void convtranspose2d_bwd_delta_z(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &widx,
+    const std::vector<int> &zidx, int woho, int fo, int wihi, int fi, int ki,
+    int rf, int start_chunk, int end_chunk, std::vector<float> &delta_mu,
+    std::vector<float> &delta_var)
 /*
  */
 {
     int input_size = wihi * fi;
 
-    for (int row = 0; row < batch_size; row++) {
+    for (int row = start_chunk; row < end_chunk; row++) {
         for (int col = 0; col < input_size; col++) {
             float sum_mu = 0.0f;
             float sum_var = 0.0f;
@@ -93,19 +130,24 @@ void convtranspose2d_bwd_delta_z(const std::vector<float> &mu_w,
             int zidx_tmp;  // updated index (idxSzzUd)
             for (int i = 0; i < rf * fo; i++) {
                 // minus 1 due to the index starting at 1
-                widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
-                           (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
-
                 // indices for deltaM
-                zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf] +
-                           (i / rf) * woho + row * woho * fo - 1;
-                if (zidx_tmp + 1 < woho * fo * batch_size + 1) {
+                zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf];
+                if (zidx_tmp > -1) {
+                    if (widx[(col % wihi) * ki * ki + i % rf] ==
+                        ki * ki * fo * fi + 1) {
+                        int check = 1;
+                    }
+                    widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
+                               (i / rf) * ki * ki +
+                               (col / wihi) * ki * ki * fo - 1;
+                    zidx_tmp += (i / rf) * woho + row * woho * fo - 1;
+
                     sum_mu += delta_mu_out[zidx_tmp] * mu_w[widx_tmp];
                     sum_var += mu_w[widx_tmp] * delta_var_out[zidx_tmp] *
                                mu_w[widx_tmp];
                 }
             }
-            // TODO: Double check the definition zposIn
+
             delta_mu[col + row * input_size] =
                 sum_mu * jcb[col + row * input_size];
             delta_var[col + row * input_size] = sum_var *
@@ -115,21 +157,57 @@ void convtranspose2d_bwd_delta_z(const std::vector<float> &mu_w,
     }
 }
 
-void convtranspose2d_bwd_delta_w(const std::vector<float> &var_w,
-                                 const std::vector<float> &mu_a,
-                                 const std::vector<float> &delta_mu_out,
-                                 const std::vector<float> &delta_var_out,
-                                 const std::vector<int> &aidx,
-                                 const std::vector<int> &zidx, int woho, int fo,
-                                 int wihi, int fi, int ki, int batch_size,
-                                 std::vector<float> &delta_mu_w,
-                                 std::vector<float> &delta_var_w)
+void convtranspose2d_bwd_delta_z_mp(
+    const std::vector<float> &mu_w, const std::vector<float> &jcb,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &widx,
+    const std::vector<int> &zidx, int woho, int fo, int wihi, int fi, int ki,
+    int rf, int batch_size, unsigned int num_threads,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var)
+/*
+ */
+{
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    int batch_per_thread = batch_size / num_threads;
+
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        int start_chunk = i * batch_per_thread;
+        int end_chunk = (i + 1) * batch_per_thread;
+
+        // Ensure the last thread covers any remainder
+        if (i == num_threads - 1) {
+            end_chunk = batch_size;
+        }
+
+        threads.emplace_back([=, &mu_w, &jcb, &delta_mu_out, &delta_var_out,
+                              &widx, &zidx, &delta_mu, &delta_var]() {
+            convtranspose2d_bwd_delta_z(
+                mu_w, jcb, delta_mu_out, delta_var_out, widx, zidx, woho, fo,
+                wihi, fi, ki, rf, start_chunk, end_chunk, delta_mu, delta_var);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void convtranspose2d_bwd_delta_w(
+    const std::vector<float> &var_w, const std::vector<float> &mu_a,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &aidx,
+    const std::vector<int> &zidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, int start_chunk, int end_chunk,
+    std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
 /*
  */
 {
     int num_params = ki * ki * fo;
     int ki2 = ki * ki;
-    for (int col = 0; col < num_params; col++) {
+    for (int col = start_chunk; col < end_chunk; col++) {
         for (int row = 0; row < fi; row++) {
             float sum_mu = 0.0f;
             float sum_var = 0.0f;
@@ -143,14 +221,14 @@ void convtranspose2d_bwd_delta_w(const std::vector<float> &var_w,
                 int i_mod_wihi = i % wihi;
 
                 // minus 1 due to the index starting at 1
-                aidx_tmp = aidx[col_mod_ki2 * wihi + i_mod_wihi] + row * wihi +
-                           i_div_wihi * wihi * fi - 1;
+                aidx_tmp = aidx[col_mod_ki2 * wihi + i_mod_wihi];
 
-                zidx_tmp = zidx[col_mod_ki2 * wihi + i_mod_wihi] +
-                           col_div_ki2 * woho + i_div_wihi * woho * fo - 1;
-
-                if (aidx_tmp < wihi * fi * batch_size) {
+                if (aidx_tmp > -1) {
                     // minus 1 due to the index starting at 1
+                    zidx_tmp = zidx[col_mod_ki2 * wihi + i_mod_wihi] +
+                               col_div_ki2 * woho + i_div_wihi * woho * fo - 1;
+                    aidx_tmp += +row * wihi + i_div_wihi * wihi * fi - 1;
+
                     sum_mu += mu_a[aidx_tmp] * delta_mu_out[zidx_tmp];
                     sum_var += mu_a[aidx_tmp] * mu_a[aidx_tmp] *
                                delta_var_out[zidx_tmp];
@@ -166,16 +244,57 @@ void convtranspose2d_bwd_delta_w(const std::vector<float> &var_w,
     }
 }
 
+void convtranspose2d_bwd_delta_w_mp(
+    const std::vector<float> &var_w, const std::vector<float> &mu_a,
+    const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, const std::vector<int> &aidx,
+    const std::vector<int> &zidx, int woho, int fo, int wihi, int fi, int ki,
+    int batch_size, unsigned int num_threads, std::vector<float> &delta_mu_w,
+    std::vector<float> &delta_var_w)
+/*
+ */
+{
+    int num_params = ki * ki * fo;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    int params_per_thread = num_params / num_threads;
+
+    for (unsigned int t = 0; t < num_threads; ++t) {
+        int start_chunk = t * params_per_thread;
+        int end_chunk = (t + 1) * params_per_thread;
+
+        // Adjust for the last thread to cover any remainder
+        if (t == num_threads - 1) {
+            end_chunk = num_params;
+        }
+
+        threads.emplace_back([=, &var_w, &mu_a, &delta_mu_out, &delta_var_out,
+                              &aidx, &zidx, &delta_mu_w, &delta_var_w]() {
+            convtranspose2d_bwd_delta_w(var_w, mu_a, delta_mu_out,
+                                        delta_var_out, aidx, zidx, woho, fo,
+                                        wihi, fi, ki, batch_size, start_chunk,
+                                        end_chunk, delta_mu_w, delta_var_w);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
 void convtranspose2d_bwd_delta_b(const std::vector<float> &var_b,
                                  const std::vector<float> &delta_mu_out,
                                  const std::vector<float> &delta_var_out,
                                  int woho, int fo, int batch_size,
+                                 int start_chunk, int end_chunk,
                                  std::vector<float> &delta_mu_b,
                                  std::vector<float> &delta_var_b)
 /*
  */
 {
-    for (int col = 0; col < fo; col++) {
+    for (int col = start_chunk; col < end_chunk; col++) {
         float sum_mu = 0.0f;
         float sum_var = 0.0f;
         for (int i = 0; i < woho * batch_size; i++)  // n = woho * B
@@ -190,6 +309,48 @@ void convtranspose2d_bwd_delta_b(const std::vector<float> &var_b,
         delta_var_b[col] = var_b[col] * sum_var * var_b[col];
     }
 }
+
+void convtranspose2d_bwd_delta_b_mp(const std::vector<float> &var_b,
+                                    const std::vector<float> &delta_mu_out,
+                                    const std::vector<float> &delta_var_out,
+                                    int woho, int fo, int batch_size,
+                                    unsigned int num_threads,
+                                    std::vector<float> &delta_mu_b,
+                                    std::vector<float> &delta_var_b)
+/*
+ */
+{
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    int fo_per_thread = fo / num_threads;
+
+    for (unsigned int t = 0; t < num_threads; ++t) {
+        int start_chunk = t * fo_per_thread;
+        int end_chunk = (t + 1) * fo_per_thread;
+
+        // Adjust for the last thread to cover any remainder
+        if (t == num_threads - 1) {
+            end_chunk = fo;
+        }
+
+        threads.emplace_back([=, &var_b, &delta_mu_out, &delta_var_out,
+                              &delta_mu_b, &delta_var_b]() {
+            convtranspose2d_bwd_delta_b(var_b, delta_mu_out, delta_var_out,
+                                        woho, fo, batch_size, start_chunk,
+                                        end_chunk, delta_mu_b, delta_var_b);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// CONV. TRANSPOSE 2D
+////////////////////////////////////////////////////////////////////////////////
 
 ConvTranspose2dIndex get_tconv_idx(int pad_idx_in, int pad_idx_out,
                                    int param_pad_idx, Conv2dIndex &convIndex)
@@ -344,8 +505,10 @@ void ConvTranspose2d::compute_input_output_size(const InitArgs &args)
 /*
  */
 {
-    this->in_width = args.width;
-    this->in_height = args.height;
+    if (this->in_height == 0 || this->in_height == 0) {
+        this->in_width = args.width;
+        this->in_height = args.height;
+    }
     std::tie(this->out_width, this->out_height) = compute_upsample_img_size_v2(
         this->kernel_size, this->stride, this->in_width, this->in_height,
         this->padding, this->padding_type);
@@ -358,10 +521,10 @@ void ConvTranspose2d::get_number_param()
 /*
  */
 {
-    this->num_weights =
-        this->kernel_size * this->in_channels * this->out_channels;
+    this->num_weights = this->kernel_size * this->kernel_size *
+                        this->in_channels * this->out_channels;
     this->num_biases = 0;
-    if (this->num_biases) {
+    if (this->bias) {
         this->num_biases = this->out_channels;
     }
 }
@@ -436,7 +599,7 @@ void ConvTranspose2d::forward(BaseHiddenStates &input_states,
         this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
         input_states.var_a, this->idx_mwa_1, this->idx_mwa_2, woho,
         this->out_channels, wihi, this->in_channels, this->kernel_size,
-        this->col_cov_mwa_1, batch_size, this->bias, output_states.mu_a,
+        this->col_cov_mwa_1, 0, batch_size, this->bias, output_states.mu_a,
         output_states.var_a);
 
     if (this->training) {
@@ -461,7 +624,7 @@ void ConvTranspose2d::state_backward(BaseBackwardStates &next_bwd_states,
         this->mu_w, next_bwd_states.jcb, input_delta_states.delta_mu,
         input_delta_states.delta_var, this->idx_cov_z_wa_1, this->idx_var_z_ud,
         woho, this->out_channels, wihi, this->in_channels, this->kernel_size,
-        this->row_zw, batch_size, output_delta_states.delta_mu,
+        this->row_zw, 0, batch_size, output_delta_states.delta_mu,
         output_delta_states.delta_var);
 }
 
@@ -481,13 +644,14 @@ void ConvTranspose2d::param_backward(BaseBackwardStates &next_bwd_states,
         this->var_w, next_bwd_states.mu_a, delta_states.delta_mu,
         delta_states.delta_var, this->idx_cov_wz_2, this->idx_var_wz_ud, woho,
         this->out_channels, wihi, this->in_channels, this->kernel_size,
-        batch_size, this->delta_mu_w, this->delta_var_w);
+        batch_size, 0, ki2 * this->out_channels, this->delta_mu_w,
+        this->delta_var_w);
 
     if (this->bias) {
-        convtranspose2d_bwd_delta_b(this->var_b, delta_states.delta_mu,
-                                    delta_states.delta_var, woho,
-                                    this->out_channels, batch_size,
-                                    this->delta_mu_b, this->delta_var_b);
+        convtranspose2d_bwd_delta_b(
+            this->var_b, delta_states.delta_mu, delta_states.delta_var, woho,
+            this->out_channels, batch_size, 0, this->out_channels,
+            this->delta_mu_b, this->delta_var_b);
     }
 }
 

@@ -50,6 +50,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void to_device();
     void to_host();
     void reset_zeros() override;
+    void copy_from(const BaseDeltaStates &source) override;
 };
 
 class TempStateCuda : public BaseTempStates {
