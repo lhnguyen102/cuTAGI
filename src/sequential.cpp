@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 09, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -269,7 +269,7 @@ void Sequential::backward()
     }
 
     // State update for input layer
-    if (this->input_hidden_state_update) {
+    if (this->input_state_update) {
         this->layers[0]->state_backward(
             *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
             *this->output_delta_z_buffer, *this->temp_states);

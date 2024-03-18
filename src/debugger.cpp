@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 14, 2024
-// Updated:      February 21, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,7 +323,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
     }
 
     // State update for input layer
-    if (test_model.input_hidden_state_update) {
+    if (test_model.input_state_update) {
         test_model.layers[0]->state_backward(
             *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
             *test_output_delta_z_buffer, *test_temp_states);
@@ -335,7 +335,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                                             *ref_temp_states);
     }
 
-    if (ref_model.input_hidden_state_update) {
+    if (ref_model.input_state_update) {
         ref_model.layers[0]->state_backward(
             *ref_model.layers[0]->bwd_states, *ref_input_delta_z_buffer,
             *ref_output_delta_z_buffer, *ref_temp_states);
@@ -442,21 +442,35 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
  */
 {
     // Ref Model i.e., older version
-    this->ref_model->state_feed_backward(y_batch, var_obs, idx_ud_batch);
+    std::vector<int> idx_ud_batch_2(
+        this->ref_model->prop.nye * this->ref_model->prop.batch_size, 0);
+    this->ref_model->state_feed_backward(y_batch, var_obs, idx_ud_batch_2);
     this->ref_model->param_feed_backward();
     this->ref_model->d_state_gpu.copy_device_to_host();
     this->ref_model->d_theta_gpu.copy_device_to_host();
 
     int batch_size = this->test_output_z_buffer->block_size;
     // Output layer
-    if (this->test_model.device.compare("cpu") == 0) {
-        this->cpu_output_updater.update_using_indices(
-            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->test_input_delta_z_buffer);
+    if (idx_ud_batch.size() > 0) {
+        if (this->test_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update_using_indices(
+                *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->test_input_delta_z_buffer);
+        } else {
+            this->cuda_output_updater.update_using_indices(
+                *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->test_input_delta_z_buffer);
+        }
     } else {
-        this->cuda_output_updater.update_using_indices(
-            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->test_input_delta_z_buffer);
+        if (this->test_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update(*this->test_output_z_buffer,
+                                            y_batch, var_obs,
+                                            *this->test_input_delta_z_buffer);
+        } else {
+            this->cuda_output_updater.update(*this->test_output_z_buffer,
+                                             y_batch, var_obs,
+                                             *this->test_input_delta_z_buffer);
+        }
     }
 
     int num_layers = test_model.layers.size();
@@ -503,7 +517,7 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
     }
 
     // State update for input layer
-    if (test_model.input_hidden_state_update) {
+    if (test_model.input_state_update) {
         test_model.layers[0]->state_backward(
             *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
             *test_output_delta_z_buffer, *test_temp_states);

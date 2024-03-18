@@ -497,4 +497,7 @@ void ConvTranspose2dCuda::preinit_layer() {
     this->get_number_param();
     this->init_weight_bias();
     this->lazy_index_init();
+    if (this->training) {
+        this->allocate_param_delta();
+    }
 }

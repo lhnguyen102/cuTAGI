@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      December 20, 2023
+// Updated:      March 18, 2023
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void to_device();
     void to_host();
     void reset_zeros() override;
-    void copy_from(const BaseDeltaStates &source) override;
+    void copy_from(const BaseDeltaStates &source, int num_data = -1) override;
 };
 
 class TempStateCuda : public BaseTempStates {
