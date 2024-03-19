@@ -37,11 +37,12 @@ __global__ void convtranspose2d_fwd_mean_var_cuda(
             int i_div_rf = i / rf;
 
             // minus 1 due to the index starting at 1
-            aidx_tmp = aidx[mod_idx * rf + i % rf];
+            int tmp_idx = mod_idx * rf + i % rf;
+            widx_tmp = widx[tmp_idx];
+            aidx_tmp = aidx[tmp_idx];
 
-            if (aidx_tmp > -1) {
-                widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki * ki +
-                           i_div_rf * ki * ki * fo - 1;
+            if (aidx_tmp > -1 && widx_tmp > -1) {
+                widx_tmp += div_idx * ki * ki + i_div_rf * ki * ki * fo - 1;
                 aidx_tmp += row * wihi * fi + i_div_rf * wihi - 1;
 
                 sum_mu += mu_w[widx_tmp] * mu_a[aidx_tmp];
@@ -82,10 +83,13 @@ __global__ void convtranspose2d_bwd_delta_z_cuda(
         for (int i = 0; i < rf * fo; i++)  // n = ki2 * fo
         {
             // minus 1 due to the index starting at 1
-            zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf];
-            if (zidx_tmp > -1) {
-                widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
-                           (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
+            int tmp_idx = (col % wihi) * ki * ki + i % rf;
+            widx_tmp = widx[tmp_idx];
+            zidx_tmp = zidx[tmp_idx];
+
+            if (zidx_tmp > -1 && widx_tmp > -1) {
+                widx_tmp +=
+                    (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
                 zidx_tmp += (i / rf) * woho + row * woho * fo - 1;
 
                 sum_mu += delta_mu_out[zidx_tmp] * mu_w[widx_tmp];
@@ -261,15 +265,15 @@ void ConvTranspose2dCuda::lazy_index_init()
 /*
  */
 {
-    int ki2 = this->kernel_size * this->kernel_size;
-    int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
+    // int ki2 = this->kernel_size * this->kernel_size;
+    // int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
 
-    auto conv_idx = get_conv2d_idx(
-        this->kernel_size, this->stride, this->out_width, this->out_height,
-        this->in_width, this->in_height, this->padding, this->padding_type, -1,
-        -1, param_pad_idx);
+    auto conv_idx =
+        get_conv2d_idx(this->kernel_size, this->stride, this->out_width,
+                       this->out_height, this->in_width, this->in_height,
+                       this->padding, this->padding_type, -1, -1, -1);
 
-    auto conv_transpose_idx = get_tconv_idx(-1, -1, param_pad_idx, conv_idx);
+    auto conv_transpose_idx = get_tconv_idx(-1, -1, -1, conv_idx);
 
     this->idx_mwa_1 = conv_idx.FCzwa_1_idx;
     this->idx_mwa_2 =

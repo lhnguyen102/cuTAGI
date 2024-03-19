@@ -154,6 +154,7 @@ set(CPU_SOURCES
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
   src/bindings/conv2d_layer_bindings.cpp
+  src/bindings/convtranspose2d_layer_bindings.cpp
   src/bindings/pooling_layer_bindings.cpp
   src/bindings/norm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp

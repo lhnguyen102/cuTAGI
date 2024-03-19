@@ -1180,10 +1180,7 @@ void paramBackward(Network &net, ParamGPU &theta, StateGPU &state,
 
             tconvDeltaSb<<<dimGridB, dimBlock>>>(theta.d_Sb, d_state.d_delta_S,
                                                  bposIn, zposOut, woho, fo, B,
-            //                                      d_theta.d_delta_Sb);
-            // d_theta.copy_device_to_host();
-            // d_state.copy_device_to_host();
-            // int check = 1;
+                                                 d_theta.d_delta_Sb);
         }
         // 7: LSTM
         //

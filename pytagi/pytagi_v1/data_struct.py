@@ -99,3 +99,11 @@ class BaseDeltaStates:
 
     def get_name(self) -> str:
         return self._cpp_backend.get_name()
+
+    def reset_zeros(self) -> None:
+        """Reset all delta_mu and delta_var to zeros"""
+        self._cpp_backend.reset_zeros()
+
+    def copy_from(self, source: "BaseDeltaStates", num_data: int = -1) -> None:
+        """Copy values of delta_mu and delta_var from delta states"""
+        self._cpp_backend.copy_from(source, num_data)

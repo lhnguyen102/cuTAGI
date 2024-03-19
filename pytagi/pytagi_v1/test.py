@@ -104,10 +104,10 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        self.network = CNN_LAYERNORM_NET
+        self.network = CNN_BATCHNORM_NET
 
-        # self.network.set_threads(4)
-        self.network.to_device("cuda")
+        self.network.set_threads(4)
+        # self.network.to_device("cuda")
 
     @property
     def num_classes(self) -> int:

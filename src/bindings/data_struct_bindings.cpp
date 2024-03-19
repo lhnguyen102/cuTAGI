@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 31, 2023
-// Updated:      January 21, 2024
+// Updated:      March 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,5 +44,8 @@ void bind_base_delta_states(pybind11::module_ &m) {
         .def_readwrite("size", &BaseDeltaStates::size)
         .def_readwrite("block_size", &BaseDeltaStates::block_size)
         .def_readwrite("actual_size", &BaseDeltaStates::actual_size)
-        .def("get_name", &BaseDeltaStates::get_name);
+        .def("get_name", &BaseDeltaStates::get_name)
+        .def("reset_zeros", &BaseDeltaStates::reset_zeros)
+        .def("copy_from", &BaseDeltaStates::copy_from, pybind11::arg("source"),
+             pybind11::arg("num_data") = -1);
 }

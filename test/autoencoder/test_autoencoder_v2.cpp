@@ -232,14 +232,16 @@ void cnn_autoencoder()
                        ReLU(), AvgPool2d(3, 2, 1, 2), Linear(32 * 7 * 7, 100),
                        ReLU(), Linear(100, 10));
 
-    encoder.set_threads(8);
+    // encoder.set_threads(8);
+    encoder.to_device("cuda");
 
     Sequential decoder(Linear(10, 32 * 7 * 7), ReLU(),
                        ConvTranspose2d(32, 32, 3, true, 2, 1, 2, 7, 7), ReLU(),
                        ConvTranspose2d(32, 16, 3, true, 2, 1, 2), ReLU(),
                        ConvTranspose2d(16, 1, 3, true, 1, 1, 1));
     decoder.input_state_update = true;
-    decoder.set_threads(8);
+    // decoder.set_threads(8);
+    decoder.to_device("cuda");
 
     OutputUpdater output_updater(encoder.device);
 
@@ -250,8 +252,8 @@ void cnn_autoencoder()
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 20;
-    float sigma_obs = 8.0;
+    int batch_size = 10;
+    float sigma_obs = 10.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -349,7 +351,7 @@ int test_autoecoder_v2()
 /*
  */
 {
-    debug_autoencoder();
-    // cnn_autoencoder();
+    // debug_autoencoder();
+    cnn_autoencoder();
     return 0;
 }

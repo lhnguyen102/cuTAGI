@@ -47,11 +47,11 @@ void convtranspose2d_fwd_mean_var(
                 int i_div_rf = i / rf;
 
                 // minus 1 due to the index starting at 1
+                widx_tmp = widx[mod_idx * rf + i % rf];
                 aidx_tmp = aidx[mod_idx * rf + i % rf];
 
-                if (aidx_tmp > -1) {
-                    widx_tmp = widx[mod_idx * rf + i % rf] + div_idx * ki2 +
-                               i_div_rf * ki2 * fo - 1;
+                if (aidx_tmp > -1 && widx_tmp > -1) {
+                    widx_tmp += div_idx * ki2 + i_div_rf * ki2 * fo - 1;
                     aidx_tmp += row * wihi * fi + i_div_rf * wihi - 1;
 
                     sum_mu += mu_w[widx_tmp] * mu_a[aidx_tmp];
@@ -131,16 +131,12 @@ void convtranspose2d_bwd_delta_z(
             int zidx_tmp;  // updated index (idxSzzUd)
             for (int i = 0; i < rf * fo; i++) {
                 // minus 1 due to the index starting at 1
-                // indices for deltaM
                 zidx_tmp = zidx[(col % wihi) * ki * ki + i % rf];
-                if (zidx_tmp > -1) {
-                    if (widx[(col % wihi) * ki * ki + i % rf] ==
-                        ki * ki * fo * fi + 1) {
-                        int check = 1;
-                    }
-                    widx_tmp = widx[(col % wihi) * ki * ki + i % rf] +
-                               (i / rf) * ki * ki +
-                               (col / wihi) * ki * ki * fo - 1;
+                widx_tmp = widx[(col % wihi) * ki * ki + i % rf];
+
+                if (zidx_tmp > -1 && widx_tmp > -1) {
+                    widx_tmp +=
+                        (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
                     zidx_tmp += (i / rf) * woho + row * woho * fo - 1;
 
                     sum_mu += delta_mu_out[zidx_tmp] * mu_w[widx_tmp];
@@ -544,15 +540,16 @@ void ConvTranspose2d::lazy_index_init()
 /*
  */
 {
-    int ki2 = this->kernel_size * this->kernel_size;
-    int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
+    // int ki2 = this->kernel_size * this->kernel_size;
+    // int param_pad_idx = ki2 * this->in_channels * this->out_channels + 1;
 
-    auto conv_idx = get_conv2d_idx(
-        this->kernel_size, this->stride, this->out_width, this->out_height,
-        this->in_width, this->in_height, this->padding, this->padding_type, -1,
-        -1, param_pad_idx);
+    // TODO: remove all -1 when unittest is done
+    auto conv_idx =
+        get_conv2d_idx(this->kernel_size, this->stride, this->out_width,
+                       this->out_height, this->in_width, this->in_height,
+                       this->padding, this->padding_type, -1, -1, -1);
 
-    auto conv_transpose_idx = get_tconv_idx(-1, -1, param_pad_idx, conv_idx);
+    auto conv_transpose_idx = get_tconv_idx(-1, -1, -1, conv_idx);
 
     this->idx_mwa_1 = conv_idx.FCzwa_1_idx;
     this->idx_mwa_2 =
@@ -595,10 +592,6 @@ void ConvTranspose2d::forward(BaseHiddenStates &input_states,
 
     int woho = this->out_width * this->out_height;
     int wihi = this->in_width * this->in_height;
-
-    // if (std::isnan(this->mu_w[0])) {
-    //     int check = 0;
-    // }
 
     if (this->num_threads > 1) {
         convtranspose2d_fwd_mean_var_mp(
