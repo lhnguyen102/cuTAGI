@@ -9,9 +9,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/convtranspose2d_layer.h"
-
+#ifdef USE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
+#endif
 
 #include "../include/base_layer.h"
 #include "../include/common.h"
