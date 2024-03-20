@@ -287,7 +287,7 @@ class Autoencoder:
 def clsf_runner():
     """Run classification training"""
     # User-input
-    num_epochs = 2
+    num_epochs = 1
     batch_size = 20
     mu = np.array([0.1309])
     sigma = np.array([1])

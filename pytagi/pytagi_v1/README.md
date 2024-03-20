@@ -11,7 +11,14 @@ Please ensure having a conda environmment activated and compiling the C++ code b
     ```
     pip install -r requirements.txt
     ```
-3. Run the test
+3. Compile the source code
+
+    ```shell
+    cmake . -B build
+    cmake --build build --config RelWithDebInfo -j 16
+    ```
+
+4. Run the test
     ```
     python test.py
     ```
