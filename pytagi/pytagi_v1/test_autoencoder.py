@@ -1,27 +1,39 @@
 import cProfile
+import os
 import pstats
 from io import StringIO
 from typing import Tuple, Union
 
 import fire
+import matplotlib.pyplot as plt
 import memory_profiler
 import numpy as np
+import numpy.typing as npt
+import pandas as pd
 from activation import ReLU
 from batch_norm import BatchNorm2d
 from conv2d import Conv2d
+from convtranspose2d import ConvTranspose2d
 from data_loader import MnistDataloader
 from linear import Linear
-from convtranspose2d import ConvTranspose2d
 from output_updater import OutputUpdater
 from pooling import AvgPool2d
 from sequential import Sequential
 from tqdm import tqdm
 
-from pytagi import Utils
+from pytagi import Utils, exponential_scheduler
+
+plt.rcParams.update(
+    {
+        "font.size": 18,
+        "text.usetex": True,
+        "text.latex.preamble": r"\usepackage{amsfonts}",
+    }
+)
 
 IMAGE_WIDTH = 28
 IMAGE_HEIGHT = 28
-SIGMA_V = 8
+SIGMA_V = 20
 
 ENCODER = Sequential(
     Conv2d(
@@ -57,151 +69,6 @@ DECODER = Sequential(
     ConvTranspose2d(32, 16, 3, bias=True, stride=2, padding=1, padding_type=2),
     ReLU(),
     ConvTranspose2d(16, 1, 3, bias=True, padding=1),
-)
-
-
-class Autoencoder:
-    """Test classifier"""
-
-    utils: Utils = Utils()
-
-    def __init__(
-        self,
-        num_epochs: int,
-        data_loader: dict,
-        num_classes: int,
-        batch_size: int,
-        viz: Union[ImageViz, None] = None,
-    ) -> None:
-        self.num_epochs = num_epochs
-        self.data_loader = data_loader
-        self.num_classes = num_classes
-        self.batch_size = batch_size
-
-        self.encoder = ENCODER
-        self.decoder = DECODER
-
-        self.encoder.set_threads(4)
-        self.decoder.set_threads(4)
-        # self.encoder.to_device("cuda")
-        # self.decoder.to_device("cuda")
-        self.viz = viz
-
-    def train(self) -> None:
-        """Train the network using TAGI"""
-
-        # Updater for output layer (i.e., equivalent to loss function)
-        output_updater = OutputUpdater(self.decoder.device)
-
-        # Inputs
-        batch_size = self.batch_size
-
-        # Outputs
-        var_obs, _ = self.init_outputs(batch_size)
-
-        # Data
-        input_data, _, _, _ = self.data_loader["train"]
-
-        # Progress bar
-        num_data = input_data.shape[0]
-        num_iter = int(num_data / batch_size)
-        pbar = tqdm(range(self.num_epochs), desc="Training Progress")
-
-        for epoch in pbar:
-            for i in range(num_iter):
-                # Get data
-                idx = np.random.choice(num_data, size=batch_size)
-                x_batch = input_data[idx, :]
-
-                # Feed forward
-                self.encoder(x_batch.flatten())
-                self.decoder(self.encoder.output_z_buffer)
-
-                # Update output layer
-                output_updater.update(
-                    output_states=self.decoder.output_z_buffer,
-                    mu_obs=x_batch.flatten(),
-                    var_obs=var_obs.flatten(),
-                    delta_states=self.decoder.input_delta_z_buffer,
-                )
-
-                # Feed backward
-                self.decoder.backward()
-                self.decoder.step()
-
-                self.encoder.input_delta_z_buffer.copy_from(
-                    self.decoder.output_delta_z_buffer
-                )
-
-                self.encoder.backward()
-                self.encoder.step()
-                if i % 1000 == 0 and i > 0:
-                    pbar.set_description(
-                        f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}",
-                        refresh=True,
-                    )
-        pbar.close()
-        self.predict()
-
-    def predict(self) -> None:
-        """Generate images"""
-        # Data
-        generated_images = []
-        for count, (x_batch, _) in enumerate(self.data_loader["test"]):
-            # Feed forward
-            self.encoder(x_batch.flatten())
-            self.decoder(self.encoder.output_z_buffer)
-
-            mu_a, _ = self.decoder.get_outputs()
-            generated_images.append(mu_a)
-
-            # Only first 100 images
-            if count * self.batch_size > 100:
-                break
-
-        generated_images = np.stack(generated_images).flatten()
-        generated_images = generated_images[: IMAGE_WIDTH * IMAGE_HEIGHT * 100]
-
-        # Visualization
-        if self.viz is not None:
-            n_row = 10
-            n_col = 10
-            self.viz.plot_images(n_row=n_row, n_col=n_col, imgs=generated_images)
-
-    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Initnitalize the covariance matrix for outputs"""
-        # Outputs. TODO: removing hard-coding
-        V_batch = (
-            np.zeros((batch_size, IMAGE_WIDTH * IMAGE_WIDTH), dtype=np.float32)
-            + SIGMA_V**2
-        )
-        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
-
-        return V_batch, ud_idx_batch
-
-
-###############################################################################
-# File:         visualizer.py
-# Description:  Visualization tool for images data
-# Authors:      Luong-Ha Nguyen & James-A. Goulet
-# Created:      May 10, 2022
-# Updated:      November 12, 2022
-# Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# License:      This code is released under the MIT License.
-###############################################################################
-import os
-from typing import Union
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import numpy.typing as npt
-
-plt.rcParams.update(
-    {
-        "font.size": 18,
-        "text.usetex": True,
-        "text.latex.preamble": r"\usepackage{amsfonts}",
-    }
 )
 
 
@@ -286,15 +153,145 @@ class ImageViz:
             plt.savefig(fig_path, bbox_inches="tight")
 
 
+class Autoencoder:
+    """Test classifier"""
+
+    utils: Utils = Utils()
+
+    def __init__(
+        self,
+        num_epochs: int,
+        data_loader: dict,
+        num_classes: int,
+        batch_size: int,
+        viz: Union[ImageViz, None] = None,
+    ) -> None:
+        self.num_epochs = num_epochs
+        self.data_loader = data_loader
+        self.num_classes = num_classes
+        self.batch_size = batch_size
+
+        self.encoder = ENCODER
+        self.decoder = DECODER
+
+        self.encoder.set_threads(4)
+        self.decoder.set_threads(4)
+        # self.encoder.to_device("cuda")
+        # self.decoder.to_device("cuda")
+        self.viz = viz
+
+    def train(self) -> None:
+        """Train the network using TAGI"""
+
+        # Updater for output layer (i.e., equivalent to loss function)
+        output_updater = OutputUpdater(self.decoder.device)
+
+        # Inputs
+        batch_size = self.batch_size
+        current_sigma_v = SIGMA_V
+
+        # Data
+        input_data, _, _, _ = self.data_loader["train"]
+
+        # Progress bar
+        num_data = input_data.shape[0]
+        num_iter = int(num_data / batch_size)
+        pbar = tqdm(range(self.num_epochs), desc="Training Progress")
+
+        for epoch in pbar:
+            for i in range(num_iter):
+                # Decaying observation's variance
+                current_sigma_v = exponential_scheduler(
+                    curr_v=current_sigma_v,
+                    min_v=1,
+                    decaying_factor=0.99,
+                    curr_iter=epoch,
+                )
+                var_obs = (
+                    np.zeros((batch_size, IMAGE_WIDTH * IMAGE_WIDTH), dtype=np.float32)
+                    + current_sigma_v**2
+                )
+
+                # Get data
+                idx = np.random.choice(num_data, size=batch_size)
+                x_batch = input_data[idx, :]
+
+                # Feed forward
+                self.encoder(x_batch.flatten())
+                self.decoder(self.encoder.output_z_buffer)
+
+                # Update output layer
+                output_updater.update(
+                    output_states=self.decoder.output_z_buffer,
+                    mu_obs=x_batch.flatten(),
+                    var_obs=var_obs.flatten(),
+                    delta_states=self.decoder.input_delta_z_buffer,
+                )
+
+                # Feed backward
+                self.decoder.backward()
+                self.decoder.step()
+
+                self.encoder.input_delta_z_buffer.copy_from(
+                    self.decoder.output_delta_z_buffer
+                )
+
+                self.encoder.backward()
+                self.encoder.step()
+                if i % 1000 == 0 and i > 0:
+                    pbar.set_description(
+                        f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}",
+                        refresh=True,
+                    )
+        pbar.close()
+        self.predict()
+
+    def predict(self) -> None:
+        """Generate images"""
+        # Data
+        generated_images = []
+        for count, (x_batch, _) in enumerate(self.data_loader["test"]):
+            # Feed forward
+            self.encoder(x_batch.flatten())
+            self.decoder(self.encoder.output_z_buffer)
+
+            mu_a, _ = self.decoder.get_outputs()
+            generated_images.append(mu_a)
+
+            # Only first 100 images
+            if count * self.batch_size > 100:
+                break
+
+        generated_images = np.stack(generated_images).flatten()
+        generated_images = generated_images[: IMAGE_WIDTH * IMAGE_HEIGHT * 100]
+
+        # Visualization
+        if self.viz is not None:
+            n_row = 10
+            n_col = 10
+            self.viz.plot_images(n_row=n_row, n_col=n_col, imgs=generated_images)
+
+    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Initnitalize the covariance matrix for outputs"""
+        # Outputs. TODO: removing hard-coding
+        V_batch = (
+            np.zeros((batch_size, IMAGE_WIDTH * IMAGE_WIDTH), dtype=np.float32)
+            + SIGMA_V**2
+        )
+        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
+
+        return V_batch, ud_idx_batch
+
+
 # @memory_profiler.profile
 def clsf_runner():
     """Run classification training"""
     # User-input
-    num_epochs = 1
-    batch_size = 10
+    num_epochs = 2
+    batch_size = 20
     mu = np.array([0.1309])
     sigma = np.array([1])
-    img_size = np.array([1, 28, 28])
+    img_size = np.array([1, IMAGE_WIDTH, IMAGE_HEIGHT])
     x_train_file = "../../data/mnist/train-images-idx3-ubyte"
     y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
     x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
