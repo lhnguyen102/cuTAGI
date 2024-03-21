@@ -140,6 +140,7 @@ set(CPU_SOURCES
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
   src/norm_layer.cpp
+  src/convtranspose2d_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -153,6 +154,7 @@ set(CPU_SOURCES
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
   src/bindings/conv2d_layer_bindings.cpp
+  src/bindings/convtranspose2d_layer_bindings.cpp
   src/bindings/pooling_layer_bindings.cpp
   src/bindings/norm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
@@ -176,6 +178,7 @@ set(CPU_SOURCES
   test/fnn/test_fnn_cpu_v2.cpp
   test/fnn/test_fnn_mnist_cpu.cpp
   test/cross_val/cross_val.cpp
+  test/autoencoder/test_autoencoder_v2.cpp
 )
 
 # Sources code for CUDA
@@ -198,6 +201,7 @@ set(GPU_SOURCES
   src/conv2d_layer_cuda.cu
   src/pooling_layer_cuda.cu
   src/norm_layer_cuda.cu
+  src/convtranspose2d_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu

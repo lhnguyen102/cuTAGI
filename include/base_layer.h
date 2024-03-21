@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      February 29, 2024
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,16 @@
 
 #include "data_struct.h"
 
-enum class LayerType { Base, Linear, Conv2d, Pool2d, LSTM, Activation, Norm };
+enum class LayerType {
+    Base,
+    Linear,
+    Conv2d,
+    ConvTranspose2d,
+    Pool2d,
+    LSTM,
+    Activation,
+    Norm
+};
 
 class InitArgs {
    public:
@@ -87,6 +96,8 @@ class BaseLayer {
     virtual void param_backward(BaseBackwardStates &next_bwd_states,
                                 BaseDeltaStates &delta_states,
                                 BaseTempStates &temp_states);
+
+    virtual void allocate_param_delta();
 
     virtual void update_weights();
 

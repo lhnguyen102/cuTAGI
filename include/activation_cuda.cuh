@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      December 28, 2023
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +80,8 @@ class ReLUCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -114,6 +116,8 @@ class SigmoidCuda : public BaseLayerCuda {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -151,6 +155,8 @@ class TanhCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -186,6 +192,8 @@ class MixtureReluCuda : public BaseLayerCuda {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -223,6 +231,8 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -259,6 +269,8 @@ class MixtureTanhCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -293,6 +305,8 @@ class SoftplusCuda : public BaseLayerCuda {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -330,6 +344,8 @@ class LeakyReluCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -364,6 +380,8 @@ class SoftmaxCuda : public BaseLayerCuda {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 

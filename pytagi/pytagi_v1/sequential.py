@@ -51,6 +51,16 @@ class Sequential:
         self._cpp_backend.input_delta_z_buffer = value
 
     @property
+    def output_delta_z_buffer(self) -> BaseDeltaStates:
+        """Get the delta hidden states"""
+        return self._cpp_backend.output_delta_z_buffer
+
+    @output_delta_z_buffer.setter
+    def output_delta_z_buffer(self, value: BaseDeltaStates):
+        """Set the delta hidden states."""
+        self._cpp_backend.output_delta_z_buffer = value
+
+    @property
     def z_buffer_size(self) -> int:
         """Get the z_buffer_size."""
         return self._cpp_backend.z_buffer_size

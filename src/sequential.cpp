@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 09, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,6 +200,40 @@ void Sequential::forward(const std::vector<float> &mu_x,
     std::swap(this->output_z_buffer, this->input_z_buffer);
 }
 
+void Sequential::forward(BaseHiddenStates &input_states)
+/*
+ */
+{
+    // Batch size
+    int batch_size = input_states.block_size;
+    ;
+
+    // Only initialize if batch size changes
+    if (batch_size != this->z_buffer_block_size) {
+        this->z_buffer_block_size = batch_size;
+        this->z_buffer_size = batch_size * this->z_buffer_size;
+
+        init_output_state_buffer();
+        if (this->training) {
+            init_delta_state_buffer();
+        }
+    }
+    auto *first_layer = this->layers[0].get();
+    first_layer->forward(input_states, *this->input_z_buffer,
+                         *this->temp_states);
+
+    for (int i = 1; i < this->layers.size(); i++) {
+        auto *current_layer = this->layers[i].get();
+
+        current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
+                               *this->temp_states);
+
+        std::swap(this->input_z_buffer, this->output_z_buffer);
+    }
+    // Output buffer is considered as the final output of network
+    std::swap(this->output_z_buffer, this->input_z_buffer);
+}
+
 void Sequential::backward()
 /*
  */
@@ -235,7 +269,7 @@ void Sequential::backward()
     }
 
     // State update for input layer
-    if (this->input_hidden_state_update) {
+    if (this->input_state_update) {
         this->layers[0]->state_backward(
             *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
             *this->output_delta_z_buffer, *this->temp_states);

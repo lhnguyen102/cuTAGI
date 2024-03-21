@@ -50,6 +50,8 @@ class BaseLayerCuda : public BaseLayer {
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
 
+    void allocate_param_delta() override;
+
     void update_weights() override;
 
     void update_biases() override;

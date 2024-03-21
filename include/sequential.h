@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      February 29, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +40,7 @@ class Sequential {
     int input_size = 0;
     bool training = true;
     bool param_update = true;
-    bool input_hidden_state_update = false;
+    bool input_state_update = false;
     unsigned num_threads = 1;
     std::string device = "cpu";
     std::vector<std::shared_ptr<BaseLayer>> layers;
@@ -94,6 +94,8 @@ class Sequential {
 
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());
+
+    void forward(BaseHiddenStates& input_states);
 
     void backward();
 

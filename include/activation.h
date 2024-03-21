@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      December 24, 2023
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +57,8 @@ class ReLU : public BaseLayer {
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -114,6 +116,8 @@ class Sigmoid : public BaseLayer {
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -164,6 +168,8 @@ class Tanh : public BaseLayer {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
+
+    void allocate_param_delta() override{};
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
@@ -223,6 +229,8 @@ class MixtureRelu : public BaseLayer {
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -276,6 +284,8 @@ class MixtureSigmoid : public BaseLayer {
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -333,6 +343,8 @@ class MixtureTanh : public BaseLayer {
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -388,6 +400,8 @@ class Softplus : public BaseLayer {
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -447,6 +461,8 @@ class LeakyRelu : public BaseLayer {
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
 
+    void allocate_param_delta() override{};
+
     void update_weights() override{};
 
     void update_biases() override{};
@@ -496,6 +512,8 @@ class Softmax : public BaseLayer {
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 
@@ -551,6 +569,8 @@ class RemaxA : public BaseLayer {
 
     using BaseLayer::param_backward;
     using BaseLayer::state_backward;
+
+    void allocate_param_delta() override{};
 
     void update_weights() override{};
 

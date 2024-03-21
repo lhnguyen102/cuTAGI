@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      February 28, 2024
+// Updated:      March 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +41,16 @@ void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
 void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
                                BaseDeltaStates &delta_states,
                                BaseTempStates &temp_states) {}
+
+void BaseLayer::allocate_param_delta()
+/*
+ */
+{
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+    this->delta_mu_b.resize(this->num_biases, 0.0f);
+    this->delta_var_b.resize(this->num_biases, 0.0f);
+}
 
 void BaseLayer::allocate_bwd_vector(int size)
 /*

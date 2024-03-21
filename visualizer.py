@@ -287,7 +287,7 @@ def autoencoder():
     # User input data
     task_name = "autoencoder"
     data_name = "mnist"
-    save_folder = "./saved_results"
+    save_folder = None  # "./saved_results"
     mu = np.array([0.1309])
     sigma = np.array([1])
     img_size = np.array([1, 28, 28])
@@ -556,8 +556,8 @@ def time_series_forecasting():
 
 
 if __name__ == "__main__":
-    regression()
-    # autoencoder()
+    # regression()
+    autoencoder()
     # input_uncertainty_prop()
     # noise_inference()
     # derivative()

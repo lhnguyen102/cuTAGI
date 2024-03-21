@@ -62,16 +62,6 @@ LayerType Linear::get_layer_type() const
     return LayerType::Linear;
 }
 
-void Linear::allocate_param_delta()
-/*
- */
-{
-    this->delta_mu_w.resize(this->input_size * this->output_size, 0.0f);
-    this->delta_var_w.resize(this->input_size * this->output_size, 0.0f);
-    this->delta_mu_b.resize(this->output_size, 0.0f);
-    this->delta_var_b.resize(this->output_size, 0.0f);
-}
-
 void Linear::init_weight_bias()
 /*
  */

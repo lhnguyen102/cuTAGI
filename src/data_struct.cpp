@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      January 03, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +41,19 @@ BaseDeltaStates::BaseDeltaStates() {}
 void BaseDeltaStates::reset_zeros() {
     std::fill(this->delta_mu.begin(), this->delta_mu.end(), 0);
     std::fill(this->delta_var.begin(), this->delta_var.end(), 0);
+}
+
+void BaseDeltaStates::copy_from(const BaseDeltaStates &source, int num_data)
+/*
+ */
+{
+    if (num_data == -1) {
+        num_data = this->size;
+    }
+    for (int i = 0; i < num_data; i++) {
+        this->delta_mu[i] = source.delta_mu[i];
+        this->delta_var[i] = source.delta_var[i];
+    }
 }
 
 BaseTempStates::BaseTempStates(size_t n, size_t m)

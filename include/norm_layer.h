@@ -72,7 +72,6 @@ class LayerNorm : public BaseLayer {
     void load(std::ifstream &file) override;
 
    protected:
-    void allocate_param_delta();
     void allocate_running_mean_var();
 };
 
@@ -130,6 +129,5 @@ class BatchNorm2d : public BaseLayer {
     void load(std::ifstream &file) override;
 
    protected:
-    void allocate_param_delta();
     void allocate_running_mean_var();
 };

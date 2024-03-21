@@ -90,7 +90,6 @@ class Conv2d : public BaseLayer {
     void preinit_layer() override;
 
    protected:
-    void allocate_param_delta();
     void lazy_index_init();
 };
 

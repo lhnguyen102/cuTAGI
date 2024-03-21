@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      January 03, 2024
+// Updated:      March 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,6 +183,36 @@ void DeltaStateCuda::to_host()
 void DeltaStateCuda::reset_zeros() {
     cudaMemset(d_delta_mu, 0, sizeof(float) * size);
     cudaMemset(d_delta_var, 0, sizeof(float) * size);
+}
+
+void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
+/*
+ */
+{
+    if (num_data == -1) {
+        num_data = this->size;
+    }
+
+    const DeltaStateCuda *cu_source =
+        dynamic_cast<const DeltaStateCuda *>(&source);
+
+    if (!cu_source) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid source.");
+    }
+
+    cudaMemcpy(this->d_delta_mu, cu_source->d_delta_mu,
+               num_data * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->d_delta_var, cu_source->d_delta_var,
+               num_data * sizeof(float), cudaMemcpyDeviceToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying data on device.");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
