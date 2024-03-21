@@ -30,6 +30,7 @@
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 
+#ifdef USE_CUDA
 void debug_autoencoder()
 /*
  */
@@ -82,7 +83,7 @@ void debug_autoencoder()
     const int BATCH_SIZE = 2;
     const int SIGMA_V = 8;
     const int SIGMA_V_MIN = 2;
-    const int DECAT_FACTOR_SIGMA_V = 0.95;
+    const float DECAT_FACTOR_SIGMA_V = 0.95;
     const int NUM_CLASSES = 10;
     const std::vector<float> MU = {0.1309};
     const std::vector<float> SIGMA = {1.0};
@@ -185,6 +186,7 @@ void debug_autoencoder()
         std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << "mins\n ";
     }
 }
+#endif
 
 void cnn_autoencoder()
 /*
