@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+
 import pytagi.metric as metric
 from pytagi import NetProp, TagiNetwork
 from pytagi import Normalizer as normalizer
@@ -175,56 +176,46 @@ class Regression:
         V_batch, ud_idx_batch = self.init_outputs(batch_size)
 
         input_data, output_data = self.data_loader["train"]
+
+
         num_data = input_data.shape[0]
         num_iter = int(num_data / batch_size)
         pbar = tqdm(range(self.num_epochs))
 
         # mse, rmse, ll epochlist initialization
         mse_Epochlist, rmse_Epochlist, LL_Epochlist, normal_LL_Epochlist = [], [], [], []
+        # initialize param for early-stopping
+        if self.net_prop.early_stop == 1:
+            delta = self.net_prop.delta
+            patience = self.net_prop.patience
+            best_LL_val  = np.nan
+            counter = 0
+            maxEpoch = self.num_epochs
+        else:
+            stop_epoch = self.num_epochs
+
+
         for epoch in pbar:
-            # Decaying observation's variance
-            # self.net_prop.sigma_v = exponential_scheduler(
-            #     curr_v=self.net_prop.sigma_v,
-            #     min_v=self.net_prop.sigma_v_min,
-            #     decaying_factor=self.net_prop.decay_factor_sigma_v,
-            #     curr_iter=epoch,
-            # )
-            # # self.net_prop.sigma_v = 0.3
-            # V_batch = V_batch * 0.0 + self.net_prop.sigma_v**2
-            # V_batch = self.net_prop.sigma_v**2
 
             mse_list, rmse_list, LL_list = [], [], []
-            for i in range(num_iter):
+            for i in range(num_iter+1):
                 # Get data
-                idx = np.random.choice(num_data, size=batch_size)
-                x_batch = input_data[idx, :]
-                y_batch = output_data[idx, :]
-
-                # if i < num_iter:
-                #     start_index = i * batch_size
-                #     end_index = (i + 1) * batch_size
-                #     # idx = np.random.choice(num_data, size=batch_size)
-                #     x_batch = input_data[start_index:end_index, :]
-                #     y_batch = output_data[start_index:end_index, :]
-                # else:
-                #     start_index = num_iter * batch_size
-                #     idx1 = np.arange(start_index, num_data)
-                #     idx2 = np.random.choice(np.arange(0,start_index), size=batch_size - num_data + start_index)
-                #     end_index = np.concatenate((idx1, idx2))
-                #     x_batch = input_data[end_index, :]
-                #     y_batch = output_data[end_index, :]
-                # numObs = input_data.shape[0]
-                # numDataPerBatch = batch_size
-                # if numDataPerBatch == 1:
-                #     idxBatch = np.arange(i, i + batch_size)
-                # else:
-                #     if numObs - i >= numDataPerBatch:
-                #         idxBatch = np.arange(i, i + numDataPerBatch)
-                #     else:
-                #         idxBatch = np.concatenate((np.arange(i, numObs), np.random.permutation(np.arange(i), numDataPerBatch - numObs + i)))
-
-                # x_batch = input_data[idxBatch, :]
-                # y_batch = output_data[idxBatch, :]
+                if i<= num_iter-1:
+                    # start_idx = i*batch_size
+                    # end_idx = min((i + 1) * batch_size, num_iter*batch_size)
+                    # x_batch = input_data[start_idx:end_idx, :]
+                    # y_batch = output_data[start_idx:end_idx, :]
+                    idx = np.random.choice(num_data, size=batch_size)
+                    x_batch = input_data[idx, :]
+                    y_batch = output_data[idx, :]
+                else:
+                    start_idx = num_iter*batch_size
+                    remaining_len = num_data - num_iter*batch_size
+                    fill_idx = np.random.choice(num_data-remaining_len,batch_size-remaining_len)
+                    idx = list(range(start_idx, num_data))
+                    idx.extend(fill_idx)
+                    x_batch = input_data[idx, :]
+                    y_batch = output_data[idx, :]
 
                 # Feed forward
                 self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
@@ -290,7 +281,34 @@ class Regression:
                 # rmse_list += [rmse]
                 # LL_list += [log_lik]
 
-            # testing the model
+            # using val data for early stopping
+            if self.net_prop.early_stop == 1:
+                _, LL_val, _, _ = self.predict_val_UCI()
+                if np.isnan(LL_val).any():
+                    LL_val[np.isnan(LL_val)] = -np.inf
+
+
+            ## Early-Stop
+            if self.net_prop.early_stop == 1:
+                if not np.isnan(LL_val):
+                    if np.isnan(best_LL_val):
+                        best_LL_val = LL_val
+                    elif (LL_val - best_LL_val) > delta:
+                        best_LL_val = LL_val
+                        counter = 0
+                    elif (LL_val - best_LL_val) < delta:
+                        counter += 1
+                        print(f'   counter #{counter} out of {patience}')
+                        if counter >= patience:
+                            maxEpoch = epoch
+
+
+                else:
+                    break
+
+
+
+            # testing the trained model after each epoch
             mse_Epoch, LL_Epoch, rmse_Epoch, normal_LL_Epoch = self.predict_UCI()
 
             mse_Epochlist +=[mse_Epoch]
@@ -298,12 +316,18 @@ class Regression:
             LL_Epochlist += [LL_Epoch]
             normal_LL_Epochlist += [normal_LL_Epoch]
 
+            if self.net_prop.early_stop == 1:
+                if epoch >= maxEpoch-1:
+                    stop_epoch = maxEpoch
+                    print(f"The early stopping epoch is {stop_epoch}")
+                    break
+
             # # saving the mean values for the metric for each epoch
             # mse_Epoch = np.mean(mse_list)
             # rmse_Epoch = np.mean(rmse_list)
             # LL_Epoch = np.mean(LL_list)
 
-        return mse_Epochlist, rmse_Epochlist, LL_Epochlist, normal_LL_Epochlist
+        return mse_Epochlist, rmse_Epochlist, LL_Epochlist, normal_LL_Epochlist, stop_epoch
 
     def predict_UCI(self, std_factor: int = 1) -> None:
         """Make prediction using TAGI"""
@@ -372,6 +396,87 @@ class Regression:
                 y_train=None,
                 x_test=x_test,
                 y_test=y_test,
+                y_pred=mean_predictions,
+                sy_pred=std_predictions,
+                std_factor=std_factor,
+                label="diag",
+                title="Diagonal covariance",
+            )
+
+        print("#############")
+        print(f"MSE           : {mse: 0.2f}")
+        print(f"Log-likelihood: {log_lik: 0.2f}")
+        print(f"RMSE          : {rmse: 0.2f}")
+
+        return mse, log_lik, rmse, normal_log_lik
+
+    def predict_val_UCI(self, std_factor: int = 1) -> None:
+        """Make prediction using TAGI"""
+        # Inputs
+        batch_size = self.net_prop.batch_size
+        Sx_batch, Sx_f_batch = self.init_inputs(batch_size)
+
+        mean_predictions = []
+        variance_predictions = []
+        y_val = []
+        x_val = []
+        for x_batch, y_batch in self.data_loader["val"]:
+            # Predicitons
+            self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
+            ma, Sa = self.network.get_network_predictions()
+            # print(f"The mean predictions are: {ma}")
+            # print(f"The variance predictions are: {Sa}")
+
+            mean_predictions.append(ma)
+            variance_predictions.append(Sa + self.net_prop.sigma_v**2)
+            x_val.append(x_batch)
+            y_val.append(y_batch)
+
+        mean_predictions = np.stack(mean_predictions).flatten()
+        std_predictions = (np.stack(variance_predictions).flatten()) ** 0.5
+        y_val = np.stack(y_val).flatten()
+        x_val = np.stack(x_val).flatten()
+
+        # normalised log-likelihood
+        normal_log_lik = metric.log_likelihood(
+            prediction=mean_predictions, observation=y_val, std=std_predictions
+        )
+
+        # Unnormalization
+        mean_predictions = normalizer.unstandardize(
+            norm_data=mean_predictions,
+            mu=self.data_loader["y_norm_param_1"],
+            std=self.data_loader["y_norm_param_2"],
+        )
+        std_predictions = normalizer.unstandardize_std(
+            norm_std=std_predictions, std=self.data_loader["y_norm_param_2"]
+        )
+
+        # x_test = normalizer.unstandardize(
+        #     norm_data=x_test,
+        #     mu=self.data_loader["x_norm_param_1"],
+        #     std=self.data_loader["x_norm_param_2"],
+        # )
+        y_val = normalizer.unstandardize(
+            norm_data=y_val,
+            mu=self.data_loader["y_norm_param_1"],
+            std=self.data_loader["y_norm_param_2"],
+        )
+
+        # Compute log-likelihood
+        mse = metric.mse(mean_predictions, y_val)
+        rmse = mse**0.5
+        log_lik = metric.log_likelihood(
+            prediction=mean_predictions, observation=y_val, std=std_predictions
+        )
+
+        # Visualization
+        if self.viz is not None:
+            self.viz.plot_predictions(
+                x_train=None,
+                y_train=None,
+                x_val=x_val,
+                y_val=y_val,
                 y_pred=mean_predictions,
                 sy_pred=std_predictions,
                 std_factor=std_factor,

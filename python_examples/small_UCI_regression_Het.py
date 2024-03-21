@@ -21,7 +21,7 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Wine"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+data_names = ["Boston_housing"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
@@ -67,18 +67,14 @@ for j in range(len(data_names)):
     num_hidden_layers = 50
 
     # Gain values for each dataset
-    OUT_GAIN = {"Boston_housing": 0.5, "Concrete": 0.5, "Energy": 0.5, "Yacht": 0.1, "Wine": 0.1, \
+    OUT_GAIN = {"Boston_housing": 4, "Concrete": 0.5, "Energy": 0.5, "Yacht": 0.1, "Wine": 0.1, \
                         "Kin8nm": 1, "Naval": 0.5, "Power-plant": 0.5, "Protein": 0.5}
     NOISE_GAIN = {"Boston_housing": 0.01, "Concrete": 0.01, "Energy": 0.01, "Yacht": 0.1, "Wine": 0.01, \
                         "Kin8nm": 0.01, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
 
-    # optimal epochs for each dataset found by cross-validation
-    EPOCHS = {"Boston_housing": 17, "Concrete": 18, "Energy": 30, "Yacht": 41, "Wine": 21, \
-                        "Kin8nm": 22, "Naval": 28, "Power-plant": 21, "Protein": 20}
-
     # Change batch size for Boston
-    if data_names[j] == "Boston_housing":
-        BATCH_SIZE = 32
+    # if data_names[j] == "Boston_housing":
+    #     BATCH_SIZE = 10
     # if data_names[j] == "Kin8nm":
     #     BATCH_SIZE = 10
 
@@ -112,6 +108,7 @@ for j in range(len(data_names)):
             self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cpu" # cpu
+            self.early_stop     =  0
 
     ## Functions$
     def create_data_loader(raw_input: np.ndarray, raw_output: np.ndarray, batch_size) -> list:
@@ -241,7 +238,7 @@ for j in range(len(data_names)):
 
         # Train the network
         start_time = time.time()
-        _, rmse_Epochlist, LL_Epochlist, _ = reg_task.train_UCI()
+        _, rmse_Epochlist, LL_Epochlist, _, _ = reg_task.train_UCI()
 
         # store rmse and LL lists for each split in rmse_splitlist and LL_splitlist
         rmse_splitlist.append(rmse_Epochlist)

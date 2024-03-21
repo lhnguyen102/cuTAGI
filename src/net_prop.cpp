@@ -398,9 +398,19 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 {
     // Initialize device
     std::random_device rd;
+    //std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+    // Generate random seed between 1 and 5
+    //int seed = (std::rand() % 5) + 1;
+
     //unsigned int rand_seed = 1;
     // Mersenne twister PRNG - seed
     std::mt19937 gen(rd());
+
+    //std::mt19937 gen(seed);
+    //unsigned int rand_seed = 1;
+    // Mersenne twister PRNG - seed
+    //std::mt19937 gen(rd());
     //std::mt19937 gen(rand_seed);
     // Initialize pointers
     std::vector<float> S(N);
@@ -439,10 +449,20 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
 {
     // Initialize device
     std::random_device rd;
+    //std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+    // Generate random seed between 1 and 5
+    //int seed = (std::rand() % 5) + 1;
+
+    //unsigned int rand_seed = 1;
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    //std::mt19937 gen(seed);
     //unsigned int rand_seed = 1;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    //std::mt19937 gen(rd());
     //std::mt19937 gen(rand_seed);
 
     // Initialize pointers
@@ -487,11 +507,17 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_bias(
 {
     // Initialize device
     std::random_device rd;
+    // Seed the random number generator with the current time
+    //std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+    // Generate random seed between 1 and 5
+    //int seed = (std::rand() % 5) + 1;
+
     //unsigned int rand_seed = 1;
     // Mersenne twister PRNG - seed
     std::mt19937 gen(rd());
 
-    //std::mt19937 gen(rand_seed);
+    //std::mt19937 gen(seed);
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
