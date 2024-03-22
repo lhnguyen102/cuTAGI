@@ -20,7 +20,7 @@ from python_examples.regression import Regression
 from pytagi import NetProp
 
 ## Load the data
-data_names = ["Boston_housing"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+data_names = ["Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 ## use optimal epoch for each dataset or not
 use_optimal_epoch = 1
@@ -272,27 +272,33 @@ for j in range(len(data_names)):
 
 
         # Print the average results
-        print("Average MSE: ", np.mean(mse_list))
-        print("Average Log-likelihood: ", np.mean(log_lik_list))
-        print("Average RMSE: ", np.mean(rmse_list))
-        print("Average Runtime: ", np.mean(runtime_list))
+        print("Average MSE: {:.3f} ± {:.3f}".format(np.mean(mse_list), np.std(mse_list)))
+        print("Average Log-likelihood: {:.3f} ± {:.3f}".format(np.mean(log_lik_list), np.std(log_lik_list)))
+        print("Average RMSE: {:.3f} ± {:.3f}".format(np.mean(rmse_list), np.std(rmse_list)))
+        print("Average Runtime: {:.3f} ± {:.3f}".format(np.mean(runtime_list), np.std(runtime_list)))
 
         # saving value for each run of random seed
-        mse_runs.append(np.mean(mse_list))
-        rmse_runs.append(np.mean(rmse_list))
-        log_lik_runs.append(np.mean(log_lik_list))
-        runtime_runs.append(np.mean(runtime_list))
+        mse_runs.append((np.mean(mse_list), np.std(mse_list)))
+        rmse_runs.append((np.mean(rmse_list), np.std(rmse_list)))
+        log_lik_runs.append((np.mean(log_lik_list), np.std(log_lik_list)))
+        runtime_runs.append((np.mean(runtime_list), np.std(runtime_list)))
 
     # Check for NaN values in rmse_runs and log_lik_runs
     if np.isnan(rmse_runs).any() or np.isnan(log_lik_runs).any():
         raise ValueError("One of the arrays contains NaN values.")
     # Save the average results
     with open(RESULTS_RMSEtest, "a") as file:
-        file.write(str(np.mean(rmse_runs)) + "\n")
+        for mean, std in rmse_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(rmse_runs)) + "\n")
     with open(RESULTS_LLtest, "a") as file:
-        file.write(str(np.mean(log_lik_runs)) + "\n")
+        for mean, std in log_lik_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(log_lik_runs)) + "\n")
     with open(RESULTS_RUNTIME, "a") as file:
-        file.write(str(np.mean(runtime_runs)) + "\n")
+        for mean, std in runtime_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(runtime_runs)) + "\n")
 
 
 

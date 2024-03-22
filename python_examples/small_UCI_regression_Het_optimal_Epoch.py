@@ -21,12 +21,7 @@ from pytagi import NetProp
 
 
 ## Load the data
-# data_names = ["Wine", \
-#               "Kin8nm","Naval",\
-#               "Power-plant","Protein"]
-data_names = ["Yacht", "Wine"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
-
-## average results over multiple runs from random seeds
+data_names = ["Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
@@ -66,9 +61,9 @@ for j in range(len(data_names)):
     # User-input (Default values)
     n_splits    = 20   # number of splits
     num_inputs  = len(index_features)     # 1 explanatory variable
-    num_outputs = 1     # 1 predicted output
+    num_outputs = 1       # 1 predicted output
     num_epochs  = 100     # row for 40 epochs
-    BATCH_SIZE  = 32     # batch size
+    BATCH_SIZE  = 10      # batch size
     num_hidden_layers = 50
 
     # Gain values for each dataset; out_gain for others and noise_gain for the V2hat output
@@ -77,17 +72,29 @@ for j in range(len(data_names)):
     NOISE_GAIN = {"Boston_housing": 0.01, "Concrete": 0.01, "Energy": 0.01, "Yacht": 0.1, "Wine": 0.01, \
                         "Kin8nm": 0.01, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
 
-    # optimal epochs for each dataset found by cross-validation
-    EPOCHS = {"Boston_housing": 18, "Concrete": 18, "Energy": 40, "Yacht": 44, "Wine": 8, \
-                        "Kin8nm": 24, "Naval": 41, "Power-plant": 9, "Protein": 13}
+    # Dictionary to store optimal epochs for each dataset
+    EPOCHS = {}
+    # Path to the directory containing optimal_epoch.txt files
+    filepath_opt_epoch = "results_small_UCI_TAGI_AGVI_Het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
+
+    # Read the optimal epochs
+    try:
+        with open(filepath_opt_epoch, 'r') as file:
+            epoch = int(file.read().strip())
+            EPOCHS[data_names[j]] = epoch
+    except FileNotFoundError:
+        print(f"File not found: {filepath_opt_epoch}")
+
 
     # Change number of splits for Protein data to 5
     if data_names[j] == "Protein":
         n_splits = 5
         num_hidden_layers = 100
     # change batch-size to 10 for energy
-    if data_names[j] == "Energy" or "Yacht":
-        BATCH_SIZE = 10
+    if data_names[j] == "Yacht":
+        BATCH_SIZE = 5
+    if data_names[j] == "Boston_housing":
+        BATCH_SIZE = 32
 
     # Input data and output data
     X = data[ : , index_features.tolist() ]
@@ -265,16 +272,16 @@ for j in range(len(data_names)):
 
 
         # Print the average results
-        print("Average MSE: ", np.mean(mse_list))
-        print("Average Log-likelihood: ", np.mean(log_lik_list))
-        print("Average RMSE: ", np.mean(rmse_list))
-        print("Average Runtime: ", np.mean(runtime_list))
+        print("Average MSE: {:.3f} ± {:.3f}".format(np.mean(mse_list), np.std(mse_list)))
+        print("Average Log-likelihood: {:.3f} ± {:.3f}".format(np.mean(log_lik_list), np.std(log_lik_list)))
+        print("Average RMSE: {:.3f} ± {:.3f}".format(np.mean(rmse_list), np.std(rmse_list)))
+        print("Average Runtime: {:.3f} ± {:.3f}".format(np.mean(runtime_list), np.std(runtime_list)))
 
         # saving value for each run of random seed
-        mse_runs.append(np.mean(mse_list))
-        rmse_runs.append(np.mean(rmse_list))
-        log_lik_runs.append(np.mean(log_lik_list))
-        runtime_runs.append(np.mean(runtime_list))
+        mse_runs.append((np.mean(mse_list), np.std(mse_list)))
+        rmse_runs.append((np.mean(rmse_list), np.std(rmse_list)))
+        log_lik_runs.append((np.mean(log_lik_list), np.std(log_lik_list)))
+        runtime_runs.append((np.mean(runtime_list), np.std(runtime_list)))
 
 
 
@@ -283,11 +290,18 @@ for j in range(len(data_names)):
         raise ValueError("One of the arrays contains NaN values.")
     # Save the average results
     with open(RESULTS_RMSEtest, "a") as file:
-        file.write(str(np.mean(rmse_runs)) + "\n")
+        for mean, std in rmse_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(rmse_runs)) + "\n")
     with open(RESULTS_LLtest, "a") as file:
-        file.write(str(np.mean(log_lik_runs)) + "\n")
+        for mean, std in log_lik_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(log_lik_runs)) + "\n")
     with open(RESULTS_RUNTIME, "a") as file:
-        file.write(str(np.mean(runtime_runs)) + "\n")
+        for mean, std in runtime_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(runtime_runs)) + "\n")
+
 
 
 

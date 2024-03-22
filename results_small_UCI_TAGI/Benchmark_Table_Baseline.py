@@ -13,14 +13,38 @@ for dataset in datasets:
     ll_file = os.path.join(folder_path, "LLtest_opt_Epoch.txt")
     time_file = os.path.join(folder_path, "runtime_train_opt_Epoch.txt")
 
+    mean_values = []
+    std_values = []
     with open(rmse_file, "r") as f:
-        rmse = float(f.readline().strip())
+        for line in f:
+            mean, std = line.strip().split(" ± ")
+            mean_values.append(float(mean))
+            std_values.append(float(std))
+        mean_average = sum(mean_values) / len(mean_values)
+        std_average = sum(std_values) / len(std_values)
+        rmse = "{:.3f} ± {:.3f}".format(mean_average, std_average)
 
+    mean_values = []
+    std_values = []
     with open(ll_file, "r") as f:
-        ll = float(f.readline().strip())
+        for line in f:
+            mean, std = line.strip().split(" ± ")
+            mean_values.append(float(mean))
+            std_values.append(float(std))
+        mean_average = sum(mean_values) / len(mean_values)
+        std_average = sum(std_values) / len(std_values)
+        ll = "{:.3f} ± {:.3f}".format(mean_average, std_average)
 
+    mean_values = []
+    std_values = []
     with open(time_file, "r") as f:
-        time = float(f.readline().strip())
+        for line in f:
+            mean, std = line.strip().split(" ± ")
+            mean_values.append(float(mean))
+            std_values.append(float(std))
+        mean_average = sum(mean_values) / len(mean_values)
+        std_average = sum(std_values) / len(std_values)
+        time = "{:.3f} ± {:.3f}".format(mean_average, std_average)
 
     data.append([dataset, rmse, ll, time])
 

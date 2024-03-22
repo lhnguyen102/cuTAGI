@@ -22,7 +22,7 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+data_names = ["Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
@@ -80,8 +80,8 @@ for j in range(len(data_names)):
         n_splits = 5
         num_hidden_layers = 100
 
-    if data_names[j] == "Boston_housing":
-        BATCH_SIZE = 32
+    if data_names[j] == "Yacht":
+        BATCH_SIZE = 5
 
 
     # Input data and output data

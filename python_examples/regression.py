@@ -263,15 +263,15 @@ class Regression:
                 log_lik = metric.log_likelihood(
                     prediction=pred, observation=obs, std=std_pred
                 )
-                pbar.set_description(
-                    f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t mse: {mse:>7.2f}"
-                )
-                pbar.set_description(
-                    f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t rmse: {rmse:>7.2f}"
-                )
-                pbar.set_description(
-                    f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t log_lik: {log_lik:>7.2f}"
-                )
+                # pbar.set_description(
+                #     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t mse: {mse:>7.2f}"
+                # )
+                # pbar.set_description(
+                #     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t rmse: {rmse:>7.2f}"
+                # )
+                # pbar.set_description(
+                #     f"Epoch# {epoch: 0}|{i * batch_size + len(x_batch):>5}|{num_data: 1}\t log_lik: {log_lik:>7.2f}"
+                # )
 
 
 
@@ -343,8 +343,8 @@ class Regression:
             # Predicitons
             self.network.feed_forward(x_batch, Sx_batch, Sx_f_batch)
             ma, Sa = self.network.get_network_predictions()
-            print(f"The mean predictions are: {ma}")
-            print(f"The variance predictions are: {Sa}")
+            # print(f"The mean predictions are: {ma}")
+            # print(f"The variance predictions are: {Sa}")
 
             mean_predictions.append(ma)
             variance_predictions.append(Sa + self.net_prop.sigma_v**2)
@@ -403,10 +403,10 @@ class Regression:
                 title="Diagonal covariance",
             )
 
-        print("#############")
-        print(f"MSE           : {mse: 0.2f}")
-        print(f"Log-likelihood: {log_lik: 0.2f}")
-        print(f"RMSE          : {rmse: 0.2f}")
+        # print("#############")
+        # print(f"MSE           : {mse: 0.2f}")
+        # print(f"Log-likelihood: {log_lik: 0.2f}")
+        # print(f"RMSE          : {rmse: 0.2f}")
 
         return mse, log_lik, rmse, normal_log_lik
 
