@@ -19,6 +19,92 @@
 #include "data_struct.h"
 #include "param_init.h"
 
+void linear_fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
+                         std::vector<float> &mu_b, std::vector<float> &var_b,
+                         std::vector<float> &mu_a, std::vector<float> &var_a,
+                         int start_chunk, int end_chunk, size_t input_size,
+                         size_t output_size, int batch_size, bool bias,
+                         std::vector<float> &mu_z, std::vector<float> &var_z);
+
+void linear_fwd_mean_var_mp(std::vector<float> &mu_w, std::vector<float> &var_w,
+                            std::vector<float> &mu_b, std::vector<float> &var_b,
+                            std::vector<float> &mu_a, std::vector<float> &var_a,
+                            size_t input_size, size_t output_size,
+                            int batch_size, bool bias, unsigned int num_threads,
+                            std::vector<float> &mu_z,
+                            std::vector<float> &var_z);
+
+void linear_fwd_full_cov(std::vector<float> &mu_w, std::vector<float> &var_a_f,
+                         size_t input_size, size_t output_size, int B,
+                         int start_chunk, int end_chunk,
+                         std::vector<float> &var_z_fp);
+
+void linear_fwd_full_cov_mp(std::vector<float> &mu_w,
+                            std::vector<float> &var_a_f, size_t input_size,
+                            size_t output_size, int batch_size,
+                            unsigned int num_threads,
+                            std::vector<float> &var_z_fp);
+
+void linear_fwd_fc_full_var(std::vector<float> &var_w,
+                            std::vector<float> &var_b, std::vector<float> &mu_a,
+                            std::vector<float> &var_a,
+                            std::vector<float> &var_z_fp, size_t input_size,
+                            size_t output_size, int B, int start_chunk,
+                            int end_chunk, std::vector<float> &var_z,
+                            std::vector<float> &var_z_f);
+
+void linear_fwd_fc_full_var_mp(
+    std::vector<float> &var_w, std::vector<float> &var_b,
+    std::vector<float> &mu_a, std::vector<float> &var_a,
+    std::vector<float> &var_z_fp, int input_size, int output_size,
+    int batch_size, unsigned int num_threads, std::vector<float> &var_z,
+    std::vector<float> &var_z_f);
+
+void linear_bwd_fc_delta_z(std::vector<float> &mu_w, std::vector<float> &jcb,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var, size_t input_size,
+                           size_t output_size, int B, int start_chunk,
+                           int end_chunk, std::vector<float> &delta_mu_z,
+                           std::vector<float> &delta_var_z);
+
+void linear_bwd_fc_delta_z_mp(std::vector<float> &mu_w, std::vector<float> &jcb,
+                              std::vector<float> &delta_mu,
+                              std::vector<float> &delta_var, size_t input_size,
+                              size_t output_size, int batch_size,
+                              unsigned int num_threads,
+                              std::vector<float> &delta_mu_z,
+                              std::vector<float> &delta_var_z);
+
+void linear_bwd_fc_delta_w(std::vector<float> &var_w, std::vector<float> &mu_a,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var, size_t input_size,
+                           size_t output_size, int batch_size, int start_chunk,
+                           int end_chunk, std::vector<float> &delta_mu_w,
+                           std::vector<float> &delta_var_w);
+
+void linear_bwd_fc_delta_w_mp(std::vector<float> &var_w,
+                              std::vector<float> &mu_a,
+                              std::vector<float> &delta_mu,
+                              std::vector<float> &delta_var, size_t input_size,
+                              size_t output_size, int batch_size,
+                              unsigned int num_threads,
+                              std::vector<float> &delta_mu_w,
+                              std::vector<float> &delta_var_w);
+
+void linear_bwd_fc_delta_b(std::vector<float> &var_b,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var, size_t output_size,
+                           int batch_size, int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu_b,
+                           std::vector<float> &delta_var_b);
+
+void linear_bwd_fc_delta_b_mp(std::vector<float> &var_b,
+                              std::vector<float> &delta_mu,
+                              std::vector<float> &delta_var, size_t output_size,
+                              int batch_size, unsigned int num_threads,
+                              std::vector<float> &delta_mu_b,
+                              std::vector<float> &delta_var_b);
+
 class Linear : public BaseLayer {
    public:
     float gain_w;
@@ -46,98 +132,6 @@ class Linear : public BaseLayer {
     LayerType get_layer_type() const override;
 
     void init_weight_bias();
-
-    static void fwd_mean_var(
-        std::vector<float> &mu_w, std::vector<float> &var_w,
-        std::vector<float> &mu_b, std::vector<float> &var_b,
-        std::vector<float> &mu_a, std::vector<float> &var_a, int start_chunk,
-        int end_chunk, size_t input_size, size_t output_size, int batch_size,
-        bool bias, std::vector<float> &mu_z, std::vector<float> &var_z);
-
-    void fwd_mean_var_mp(std::vector<float> &mu_w, std::vector<float> &var_w,
-                         std::vector<float> &mu_b, std::vector<float> &var_b,
-                         std::vector<float> &mu_a, std::vector<float> &var_a,
-                         size_t input_size, size_t output_size, int batch_size,
-                         bool bias, unsigned int num_threads,
-                         std::vector<float> &mu_z, std::vector<float> &var_z);
-
-    static void fwd_full_cov(std::vector<float> &mu_w,
-                             std::vector<float> &var_a_f, size_t input_size,
-                             size_t output_size, int B, int start_chunk,
-                             int end_chunk, std::vector<float> &var_z_fp);
-
-    void fwd_full_cov_mp(std::vector<float> &mu_w, std::vector<float> &var_a_f,
-                         size_t input_size, size_t output_size, int batch_size,
-                         unsigned int num_threads,
-                         std::vector<float> &var_z_fp);
-
-    static void fwd_fc_full_var(std::vector<float> &var_w,
-                                std::vector<float> &var_b,
-                                std::vector<float> &mu_a,
-                                std::vector<float> &var_a,
-                                std::vector<float> &var_z_fp, size_t input_size,
-                                size_t output_size, int B, int start_chunk,
-                                int end_chunk, std::vector<float> &var_z,
-                                std::vector<float> &var_z_f);
-
-    void fwd_fc_full_var_mp(std::vector<float> &var_w,
-                            std::vector<float> &var_b, std::vector<float> &mu_a,
-                            std::vector<float> &var_a,
-                            std::vector<float> &var_z_fp, int input_size,
-                            int output_size, int batch_size,
-                            unsigned int num_threads, std::vector<float> &var_z,
-                            std::vector<float> &var_z_f);
-
-    // Hidden states
-    static void bwd_fc_delta_z(std::vector<float> &mu_w,
-                               std::vector<float> &jcb,
-                               std::vector<float> &delta_mu,
-                               std::vector<float> &delta_var, size_t input_size,
-                               size_t output_size, int batch_size,
-                               int start_chunk, int end_chunk,
-                               std::vector<float> &delta_mu_z,
-                               std::vector<float> &delta_var_z);
-
-    void bwd_fc_delta_z_mp(std::vector<float> &mu_w, std::vector<float> &jcb,
-                           std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, size_t input_size,
-                           size_t output_size, int batch_size,
-                           unsigned int num_threads,
-                           std::vector<float> &delta_mu_z,
-                           std::vector<float> &delta_var_z);
-
-    // Parameters
-    static void bwd_fc_delta_w(std::vector<float> &var_w,
-                               std::vector<float> &mu_a,
-                               std::vector<float> &delta_mu,
-                               std::vector<float> &delta_var, size_t input_size,
-                               size_t output_size, int batch_size,
-                               int start_chunk, int end_chunk,
-                               std::vector<float> &delta_mu_w,
-                               std::vector<float> &delta_var_w);
-
-    void bwd_fc_delta_w_mp(std::vector<float> &var_w, std::vector<float> &mu_a,
-                           std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, size_t input_size,
-                           size_t output_size, int batch_size,
-                           unsigned int num_threads,
-                           std::vector<float> &delta_mu_w,
-                           std::vector<float> &delta_var_w);
-
-    static void bwd_fc_delta_b(std::vector<float> &var_b,
-                               std::vector<float> &delta_mu,
-                               std::vector<float> &delta_var,
-                               size_t output_size, int batch_size,
-                               int start_chunk, int end_chunk,
-                               std::vector<float> &delta_mu_b,
-                               std::vector<float> &delta_var_b);
-
-    void bwd_fc_delta_b_mp(std::vector<float> &var_b,
-                           std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var, size_t output_size,
-                           int batch_size, unsigned int num_threads,
-                           std::vector<float> &delta_mu_b,
-                           std::vector<float> &delta_var_b);
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

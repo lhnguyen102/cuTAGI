@@ -260,7 +260,8 @@ void LinearCuda::init_weight_bias()
 {
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                this->input_size, this->output_size);
+                                this->input_size, this->output_size,
+                                this->num_weights, this->num_biases);
 
     this->allocate_param_memory();
     this->params_to_device();
