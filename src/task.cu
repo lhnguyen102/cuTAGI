@@ -264,7 +264,7 @@ Args:
 {
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine seed_e(seed);
+    std::default_random_engine seed_e(123456);
 
     // Compute number of data points
     int n_iter = imdb.num_data / net.prop.batch_size;
@@ -453,7 +453,7 @@ Args:
 {
     // Seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine seed_e(seed);
+    std::default_random_engine seed_e(123456);
     int derivative_layer = 0;
 
     // Number of data points
