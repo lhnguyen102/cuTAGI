@@ -559,7 +559,7 @@ void MixtureSigmoid::mixture_sigmoid_mean_var(
                     cdf_lower * powf(1 + mu_a[i], 2) +
                     (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
                    4.0f;
-        jcb[i] = powf(omega * kappa, 0.5);  // Approximate formulation
+        jcb[i] = omega * 0.5;
     }
 }
 void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
@@ -694,7 +694,7 @@ void MixtureTanh::mixture_tanh_mean_var(std::vector<float> &mu_z,
         var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
                    cdf_lower * powf(1 + mu_a[i], 2) +
                    (1 - cdf_upper) * powf(1 - mu_a[i], 2);
-        jcb[i] = powf(omega * kappa, 0.5);
+        jcb[i] = omega;
     }
 }
 

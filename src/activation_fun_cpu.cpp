@@ -290,7 +290,7 @@ void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
                        cdf_lower * powf(1 + ma[zpos + i], 2) +
                        (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
-        J[zpos + i] = powf(omega * kappa, 0.5);
+        J[zpos + i] = omega;
     }
 }
 
@@ -328,7 +328,7 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
              cdf_lower * powf(1 + ma[zpos + i], 2) +
              (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
             4.0f;
-        J[zpos + i] = powf(omega * kappa, 0.5);
+        J[zpos + i] = omega * 0.5;
     }
 }
 
