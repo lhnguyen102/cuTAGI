@@ -141,6 +141,7 @@ set(CPU_SOURCES
   src/pooling_layer.cpp
   src/norm_layer.cpp
   src/convtranspose2d_layer.cpp
+  src/lstm_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp

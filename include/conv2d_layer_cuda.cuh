@@ -55,7 +55,7 @@ class Conv2dCuda : public BaseLayerCuda {
 
     void compute_input_output_size(const InitArgs &args) override;
 
-    void get_number_param_conv2d();
+    void get_number_param();
 
     void init_weight_bias();
 

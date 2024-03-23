@@ -76,7 +76,7 @@ void Conv2d::compute_input_output_size(const InitArgs &args)
     this->output_size = this->out_width * this->out_height * this->out_channels;
 }
 
-void Conv2d::get_number_param_conv2d()
+void Conv2d::get_number_param()
 
 /* Get the number of parameters for conv. and tconv. layer.
 
@@ -136,7 +136,7 @@ void Conv2d::forward(BaseHiddenStates &input_states,
 
     // Only need to initalize at the first iteration
     if (this->num_weights == 0) {
-        this->get_number_param_conv2d();
+        this->get_number_param();
         this->init_weight_bias();
     }
 
@@ -273,7 +273,7 @@ std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
 
 void Conv2d::preinit_layer() {
     if (this->num_weights == 0) {
-        this->get_number_param_conv2d();
+        this->get_number_param();
         this->init_weight_bias();
     }
 

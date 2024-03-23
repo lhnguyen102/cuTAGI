@@ -84,21 +84,20 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
+    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+                     BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
+                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-    // BatchNorm2d(16),
-    //                  ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-    //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-                     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
-                     AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-                     LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-                     Linear(100, 11));
-
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // model.set_threads(8);
+    model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
