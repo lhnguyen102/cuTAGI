@@ -810,7 +810,7 @@ __global__ void mixture_sigmoid(float const *mu_z, float const *var_z,
                      cdf_lower * powf(1 + mu_a[col], 2) +
                      (1 - cdf_upper) * powf(1 - mu_a[col], 2);
 
-        jcb[col] = omega / 2;
+        jcb[col] = omega * 0.5;
     }
 }
 
