@@ -186,7 +186,7 @@ __global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
                          omega * powf(mz_til - ma[zpos + col], 2) +
                          cdf_lower * powf(1 + ma[zpos + col], 2) +
                          (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
-        J[zpos + col] = powf(omega * kappa, 0.5);
+        J[zpos + col] = omega;
     }
 }
 
@@ -225,7 +225,7 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
                          omega * powf(mz_til - ma[zpos + col], 2) +
                          cdf_lower * powf(1 + ma[zpos + col], 2) +
                          (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
-        J[zpos + col] = powf(omega * kappa, 0.5);
+        J[zpos + col] = omega * 0.5;
     }
 }
 

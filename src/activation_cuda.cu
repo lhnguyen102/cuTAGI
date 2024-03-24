@@ -810,7 +810,7 @@ __global__ void mixture_sigmoid(float const *mu_z, float const *var_z,
                      cdf_lower * powf(1 + mu_a[col], 2) +
                      (1 - cdf_upper) * powf(1 - mu_a[col], 2);
 
-        jcb[col] = powf(omega * kappa, 0.5);
+        jcb[col] = omega * 0.5;
     }
 }
 
@@ -852,7 +852,7 @@ __global__ void mixture_tanh(float const *mu_z, float const *var_z,
         var_a[col] = omega * var_z_til + omega * powf(mu_z_til - mu_a[col], 2) +
                      cdf_lower * powf(1 + mu_a[col], 2) +
                      (1 - cdf_upper) * powf(1 - mu_a[col], 2);
-        jcb[col] = powf(omega * kappa, 0.5);
+        jcb[col] = omega;
     }
 }
 
