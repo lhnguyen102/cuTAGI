@@ -380,7 +380,8 @@ Args:
 */
 {
     // Seed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = 1234567;
     std::default_random_engine seed_e(seed);
 
     // Number of data points

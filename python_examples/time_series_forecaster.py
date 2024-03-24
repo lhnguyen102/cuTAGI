@@ -64,6 +64,7 @@ class TimeSeriesForecaster:
 
             for i in range(num_iter):
                 # Get data
+                np.random.seed(0)
                 idx = np.random.choice(num_data, size=batch_size)
                 x_batch = input_data[idx, :]
                 y_batch = output_data[idx, :]

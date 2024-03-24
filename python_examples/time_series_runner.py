@@ -21,7 +21,7 @@ def main():
     datetime_test_file = "./data/toy_time_series/test_sin_datetime.csv"
 
     # Load pretrained weights and biases
-    mw_file = "./saved_param/lstm_demo_2lstm_1_mw.csv"
+    """  mw_file = "./saved_param/lstm_demo_2lstm_1_mw.csv"
     Sw_file = "./saved_param/lstm_demo_2lstm_2_Sw.csv"
     mb_file = "./saved_param/lstm_demo_2lstm_3_mb.csv"
     Sb_file = "./saved_param/lstm_demo_2lstm_4_Sb.csv"
@@ -38,7 +38,7 @@ def main():
         Sw_sc_file=Sw_sc_file,
         mb_sc_file=mb_sc_file,
         Sb_sc_file=Sb_sc_file,
-    )
+    ) """
 
     # Model
     net_prop = TimeSeriesLSTM(
@@ -71,12 +71,11 @@ def main():
         num_epochs=num_epochs,
         data_loader=data_loader,
         net_prop=net_prop,
-        param=param,
+        #param=param,
         viz=viz,
     )
     reg_task.train()
     reg_task.predict()
-
 
 if __name__ == "__main__":
     main()

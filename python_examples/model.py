@@ -127,7 +127,7 @@ class TimeSeriesLSTM(NetProp):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.layers: list = [1, 7, 7, 1]
-        self.nodes: list = [1, 5, 5, 1]
+        self.nodes: list = [1, 10, 10, 1]
         self.activations: list = [0, 0, 0, 0]
         self.batch_size: int = 10
         self.input_seq_len: int = input_seq_len
