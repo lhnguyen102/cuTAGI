@@ -400,7 +400,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(123456);
+    std::mt19937 gen(rd());
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -441,7 +441,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(123456);
+    std::mt19937 gen(rd());
 
     // Initialize pointers
     std::vector<float> S(N);
