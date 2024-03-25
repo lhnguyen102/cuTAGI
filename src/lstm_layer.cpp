@@ -16,7 +16,6 @@
 
 #include "../include/activation.h"
 #include "../include/common.h"
-#include "../include/linear_layer.h"
 #include "../include/param_init.h"
 
 // TODO: merge this two following functions with linear layer
@@ -1012,40 +1011,6 @@ void LSTM::init_weight_bias()
                               this->num_weights, this->num_biases);
 }
 
-void LSTM::allocate_states(int batch_size)
-/*
- */
-
-{
-    this->_batch_size = batch_size;
-    int num_states = this->seq_len * this->output_size * batch_size;
-    mu_ha.resize(num_states, 0);
-    var_ha.resize(num_states, 0);
-    mu_f_ga.resize(num_states, 0);
-    var_f_ga.resize(num_states, 0);
-    jcb_f_ga.resize(num_states, 0);
-    mu_i_ga.resize(num_states, 0);
-    var_i_ga.resize(num_states, 0);
-    jcb_i_ga.resize(num_states, 0);
-    mu_c_ga.resize(num_states, 0);
-    var_c_ga.resize(num_states, 0);
-    jcb_c_ga.resize(num_states, 0);
-    mu_o_ga.resize(num_states, 0);
-    var_o_ga.resize(num_states, 0);
-    jcb_o_ga.resize(num_states, 0);
-    mu_ca.resize(num_states, 0);
-    var_ca.resize(num_states, 0);
-    jcb_ca.resize(num_states, 0);
-    mu_c.resize(num_states, 0);
-    var_c.resize(num_states, 0);
-    mu_c_prev.resize(num_states, 0);
-    var_c_prev.resize(num_states, 0);
-    mu_h_prev.resize(num_states, 0);
-    var_h_prev.resize(num_states, 0);
-    cov_i_c.resize(num_states, 0);
-    cov_o_tanh_c.resize(num_states, 0);
-}
-
 void LSTM::prepare_input(BaseHiddenStates &input_state)
 /*
  */
@@ -1053,20 +1018,20 @@ void LSTM::prepare_input(BaseHiddenStates &input_state)
     int batch_size = input_state.block_size;
     if (this->num_threads > 1) {
         lstm_cat_activations_and_prev_states_mp(
-            input_state.mu_a, this->mu_h_prev, this->input_size,
+            input_state.mu_a, lstm_states.mu_h_prev, this->input_size,
             this->output_size, this->seq_len, batch_size, this->num_threads,
-            this->mu_ha);
+            lstm_states.mu_ha);
         lstm_cat_activations_and_prev_states_mp(
-            input_state.var_a, this->var_h_prev, this->input_size,
+            input_state.var_a, lstm_states.var_h_prev, this->input_size,
             this->output_size, this->seq_len, batch_size, this->num_threads,
-            this->var_ha);
+            lstm_states.var_ha);
     } else {
         lstm_cat_activations_and_prev_states(
-            input_state.mu_a, this->mu_h_prev, this->input_size,
-            this->output_size, this->seq_len, batch_size, this->mu_ha);
+            input_state.mu_a, lstm_states.mu_h_prev, this->input_size,
+            this->output_size, this->seq_len, batch_size, lstm_states.mu_ha);
         lstm_cat_activations_and_prev_states(
-            input_state.var_a, this->var_h_prev, this->input_size,
-            this->output_size, this->seq_len, batch_size, this->var_ha);
+            input_state.var_a, lstm_states.var_h_prev, this->input_size,
+            this->output_size, this->seq_len, batch_size, lstm_states.var_ha);
     }
 }
 
@@ -1076,25 +1041,28 @@ void LSTM::forget_gate(int batch_size)
 {
     int end_chunk = this->output_size * batch_size * this->seq_len;
     if (this->num_threads > 1) {
-        lstm_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                             this->mu_ha, this->var_ha, this->input_size,
-                             this->output_size, batch_size, this->bias,
-                             this->w_pos_f, this->b_pos_f, this->num_threads,
-                             this->mu_f_ga, this->var_f_ga);
+        lstm_fwd_mean_var_mp(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, lstm_states.mu_ha,
+            lstm_states.var_ha, this->input_size, this->output_size, batch_size,
+            this->bias, this->w_pos_f, this->b_pos_f, this->num_threads,
+            lstm_states.mu_f_ga, lstm_states.var_f_ga);
 
-        mixture_tanh_mean_var_mp(this->mu_f_ga, this->var_f_ga, this->act_omega,
-                                 end_chunk, this->num_threads, this->mu_f_ga,
-                                 this->jcb_f_ga, this->var_f_ga);
+        mixture_tanh_mean_var_mp(lstm_states.mu_f_ga, lstm_states.var_f_ga,
+                                 this->act_omega, end_chunk, this->num_threads,
+                                 lstm_states.mu_f_ga, lstm_states.jcb_f_ga,
+                                 lstm_states.var_f_ga);
 
     } else {
         lstm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                          this->mu_ha, this->var_ha, 0, end_chunk,
+                          lstm_states.mu_ha, lstm_states.var_ha, 0, end_chunk,
                           this->input_size, this->output_size, batch_size,
                           this->bias, this->w_pos_f, this->b_pos_f,
-                          this->mu_f_ga, this->var_f_ga);
-        mixture_tanh_mean_var(this->mu_f_ga, this->var_f_ga, this->act_omega, 0,
-                              end_chunk, this->mu_f_ga, this->jcb_f_ga,
-                              this->var_f_ga);
+                          lstm_states.mu_f_ga, lstm_states.var_f_ga);
+
+        mixture_tanh_mean_var(lstm_states.mu_f_ga, lstm_states.var_f_ga,
+                              this->act_omega, 0, end_chunk,
+                              lstm_states.mu_f_ga, lstm_states.jcb_f_ga,
+                              lstm_states.var_f_ga);
     }
 }
 
@@ -1104,23 +1072,25 @@ void LSTM::input_gate(int batch_size)
 {
     int end_chunk = this->output_size * batch_size * this->seq_len;
     if (this->num_threads > 1) {
-        lstm_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                             this->mu_ha, this->var_ha, this->input_size,
-                             this->output_size, batch_size, this->bias,
-                             this->w_pos_i, this->b_pos_i, this->num_threads,
-                             this->mu_i_ga, this->var_i_ga);
-        mixture_sigmoid_mean_var_mp(
-            this->mu_i_ga, this->var_i_ga, this->act_omega, end_chunk,
-            this->num_threads, this->mu_i_ga, this->jcb_i_ga, this->var_i_ga);
+        lstm_fwd_mean_var_mp(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, lstm_states.mu_ha,
+            lstm_states.var_ha, this->input_size, this->output_size, batch_size,
+            this->bias, this->w_pos_i, this->b_pos_i, this->num_threads,
+            lstm_states.mu_i_ga, lstm_states.var_i_ga);
+        mixture_sigmoid_mean_var_mp(lstm_states.mu_i_ga, lstm_states.var_i_ga,
+                                    this->act_omega, end_chunk,
+                                    this->num_threads, lstm_states.mu_i_ga,
+                                    lstm_states.jcb_i_ga, lstm_states.var_i_ga);
     } else {
         lstm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                          this->mu_ha, this->var_ha, 0, end_chunk,
+                          lstm_states.mu_ha, lstm_states.var_ha, 0, end_chunk,
                           this->input_size, this->output_size, batch_size,
                           this->bias, this->w_pos_i, this->b_pos_i,
-                          this->mu_i_ga, this->var_i_ga);
-        mixture_sigmoid_mean_var(this->mu_i_ga, this->var_i_ga, this->act_omega,
-                                 0, end_chunk, this->mu_i_ga, this->jcb_i_ga,
-                                 this->var_i_ga);
+                          lstm_states.mu_i_ga, lstm_states.var_i_ga);
+        mixture_sigmoid_mean_var(lstm_states.mu_i_ga, lstm_states.var_i_ga,
+                                 this->act_omega, 0, end_chunk,
+                                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga,
+                                 lstm_states.var_i_ga);
     }
 }
 
@@ -1130,23 +1100,25 @@ void LSTM::cell_state_gate(int batch_size)
 {
     int end_chunk = this->output_size * batch_size * this->seq_len;
     if (this->num_threads > 1) {
-        lstm_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                             this->mu_ha, this->var_ha, this->input_size,
-                             this->output_size, batch_size, this->bias,
-                             this->w_pos_c, this->b_pos_c, this->num_threads,
-                             this->mu_c_ga, this->var_c_ga);
-        mixture_tanh_mean_var_mp(this->mu_c_ga, this->var_c_ga, this->act_omega,
-                                 end_chunk, this->num_threads, this->mu_c_ga,
-                                 this->jcb_c_ga, this->var_c_ga);
+        lstm_fwd_mean_var_mp(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, lstm_states.mu_ha,
+            lstm_states.var_ha, this->input_size, this->output_size, batch_size,
+            this->bias, this->w_pos_c, this->b_pos_c, this->num_threads,
+            lstm_states.mu_c_ga, lstm_states.var_c_ga);
+        mixture_tanh_mean_var_mp(lstm_states.mu_c_ga, lstm_states.var_c_ga,
+                                 this->act_omega, end_chunk, this->num_threads,
+                                 lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                                 lstm_states.var_c_ga);
     } else {
         lstm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                          this->mu_ha, this->var_ha, 0, end_chunk,
+                          lstm_states.mu_ha, lstm_states.var_ha, 0, end_chunk,
                           this->input_size, this->output_size, batch_size,
                           this->bias, this->w_pos_c, this->b_pos_c,
-                          this->mu_c_ga, this->var_c_ga);
-        mixture_tanh_mean_var(this->mu_c_ga, this->var_c_ga, this->act_omega, 0,
-                              end_chunk, this->mu_c_ga, this->jcb_c_ga,
-                              this->var_c_ga);
+                          lstm_states.mu_c_ga, lstm_states.var_c_ga);
+        mixture_tanh_mean_var(lstm_states.mu_c_ga, lstm_states.var_c_ga,
+                              this->act_omega, 0, end_chunk,
+                              lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                              lstm_states.var_c_ga);
     }
 }
 
@@ -1156,23 +1128,25 @@ void LSTM::output_gate(int batch_size)
 {
     int end_chunk = this->output_size * batch_size * this->seq_len;
     if (this->num_threads > 1) {
-        lstm_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                             this->mu_ha, this->var_ha, this->input_size,
-                             this->output_size, batch_size, this->bias,
-                             this->w_pos_o, this->b_pos_o, this->num_threads,
-                             this->mu_o_ga, this->var_o_ga);
-        mixture_sigmoid_mean_var_mp(
-            this->mu_o_ga, this->var_o_ga, this->act_omega, end_chunk,
-            this->num_threads, this->mu_o_ga, this->jcb_o_ga, this->var_o_ga);
+        lstm_fwd_mean_var_mp(
+            this->mu_w, this->var_w, this->mu_b, this->var_b, lstm_states.mu_ha,
+            lstm_states.var_ha, this->input_size, this->output_size, batch_size,
+            this->bias, this->w_pos_o, this->b_pos_o, this->num_threads,
+            lstm_states.mu_o_ga, lstm_states.var_o_ga);
+        mixture_sigmoid_mean_var_mp(lstm_states.mu_o_ga, lstm_states.var_o_ga,
+                                    this->act_omega, end_chunk,
+                                    this->num_threads, lstm_states.mu_o_ga,
+                                    lstm_states.jcb_o_ga, lstm_states.var_o_ga);
     } else {
         lstm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                          this->mu_ha, this->var_ha, 0, end_chunk,
+                          lstm_states.mu_ha, lstm_states.var_ha, 0, end_chunk,
                           this->input_size, this->output_size, batch_size,
                           this->bias, this->w_pos_o, this->b_pos_o,
-                          this->mu_o_ga, this->var_o_ga);
-        mixture_sigmoid_mean_var(this->mu_o_ga, this->var_o_ga, this->act_omega,
-                                 0, end_chunk, this->mu_o_ga, this->jcb_o_ga,
-                                 this->var_o_ga);
+                          lstm_states.mu_o_ga, lstm_states.var_o_ga);
+        mixture_sigmoid_mean_var(lstm_states.mu_o_ga, lstm_states.var_o_ga,
+                                 this->act_omega, 0, end_chunk,
+                                 lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                                 lstm_states.var_o_ga);
     }
 }
 
@@ -1184,7 +1158,8 @@ void LSTM::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
 
     if (this->_batch_size != batch_size) {
-        this->allocate_states(batch_size);
+        this->lstm_states.set_num_states(batch_size * this->seq_len *
+                                         this->output_size);
     }
     // Update number of actual states.
     output_states.width = this->out_width;
@@ -1203,59 +1178,67 @@ void LSTM::forward(BaseHiddenStates &input_states,
 
     if (this->num_threads > 1) {
         lstm_cov_input_cell_states_mp(
-            this->var_ha, this->mu_w, this->jcb_i_ga, this->jcb_c_ga,
-            this->w_pos_i, this->w_pos_c, this->input_size, this->output_size,
-            this->seq_len, batch_size, this->num_threads, this->cov_i_c);
+            lstm_states.var_ha, this->mu_w, lstm_states.jcb_i_ga,
+            lstm_states.jcb_c_ga, this->w_pos_i, this->w_pos_c,
+            this->input_size, this->output_size, this->seq_len, batch_size,
+            this->num_threads, lstm_states.cov_i_c);
 
         lstm_cell_state_mean_var_mp(
-            this->mu_f_ga, this->var_f_ga, this->mu_i_ga, this->var_i_ga,
-            this->mu_c_ga, this->var_c_ga, this->mu_c_prev, this->var_c_prev,
-            this->cov_i_c, this->output_size, this->seq_len, batch_size,
-            this->num_threads, this->mu_c, this->var_c);
+            lstm_states.mu_f_ga, lstm_states.var_f_ga, lstm_states.mu_i_ga,
+            lstm_states.var_i_ga, lstm_states.mu_c_ga, lstm_states.var_c_ga,
+            lstm_states.mu_c_prev, lstm_states.var_c_prev, lstm_states.cov_i_c,
+            this->output_size, this->seq_len, batch_size, this->num_threads,
+            lstm_states.mu_c, lstm_states.var_c);
 
-        mixture_tanh_mean_var_mp(this->mu_c, this->var_c, this->act_omega,
-                                 end_chunk, this->num_threads, this->mu_ca,
-                                 this->jcb_ca, this->var_ca);
+        mixture_tanh_mean_var_mp(lstm_states.mu_c, lstm_states.var_c,
+                                 this->act_omega, end_chunk, this->num_threads,
+                                 lstm_states.mu_ca, lstm_states.jcb_ca,
+                                 lstm_states.var_ca);
 
         lstm_cov_output_tanh_cell_states_mp(
-            this->mu_w, this->var_ha, this->mu_c_prev, this->jcb_ca,
-            this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga, this->mu_c_ga,
-            this->jcb_c_ga, this->jcb_o_ga, this->w_pos_f, this->w_pos_i,
-            this->w_pos_c, this->w_pos_o, this->input_size, this->output_size,
-            this->seq_len, batch_size, this->num_threads, this->cov_o_tanh_c);
+            this->mu_w, lstm_states.var_ha, lstm_states.mu_c_prev,
+            lstm_states.jcb_ca, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.jcb_o_ga, this->w_pos_f, this->w_pos_i, this->w_pos_c,
+            this->w_pos_o, this->input_size, this->output_size, this->seq_len,
+            batch_size, this->num_threads, lstm_states.cov_o_tanh_c);
 
         lstm_hidden_state_mean_var_mp(
-            this->mu_o_ga, this->var_o_ga, this->mu_ca, this->var_ca,
-            this->cov_o_tanh_c, this->output_size, this->seq_len, batch_size,
-            this->num_threads, output_states.mu_a, output_states.var_a);
+            lstm_states.mu_o_ga, lstm_states.var_o_ga, lstm_states.mu_ca,
+            lstm_states.var_ca, lstm_states.cov_o_tanh_c, this->output_size,
+            this->seq_len, batch_size, this->num_threads, output_states.mu_a,
+            output_states.var_a);
 
     } else {
-        lstm_cov_input_cell_states(this->var_ha, this->mu_w, this->jcb_i_ga,
-                                   this->jcb_c_ga, this->w_pos_i, this->w_pos_c,
-                                   this->input_size, this->output_size,
-                                   this->seq_len, batch_size, this->cov_i_c);
+        lstm_cov_input_cell_states(
+            lstm_states.var_ha, this->mu_w, lstm_states.jcb_i_ga,
+            lstm_states.jcb_c_ga, this->w_pos_i, this->w_pos_c,
+            this->input_size, this->output_size, this->seq_len, batch_size,
+            lstm_states.cov_i_c);
 
         lstm_cell_state_mean_var(
-            this->mu_f_ga, this->var_f_ga, this->mu_i_ga, this->var_i_ga,
-            this->mu_c_ga, this->var_c_ga, this->mu_c_prev, this->var_c_prev,
-            this->cov_i_c, this->output_size, this->seq_len, batch_size,
-            this->mu_c, this->var_c);
+            lstm_states.mu_f_ga, lstm_states.var_f_ga, lstm_states.mu_i_ga,
+            lstm_states.var_i_ga, lstm_states.mu_c_ga, lstm_states.var_c_ga,
+            lstm_states.mu_c_prev, lstm_states.var_c_prev, lstm_states.cov_i_c,
+            this->output_size, this->seq_len, batch_size, lstm_states.mu_c,
+            lstm_states.var_c);
 
-        mixture_tanh_mean_var(this->mu_c, this->var_c, this->act_omega, 0,
-                              end_chunk, this->mu_ca, this->jcb_ca,
-                              this->var_ca);
+        mixture_tanh_mean_var(lstm_states.mu_c, lstm_states.var_c,
+                              this->act_omega, 0, end_chunk, lstm_states.mu_ca,
+                              lstm_states.jcb_ca, lstm_states.var_ca);
 
         lstm_cov_output_tanh_cell_states(
-            this->mu_w, this->var_ha, this->mu_c_prev, this->jcb_ca,
-            this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga, this->mu_c_ga,
-            this->jcb_c_ga, this->jcb_o_ga, this->w_pos_f, this->w_pos_i,
-            this->w_pos_c, this->w_pos_o, this->input_size, this->output_size,
-            this->seq_len, batch_size, this->cov_o_tanh_c);
+            this->mu_w, lstm_states.var_ha, lstm_states.mu_c_prev,
+            lstm_states.jcb_ca, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.jcb_o_ga, this->w_pos_f, this->w_pos_i, this->w_pos_c,
+            this->w_pos_o, this->input_size, this->output_size, this->seq_len,
+            batch_size, lstm_states.cov_o_tanh_c);
 
-        lstm_hidden_state_mean_var(this->mu_o_ga, this->var_o_ga, this->mu_ca,
-                                   this->var_ca, this->cov_o_tanh_c,
-                                   this->output_size, this->seq_len, batch_size,
-                                   output_states.mu_a, output_states.var_a);
+        lstm_hidden_state_mean_var(
+            lstm_states.mu_o_ga, lstm_states.var_o_ga, lstm_states.mu_ca,
+            lstm_states.var_ca, lstm_states.cov_o_tanh_c, this->output_size,
+            this->seq_len, batch_size, output_states.mu_a, output_states.var_a);
     }
 
     if (this->training) {
@@ -1274,24 +1257,25 @@ void LSTM::state_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->num_threads > 1) {
         lstm_delta_mean_var_z_mp(
-            this->mu_w, this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga,
-            this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga, this->jcb_o_ga,
-            this->mu_c_prev, this->mu_ca, this->jcb_ca,
-            input_delta_states.delta_mu, input_delta_states.delta_var,
-            this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
-            this->output_size, this->input_size, this->seq_len, batch_size,
-            this->num_threads, output_hidden_states.delta_mu,
-            output_hidden_states.delta_var);
+            this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+            lstm_states.mu_ca, lstm_states.jcb_ca, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->w_pos_f, this->w_pos_i,
+            this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
+            this->seq_len, batch_size, this->num_threads,
+            output_hidden_states.delta_mu, output_hidden_states.delta_var);
     } else {
         int end_chunk = batch_size * this->seq_len * this->input_size;
         lstm_delta_mean_var_z_worker(
-            this->mu_w, this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga,
-            this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga, this->jcb_o_ga,
-            this->mu_c_prev, this->mu_ca, this->jcb_ca,
-            input_delta_states.delta_mu, input_delta_states.delta_var,
-            this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
-            this->output_size, this->input_size, this->seq_len, 0, end_chunk,
-            output_hidden_states.delta_mu, output_hidden_states.delta_var);
+            this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+            lstm_states.mu_ca, lstm_states.jcb_ca, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->w_pos_f, this->w_pos_i,
+            this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
+            this->seq_len, 0, end_chunk, output_hidden_states.delta_mu,
+            output_hidden_states.delta_var);
     }
 }
 
@@ -1305,14 +1289,15 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->num_threads > 1) {
         lstm_cat_activations_and_prev_states_mp(
-            next_bwd_states.mu_a, this->mu_h_prev, this->input_size,
+            next_bwd_states.mu_a, lstm_states.mu_h_prev, this->input_size,
             this->output_size, this->seq_len, batch_size, this->num_threads,
-            this->mu_ha);
+            lstm_states.mu_ha);
 
         lstm_delta_mean_var_w_mp(
-            this->var_w, this->mu_ha, this->jcb_f_ga, this->mu_i_ga,
-            this->jcb_i_ga, this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga,
-            this->jcb_o_ga, this->mu_c_prev, this->mu_ca, this->jcb_ca,
+            this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+            lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+            lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+            lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
             delta_states.delta_mu, delta_states.delta_var, this->w_pos_f,
             this->w_pos_i, this->w_pos_c, this->w_pos_o, this->output_size,
             this->input_size, this->seq_len, batch_size, this->num_threads,
@@ -1320,9 +1305,10 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
 
         if (this->bias) {
             lstm_delta_mean_var_b_mp(
-                this->var_b, this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga,
-                this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga, this->jcb_o_ga,
-                this->mu_c_prev, this->mu_ca, this->jcb_ca,
+                this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
                 delta_states.delta_mu, delta_states.delta_var, this->b_pos_f,
                 this->b_pos_i, this->b_pos_c, this->b_pos_o, this->output_size,
                 this->seq_len, batch_size, this->num_threads, this->delta_mu_b,
@@ -1332,13 +1318,14 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
         int end_chunk_w =
             (this->input_size + this->output_size) * this->output_size;
         lstm_cat_activations_and_prev_states(
-            next_bwd_states.mu_a, this->mu_h_prev, this->input_size,
-            this->output_size, this->seq_len, batch_size, this->mu_ha);
+            next_bwd_states.mu_a, lstm_states.mu_h_prev, this->input_size,
+            this->output_size, this->seq_len, batch_size, lstm_states.mu_ha);
 
         lstm_delta_mean_var_w_worker(
-            this->var_w, this->mu_ha, this->jcb_f_ga, this->mu_i_ga,
-            this->jcb_i_ga, this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga,
-            this->jcb_o_ga, this->mu_c_prev, this->mu_ca, this->jcb_ca,
+            this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+            lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+            lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+            lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
             delta_states.delta_mu, delta_states.delta_var, this->w_pos_f,
             this->w_pos_i, this->w_pos_c, this->w_pos_o, this->output_size,
             this->input_size, this->seq_len, batch_size, 0, end_chunk_w,
@@ -1346,9 +1333,10 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
 
         if (this->bias) {
             lstm_delta_mean_var_b_worker(
-                this->var_b, this->jcb_f_ga, this->mu_i_ga, this->jcb_i_ga,
-                this->mu_c_ga, this->jcb_c_ga, this->mu_o_ga, this->jcb_o_ga,
-                this->mu_c_prev, this->mu_ca, this->jcb_ca,
+                this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
                 delta_states.delta_mu, delta_states.delta_var, this->b_pos_f,
                 this->b_pos_i, this->b_pos_c, this->b_pos_o, this->output_size,
                 this->seq_len, batch_size, 0, this->output_size,

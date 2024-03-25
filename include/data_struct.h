@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 01, 2023
-// Updated:      March 18, 2024
+// Updated:      March 25, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,4 +87,20 @@ class BaseObservation {
 
     void set_obs(std::vector<float> &mu_obs, std::vector<float> &var_obs);
     void set_selected_idx(std::vector<int> &selected_idx);
+};
+
+class BaseLSTMStates {
+   public:
+    size_t num_states;
+    std::vector<float> mu_ha, var_ha, mu_f_ga, var_f_ga, jcb_f_ga, mu_i_ga,
+        var_i_ga, jcb_i_ga, mu_c_ga, var_c_ga, jcb_c_ga, mu_o_ga, var_o_ga,
+        jcb_o_ga, mu_ca, var_ca, jcb_ca, mu_c, var_c, mu_c_prev, var_c_prev,
+        mu_h_prev, var_h_prev, cov_i_c, cov_o_tanh_c;
+
+    BaseLSTMStates(size_t num_states);
+    BaseLSTMStates();
+    ~BaseLSTMStates() = default;
+    void set_num_states(size_t num_states);
+    virtual std::string get_name() const { return "BaseLSTMStates"; };
+    void reset_zeros();
 };
