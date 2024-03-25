@@ -23,10 +23,7 @@ class LSTM : public BaseLayer {
     float gain_b;
     std::string init_method;
     int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
-    std::vector<float> mu_ha, var_ha, mu_f_ga, var_f_ga, jcb_f_ga, mu_i_ga,
-        var_i_ga, jcb_i_ga, mu_c_ga, var_c_ga, jcb_c_ga, mu_o_ga, var_o_ga,
-        jcb_o_ga, mu_ca, var_ca, jcb_ca, mu_c, var_c, mu_c_prev, var_c_prev,
-        mu_h_prev, var_h_prev, cov_i_c, cov_o_tanh_c;
+    BaseLSTMStates lstm_states;
 
     LSTM(size_t input_size, size_t output_size, int seq_len, bool bias = true,
          float gain_w = 1.0f, float gain_b = 1.0f,
@@ -83,5 +80,4 @@ class LSTM : public BaseLayer {
     void preinit_layer() override;
 
    protected:
-    void allocate_states(int batch_size);
 };
