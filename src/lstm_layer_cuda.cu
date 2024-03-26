@@ -4,18 +4,54 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 25, 2024
+// Updated:      March 26, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/activation_cuda.cuh"
 #include "../include/lstm_layer_cuda.cuh"
 #include "../include/param_init.h"
 
-__global__ void cov_input_cell_states(float const *Sha, float const *mw,
-                                      float const *Ji_ga, float const *Jc_ga,
-                                      int w_pos_i, int w_pos_c, int ni, int no,
-                                      int seq_len, int B, float *Ci_c)
+__global__ void lstm_linear_fwd_mean_var(float const *mu_w, float const *var_w,
+                                         float const *mu_b, float const *var_b,
+                                         const float *mu_a, const float *var_a,
+                                         size_t input_size, size_t output_size,
+                                         int batch_size, bool bias, int w_pos,
+                                         int b_pos, float *mu_z, float *var_z)
+/*
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+
+    if (col < batch_size && row < output_size) {
+        for (int i = 0; i < input_size; i++) {
+            float mu_a_tmp = mu_a[input_size * col + i];
+            float var_a_tmp = var_a[input_size * col + i];
+            float mu_w_tmp = mu_w[row * input_size + i + w_pos];
+            float var_w_tmp = var_w[row * input_size + i + w_pos];
+
+            sum_mu += mu_w_tmp * mu_a_tmp;
+            sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                       var_w_tmp * mu_a_tmp * mu_a_tmp;
+        }
+
+        if (bias) {
+            mu_z[col * output_size + row] = sum_mu + mu_b[row + b_pos];
+            var_z[col * output_size + row] = sum_var + var_b[row + b_pos];
+        } else {
+            mu_z[col * output_size + row] = sum_mu;
+            var_z[col * output_size + row] = sum_var;
+        }
+    }
+}
+
+__global__ void lstm_cov_input_cell_states_cuda(
+    float const *Sha, float const *mw, float const *Ji_ga, float const *Jc_ga,
+    int w_pos_i, int w_pos_c, int ni, int no, int seq_len, int B, float *Ci_c)
 /*Compute covariance between input gates and cell states. Note that we store the
    hidden state vector as follows: z = [seq1, seq2, ..., seq n] where seq's
    shape = [1, no * B]
@@ -52,12 +88,11 @@ Args:
     }
 }
 
-__global__ void cell_state_mean_var(float const *mf_ga, float const *Sf_ga,
-                                    float const *mi_ga, float const *Si_ga,
-                                    float const *mc_ga, float const *Sc_ga,
-                                    float const *mc_prev, float const *Sc_prev,
-                                    float const *Ci_c, int no, int seq_len,
-                                    int B, float *mc, float *Sc)
+__global__ void lstm_cell_state_mean_var_cuda(
+    float const *mf_ga, float const *Sf_ga, float const *mi_ga,
+    float const *Si_ga, float const *mc_ga, float const *Sc_ga,
+    float const *mc_prev, float const *Sc_prev, float const *Ci_c, int no,
+    int seq_len, int B, float *mc, float *Sc)
 /*Compute cell states for the current state
 
 Args:
@@ -94,7 +129,7 @@ Args:
     }
 }
 
-__global__ void cov_output_tanh_cell_states(
+__global__ void lstm_cov_output_tanh_cell_states_cuda(
     float const *mw, float const *Sha, float const *mc_prev, float const *Jc_a,
     float const *Jf_ga, float const *mi_ga, float const *Ji_ga,
     float const *mc_ga, float const *Jc_ga, float const *Jo_ga, int w_pos_f,
@@ -150,12 +185,10 @@ Args:
     }
 }
 
-__global__ void hidden_state_mean_var_lstm(float const *mo_ga,
-                                           float const *So_ga,
-                                           float const *mc_a, float const *Sc_a,
-                                           float const *Co_tanh_c, int no,
-                                           int seq_len, int B, float *mz,
-                                           float *Sz)
+__global__ void lstm_hidden_state_mean_var_cuda(
+    float const *mo_ga, float const *So_ga, float const *mc_a,
+    float const *Sc_a, float const *Co_tanh_c, int no, int seq_len, int B,
+    float *mz, float *Sz)
 /*Compute mean and variance for hidden states of the LSTM layer
 
 Args:
@@ -184,6 +217,26 @@ Args:
         Sz[k] = Sc_a[j] * mo_ga[j] * mo_ga[j] + Sc_a[j] * So_ga[j] +
                 So_ga[j] * mc_a[j] * mc_a[j] + powf(Co_tanh_c[j], 2) +
                 2 * Co_tanh_c[j] * mo_ga[j] * mc_a[j];
+    }
+}
+
+__global__ void lstm_cat_act_and_prev_states_cuda(float const *a,
+                                                  float const *b, int n, int m,
+                                                  int seq_len, int B, float *c)
+/*Concatenate two vectors*/
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.y * blockDim.x + threadIdx.x;
+    if (row < B && col < seq_len) {
+        for (int i = 0; i < n; i++) {
+            c[i + col * (n + m) + row * (n + m) * seq_len] =
+                a[i + col * n + row * seq_len * n];
+        }
+
+        for (int j = 0; j < m; j++) {
+            c[j + n + col * (n + m) + row * (n + m) * seq_len] =
+                b[j + col * m + row * m * seq_len];
+        }
     }
 }
 
@@ -567,27 +620,324 @@ void LSTMCuda::init_weight_bias()
                               this->num_weights, this->num_biases);
 }
 
-void LSTMCuda::prepare_input(BaseHiddenStates &input_state)
+void LSTMCuda::prepare_input(BaseHiddenStates &input_states)
 /*
  */
-{}
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    int batch_size = cu_input_states->block_size;
+
+    unsigned int grid_row =
+        (batch_size + this->num_cuda_threads - 1) / (this->num_cuda_threads);
+    unsigned int grid_col =
+        (this->seq_len + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_cat_act_and_prev_states_cuda<<<dim_grid, dim_block>>>(
+        cu_input_states->d_mu_a, this->lstm_state.d_mu_h_prev, this->input_size,
+        this->output_size, this->seq_len, batch_size, this->lstm_state.d_mu_ha);
+    lstm_cat_act_and_prev_states_cuda<<<dim_grid, dim_block>>>(
+        cu_input_states->d_var_a, this->lstm_state.d_var_h_prev,
+        this->input_size, this->output_size, this->seq_len, batch_size,
+        this->lstm_state.d_var_ha);
+}
 
 void LSTMCuda::forget_gate(int batch_size)
 /*
  */
-{}
+{
+    int num_act = batch_size * this->seq_len * this->output_size;
+    unsigned int grid_col =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
+                            this->num_cuda_threads;
+    unsigned int act_block =
+        (num_act + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
+        this->output_size, batch_size, this->bias, this->w_pos_f, this->b_pos_f,
+        this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga);
+
+    mixture_sigmoid(this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga,
+                    this->act_omega, num_act, this->lstm_state.d_mu_f_ga,
+                    this->lstm_state.d_jcb_f_ga, this->lstm_state.d_var_f_ga);
+}
 
 void LSTMCuda::input_gate(int batch_size)
 /*
  */
-{}
+{
+    int num_act = batch_size * this->seq_len * this->output_size;
+    unsigned int grid_col =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
+                            this->num_cuda_threads;
+    unsigned int act_block =
+        (num_act + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
+        this->output_size, batch_size, this->bias, this->w_pos_i, this->b_pos_i,
+        this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga);
+
+    mixture_sigmoid(this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga,
+                    this->act_omega, num_act, this->lstm_state.d_mu_i_ga,
+                    this->lstm_state.d_jcb_i_ga, this->lstm_state.d_var_i_ga);
+}
 
 void LSTMCuda::cell_state_gate(int batch_size)
 /*
  */
-{}
+{
+    int num_act = batch_size * this->seq_len * this->output_size;
+    unsigned int grid_col =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
+                            this->num_cuda_threads;
+    unsigned int act_block =
+        (num_act + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
+        this->output_size, batch_size, this->bias, this->w_pos_c, this->b_pos_c,
+        this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga);
+
+    mixture_tanh(this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga,
+                 this->act_omega, num_act, this->lstm_state.d_mu_c_ga,
+                 this->lstm_state.d_jcb_c_ga, this->lstm_state.d_var_c_ga);
+}
 
 void LSTMCuda::output_gate(int batch_size)
 /*
  */
-{}
+{
+    int num_act = batch_size * this->seq_len * this->output_size;
+    unsigned int grid_col =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
+                            this->num_cuda_threads;
+    unsigned int act_block =
+        (num_act + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
+        this->output_size, batch_size, this->bias, this->w_pos_o, this->b_pos_o,
+        this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga);
+
+    mixture_sigmoid(this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga,
+                    this->act_omega, num_act, this->lstm_state.d_mu_o_ga,
+                    this->lstm_state.d_jcb_o_ga, this->lstm_state.d_var_o_ga);
+}
+
+void LSTMCuda::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    int batch_size = input_states.block_size;
+
+    if (this->_batch_size != batch_size) {
+        this->lstm_state.set_num_states(batch_size * this->seq_len *
+                                        this->output_size);
+    }
+    // Update number of actual states.
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
+    this->prepare_input(input_states);
+    this->forget_gate(batch_size);
+    this->input_gate(batch_size);
+    this->cell_state_gate(batch_size);
+    this->output_gate(batch_size);
+
+    int no_b_seq = batch_size * this->seq_len * this->output_size;
+    unsigned int act_blocks =
+        (no_b_seq + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    unsigned int gridRow_cov =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int gridCol_cov =
+        (this->output_size + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    dim3 dim_grid(gridCol_cov, gridRow_cov);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    // Cov(input gate, cell state gate)
+    lstm_cov_input_cell_states_cuda<<<dim_grid, dim_block>>>(
+        this->lstm_state.d_var_ha, this->d_mu_w, this->lstm_state.d_jcb_i_ga,
+        this->lstm_state.d_jcb_c_ga, this->w_pos_i, this->w_pos_c,
+        this->input_size, this->output_size, this->seq_len, batch_size,
+        this->lstm_state.d_cov_i_c);
+
+    // Mean and variance for the current cell states
+    lstm_cell_state_mean_var_cuda<<<dim_grid, dim_block>>>(
+        this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga,
+        this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga,
+        this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga,
+        this->lstm_state.d_mu_c_prev, this->lstm_state.d_var_c_prev,
+        this->lstm_state.d_cov_i_c, this->output_size, this->seq_len,
+        batch_size, this->lstm_state.d_mu_c, this->lstm_state.d_var_c);
+
+    mixture_tanh<<<act_blocks, this->num_cuda_threads>>>(
+        this->lstm_state.d_mu_c, this->lstm_state.d_var_c, this->act_omega,
+        no_b_seq, this->lstm_state.d_mu_ca, this->lstm_state.d_jcb_ca,
+        this->lstm_state.d_var_ca);
+
+    // Cov(output gate, tanh(cell states))
+    lstm_cov_output_tanh_cell_states_cuda<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->lstm_state.d_var_ha, this->lstm_state.d_mu_c_prev,
+        this->lstm_state.d_jcb_ca, this->lstm_state.d_jcb_f_ga,
+        this->lstm_state.d_mu_i_ga, this->lstm_state.d_jcb_i_ga,
+        this->lstm_state.d_mu_c_ga, this->lstm_state.d_jcb_c_ga,
+        this->lstm_state.d_jcb_o_ga, this->w_pos_f, this->w_pos_i,
+        this->w_pos_c, this->w_pos_o, this->input_size, this->output_size,
+        this->seq_len, batch_size, this->lstm_state.d_cov_o_tanh_c);
+
+    // Mean and variance for hidden states
+    lstm_hidden_state_mean_var_cuda<<<dim_grid, dim_block>>>(
+        this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga,
+        this->lstm_state.d_mu_ca, this->lstm_state.d_var_ca,
+        this->lstm_state.d_cov_o_tanh_c, this->output_size, this->seq_len,
+        batch_size, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+
+    // Update backward state for inferring parameters
+    if (this->training) {
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
+    }
+}
+
+void LSTMCuda::state_backward(BaseBackwardStates &next_bwd_states,
+                              BaseDeltaStates &input_delta_states,
+                              BaseDeltaStates &output_delta_states,
+                              BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+
+    unsigned int gridRow_cov =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int gridCol_cov = (this->input_size + this->num_cuda_threads - 1) /
+                               this->num_cuda_threads;
+    dim3 dim_grid(gridCol_cov, gridRow_cov);
+    dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
+
+    lstm_delta_mean_var_z<<<dim_grid, dim_block>>>(
+        this->d_mu_w, this->lstm_state.d_jcb_f_ga, this->lstm_state.d_mu_i_ga,
+        this->lstm_state.d_jcb_i_ga, this->lstm_state.d_mu_c_ga,
+        this->lstm_state.d_jcb_c_ga, this->lstm_state.d_mu_o_ga,
+        this->lstm_state.d_jcb_o_ga, this->lstm_state.d_mu_c_prev,
+        this->lstm_state.d_mu_ca, this->lstm_state.d_jcb_ca,
+        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
+        this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+        this->output_size, this->input_size, this->seq_len, batch_size,
+        cu_output_delta_states->d_delta_mu,
+        cu_output_delta_states->d_delta_var);
+}
+
+void LSTMCuda::param_backward(BaseBackwardStates &next_bwd_states,
+                              BaseDeltaStates &delta_states,
+                              BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+    DeltaStateCuda *cu_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&delta_states);
+
+    int batch_size = delta_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    // Launch kernel
+    unsigned int b_blocks = (this->output_size + threads - 1) / threads;
+    unsigned int grid_row =
+        (this->input_size + this->output_size + threads - 1) / threads;
+    unsigned int grid_col = (this->output_size + threads - 1) / threads;
+    dim3 dim_grid(grid_col, grid_row);
+    dim3 dim_block(threads, threads);
+
+    // Concatenate the hidden states from the previous time step and
+    // activations from the previous layer
+    unsigned int grid_row_cat = (batch_size + threads - 1) / threads;
+    unsigned int grid_col_cat = (this->seq_len + threads - 1) / threads;
+    dim3 dim_grid_cat(grid_col_cat, grid_row_cat);
+    lstm_cat_act_and_prev_states_cuda<<<dim_grid_cat, dim_block>>>(
+        cu_next_bwd_states->d_mu_a, this->lstm_state.d_mu_h_prev,
+        this->input_size, this->output_size, this->seq_len, batch_size,
+        this->lstm_state.d_mu_ha);
+
+    lstm_delta_mean_var_w<<<dim_grid, dim_block>>>(
+        this->d_var_w, this->lstm_state.d_mu_ha, this->lstm_state.d_jcb_f_ga,
+        this->lstm_state.d_mu_i_ga, this->lstm_state.d_jcb_i_ga,
+        this->lstm_state.d_mu_c_ga, this->lstm_state.d_jcb_c_ga,
+        this->lstm_state.d_mu_o_ga, this->lstm_state.d_jcb_o_ga,
+        this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_ca,
+        this->lstm_state.d_jcb_ca, cu_delta_states->d_delta_mu,
+        cu_delta_states->d_delta_var, this->w_pos_f, this->w_pos_i,
+        this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
+        this->seq_len, batch_size, this->d_delta_mu_w, this->d_delta_var_w);
+
+    if (this->bias) {
+        lstm_delta_mean_var_b<<<b_blocks, threads>>>(
+            this->d_var_b, this->lstm_state.d_jcb_f_ga,
+            this->lstm_state.d_mu_i_ga, this->lstm_state.d_jcb_i_ga,
+            this->lstm_state.d_mu_c_ga, this->lstm_state.d_jcb_c_ga,
+            this->lstm_state.d_mu_o_ga, this->lstm_state.d_jcb_o_ga,
+            this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_ca,
+            this->lstm_state.d_jcb_ca, cu_delta_states->d_delta_mu,
+            cu_delta_states->d_delta_var, this->b_pos_f, this->b_pos_i,
+            this->b_pos_c, this->b_pos_o, this->output_size, this->seq_len,
+            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+    }
+}
