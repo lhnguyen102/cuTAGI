@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 25, 2024
+// Updated:      March 26, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ class LSTMCuda : public BaseLayerCuda {
 
     void state_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_hidden_states,
+                        BaseDeltaStates &output_delta_states,
                         BaseTempStates &temp_states) override;
 
     void param_backward(BaseBackwardStates &next_bwd_states,

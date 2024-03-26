@@ -385,7 +385,7 @@ Args:
     // Launch kernel
     int THREADS = net.num_gpu_threads;
     unsigned int BLOCKS = (no + THREADS - 1) / THREADS;
-    unsigned int gridRow = (ni + no + +THREADS - 1) / THREADS;
+    unsigned int gridRow = (ni + no + THREADS - 1) / THREADS;
     unsigned int gridCol = (no + THREADS - 1) / THREADS;
     dim3 dimGrid(gridCol, gridRow);
     dim3 dimBlock(THREADS, THREADS);
