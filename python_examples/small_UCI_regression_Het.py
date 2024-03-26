@@ -21,7 +21,7 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Boston_housing"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+data_names = ["Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
 
 for j in range(len(data_names)):
 
@@ -72,11 +72,17 @@ for j in range(len(data_names)):
     NOISE_GAIN = {"Boston_housing": 0.01, "Concrete": 0.01, "Energy": 0.01, "Yacht": 0.1, "Wine": 0.01, \
                         "Kin8nm": 0.01, "Naval": 0.01, "Power-plant": 0.001, "Protein": 0.1}
 
-    # Change batch size for Boston
-    # if data_names[j] == "Boston_housing":
-    #     BATCH_SIZE = 10
-    # if data_names[j] == "Kin8nm":
-    #     BATCH_SIZE = 10
+    EPOCHS = {}
+    # Path to the directory containing optimal_epoch.txt files
+    filepath_opt_epoch = "results_small_UCI_TAGI_AGVI_Het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
+
+    # Read the optimal epochs
+    try:
+        with open(filepath_opt_epoch, 'r') as file:
+            epoch = int(file.read().strip())
+            EPOCHS[data_names[j]] = epoch
+    except FileNotFoundError:
+        print(f"File not found: {filepath_opt_epoch}")
 
     # Change number of splits for Protein data to 5
     if data_names[j] == "Protein":
@@ -277,9 +283,13 @@ for j in range(len(data_names)):
 
     fig, ax = plt.subplots(1, 2, figsize=(15, 5))
     ax[0].plot(range(num_epochs), mean_RMSE)
+    if os.path.exists(filepath_opt_epoch):
+        ax[0].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on RMSE plot
     ax[0].set_xlabel('Epochs')
     ax[0].set_ylabel('RMSE')
     ax[1].scatter(range(num_epochs), mean_LL)
+    if os.path.exists(filepath_opt_epoch):
+        ax[1].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on RMSE plot
     ax[1].set_xlabel('Epochs')
     ax[1].set_ylabel('Log-likelihood')
     # set the main title for the figure

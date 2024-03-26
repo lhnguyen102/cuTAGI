@@ -22,8 +22,8 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
-use_optimal_epoch = 1
+data_names = ["Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+
 for j in range(len(data_names)):
 
     # check if the results folder already exists; create it if does not exist or remove the existing one
@@ -63,14 +63,26 @@ for j in range(len(data_names)):
     BATCH_SIZE  = 10     # batch size
     num_hidden_layers = 50
 
-    # optimal epochs for each dataset found by cross-validation
-    EPOCHS = {"Boston_housing": 10, "Concrete": 13, "Energy": 17, "Yacht": 20, "Wine": 8, \
-                        "Kin8nm": 18, "Naval": 32, "Power-plant": 9, "Protein": 11}
+    # Dictionary to store optimal epochs for each dataset
+    EPOCHS = {}
+    # Path to the directory containing optimal_epoch.txt files
+    filepath_opt_epoch = "results_small_UCI_TAGI_AGVI_Het_no_gain_earlystop/"+data_names[j]+"/optimal_epoch.txt"
+
+    # Read the optimal epochs
+    try:
+        with open(filepath_opt_epoch, 'r') as file:
+            epoch = int(file.read().strip())
+            EPOCHS[data_names[j]] = epoch
+    except FileNotFoundError:
+        print(f"File not found: {filepath_opt_epoch}")
 
     # Change number of splits for Protein data to 5
     if data_names[j] == "Protein":
         n_splits = 5
         num_hidden_layers = 100
+    # change batch-size to 10 for energy
+    if data_names[j] == "Yacht":
+        BATCH_SIZE = 5
 
 
     # Input data and output data
@@ -100,7 +112,7 @@ for j in range(len(data_names)):
             self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cpu" # cpu
-            self.early_stop     =  early_stop
+            self.early_stop     =  0
 
 
 
@@ -144,147 +156,164 @@ for j in range(len(data_names)):
 
             return np.concatenate((random_idx, reminder_idx))
 
+    total_run = 5 # define the number of runs
+    mse_runs, rmse_runs, log_lik_runs, runtime_runs = [],[],[],[]
+    for loop in range(total_run):
+        mse_list = []
+        log_lik_list = []
+        rmse_list = []
+        runtime_list = []
 
-    mse_list = []
-    log_lik_list = []
-    rmse_list = []
-    runtime_list = []
+        # saving rmse and LL lists for each split
+        rmse_splitlist = []
+        LL_splitlist = []
+        stopEpoch_list = []
+        for i in range(n_splits):
+            index_train = np.loadtxt(data_name +"/data/index_train_{}.txt".format(i)).astype(int)
+            index_test = np.loadtxt(data_name +"/data/index_test_{}.txt".format(i)).astype(int)
 
-    # saving rmse and LL lists for each split
-    rmse_splitlist = []
-    LL_splitlist = []
-    stopEpoch_list = []
-    for i in range(n_splits):
-        index_train = np.loadtxt(data_name +"/data/index_train_{}.txt".format(i)).astype(int)
-        index_test = np.loadtxt(data_name +"/data/index_test_{}.txt".format(i)).astype(int)
+            # print(index_train)
+            # print(index_test)
 
-        # print(index_train)
-        # print(index_test)
+            #Check for intersection of elements
+            ind = np.intersect1d(index_train,index_test)
+            if len(ind)!=0:
+                print('Train and test indices are not unique')
+                break
 
-        #Check for intersection of elements
-        ind = np.intersect1d(index_train,index_test)
-        if len(ind)!=0:
-            print('Train and test indices are not unique')
-            break
-
-        # Train and Test data for the current split
-        x_train = X[ index_train.tolist(), ]
-        y_train = Y[ index_train.tolist() ]
-        y_train = np.reshape(y_train,[len(y_train),1]) #BD
-        x_test  = X[ index_test.tolist(), ]
-        y_test  = Y[ index_test.tolist() ]
-        y_test = np.reshape(y_test,[len(y_test),1])    #BD
-
-
-        # setting early stopping
-        early_stop = 0
-        # splitting training data into train and val data if early-stopping is needed
-        if early_stop == 1:
-           x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.1, random_state=42)
-        else:
-            x_val, y_val = [], []
-
-        # Normalizer
-        from pytagi import Normalizer, Utils
-
-        normalizer: Normalizer = Normalizer()
-
-        x_mean, x_std = normalizer.compute_mean_std(x_train)
-        y_mean, y_std = normalizer.compute_mean_std(y_train)
-
-        # x_mean, x_std = normalizer.compute_mean_std(
-        #     np.concatenate((x_train, x_test))
-        # )
-        # y_mean, y_std = normalizer.compute_mean_std(
-        #     np.concatenate((y_train, y_test))
-        # )
+            # Train and Test data for the current split
+            x_train = X[ index_train.tolist(), ]
+            y_train = Y[ index_train.tolist() ]
+            y_train = np.reshape(y_train,[len(y_train),1]) #BD
+            x_test  = X[ index_test.tolist(), ]
+            y_test  = Y[ index_test.tolist() ]
+            y_test = np.reshape(y_test,[len(y_test),1])    #BD
 
 
-        x_train = normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
-        y_train = normalizer.standardize(data=y_train, mu=y_mean, std=y_std)
-        x_test = normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
-        y_test = normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
+            # setting early stopping
+            early_stop = 0
+            # splitting training data into train and val data if early-stopping is needed
+            if early_stop == 1:
+                x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.1, random_state=42)
+            else:
+                x_val, y_val = [], []
 
-        # normalize val data
-        if early_stop==1:
-            x_val = normalizer.standardize(data=x_val, mu=x_mean, std=x_std)
-            y_val = normalizer.standardize(data=y_val, mu=y_mean, std=y_std)
+            # Normalizer
+            from pytagi import Normalizer, Utils
 
-        # Dataloader
-        data_loader = {}
-        data_loader["train"] = (x_train, y_train)
-        data_loader["test"] = create_data_loader(
-            raw_input=x_test, raw_output=y_test, batch_size=BATCH_SIZE
-        )
-        if early_stop==1:
-            data_loader["val"] = create_data_loader(
-            raw_input=x_val, raw_output=y_val, batch_size=BATCH_SIZE
-        )
+            normalizer: Normalizer = Normalizer()
 
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
-        data_loader["y_norm_param_1"] = y_mean
-        data_loader["y_norm_param_2"] = y_std
+            x_mean, x_std = normalizer.compute_mean_std(x_train)
+            y_mean, y_std = normalizer.compute_mean_std(y_train)
 
-        # print(data_loader["train"][0].shape)
+            # x_mean, x_std = normalizer.compute_mean_std(
+            #     np.concatenate((x_train, x_test))
+            # )
+            # y_mean, y_std = normalizer.compute_mean_std(
+            #     np.concatenate((y_train, y_test))
+            # )
 
 
-        # Model
-        net_prop = HeterosUCIMLP()
+            x_train = normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
+            y_train = normalizer.standardize(data=y_train, mu=y_mean, std=y_std)
+            x_test = normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
+            y_test = normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
+
+            # normalize val data
+            if early_stop==1:
+                x_val = normalizer.standardize(data=x_val, mu=x_mean, std=x_std)
+                y_val = normalizer.standardize(data=y_val, mu=y_mean, std=y_std)
+
+            # Dataloader
+            data_loader = {}
+            data_loader["train"] = (x_train, y_train)
+            data_loader["test"] = create_data_loader(
+                raw_input=x_test, raw_output=y_test, batch_size=BATCH_SIZE
+            )
+            if early_stop==1:
+                data_loader["val"] = create_data_loader(
+                raw_input=x_val, raw_output=y_val, batch_size=BATCH_SIZE
+            )
+
+            data_loader["x_norm_param_1"] = x_mean
+            data_loader["x_norm_param_2"] = x_std
+            data_loader["y_norm_param_1"] = y_mean
+            data_loader["y_norm_param_2"] = y_std
+
+            # print(data_loader["train"][0].shape)
 
 
-        reg_data_loader = RegressionDataLoader(num_inputs=num_inputs,
-                                        num_outputs=num_outputs,
-                                        batch_size=net_prop.batch_size)
+            # Model
+            net_prop = HeterosUCIMLP()
 
 
-        reg_task = Regression(num_epochs=num_epochs,
-                        data_loader=data_loader,
-                        net_prop=net_prop)
+            reg_data_loader = RegressionDataLoader(num_inputs=num_inputs,
+                                            num_outputs=num_outputs,
+                                            batch_size=net_prop.batch_size)
 
 
-        # Train the network
-        start_time = time.time()
-        _, rmse_Epochlist, LL_Epochlist, _, stop_epoch = reg_task.train_UCI()
-
-        # storing stop_epoch for each split
-        stopEpoch_list.append(stop_epoch)
-
-        # store rmse and LL lists for each split in rmse_splitlist and LL_splitlist
-        rmse_splitlist.append(rmse_Epochlist)
-        LL_splitlist.append(LL_Epochlist)
-
-        # print(rmse_Epochlist)
-        # print(LL_Epochlist)
-        # time to run max epochs
-        runtime = time.time()-start_time
-
-        # Predict for one split
-        mse, log_lik, rmse, _ = reg_task.predict_UCI()
-        # Store the results
-        mse_list.append(mse)
-        log_lik_list.append(log_lik)
-        rmse_list.append(rmse)
-        runtime_list.append(runtime)
+            reg_task = Regression(num_epochs=num_epochs,
+                            data_loader=data_loader,
+                            net_prop=net_prop)
 
 
-    mean_RMSE = np.mean(rmse_splitlist, axis=0)
-    mean_LL   = np.mean(LL_splitlist,axis=0)
+            # Train the network
+            start_time = time.time()
+            _, rmse_Epochlist, LL_Epochlist, _, stop_epoch = reg_task.train_UCI()
+
+            # storing stop_epoch for each split
+            stopEpoch_list.append(stop_epoch)
+
+            # store rmse and LL lists for each split in rmse_splitlist and LL_splitlist
+            rmse_splitlist.append(rmse_Epochlist)
+            LL_splitlist.append(LL_Epochlist)
+
+            # print(rmse_Epochlist)
+            # print(LL_Epochlist)
+            # time to run max epochs
+            runtime = time.time()-start_time
+
+            # Predict for one split
+            mse, log_lik, rmse, _ = reg_task.predict_UCI()
+            # Store the results
+            mse_list.append(mse)
+            log_lik_list.append(log_lik)
+            rmse_list.append(rmse)
+            runtime_list.append(runtime)
 
 
-    # Print the average results
-    print("Average MSE: ", np.mean(mse_list))
-    print("Average Log-likelihood: ", np.mean(log_lik_list))
-    print("Average RMSE: ", np.mean(rmse_list))
-    print("Average Runtime: ", np.mean(runtime_list))
+        mean_RMSE = np.mean(rmse_splitlist, axis=0)
+        mean_LL   = np.mean(LL_splitlist,axis=0)
 
+
+        # Print the average results
+        print("Average MSE: {:.3f} ± {:.3f}".format(np.mean(mse_list), np.std(mse_list)))
+        print("Average Log-likelihood: {:.3f} ± {:.3f}".format(np.mean(log_lik_list), np.std(log_lik_list)))
+        print("Average RMSE: {:.3f} ± {:.3f}".format(np.mean(rmse_list), np.std(rmse_list)))
+        print("Average Runtime: {:.3f} ± {:.3f}".format(np.mean(runtime_list), np.std(runtime_list)))
+
+        # saving value for each run of random seed
+        mse_runs.append((np.mean(mse_list), np.std(mse_list)))
+        rmse_runs.append((np.mean(rmse_list), np.std(rmse_list)))
+        log_lik_runs.append((np.mean(log_lik_list), np.std(log_lik_list)))
+        runtime_runs.append((np.mean(runtime_list), np.std(runtime_list)))
+
+    # Check for NaN values in rmse_runs and log_lik_runs
+    if np.isnan(rmse_runs).any() or np.isnan(log_lik_runs).any():
+        raise ValueError("One of the arrays contains NaN values.")
     # Save the average results
     with open(RESULTS_RMSEtest, "a") as file:
-        file.write(str(np.mean(rmse_list)) + "\n")
+        for mean, std in rmse_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(rmse_runs)) + "\n")
     with open(RESULTS_LLtest, "a") as file:
-        file.write(str(np.mean(log_lik_list)) + "\n")
+        for mean, std in log_lik_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(log_lik_runs)) + "\n")
     with open(RESULTS_RUNTIME, "a") as file:
-        file.write(str(np.mean(runtime_list)) + "\n")
+        for mean, std in runtime_runs:
+            file.write("{:.3f} ± {:.3f}\n".format(mean, std))
+        # file.write(str(np.mean(runtime_runs)) + "\n")
 
 
 

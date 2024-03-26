@@ -31,11 +31,13 @@ for j in range(len(data_names)):
         os.makedirs("results_small_UCI_TAGI_AGVI_Het_earlystop/{}".format(data_names[j]))
     elif os.path.isfile("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/RMSEtest.txt".format(data_names[j])) and \
         os.path.isfile("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/LLtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/runtime_train.txt".format(data_names[j])):
+        os.path.isfile("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/optimal_epoch.txt".format(data_names[j])):
 
         os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/RMSEtest.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/LLtest.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/runtime_train.txt".format(data_names[j]))
+        os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/optimal_epoch.txt".format(data_names[j]))
+
         # os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/learning_curve_LL.txt".format(data_names[j]))
         # os.remove("results_small_UCI_TAGI_AGVI_Het_earlystop/{}/learning_curve_RMSE.txt".format(data_names[j]))
 
@@ -73,10 +75,11 @@ for j in range(len(data_names)):
     if data_names[j] == "Protein":
         n_splits = 5
         num_hidden_layers = 100
-    # Change batch size of Boston Housing
-    if data_names[j] == "Boston_housing":
-        BATCH_SIZE = 32
-
+    # # Change batch size of Boston Housing
+    # if data_names[j] == "Boston_housing":
+    #     BATCH_SIZE = 32
+    if data_names[j] == "Yacht":
+        BATCH_SIZE = 5
 
     # Input data and output data
     X = data[ : , index_features.tolist() ]

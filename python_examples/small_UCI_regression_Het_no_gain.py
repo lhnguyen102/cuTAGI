@@ -22,10 +22,11 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["Boston_housing"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
-use_optimal_epoch = 1
+data_names = ["Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"] # "Boston_housing","Concrete", "Energy", "Yacht", "Wine", "Kin8nm","Naval", "Power-plant","Protein"
+
 for j in range(len(data_names)):
 
+    # check if the results folder already exists; create it if does not exist or remove the existing one
     # check if the results folder already exists; create it if does not exist or remove the existing one
     if not os.path.exists("results_small_UCI_TAGI_AGVI_Het_NoGain/{}".format(data_names[j])):
         os.makedirs("results_small_UCI_TAGI_AGVI_Het_NoGain/{}".format(data_names[j]))
@@ -38,26 +39,13 @@ for j in range(len(data_names)):
         os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/runtime_train.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/learning_curve_LL.txt".format(data_names[j]))
         os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/learning_curve_RMSE.txt".format(data_names[j]))
-        if use_optimal_epoch == 1:
-            os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/RMSEtest_opt_Epoch.txt".format(data_names[j]))
-            os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/LLtest_opt_Epoch.txt".format(data_names[j]))
-            os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/runtime_train_opt_Epoch.txt".format(data_names[j]))
-            os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/learning_curve_LL_opt_Epoch.txt".format(data_names[j]))
-            os.remove("results_small_UCI_TAGI_AGVI_Het_NoGain/{}/learning_curve_RMSE_opt_Epoch.txt".format(data_names[j]))
 
     # File paths for the results
-    if use_optimal_epoch == 0:
-        RESULTS_RMSEtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/RMSEtest.txt"
-        RESULTS_LLtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/LLtest.txt"
-        RESULTS_RUNTIME = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/runtime_train.txt"
-        RESULTS_LL_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_LL.txt"
-        RESULTS_RMSE_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_RMSE.txt"
-    elif use_optimal_epoch == 1:
-        RESULTS_RMSEtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/RMSEtest_opt_Epoch.txt"
-        RESULTS_LLtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/LLtest_opt_Epoch.txt"
-        RESULTS_RUNTIME = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/runtime_train_opt_Epoch.txt"
-        # RESULTS_LL_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_LL_opt_Epoch.txt"
-        # RESULTS_RMSE_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_RMSE_opt_Epoch.txt"
+    RESULTS_RMSEtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/RMSEtest.txt"
+    RESULTS_LLtest = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/LLtest.txt"
+    RESULTS_RUNTIME = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_LL_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_LL.txt"
+    RESULTS_RMSE_learning_curve = "results_small_UCI_TAGI_AGVI_Het_NoGain/"+data_names[j]+"/learning_curve_RMSE.txt"
 
     # getting data name
     data_name = 'data/UCI/' + data_names[j]
@@ -77,29 +65,33 @@ for j in range(len(data_names)):
     num_inputs  = len(index_features)     # 1 explanatory variable
     num_outputs = 1     # 1 predicted output
     num_epochs  = 100     # row for 40 epochs
-    BATCH_SIZE  = 32     # batch size
+    BATCH_SIZE  = 10     # batch size
     num_hidden_layers = 50
 
-    # optimal epochs for each dataset found by cross-validation
-    EPOCHS = {"Boston_housing": 10, "Concrete": 13, "Energy": 17, "Yacht": 20, "Wine": 8, \
-                        "Kin8nm": 18, "Naval": 32, "Power-plant": 9, "Protein": 11}
+    EPOCHS = {}
+    # Path to the directory containing optimal_epoch.txt files
+    filepath_opt_epoch = "results_small_UCI_TAGI_AGVI_Het_no_gain_earlystop/"+data_names[j]+"/optimal_epoch.txt"
+
+    # Read the optimal epochs
+    try:
+        with open(filepath_opt_epoch, 'r') as file:
+            epoch = int(file.read().strip())
+            EPOCHS[data_names[j]] = epoch
+    except FileNotFoundError:
+        print(f"File not found: {filepath_opt_epoch}")
 
     # Change number of splits for Protein data to 5
     if data_names[j] == "Protein":
         n_splits = 5
         num_hidden_layers = 100
-
+    if data_names[j] == "Yacht":
+        BATCH_SIZE  = 5
 
     # Input data and output data
     X = data[ : , index_features.tolist() ]
     Y = data[ : , index_target.tolist() ]
     input_dim = X.shape[1]
 
-
-    # optimal epochs using cross-validation
-
-    if use_optimal_epoch == 1:
-        num_epochs = EPOCHS[data_names[j]]
     ## classes
     class HeterosUCIMLP(NetProp):
         """Multi-layer preceptron for regression task where the
@@ -118,7 +110,7 @@ for j in range(len(data_names)):
             self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cpu" # cpu
-            self.early_stop     =  early_stop
+            self.early_stop     =  0
 
 
 
@@ -210,12 +202,6 @@ for j in range(len(data_names)):
         x_mean, x_std = normalizer.compute_mean_std(x_train)
         y_mean, y_std = normalizer.compute_mean_std(y_train)
 
-        # x_mean, x_std = normalizer.compute_mean_std(
-        #     np.concatenate((x_train, x_test))
-        # )
-        # y_mean, y_std = normalizer.compute_mean_std(
-        #     np.concatenate((y_train, y_test))
-        # )
 
 
         x_train = normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
@@ -290,12 +276,12 @@ for j in range(len(data_names)):
     mean_LL   = np.mean(LL_splitlist,axis=0)
 
     # Load optimal epoch value from the text file if exists
-    if use_optimal_epoch != 1:
-        optimal_epoch_path = "results_small_UCI_TAGI_AGVI_Het_earlystop/"+ data_names[j] + "/optimal_epoch.txt"
-        if os.path.exists(optimal_epoch_path):
-            # Load optimal epoch value from the text file
-            with open(optimal_epoch_path, 'r') as file:
-                optimal_epoch = int(file.readline().strip())
+
+    optimal_epoch_path = "results_small_UCI_TAGI_AGVI_Het_no_gain_earlystop/"+ data_names[j] + "/optimal_epoch.txt"
+    if os.path.exists(optimal_epoch_path):
+        # Load optimal epoch value from the text file
+        with open(optimal_epoch_path, 'r') as file:
+            optimal_epoch = int(file.readline().strip())
 
         # Plotting
         fig, ax = plt.subplots(1, 2, figsize=(15, 5))
@@ -330,11 +316,11 @@ for j in range(len(data_names)):
     with open(RESULTS_RUNTIME, "a") as file:
         file.write(str(np.mean(runtime_list)) + "\n")
 
-    if use_optimal_epoch !=1:
-        with open(RESULTS_LL_learning_curve, "a") as file:
-            file.write(str(mean_LL) + "\n")
-        with open(RESULTS_RMSE_learning_curve, "a") as file:
-            file.write(str(mean_RMSE) + "\n")
+
+    with open(RESULTS_LL_learning_curve, "a") as file:
+        file.write(str(mean_LL) + "\n")
+    with open(RESULTS_RMSE_learning_curve, "a") as file:
+        file.write(str(mean_RMSE) + "\n")
 
 
 
