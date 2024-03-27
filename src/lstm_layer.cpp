@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 26, 2024
+// Updated:      March 27, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,10 @@
 #include "../include/activation.h"
 #include "../include/common.h"
 #include "../include/param_init.h"
+
+#ifdef USE_CUDA
+#include "../include/lstm_layer_cuda.cuh"
+#endif
 
 // TODO: merge this two following functions with linear layer
 void lstm_fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
@@ -1344,6 +1348,15 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
         }
     }
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> LSTM::to_cuda() {
+    this->device = "cuda";
+    return std::make_unique<LSTMCuda>(this->input_size, this->output_size,
+                                      this->seq_len, this->bias, this->gain_w,
+                                      this->gain_b, this->init_method);
+}
+#endif
 
 void LSTM::preinit_layer() {
     if (this->num_weights == 0) {

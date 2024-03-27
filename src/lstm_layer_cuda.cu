@@ -4,12 +4,13 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 26, 2024
+// Updated:      March 27, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/activation_cuda.cuh"
+#include "../include/lstm_layer.h"
 #include "../include/lstm_layer_cuda.cuh"
 #include "../include/param_init.h"
 
@@ -554,7 +555,6 @@ LSTMCuda::LSTMCuda(size_t input_size, size_t output_size, int seq_len,
     this->get_number_param();
     this->init_weight_bias();
     if (this->training) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
     }
 }
@@ -618,6 +618,9 @@ void LSTMCuda::init_weight_bias()
         init_weight_bias_lstm(this->init_method, this->gain_w, this->gain_b,
                               this->input_size, this->output_size,
                               this->num_weights, this->num_biases);
+
+    this->allocate_param_memory();
+    this->params_to_device();
 }
 
 void LSTMCuda::prepare_input(BaseHiddenStates &input_states)
@@ -668,9 +671,10 @@ void LSTMCuda::forget_gate(int batch_size)
         this->output_size, batch_size, this->bias, this->w_pos_f, this->b_pos_f,
         this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga);
 
-    mixture_sigmoid(this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga,
-                    this->act_omega, num_act, this->lstm_state.d_mu_f_ga,
-                    this->lstm_state.d_jcb_f_ga, this->lstm_state.d_var_f_ga);
+    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+        this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga,
+        this->act_omega, num_act, this->lstm_state.d_mu_f_ga,
+        this->lstm_state.d_jcb_f_ga, this->lstm_state.d_var_f_ga);
 }
 
 void LSTMCuda::input_gate(int batch_size)
@@ -695,9 +699,10 @@ void LSTMCuda::input_gate(int batch_size)
         this->output_size, batch_size, this->bias, this->w_pos_i, this->b_pos_i,
         this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga);
 
-    mixture_sigmoid(this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga,
-                    this->act_omega, num_act, this->lstm_state.d_mu_i_ga,
-                    this->lstm_state.d_jcb_i_ga, this->lstm_state.d_var_i_ga);
+    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+        this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga,
+        this->act_omega, num_act, this->lstm_state.d_mu_i_ga,
+        this->lstm_state.d_jcb_i_ga, this->lstm_state.d_var_i_ga);
 }
 
 void LSTMCuda::cell_state_gate(int batch_size)
@@ -722,9 +727,10 @@ void LSTMCuda::cell_state_gate(int batch_size)
         this->output_size, batch_size, this->bias, this->w_pos_c, this->b_pos_c,
         this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga);
 
-    mixture_tanh(this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga,
-                 this->act_omega, num_act, this->lstm_state.d_mu_c_ga,
-                 this->lstm_state.d_jcb_c_ga, this->lstm_state.d_var_c_ga);
+    mixture_tanh<<<act_block, this->num_cuda_threads>>>(
+        this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga,
+        this->act_omega, num_act, this->lstm_state.d_mu_c_ga,
+        this->lstm_state.d_jcb_c_ga, this->lstm_state.d_var_c_ga);
 }
 
 void LSTMCuda::output_gate(int batch_size)
@@ -749,9 +755,10 @@ void LSTMCuda::output_gate(int batch_size)
         this->output_size, batch_size, this->bias, this->w_pos_o, this->b_pos_o,
         this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga);
 
-    mixture_sigmoid(this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga,
-                    this->act_omega, num_act, this->lstm_state.d_mu_o_ga,
-                    this->lstm_state.d_jcb_o_ga, this->lstm_state.d_var_o_ga);
+    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+        this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga,
+        this->act_omega, num_act, this->lstm_state.d_mu_o_ga,
+        this->lstm_state.d_jcb_o_ga, this->lstm_state.d_var_o_ga);
 }
 
 void LSTMCuda::forward(BaseHiddenStates &input_states,
@@ -853,8 +860,6 @@ void LSTMCuda::state_backward(BaseBackwardStates &next_bwd_states,
  */
 {
     // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
     DeltaStateCuda *cu_input_delta_states =
         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
     DeltaStateCuda *cu_output_delta_states =
@@ -939,5 +944,31 @@ void LSTMCuda::param_backward(BaseBackwardStates &next_bwd_states,
             cu_delta_states->d_delta_var, this->b_pos_f, this->b_pos_i,
             this->b_pos_c, this->b_pos_o, this->output_size, this->seq_len,
             batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+    }
+}
+
+std::unique_ptr<BaseLayer> LSTMCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_linear = std::make_unique<LSTM>(
+        this->input_size, this->output_size, this->seq_len, this->bias,
+        this->gain_w, this->gain_b, this->init_method);
+
+    host_linear->mu_w = this->mu_w;
+    host_linear->var_w = this->var_w;
+    host_linear->mu_b = this->mu_b;
+    host_linear->var_b = this->var_b;
+
+    return host_linear;
+}
+
+void LSTMCuda::preinit_layer() {
+    if (this->num_weights == 0) {
+        this->get_number_param();
+        this->init_weight_bias();
+    }
+    if (this->training) {
+        this->allocate_param_delta();
     }
 }

@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      March 17, 2024
+// Updated:      March 27, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,6 +23,7 @@
 #include "test/embedding/test_emb_cpu.h"
 #include "test/fnn/test_fnn_cpu_v2.h"
 #include "test/fnn/test_fnn_mnist_cpu.h"
+#include "test/lstm/test_lstm_v2.h"
 #include "test/mha/test_mha_cpu.h"
 #include "test/test_cpu.h"
 #include "test/test_gpu.cuh"
@@ -80,6 +81,8 @@ int main(int argc, char* argv[]) {
         auto is_passed = cross_val_with_old_version();
     } else if (user_input_file.compare("autoencoder_mnist") == 0) {
         auto is_passed = test_autoecoder_v2();
+    } else if (user_input_file.compare("lstm_toy") == 0) {
+        auto is_passed = test_lstm_v2();
     } else {
         if (user_input.device == "cuda" && is_cuda_available()) {
             std::cout << "Run on CUDA device "
