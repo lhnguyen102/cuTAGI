@@ -82,9 +82,6 @@ class LSTMCuda : public BaseLayerCuda {
     void preinit_layer() override;
 
    protected:
-    void allocate_states(int batch_size);
-    void states_to_host();
-    void state_to_device();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

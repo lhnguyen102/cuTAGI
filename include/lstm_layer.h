@@ -25,8 +25,8 @@ class LSTM : public BaseLayer {
     int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
     BaseLSTMStates lstm_states;
 
-    LSTM(size_t input_size, size_t output_size, int seq_len, bool bias = true,
-         float gain_w = 1.0f, float gain_b = 1.0f,
+    LSTM(size_t input_size, size_t output_size, int seq_len = 1,
+         bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
          std::string init_method = "He");
 
     ~LSTM();

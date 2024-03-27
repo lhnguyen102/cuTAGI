@@ -180,6 +180,7 @@ set(CPU_SOURCES
   test/fnn/test_fnn_mnist_cpu.cpp
   test/cross_val/cross_val.cpp
   test/autoencoder/test_autoencoder_v2.cpp
+  test/lstm/test_lstm_v2.cpp
 )
 
 # Sources code for CUDA
@@ -203,6 +204,7 @@ set(GPU_SOURCES
   src/pooling_layer_cuda.cu
   src/norm_layer_cuda.cu
   src/convtranspose2d_layer_cuda.cu
+  src/lstm_layer_cuda.cu
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
