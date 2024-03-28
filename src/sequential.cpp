@@ -170,7 +170,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
  */
 {
     // Batch size
-    int batch_size = mu_x.size() / this->layers.front()->input_size;
+    int batch_size = mu_x.size() / this->layers.front()->get_input_size();
 
     // Only initialize if batch size changes
     if (batch_size != this->z_buffer_block_size) {
@@ -206,7 +206,6 @@ void Sequential::forward(BaseHiddenStates &input_states)
 {
     // Batch size
     int batch_size = input_states.block_size;
-    ;
 
     // Only initialize if batch size changes
     if (batch_size != this->z_buffer_block_size) {

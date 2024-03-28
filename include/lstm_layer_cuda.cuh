@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 26, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +49,10 @@ class LSTMCuda : public BaseLayerCuda {
     std::string get_layer_name() const override;
 
     LayerType get_layer_type() const override;
+
+    int get_input_size() override;
+
+    int get_output_size() override;
 
     void get_number_param();
 

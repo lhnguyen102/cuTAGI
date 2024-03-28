@@ -80,26 +80,29 @@ void BaseObservation::set_selected_idx(std::vector<int> &selected_idx) {
 }
 
 BaseLSTMStates::BaseLSTMStates() {}
-BaseLSTMStates::BaseLSTMStates(size_t num_states)
-    : num_states(num_states)
+BaseLSTMStates::BaseLSTMStates(size_t num_states, size_t num_inputs)
+    : num_states(num_states),
+      num_inputs(num_inputs)
 /*
  */
 {
     this->reset_zeros();
 }
 
-void BaseLSTMStates::set_num_states(size_t num_states)
+void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs)
 /*
  */
 {
     this->num_states = num_states;
+    this->num_inputs = num_inputs;
+    this->reset_zeros();
 }
 
 void BaseLSTMStates::reset_zeros()
 /**/
 {
-    mu_ha.resize(num_states, 0);
-    var_ha.resize(num_states, 0);
+    mu_ha.resize(num_states + num_inputs, 0);
+    var_ha.resize(num_states + num_inputs, 0);
     mu_f_ga.resize(num_states, 0);
     var_f_ga.resize(num_states, 0);
     jcb_f_ga.resize(num_states, 0);

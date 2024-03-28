@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 18, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -393,8 +393,8 @@ void ObservationCuda::to_host() {
 // LSTM states
 ////////////////////////////////////////////////////////////////////////////////
 LSTMStateCuda::LSTMStateCuda() {}
-LSTMStateCuda::LSTMStateCuda(size_t num_states)
-    : BaseLSTMStates(num_states)
+LSTMStateCuda::LSTMStateCuda(size_t num_states, size_t num_inputs)
+    : BaseLSTMStates(num_states, num_inputs)
 /*
  */
 {
@@ -456,14 +456,26 @@ LSTMStateCuda::~LSTMStateCuda()
     cudaFree(d_cov_o_tanh_c);
     d_cov_o_tanh_c = nullptr;
 }
+
+void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
+/*
+ */
+{
+    this->num_states = num_states;
+    this->num_inputs = num_inputs;
+    this->reset_zeros();
+    this->allocate_memory();
+}
+
 void LSTMStateCuda::allocate_memory()
 /*
  */
 {
     size_t size = num_states * sizeof(float);
+    size_t size_ha = (num_states + num_inputs) * sizeof(float);
 
-    cudaMalloc((void **)&d_mu_ha, size);
-    cudaMalloc((void **)&d_var_ha, size);
+    cudaMalloc((void **)&d_mu_ha, size_ha);
+    cudaMalloc((void **)&d_var_ha, size_ha);
 
     cudaMalloc((void **)&d_mu_f_ga, size);
     cudaMalloc((void **)&d_var_f_ga, size);
@@ -507,9 +519,11 @@ void LSTMStateCuda::allocate_memory()
 
 void LSTMStateCuda::to_device() {
     // Copy mu_ha and var_ha
-    cudaMemcpy(d_mu_ha, this->mu_ha.data(), this->num_states * sizeof(float),
+    cudaMemcpy(d_mu_ha, this->mu_ha.data(),
+               (this->num_states + this->num_inputs) * sizeof(float),
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_var_ha, this->var_ha.data(), this->num_states * sizeof(float),
+    cudaMemcpy(d_var_ha, this->var_ha.data(),
+               (this->num_states + this->num_inputs) * sizeof(float),
                cudaMemcpyHostToDevice);
 
     // Copy mu_f_ga and var_f_ga
@@ -589,9 +603,11 @@ void LSTMStateCuda::to_host()
  */
 {
     // Copy back mu_ha and var_ha
-    cudaMemcpy(this->mu_ha.data(), d_mu_ha, this->num_states * sizeof(float),
+    cudaMemcpy(this->mu_ha.data(), d_mu_ha,
+               (this->num_states + this->num_inputs) * sizeof(float),
                cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->var_ha.data(), d_var_ha, this->num_states * sizeof(float),
+    cudaMemcpy(this->var_ha.data(), d_var_ha,
+               (this->num_states + this->num_inputs) * sizeof(float),
                cudaMemcpyDeviceToHost);
 
     // Copy back mu_f_ga and var_f_ga

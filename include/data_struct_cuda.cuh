@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 25, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,10 +112,11 @@ class LSTMStateCuda : public BaseLSTMStates {
           *d_mu_h_prev = nullptr, *d_var_h_prev = nullptr, *d_cov_i_c = nullptr,
           *d_cov_o_tanh_c = nullptr;
 
-    LSTMStateCuda(size_t num_states);
+    LSTMStateCuda(size_t num_states, size_t num_inputs);
     LSTMStateCuda();
     ~LSTMStateCuda();
     std::string get_name() const override { return "LSTMStateCuda"; };
+    void set_num_states(size_t num_states, size_t num_inputs) override;
     void allocate_memory();
     void to_device();
     void to_host();

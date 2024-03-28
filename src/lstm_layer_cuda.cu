@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 27, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -586,6 +586,20 @@ LayerType LSTMCuda::get_layer_type() const
     return LayerType::LSTM;
 }
 
+int LSTMCuda::get_input_size()
+/*
+ */
+{
+    return this->input_size * this->seq_len;
+}
+
+int LSTMCuda::get_output_size()
+/*
+ */
+{
+    return this->output_size * this->seq_len;
+}
+
 void LSTMCuda::get_number_param()
 /*
  */
@@ -598,8 +612,8 @@ void LSTMCuda::get_number_param()
         this->num_biases = 4 * this->output_size;
         this->b_pos_f = 0;
         this->b_pos_i = this->output_size;
-        this->b_pos_i = 2 * this->output_size;
-        this->b_pos_i = 3 * this->output_size;
+        this->b_pos_c = 2 * this->output_size;
+        this->b_pos_o = 3 * this->output_size;
     }
 
     this->w_pos_f = 0;
@@ -776,8 +790,9 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
 
     if (this->_batch_size != batch_size) {
-        this->lstm_state.set_num_states(batch_size * this->seq_len *
-                                        this->output_size);
+        this->lstm_state.set_num_states(
+            batch_size * this->seq_len * this->output_size,
+            batch_size * this->seq_len * this->input_size);
     }
     // Update number of actual states.
     output_states.width = this->out_width;

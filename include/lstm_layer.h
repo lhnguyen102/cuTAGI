@@ -45,6 +45,10 @@ class LSTM : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
+    int get_input_size() override;
+
+    int get_output_size() override;
+
     void get_number_param();
 
     void init_weight_bias();

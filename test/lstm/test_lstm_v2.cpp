@@ -87,7 +87,7 @@ void lstm_v2()
 {
     // Data
     int num_train_data = 924;
-    int num_test_data = 323;
+    int num_test_data = 232;
     std::vector<int> output_col{0};
     int num_features = 1;
     std::vector<std::string> x_train_path{
@@ -178,81 +178,82 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     // Testing
     //////////////////////////////////////////////////////////////////////
-    std::cout << "Testing...\n";
-    // Output results
-    std::vector<float> mu_a_out(test_db.num_data * test_db.ny, 0);
-    std::vector<float> var_a_out(test_db.num_data * test_db.ny, 0);
+    // std::cout << "Testing...\n";
+    // // Output results
+    // std::vector<float> mu_a_out(test_db.num_data * test_db.ny, 0);
+    // std::vector<float> var_a_out(test_db.num_data * test_db.ny, 0);
 
-    int n_iter =
-        static_cast<float>(test_db.num_data) / static_cast<float>(batch_size);
-    // int n_iter = ceil(n_iter_round);
-    int mt_idx = 0;
+    // int n_iter =
+    //     static_cast<float>(test_db.num_data) /
+    //     static_cast<float>(batch_size);
+    // // int n_iter = ceil(n_iter_round);
+    // int mt_idx = 0;
 
-    for (int i = 0; i < n_iter; i++) {
-        mt_idx = i * test_db.ny * batch_size;
+    // for (int i = 0; i < n_iter; i++) {
+    //     mt_idx = i * test_db.ny * batch_size;
 
-        // Data
-        get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
-        get_batch_data(test_db.x, batch_idx, test_db.nx, x_batch);
-        get_batch_data(test_db.y, batch_idx, test_db.ny, y_batch);
+    //     // Data
+    //     get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
+    //     get_batch_data(test_db.x, batch_idx, test_db.nx, x_batch);
+    //     get_batch_data(test_db.y, batch_idx, test_db.ny, y_batch);
 
-        // Forward
-        model.forward(x_batch);
+    //     // Forward
+    //     model.forward(x_batch);
 
-        // Extract output
-        if (model.device == "cuda") {
-            model.output_to_host();
-        }
+    //     // Extract output
+    //     if (model.device == "cuda") {
+    //         model.output_to_host();
+    //     }
 
-        for (int j = 0; j < batch_size * test_db.ny; j++) {
-            mu_a_output[j + mt_idx] = model.output_z_buffer->mu_a[j];
-            var_a_output[j + mt_idx] = model.output_z_buffer->var_a[j];
-        }
-    }
-    // Retrive predictions (i.e., 1st column)
-    int n_y = test_db.ny / output_seq_len;
-    std::vector<float> mu_y_1(test_db.num_data, 0);
-    std::vector<float> var_y_1(test_db.num_data, 0);
-    std::vector<float> y_1(test_db.num_data, 0);
-    get_1st_column_data(mu_a_out, output_seq_len, n_y, mu_y_1);
-    get_1st_column_data(var_a_out, output_seq_len, n_y, var_y_1);
-    get_1st_column_data(test_db.y, output_seq_len, n_y, y_1);
+    //     for (int j = 0; j < batch_size * test_db.ny; j++) {
+    //         mu_a_output[j + mt_idx] = model.output_z_buffer->mu_a[j];
+    //         var_a_output[j + mt_idx] = model.output_z_buffer->var_a[j];
+    //     }
+    // }
+    // // Retrive predictions (i.e., 1st column)
+    // int n_y = test_db.ny / output_seq_len;
+    // std::vector<float> mu_y_1(test_db.num_data, 0);
+    // std::vector<float> var_y_1(test_db.num_data, 0);
+    // std::vector<float> y_1(test_db.num_data, 0);
+    // get_1st_column_data(mu_a_out, output_seq_len, n_y, mu_y_1);
+    // get_1st_column_data(var_a_out, output_seq_len, n_y, var_y_1);
+    // get_1st_column_data(test_db.y, output_seq_len, n_y, y_1);
 
-    // Unnormalize data
-    std::vector<float> std_y_norm(test_db.num_data, 0);
-    std::vector<float> mu_y(test_db.num_data, 0);
-    std::vector<float> std_y(test_db.num_data, 0);
-    std::vector<float> y_test(test_db.num_data, 0);
+    // // Unnormalize data
+    // std::vector<float> std_y_norm(test_db.num_data, 0);
+    // std::vector<float> mu_y(test_db.num_data, 0);
+    // std::vector<float> std_y(test_db.num_data, 0);
+    // std::vector<float> y_test(test_db.num_data, 0);
 
-    // Compute log-likelihood
-    for (int k = 0; k < test_db.num_data; k++) {
-        std_y_norm[k] = pow(var_y_1[k] + pow(sigma_obs, 2), 0.5);
-    }
+    // // Compute log-likelihood
+    // for (int k = 0; k < test_db.num_data; k++) {
+    //     std_y_norm[k] = pow(var_y_1[k] + pow(sigma_obs, 2), 0.5);
+    // }
 
-    denormalize_mean(mu_y_1, test_db.mu_y, test_db.sigma_y, n_y, mu_y);
-    denormalize_mean(y_1, test_db.mu_y, test_db.sigma_y, n_y, y_test);
-    denormalize_std(std_y_norm, test_db.mu_y, test_db.sigma_y, n_y, std_y);
+    // denormalize_mean(mu_y_1, test_db.mu_y, test_db.sigma_y, n_y, mu_y);
+    // denormalize_mean(y_1, test_db.mu_y, test_db.sigma_y, n_y, y_test);
+    // denormalize_std(std_y_norm, test_db.mu_y, test_db.sigma_y, n_y, std_y);
 
-    // // Compute metrics
-    auto mse = mean_squared_error(mu_y, y_test);
-    auto log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
+    // // // Compute metrics
+    // auto mse = mean_squared_error(mu_y, y_test);
+    // auto log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
 
-    // Display results
-    std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-    std::cout << "RMSE           : ";
-    std::cout << std::fixed;
-    std::cout << std::setprecision(3);
-    std::cout << pow(mse, 0.5) << "\n";
-    std::cout << "Log likelihood: ";
-    std::cout << std::fixed;
-    std::cout << std::setprecision(3);
-    std::cout << log_lik;
-    std::cout << std::endl;
+    // // Display results
+    // std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+    // std::cout << "RMSE           : ";
+    // std::cout << std::fixed;
+    // std::cout << std::setprecision(3);
+    // std::cout << pow(mse, 0.5) << "\n";
+    // std::cout << "Log likelihood: ";
+    // std::cout << std::fixed;
+    // std::cout << std::setprecision(3);
+    // std::cout << log_lik;
+    // std::cout << std::endl;
 
-    // Save predictions
-    std::string suffix = "time_series_prediction_test";
-    std::string saved_inference_path = "./saved_results/";
-    save_predictions(saved_inference_path, mu_y, std_y, suffix);
+    // // Save predictions
+    // std::string suffix = "time_series_prediction_test";
+    // std::string saved_inference_path = "./saved_results/";
+    // save_predictions(saved_inference_path, mu_y, std_y, suffix);
 }
 
 int test_lstm_v2()
