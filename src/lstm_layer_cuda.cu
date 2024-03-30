@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 28, 2024
+// Updated:      March 30, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -667,10 +667,11 @@ void LSTMCuda::forget_gate(int batch_size)
 /*
  */
 {
-    int num_act = batch_size * this->seq_len * this->output_size;
+    int ni_c = this->input_size + this->output_size;
+    int b_seq = batch_size * this->seq_len;
+    int num_act = b_seq * this->output_size;
     unsigned int grid_col =
-        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
-        this->num_cuda_threads;
+        (b_seq + this->num_cuda_threads - 1) / this->num_cuda_threads;
     unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
                             this->num_cuda_threads;
     unsigned int act_block =
@@ -681,8 +682,8 @@ void LSTMCuda::forget_gate(int batch_size)
 
     lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
-        this->output_size, batch_size, this->bias, this->w_pos_f, this->b_pos_f,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
+        this->output_size, b_seq, this->bias, this->w_pos_f, this->b_pos_f,
         this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga);
 
     mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
@@ -695,10 +696,11 @@ void LSTMCuda::input_gate(int batch_size)
 /*
  */
 {
-    int num_act = batch_size * this->seq_len * this->output_size;
+    int ni_c = this->input_size + this->output_size;
+    int b_seq = batch_size * this->seq_len;
+    int num_act = b_seq * this->output_size;
     unsigned int grid_col =
-        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
-        this->num_cuda_threads;
+        (b_seq + this->num_cuda_threads - 1) / this->num_cuda_threads;
     unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
                             this->num_cuda_threads;
     unsigned int act_block =
@@ -709,8 +711,8 @@ void LSTMCuda::input_gate(int batch_size)
 
     lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
-        this->output_size, batch_size, this->bias, this->w_pos_i, this->b_pos_i,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
+        this->output_size, b_seq, this->bias, this->w_pos_i, this->b_pos_i,
         this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga);
 
     mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
@@ -723,10 +725,11 @@ void LSTMCuda::cell_state_gate(int batch_size)
 /*
  */
 {
-    int num_act = batch_size * this->seq_len * this->output_size;
+    int ni_c = this->input_size + this->output_size;
+    int b_seq = batch_size * this->seq_len;
+    int num_act = b_seq * this->output_size;
     unsigned int grid_col =
-        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
-        this->num_cuda_threads;
+        (b_seq + this->num_cuda_threads - 1) / this->num_cuda_threads;
     unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
                             this->num_cuda_threads;
     unsigned int act_block =
@@ -737,8 +740,8 @@ void LSTMCuda::cell_state_gate(int batch_size)
 
     lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
-        this->output_size, batch_size, this->bias, this->w_pos_c, this->b_pos_c,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
+        this->output_size, b_seq, this->bias, this->w_pos_c, this->b_pos_c,
         this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga);
 
     mixture_tanh<<<act_block, this->num_cuda_threads>>>(
@@ -751,10 +754,11 @@ void LSTMCuda::output_gate(int batch_size)
 /*
  */
 {
-    int num_act = batch_size * this->seq_len * this->output_size;
+    int ni_c = this->input_size + this->output_size;
+    int b_seq = batch_size * this->seq_len;
+    int num_act = b_seq * this->output_size;
     unsigned int grid_col =
-        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
-        this->num_cuda_threads;
+        (b_seq + this->num_cuda_threads - 1) / this->num_cuda_threads;
     unsigned int grid_row = (this->output_size + this->num_cuda_threads - 1) /
                             this->num_cuda_threads;
     unsigned int act_block =
@@ -765,8 +769,8 @@ void LSTMCuda::output_gate(int batch_size)
 
     lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, this->input_size,
-        this->output_size, batch_size, this->bias, this->w_pos_o, this->b_pos_o,
+        this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
+        this->output_size, b_seq, this->bias, this->w_pos_o, this->b_pos_o,
         this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga);
 
     mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
@@ -799,7 +803,7 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     output_states.height = this->out_height;
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
-    output_states.actual_size = this->output_size;
+    output_states.actual_size = this->output_size * this->seq_len;
 
     this->prepare_input(input_states);
     this->forget_gate(batch_size);

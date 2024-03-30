@@ -158,6 +158,7 @@ set(CPU_SOURCES
   src/bindings/convtranspose2d_layer_bindings.cpp
   src/bindings/pooling_layer_bindings.cpp
   src/bindings/norm_layer_bindings.cpp
+  src/bindings/lstm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
   src/bindings/base_output_updater_bindings.cpp

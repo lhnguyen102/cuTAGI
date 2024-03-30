@@ -17,7 +17,7 @@
 class LSTM : public BaseLayer {
    public:
     int seq_len = 1;
-    int _batch_size = 1;
+    int _batch_size = -1;
     float act_omega = 0.001f;
     float gain_w;
     float gain_b;
