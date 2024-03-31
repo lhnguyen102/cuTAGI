@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 30, 2024
+// Updated:      March 31, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,12 +14,11 @@
 #include "../include/lstm_layer_cuda.cuh"
 #include "../include/param_init.h"
 
-__global__ void lstm_linear_fwd_mean_var(float const *mu_w, float const *var_w,
-                                         float const *mu_b, float const *var_b,
-                                         const float *mu_a, const float *var_a,
-                                         size_t input_size, size_t output_size,
-                                         int batch_size, bool bias, int w_pos,
-                                         int b_pos, float *mu_z, float *var_z)
+__global__ void lstm_linear_fwd_mean_var_cuda(
+    float const *mu_w, float const *var_w, float const *mu_b,
+    float const *var_b, const float *mu_a, const float *var_a,
+    size_t input_size, size_t output_size, int batch_size, bool bias, int w_pos,
+    int b_pos, float *mu_z, float *var_z)
 /*
  */
 {
@@ -680,7 +679,7 @@ void LSTMCuda::forget_gate(int batch_size)
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
 
-    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+    lstm_linear_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
         this->output_size, b_seq, this->bias, this->w_pos_f, this->b_pos_f,
@@ -709,7 +708,7 @@ void LSTMCuda::input_gate(int batch_size)
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
 
-    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+    lstm_linear_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
         this->output_size, b_seq, this->bias, this->w_pos_i, this->b_pos_i,
@@ -738,7 +737,7 @@ void LSTMCuda::cell_state_gate(int batch_size)
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
 
-    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+    lstm_linear_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
         this->output_size, b_seq, this->bias, this->w_pos_c, this->b_pos_c,
@@ -767,7 +766,7 @@ void LSTMCuda::output_gate(int batch_size)
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(this->num_cuda_threads, this->num_cuda_threads);
 
-    lstm_linear_fwd_mean_var<<<dim_grid, dim_block>>>(
+    lstm_linear_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
         this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
         this->lstm_state.d_mu_ha, this->lstm_state.d_var_ha, ni_c,
         this->output_size, b_seq, this->bias, this->w_pos_o, this->b_pos_o,

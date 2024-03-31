@@ -129,7 +129,6 @@ void debug_autoencoder()
     decoder.set_threads(8);
 
     // VALIDATOR
-
     std::string param_prefix = param_path + test_name + "_" + model_name;
     decoder.preinit_layer();
     CrossValidator validator(decoder, &net_d, param_prefix);

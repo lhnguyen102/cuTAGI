@@ -1067,10 +1067,10 @@ void LSTM::forget_gate(int batch_size)
                              this->w_pos_f, this->b_pos_f, this->num_threads,
                              lstm_states.mu_f_ga, lstm_states.var_f_ga);
 
-        mixture_tanh_mean_var_mp(lstm_states.mu_f_ga, lstm_states.var_f_ga,
-                                 this->act_omega, end_chunk, this->num_threads,
-                                 lstm_states.mu_f_ga, lstm_states.jcb_f_ga,
-                                 lstm_states.var_f_ga);
+        mixture_sigmoid_mean_var_mp(lstm_states.mu_f_ga, lstm_states.var_f_ga,
+                                    this->act_omega, end_chunk,
+                                    this->num_threads, lstm_states.mu_f_ga,
+                                    lstm_states.jcb_f_ga, lstm_states.var_f_ga);
 
     } else {
         lstm_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
@@ -1079,10 +1079,10 @@ void LSTM::forget_gate(int batch_size)
                           this->w_pos_f, this->b_pos_f, lstm_states.mu_f_ga,
                           lstm_states.var_f_ga);
 
-        mixture_tanh_mean_var(lstm_states.mu_f_ga, lstm_states.var_f_ga,
-                              this->act_omega, 0, end_chunk,
-                              lstm_states.mu_f_ga, lstm_states.jcb_f_ga,
-                              lstm_states.var_f_ga);
+        mixture_sigmoid_mean_var(lstm_states.mu_f_ga, lstm_states.var_f_ga,
+                                 this->act_omega, 0, end_chunk,
+                                 lstm_states.mu_f_ga, lstm_states.jcb_f_ga,
+                                 lstm_states.var_f_ga);
     }
 }
 

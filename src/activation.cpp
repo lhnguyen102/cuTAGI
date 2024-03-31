@@ -241,7 +241,6 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
     float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
         cdf_lower, cdf_upper, pdf_lower, pdf_upper;
     for (int i = start_chunk; i < end_chunk; i++) {
-        // cdf and pdf for truncated normal distribution
         alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
         alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
         cdf_lower = normcdf_cpu(alpha_lower);
@@ -267,7 +266,7 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
                     cdf_lower * powf(1 + mu_a[i], 2) +
                     (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
                    4.0f;
-        jcb[i] = powf(omega * kappa, 0.5);  // Approximate formulation
+        jcb[i] = omega * 0.5;
     }
 }
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
@@ -338,7 +337,7 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
         var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
                    cdf_lower * powf(1 + mu_a[i], 2) +
                    (1 - cdf_upper) * powf(1 - mu_a[i], 2);
-        jcb[i] = powf(omega * kappa, 0.5);
+        jcb[i] = omega;
     }
 }
 
