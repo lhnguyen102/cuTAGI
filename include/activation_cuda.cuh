@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      March 11, 2024
+// Updated:      March 31, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,39 +19,45 @@
 #include "base_layer_cuda.cuh"
 #include "struct_var.h"
 
-__global__ void relu_mean_var(float const *mu_z, float const *var_z,
-                              int num_states, float *mu_a, float *jcb,
-                              float *var_a);
+__global__ void relu_mean_var_cuda(float const *mu_z, float const *var_z,
+                                   int num_states, float *mu_a, float *jcb,
+                                   float *var_a);
 
-__global__ void sigmoid_mean_var(float const *mu_z, float const *var_z,
-                                 int num_states, float *mu_a, float *jcb,
-                                 float *var_a);
+__global__ void sigmoid_mean_var_cuda(float const *mu_z, float const *var_z,
+                                      int num_states, float *mu_a, float *jcb,
+                                      float *var_a);
 
-__global__ void tanh_mean_var(float const *mu_z, float const *var_z,
-                              int num_states, float *mu_a, float *jcb,
-                              float *var_a);
+__global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
+                                   int num_states, float *mu_a, float *jcb,
+                                   float *var_a);
 
-__global__ void mixture_relu(float const *mu_z, float const *var_z,
-                             float omega_tol, int num_states, float *mu_a,
-                             float *jcb, float *var_a);
+__global__ void mixture_relu_mean_var_cuda(float const *mu_z,
+                                           float const *var_z, float omega_tol,
+                                           int num_states, float *mu_a,
+                                           float *jcb, float *var_a);
 
-__global__ void mixture_sigmoid(float const *mu_z, float const *var_z,
-                                float omega_tol, int num_states, float *mu_a,
-                                float *jcb, float *var_a);
+__global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
+                                              float const *var_z,
+                                              float omega_tol, int num_states,
+                                              float *mu_a, float *jcb,
+                                              float *var_a);
 
-__global__ void mixture_tanh(float const *mu_z, float const *var_z,
-                             float omega_tol, int num_states, float *mu_a,
-                             float *jcb, float *var_a);
+__global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
+                                           float const *var_z, float omega_tol,
+                                           int num_states, float *mu_a,
+                                           float *jcb, float *var_a);
 
-__global__ void softplus(float const *mu_z, float const *var_z, int num_states,
-                         float *mu_a, float *jcb, float *var_a);
+__global__ void softplus_mean_var_cuda(float const *mu_z, float const *var_z,
+                                       int num_states, float *mu_a, float *jcb,
+                                       float *var_a);
 
-__global__ void leakyrelu(float const *mu_z, float const *var_z, float alpha,
-                          int num_states, float *mu_a, float *jcb,
-                          float *var_a);
+__global__ void leakyrelu_mean_var_cuda(float const *mu_z, float const *var_z,
+                                        float alpha, int num_states,
+                                        float *mu_a, float *jcb, float *var_a);
 
-__global__ void softmax(float const *mu_z, float *var_z, size_t output_size,
-                        int batch_size, float *mu_a, float *jcb, float *var_a);
+__global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
+                                      size_t output_size, int batch_size,
+                                      float *mu_a, float *jcb, float *var_a);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu

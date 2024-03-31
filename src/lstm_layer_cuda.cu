@@ -685,7 +685,7 @@ void LSTMCuda::forget_gate(int batch_size)
         this->output_size, b_seq, this->bias, this->w_pos_f, this->b_pos_f,
         this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga);
 
-    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+    mixture_sigmoid_mean_var_cuda<<<act_block, this->num_cuda_threads>>>(
         this->lstm_state.d_mu_f_ga, this->lstm_state.d_var_f_ga,
         this->act_omega, num_act, this->lstm_state.d_mu_f_ga,
         this->lstm_state.d_jcb_f_ga, this->lstm_state.d_var_f_ga);
@@ -714,7 +714,7 @@ void LSTMCuda::input_gate(int batch_size)
         this->output_size, b_seq, this->bias, this->w_pos_i, this->b_pos_i,
         this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga);
 
-    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+    mixture_sigmoid_mean_var_cuda<<<act_block, this->num_cuda_threads>>>(
         this->lstm_state.d_mu_i_ga, this->lstm_state.d_var_i_ga,
         this->act_omega, num_act, this->lstm_state.d_mu_i_ga,
         this->lstm_state.d_jcb_i_ga, this->lstm_state.d_var_i_ga);
@@ -743,7 +743,7 @@ void LSTMCuda::cell_state_gate(int batch_size)
         this->output_size, b_seq, this->bias, this->w_pos_c, this->b_pos_c,
         this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga);
 
-    mixture_tanh<<<act_block, this->num_cuda_threads>>>(
+    mixture_tanh_mean_var_cuda<<<act_block, this->num_cuda_threads>>>(
         this->lstm_state.d_mu_c_ga, this->lstm_state.d_var_c_ga,
         this->act_omega, num_act, this->lstm_state.d_mu_c_ga,
         this->lstm_state.d_jcb_c_ga, this->lstm_state.d_var_c_ga);
@@ -772,7 +772,7 @@ void LSTMCuda::output_gate(int batch_size)
         this->output_size, b_seq, this->bias, this->w_pos_o, this->b_pos_o,
         this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga);
 
-    mixture_sigmoid<<<act_block, this->num_cuda_threads>>>(
+    mixture_sigmoid_mean_var_cuda<<<act_block, this->num_cuda_threads>>>(
         this->lstm_state.d_mu_o_ga, this->lstm_state.d_var_o_ga,
         this->act_omega, num_act, this->lstm_state.d_mu_o_ga,
         this->lstm_state.d_jcb_o_ga, this->lstm_state.d_var_o_ga);
@@ -838,7 +838,7 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
         this->lstm_state.d_cov_i_c, this->output_size, this->seq_len,
         batch_size, this->lstm_state.d_mu_c, this->lstm_state.d_var_c);
 
-    mixture_tanh<<<act_blocks, this->num_cuda_threads>>>(
+    mixture_tanh_mean_var_cuda<<<act_blocks, this->num_cuda_threads>>>(
         this->lstm_state.d_mu_c, this->lstm_state.d_var_c, this->act_omega,
         no_b_seq, this->lstm_state.d_mu_ca, this->lstm_state.d_jcb_ca,
         this->lstm_state.d_var_ca);
