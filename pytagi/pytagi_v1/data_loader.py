@@ -16,7 +16,7 @@ sys.path.append(
     os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
 )
 
-import cutagitest
+from cutagitest import Utils
 from cutagi import HrSoftmax
 
 
@@ -36,7 +36,7 @@ class Utils:
         backend_utils: Utility functionalities from the backend
     """
 
-    backend_utils = cutagitest.UtilityWrapper()
+    backend_utils = Utils()
 
     def __init__(self) -> None:
         pass

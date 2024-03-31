@@ -17,10 +17,10 @@
 #include "dataloader.h"
 #include "struct_var.h"
 
-class UtilityWrapper {
+class Utils {
    public:
-    UtilityWrapper();
-    ~UtilityWrapper();
+    Utils();
+    ~Utils();
     std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
         std::vector<int> &labels, int num_classes);
 

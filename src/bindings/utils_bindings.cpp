@@ -11,11 +11,10 @@
 
 #include "../include/bindings/utils_bindings.h"
 
-UtilityWrapper::UtilityWrapper(){};
-UtilityWrapper::~UtilityWrapper(){};
+Utils::Utils(){};
+Utils::~Utils(){};
 std::tuple<std::vector<float>, std::vector<int>, int>
-UtilityWrapper::label_to_obs_wrapper(std::vector<int> &labels,
-                                     int num_classes) {
+Utils::label_to_obs_wrapper(std::vector<int> &labels, int num_classes) {
     // Create tree
     int num = labels.size();
     auto hrs = class_to_obs(num_classes);
@@ -28,7 +27,7 @@ UtilityWrapper::label_to_obs_wrapper(std::vector<int> &labels,
     return {obs, obs_idx, hrs.n_obs};
 }
 
-pybind11::array_t<float> UtilityWrapper::label_to_one_hot_wrapper(
+pybind11::array_t<float> Utils::label_to_one_hot_wrapper(
     std::vector<int> &labels, int n_classes) {
     auto obs = label_to_one_hot(labels, n_classes);
     auto py_obs = pybind11::array_t<float>(obs.size(), obs.data());
@@ -37,8 +36,8 @@ pybind11::array_t<float> UtilityWrapper::label_to_one_hot_wrapper(
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
-UtilityWrapper::load_mnist_dataset_wrapper(std::string &image_file,
-                                           std::string &label_file, int num) {
+Utils::load_mnist_dataset_wrapper(std::string &image_file,
+                                  std::string &label_file, int num) {
     auto images = load_mnist_images(image_file, num);
     auto labels = load_mnist_labels(label_file, num);
     auto py_images = pybind11::array_t<float>(images.size(), images.data());
@@ -48,7 +47,7 @@ UtilityWrapper::load_mnist_dataset_wrapper(std::string &image_file,
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
-UtilityWrapper::load_cifar_dataset_wrapper(std::string &image_file, int num) {
+Utils::load_cifar_dataset_wrapper(std::string &image_file, int num) {
     std::vector<float> images;
     std::vector<int> labels;
     std::tie(images, labels) = load_cifar_images(image_file, num);
@@ -59,9 +58,8 @@ UtilityWrapper::load_cifar_dataset_wrapper(std::string &image_file, int num) {
 }
 
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
-UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
-                                   std::vector<float> &Sz, HrSoftmax &hs,
-                                   int num_classes, int B) {
+Utils::get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
+                          HrSoftmax &hs, int num_classes, int B) {
     // Initialization
     std::vector<float> prob(B * num_classes);
     std::vector<int> pred(B);
@@ -94,22 +92,21 @@ UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
     return {py_pred, py_prob};
 }
 
-HrSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
+HrSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
     auto hs = class_to_obs(num_classes);
 
     return hs;
 }
-std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
-    std::vector<float> &mz, std::vector<float> &Sz, HrSoftmax &hs,
-    int num_classes) {
+std::vector<float> Utils::obs_to_label_prob_wrapper(std::vector<float> &mz,
+                                                    std::vector<float> &Sz,
+                                                    HrSoftmax &hs,
+                                                    int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;
 }
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
-UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
-                                  std::vector<float> &Sz,
-                                  std::vector<int> &labels, int n_classes,
-                                  int B) {
+Utils::get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
+                         std::vector<int> &labels, int n_classes, int B) {
     std::vector<int> er;
     std::vector<float> prob;
     std::tie(er, prob) = get_error(mz, Sz, labels, n_classes, B);
@@ -120,11 +117,10 @@ UtilityWrapper::get_error_wrapper(std::vector<float> &mz,
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
-                                              std::vector<int> &output_col,
-                                              int input_seq_len,
-                                              int output_seq_len,
-                                              int num_features, int stride) {
+Utils::create_rolling_window_wrapper(std::vector<float> &data,
+                                     std::vector<int> &output_col,
+                                     int input_seq_len, int output_seq_len,
+                                     int num_features, int stride) {
     int num_samples =
         (data.size() / num_features - input_seq_len - output_seq_len) / stride +
         1;
@@ -145,9 +141,9 @@ UtilityWrapper::create_rolling_window_wrapper(std::vector<float> &data,
     return {py_input_data, py_output_data};
 }
 
-std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
-                                                              int num_data,
-                                                              float &sigma) {
+std::vector<float> Utils::get_upper_triu_cov_wrapper(int batch_size,
+                                                     int num_data,
+                                                     float &sigma) {
     float var_x = powf(sigma, 2);
     auto Sx_f = initialize_upper_triu(var_x, num_data);
     auto Sx_f_batch = repmat_vector(Sx_f, batch_size);
@@ -156,23 +152,18 @@ std::vector<float> UtilityWrapper::get_upper_triu_cov_wrapper(int batch_size,
 }
 
 void bind_utils(pybind11::module_ &m) {
-    pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
+    pybind11::class_<Utils>(m, "Utils")
         .def(pybind11::init<>())
-        .def("label_to_obs_wrapper", &UtilityWrapper::label_to_obs_wrapper)
-        .def("label_to_one_hot_wrapper",
-             &UtilityWrapper::label_to_one_hot_wrapper)
+        .def("label_to_obs_wrapper", &Utils::label_to_obs_wrapper)
+        .def("label_to_one_hot_wrapper", &Utils::label_to_one_hot_wrapper)
         .def("hierarchical_softmax_wrapper",
-             &UtilityWrapper::hierarchical_softmax_wrapper)
-        .def("load_mnist_dataset_wrapper",
-             &UtilityWrapper::load_mnist_dataset_wrapper)
-        .def("load_cifar_dataset_wrapper",
-             &UtilityWrapper::load_cifar_dataset_wrapper)
-        .def("get_labels_wrapper", &UtilityWrapper::get_labels_wrapper)
-        .def("obs_to_label_prob_wrapper",
-             &UtilityWrapper::obs_to_label_prob_wrapper)
-        .def("get_error_wrapper", &UtilityWrapper::get_error_wrapper)
+             &Utils::hierarchical_softmax_wrapper)
+        .def("load_mnist_dataset_wrapper", &Utils::load_mnist_dataset_wrapper)
+        .def("load_cifar_dataset_wrapper", &Utils::load_cifar_dataset_wrapper)
+        .def("get_labels_wrapper", &Utils::get_labels_wrapper)
+        .def("obs_to_label_prob_wrapper", &Utils::obs_to_label_prob_wrapper)
+        .def("get_error_wrapper", &Utils::get_error_wrapper)
         .def("create_rolling_window_wrapper",
-             &UtilityWrapper::create_rolling_window_wrapper)
-        .def("get_upper_triu_cov_wrapper",
-             &UtilityWrapper::get_upper_triu_cov_wrapper);
+             &Utils::create_rolling_window_wrapper)
+        .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }
