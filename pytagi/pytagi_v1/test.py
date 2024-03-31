@@ -104,7 +104,7 @@ class Classifier:
         self.batch_size = batch_size
 
         # FNN
-        self.network = CNN_BATCHNORM_NET
+        self.network = FNN_NET
 
         self.network.set_threads(4)
         # self.network.to_device("cuda")

@@ -162,6 +162,7 @@ set(CPU_SOURCES
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
   src/bindings/base_output_updater_bindings.cpp
+  src/bindings/utils_bindings.cpp
   src/bindings/main_bindings.cpp
 
   test/act_func/test_act_func_cpu.cpp
