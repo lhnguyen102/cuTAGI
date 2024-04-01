@@ -180,7 +180,7 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
         if (omega * mu_z_til > omega_tol) {
             mu_a[i] = omega * mu_z_til;
             var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(var_z_til, 2);
+                omega * var_z_til + omega * (1 - omega) * powf(mu_z_til, 2);
             // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
             jcb[i] =
                 (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
