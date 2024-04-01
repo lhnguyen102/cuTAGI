@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 11, 2024
+// Updated:      March 22, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,9 +12,504 @@
 #include "activation_cuda.cuh"
 #endif
 
+void relu_mean_var(std::vector<float> const &mu_z,
+                   std::vector<float> const &var_z, int start_chunk,
+                   int end_chunk, std::vector<float> &mu_a,
+                   std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    float zero_pad = 0;
+    float one_pad = 1;
+    float tmp;
+    int col;
+    for (col = start_chunk; col < end_chunk; col++) {
+        tmp = std::max(mu_z[col], zero_pad);
+        mu_a[col] = tmp;
+        if (tmp == 0) {
+            jcb[col] = zero_pad;
+            var_a[col] = zero_pad;
+        } else {
+            jcb[col] = one_pad;
+            var_a[col] = var_z[col];
+        }
+    }
+}
+
+void relu_mean_var_mp(std::vector<float> const &mu_z,
+                      std::vector<float> const &var_z, int n,
+                      unsigned int num_threads, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                          var_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void sigmoid_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                      int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    float tmp;
+    for (int col = start_chunk; col < end_chunk; col++) {
+        tmp = 1 / (1 + expf(-mu_z[col]));
+        mu_a[col] = tmp;
+        jcb[col] = tmp * (1 - tmp);
+        var_a[col] = tmp * (1 - tmp) * var_z[col] * tmp * (1 - tmp);
+    }
+}
+
+void sigmoid_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                         int n, unsigned int num_threads,
+                         std::vector<float> &mu_a, std::vector<float> &jcb,
+                         std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            sigmoid_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                             var_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                   int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                   std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    float tmp = 0;
+    for (int col = start_chunk; col < end_chunk; col++) {
+        tmp = tanhf(mu_z[col]);
+        mu_a[col] = tmp;
+        jcb[col] = (1 - tmp * tmp);
+        var_a[col] = (1 - tmp * tmp) * var_z[col] * (1 - tmp * tmp);
+    }
+}
+
+void tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                      int n, unsigned int num_threads, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            tanh_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                          var_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                           float omega_tol, int start_chunk, int end_chunk,
+                           std::vector<float> &mu_a, std::vector<float> &jcb,
+                           std::vector<float> &var_a)
+/*
+ */
+{
+    float alpha, beta, omega, kappa, mu_z_til, var_z_til;
+    for (int i = start_chunk; i < end_chunk; i++) {
+        // Hyper-parameters for Gaussian mixture
+        alpha = -mu_z[i] / powf(var_z[i], 0.5);
+        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
+        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
+        kappa = 1 + alpha * beta - powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mu_z_til = mu_z[i] + beta * powf(var_z[i], 0.5);
+        var_z_til = kappa * var_z[i];
+
+        // Activation distribution
+        if (omega * mu_z_til > omega_tol) {
+            mu_a[i] = omega * mu_z_til;
+            var_a[i] =
+                omega * var_z_til + omega * (1 - omega) * powf(mu_z_til, 2);
+            // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
+            jcb[i] =
+                (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
+                      normcdf_cpu(mu_z[i] / pow(var_z[i], 0.5)) +
+                  mu_z[i] * var_z[i] *
+                      normpdf_cpu(0.0f, mu_z[i], pow(var_z[i], 0.5))) -
+                 (mu_a[i] * mu_z[i])) /
+                var_z[i];
+        } else {
+            mu_a[i] = omega_tol;
+            var_a[i] =
+                omega * var_z_til + omega * (1 - omega) * powf(omega_tol, 2);
+            jcb[i] = 0.0f;
+        }
+    }
+}
+
+void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, float omega_tol, int n,
+                              unsigned int num_threads,
+                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                mixture_relu_mean_var(mu_z, var_z, omega_tol, start_chunk,
+                                      end_chunk, mu_a, jcb, var_a);
+            });
+    }
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, float omega_tol,
+                              int start_chunk, int end_chunk,
+                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_a)
+/*
+ */
+{
+    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    for (int i = start_chunk; i < end_chunk; i++) {
+        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
+        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
+        var_z_til = kappa * var_z[i];
+
+        // Activation distribution
+        mu_a[i] =
+            (omega * mu_z_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
+        var_a[i] = (omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
+                    cdf_lower * powf(1 + mu_a[i], 2) +
+                    (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
+                   4.0f;
+        jcb[i] = omega * 0.5;
+    }
+}
+void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
+                                 std::vector<float> &var_z, float omega_tol,
+                                 int n, unsigned int num_threads,
+                                 std::vector<float> &mu_a,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                mixture_sigmoid_mean_var(mu_z, var_z, omega_tol, start_chunk,
+                                         end_chunk, mu_a, jcb, var_a);
+            });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                           float omega_tol, int start_chunk, int end_chunk,
+                           std::vector<float> &mu_a, std::vector<float> &jcb,
+                           std::vector<float> &var_a)
+/*
+ */
+{
+    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
+        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    for (int i = start_chunk; i < end_chunk; i++) {
+        // cdf and pdf for truncated normal distribution
+        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
+        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
+        cdf_lower = normcdf_cpu(alpha_lower);
+        cdf_upper = normcdf_cpu(alpha_upper);
+        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
+        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+
+        // Truncated distribution's parameters
+        omega = std::max(cdf_upper - cdf_lower, omega_tol);
+        beta = (pdf_upper - pdf_lower) / omega;
+        kappa = 1 -
+                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
+                powf(beta, 2);
+
+        // Gaussian mixture's paramters
+        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
+        var_z_til = kappa * var_z[i];
+
+        // Activation distribution
+        mu_a[i] = omega * mu_z_til - cdf_lower + (1 - cdf_upper);
+        var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
+                   cdf_lower * powf(1 + mu_a[i], 2) +
+                   (1 - cdf_upper) * powf(1 - mu_a[i], 2);
+        jcb[i] = omega;
+    }
+}
+
+void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, float omega_tol, int n,
+                              unsigned int num_threads,
+                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back(
+            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
+                mixture_tanh_mean_var(mu_z, var_z, omega_tol, start_chunk,
+                                      end_chunk, mu_a, jcb, var_a);
+            });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                       int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                       std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    float tmp;
+    for (int col = start_chunk; col < end_chunk; col++) {
+        mu_a[col] = logf(1 + expf(mu_z[col]));
+        tmp = 1 / (1 + expf(-mu_z[col]));
+        jcb[col] = tmp;
+        var_a[col] = tmp * var_z[col] * tmp;
+    }
+}
+
+void softplus_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                          int n, unsigned int num_threads,
+                          std::vector<float> &mu_a, std::vector<float> &jcb,
+                          std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            softplus_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
+                              var_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void leaky_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                         float alpha, int start_chunk, int end_chunk,
+                         std::vector<float> &mu_a, std::vector<float> &jcb,
+                         std::vector<float> &var_a)
+/*
+ */
+{
+    float zeroPad = 0;
+    float onePad = 1;
+    float tmp;
+    int col;
+    for (col = start_chunk; col < end_chunk; col++) {
+        tmp = std::max(mu_z[col], zeroPad);
+        if (tmp == 0) {
+            mu_a[col] = alpha * mu_z[col];
+            jcb[col] = alpha;
+            var_a[col] = alpha * var_z[col] * alpha;
+        } else {
+            mu_a[col] = tmp;
+            jcb[col] = onePad;
+            var_a[col] = var_z[col];
+        }
+    }
+}
+
+void leaky_relu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                            float alpha, int n, unsigned int num_threads,
+                            std::vector<float> &mu_a, std::vector<float> &jcb,
+                            std::vector<float> &var_a)
+/*
+ */
+{
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        int start_chunk = i * n_per_thread + std::min(i, extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &alpha, &mu_a, &jcb, &var_a] {
+            leaky_relu_mean_var(mu_z, var_z, alpha, start_chunk, end_chunk,
+                                mu_a, jcb, var_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                      int no, int batch_size, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    float sum, max_m, max_v;
+    int idx;
+    for (int i = 0; i < batch_size; i++) {
+        sum = 0.0f;
+        idx = i * no;
+        auto max_idx =
+            std::max_element(mu_z.begin() + idx, mu_z.begin() + idx + no) -
+            mu_z.begin();
+        max_m = mu_z[max_idx];
+        max_v = var_z[max_idx];
+        for (int j = 0; j < no; j++) {
+            mu_a[idx + j] = expf(mu_z[idx + j] - max_m);
+            sum += mu_a[idx + j];
+        }
+        for (int j = 0; j < no; j++) {
+            mu_a[idx + j] = mu_a[idx + j] / sum;
+            jcb[idx + j] = mu_a[idx + j] * (1 - mu_a[idx + j]);
+            // TODO: double check on covariance formulation
+            var_a[idx + j] =
+                jcb[idx + j] * (var_z[idx + j] + max_v) * jcb[idx + j];
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
 ////////////////////////////////////////////////////////////////////////////////
+
 ReLU::ReLU(){};
 ReLU::~ReLU(){};
 
@@ -39,61 +534,6 @@ LayerType ReLU::get_layer_type() const
     return LayerType::Activation;
 }
 
-void ReLU::relu_mean_var(std::vector<float> const &mu_z,
-                         std::vector<float> const &var_z, int start_chunk,
-                         int end_chunk, std::vector<float> &mu_a,
-                         std::vector<float> &jcb, std::vector<float> &var_a)
-/*
- */
-{
-    float zero_pad = 0;
-    float one_pad = 1;
-    float tmp;
-    int col;
-    for (col = start_chunk; col < end_chunk; col++) {
-        tmp = std::max(mu_z[col], zero_pad);
-        mu_a[col] = tmp;
-        if (tmp == 0) {
-            jcb[col] = zero_pad;
-            var_a[col] = zero_pad;
-        } else {
-            jcb[col] = one_pad;
-            var_a[col] = var_z[col];
-        }
-    }
-}
-
-void ReLU::relu_mean_var_mp(std::vector<float> const &mu_z,
-                            std::vector<float> const &var_z, int n,
-                            unsigned int num_threads, std::vector<float> &mu_a,
-                            std::vector<float> &jcb, std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-            ReLU::relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
-                                var_a);
-        });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void ReLU::forward(BaseHiddenStates &input_states,
                    BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
@@ -109,13 +549,13 @@ void ReLU::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
-        this->relu_mean_var_mp(input_states.mu_a, input_states.var_a, end_chunk,
-                               this->num_threads, output_states.mu_a,
-                               output_states.jcb, output_states.var_a);
+        relu_mean_var_mp(input_states.mu_a, input_states.var_a, end_chunk,
+                         this->num_threads, output_states.mu_a,
+                         output_states.jcb, output_states.var_a);
     } else {
-        this->relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
-                            end_chunk, output_states.mu_a, output_states.jcb,
-                            output_states.var_a);
+        relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                      end_chunk, output_states.mu_a, output_states.jcb,
+                      output_states.var_a);
     }
 
     this->input_size = input_states.actual_size;
@@ -161,56 +601,6 @@ LayerType Sigmoid::get_layer_type() const
     return LayerType::Activation;
 }
 
-void Sigmoid::sigmoid_mean_var(std::vector<float> &mu_z,
-                               std::vector<float> &var_z, int start_chunk,
-                               int end_chunk, std::vector<float> &mu_a,
-                               std::vector<float> &jcb,
-                               std::vector<float> &var_a)
-/*
- */
-{
-    float tmp;
-    for (int col = start_chunk; col < end_chunk; col++) {
-        tmp = 1 / (1 + expf(-mu_z[col]));
-        mu_a[col] = tmp;
-        jcb[col] = tmp * (1 - tmp);
-        var_a[col] = tmp * (1 - tmp) * var_z[col] * tmp * (1 - tmp);
-    }
-}
-
-void Sigmoid::sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                  std::vector<float> &var_z, int n,
-                                  unsigned int num_threads,
-                                  std::vector<float> &mu_a,
-                                  std::vector<float> &jcb,
-                                  std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-            Sigmoid::sigmoid_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a,
-                                      jcb, var_a);
-        });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void Sigmoid::forward(BaseHiddenStates &input_states,
                       BaseHiddenStates &output_states,
                       BaseTempStates &temp_states)
@@ -227,9 +617,9 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->sigmoid_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
-                           end_chunk, output_states.mu_a, output_states.jcb,
-                           output_states.var_a);
+    sigmoid_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                     end_chunk, output_states.mu_a, output_states.jcb,
+                     output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -275,52 +665,6 @@ LayerType Tanh::get_layer_type() const
     return LayerType::Activation;
 }
 
-void Tanh::tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                         int start_chunk, int end_chunk,
-                         std::vector<float> &mu_a, std::vector<float> &jcb,
-                         std::vector<float> &var_a)
-/*
- */
-{
-    float tmp = 0;
-    for (int col = start_chunk; col < end_chunk; col++) {
-        tmp = tanhf(mu_z[col]);
-        mu_a[col] = tmp;
-        jcb[col] = (1 - tmp * tmp);
-        var_a[col] = (1 - tmp * tmp) * var_z[col] * (1 - tmp * tmp);
-    }
-}
-
-void Tanh::tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
-                            int n, unsigned int num_threads,
-                            std::vector<float> &mu_a, std::vector<float> &jcb,
-                            std::vector<float> &var_a)
-/*
- */
-{
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-            Tanh::tanh_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a, jcb,
-                                var_a);
-        });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void Tanh::forward(BaseHiddenStates &input_states,
                    BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
@@ -336,9 +680,8 @@ void Tanh::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->tanh_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
-                        end_chunk, output_states.mu_a, output_states.jcb,
-                        output_states.var_a);
+    tanh_mean_var(input_states.mu_a, input_states.var_a, start_chunk, end_chunk,
+                  output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -384,81 +727,6 @@ LayerType MixtureRelu::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureRelu::mixture_relu_mean_var(std::vector<float> &mu_z,
-                                        std::vector<float> &var_z,
-                                        float omega_tol, int start_chunk,
-                                        int end_chunk, std::vector<float> &mu_a,
-                                        std::vector<float> &jcb,
-                                        std::vector<float> &var_a)
-/*
- */
-{
-    float alpha, beta, omega, kappa, mu_z_til, var_z_til;
-    for (int i = start_chunk; i < end_chunk; i++) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mu_z[i] / powf(var_z[i], 0.5);
-        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
-        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] + beta * powf(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        if (omega * mu_z_til > omega_tol) {
-            mu_a[i] = omega * mu_z_til;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(var_z_til, 2);
-            // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
-            jcb[i] =
-                (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
-                      normcdf_cpu(mu_z[i] / pow(var_z[i], 0.5)) +
-                  mu_z[i] * var_z[i] *
-                      normpdf_cpu(0.0f, mu_z[i], pow(var_z[i], 0.5))) -
-                 (mu_a[i] * mu_z[i])) /
-                var_z[i];
-        } else {
-            mu_a[i] = omega_tol;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(omega_tol, 2);
-            jcb[i] = 0.0f;
-        }
-    }
-}
-
-void MixtureRelu::mixture_relu_mean_var_mp(
-    std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol, int n,
-    unsigned int num_threads, std::vector<float> &mu_a, std::vector<float> &jcb,
-    std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                MixtureRelu::mixture_relu_mean_var(mu_z, var_z, omega_tol,
-                                                   start_chunk, end_chunk, mu_a,
-                                                   jcb, var_a);
-            });
-    }
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void MixtureRelu::forward(BaseHiddenStates &input_states,
                           BaseHiddenStates &output_states,
                           BaseTempStates &temp_states)
@@ -475,7 +743,7 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->mixture_relu_mean_var(
+    mixture_relu_mean_var(
         input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
@@ -523,77 +791,6 @@ LayerType MixtureSigmoid::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureSigmoid::mixture_sigmoid_mean_var(
-    std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
-    int start_chunk, int end_chunk, std::vector<float> &mu_a,
-    std::vector<float> &jcb, std::vector<float> &var_a)
-/*
- */
-{
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
-    for (int i = start_chunk; i < end_chunk; i++) {
-        // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
-
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        mu_a[i] =
-            (omega * mu_z_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
-        var_a[i] = (omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
-                    cdf_lower * powf(1 + mu_a[i], 2) +
-                    (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
-                   4.0f;
-        jcb[i] = omega * 0.5;
-    }
-}
-void MixtureSigmoid::mixture_sigmoid_mean_var_mp(
-    std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol, int n,
-    unsigned int num_threads, std::vector<float> &mu_a, std::vector<float> &jcb,
-    std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                MixtureSigmoid::mixture_sigmoid_mean_var(mu_z, var_z, omega_tol,
-                                                         start_chunk, end_chunk,
-                                                         mu_a, jcb, var_a);
-            });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
 void MixtureSigmoid::forward(BaseHiddenStates &input_states,
                              BaseHiddenStates &output_states,
                              BaseTempStates &temp_states)
@@ -610,7 +807,7 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->mixture_sigmoid_mean_var(
+    mixture_sigmoid_mean_var(
         input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
@@ -658,79 +855,6 @@ LayerType MixtureTanh::get_layer_type() const
     return LayerType::Activation;
 }
 
-void MixtureTanh::mixture_tanh_mean_var(std::vector<float> &mu_z,
-                                        std::vector<float> &var_z,
-                                        float omega_tol, int start_chunk,
-                                        int end_chunk, std::vector<float> &mu_a,
-                                        std::vector<float> &jcb,
-                                        std::vector<float> &var_a)
-/*
- */
-{
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
-    for (int i = start_chunk; i < end_chunk; i++) {
-        // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
-
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        mu_a[i] = omega * mu_z_til - cdf_lower + (1 - cdf_upper);
-        var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
-                   cdf_lower * powf(1 + mu_a[i], 2) +
-                   (1 - cdf_upper) * powf(1 - mu_a[i], 2);
-        jcb[i] = omega;
-    }
-}
-
-void MixtureTanh::mixture_tanh_mean_var_mp(
-    std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol, int n,
-    unsigned int num_threads, std::vector<float> &mu_a, std::vector<float> &jcb,
-    std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                MixtureTanh::mixture_tanh_mean_var(mu_z, var_z, omega_tol,
-                                                   start_chunk, end_chunk, mu_a,
-                                                   jcb, var_a);
-            });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void MixtureTanh::forward(BaseHiddenStates &input_states,
                           BaseHiddenStates &output_states,
                           BaseTempStates &temp_states)
@@ -747,7 +871,7 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->mixture_tanh_mean_var(
+    mixture_tanh_mean_var(
         input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
@@ -794,56 +918,6 @@ LayerType Softplus::get_layer_type() const
     return LayerType::Activation;
 }
 
-void Softplus::softplus_mean_var(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z, int start_chunk,
-                                 int end_chunk, std::vector<float> &mu_a,
-                                 std::vector<float> &jcb,
-                                 std::vector<float> &var_a)
-/*
- */
-{
-    float tmp;
-    for (int col = start_chunk; col < end_chunk; col++) {
-        mu_a[col] = logf(1 + expf(mu_z[col]));
-        tmp = 1 / (1 + expf(-mu_z[col]));
-        jcb[col] = tmp;
-        var_a[col] = tmp * var_z[col] * tmp;
-    }
-}
-
-void Softplus::softplus_mean_var_mp(std::vector<float> &mu_z,
-                                    std::vector<float> &var_z, int n,
-                                    unsigned int num_threads,
-                                    std::vector<float> &mu_a,
-                                    std::vector<float> &jcb,
-                                    std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-            Softplus::softplus_mean_var(mu_z, var_z, start_chunk, end_chunk,
-                                        mu_a, jcb, var_a);
-        });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void Softplus::forward(BaseHiddenStates &input_states,
                        BaseHiddenStates &output_states,
                        BaseTempStates &temp_states)
@@ -860,9 +934,9 @@ void Softplus::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->softplus_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
-                            end_chunk, output_states.mu_a, output_states.jcb,
-                            output_states.var_a);
+    softplus_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                      end_chunk, output_states.mu_a, output_states.jcb,
+                      output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -908,66 +982,6 @@ LayerType LeakyRelu::get_layer_type() const
     return LayerType::Activation;
 }
 
-void LeakyRelu::leaky_relu_mean_var(std::vector<float> &mu_z,
-                                    std::vector<float> &var_z, float alpha,
-                                    int start_chunk, int end_chunk,
-                                    std::vector<float> &mu_a,
-                                    std::vector<float> &jcb,
-                                    std::vector<float> &var_a)
-/*
- */
-{
-    float zeroPad = 0;
-    float onePad = 1;
-    float tmp;
-    int col;
-    for (col = start_chunk; col < end_chunk; col++) {
-        tmp = std::max(mu_z[col], zeroPad);
-        if (tmp == 0) {
-            mu_a[col] = alpha * mu_z[col];
-            jcb[col] = alpha;
-            var_a[col] = alpha * var_z[col] * alpha;
-        } else {
-            mu_a[col] = tmp;
-            jcb[col] = onePad;
-            var_a[col] = var_z[col];
-        }
-    }
-}
-
-void LeakyRelu::leaky_relu_mean_var_mp(std::vector<float> &mu_z,
-                                       std::vector<float> &var_z, float alpha,
-                                       int n, unsigned int num_threads,
-                                       std::vector<float> &mu_a,
-                                       std::vector<float> &jcb,
-                                       std::vector<float> &var_a)
-/*
- */
-{
-    int start_chunk, end_chunk;
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    int n_per_thread = n / num_threads;
-    int extra = n % num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        int start_chunk = i * n_per_thread + std::min(i, extra);
-        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
-
-        threads.emplace_back([=, &mu_z, &var_z, &alpha, &mu_a, &jcb, &var_a] {
-            LeakyRelu::leaky_relu_mean_var(mu_z, var_z, alpha, start_chunk,
-                                           end_chunk, mu_a, jcb, var_a);
-        });
-    }
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-}
-
 void LeakyRelu::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states)
@@ -984,10 +998,9 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    this->leaky_relu_mean_var(input_states.mu_a, input_states.var_a,
-                              start_chunk, end_chunk, this->alpha,
-                              output_states.mu_a, output_states.jcb,
-                              output_states.var_a);
+    leaky_relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                        end_chunk, this->alpha, output_states.mu_a,
+                        output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -1032,38 +1045,6 @@ LayerType Softmax::get_layer_type() const
     return LayerType::Activation;
 }
 
-void Softmax::softmax_mean_var(std::vector<float> &mu_z,
-                               std::vector<float> &var_z, int no,
-                               int batch_size, std::vector<float> &mu_a,
-                               std::vector<float> &jcb,
-                               std::vector<float> &var_a)
-/*
- */
-{
-    float sum, max_m, max_v;
-    int idx;
-    for (int i = 0; i < batch_size; i++) {
-        sum = 0.0f;
-        idx = i * no;
-        auto max_idx =
-            std::max_element(mu_z.begin() + idx, mu_z.begin() + idx + no) -
-            mu_z.begin();
-        max_m = mu_z[max_idx];
-        max_v = var_z[max_idx];
-        for (int j = 0; j < no; j++) {
-            mu_a[idx + j] = expf(mu_z[idx + j] - max_m);
-            sum += mu_a[idx + j];
-        }
-        for (int j = 0; j < no; j++) {
-            mu_a[idx + j] = mu_a[idx + j] / sum;
-            jcb[idx + j] = mu_a[idx + j] * (1 - mu_a[idx + j]);
-            // TODO: double check on covariance formulation
-            var_a[idx + j] =
-                jcb[idx + j] * (var_z[idx + j] + max_v) * jcb[idx + j];
-        }
-    }
-}
-
 void Softmax::forward(BaseHiddenStates &input_states,
                       BaseHiddenStates &output_states,
                       BaseTempStates &temp_states)
@@ -1079,9 +1060,9 @@ void Softmax::forward(BaseHiddenStates &input_states,
 
     // TODO: replace this function by the multiprocessing one
     int batch_size = input_states.size / input_states.block_size;
-    this->softmax_mean_var(
-        input_states.mu_a, input_states.var_a, input_states.block_size,
-        batch_size, output_states.mu_a, output_states.jcb, output_states.var_a);
+    softmax_mean_var(input_states.mu_a, input_states.var_a,
+                     input_states.block_size, batch_size, output_states.mu_a,
+                     output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;

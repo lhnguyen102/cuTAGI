@@ -1,17 +1,17 @@
-###############################################################################
-# File:         dataloader.py
-# Description:  Prepare data for neural networks
-# Authors:      Luong-Ha Nguyen & James-A. Goulet
-# Created:      October 12, 2022
-# Updated:      January 27, 2023
-# Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# License:      This code is released under the MIT License.
-###############################################################################
+import os
+from typing import Tuple
+
+# Temporary import. It will be removed in the final vserion
+import sys
 from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from pytagi import Normalizer, Utils
+
+from pytagi import Normalizer
+
+
+from utils import Utils
 
 
 class DataloaderBase(ABC):

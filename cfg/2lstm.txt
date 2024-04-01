@@ -5,7 +5,7 @@ batch_size: 10
 input_seq_len: 5
 output_seq_len: 1
 seq_stride: 1
-sigma_v: 	2
+sigma_v: 	3
 sigma_v_min: 0.3
 decay_factor_sigma_v: 0.95
 multithreading: true

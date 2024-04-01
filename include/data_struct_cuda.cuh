@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 18, 2023
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,6 +95,28 @@ class ObservationCuda : public BaseObservation {
 
     std::string get_name() const override { return "ObservationCuda"; };
 
+    void allocate_memory();
+    void to_device();
+    void to_host();
+};
+
+class LSTMStateCuda : public BaseLSTMStates {
+   public:
+    float *d_mu_ha = nullptr, *d_var_ha = nullptr, *d_mu_f_ga = nullptr,
+          *d_var_f_ga = nullptr, *d_jcb_f_ga = nullptr, *d_mu_i_ga = nullptr,
+          *d_var_i_ga = nullptr, *d_jcb_i_ga = nullptr, *d_mu_c_ga = nullptr,
+          *d_var_c_ga = nullptr, *d_jcb_c_ga = nullptr, *d_mu_o_ga = nullptr,
+          *d_var_o_ga = nullptr, *d_jcb_o_ga = nullptr, *d_mu_ca = nullptr,
+          *d_var_ca = nullptr, *d_jcb_ca = nullptr, *d_mu_c = nullptr,
+          *d_var_c = nullptr, *d_mu_c_prev = nullptr, *d_var_c_prev = nullptr,
+          *d_mu_h_prev = nullptr, *d_var_h_prev = nullptr, *d_cov_i_c = nullptr,
+          *d_cov_o_tanh_c = nullptr;
+
+    LSTMStateCuda(size_t num_states, size_t num_inputs);
+    LSTMStateCuda();
+    ~LSTMStateCuda();
+    std::string get_name() const override { return "LSTMStateCuda"; };
+    void set_num_states(size_t num_states, size_t num_inputs) override;
     void allocate_memory();
     void to_device();
     void to_host();

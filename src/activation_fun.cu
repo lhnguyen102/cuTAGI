@@ -220,12 +220,14 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
         Sz_til = kappa * Sz[zpos + col];
 
         // Activation distribution
-        ma[zpos + col] = omega * mz_til - cdf_lower + (1 - cdf_upper);
-        Sa[zpos + col] = omega * Sz_til +
-                         omega * powf(mz_til - ma[zpos + col], 2) +
-                         cdf_lower * powf(1 + ma[zpos + col], 2) +
-                         (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
-        J[zpos + col] = omega * 0.5;
+        ma[zpos + col] =
+            (omega * mz_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
+        Sa[zpos + col] =
+            (omega * Sz_til + omega * powf(mz_til - ma[zpos + col], 2) +
+             cdf_lower * powf(1 + ma[zpos + col], 2) +
+             (1 - cdf_upper) * powf(1 - ma[zpos + col], 2)) /
+            4.0f;
+        J[zpos + col] = omega;
     }
 }
 

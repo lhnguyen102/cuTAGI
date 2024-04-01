@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 18, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -386,5 +386,299 @@ void ObservationCuda::to_host() {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Copying device to host.");
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// LSTM states
+////////////////////////////////////////////////////////////////////////////////
+LSTMStateCuda::LSTMStateCuda() {}
+LSTMStateCuda::LSTMStateCuda(size_t num_states, size_t num_inputs)
+    : BaseLSTMStates(num_states, num_inputs)
+/*
+ */
+{
+    this->allocate_memory();
+}
+
+LSTMStateCuda::~LSTMStateCuda()
+/*
+ */
+{
+    cudaFree(d_mu_ha);
+    d_mu_ha = nullptr;
+    cudaFree(d_var_ha);
+    d_var_ha = nullptr;
+    cudaFree(d_mu_f_ga);
+    d_mu_f_ga = nullptr;
+    cudaFree(d_var_f_ga);
+    d_var_f_ga = nullptr;
+    cudaFree(d_jcb_f_ga);
+    d_jcb_f_ga = nullptr;
+    cudaFree(d_mu_i_ga);
+    d_mu_i_ga = nullptr;
+    cudaFree(d_var_i_ga);
+    d_var_i_ga = nullptr;
+    cudaFree(d_jcb_i_ga);
+    d_jcb_i_ga = nullptr;
+    cudaFree(d_mu_c_ga);
+    d_mu_c_ga = nullptr;
+    cudaFree(d_var_c_ga);
+    d_var_c_ga = nullptr;
+    cudaFree(d_jcb_c_ga);
+    d_jcb_c_ga = nullptr;
+    cudaFree(d_mu_o_ga);
+    d_mu_o_ga = nullptr;
+    cudaFree(d_var_o_ga);
+    d_var_o_ga = nullptr;
+    cudaFree(d_jcb_o_ga);
+    d_jcb_o_ga = nullptr;
+    cudaFree(d_mu_ca);
+    d_mu_ca = nullptr;
+    cudaFree(d_var_ca);
+    d_var_ca = nullptr;
+    cudaFree(d_jcb_ca);
+    d_jcb_ca = nullptr;
+    cudaFree(d_mu_c);
+    d_mu_c = nullptr;
+    cudaFree(d_var_c);
+    d_var_c = nullptr;
+    cudaFree(d_mu_c_prev);
+    d_mu_c_prev = nullptr;
+    cudaFree(d_var_c_prev);
+    d_var_c_prev = nullptr;
+    cudaFree(d_mu_h_prev);
+    d_mu_h_prev = nullptr;
+    cudaFree(d_var_h_prev);
+    d_var_h_prev = nullptr;
+    cudaFree(d_cov_i_c);
+    d_cov_i_c = nullptr;
+    cudaFree(d_cov_o_tanh_c);
+    d_cov_o_tanh_c = nullptr;
+}
+
+void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
+/*
+ */
+{
+    this->num_states = num_states;
+    this->num_inputs = num_inputs;
+    this->reset_zeros();
+    this->allocate_memory();
+}
+
+void LSTMStateCuda::allocate_memory()
+/*
+ */
+{
+    size_t size = num_states * sizeof(float);
+    size_t size_ha = (num_states + num_inputs) * sizeof(float);
+
+    cudaMalloc((void **)&d_mu_ha, size_ha);
+    cudaMalloc((void **)&d_var_ha, size_ha);
+
+    cudaMalloc((void **)&d_mu_f_ga, size);
+    cudaMalloc((void **)&d_var_f_ga, size);
+    cudaMalloc((void **)&d_jcb_f_ga, size);
+
+    cudaMalloc((void **)&d_mu_i_ga, size);
+    cudaMalloc((void **)&d_var_i_ga, size);
+    cudaMalloc((void **)&d_jcb_i_ga, size);
+
+    cudaMalloc((void **)&d_mu_c_ga, size);
+    cudaMalloc((void **)&d_var_c_ga, size);
+    cudaMalloc((void **)&d_jcb_c_ga, size);
+
+    cudaMalloc((void **)&d_mu_o_ga, size);
+    cudaMalloc((void **)&d_var_o_ga, size);
+    cudaMalloc((void **)&d_jcb_o_ga, size);
+
+    cudaMalloc((void **)&d_mu_ca, size);
+    cudaMalloc((void **)&d_var_ca, size);
+    cudaMalloc((void **)&d_jcb_ca, size);
+
+    cudaMalloc((void **)&d_mu_c, size);
+    cudaMalloc((void **)&d_var_c, size);
+
+    cudaMalloc((void **)&d_mu_c_prev, size);
+    cudaMalloc((void **)&d_var_c_prev, size);
+
+    cudaMalloc((void **)&d_mu_h_prev, size);
+    cudaMalloc((void **)&d_var_h_prev, size);
+
+    cudaMalloc((void **)&d_cov_i_c, size);
+    cudaMalloc((void **)&d_cov_o_tanh_c, size);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory allocation.");
+    }
+}
+
+void LSTMStateCuda::to_device() {
+    // Copy mu_ha and var_ha
+    cudaMemcpy(d_mu_ha, this->mu_ha.data(),
+               (this->num_states + this->num_inputs) * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_ha, this->var_ha.data(),
+               (this->num_states + this->num_inputs) * sizeof(float),
+               cudaMemcpyHostToDevice);
+
+    // Copy mu_f_ga and var_f_ga
+    cudaMemcpy(d_mu_f_ga, this->mu_f_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_f_ga, this->var_f_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_jcb_f_ga, this->jcb_f_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy mu_i_ga, var_i_ga, and jcb_i_ga
+    cudaMemcpy(d_mu_i_ga, this->mu_i_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_i_ga, this->var_i_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_jcb_i_ga, this->jcb_i_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy mu_c_ga, var_c_ga, and jcb_c_ga
+    cudaMemcpy(d_mu_c_ga, this->mu_c_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_c_ga, this->var_c_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_jcb_c_ga, this->jcb_c_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy mu_o_ga, var_o_ga, and jcb_o_ga
+    cudaMemcpy(d_mu_o_ga, this->mu_o_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_o_ga, this->var_o_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_jcb_o_ga, this->jcb_o_ga.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy mu_ca, var_ca, and jcb_ca
+    cudaMemcpy(d_mu_ca, this->mu_ca.data(), this->num_states * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_ca, this->var_ca.data(), this->num_states * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_jcb_ca, this->jcb_ca.data(), this->num_states * sizeof(float),
+               cudaMemcpyHostToDevice);
+
+    // Copy mu_c, var_c, mu_c_prev, and var_c_prev
+    cudaMemcpy(d_mu_c, this->mu_c.data(), this->num_states * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_c, this->var_c.data(), this->num_states * sizeof(float),
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_mu_c_prev, this->mu_c_prev.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_c_prev, this->var_c_prev.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy mu_h_prev and var_h_prev
+    cudaMemcpy(d_mu_h_prev, this->mu_h_prev.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_h_prev, this->var_h_prev.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy cov_i_c and cov_o_tanh_c
+    cudaMemcpy(d_cov_i_c, this->cov_i_c.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_cov_o_tanh_c, this->cov_o_tanh_c.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Host to device.");
+    }
+}
+
+void LSTMStateCuda::to_host()
+/*
+ */
+{
+    // Copy back mu_ha and var_ha
+    cudaMemcpy(this->mu_ha.data(), d_mu_ha,
+               (this->num_states + this->num_inputs) * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_ha.data(), d_var_ha,
+               (this->num_states + this->num_inputs) * sizeof(float),
+               cudaMemcpyDeviceToHost);
+
+    // Copy back mu_f_ga and var_f_ga
+    cudaMemcpy(this->mu_f_ga.data(), d_mu_f_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_f_ga.data(), d_var_f_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back jcb_f_ga
+    cudaMemcpy(this->jcb_f_ga.data(), d_jcb_f_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back mu_i_ga, var_i_ga, and jcb_i_ga
+    cudaMemcpy(this->mu_i_ga.data(), d_mu_i_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_i_ga.data(), d_var_i_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->jcb_i_ga.data(), d_jcb_i_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back mu_c_ga, var_c_ga, and jcb_c_ga
+    cudaMemcpy(this->mu_c_ga.data(), d_mu_c_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_c_ga.data(), d_var_c_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->jcb_c_ga.data(), d_jcb_c_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back mu_o_ga, var_o_ga, and jcb_o_ga
+    cudaMemcpy(this->mu_o_ga.data(), d_mu_o_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_o_ga.data(), d_var_o_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->jcb_o_ga.data(), d_jcb_o_ga,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back mu_ca, var_ca, and jcb_ca
+    cudaMemcpy(this->mu_ca.data(), d_mu_ca, this->num_states * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_ca.data(), d_var_ca, this->num_states * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->jcb_ca.data(), d_jcb_ca, this->num_states * sizeof(float),
+               cudaMemcpyDeviceToHost);
+
+    // Copy back mu_c, var_c, mu_c_prev, and var_c_prev
+    cudaMemcpy(this->mu_c.data(), d_mu_c, this->num_states * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_c.data(), d_var_c, this->num_states * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_c_prev.data(), d_mu_c_prev,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_c_prev.data(), d_var_c_prev,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back mu_h_prev and var_h_prev
+    cudaMemcpy(this->mu_h_prev.data(), d_mu_h_prev,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_h_prev.data(), d_var_h_prev,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Copy back cov_i_c and cov_o_tanh_c
+    cudaMemcpy(this->cov_i_c.data(), d_cov_i_c,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cov_o_tanh_c.data(), d_cov_o_tanh_c,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device to host.");
     }
 }

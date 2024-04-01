@@ -3,13 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 14, 2024
-// Updated:      March 09, 2024
+// Updated:      March 31, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "base_output_updater.h"
 #include "sequential.h"
+#include "tagi_network_cpu.h"
 #ifdef USE_CUDA
 #include "tagi_network.cuh"
 #endif

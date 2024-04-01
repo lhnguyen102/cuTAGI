@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 11, 2024
+// Updated:      March 28, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,9 +80,9 @@ class BaseLayer {
 
     virtual LayerType get_layer_type() const;
 
-    int get_input_size();
+    virtual int get_input_size();
 
-    int get_output_size();
+    virtual int get_output_size();
 
     virtual void forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,

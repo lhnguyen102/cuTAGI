@@ -2,8 +2,8 @@ model_name: lstm_demo
 task_name: time_series
 data_name: toy_example
 net_name: 2lstm
-load_param: true
-num_epochs: 50
+load_param: false
+num_epochs: 10
 num_train_data: 924
 num_test_data: 232
 device: cpu

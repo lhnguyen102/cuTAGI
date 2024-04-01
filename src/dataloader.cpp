@@ -739,16 +739,20 @@ Returns:
     };
 
     // Compute sample mean and std for dataset
-    std::vector<float> mu_x(user_input.num_features, 0);
-    std::vector<float> sigma_x(user_input.num_features, 1);
+    if (user_input.mu.size() == 0) {
+        user_input.mu.resize(user_input.num_features, 0);
+        user_input.sigma.resize(user_input.num_features, 1);
+        compute_mean_std(cat_x, user_input.mu, user_input.sigma,
+                         user_input.num_features);
+    }
     std::vector<float> mu_y(num_outputs, 0);
     std::vector<float> sigma_y(num_outputs, 1);
     if (user_input.data_norm) {
-        compute_mean_std(cat_x, mu_x, sigma_x, user_input.num_features);
-        normalize_data(cat_x, mu_x, sigma_x, user_input.num_features);
+        normalize_data(cat_x, user_input.mu, user_input.sigma,
+                       user_input.num_features);
         for (int i = 0; i < num_outputs; i++) {
-            mu_y[i] = mu_x[user_input.output_col[i]];
-            sigma_y[i] = sigma_x[user_input.output_col[i]];
+            mu_y[i] = user_input.mu[user_input.output_col[i]];
+            sigma_y[i] = user_input.sigma[user_input.output_col[i]];
         }
     }
 
@@ -767,8 +771,8 @@ Returns:
 
     // Set data to output variable
     db.x = input_data;
-    db.mu_x = mu_x;
-    db.sigma_x = sigma_x;
+    db.mu_x = user_input.mu;
+    db.sigma_x = user_input.sigma;
     db.nx = user_input.num_features * net.input_seq_len;
 
     db.y = output_data;
