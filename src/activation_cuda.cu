@@ -759,8 +759,8 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
         std_z = powf(var_z[col], 0.5);
         alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
         alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
-        cdf_l = normcdf_cpu(alpha_l);
-        cdf_u = normcdf_cpu(alpha_u);
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
         pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
@@ -796,8 +796,8 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
         std_z = powf(var_z[col], 0.5);
         alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
         alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
-        cdf_l = normcdf_cpu(alpha_l);
-        cdf_u = normcdf_cpu(alpha_u);
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
         pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
