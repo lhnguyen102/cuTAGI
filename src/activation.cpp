@@ -293,34 +293,26 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 /*
  */
 {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_chunk; i < end_chunk; i++) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+        std_z = powf(var_z[i], 0.5);
+        alpha_l = (1.0f + mu_z[i]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mu_z[i]) / std_z;  // Upper truncation
+        cdf_l = normcdf_cpu(alpha_l);
+        cdf_u = normcdf_cpu(alpha_u);
+        pdf_l = normpdf_cpu(alpha_l, 0.0f, 1.0f);
+        pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        mu_a[i] = omega * mu_z_til - cdf_lower + (1 - cdf_upper);
-        var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
-                   cdf_lower * powf(1 + mu_a[i], 2) +
-                   (1 - cdf_upper) * powf(1 - mu_a[i], 2);
-        jcb[i] = omega;
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
+                  std_z * (pdf_l - pdf_u) - mu_z[i];
+        var_a[i] = cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
+                   cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
+                   std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
+                   powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] + powf(mu_z[i], 2) +
+                   2;
+        jcb[i] = cdf_u + cdf_l - 1;
     }
 }
 
