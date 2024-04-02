@@ -66,8 +66,8 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
-                     Linear(100, 11));
+    Sequential model(Linear(784, 100), MixtureRelu(), Linear(100, 100),
+                     MixtureRelu(), Linear(100, 11));
 
     // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 100), BatchNorm2d(100), ReLU(),
@@ -97,7 +97,7 @@ void fnn_mnist() {
     //                  Linear(100, 11));
 
     // model.set_threads(8);
-    // model.to_device("cuda");
+    model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
@@ -173,7 +173,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
