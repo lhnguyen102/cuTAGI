@@ -245,34 +245,26 @@ void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                       float omega_tol, int zpos, int start_idx, int end_idx,
                       std::vector<float> &ma, std::vector<float> &J,
                       std::vector<float> &Sa) {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_idx; i < end_idx; i++) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
-        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+        std_z = powf(Sz[zpos + i], 0.5);
+        alpha_l = (1.0f + mz[zpos + i]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mz[zpos + i]) / std_z;  // Upper truncation
+        cdf_l = normcdf_cpu(alpha_l);
+        cdf_u = normcdf_cpu(alpha_u);
+        pdf_l = normpdf_cpu(alpha_l, 0.0f, 1.0f);
+        pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
-        Sz_til = kappa * Sz[zpos + i];
-
-        // Activation distribution
-        ma[zpos + i] = omega * mz_til - cdf_lower + (1 - cdf_upper);
-        Sa[zpos + i] = omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
-                       cdf_lower * powf(1 + ma[zpos + i], 2) +
-                       (1 - cdf_upper) * powf(1 - ma[zpos + i], 2);
-        J[zpos + i] = omega;
+        // Moments calculations (L. Alric, 2024)
+        ma[zpos + i] = (mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
+                  std_z * (pdf_l - pdf_u) - mz[zpos + i];
+        Sa[zpos + i] = cdf_l * (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
+                   cdf_u * (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
+                   std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
+                   powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] + powf(mz[zpos + i], 2) +
+                   2;
+        J[zpos + i] = cdf_u + cdf_l - 1;
     }
 }
 
@@ -280,37 +272,26 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                          float omega_tol, int zpos, int start_idx, int end_idx,
                          std::vector<float> &ma, std::vector<float> &J,
                          std::vector<float> &Sa) {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_idx; i < end_idx; i++) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
-        alpha_upper = (1.0f - mz[zpos + i]) / powf(Sz[zpos + i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+        std_z = powf(Sz[zpos + i], 0.5);
+        alpha_l = (1.0f + mz[zpos + i]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mz[zpos + i]) / std_z;  // Upper truncation
+        cdf_l = normcdf_cpu(alpha_l);
+        cdf_u = normcdf_cpu(alpha_u);
+        pdf_l = normpdf_cpu(alpha_l, 0.0f, 1.0f);
+        pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mz_til = mz[zpos + i] - beta * pow(Sz[zpos + i], 0.5);
-        Sz_til = kappa * Sz[zpos + i];
-
-        // Activation distribution
-        ma[zpos + i] =
-            (omega * mz_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
-        Sa[zpos + i] =
-            (omega * Sz_til + omega * powf(mz_til - ma[zpos + i], 2) +
-             cdf_lower * powf(1 + ma[zpos + i], 2) +
-             (1 - cdf_upper) * powf(1 - ma[zpos + i], 2)) /
-            4.0f;
-        J[zpos + i] = omega * 0.5;
+        // Moments calculations (L. Alric, 2024)
+        ma[zpos + i] = ((mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
+                  std_z * (pdf_l - pdf_u) - mz[zpos + i]) / 2.0f + 0.5f;
+        Sa[zpos + i] = (cdf_l * (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
+                   cdf_u * (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
+                   std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
+                   powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] + powf(mz[zpos + i], 2) +
+                   2) / 4.0f;
+        J[zpos + i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 
