@@ -152,13 +152,18 @@ __global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
         // Moments calculations (L. Alric, 2024)
-        ma[zpos + col] = (mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
-                  std_z * (pdf_l - pdf_u) - mz[zpos + col];
-        Sa[zpos + col] = cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) - 2 * mz[zpos + col] - 1) +
-                   cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) + 2 * mz[zpos + col] - 1) +
-                   std_z * (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
-                   powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] + powf(mz[zpos + col], 2) +
-                   2;
+        ma[zpos + col] = (mz[zpos + col] + 1) * cdf_l +
+                         (mz[zpos + col] - 1) * cdf_u +
+                         std_z * (pdf_l - pdf_u) - mz[zpos + col];
+        Sa[zpos + col] =
+            cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
+                     2 * mz[zpos + col] - 1) +
+            cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) +
+                     2 * mz[zpos + col] - 1) +
+            std_z *
+                (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
+            powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
+            powf(mz[zpos + col], 2) - Sz[zpos + col] + 2;
         J[zpos + col] = cdf_u + cdf_l - 1;
     }
 }
@@ -180,13 +185,20 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
         // Moments calculations (L. Alric, 2024)
-        ma[zpos + col] = ((mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
-                  std_z * (pdf_l - pdf_u) - mz[zpos + col]) / 2.0f + 0.5f;
-        Sa[zpos + col] = (cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) - 2 * mz[zpos + col] - 1) +
-                   cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) + 2 * mz[zpos + col] - 1) +
-                   std_z * (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
-                   powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] + powf(mz[zpos + col], 2) +
-                   2) / 4.0f;
+        ma[zpos + col] =
+            ((mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
+             std_z * (pdf_l - pdf_u) - mz[zpos + col]) /
+                2.0f +
+            0.5f;
+        Sa[zpos + col] =
+            (cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
+                      2 * mz[zpos + col] - 1) +
+             cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) +
+                      2 * mz[zpos + col] - 1) +
+             std_z *
+                 (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
+             powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
+             powf(mz[zpos + col], 2) - Sz[zpos + col] + 2) / 4.0f;
         J[zpos + col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }

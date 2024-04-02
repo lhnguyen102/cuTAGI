@@ -258,12 +258,15 @@ void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 
         // Moments calculations (L. Alric, 2024)
         ma[zpos + i] = (mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
-                  std_z * (pdf_l - pdf_u) - mz[zpos + i];
-        Sa[zpos + i] = cdf_l * (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
-                   cdf_u * (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
-                   std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
-                   powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] + powf(mz[zpos + i], 2) +
-                   2;
+                       std_z * (pdf_l - pdf_u) - mz[zpos + i];
+        Sa[zpos + i] =
+            cdf_l *
+                (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
+            cdf_u *
+                (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
+            std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
+            powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] +
+            powf(mz[zpos + i], 2) - Sz[zpos + i] + 2;
         J[zpos + i] = cdf_u + cdf_l - 1;
     }
 }
@@ -284,13 +287,20 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
         // Moments calculations (L. Alric, 2024)
-        ma[zpos + i] = ((mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
-                  std_z * (pdf_l - pdf_u) - mz[zpos + i]) / 2.0f + 0.5f;
-        Sa[zpos + i] = (cdf_l * (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
-                   cdf_u * (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
-                   std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
-                   powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] + powf(mz[zpos + i], 2) +
-                   2) / 4.0f;
+        ma[zpos + i] =
+            ((mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
+             std_z * (pdf_l - pdf_u) - mz[zpos + i]) /
+                2.0f +
+            0.5f;
+        Sa[zpos + i] =
+            (cdf_l *
+                 (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
+             cdf_u *
+                 (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
+             std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
+             powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] +
+             powf(mz[zpos + i], 2) - Sz[zpos + i] + 2) /
+            4.0f;
         J[zpos + i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
