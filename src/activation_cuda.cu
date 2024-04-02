@@ -747,9 +747,9 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         mu_a[col] = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        Sa[col] = -powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] -
-                  mu_z[col] * std_z * pdf_alpha +
-                  (var_z[col] - powf(mu_z[col], 2)) * cdf_alpha;
+        var_a[col] = -powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] -
+                     mu_z[col] * std_z * pdf_alpha +
+                     (var_z[col] - powf(mu_z[col], 2)) * cdf_alpha;
         jcb[col] = cdf_alpha;
     }
 }
