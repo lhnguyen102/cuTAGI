@@ -9,7 +9,7 @@ sys.path.append(
 )
 
 import cutagitest
-from base_layer import BaseLayer
+from pytagi.nn.base_layer import BaseLayer
 
 
 class BatchNorm2d(BaseLayer):

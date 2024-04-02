@@ -107,3 +107,50 @@ class BaseDeltaStates:
     def copy_from(self, source: "BaseDeltaStates", num_data: int = -1) -> None:
         """Copy values of delta_mu and delta_var from delta states"""
         self._cpp_backend.copy_from(source, num_data)
+
+
+class HRCSoftmax:
+    """Hierarchical softmax wrapper from the CPP backend. Further details can be
+    found here https://building-babylon.net/2017/08/01/hierarchical-softmax
+
+    Attributes:
+        obs: A fictive observation \in [-1, 1]
+        idx: Indices assigned to each label
+        n_obs: Number of indices for each label
+        len: Length of an observation e.g 10 labels -> len(obs) = 11
+    """
+
+    def __init__(self) -> None:
+        self._cpp_backend = cutagitest.HRCSoftmax()
+
+    @property
+    def obs(self) -> List[float]:
+        return self._cpp_backend.obs
+
+    @obs.setter
+    def obs(self, value: List[float]):
+        self._cpp_backend.obs = value
+
+    @property
+    def idx(self) -> List[int]:
+        return self._cpp_backend.idx
+
+    @idx.setter
+    def idx(self, value: List[int]):
+        self._cpp_backend.idx = value
+
+    @property
+    def num_obs(self) -> int:
+        return self._cpp_backend.num_obs
+
+    @num_obs.setter
+    def num_obs(self, value: int):
+        self._cpp_backend.num_obs = value
+
+    @property
+    def len(self) -> int:
+        return self._cpp_backend.len
+
+    @len.setter
+    def len(self, value: int):
+        self._cpp_backend.len = value

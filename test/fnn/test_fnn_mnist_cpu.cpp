@@ -66,8 +66,8 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), MixtureRelu(), Linear(100, 100),
-                     MixtureRelu(), Linear(100, 11));
+    Sequential model(Linear(784, 100), MixtureReLU(), Linear(100, 100),
+                     MixtureReLU(), Linear(100, 11));
 
     // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 100), BatchNorm2d(100), ReLU(),

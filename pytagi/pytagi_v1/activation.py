@@ -50,11 +50,11 @@ class Tanh(BaseLayer):
         return self._cpp_backend.get_layer_name()
 
 
-class MixtureRelu(BaseLayer):
+class MixtureReLU(BaseLayer):
     """Mixture ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.MixtureRelu()
+        self._cpp_backend = cutagitest.MixtureReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -102,11 +102,11 @@ class Softplus(BaseLayer):
         return self._cpp_backend.get_layer_name()
 
 
-class LeakyRelu(BaseLayer):
+class LeakyReLU(BaseLayer):
     """Leaky ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.LeakyRelu()
+        self._cpp_backend = cutagitest.LeakyReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()

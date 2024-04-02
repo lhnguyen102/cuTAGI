@@ -1,12 +1,3 @@
-###############################################################################
-# File:         metric.py
-# Description:  Measure the accuracy of the prediction
-# Authors:      Luong-Ha Nguyen & James-A. Goulet
-# Created:      October 13, 2022
-# Updated:      October 21, 2022
-# Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# License:      This code is released under the MIT License.
-###############################################################################
 import numpy as np
 
 

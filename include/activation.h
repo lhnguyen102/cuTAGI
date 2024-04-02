@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 22, 2024
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,14 +55,14 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
                               std::vector<float> &var_a);
 
 void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z,
-                              int start_chunk, int end_chunk,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, std::vector<float> &mu_a,
+                              std::vector<float> &jcb,
                               std::vector<float> &var_a);
 
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z,
-                                 int n, unsigned int num_threads,
+                                 std::vector<float> &var_z, int n,
+                                 unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
@@ -238,19 +238,19 @@ class Tanh : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture ReLU
 ////////////////////////////////////////////////////////////////////////////////
-class MixtureRelu : public BaseLayer {
+class MixtureReLU : public BaseLayer {
    public:
-    MixtureRelu();
-    ~MixtureRelu();
+    MixtureReLU();
+    ~MixtureReLU();
 
     // Delete copy constructor and copy assignment
-    MixtureRelu(const MixtureRelu &) = delete;
-    MixtureRelu &operator=(const MixtureRelu &) = delete;
+    MixtureReLU(const MixtureReLU &) = delete;
+    MixtureReLU &operator=(const MixtureReLU &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    MixtureRelu(MixtureRelu &&) = default;
-    MixtureRelu &operator=(MixtureRelu &&) = default;
+    MixtureReLU(MixtureReLU &&) = default;
+    MixtureReLU &operator=(MixtureReLU &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -418,20 +418,20 @@ class Softplus : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
 ////////////////////////////////////////////////////////////////////////////////
-class LeakyRelu : public BaseLayer {
+class LeakyReLU : public BaseLayer {
    public:
     float alpha = 0.1f;
-    LeakyRelu();
-    ~LeakyRelu();
+    LeakyReLU();
+    ~LeakyReLU();
 
     // Delete copy constructor and copy assignment
-    LeakyRelu(const LeakyRelu &) = delete;
-    LeakyRelu &operator=(const LeakyRelu &) = delete;
+    LeakyReLU(const LeakyReLU &) = delete;
+    LeakyReLU &operator=(const LeakyReLU &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    LeakyRelu(LeakyRelu &&) = default;
-    LeakyRelu &operator=(LeakyRelu &&) = default;
+    LeakyReLU(LeakyReLU &&) = default;
+    LeakyReLU &operator=(LeakyReLU &&) = default;
 
     std::string get_layer_info() const override;
 

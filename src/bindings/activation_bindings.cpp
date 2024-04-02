@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      December 30, 2023
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,17 +63,17 @@ void bind_mixture_relu(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<MixtureRelu, std::shared_ptr<MixtureRelu>, BaseLayer>(
-        modo, "MixtureRelu")
+    pybind11::class_<MixtureReLU, std::shared_ptr<MixtureReLU>, BaseLayer>(
+        modo, "MixtureReLU")
         .def(pybind11::init<>())
-        .def("get_layer_info", &MixtureRelu::get_layer_info)
-        .def("get_layer_name", &MixtureRelu::get_layer_name)
-        .def("forward", &MixtureRelu::forward)
-        .def("update_weights", &MixtureRelu::update_weights)
-        .def("update_biases", &MixtureRelu::update_biases)
-        .def("load", &MixtureRelu::load)
-        .def("save", &MixtureRelu::save)
-        .def("to_cuda", &MixtureRelu::to_cuda);
+        .def("get_layer_info", &MixtureReLU::get_layer_info)
+        .def("get_layer_name", &MixtureReLU::get_layer_name)
+        .def("forward", &MixtureReLU::forward)
+        .def("update_weights", &MixtureReLU::update_weights)
+        .def("update_biases", &MixtureReLU::update_biases)
+        .def("load", &MixtureReLU::load)
+        .def("save", &MixtureReLU::save)
+        .def("to_cuda", &MixtureReLU::to_cuda);
 }
 
 void bind_mixture_sigmoid(pybind11::module_& modo)
@@ -131,17 +131,17 @@ void bind_leakyrelu(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<LeakyRelu, std::shared_ptr<LeakyRelu>, BaseLayer>(
-        modo, "LeakyRelu")
+    pybind11::class_<LeakyReLU, std::shared_ptr<LeakyReLU>, BaseLayer>(
+        modo, "LeakyReLU")
         .def(pybind11::init<>())
-        .def("get_layer_info", &LeakyRelu::get_layer_info)
-        .def("get_layer_name", &LeakyRelu::get_layer_name)
-        .def("forward", &LeakyRelu::forward)
-        .def("update_weights", &LeakyRelu::update_weights)
-        .def("update_biases", &LeakyRelu::update_biases)
-        .def("load", &LeakyRelu::load)
-        .def("save", &LeakyRelu::save)
-        .def("to_cuda", &LeakyRelu::to_cuda);
+        .def("get_layer_info", &LeakyReLU::get_layer_info)
+        .def("get_layer_name", &LeakyReLU::get_layer_name)
+        .def("forward", &LeakyReLU::forward)
+        .def("update_weights", &LeakyReLU::update_weights)
+        .def("update_biases", &LeakyReLU::update_biases)
+        .def("load", &LeakyReLU::load)
+        .def("save", &LeakyReLU::save)
+        .def("to_cuda", &LeakyReLU::to_cuda);
 }
 
 void bind_softmax(pybind11::module_& modo)

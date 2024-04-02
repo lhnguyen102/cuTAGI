@@ -11,8 +11,8 @@ from typing import List, Tuple
 
 import cutagitest
 import numpy as np
-from base_layer import BaseLayer
-from data_struct import BaseHiddenStates, BaseDeltaStates
+from pytagi.nn.base_layer import BaseLayer
+from pytagi.nn.data_struct import BaseHiddenStates, BaseDeltaStates
 
 
 class Sequential:

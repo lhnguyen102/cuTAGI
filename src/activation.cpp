@@ -669,17 +669,17 @@ std::unique_ptr<BaseLayer> Tanh::to_cuda() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture ReLU
 ////////////////////////////////////////////////////////////////////////////////
-MixtureRelu::MixtureRelu() {}
-MixtureRelu::~MixtureRelu() {}
+MixtureReLU::MixtureReLU() {}
+MixtureReLU::~MixtureReLU() {}
 
-std::string MixtureRelu::get_layer_info() const
+std::string MixtureReLU::get_layer_info() const
 /*
  */
 {
     return "MixtureReLU()";
 }
 
-std::string MixtureRelu::get_layer_name() const
+std::string MixtureReLU::get_layer_name() const
 /*
  */
 
@@ -687,14 +687,14 @@ std::string MixtureRelu::get_layer_name() const
     return "MixtureReLU";
 }
 
-LayerType MixtureRelu::get_layer_type() const
+LayerType MixtureReLU::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void MixtureRelu::forward(BaseHiddenStates &input_states,
+void MixtureReLU::forward(BaseHiddenStates &input_states,
                           BaseHiddenStates &output_states,
                           BaseTempStates &temp_states)
 /*
@@ -724,9 +724,9 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> MixtureRelu::to_cuda() {
+std::unique_ptr<BaseLayer> MixtureReLU::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<MixtureReluCuda>();
+    return std::make_unique<MixtureReLUCuda>();
 }
 #endif
 
@@ -924,17 +924,17 @@ std::unique_ptr<BaseLayer> Softplus::to_cuda() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
 ////////////////////////////////////////////////////////////////////////////////
-LeakyRelu::LeakyRelu(){};
-LeakyRelu::~LeakyRelu(){};
+LeakyReLU::LeakyReLU(){};
+LeakyReLU::~LeakyReLU(){};
 
-std::string LeakyRelu::get_layer_info() const
+std::string LeakyReLU::get_layer_info() const
 /*
  */
 {
     return "leakyReLU()";
 }
 
-std::string LeakyRelu::get_layer_name() const
+std::string LeakyReLU::get_layer_name() const
 /*
  */
 
@@ -942,14 +942,14 @@ std::string LeakyRelu::get_layer_name() const
     return "leakReLU";
 }
 
-LayerType LeakyRelu::get_layer_type() const
+LayerType LeakyReLU::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void LeakyRelu::forward(BaseHiddenStates &input_states,
+void LeakyReLU::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states)
 /*
@@ -979,9 +979,9 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LeakyRelu::to_cuda() {
+std::unique_ptr<BaseLayer> LeakyReLU::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<LeakyReluCuda>();
+    return std::make_unique<LeakyReLUCuda>();
 }
 #endif
 

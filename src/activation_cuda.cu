@@ -229,31 +229,31 @@ std::unique_ptr<BaseLayer> TanhCuda::to_host()
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture Relu
 ////////////////////////////////////////////////////////////////////////////////
-MixtureReluCuda::MixtureReluCuda() {}
-MixtureReluCuda ::~MixtureReluCuda() {}
+MixtureReLUCuda::MixtureReLUCuda() {}
+MixtureReLUCuda ::~MixtureReLUCuda() {}
 
-std::string MixtureReluCuda::get_layer_info() const
+std::string MixtureReLUCuda::get_layer_info() const
 /*
  */
 {
     return "MixtureReLU()";
 }
 
-std::string MixtureReluCuda::get_layer_name() const
+std::string MixtureReLUCuda::get_layer_name() const
 /*
  */
 {
-    return "MixtureReluCuda";
+    return "MixtureReLUCuda";
 }
 
-LayerType MixtureReluCuda::get_layer_type() const
+LayerType MixtureReLUCuda::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void MixtureReluCuda::forward(BaseHiddenStates &input_states,
+void MixtureReLUCuda::forward(BaseHiddenStates &input_states,
                               BaseHiddenStates &output_states,
                               BaseTempStates &temp_states)
 /*
@@ -286,11 +286,11 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
-std::unique_ptr<BaseLayer> MixtureReluCuda::to_host()
+std::unique_ptr<BaseLayer> MixtureReLUCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer = std::make_unique<MixtureRelu>();
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<MixtureReLU>();
     host_layer->input_size = this->input_size;
     host_layer->output_size = this->output_size;
 
@@ -513,31 +513,31 @@ std::unique_ptr<BaseLayer> SoftplusCuda::to_host()
 ////////////////////////////////////////////////////////////////////////////////
 /// LeakyRelu
 ////////////////////////////////////////////////////////////////////////////////
-LeakyReluCuda::LeakyReluCuda() {}
-LeakyReluCuda::~LeakyReluCuda() {}
+LeakyReLUCuda::LeakyReLUCuda() {}
+LeakyReLUCuda::~LeakyReLUCuda() {}
 
-std::string LeakyReluCuda::get_layer_info() const
+std::string LeakyReLUCuda::get_layer_info() const
 /*
  */
 {
     return "leakyRelu()";
 }
 
-std::string LeakyReluCuda::get_layer_name() const
+std::string LeakyReLUCuda::get_layer_name() const
 /*
  */
 {
     return "leakyReluCuda";
 }
 
-LayerType LeakyReluCuda::get_layer_type() const
+LayerType LeakyReLUCuda::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void LeakyReluCuda::forward(BaseHiddenStates &input_states,
+void LeakyReLUCuda::forward(BaseHiddenStates &input_states,
                             BaseHiddenStates &output_states,
                             BaseTempStates &temp_states)
 /*
@@ -550,8 +550,6 @@ void LeakyReluCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&output_states);
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
-
-    cu_input_states->to_device();
 
     int num_states = input_states.actual_size * input_states.block_size;
     unsigned int blocks =
@@ -572,11 +570,11 @@ void LeakyReluCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
-std::unique_ptr<BaseLayer> LeakyReluCuda::to_host()
+std::unique_ptr<BaseLayer> LeakyReLUCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer = std::make_unique<LeakyRelu>();
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<LeakyReLU>();
     host_layer->input_size = this->input_size;
     host_layer->output_size = this->output_size;
 
