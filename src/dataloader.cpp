@@ -193,7 +193,7 @@ std::vector<int> load_mnist_labels(std::string label_file, int num)
     return n_labels;
 }
 
-void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
+void labels_to_hrs(std::vector<int> &labels, HRCSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx)
 /*
  * Convert labels to hierarchical softmax.
@@ -275,7 +275,7 @@ ImageData get_images(std::string data_name,
     image_file: Directory path to image file
     label_file: Directory path to label file
     num: Number of images files
-    HrSoftmax: Hierarchical softmax for classification
+    HRCSoftmax: Hierarchical softmax for classification
 
 Returns:
     ImageData: Image database
@@ -364,7 +364,7 @@ ImageData get_images_v2(std::string data_name,
     image_file: Directory path to image file
     label_file: Directory path to label file
     num: Number of images files
-    HrSoftmax: Hierarchical softmax for classification
+    HRCSoftmax: Hierarchical softmax for classification
 
 Returns:
     ImageData: Image database

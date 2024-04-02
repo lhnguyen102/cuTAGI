@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 01, 2023
-// Updated:      March 28, 2024
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -104,4 +104,18 @@ class BaseLSTMStates {
     virtual void set_num_states(size_t num_states, size_t num_inputs);
     virtual std::string get_name() const { return "BaseLSTMStates"; };
     void reset_zeros();
+};
+
+// HIERARCHICAL SOFTMAX
+struct HRCSoftmax {
+    /* Hierarchical softmax
+       Args:
+        obs: A fictive observation \in [-1, 1]
+        idx: Indices assigned to each label
+        n_obs: Number of indices for each label
+        len: Length of an observation e.g 10 labels -> len(obs) = 11
+    */
+    std::vector<float> obs;
+    std::vector<int> idx;
+    int n_obs, len;
 };

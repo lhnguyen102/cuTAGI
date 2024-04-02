@@ -18,6 +18,7 @@ PYBIND11_MODULE(cutagitest, modo) {
 
     bind_base_hidden_states(modo);
     bind_base_delta_states(modo);
+    bind_hrcsoftmax(modo);
     bind_base_layer(modo);
     bind_relu(modo);
     bind_sigmoid(modo);

@@ -49,3 +49,15 @@ void bind_base_delta_states(pybind11::module_ &m) {
         .def("copy_from", &BaseDeltaStates::copy_from, pybind11::arg("source"),
              pybind11::arg("num_data") = -1);
 }
+
+void bind_hrcsoftmax(pybind11::module_ &modo)
+/*
+ */
+{
+    pybind11::class_<HRCSoftmax>(modo, "HRCSoftmax")
+        .def(pybind11::init<>())
+        .def_readwrite("obs", &HRCSoftmax::obs)
+        .def_readwrite("idx", &HRCSoftmax::idx)
+        .def_readwrite("num_obs", &HRCSoftmax::n_obs)
+        .def_readwrite("length", &HRCSoftmax::len);
+}

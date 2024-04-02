@@ -38,13 +38,13 @@ class UtilityWrapper {
 
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
-                       HrSoftmax &hs, int num_classes, int B);
+                       HRCSoftmax &hs, int num_classes, int B);
 
-    HrSoftmax hierarchical_softmax_wrapper(int num_classes);
+    HRCSoftmax hierarchical_softmax_wrapper(int num_classes);
 
     std::vector<float> obs_to_label_prob_wrapper(std::vector<float> &mz,
                                                  std::vector<float> &Sz,
-                                                 HrSoftmax &hs,
+                                                 HRCSoftmax &hs,
                                                  int num_classes);
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,

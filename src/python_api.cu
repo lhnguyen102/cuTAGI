@@ -50,7 +50,7 @@ UtilityWrapper::load_cifar_dataset_wrapper(std::string &image_file, int num) {
 
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
-                                   std::vector<float> &Sz, HrSoftmax &hs,
+                                   std::vector<float> &Sz, HRCSoftmax &hs,
                                    int num_classes, int B) {
     // Initialization
     std::vector<float> prob(B * num_classes);
@@ -84,14 +84,14 @@ UtilityWrapper::get_labels_wrapper(std::vector<float> &mz,
     return {py_pred, py_prob};
 }
 
-HrSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
+HRCSoftmax UtilityWrapper::hierarchical_softmax_wrapper(int num_classes) {
     auto hs = class_to_obs(num_classes);
 
     return hs;
 }
 
 std::vector<float> UtilityWrapper::obs_to_label_prob_wrapper(
-    std::vector<float> &mz, std::vector<float> &Sz, HrSoftmax &hs,
+    std::vector<float> &mz, std::vector<float> &Sz, HRCSoftmax &hs,
     int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;
@@ -334,12 +334,12 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("device", &Network::device)
         .def_readwrite("ra_mt", &Network::ra_mt);
 
-    pybind11::class_<HrSoftmax>(m, "HrSoftmax")
+    pybind11::class_<HRCSoftmax>(m, "HRCSoftmax")
         .def(pybind11::init<>())
-        .def_readwrite("obs", &HrSoftmax::obs)
-        .def_readwrite("idx", &HrSoftmax::idx)
-        .def_readwrite("num_obs", &HrSoftmax::n_obs)
-        .def_readwrite("length", &HrSoftmax::len);
+        .def_readwrite("obs", &HRCSoftmax::obs)
+        .def_readwrite("idx", &HRCSoftmax::idx)
+        .def_readwrite("num_obs", &HRCSoftmax::n_obs)
+        .def_readwrite("length", &HRCSoftmax::len);
 
     pybind11::class_<UtilityWrapper>(m, "UtilityWrapper")
         .def(pybind11::init<>())

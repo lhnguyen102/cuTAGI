@@ -4,7 +4,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 31, 2024
-// Updated:      March 31, 2024
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -59,7 +59,7 @@ Utils::load_cifar_dataset_wrapper(std::string &image_file, int num) {
 
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 Utils::get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
-                          HrSoftmax &hs, int num_classes, int B) {
+                          HRCSoftmax &hs, int num_classes, int B) {
     // Initialization
     std::vector<float> prob(B * num_classes);
     std::vector<int> pred(B);
@@ -92,14 +92,14 @@ Utils::get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
     return {py_pred, py_prob};
 }
 
-HrSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
+HRCSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
     auto hs = class_to_obs(num_classes);
 
     return hs;
 }
 std::vector<float> Utils::obs_to_label_prob_wrapper(std::vector<float> &mz,
                                                     std::vector<float> &Sz,
-                                                    HrSoftmax &hs,
+                                                    HRCSoftmax &hs,
                                                     int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;

@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 31, 2024
-// Updated:      March 31, 2024
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -14,8 +14,8 @@
 
 #include "common.h"
 #include "cost.h"
+#include "data_struct.h"
 #include "dataloader.h"
-#include "struct_var.h"
 
 class Utils {
    public:
@@ -36,13 +36,13 @@ class Utils {
 
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
-                       HrSoftmax &hs, int num_classes, int B);
+                       HRCSoftmax &hs, int num_classes, int B);
 
-    HrSoftmax hierarchical_softmax_wrapper(int num_classes);
+    HRCSoftmax hierarchical_softmax_wrapper(int num_classes);
 
     std::vector<float> obs_to_label_prob_wrapper(std::vector<float> &mz,
                                                  std::vector<float> &Sz,
-                                                 HrSoftmax &hs,
+                                                 HRCSoftmax &hs,
                                                  int num_classes);
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,

@@ -3,7 +3,7 @@
 // Description:  Header file for cost function
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 19, 2022
-// Updated:      January 25, 2023
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,11 +19,12 @@
 #include <vector>
 
 #include "common.h"
+#include "data_struct.h"
 #include "struct_var.h"
 
-HrSoftmax class_to_obs(int n_classes);
+HRCSoftmax class_to_obs(int n_classes);
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
-                                HrSoftmax &hs, int n_classes);
+                                HRCSoftmax &hs, int n_classes);
 
 std::tuple<std::vector<int>, std::vector<float>> get_error(
     std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
