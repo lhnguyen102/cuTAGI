@@ -116,39 +116,22 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
                              int zpos, int apos, int n, float *ma, float *J,
                              float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     float pi = 3.141592;  // pi number
     if (col < n) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
-        omega = max(1.0f - normcdff(alpha), omega_tol);
-        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
-               omega;
-        kappa = 1.0f + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(Sz[zpos + col], 0.5);
+        alpha = mz[zpos + col] / std_z;
+        pdf_alpha = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) /2.0f);
+        cdf_alpha = normcdff(alpha);
 
-        // Gaussian mixture's parameters
-        mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);
-        Sz_til = kappa * Sz[zpos + col];
-
-        // Activation distribution
-        if (omega * mz_til > omega_tol) {
-            ma[apos + col] = omega * mz_til;
-            Sa[apos + col] =
-                omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-            // J[apos + col] = powf(omega * kappa, 0.5); // Approx. formulation
-            J[apos + col] = (((powf(mz[zpos + col], 2) + Sz[zpos + col]) *
-                                  normcdff(-alpha) +
-                              mz[zpos + col] * powf(Sz[zpos + col], 0.5) *
-                                  (1.0f / powf(2.0f * pi, 0.5)) *
-                                  expf(-powf(-alpha, 2) / 2.0f)) -
-                             (ma[apos + col] * mz[zpos + col])) /
-                            Sz[zpos + col];
-        } else {
-            ma[apos + col] = omega_tol;
-            Sa[apos + col] =
-                omega * Sz_til + omega * (1.0f - omega) * powf(omega_tol, 2);
-            J[apos + col] = 0.0f;  // TODO replace by 1.0f
-        }
+        // Moments calculations (L. Alric, 2024)
+        ma[apos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
+        Sa[apos + col] = - powf(ma[apos + col], 2)
+                    + 2 * ma[apos + col] * mz[zpos + col]
+                    - mz[zpos + col] * std_z * pdf_alpha
+                    + (Sz[zpos + col] - powf(mz[zpos + col], 2)) * cdf_alpha;
+        J[apos + col] = cdf_alpha;
     }
 }
 

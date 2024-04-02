@@ -164,37 +164,20 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 /*
  */
 {
-    float alpha, beta, omega, kappa, mu_z_til, var_z_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     for (int i = start_chunk; i < end_chunk; i++) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mu_z[i] / powf(var_z[i], 0.5);
-        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
-        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(var_z[i], 0.5);
+        alpha = mu_z[i] / std_z;
+        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        cdf_alpha = normcdf_cpu(alpha);
 
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] + beta * powf(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        if (omega * mu_z_til > omega_tol) {
-            mu_a[i] = omega * mu_z_til;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(mu_z_til, 2);
-            // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
-            jcb[i] =
-                (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
-                      normcdf_cpu(mu_z[i] / pow(var_z[i], 0.5)) +
-                  mu_z[i] * var_z[i] *
-                      normpdf_cpu(0.0f, mu_z[i], pow(var_z[i], 0.5))) -
-                 (mu_a[i] * mu_z[i])) /
-                var_z[i];
-        } else {
-            mu_a[i] = omega_tol;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(omega_tol, 2);
-            jcb[i] = 0.0f;
-        }
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = mu_z[i] * cdf_alpha + std_z * pdf_alpha;
+        var_a[i] = - powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i]
+                    - mu_z[i] * std_z * pdf_alpha
+                    + (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+        jcb[i] = cdf_alpha;
     }
 }
 

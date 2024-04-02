@@ -223,39 +223,21 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                       float omega_tol, int z_pos, int a_pos, int start_idx,
                       int end_idx, std::vector<float> &ma,
                       std::vector<float> &J, std::vector<float> &Sa) {
-    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     for (int i = start_idx; i < end_idx; i++) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mz[z_pos + i] / powf(Sz[z_pos + i], 0.5);
-        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
-        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(Sz[z_pos + i], 0.5);
+        alpha = mz[z_pos + i] / std_z;
+        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        cdf_alpha = normcdf_cpu(alpha);
 
-        // Gaussian mixture's paramters
-        mz_til = mz[z_pos + i] + beta * powf(Sz[z_pos + i], 0.5);
-        Sz_til = kappa * Sz[z_pos + i];
-
-        // Activation distribution
-        if (omega * mz_til > omega_tol) {
-            ma[i + a_pos] = omega * mz_til;
-            Sa[i + a_pos] =
-                omega * Sz_til + omega * (1 - omega) * powf(mz_til, 2);
-            // J[i + a_pos] = powf(omega * kappa, 0.5); // Approximate
-            // formulation
-            J[i + a_pos] =  // Exact(Huber, 2020)
-                (((pow(mz[z_pos + i], 2) + Sz[z_pos + i]) *
-                      normcdf_cpu(mz[z_pos + i] / pow(Sz[z_pos + i], 0.5)) +
-                  mz[z_pos + i] * Sz[z_pos + i] *
-                      normpdf_cpu(0.0f, mz[z_pos + i],
-                                  pow(Sz[z_pos + i], 0.5))) -
-                 (ma[i + a_pos] * mz[z_pos + i])) /
-                Sz[z_pos + i];
-        } else {
-            ma[i + a_pos] = omega_tol;
-            Sa[i + a_pos] =
-                omega * Sz_til + omega * (1 - omega) * powf(omega_tol, 2);
-            J[i + a_pos] = 0.0f;
-        }
+        // Moments calculations (L. Alric, 2024)
+        ma[i + a_pos] = mz[z_pos + i] * cdf_alpha + std_z * pdf_alpha;
+        Sa[i + a_pos] = - powf(ma[i + a_pos], 2)
+                    + 2 * ma[i + a_pos] * mz[z_pos + i]
+                    - mz[z_pos + i] * std_z * pdf_alpha
+                    + (Sz[z_pos + i] - powf(mz[z_pos + i], 2)) * cdf_alpha;
+        J[i + a_pos] = cdf_alpha;
     }
 }
 
