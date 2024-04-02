@@ -122,16 +122,17 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
         // Reused components for moments calculations
         std_z = powf(Sz[zpos + col], 0.5);
         alpha = mz[zpos + col] / std_z;
-        pdf_alpha = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) /2.0f);
+        pdf_alpha =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
         cdf_alpha = normcdff(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        ma[apos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
-        Sa[apos + col] = - powf(ma[apos + col], 2)
-                    + 2 * ma[apos + col] * mz[zpos + col]
-                    - mz[zpos + col] * std_z * pdf_alpha
-                    + (Sz[zpos + col] - powf(mz[zpos + col], 2)) * cdf_alpha;
-        J[apos + col] = cdf_alpha;
+        ma[zpos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
+        Sa[zpos + col] = -powf(ma[zpos + col], 2) +
+                         2 * ma[zpos + col] * mz[zpos + col] -
+                         mz[zpos + col] * std_z * pdf_alpha +
+                         (Sz[zpos + col] - powf(mz[zpos + col], 2)) * cdf_alpha;
+        J[zpos + col] = cdf_alpha;
     }
 }
 

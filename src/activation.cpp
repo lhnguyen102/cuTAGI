@@ -174,9 +174,9 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = mu_z[i] * cdf_alpha + std_z * pdf_alpha;
-        var_a[i] = - powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i]
-                    - mu_z[i] * std_z * pdf_alpha
-                    + (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
+                   mu_z[i] * std_z * pdf_alpha +
+                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
         jcb[i] = cdf_alpha;
     }
 }
