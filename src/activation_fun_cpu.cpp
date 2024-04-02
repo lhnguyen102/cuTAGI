@@ -232,12 +232,12 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
         cdf_alpha = normcdf_cpu(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        ma[z_pos + i] = mz[z_pos + i] * cdf_alpha + std_z * pdf_alpha;
-        Sa[z_pos + i] = -powf(ma[z_pos + i], 2) +
-                        2 * ma[z_pos + i] * mz[z_pos + i] -
+        ma[a_pos + i] = mz[z_pos + i] * cdf_alpha + std_z * pdf_alpha;
+        Sa[a_pos + i] = -powf(ma[a_pos + i], 2) +
+                        2 * ma[a_pos + i] * mz[z_pos + i] -
                         mz[z_pos + i] * std_z * pdf_alpha +
                         (Sz[z_pos + i] - powf(mz[z_pos + i], 2)) * cdf_alpha;
-        J[z_pos + i] = cdf_alpha;
+        J[a_pos + i] = cdf_alpha;
     }
 }
 

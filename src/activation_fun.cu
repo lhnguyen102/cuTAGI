@@ -127,12 +127,12 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
         cdf_alpha = normcdff(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        ma[zpos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
-        Sa[zpos + col] = -powf(ma[zpos + col], 2) +
-                         2 * ma[zpos + col] * mz[zpos + col] -
+        ma[apos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
+        Sa[apos + col] = -powf(ma[apos + col], 2) +
+                         2 * ma[apos + col] * mz[zpos + col] -
                          mz[zpos + col] * std_z * pdf_alpha +
                          (Sz[zpos + col] - powf(mz[zpos + col], 2)) * cdf_alpha;
-        J[zpos + col] = cdf_alpha;
+        J[apos + col] = cdf_alpha;
     }
 }
 
