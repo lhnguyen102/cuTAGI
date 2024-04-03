@@ -272,7 +272,7 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_relu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, 
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -343,7 +343,7 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_sigmoid_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -414,7 +414,7 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_tanh_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -716,9 +716,9 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
 }
 
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a)
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a)
 /*
  */
 {
@@ -744,9 +744,8 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
 __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
                                               float const *var_z,
-                                              float omega_tol, int num_states,
-                                              float *mu_a, float *jcb,
-                                              float *var_a)
+                                              int num_states, float *mu_a,
+                                              float *jcb, float *var_a)
 /*
  */
 {
@@ -766,7 +765,7 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
-                     std_z * (pdf_l - pdf_u) - mu_z[col];
+                    std_z * (pdf_l - pdf_u) - mu_z[col];
         var_a[col] =
             (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
              cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
@@ -780,9 +779,9 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
 }
 
 __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a)
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a)
 /*
  */
 {

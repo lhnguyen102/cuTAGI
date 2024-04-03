@@ -280,9 +280,8 @@ void forget_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
         net.z_pos_lstm[l], net.nodes[l], ni_c, b_seq);
 
     mixture_sigmoid<<<ACT_BLOCKS, THREADS>>>(
-        state.lstm.d_mf_ga, state.lstm.d_Sf_ga, net.omega_tol,
-        net.z_pos_lstm[l], no_b_seq, state.lstm.d_mf_ga, state.lstm.d_Jf_ga,
-        state.lstm.d_Sf_ga);
+        state.lstm.d_mf_ga, state.lstm.d_Sf_ga, net.z_pos_lstm[l], no_b_seq,
+        state.lstm.d_mf_ga, state.lstm.d_Jf_ga, state.lstm.d_Sf_ga);
 }
 
 void input_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
@@ -310,9 +309,8 @@ void input_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
         state.lstm.d_Si_ga, w_pos_i, b_pos_i, z_pos_i_lstm, net.z_pos_lstm[l],
         net.nodes[l], ni_c, b_seq);
     mixture_sigmoid<<<ACT_BLOCKS, THREADS>>>(
-        state.lstm.d_mi_ga, state.lstm.d_Si_ga, net.omega_tol,
-        net.z_pos_lstm[l], no_b_seq, state.lstm.d_mi_ga, state.lstm.d_Ji_ga,
-        state.lstm.d_Si_ga);
+        state.lstm.d_mi_ga, state.lstm.d_Si_ga, net.z_pos_lstm[l], no_b_seq,
+        state.lstm.d_mi_ga, state.lstm.d_Ji_ga, state.lstm.d_Si_ga);
 }
 
 void cell_state_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
@@ -340,9 +338,8 @@ void cell_state_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
         state.lstm.d_Sc_ga, w_pos_c, b_pos_c, z_pos_i_lstm, net.z_pos_lstm[l],
         net.nodes[l], ni_c, b_seq);
     mixture_tanh<<<ACT_BLOCKS, THREADS>>>(
-        state.lstm.d_mc_ga, state.lstm.d_Sc_ga, net.omega_tol,
-        net.z_pos_lstm[l], no_b_seq, state.lstm.d_mc_ga, state.lstm.d_Jc_ga,
-        state.lstm.d_Sc_ga);
+        state.lstm.d_mc_ga, state.lstm.d_Sc_ga, net.z_pos_lstm[l], no_b_seq,
+        state.lstm.d_mc_ga, state.lstm.d_Jc_ga, state.lstm.d_Sc_ga);
 }
 
 void output_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
@@ -369,9 +366,8 @@ void output_gate(Network &net, StateGPU &state, ParamGPU &theta, int l) {
         state.lstm.d_So_ga, w_pos_o, b_pos_o, z_pos_i_lstm, net.z_pos_lstm[l],
         net.nodes[l], ni_c, b_seq);
     mixture_sigmoid<<<ACT_BLOCKS, THREADS>>>(
-        state.lstm.d_mo_ga, state.lstm.d_So_ga, net.omega_tol,
-        net.z_pos_lstm[l], no_b_seq, state.lstm.d_mo_ga, state.lstm.d_Jo_ga,
-        state.lstm.d_So_ga);
+        state.lstm.d_mo_ga, state.lstm.d_So_ga, net.z_pos_lstm[l], no_b_seq,
+        state.lstm.d_mo_ga, state.lstm.d_Jo_ga, state.lstm.d_So_ga);
 }
 
 void lstm_state_forward(Network &net, StateGPU &state, ParamGPU &theta, int l)
@@ -449,7 +445,7 @@ NOTE: Weight & bias vector for lstm is defined following
         z_pos_o_lstm, no, net.input_seq_len, net.batch_size, state.lstm.d_mc,
         state.lstm.d_Sc);
     mixture_tanh<<<ACT_BLOCKS, THREADS>>>(
-        state.lstm.d_mc, state.lstm.d_Sc, net.omega_tol, z_pos_o_lstm, no_b_seq,
+        state.lstm.d_mc, state.lstm.d_Sc, z_pos_o_lstm, no_b_seq,
         state.lstm.d_mca, state.lstm.d_Jca, state.lstm.d_Sca);
 
     // Cov(output gate, tanh(cell states))

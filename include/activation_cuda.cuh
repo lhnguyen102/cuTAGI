@@ -32,18 +32,18 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
                                    float *var_a);
 
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
+                                           float const *var_z, 
                                            int num_states, float *mu_a,
                                            float *jcb, float *var_a);
 
 __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
                                               float const *var_z,
-                                              float omega_tol, int num_states,
+                                              int num_states,
                                               float *mu_a, float *jcb,
                                               float *var_a);
 
 __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
+                                           float const *var_z,
                                            int num_states, float *mu_a,
                                            float *jcb, float *var_a);
 
@@ -176,7 +176,6 @@ class TanhCuda : public BaseLayerCuda {
 
 class MixtureReluCuda : public BaseLayerCuda {
    public:
-    float omega_tol = 0.0000001f;
     MixtureReluCuda();
     ~MixtureReluCuda();
 
@@ -214,7 +213,6 @@ class MixtureReluCuda : public BaseLayerCuda {
 
 class MixtureSigmoidCuda : public BaseLayerCuda {
    public:
-    float omega_tol = 0.0000001f;
     MixtureSigmoidCuda();
     ~MixtureSigmoidCuda();
 
@@ -252,7 +250,6 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
 
 class MixtureTanhCuda : public BaseLayerCuda {
    public:
-    float omega_tol = 0.0000001f;
     MixtureTanhCuda();
     ~MixtureTanhCuda();
 

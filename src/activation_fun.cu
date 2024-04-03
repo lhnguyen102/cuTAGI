@@ -112,9 +112,8 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
     }
 }
 
-__global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
-                             int zpos, int apos, int n, float *ma, float *J,
-                             float *Sa) {
+__global__ void mixture_relu(float const *mz, float const *Sz, int zpos,
+                            int apos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha, pdf_alpha, cdf_alpha;
     float pi = 3.141592;  // pi number
@@ -136,7 +135,7 @@ __global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
     }
 }
 
-__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+__global__ void mixture_tanh(float const *mz, float const *Sz,
                              int zpos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
@@ -169,7 +168,7 @@ __global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
 }
 
 __global__ void mixture_sigmoid(float const *mz, float const *Sz,
-                                float omega_tol, int zpos, int n, float *ma,
+                                int zpos, int n, float *ma,
                                 float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
@@ -366,7 +365,7 @@ void remax(Network &net, StateGPU &state, int l) {
     dim3 dim_grid_1(1, grid_row);
 
     // mrelu
-    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                       z_pos, 0, no * B, state.remax.d_mu_m,
                                       state.remax.d_J_m, state.remax.d_var_m);
 
@@ -464,20 +463,20 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
 
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
-        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                           z_pos, z_pos, MB, state.d_ma,
                                           state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {
-        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                           z_pos, MB, state.d_ma, state.d_J,
                                           state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
     {
         mixture_sigmoid<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                             net.omega_tol, z_pos, MB,
+                                             z_pos, MB,
                                              state.d_ma, state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.softmax) {

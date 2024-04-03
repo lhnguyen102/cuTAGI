@@ -158,7 +158,7 @@ void tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
 }
 
 void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a)
 /*
@@ -182,7 +182,7 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 }
 
 void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
@@ -201,8 +201,8 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_relu_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_relu_mean_var(mu_z, var_z, start_chunk,
                                       end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -214,7 +214,7 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
 }
 
 void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol,
+                              std::vector<float> &var_z,
                               int start_chunk, int end_chunk,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
@@ -245,7 +245,7 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
     }
 }
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z, float omega_tol,
+                                 std::vector<float> &var_z,
                                  int n, unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,
@@ -265,8 +265,8 @@ void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_sigmoid_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_sigmoid_mean_var(mu_z, var_z, start_chunk,
                                          end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -279,7 +279,7 @@ void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
 }
 
 void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a)
 /*
@@ -309,7 +309,7 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 }
 
 void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
@@ -328,8 +328,8 @@ void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_tanh_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_tanh_mean_var(mu_z, var_z, start_chunk,
                                       end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -711,7 +711,7 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_relu_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -775,7 +775,7 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_sigmoid_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -839,7 +839,7 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_tanh_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass

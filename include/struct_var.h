@@ -199,7 +199,6 @@ struct Network {
         min_operations: Minimal number of operations to trigger multithread
         device: cpu or cuda will be used to perform TAGI forward and backward
             passes.
-        omega_tol: Tolerance for the mixture activation
         cap_factor: A hyper-parameter being used to compute the max value for
             each parameter update
 
@@ -258,7 +257,6 @@ struct Network {
     int num_gpu_threads = 16;
     int min_operations = 1000;
     std::string device = "cpu";
-    float omega_tol = 0.0000001f;
     float cap_factor = 1.0f;
     MultiHeadAttentionProp mha;
     EmbeddingProp emb;
