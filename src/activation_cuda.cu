@@ -765,10 +765,8 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[col] = ((mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
-                     std_z * (pdf_l - pdf_u) - mu_z[col]) /
-                        2.0f +
-                    0.5f;
+        mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
+                     std_z * (pdf_l - pdf_u) - mu_z[col];
         var_a[col] =
             (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
              cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
@@ -776,6 +774,7 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
              powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
              powf(mu_z[col], 2) - var_z[col] + 2) /
             4.0f;
+        mu_a[col] = mu_a[col] / 2.0f + 0.5f;
         jcb[col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }

@@ -233,16 +233,14 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
         pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[i] = ((mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
-                   std_z * (pdf_l - pdf_u) - mu_z[i]) /
-                      2.0f +
-                  0.5f;
+        mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
+                   std_z * (pdf_l - pdf_u) - mu_z[i];
         var_a[i] = (cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
                     cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
                     std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
                     powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] +
-                    powf(mu_z[i], 2) - var_z[i] + 2) /
-                   4.0f;
+                    powf(mu_z[i], 2) - var_z[i] + 2) / 4.0f;
+        mu_a[i] = mu_a[i] / 2.0f + 0.5f;
         jcb[i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }

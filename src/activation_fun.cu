@@ -186,10 +186,8 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
 
         // Moments calculations (L. Alric, 2024)
         ma[zpos + col] =
-            ((mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
-             std_z * (pdf_l - pdf_u) - mz[zpos + col]) /
-                2.0f +
-            0.5f;
+            (mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
+             std_z * (pdf_l - pdf_u) - mz[zpos + col];
         Sa[zpos + col] =
             (cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
                       2 * mz[zpos + col] - 1) +
@@ -199,6 +197,7 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
                  (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
              powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
              powf(mz[zpos + col], 2) - Sz[zpos + col] + 2) / 4.0f;
+        ma[zpos + col] = ma[zpos + col] / 2.0f + 0.5f;
         J[zpos + col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
