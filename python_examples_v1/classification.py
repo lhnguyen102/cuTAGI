@@ -129,14 +129,14 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
 
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
-            model(x.flatten())
+            model(x)
 
             # Update output layers based on targets
             output_updater.update_using_indices(
                 output_states=model.output_z_buffer,
-                mu_obs=y.flatten(),
-                var_obs=var_obs.flatten(),
-                selected_idx=y_idx.flatten(),
+                mu_obs=y,
+                var_obs=var_obs,
+                selected_idx=y_idx
                 delta_states=model.input_delta_z_buffer,
             )
 
@@ -159,7 +159,7 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
         test_batch_iter = dtl.test_batch_generator(x_test, label_test, batch_size)
         for x, y in test_batch_iter:
 
-            model(x.flatten())
+            model(x)
             m_pred, v_pred = model.get_outputs()
             pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
 

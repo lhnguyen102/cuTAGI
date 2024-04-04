@@ -50,7 +50,7 @@ var_obs = np.zeros((batch_size, hr_softmax.num_obs)) + sigma_v**2
 batch_iter = dtl.train_batch_generator(x_train, y_train, y_train_idx, label_train, batch_size)
 for x, y, y_idx, label in batch_iter:
   # Feed forward
-  model(x)
+  model.forward(x)
 
   # Update output layers based on targets
   output_updater.update_using_indices(model.output_z_buffer, y, var_obs, y_idx, model.input_delta_z_buffer)
