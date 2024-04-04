@@ -8,6 +8,15 @@
 ## What is cuTAGI ?
 cu/Py TAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. It specializes in quantifying uncertainty in neural network parameters, enabling a range of tasks such as supervised, unsupervised, and reinforcement learning.
 
+Supported Tasks:
+- [x] Epsitemic Uncertainty Modeling
+- [ ] Aleatoric Uncertainty Modeling (WIP)
+- [ ] Derivative Estimation of a function (WIP)
+- [x] Regression
+- [x] Generation Images (e.g., Autoencoder)
+- [x] Time-series Forecasting
+- [ ] Decision Making (e.g., Reinforcement Learning)
+
 Supported Layers:
 - [x] Linear
 - [x] CNNs
