@@ -1,27 +1,31 @@
 # Table of Contents
 * [What is cuTAGI ?](#What-is-cuTAGI)
-* [Python Installation](#pytagi-installation)
-* [C++/CUDA Installation](#cutagi-installation)
-* [Directory Structure](#directory-structure)
+* [Example](#pytagi-installation)
 * [License](#license)
 * [Related Papers](#related-papers)
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. cuTAGI includes several of the common neural network layer architectures such as full-connected, convolutional, and transpose convolutional layers, as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised learning, unsupervised learning, and reinforcement learning. The library includes some of the advanced features such as the capacity to propagate uncertainties from the input to the output layer using the the [full covariance mode for hidden layers](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf), the capacity to estimate the [derivative](https://www.jmlr.org/papers/volume23/21-0758/21-0758.pdf) of a neural network, and the capacity to quantify heteroscedastic aleatory uncertainty.
+cu/Py TAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. It specializes in quantifying uncertainty in neural network parameters, enabling a range of tasks such as supervised, unsupervised, and reinforcement learning.
 
-cuTAGI is under development and new features will be added as they are ready. Currently supported tasks are:
-* Supervised learning
-  * Regression
-  * Long Short-Term Memory (LSTM)
-  * Classification using fully-connected, convolutional and residual architectures
-* Unsupervised learning
-  * Autoencoders
+Supported Layers:
+- [x] Linear
+- [x] CNNs
+- [x] Transpose CNNs
+- [x] LSTMs
+- [x] Batch Normalization
+- [x] Layer Normalization
+- [ ] GRU
 
-Coming soon...
-* Unsupervised learning: GANs
-* Reinforcement learning: DQN
-* +++
+Model Development Tools:
+- [x] Sequential Model Construction
+- [ ] Eager Execution (WIP)
+
+Examples of [regression task](#regression-task) using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
+<p align="center">
+  <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
+</p>
+
 
 ## Example
 ```Python
@@ -41,7 +45,6 @@ dataset = dtl.process_data(x_train_file, y_train_file, x_test_file, y_test_file)
 # Hierachical Softmax
 utils = Utils()
 hr_softmax = utils.get_hierarchical_softmax(10)
-
 
 model = Sequential(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11))
 output_updater = OutputUpdater(model.device)
