@@ -75,7 +75,7 @@ class FullCovMLP(NetProp):
         self.sigma_x: float = 0.3485
         self.is_full_cov: bool = True
         self.multithreading: bool = True
-        self.device: str = "cpu"
+        self.device: str = "cpu" #cpu
 
 
 class MnistMLP(NetProp):

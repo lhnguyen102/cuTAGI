@@ -289,7 +289,7 @@ for j in range(len(data_names)):
     ax[0].set_ylabel('RMSE')
     ax[1].scatter(range(num_epochs), mean_LL)
     if os.path.exists(filepath_opt_epoch):
-        ax[1].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on RMSE plot
+        ax[1].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on LL plot
     ax[1].set_xlabel('Epochs')
     ax[1].set_ylabel('Log-likelihood')
     # set the main title for the figure
