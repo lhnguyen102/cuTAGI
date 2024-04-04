@@ -7,17 +7,15 @@ import fire
 import matplotlib.pyplot as plt
 import memory_profiler
 import numpy as np
-from data_loader import TimeSeriesDataloader
-from linear import Linear
-from lstm import LSTM
-from output_updater import OutputUpdater
-from sequential import Sequential
+import pandas as pd
 from tqdm import tqdm
 
 import pytagi.metric as metric
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
-import pandas as pd
+from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
+
+from .data_loader import TimeSeriesDataloader
 
 
 class TimeSeriesForecaster:

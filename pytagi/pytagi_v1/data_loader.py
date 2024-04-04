@@ -1,5 +1,5 @@
 import os
-from typing import Tuple
+from typing import Tuple, Union
 
 # Temporary import. It will be removed in the final vserion
 import sys
@@ -8,10 +8,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from pytagi import Normalizer
 
-
-from utils import Utils
+from tools import DataloaderWrapper, Normalizer
 
 
 class DataloaderBase(ABC):
@@ -149,7 +147,7 @@ class MnistDataloader(DataloaderBase):
     ) -> dict:
         """Process mnist images"""
         # Initialization
-        utils = Utils()
+        utils = DataloaderWrapper()
         num_train_images = 60000
         num_test_images = 10000
 
@@ -200,7 +198,7 @@ class MnistOneHotDataloader(DataloaderBase):
     ) -> dict:
         """Process mnist images"""
         # Initialization
-        utils = Utils()
+        utils = DataloaderWrapper()
         num_train_images = 60000
         num_test_images = 10000
 
@@ -268,7 +266,7 @@ class TimeSeriesDataloader(DataloaderBase):
     ) -> dict:
         """Process time series"""
         # Initialization
-        utils = Utils()
+        utils = DataloaderWrapper()
 
         # Load data
         x_train = self.load_data_from_csv(x_train_file)

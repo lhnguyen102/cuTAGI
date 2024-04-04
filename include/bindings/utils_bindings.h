@@ -3,7 +3,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 31, 2024
-// Updated:      April 02, 2024
+// Updated:      April 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
+#include <string>
+#include <vector>
 
 #include "common.h"
 #include "cost.h"
@@ -21,6 +24,7 @@ class Utils {
    public:
     Utils();
     ~Utils();
+    std::string get_name() { return "fuck"; }
     std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
         std::vector<int> &labels, int num_classes);
 
@@ -28,8 +32,8 @@ class Utils {
                                                       int n_classes);
 
     std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
-    load_mnist_dataset_wrapper(std::string &image_file, std::string &label_file,
-                               int num);
+    load_mnist_dataset_wrapper(const std::string &image_file,
+                               const std::string &label_file, int num);
 
     std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
     load_cifar_dataset_wrapper(std::string &image_file, int num);

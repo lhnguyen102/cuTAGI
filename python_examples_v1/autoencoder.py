@@ -10,18 +10,21 @@ import memory_profiler
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from activation import ReLU
-from batch_norm import BatchNorm2d
-from conv2d import Conv2d
-from convtranspose2d import ConvTranspose2d
-from data_loader import MnistDataloader
-from linear import Linear
-from output_updater import OutputUpdater
-from pooling import AvgPool2d
-from sequential import Sequential
 from tqdm import tqdm
 
 from pytagi import Utils, exponential_scheduler
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    ConvTranspose2d,
+    Linear,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
+
+from .data_loader import MnistDataloader
 
 plt.rcParams.update(
     {

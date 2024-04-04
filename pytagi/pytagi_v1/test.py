@@ -17,8 +17,8 @@ from tqdm import tqdm
 from batch_norm import BatchNorm2d
 from layer_norm import LayerNorm
 
-import pytagi.metric as metric
-from pytagi import HierarchicalSoftmax, Utils
+import metric
+from tools import DataloaderWrapper
 
 FNN_NET = Sequential(
     Linear(784, 100),
@@ -92,8 +92,7 @@ CNN_LAYERNORM_NET = Sequential(
 class Classifier:
     """Test classifier"""
 
-    hr_softmax: HierarchicalSoftmax
-    utils: Utils = Utils()
+    utils: DataloaderWrapper = DataloaderWrapper()
 
     def __init__(
         self, num_epochs: int, data_loader: dict, num_classes: int, batch_size: int

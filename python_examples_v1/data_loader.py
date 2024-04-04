@@ -1,9 +1,5 @@
-import os
-
-# Temporary import. It will be removed in the final vserion
-import sys
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Generator, Tuple
 
 import numpy as np
 import pandas as pd
@@ -141,6 +137,41 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
+    @staticmethod
+    def train_batch_generator(
+        input_data: np.ndarray,
+        output_data: np.ndarray,
+        output_idx: np.ndarray,
+        labels: np.ndarray,
+        batch_size: int,
+    ) -> Generator[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], None, None]:
+        """
+        Generator function to yield batches of data.
+        """
+        num_data = input_data.shape[0]
+        indices = np.arange(num_data)
+        np.random.shuffle(indices)
+
+        for start_idx in range(0, num_data, batch_size):
+            end_idx = min(start_idx + batch_size, num_data)
+            idx = indices[start_idx:end_idx]
+            yield input_data[idx], output_data[idx], output_idx[idx], labels[idx]
+
+    @staticmethod
+    def test_batch_generator(
+        input_data: np.ndarray, output_data: np.ndarray, batch_size: int
+    ) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
+        """
+        Generator function to yield batches of data.
+        """
+        num_data = input_data.shape[0]
+        indices = np.arange(num_data)
+
+        for start_idx in range(0, num_data, batch_size):
+            end_idx = min(start_idx + batch_size, num_data)
+            idx = indices[start_idx:end_idx]
+            yield input_data[idx], output_data[idx]
+
     def process_data(
         self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
     ) -> dict:
@@ -178,15 +209,13 @@ class MnistDataloader(DataloaderBase):
         x_test = x_test.reshape((num_test_images, 28, 28))
 
         # Data loader
-        data_loader = {}
-        data_loader["train"] = (x_train, y_train, y_train_idx, train_labels)
-        data_loader["test"] = self.create_data_loader(
-            raw_input=x_test, raw_output=test_labels
-        )
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
+        dataset = {}
+        dataset["train"] = (x_train, y_train, y_train_idx, train_labels)
+        dataset["test"] = (x_test, test_labels)
+        dataset["x_norm_param_1"] = x_mean
+        dataset["x_norm_param_2"] = x_std
 
-        return data_loader
+        return dataset
 
 
 class MnistOneHotDataloader(DataloaderBase):
@@ -226,15 +255,15 @@ class MnistOneHotDataloader(DataloaderBase):
         x_test = x_test.reshape((num_test_images, 28, 28))
 
         # Data loader
-        data_loader = {}
-        data_loader["train"] = (x_train, y_train, train_labels)
-        data_loader["test"] = self.create_data_loader(
+        dataset = {}
+        dataset["train"] = (x_train, y_train, train_labels)
+        dataset["test"] = self.create_data_loader(
             raw_input=x_test, raw_output=test_labels
         )
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
+        dataset["x_norm_param_1"] = x_mean
+        dataset["x_norm_param_2"] = x_std
 
-        return data_loader
+        return dataset
 
 
 class TimeSeriesDataloader(DataloaderBase):

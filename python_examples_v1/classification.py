@@ -1,7 +1,5 @@
-from typing import Tuple
-
+import fire
 import numpy as np
-from .data_loader import MnistDataloader
 from tqdm import tqdm
 
 import pytagi.metric as metric
@@ -17,7 +15,9 @@ from pytagi.nn import (
     Sequential,
 )
 
-FNN_NET = Sequential(
+from .data_loader import MnistDataloader
+
+FNN = Sequential(
     Linear(784, 100),
     ReLU(),
     Linear(100, 100),
@@ -25,7 +25,7 @@ FNN_NET = Sequential(
     Linear(100, 11),
 )
 
-FNN_BATCHNORM_NET = Sequential(
+FNN_BATCHNORM = Sequential(
     Linear(784, 100),
     ReLU(),
     BatchNorm2d(100),
@@ -35,7 +35,7 @@ FNN_BATCHNORM_NET = Sequential(
     Linear(100, 11),
 )
 
-FNN_LAYERNORM_NET = Sequential(
+FNN_LAYERNORM = Sequential(
     Linear(784, 100, bias=False),
     ReLU(),
     LayerNorm((100,)),
@@ -45,7 +45,7 @@ FNN_LAYERNORM_NET = Sequential(
     Linear(100, 11),
 )
 
-CNN_NET = Sequential(
+CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
     ReLU(),
     AvgPool2d(3, 2),
@@ -57,7 +57,7 @@ CNN_NET = Sequential(
     Linear(100, 11),
 )
 
-CNN_BATCHNORM_NET = Sequential(
+CNN_BATCHNORM = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
     ReLU(),
     BatchNorm2d(16),
@@ -71,7 +71,7 @@ CNN_BATCHNORM_NET = Sequential(
     Linear(100, 11),
 )
 
-CNN_LAYERNORM_NET = Sequential(
+CNN_LAYERNORM = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
     LayerNorm((16, 27, 27)),
     ReLU(),
@@ -86,188 +86,94 @@ CNN_LAYERNORM_NET = Sequential(
 )
 
 
-class Classifier:
-    """Test classifier"""
+def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1.0):
+    """
+    Run classification training on the MNIST dataset using a custom neural model.
 
-    hr_softmax: HRCSoftmax
-    utils: Utils = Utils()
+    Parameters:
+    - num_epochs: int, number of epochs for training
+    - batch_size: int, size of the batch for training
+    """
 
-    def __init__(
-        self, num_epochs: int, data_loader: dict, num_classes: int, batch_size: int
-    ) -> None:
-        self.num_epochs = num_epochs
-        self.data_loader = data_loader
-        self.num_classes = num_classes
-        self.batch_size = batch_size
+    # Load data
+    x_train_file = "data/mnist/train-images-idx3-ubyte"
+    y_train_file = "data/mnist/train-labels-idx1-ubyte"
+    x_test_file = "data/mnist/t10k-images-idx3-ubyte"
+    y_test_file = "data/mnist/t10k-labels-idx1-ubyte"
 
-        # FNN
-        self.network = FNN_NET
+    # Hierachical Softmax
+    utils = Utils()
+    hr_softmax = utils.get_hierarchical_softmax(10)
 
-        self.network.set_threads(4)
-        # self.network.to_device("cuda")
+    # Load dataset
+    dtl = MnistDataloader(batch_size=batch_size)
+    dataset = dtl.process_data(x_train_file, y_train_file, x_test_file, y_test_file)
+    (x_train, y_train, y_train_idx, label_train) = dataset["train"]
+    (x_test, label_test) = dataset["test"]
 
-    @property
-    def num_classes(self) -> int:
-        """Get number of classes"""
+    # Network configuration
+    model = Sequential(
+        Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11)
+    )
+    model.set_threads(4)
+    output_updater = OutputUpdater(model.device)
 
-        return self._num_classes
-
-    @num_classes.setter
-    def num_classes(self, value: int) -> None:
-        """Set number of classes"""
-        self._num_classes = value
-        self.hr_softmax = self.utils.get_hierarchical_softmax(self._num_classes)
-
-    def train(self) -> None:
-        """Train the network using TAGI"""
-
-        # Updater for output layer (i.e., equivalent to loss function)
-        output_updater = OutputUpdater(self.network.device)
-
-        # Inputs
-        batch_size = self.batch_size
-
-        # Outputs
-        var_obs, _ = self.init_outputs(batch_size)
-
-        # Data
-        input_data, output_data, output_idx, labels = self.data_loader["train"]
-
-        # Progress bar
-        num_data = input_data.shape[0]
-        num_iter = int(num_data / batch_size)
-        pbar = tqdm(range(self.num_epochs), desc="Training Progress")
-
-        error_rates = []
-        avg_error_rate = 0
-        val_error_rate = np.nan
-        for epoch in pbar:
-            for i in range(num_iter):
-                # Get data
-                idx = np.random.choice(num_data, size=batch_size)
-                x_batch = input_data[idx, :]
-                mu_obs_batch = output_data[idx, :]
-                ud_idx_batch = output_idx[idx, :]
-                label = labels[idx]
-
-                # Feed forward
-                self.network(x_batch.flatten())
-
-                # Update output layer
-                output_updater.update_using_indices(
-                    output_states=self.network.output_z_buffer,
-                    mu_obs=mu_obs_batch.flatten(),
-                    var_obs=var_obs.flatten(),
-                    selected_idx=ud_idx_batch.flatten(),
-                    delta_states=self.network.input_delta_z_buffer,
-                )
-
-                # Update hidden states
-                self.network.backward()
-                self.network.step()
-
-                # Error rate
-                ma_pred, Sa_pred = self.network.get_outputs()
-                pred, _ = self.utils.get_labels(
-                    ma=ma_pred,
-                    Sa=Sa_pred,
-                    hr_softmax=self.hr_softmax,
-                    num_classes=self.num_classes,
-                    batch_size=batch_size,
-                )
-
-                error_rate = metric.classification_error(prediction=pred, label=label)
-                error_rates.append(error_rate)
-
-                if i % 1000 == 0 and i > 0:
-                    extracted_error_rate = np.hstack(error_rates)
-                    avg_error_rate = np.mean(extracted_error_rate[-100:])
-                    pbar.set_description(
-                        f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}| training error: {avg_error_rate * 100:.2f}% | validation error: {val_error_rate * 100:.2f}%",
-                        refresh=True,
-                    )
-
-            # Validate on test set after each epoch
-            val_error_rate = self.predict()
-            pbar.set_description(
-                f"Epoch {epoch + 1}/{self.num_epochs} | {i * batch_size + len(x_batch):>5}|{num_data: 1}| training error: {avg_error_rate * 100:.2f}% | validation error: {val_error_rate * 100:.2f}%",
-                refresh=True,
-            )
-
-        pbar.close()
-
-    def predict(self) -> None:
-        """Make prediction using TAGI"""
-        # Inputs
-
-        preds = []
-        labels = []
-        for x_batch, y_batch in self.data_loader["test"]:
-            # Predicitons
-            self.network(x_batch.flatten())
-            ma, Sa = self.network.get_outputs()
-            pred, _ = self.utils.get_labels(
-                ma=ma,
-                Sa=Sa,
-                hr_softmax=self.hr_softmax,
-                num_classes=self.num_classes,
-                batch_size=self.batch_size,
-            )
-
-            # Store data
-            preds.append(pred)
-            labels.append(y_batch)
-
-        preds = np.stack(preds).flatten()
-        labels = np.stack(labels).flatten()
-
-        # Compute classification error rate
-        error_rate = metric.classification_error(prediction=preds, label=labels)
-
-        # print("#############")
-        # print(f"Error rate    : {error_rate * 100: 0.2f}%")
-
-        return error_rate
-
-    def init_outputs(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Initnitalize the covariance matrix for outputs"""
-        # Outputs. TODO: removing hard-coding
-        V_batch = (
-            np.zeros((batch_size, self.hr_softmax.num_obs), dtype=np.float32) + 1**2
+    # Training loop
+    error_rates = []
+    var_obs = np.zeros((batch_size, hr_softmax.num_obs)) + sigma_v**2
+    pbar = tqdm(range(num_epochs), desc="Training Progress")
+    for epoch in pbar:
+        batch_iter = dtl.train_batch_generator(
+            x_train, y_train, y_train_idx, label_train, batch_size
         )
-        ud_idx_batch = np.zeros((batch_size, 0), dtype=np.int32)
 
-        return V_batch, ud_idx_batch
+        for x, y, y_idx, label in batch_iter:
+            # Feedforward and backward pass
+            model(x.flatten())
 
+            # Update output layers based on targets
+            output_updater.update_using_indices(
+                output_states=model.output_z_buffer,
+                mu_obs=y.flatten(),
+                var_obs=var_obs.flatten(),
+                selected_idx=y_idx.flatten(),
+                delta_states=model.input_delta_z_buffer,
+            )
 
-def main():
-    """Run classification training"""
-    # User-input
-    num_epochs = 10
-    batch_size = 32
-    x_train_file = "../../data/mnist/train-images-idx3-ubyte"
-    y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
-    x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
-    y_test_file = "../../data/mnist/t10k-labels-idx1-ubyte"
+            # Update parameters
+            model.backward()
+            model.step()
 
-    # Data loader
-    reg_data_loader = MnistDataloader(batch_size=batch_size)
-    data_loader = reg_data_loader.process_data(
-        x_train_file=x_train_file,
-        y_train_file=y_train_file,
-        x_test_file=x_test_file,
-        y_test_file=y_test_file,
-    )
+            # Training metric
+            m_pred, v_pred = model.get_outputs()
+            pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
+            error_rate = metric.classification_error(prediction=pred, label=label)
+            error_rates.append(error_rate)
 
-    # Train and test
-    reg_task = Classifier(
-        num_epochs=num_epochs,
-        data_loader=data_loader,
-        num_classes=10,
-        batch_size=batch_size,
-    )
-    reg_task.train()
+        # Averaged error
+        avg_error_rate = sum(error_rates[-100:])
+
+        # Testing
+        total_preds = []
+        total_labels = []
+        test_batch_iter = dtl.test_batch_generator(x_test, label_test, batch_size)
+        for x, y in test_batch_iter:
+
+            model(x.flatten())
+            m_pred, v_pred = model.get_outputs()
+            pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
+
+            total_preds.extend(pred)
+            total_labels.extend(y)
+        test_error_rate = metric.classification_error(
+            prediction=np.array(total_preds), label=np.array(total_labels)
+        )
+        pbar.set_description(
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            refresh=True,
+        )
+    print("Training complete.")
 
 
 if __name__ == "__main__":
-    main()
+    fire.Fire(run_classification_training)

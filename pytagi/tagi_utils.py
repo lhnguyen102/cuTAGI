@@ -8,20 +8,20 @@ import numpy as np
 sys.path.append(
     os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
 )
-
 import cutagitest
-from .nn import HRCSoftmax
+
+from pytagi.nn import HRCSoftmax
 
 
 class Utils:
     """Frontend for utility functions from C++/CUDA backend
 
     Attributes:
-        _cpp_backend_utils: Utility functionalities from the backend
+        _cpp_backend: Utility functionalities from the backend
     """
 
     def __init__(self) -> None:
-        self._cpp_backend_utils = cutagitest.Utils()
+        self._cpp_backend = cutagitest.Utils()
 
     def label_to_obs(
         self, labels: np.ndarray, num_classes: int
@@ -38,7 +38,7 @@ class Utils:
             num_obs: Number of encoded observations
         """
 
-        obs, obs_idx, num_obs = self._cpp_backend_utils.label_to_obs_wrapper(
+        obs, obs_idx, num_obs = self._cpp_backend.label_to_obs_wrapper(
             labels, num_classes
         )
 
@@ -54,7 +54,7 @@ class Utils:
             one_hot: One hot encoder
         """
 
-        return self._cpp_backend_utils.label_to_one_hot_wrapper(labels, num_classes)
+        return self._cpp_backend.label_to_one_hot_wrapper(labels, num_classes)
 
     def load_mnist_images(
         self, image_file: str, label_file: str, num_images: int
@@ -70,7 +70,7 @@ class Utils:
             labels: Label dataset
             num_images: Total number of images
         """
-        images, labels = self._cpp_backend_utils.load_mnist_dataset_wrapper(
+        images, labels = self._cpp_backend.load_mnist_dataset_wrapper(
             image_file, label_file, num_images
         )
 
@@ -89,9 +89,7 @@ class Utils:
             labels: Label dataset
         """
 
-        images, labels = self._cpp_backend_utils.load_cifar_dataset_wrapper(
-            image_file, num
-        )
+        images, labels = self._cpp_backend.load_cifar_dataset_wrapper(image_file, num)
 
         return images, labels
 
@@ -116,7 +114,7 @@ class Utils:
             prob: Probability for each label
         """
 
-        pred, prob = self._cpp_backend_utils.get_labels_wrapper(
+        pred, prob = self._cpp_backend.get_labels_wrapper(
             ma, Sa, hr_softmax, num_classes, batch_size
         )
 
@@ -145,7 +143,7 @@ class Utils:
             prob: Probability for each label
         """
 
-        pred, prob = self._cpp_backend_utils.get_error_wrapper(
+        pred, prob = self._cpp_backend.get_error_wrapper(
             ma, Sa, labels, hr_softmax, num_classes, batch_size
         )
 
@@ -159,7 +157,7 @@ class Utils:
         Returns:
             hr_softmax: Hierarchical softmax
         """
-        hr_softmax = self._cpp_backend_utils.hierarchical_softmax_wrapper(num_classes)
+        hr_softmax = self._cpp_backend.hierarchical_softmax_wrapper(num_classes)
 
         return hr_softmax
 
@@ -181,7 +179,7 @@ class Utils:
             prob: Probability for each label
         """
 
-        prob = self._cpp_backend_utils.obs_to_label_prob_wrapper(
+        prob = self._cpp_backend.obs_to_label_prob_wrapper(
             ma, Sa, hr_softmax, num_classes
         )
 
@@ -213,7 +211,7 @@ class Utils:
             (len(data) / num_features - input_seq_len - output_seq_len) / stride + 1
         )
 
-        input_data, output_data = self._cpp_backend_utils.create_rolling_window_wrapper(
+        input_data, output_data = self._cpp_backend.create_rolling_window_wrapper(
             data.flatten(),
             output_col,
             input_seq_len,
@@ -231,9 +229,7 @@ class Utils:
     ) -> np.ndarray:
         """Create an upper triangle covriance matrix for inputs"""
 
-        vx_f = self._cpp_backend_utils.get_upper_triu_cov_wrapper(
-            batch_size, num_data, sigma
-        )
+        vx_f = self._cpp_backend.get_upper_triu_cov_wrapper(batch_size, num_data, sigma)
 
         return np.array(vx_f)
 

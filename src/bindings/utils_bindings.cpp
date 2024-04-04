@@ -4,7 +4,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 31, 2024
-// Updated:      April 02, 2024
+// Updated:      April 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,8 +36,8 @@ pybind11::array_t<float> Utils::label_to_one_hot_wrapper(
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
-Utils::load_mnist_dataset_wrapper(std::string &image_file,
-                                  std::string &label_file, int num) {
+Utils::load_mnist_dataset_wrapper(const std::string &image_file,
+                                  const std::string &label_file, int num) {
     auto images = load_mnist_images(image_file, num);
     auto labels = load_mnist_labels(label_file, num);
     auto py_images = pybind11::array_t<float>(images.size(), images.data());
@@ -158,12 +158,15 @@ void bind_utils(pybind11::module_ &m) {
         .def("label_to_one_hot_wrapper", &Utils::label_to_one_hot_wrapper)
         .def("hierarchical_softmax_wrapper",
              &Utils::hierarchical_softmax_wrapper)
-        .def("load_mnist_dataset_wrapper", &Utils::load_mnist_dataset_wrapper)
+        .def("load_mnist_dataset_wrapper", &Utils::load_mnist_dataset_wrapper,
+             pybind11::arg("image_file"), pybind11::arg("label_file"),
+             pybind11::arg("num"))
         .def("load_cifar_dataset_wrapper", &Utils::load_cifar_dataset_wrapper)
         .def("get_labels_wrapper", &Utils::get_labels_wrapper)
         .def("obs_to_label_prob_wrapper", &Utils::obs_to_label_prob_wrapper)
         .def("get_error_wrapper", &Utils::get_error_wrapper)
         .def("create_rolling_window_wrapper",
              &Utils::create_rolling_window_wrapper)
+        .def("get_name", &Utils::get_name)
         .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }
