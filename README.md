@@ -25,53 +25,44 @@ Coming soon...
 
 ## Example
 ```Python
-from pytagi import Utils
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
-
-from data_loader import MnistDataloader
+import pytagi.metric as metric
+from pytagi import Utils
+from python_examples.data_loader import MnistDataloader
 
 # Load data
 x_train_file = "data/mnist/train-images-idx3-ubyte"
 y_train_file = "data/mnist/train-labels-idx1-ubyte"
 
-# Hierachical Softmax
-utils = Utils()
-hr_softmax = utils.get_hierarchical_softmax(10)
-
-# Load dataset
 dtl = MnistDataloader(batch_size=batch_size)
 dataset = dtl.process_data(x_train_file, y_train_file, x_test_file, y_test_file)
 (x_train, y_train, y_train_idx, label_train) = dataset["train"]
 
-# Network configuration
-model = Sequential(
-  Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11)
-)
+# Hierachical Softmax
+utils = Utils()
+hr_softmax = utils.get_hierarchical_softmax(10)
+
+
+model = Sequential(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11))
 output_updater = OutputUpdater(model.device)
 
-# Training loop
 var_obs = np.zeros((batch_size, hr_softmax.num_obs)) + sigma_v**2
-
-batch_iter = dtl.train_batch_generator(
-  x_train, y_train, y_train_idx, label_train, batch_size
-)
-
+batch_iter = dtl.train_batch_generator(x_train, y_train, y_train_idx, label_train, batch_size)
 for x, y, y_idx, label in batch_iter:
   # Feed forward
-  model(x.flatten())
+  model(x)
 
   # Update output layers based on targets
-  output_updater.update_using_indices(
-      output_states=model.output_z_buffer,
-      mu_obs=y.flatten(),
-      var_obs=var_obs.flatten(),
-      selected_idx=y_idx.flatten(),
-      delta_states=model.input_delta_z_buffer,
-  )
+  output_updater.update_using_indices(model.output_z_buffer, y, var_obs, y_idx, model.input_delta_z_buffer)
 
   # Update parameters
   model.backward()
   model.step()
+
+  # Training metric
+  m_pred, v_pred = model.get_outputs()
+  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
+  error_rate = metric.classification_error(prediction=pred, label=label)
 
 ```
 ## License

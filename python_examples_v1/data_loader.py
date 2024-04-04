@@ -155,7 +155,9 @@ class MnistDataloader(DataloaderBase):
         for start_idx in range(0, num_data, batch_size):
             end_idx = min(start_idx + batch_size, num_data)
             idx = indices[start_idx:end_idx]
-            yield input_data[idx], output_data[idx], output_idx[idx], labels[idx]
+            yield input_data[idx].flatten(), output_data[idx].flatten(), output_idx[
+                idx
+            ].flatten(), labels[idx].flatten()
 
     @staticmethod
     def test_batch_generator(
@@ -170,7 +172,7 @@ class MnistDataloader(DataloaderBase):
         for start_idx in range(0, num_data, batch_size):
             end_idx = min(start_idx + batch_size, num_data)
             idx = indices[start_idx:end_idx]
-            yield input_data[idx], output_data[idx]
+            yield input_data[idx].flatten(), output_data[idx].flatten()
 
     def process_data(
         self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
