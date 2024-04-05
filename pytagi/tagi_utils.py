@@ -249,9 +249,8 @@ class Normalizer:
     def __init__(self, method: Union[str, None] = None) -> None:
         self.method = method
 
-    def standardize(
-        self, data: np.ndarray, mu: np.ndarray, std: np.ndarray
-    ) -> np.ndarray:
+    @staticmethod
+    def standardize(data: np.ndarray, mu: np.ndarray, std: np.ndarray) -> np.ndarray:
         """Z-score normalization where
         data_norm = (data - data_mean) / data_std"""
 

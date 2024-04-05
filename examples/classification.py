@@ -15,7 +15,7 @@ from pytagi.nn import (
     Sequential,
 )
 
-from .data_loader import MnistDataloader
+from examples.data_loader import MnistDataLoader
 
 FNN = Sequential(
     Linear(784, 100),
@@ -106,48 +106,47 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
     hr_softmax = utils.get_hierarchical_softmax(10)
 
     # Load dataset
-    dtl = MnistDataloader(batch_size=batch_size)
-    dataset = dtl.process_data(x_train_file, y_train_file, x_test_file, y_test_file)
-    (x_train, y_train, y_train_idx, label_train) = dataset["train"]
-    (x_test, label_test) = dataset["test"]
+    train_dtl = MnistDataLoader(x_train_file, y_train_file, 60000)
+    test_dtl = MnistDataLoader(x_test_file, y_test_file, 10000)
 
     # Network configuration
-    model = Sequential(
-        Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11)
+    net = Sequential(
+        Linear(784, 100),
+        ReLU(),
+        Linear(100, 100),
+        ReLU(),
+        Linear(100, 11),
     )
-    model.set_threads(4)
-    output_updater = OutputUpdater(model.device)
+    output_updater = OutputUpdater(net.device)
 
     # Training loop
     error_rates = []
-    var_obs = np.zeros((batch_size, hr_softmax.num_obs)) + sigma_v**2
+    var_obs = (
+        np.zeros((batch_size * hr_softmax.num_obs,), dtype=np.float32) + sigma_v**2
+    )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        batch_iter = dtl.train_batch_generator(
-            x_train, y_train, y_train_idx, label_train, batch_size
-        )
-
+        batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
-            model(x)
+            m_pred, v_pred = net(x)
 
             # Update output layers based on targets
             output_updater.update_using_indices(
-                output_states=model.output_z_buffer,
+                output_states=net.output_z_buffer,
                 mu_obs=y,
                 var_obs=var_obs,
-                selected_idx=y_idx
-                delta_states=model.input_delta_z_buffer,
+                selected_idx=y_idx,
+                delta_states=net.input_delta_z_buffer,
             )
 
             # Update parameters
-            model.backward()
-            model.step()
+            net.backward()
+            net.step()
 
             # Training metric
-            m_pred, v_pred = model.get_outputs()
             pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
-            error_rate = metric.classification_error(prediction=pred, label=label)
+            error_rate = metric.class_error(prediction=pred, label=label)
             error_rates.append(error_rate)
 
         # Averaged error
@@ -156,16 +155,16 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
         # Testing
         total_preds = []
         total_labels = []
-        test_batch_iter = dtl.test_batch_generator(x_test, label_test, batch_size)
-        for x, y in test_batch_iter:
-
-            model(x)
-            m_pred, v_pred = model.get_outputs()
+        test_batch_iter = test_dtl.create_dataloader(batch_size, shuffle=False)
+        for x, _, _, label in test_batch_iter:
+            # Prediciton
+            m_pred, v_pred = net(x)
             pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
 
             total_preds.extend(pred)
-            total_labels.extend(y)
-        test_error_rate = metric.classification_error(
+            total_labels.extend(label)
+
+        test_error_rate = metric.class_error(
             prediction=np.array(total_preds), label=np.array(total_labels)
         )
         pbar.set_description(

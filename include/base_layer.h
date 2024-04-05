@@ -56,7 +56,7 @@ class BaseLayer {
     std::vector<float> delta_var_b;
     std::unique_ptr<BaseBackwardStates> bwd_states;
 
-    unsigned int num_threads = 1;
+    unsigned int num_threads = 4;
     bool training = true;
     std::string device = "cpu";
 

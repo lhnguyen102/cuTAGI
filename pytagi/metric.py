@@ -25,7 +25,7 @@ def rmse(prediction: np.ndarray, observation: np.ndarray) -> None:
     return mse**0.5
 
 
-def classification_error(prediction: np.ndarray, label: np.ndarray) -> None:
+def class_error(prediction: np.ndarray, label: np.ndarray) -> None:
     """Compute the classification error"""
     count = 0
     for pred, lab in zip(prediction.T, label):

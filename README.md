@@ -9,13 +9,13 @@
 cu/Py TAGI is an open-source Bayesian neural networks library that is based on Tractable Approximate Gaussian Inference (TAGI) theory. It specializes in quantifying uncertainty in neural network parameters, enabling a range of tasks such as supervised, unsupervised, and reinforcement learning.
 
 ### Supported Tasks:
-- [x] Epsitemic Uncertainty Modeling
-- [ ] Aleatoric Uncertainty Modeling (WIP)
-- [ ] Derivative Estimation of a function (WIP)
+- [x] Epsitemic uncertainty estimation
+- [ ] Aleatoric uncertainty estimation (WIP)
+- [ ] Derivative estimation of a function (WIP)
 - [x] Regression
-- [x] Generation Images (e.g., Autoencoder)
-- [x] Time-series Forecasting
-- [ ] Decision Making (e.g., Reinforcement Learning)
+- [x] Generation images (e.g., Autoencoder)
+- [x] Time-series forecasting
+- [ ] Decision making (e.g., reinforcement learning)
 
 ### Supported Layers:
 - [x] Linear
@@ -30,7 +30,7 @@ cu/Py TAGI is an open-source Bayesian neural networks library that is based on T
 - [x] Sequential Model Construction
 - [ ] Eager Execution (WIP)
 
-Examples of [regression task](#regression-task) using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
+Examples of regression task using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
 <p align="center">
   <img  align="left", src="./saved_results/pred_diag_toy_example_disp.png" width="340px">&emsp;&emsp;<img src="./saved_results/pred_full_cov_toy_example_disp.png" width="345px">&emsp;&emsp;<img  align="left", src="./saved_results/pred_hete_toy_example_disp.png" width="348px">&emsp;&emsp;<img src="./saved_results/pred_derivative_toy_example_disp.png" width="335px">
 </p>
@@ -41,40 +41,50 @@ Examples of [regression task](#regression-task) using the diagonal (top left) or
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
 import pytagi.metric as metric
 from pytagi import Utils
-from python_examples.data_loader import MnistDataloader
+from examples.data_loader import MnistDataloader
 
 # Load data
+num_classes = 10
 x_train_file = "data/mnist/train-images-idx3-ubyte"
 y_train_file = "data/mnist/train-labels-idx1-ubyte"
-
-dtl = MnistDataloader(batch_size=batch_size)
-dataset = dtl.process_data(x_train_file, y_train_file, x_test_file, y_test_file)
-(x_train, y_train, y_train_idx, label_train) = dataset["train"]
+dtl = MnistDataLoader(x_train_file, y_train_file, 60000)
 
 # Hierachical Softmax
 utils = Utils()
-hr_softmax = utils.get_hierarchical_softmax(10)
+hr_softmax = utils.get_hierarchical_softmax(num_classes)
 
-model = Sequential(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(), Linear(100, 11))
-output_updater = OutputUpdater(model.device)
+# Neural network
+net = Sequential(
+    Linear(784, 100),
+    ReLU(),
+    Linear(100, 100),
+    ReLU(),
+    Linear(100, 11),
+)
+out_updater = OutputUpdater(net.device)
 
-var_obs = np.zeros((batch_size, hr_softmax.num_obs)) + sigma_v**2
-batch_iter = dtl.train_batch_generator(x_train, y_train, y_train_idx, label_train, batch_size)
+var_obs = np.zeros((batch_size*hr_softmax.num_obs, )) + sigma_v**2
+batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
 for x, y, y_idx, label in batch_iter:
   # Feed forward
-  model.forward(x)
+  m_pred, v_pred = net.forward(x)
 
   # Update output layers based on targets
-  output_updater.update_using_indices(model.output_z_buffer, y, var_obs, y_idx, model.input_delta_z_buffer)
+  out_updater.update_using_indices(
+      output_states=net.output_z_buffer,
+      mu_obs=y,
+      var_obs=var_obs,
+      selected_idx=y_idx,
+      delta_states=net.input_delta_z_buffer,
+  )
 
   # Update parameters
-  model.backward()
-  model.step()
+  net.backward()
+  net.step()
 
   # Training metric
-  m_pred, v_pred = model.get_outputs()
-  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
-  error_rate = metric.classification_error(prediction=pred, label=label)
+  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, num_classes, batch_size)
+  error_rate = metric.class_error(pred, label)
 
 ```
 ## License

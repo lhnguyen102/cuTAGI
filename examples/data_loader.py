@@ -134,23 +134,37 @@ class RegressionDataLoader(DataloaderBase):
         return data_loader
 
 
-class MnistDataloader(DataloaderBase):
-    """Data loader for mnist dataset"""
+class MnistDataLoader:
+    """Data loader for MNIST dataset without relying on PyTorch."""
+
+    def __init__(self, x_train_file: str, y_train_file: str, num_images: int):
+        self.dataset = self.process_data(x_train_file, y_train_file, num_images)
 
     @staticmethod
-    def train_batch_generator(
+    def load_mnist_images(image_file: str, label_file: str, num_images: int):
+        """Load raw data"""
+        utils = Utils()
+        images, labels = utils.load_mnist_images(
+            image_file=image_file, label_file=label_file, num_images=num_images
+        )
+        return images, labels
+
+    @staticmethod
+    def batch_generator(
         input_data: np.ndarray,
         output_data: np.ndarray,
         output_idx: np.ndarray,
         labels: np.ndarray,
         batch_size: int,
-    ) -> Generator[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], None, None]:
+        shuffle: bool = True,
+    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
         """
         Generator function to yield batches of data.
         """
         num_data = input_data.shape[0]
         indices = np.arange(num_data)
-        np.random.shuffle(indices)
+        if shuffle:
+            np.random.shuffle(indices)
 
         for start_idx in range(0, num_data, batch_size):
             end_idx = min(start_idx + batch_size, num_data)
@@ -159,65 +173,29 @@ class MnistDataloader(DataloaderBase):
                 idx
             ].flatten(), labels[idx].flatten()
 
-    @staticmethod
-    def test_batch_generator(
-        input_data: np.ndarray, output_data: np.ndarray, batch_size: int
-    ) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
-        """
-        Generator function to yield batches of data.
-        """
-        num_data = input_data.shape[0]
-        indices = np.arange(num_data)
-
-        for start_idx in range(0, num_data, batch_size):
-            end_idx = min(start_idx + batch_size, num_data)
-            idx = indices[start_idx:end_idx]
-            yield input_data[idx].flatten(), output_data[idx].flatten()
-
     def process_data(
-        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
+        self, x_train_file: str, y_train_file: str, num_images: int
     ) -> dict:
-        """Process mnist images"""
-        # Initialization
+        """Process MNIST images."""
+        # Load training and test data
         utils = Utils()
-        num_train_images = 60000
-        num_test_images = 10000
+        images, labels = self.load_mnist_images(x_train_file, y_train_file, num_images)
 
-        # Traininng set
-        train_images, train_labels = utils.load_mnist_images(
-            image_file=x_train_file,
-            label_file=y_train_file,
-            num_images=num_train_images,
-        )
-
-        y_train, y_train_idx, num_enc_obs = utils.label_to_obs(
-            labels=train_labels, num_classes=10
-        )
-        x_mean, x_std = self.normalizer.compute_mean_std(train_images)
+        y, y_idx, num_enc_obs = utils.label_to_obs(labels=labels, num_classes=10)
+        x_mean, x_std = Normalizer.compute_mean_std(images)
         x_std = 1
 
-        # Test set
-        test_images, test_labels = utils.load_mnist_images(
-            image_file=x_test_file, label_file=y_test_file, num_images=num_test_images
-        )
-
         # Normalizer
-        x_train = self.normalizer.standardize(data=train_images, mu=x_mean, std=x_std)
-        x_test = self.normalizer.standardize(data=test_images, mu=x_mean, std=x_std)
+        x = Normalizer.standardize(data=images, mu=x_mean, std=x_std)
 
-        y_train = y_train.reshape((num_train_images, num_enc_obs))
-        y_train_idx = y_train_idx.reshape((num_train_images, num_enc_obs))
-        x_train = x_train.reshape((num_train_images, 28, 28))
-        x_test = x_test.reshape((num_test_images, 28, 28))
+        y = np.float32(y.reshape((num_images, num_enc_obs)))
+        y_idx = y_idx.reshape((num_images, num_enc_obs))
+        x = x.reshape((num_images, 28, 28))
 
-        # Data loader
-        dataset = {}
-        dataset["train"] = (x_train, y_train, y_train_idx, train_labels)
-        dataset["test"] = (x_test, test_labels)
-        dataset["x_norm_param_1"] = x_mean
-        dataset["x_norm_param_2"] = x_std
+        return {"value": (x, y, y_idx, labels)}
 
-        return dataset
+    def create_dataloader(self, batch_size: int, shuffle: bool = True):
+        return self.batch_generator(*self.dataset["value"], batch_size, shuffle)
 
 
 class MnistOneHotDataloader(DataloaderBase):
