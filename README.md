@@ -63,17 +63,17 @@ net = Sequential(
 )
 out_updater = OutputUpdater(net.device)
 
-var_obs = np.zeros((batch_size*hr_softmax.num_obs, )) + sigma_v**2
+var_y = np.zeros((batch_size*hr_softmax.num_obs, ), dtype=np.float3) + sigma_v**2
 batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
 for x, y, y_idx, label in batch_iter:
   # Feed forward
-  m_pred, v_pred = net.forward(x)
+  m_pred, v_pred = net(x)
 
   # Update output layers based on targets
   out_updater.update_using_indices(
       output_states=net.output_z_buffer,
       mu_obs=y,
-      var_obs=var_obs,
+      var_obs=var_y,
       selected_idx=y_idx,
       delta_states=net.input_delta_z_buffer,
   )

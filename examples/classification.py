@@ -3,7 +3,8 @@ import numpy as np
 from tqdm import tqdm
 
 import pytagi.metric as metric
-from pytagi import HRCSoftmax, Utils
+from examples.data_loader import MnistDataLoader
+from pytagi import Utils
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -14,8 +15,6 @@ from pytagi.nn import (
     ReLU,
     Sequential,
 )
-
-from examples.data_loader import MnistDataLoader
 
 FNN = Sequential(
     Linear(784, 100),
@@ -86,7 +85,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1.0):
+def run_classification_trainer(num_epochs=10, batch_size=20, sigma_v: float = 1.0):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
@@ -110,20 +109,12 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
     test_dtl = MnistDataLoader(x_test_file, y_test_file, 10000)
 
     # Network configuration
-    net = Sequential(
-        Linear(784, 100),
-        ReLU(),
-        Linear(100, 100),
-        ReLU(),
-        Linear(100, 11),
-    )
-    output_updater = OutputUpdater(net.device)
+    net = FNN
+    out_updater = OutputUpdater(net.device)
 
     # Training loop
     error_rates = []
-    var_obs = (
-        np.zeros((batch_size * hr_softmax.num_obs,), dtype=np.float32) + sigma_v**2
-    )
+    var_y = np.zeros((batch_size * hr_softmax.num_obs,), dtype=np.float32) + sigma_v**2
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
         batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
@@ -132,10 +123,10 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
             m_pred, v_pred = net(x)
 
             # Update output layers based on targets
-            output_updater.update_using_indices(
+            out_updater.update_using_indices(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                var_obs=var_obs,
+                var_obs=var_y,
                 selected_idx=y_idx,
                 delta_states=net.input_delta_z_buffer,
             )
@@ -157,7 +148,6 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
         total_labels = []
         test_batch_iter = test_dtl.create_dataloader(batch_size, shuffle=False)
         for x, _, _, label in test_batch_iter:
-            # Prediciton
             m_pred, v_pred = net(x)
             pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
 
@@ -175,4 +165,4 @@ def run_classification_training(num_epochs=10, batch_size=20, sigma_v: float = 1
 
 
 if __name__ == "__main__":
-    fire.Fire(run_classification_training)
+    fire.Fire(run_classification_trainer)
