@@ -40,8 +40,7 @@ Examples of regression task using the diagonal (top left) or full (top right) co
 Here is an example for training a classifer using pytagi on MNIST dataset
 ```Python
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
-import pytagi.metric as metric
-from pytagi import Utils
+from pytagi import Utils, HRCSoftmaxMetric
 from examples.data_loader import MnistDataloader
 
 # Load data
