@@ -64,8 +64,8 @@ net = Sequential(
 #net.to_device("cuda")
 out_updater = OutputUpdater(net.device)
 
-var_y = np.full((batch_size * hrc_softmax.num_obs,), 1.0, dtype=np.float32)
-batch_iter = dtl.create_dataloader(batch_size=batch_size)
+var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
+batch_iter = dtl.create_data_loader(batch_size=batch_size)
 
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   # Feed forward

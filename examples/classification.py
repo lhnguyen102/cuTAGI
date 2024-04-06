@@ -118,7 +118,7 @@ def main(num_epochs: int = 10, batch_size: int = 20, sigma_v: float = 1.0):
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
+        batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -145,7 +145,7 @@ def main(num_epochs: int = 10, batch_size: int = 20, sigma_v: float = 1.0):
 
         # Testing
         test_error_rates = []
-        test_batch_iter = test_dtl.create_dataloader(batch_size, shuffle=False)
+        test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
         for x, _, _, label in test_batch_iter:
             m_pred, v_pred = net(x)
 

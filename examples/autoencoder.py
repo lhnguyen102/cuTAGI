@@ -116,7 +116,7 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
     # Training
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
+        batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
@@ -155,7 +155,7 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
 
     # -------------------------------------------------------------------------#
     # Generate images
-    test_batch_iter = test_dtl.create_dataloader(batch_size, shuffle=False)
+    test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
     generated_images = []
     for count, (x_test, _, _, _) in enumerate(test_batch_iter):
         # Feed forward

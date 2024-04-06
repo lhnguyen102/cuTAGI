@@ -194,7 +194,7 @@ class MnistDataLoader:
 
         return {"value": (x, y, y_idx, labels)}
 
-    def create_dataloader(self, batch_size: int, shuffle: bool = True):
+    def create_data_loader(self, batch_size: int, shuffle: bool = True):
         return self.batch_generator(*self.dataset["value"], batch_size, shuffle)
 
 
@@ -335,5 +335,5 @@ class TimeSeriesDataloader:
 
         return dataset
 
-    def create_dataloader(self, batch_size: int, shuffle: bool = True):
+    def create_data_loader(self, batch_size: int, shuffle: bool = True):
         return self.batch_generator(*self.dataset["value"], batch_size, shuffle)
