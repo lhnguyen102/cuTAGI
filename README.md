@@ -6,7 +6,7 @@
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is a probabilistic array framework that is based on Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in deep neural networks (DNNs) to support tasks in supervised, unsupervised, and reinforcement learning.
+cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in deep neural networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
 Some key features of cuTAGI include:
 - **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
@@ -30,11 +30,7 @@ from pytagi import Utils, HRCSoftmaxMetric
 from examples.data_loader import MnistDataloader
 
 # Load data
-dtl = MnistDataLoader(
-  x_file="data/mnist/train-images-idx3-ubyte",
-  y_file="data/mnist/train-labels-idx1-ubyte",
-  num_images=60000,
-)
+dtl = MnistDataLoader()
 
 # Hierarchical Softmax
 metric = HRCSoftmaxMetric(num_classes=10)
@@ -49,8 +45,8 @@ net = Sequential(
 )
 #net.to_device("cuda")
 out_updater = OutputUpdater(net.device)
-
 var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
+
 batch_iter = dtl.create_data_loader(batch_size=batch_size)
 
 for i, (x, y, y_idx, label) in enumerate(batch_iter):

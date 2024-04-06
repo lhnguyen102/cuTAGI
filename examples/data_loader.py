@@ -137,7 +137,17 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataLoader:
     """Data loader for MNIST."""
 
-    def __init__(self, x_file: str, y_file: str, num_images: int):
+    def __init__(
+        self,
+        x_file: Optional[str] = None,
+        y_file: Optional[str] = None,
+        num_images: int = None,
+    ):
+        if x_file is None and y_file is None:
+            # Load from default location
+            x_file = ("data/mnist/train-images-idx3-ubyte",)
+            y_file = ("data/mnist/train-labels-idx1-ubyte",)
+            num_images = 60000
         self.dataset = self.process_data(x_file, y_file, num_images)
 
     @staticmethod
