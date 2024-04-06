@@ -6,12 +6,12 @@
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in deep neural networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
+cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
 Some key features of cuTAGI include:
-- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
-- **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
-- **Model Building and Execution**: Currently, it support ssequential model building, with plans to introduce Eager Execution by year's end.
+- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API.
+- **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Average Pooling,  Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
+- **Model Building and Execution**: Currently, it supports sequential model building, with plans to introduce Eager Execution by year's end.
 
 cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
@@ -29,13 +29,11 @@ from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
 from pytagi import Utils, HRCSoftmaxMetric
 from examples.data_loader import MnistDataloader
 
-# Load data
 dtl = MnistDataLoader()
 
 # Hierarchical Softmax
 metric = HRCSoftmaxMetric(num_classes=10)
 
-# Neural network
 net = Sequential(
     Linear(784, 100),
     ReLU(),
@@ -52,7 +50,7 @@ batch_iter = dtl.create_data_loader(batch_size=batch_size)
 
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   m_pred, v_pred = net(x)
-  # Update output layers based on targets
+  # Update output layer based on targets
   out_updater.update_using_indices(
       net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer
   )
@@ -73,7 +71,7 @@ cuTAGI is available on PyPI. To install, execute the following command in Termin
 ```shell
 pip install pytagi
 ```
-Additionally, for those interested in leveraging the full performance of the C++/CUDA native version, installation instructions are provided in the `docs/dev_guide`.
+Additionally, for those interested in leveraging the full performance of the C++/CUDA native version, installation instructions are provided in the `docs/dev_guide.md`.
 
 ## License
 

@@ -45,6 +45,7 @@ class BaseLayer {
     size_t in_width = 0, in_height = 0, in_channels = 0;
     size_t out_width = 0, out_height = 0, out_channels = 0;
     bool bias = true;
+    float cap_factor_update = 1.0f;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;
@@ -102,6 +103,12 @@ class BaseLayer {
     virtual void update_weights();
 
     virtual void update_biases();
+
+    virtual void raw_update_weights();
+
+    virtual void raw_update_biases();
+
+    virtual void set_cap_factor_udapte(int batch_size);
 
     virtual void compute_input_output_size(const InitArgs &args);
 

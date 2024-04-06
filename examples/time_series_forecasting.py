@@ -15,7 +15,7 @@ from examples.data_loader import TimeSeriesDataloader
 
 
 def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2.0):
-    """Run classification training"""
+    """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
     num_features = 1

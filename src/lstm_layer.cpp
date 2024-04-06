@@ -1182,6 +1182,7 @@ void LSTM::forward(BaseHiddenStates &input_states,
  */
 {
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
 
     if (this->_batch_size != batch_size) {
         this->lstm_states.set_num_states(

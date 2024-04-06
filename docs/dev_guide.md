@@ -14,8 +14,9 @@
 ### Supported Layers:
 - [x] Linear
 - [x] CNNs
-- [x] Transpose CNNs
-- [x] LSTMs
+- [x] Transposed CNNs
+- [x] LSTM
+- [x] Average Pooling
 - [x] Batch Normalization
 - [x] Layer Normalization
 - [ ] GRU

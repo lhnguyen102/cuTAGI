@@ -3,12 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      March 11, 2024
+// Updated:      April 06, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer.h"
+
+#include <cmath>
 
 InitArgs::InitArgs(size_t width, size_t height, size_t depth, int batch_size)
     : width(width), height(height), depth(depth), batch_size(batch_size) {}
@@ -86,13 +88,44 @@ void BaseLayer::fill_bwd_vector(BaseHiddenStates &input_states)
     }
 }
 
-void BaseLayer::update_weights()
+void BaseLayer::raw_update_weights()
 /*
  */
 {
     for (int i = 0; i < this->mu_w.size(); i++) {
         this->mu_w[i] += this->delta_mu_w[i];
         this->var_w[i] += this->delta_var_w[i];
+    }
+}
+
+void BaseLayer::raw_update_biases()
+/*
+
+ */
+{
+    if (this->bias) {
+        for (int i = 0; i < this->mu_b.size(); i++) {
+            this->mu_b[i] += this->delta_mu_b[i];
+            this->var_b[i] += this->delta_var_b[i];
+        }
+    }
+}
+
+void BaseLayer::update_weights()
+/*
+ */
+{
+    for (int i = 0; i < this->mu_w.size(); i++) {
+        float delta_mu_sign =
+            (this->delta_mu_w[i] > 0) - (this->delta_mu_w[i] < 0);
+        float delta_var_sign =
+            (this->delta_var_w[i] > 0) - (this->delta_var_w[i] < 0);
+        float delta_bar = powf(this->var_w[i], 0.5) / this->cap_factor_update;
+
+        this->mu_w[i] +=
+            delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
+        this->var_w[i] +=
+            delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
     }
 }
 
@@ -103,9 +136,40 @@ void BaseLayer::update_biases()
 {
     if (this->bias) {
         for (int i = 0; i < this->mu_b.size(); i++) {
-            this->mu_b[i] += this->delta_mu_b[i];
-            this->var_b[i] += this->delta_var_b[i];
+            float delta_mu_sign =
+                (delta_mu_b[i] > 0) - (this->delta_mu_b[i] < 0);
+            float delta_var_sign = (delta_var_b[i] > 0) - (delta_var_b[i] < 0);
+            float delta_bar =
+                powf(this->var_b[i], 0.5) / this->cap_factor_update;
+
+            this->mu_b[i] += delta_mu_sign *
+                             std::min(std::abs(this->delta_mu_b[i]), delta_bar);
+            this->var_b[i] +=
+                delta_var_sign *
+                std::min(std::abs(this->delta_var_b[i]), delta_bar);
         }
+    }
+}
+
+void BaseLayer::set_cap_factor_udapte(int batch_size)
+/*Get the cap factor w.r.t the bacth size.
+We define a cap factor for regularizing the updating quantities of the
+parameters when the batch size is large. NOTE: the current values of the cap
+factor is based on what we have tested in practice.
+
+Args:
+    batch_size: Size of minibatches
+
+Returns:
+    cap_factor: Cap factor
+*/
+{
+    // TODO: Heuristic values!!
+    if (batch_size >= 100 && batch_size < 500) {
+        this->cap_factor_update = 10.0f;
+    }
+    if (batch_size >= 500) {
+        this->cap_factor_update = 20.0f;
     }
 }
 
