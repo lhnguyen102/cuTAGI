@@ -11,7 +11,7 @@ cuTAGI is a probabilistic array framework  built upon the principles of Tractabl
 Some key features of cuTAGI include:
 - **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
 - **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
-- **Model Building and Execution**: Currently, it supportssequential model building, with plans to introduce Eager Execution by year's end.
+- **Model Building and Execution**: Currently, it support ssequential model building, with plans to introduce Eager Execution by year's end.
 
 cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
@@ -44,22 +44,20 @@ net = Sequential(
     Linear(100, 11),
 )
 #net.to_device("cuda")
+
 out_updater = OutputUpdater(net.device)
 var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
 
 batch_iter = dtl.create_data_loader(batch_size=batch_size)
 
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
-  # Feed forward
   m_pred, v_pred = net(x)
   # Update output layers based on targets
   out_updater.update_using_indices(
       net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer
   )
-  # Update parameters
   net.backward()
   net.step()
-  # Training metric
   error_rate = metric.error_rate(m_pred, v_pred, label)
   print(f"Iteration: {i} error rate: {error_rate}")
 
