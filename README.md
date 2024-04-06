@@ -6,14 +6,14 @@
 * [Citation](#citation)
 
 ## What is cuTAGI ?
-cuTAGI is a probabilistic array framework that is based on Tractable Approximate Gaussian Inference (TAGI) theory.It focuses on quantifying the uncertainty in deep neural networks to support tasks in supervised, unsupervised, and reinforcement learning.
+cuTAGI is a probabilistic array framework that is based on Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in deep neural networks (DNNs) to support tasks in supervised, unsupervised, and reinforcement learning.
 
 Some key features of cuTAGI include:
-- **Performance-Oriented Kernels**: All kernels of deep neural network (DNN) layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
-- **Broad Architecture Support**: It currently supports the basic layer of DNNs Linear, CNNs, Transposed CNNs, LSTM, Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
+- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
+- **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
 - **Model Building and Execution**:Currently, it supportssequential model building, with plans to introduce Eager Execution by year's end.
 
-cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers and developers for idea exploration.
+cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
 
 Examples of regression task using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
