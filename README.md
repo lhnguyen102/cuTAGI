@@ -45,15 +45,14 @@ from pytagi import Utils
 from examples.data_loader import MnistDataloader
 
 # Load data
-MnistDataLoader(
-    x_file="data/mnist/train-images-idx3-ubyte",
-    y_file="data/mnist/train-labels-idx1-ubyte",
-    num_images=60000,
+dtl = MnistDataLoader(
+  x_file="data/mnist/train-images-idx3-ubyte",
+  y_file="data/mnist/train-labels-idx1-ubyte",
+  num_images=60000,
 )
 
-# Hierachical Softmax
-utils = Utils()
-hr_softmax = utils.get_hierarchical_softmax(num_classes=10)
+# Hierarchical Softmax
+metric = HRCSoftmaxMetric(num_classes=10)
 
 # Neural network
 net = Sequential(
@@ -66,10 +65,10 @@ net = Sequential(
 #net.to_device("cuda")
 out_updater = OutputUpdater(net.device)
 
-var_y = np.full((batch_size * hr_softmax.num_obs,), 1.0, dtype=np.float32)
+var_y = np.full((batch_size * hrc_softmax.num_obs,), 1.0, dtype=np.float32)
 batch_iter = dtl.create_dataloader(batch_size=batch_size)
 
-for x, y, y_idx, label in batch_iter:
+for i, (x, y, y_idx, label) in enumerate(batch_iter):
   # Feed forward
   m_pred, v_pred = net(x)
 
@@ -83,8 +82,8 @@ for x, y, y_idx, label in batch_iter:
   net.step()
 
   # Training metric
-  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
-  error_rate = metric.class_error(pred, label)
+ error_rate = metric.error_rate(m_pred, v_pred, label)
+ print(f"Iteration: {i} error rate: {error_rate}")
 
 ```
 ## License

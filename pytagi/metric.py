@@ -1,4 +1,26 @@
 import numpy as np
+from pytagi import HRCSoftmax, Utils
+
+
+class HRCSoftmaxMetric:
+    """Classifcation error for hierarchical softmax"""
+
+    def __init__(self, num_classes: int):
+        self.num_classes = num_classes
+        self.utils = Utils()
+        self.hrc_softmax: HRCSoftmax = self.utils.get_hierarchical_softmax(
+            num_classes=num_classes
+        )
+
+    def error_rate(
+        self, m_pred: np.ndarray, v_pred: np.ndarray, label: np.ndarray
+    ) -> float:
+        """Compute error rate for classifier"""
+        batch_size = m_pred.shape[0] // self.hrc_softmax.len
+        pred, _ = self.utils.get_labels(
+            m_pred, v_pred, self.hrc_softmax, self.num_classes, batch_size
+        )
+        return classification_error(pred, label)
 
 
 def mse(prediction: np.ndarray, observation: np.ndarray) -> float:
@@ -25,7 +47,7 @@ def rmse(prediction: np.ndarray, observation: np.ndarray) -> None:
     return mse**0.5
 
 
-def class_error(prediction: np.ndarray, label: np.ndarray) -> None:
+def classification_error(prediction: np.ndarray, label: np.ndarray) -> None:
     """Compute the classification error"""
     count = 0
     for pred, lab in zip(prediction.T, label):

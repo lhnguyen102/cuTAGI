@@ -1,11 +1,7 @@
-import cProfile
-import pstats
-from io import StringIO
-from typing import List, Union
+from typing import Union, Optional
 
 import fire
 import matplotlib.pyplot as plt
-import memory_profiler
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -15,174 +11,148 @@ from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
 from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
 
-from .data_loader import TimeSeriesDataloader
+from examples.data_loader import TimeSeriesDataloader
 
 
-class TimeSeriesForecaster:
-    """Time series forecaster using TAGI"""
+def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2.0):
+    """Run classification training"""
+    # Dataset
+    output_col = [0]
+    num_features = 1
+    input_seq_len = 5
+    output_seq_len = 1
+    seq_stride = 1
 
-    def __init__(
-        self,
-        num_epochs: int,
-        data_loader: dict,
-        input_seq_len: int,
-        output_seq_len: int,
-        batch_size: int,
-        output_col: List[int],
-        sigma_v: float,
-        viz: None,
-        dtype=np.float32,
-    ) -> None:
-        self.num_epochs = num_epochs
-        self.data_loader = data_loader
-        self.input_seq_len = input_seq_len
-        self.output_seq_len = output_seq_len
-        self.batch_size = batch_size
-        self.output_col = output_col
-        self.sigma_v = sigma_v
+    train_dtl = TimeSeriesDataloader(
+        x_file="data/toy_time_series/x_train_sin_data.csv",
+        date_time_file="data/toy_time_series/train_sin_datetime.csv",
+        output_col=output_col,
+        input_seq_len=input_seq_len,
+        output_seq_len=output_seq_len,
+        num_features=num_features,
+        stride=seq_stride,
+    )
+    test_dtl = TimeSeriesDataloader(
+        x_file="data/toy_time_series/x_test_sin_data.csv",
+        date_time_file="data/toy_time_series/test_sin_datetime.csv",
+        output_col=output_col,
+        input_seq_len=input_seq_len,
+        output_seq_len=output_seq_len,
+        num_features=num_features,
+        stride=seq_stride,
+        x_mean=train_dtl.x_mean,
+        x_std=train_dtl.x_std,
+    )
 
-        self.network = Sequential(
-            LSTM(1, 5, input_seq_len),
-            LSTM(5, 5, input_seq_len),
-            Linear(5 * input_seq_len, 1),
+    # Viz
+    viz = PredictionViz(task_name="forecasting", data_name="sin_signal")
+
+    # Network
+    net = Sequential(
+        LSTM(1, 5, input_seq_len),
+        LSTM(5, 5, input_seq_len),
+        Linear(5 * input_seq_len, 1),
+    )
+    # net.to_device("cuda")
+    out_updater = OutputUpdater(net.device)
+
+    # -------------------------------------------------------------------------#
+    # Training
+    mses = []
+    pbar = tqdm(range(num_epochs), desc="Training Progress")
+    for epoch in pbar:
+        batch_iter = train_dtl.create_dataloader(batch_size)
+
+        # Decaying observation's variance
+        sigma_v = exponential_scheduler(
+            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
         )
+        var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
 
-        self.viz = viz
-        self.dtype = dtype
+        for x, y in batch_iter:
+            # Feed forward
+            m_pred, _ = net(x)
 
-    def train(self) -> None:
-        """Train LSTM network"""
-        # Updater for output layer (i.e., equivalent to loss function)
-        output_updater = OutputUpdater(self.network.device)
-
-        # Inputs
-        batch_size = self.batch_size
-
-        input_data, output_data = self.data_loader["train"]
-        num_data = input_data.shape[0]
-        num_iter = int(num_data / batch_size)
-        pbar = tqdm(range(self.num_epochs), desc="Training Progress")
-
-        for epoch in pbar:
-            # Decaying observation's variance
-            self.sigma_v = exponential_scheduler(
-                curr_v=self.sigma_v,
-                min_v=0.3,
-                decaying_factor=0.95,
-                curr_iter=epoch,
-            )
-            var_obs = (
-                np.zeros(
-                    (batch_size, len(self.output_col) * self.output_seq_len),
-                    dtype=np.float32,
-                )
-                + self.sigma_v**2
-            )
-            mses = []
-            for i in range(num_iter):
-                # Get data
-                idx = np.random.choice(num_data, size=batch_size)
-                x_batch = input_data[idx, :]
-                y_batch = output_data[idx, :]
-
-                # Feed forward
-                self.network(x_batch.flatten())
-
-                # Update output layer
-                output_updater.update(
-                    output_states=self.network.output_z_buffer,
-                    mu_obs=y_batch.flatten(),
-                    var_obs=var_obs.flatten(),
-                    delta_states=self.network.input_delta_z_buffer,
-                )
-
-                # Feed backward
-                self.network.backward()
-                self.network.step()
-
-                # Loss
-                mu_pred, _ = self.network.get_outputs()
-                pred = normalizer.unstandardize(
-                    norm_data=mu_pred,
-                    mu=self.data_loader["y_norm_param_1"],
-                    std=self.data_loader["y_norm_param_2"],
-                )
-                obs = normalizer.unstandardize(
-                    norm_data=y_batch,
-                    mu=self.data_loader["y_norm_param_1"],
-                    std=self.data_loader["y_norm_param_2"],
-                )
-                mse = metric.mse(pred, obs.flatten())
-                mses.append(mse)
-
-            # Progress bar
-            pbar.set_description(
-                f"Epoch {epoch + 1}/{self.num_epochs}| mse: {sum(mses)/len(mses):>7.2f}",
-                refresh=True,
+            # Update output layer
+            out_updater.update(
+                output_states=net.output_z_buffer,
+                mu_obs=y,
+                var_obs=var_y,
+                delta_states=net.input_delta_z_buffer,
             )
 
-    def predict(self) -> None:
-        """Make prediction for time series using TAGI"""
+            # Feed backward
+            net.backward()
+            net.step()
 
-        mean_predictions = []
-        variance_predictions = []
-        y_test = []
-        x_test = []
-        for x_batch, y_batch in self.data_loader["test"]:
-            # Predicitons
-            self.network(x_batch.flatten())
-            mu_pred, var_pred = self.network.get_outputs()
-
-            mean_predictions.append(mu_pred)
-            variance_predictions.append(var_pred + self.sigma_v**2)
-            x_test.append(x_batch)
-            y_test.append(y_batch)
-
-        mean_predictions = np.stack(mean_predictions).flatten()
-        std_predictions = (np.stack(variance_predictions).flatten()) ** 0.5
-        y_test = np.stack(y_test).flatten()
-        x_test = np.stack(x_test).flatten()
-
-        mean_predictions = normalizer.unstandardize(
-            norm_data=mean_predictions,
-            mu=self.data_loader["y_norm_param_1"],
-            std=self.data_loader["y_norm_param_2"],
-        )
-
-        std_predictions = normalizer.unstandardize_std(
-            norm_std=std_predictions, std=self.data_loader["y_norm_param_2"]
-        )
-
-        y_test = normalizer.unstandardize(
-            norm_data=y_test,
-            mu=self.data_loader["y_norm_param_1"],
-            std=self.data_loader["y_norm_param_2"],
-        )
-
-        # Compute log-likelihood
-        mse = metric.mse(mean_predictions, y_test)
-        log_lik = metric.log_likelihood(
-            prediction=mean_predictions, observation=y_test, std=std_predictions
-        )
-
-        # Visualization
-        if self.viz is not None:
-            self.viz.plot_predictions(
-                x_train=None,
-                y_train=None,
-                x_test=self.data_loader["datetime_test"][: len(y_test)],
-                y_test=y_test,
-                y_pred=mean_predictions,
-                sy_pred=std_predictions,
-                std_factor=1,
-                label="time_series_forecasting",
-                title=r"\textbf{Time Series Forecasting}",
-                time_series=True,
+            # Training metric
+            pred = normalizer.unstandardize(
+                m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
             )
+            obs = normalizer.unstandardize(
+                y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+            )
+            mse = metric.mse(pred, obs)
+            mses.append(mse)
 
-        print("#############")
-        print(f"MSE           : {mse: 0.2f}")
-        print(f"Log-likelihood: {log_lik: 0.2f}")
+        # Progress bar
+        pbar.set_description(
+            f"Epoch {epoch + 1}/{num_epochs}| mse: {sum(mses)/len(mses):>7.2f}",
+            refresh=True,
+        )
+
+    # -------------------------------------------------------------------------#
+    # Testing
+    test_batch_iter = test_dtl.create_dataloader(batch_size, shuffle=False)
+    mu_preds = []
+    var_preds = []
+    y_test = []
+    x_test = []
+
+    for x, y in test_batch_iter:
+        # Predicion
+        m_pred, v_pred = net(x)
+
+        mu_preds.extend(m_pred)
+        var_preds.extend(v_pred + sigma_v**2)
+        x_test.extend(x)
+        y_test.extend(y)
+
+    mu_preds = np.array(mu_preds)
+    std_preds = np.array(var_preds) ** 0.5
+    y_test = np.array(y_test)
+    x_test = np.array(x_test)
+
+    mu_preds = normalizer.unstandardize(
+        mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+    )
+    std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
+
+    y_test = normalizer.unstandardize(
+        y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+    )
+
+    # Compute log-likelihood
+    mse = metric.mse(mu_preds, y_test)
+    log_lik = metric.log_likelihood(
+        prediction=mu_preds, observation=y_test, std=std_preds
+    )
+
+    # Visualization
+    viz.plot_predictions(
+        x_test=test_dtl.dataset["date_time"][: len(y_test)],
+        y_test=y_test,
+        y_pred=mu_preds,
+        sy_pred=std_preds,
+        std_factor=1,
+        label="time_series_forecasting",
+        title=r"\textbf{Time Series Forecasting}",
+        time_series=True,
+    )
+
+    print("#############")
+    print(f"MSE           : {mse: 0.2f}")
+    print(f"Log-likelihood: {log_lik: 0.2f}")
 
 
 class PredictionViz:
@@ -236,21 +206,21 @@ class PredictionViz:
 
     def plot_predictions(
         self,
-        x_train: Union[np.ndarray, None],
-        y_train: Union[np.ndarray, None],
         x_test: np.ndarray,
         y_test: np.ndarray,
         y_pred: np.ndarray,
         sy_pred: np.ndarray,
         std_factor: int,
-        sy_test: Union[np.ndarray, None] = None,
+        x_train: Optional[np.ndarray] = None,
+        y_train: Optional[np.ndarray] = None,
+        sy_test: Optional[np.ndarray] = None,
         label: str = "diag",
-        title: Union[str, None] = None,
-        eq: Union[str, None] = None,
-        x_eq: Union[float, None] = None,
-        y_eq: Union[float, None] = None,
+        title: Optional[str] = None,
+        eq: Optional[str] = None,
+        x_eq: Optional[float] = None,
+        y_eq: Optional[float] = None,
         time_series: bool = False,
-        save_folder: Union[str, None] = None,
+        save_folder: Optional[str] = None,
     ) -> None:
         """Compare prediciton distribution with theorical distribution
 
@@ -362,86 +332,6 @@ class PredictionViz:
             saving_path = f"saved_results/pred_{label}_{self.data_name}.png"
             plt.savefig(saving_path, bbox_inches="tight")
             plt.close()
-
-
-# @memory_profiler.profile
-def clsf_runner():
-    """Run classification training"""
-    # User-input
-    num_epochs = 20
-    output_col = [0]
-    num_features = 1
-    input_seq_len = 5
-    output_seq_len = 1
-    seq_stride = 1
-    batch_size = 10
-    sigma_v = 1.0
-    x_train_file = "../../data/toy_time_series/x_train_sin_data.csv"
-    datetime_train_file = "../../data/toy_time_series/train_sin_datetime.csv"
-    x_test_file = "../../data/toy_time_series/x_test_sin_data.csv"
-    datetime_test_file = "../../data/toy_time_series/test_sin_datetime.csv"
-
-    # Data loader
-    ts_data_loader = TimeSeriesDataloader(
-        batch_size=batch_size,
-        output_col=output_col,
-        input_seq_len=input_seq_len,
-        output_seq_len=output_seq_len,
-        num_features=num_features,
-        stride=seq_stride,
-    )
-    data_loader = ts_data_loader.process_data(
-        x_train_file=x_train_file,
-        datetime_train_file=datetime_train_file,
-        x_test_file=x_test_file,
-        datetime_test_file=datetime_test_file,
-    )
-
-    # Visualzier
-    viz = PredictionViz(task_name="forecasting", data_name="sin_signal")
-    forecaster = TimeSeriesForecaster(
-        num_epochs=num_epochs,
-        data_loader=data_loader,
-        input_seq_len=input_seq_len,
-        output_seq_len=output_seq_len,
-        output_col=output_col,
-        batch_size=batch_size,
-        sigma_v=sigma_v,
-        viz=viz,
-    )
-    forecaster.train()
-    forecaster.predict()
-
-
-def memory_profiling_main():
-    clsf_runner()
-
-
-def profiler():
-    """Run profiler"""
-    pr = cProfile.Profile()
-    pr.enable()
-
-    # Run the main function
-    memory_profiling_main()
-
-    pr.disable()
-    s = StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats("time")
-    ps.print_stats(20)  # Print only the top 20 functions
-
-    # Print cProfile output to console
-    print("Top 20 time-consuming functions:")
-    print(s.getvalue())
-
-
-def main(profile: bool = False):
-    """Test API"""
-    if profile:
-        print("Profile training")
-        profiler()
-    else:
-        clsf_runner()
 
 
 if __name__ == "__main__":

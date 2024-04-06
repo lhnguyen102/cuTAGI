@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -135,7 +135,7 @@ class RegressionDataLoader(DataloaderBase):
 
 
 class MnistDataLoader:
-    """Data loader for MNIST dataset without relying on PyTorch."""
+    """Data loader for MNIST."""
 
     def __init__(self, x_file: str, y_file: str, num_images: int):
         self.dataset = self.process_data(x_file, y_file, num_images)
@@ -246,60 +246,79 @@ class MnistOneHotDataloader(DataloaderBase):
         return dataset
 
 
-class TimeSeriesDataloader(DataloaderBase):
+class TimeSeriesDataloader:
     """Data loader for time series"""
 
     def __init__(
         self,
-        batch_size: int,
+        x_file: str,
+        date_time_file: str,
         output_col: np.ndarray,
         input_seq_len: int,
         output_seq_len: int,
         num_features: int,
         stride: int,
+        x_mean: Optional[np.ndarray] = None,
+        x_std: Optional[np.ndarray] = None,
     ) -> None:
-        super().__init__(batch_size)
+        self.x_file = x_file
+        self.date_time_file = date_time_file
         self.output_col = output_col
         self.input_seq_len = input_seq_len
         self.output_seq_len = output_seq_len
         self.num_features = num_features
         self.stride = stride
+        self.x_mean = x_mean
+        self.x_std = x_std
 
-    def process_data(
-        self,
-        x_train_file: str,
-        datetime_train_file: str,
-        x_test_file: str,
-        datetime_test_file: str,
-    ) -> dict:
+        self.dataset = self.process_data()
+
+    def load_data_from_csv(self, data_file: str) -> pd.DataFrame:
+        """Load data from csv file"""
+
+        data = pd.read_csv(data_file, skiprows=1, delimiter=",", header=None)
+
+        return data.values
+
+    @staticmethod
+    def batch_generator(
+        input_data: np.ndarray,
+        output_data: np.ndarray,
+        batch_size: int,
+        shuffle: bool = True,
+    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
+        """
+        Generator function to yield batches of data.
+        """
+        num_data = input_data.shape[0]
+        indices = np.arange(num_data)
+        if shuffle:
+            np.random.shuffle(indices)
+
+        for start_idx in range(0, num_data, batch_size):
+            if start_idx + batch_size > num_data:
+                continue
+            end_idx = min(start_idx + batch_size, num_data)
+            idx = indices[start_idx:end_idx]
+            yield input_data[idx].flatten(), output_data[idx].flatten()
+
+    def process_data(self) -> dict:
         """Process time series"""
         # Initialization
         utils = Utils()
 
         # Load data
-        x_train = self.load_data_from_csv(x_train_file)
-        datetime_train = self.load_data_from_csv(datetime_train_file)
-
-        x_test = self.load_data_from_csv(x_test_file)
-        datetime_test = self.load_data_from_csv(datetime_test_file)
+        x = self.load_data_from_csv(self.x_file)
+        date_time = self.load_data_from_csv(self.date_time_file)
 
         # Normalizer
-        x_mean, x_std = self.normalizer.compute_mean_std(x_train)
-        x_train = self.normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
-        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
+        if self.x_mean is None and self.x_std is None:
+            self.x_mean, self.x_std = Normalizer.compute_mean_std(x)
+        x = Normalizer.standardize(data=x, mu=self.x_mean, std=self.x_std)
 
         # Create rolling windows
-        x_train_rolled, y_train_rolled = utils.create_rolling_window(
-            data=x_train,
-            output_col=self.output_col,
-            input_seq_len=self.input_seq_len,
-            output_seq_len=self.output_seq_len,
-            num_features=self.num_features,
-            stride=self.stride,
-        )
-
-        x_test_rolled, y_test_rolled = utils.create_rolling_window(
-            data=x_test,
+        x_rolled, y_rolled = utils.create_rolling_window(
+            data=x,
             output_col=self.output_col,
             input_seq_len=self.input_seq_len,
             output_seq_len=self.output_seq_len,
@@ -308,23 +327,13 @@ class TimeSeriesDataloader(DataloaderBase):
         )
 
         # Dataloader
-        data_loader = {}
-        data_loader["train"] = (x_train_rolled, y_train_rolled)
-        data_loader["test"] = self.create_data_loader(
-            raw_input=x_test_rolled, raw_output=y_test_rolled
-        )
-        # Store normalization parameters
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
-        data_loader["y_norm_param_1"] = x_mean[self.output_col]
-        data_loader["y_norm_param_2"] = x_std[self.output_col]
+        dataset = {}
+        dataset["value"] = (x_rolled, y_rolled)
 
         # NOTE: Datetime is saved for the visualization purpose
-        data_loader["datetime_train"] = [
-            np.datetime64(date) for date in np.squeeze(datetime_train)
-        ]
-        data_loader["datetime_test"] = [
-            np.datetime64(date) for date in np.squeeze(datetime_test)
-        ]
+        dataset["date_time"] = [np.datetime64(date) for date in np.squeeze(date_time)]
 
-        return data_loader
+        return dataset
+
+    def create_dataloader(self, batch_size: int, shuffle: bool = True):
+        return self.batch_generator(*self.dataset["value"], batch_size, shuffle)
