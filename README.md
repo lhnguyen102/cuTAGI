@@ -56,19 +56,16 @@ batch_iter = dtl.create_data_loader(batch_size=batch_size)
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   # Feed forward
   m_pred, v_pred = net(x)
-
   # Update output layers based on targets
   out_updater.update_using_indices(
       net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer
   )
-
   # Update parameters
   net.backward()
   net.step()
-
   # Training metric
- error_rate = metric.error_rate(m_pred, v_pred, label)
- print(f"Iteration: {i} error rate: {error_rate}")
+  error_rate = metric.error_rate(m_pred, v_pred, label)
+  print(f"Iteration: {i} error rate: {error_rate}")
 
 ```
 cuTAGI offers a diverse set of examples to demonstrate its capabilities, including:
