@@ -11,7 +11,7 @@ cuTAGI is a probabilistic array framework that is based on Tractable Approximate
 Some key features of cuTAGI include:
 - **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API
 - **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
-- **Model Building and Execution**:Currently, it supportssequential model building, with plans to introduce Eager Execution by year's end.
+- **Model Building and Execution**: Currently, it supportssequential model building, with plans to introduce Eager Execution by year's end.
 
 cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
@@ -93,7 +93,7 @@ cuTAGI is released under the MIT license.
 
 * [Analytically tractable hidden-states inference in Bayesian neural networks](https://www.jmlr.org/papers/volume23/21-0758/21-0758.pdf) (Luong-Ha Nguyen and James-A. Goulet. Journal-to-conference track, ICLR 2024.)
 * [Analytically tractable heteroscedastic uncertainty quantification in Bayesian neural networks for regression tasks](http://profs.polymtl.ca/jagoulet/Site/Papers/Deka_TAGIV_2024_preprint.pdf) (Bhargob Deka, Luong-Ha Nguyen and James-A. Goulet. Neurocomputing, 2024)
-* [Tractable approximate Gaussian inference for Bayesian neural networks](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf) (James-A. Goulet, Luong-Ha Nguyen, and Said Amiri. JMLR)
+* [Tractable approximate Gaussian inference for Bayesian neural networks](https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf) (James-A. Goulet, Luong-Ha Nguyen, and Said Amiri. JMLR, 2021)
 * [Analytically tractable inference in deep neural networks](https://arxiv.org/pdf/2103.05461.pdf) (Luong-Ha Nguyen and James-A. Goulet. 2021)
 * [Analytically tractable Bayesian deep Q-Learning](https://arxiv.org/pdf/2106.11086.pdf) (Luong-Ha Nguyen and James-A. Goulet. 2021)
 
