@@ -286,8 +286,7 @@ class Autoencoder:
         return V_batch, ud_idx_batch
 
 
-# @memory_profiler.profile
-def clsf_runner():
+def main(num_epochs: int = 10, batch_size: int = 20, sigma_v: float = 10.0):
     """Run classification training"""
     # User-input
     num_epochs = 1
@@ -295,10 +294,10 @@ def clsf_runner():
     mu = np.array([0.1309])
     sigma = np.array([1])
     img_size = np.array([1, IMAGE_WIDTH, IMAGE_HEIGHT])
-    x_train_file = "../../data/mnist/train-images-idx3-ubyte"
-    y_train_file = "../../data/mnist/train-labels-idx1-ubyte"
-    x_test_file = "../../data/mnist/t10k-images-idx3-ubyte"
-    y_test_file = "../../data/mnist/t10k-labels-idx1-ubyte"
+    x_train_file = "data/mnist/train-images-idx3-ubyte"
+    y_train_file = "data/mnist/train-labels-idx1-ubyte"
+    x_test_file = "data/mnist/t10k-images-idx3-ubyte"
+    y_test_file = "data/mnist/t10k-labels-idx1-ubyte"
 
     # Data loader
     reg_data_loader = MnistDataloader(batch_size=batch_size)
@@ -327,37 +326,6 @@ def clsf_runner():
         viz=viz,
     )
     reg_task.train()
-
-
-def memory_profiling_main():
-    clsf_runner()
-
-
-def profiler():
-    """Run profiler"""
-    pr = cProfile.Profile()
-    pr.enable()
-
-    # Run the main function
-    memory_profiling_main()
-
-    pr.disable()
-    s = StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats("time")
-    ps.print_stats(20)  # Print only the top 20 functions
-
-    # Print cProfile output to console
-    print("Top 20 time-consuming functions:")
-    print(s.getvalue())
-
-
-def main(profile: bool = False):
-    """Test API"""
-    if profile:
-        print("Profile training")
-        profiler()
-    else:
-        clsf_runner()
 
 
 if __name__ == "__main__":

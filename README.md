@@ -36,7 +36,8 @@ Examples of regression task using the diagonal (top left) or full (top right) co
 </p>
 
 
-## Example
+## Quick Tour
+Here is an example for training a classifer using pytagi on MNIST dataset
 ```Python
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
 import pytagi.metric as metric
@@ -44,14 +45,15 @@ from pytagi import Utils
 from examples.data_loader import MnistDataloader
 
 # Load data
-num_classes = 10
-x_train_file = "data/mnist/train-images-idx3-ubyte"
-y_train_file = "data/mnist/train-labels-idx1-ubyte"
-dtl = MnistDataLoader(x_train_file, y_train_file, 60000)
+MnistDataLoader(
+    x_file="data/mnist/train-images-idx3-ubyte",
+    y_file="data/mnist/train-labels-idx1-ubyte",
+    num_images=60000,
+)
 
 # Hierachical Softmax
 utils = Utils()
-hr_softmax = utils.get_hierarchical_softmax(num_classes)
+hr_softmax = utils.get_hierarchical_softmax(num_classes=10)
 
 # Neural network
 net = Sequential(
@@ -61,21 +63,19 @@ net = Sequential(
     ReLU(),
     Linear(100, 11),
 )
+#net.to_device("cuda")
 out_updater = OutputUpdater(net.device)
 
-var_y = np.zeros((batch_size*hr_softmax.num_obs, ), dtype=np.float3) + sigma_v**2
-batch_iter = train_dtl.create_dataloader(batch_size=batch_size)
+var_y = np.full((batch_size * hr_softmax.num_obs,), 1.0, dtype=np.float32)
+batch_iter = dtl.create_dataloader(batch_size=batch_size)
+
 for x, y, y_idx, label in batch_iter:
   # Feed forward
   m_pred, v_pred = net(x)
 
   # Update output layers based on targets
   out_updater.update_using_indices(
-      output_states=net.output_z_buffer,
-      mu_obs=y,
-      var_obs=var_y,
-      selected_idx=y_idx,
-      delta_states=net.input_delta_z_buffer,
+      net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer
   )
 
   # Update parameters
@@ -83,7 +83,7 @@ for x, y, y_idx, label in batch_iter:
   net.step()
 
   # Training metric
-  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, num_classes, batch_size)
+  pred, _ = utils.get_labels(m_pred, v_pred, hr_softmax, 10, batch_size)
   error_rate = metric.class_error(pred, label)
 
 ```

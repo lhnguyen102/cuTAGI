@@ -85,7 +85,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def run_classification_trainer(num_epochs=10, batch_size=20, sigma_v: float = 1.0):
+def main(num_epochs: int = 10, batch_size: int = 20, sigma_v: float = 1.0):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
@@ -93,26 +93,27 @@ def run_classification_trainer(num_epochs=10, batch_size=20, sigma_v: float = 1.
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
-
-    # Load data
-    x_train_file = "data/mnist/train-images-idx3-ubyte"
-    y_train_file = "data/mnist/train-labels-idx1-ubyte"
-    x_test_file = "data/mnist/t10k-images-idx3-ubyte"
-    y_test_file = "data/mnist/t10k-labels-idx1-ubyte"
+    # Load dataset
+    train_dtl = MnistDataLoader(
+        x_file="data/mnist/train-images-idx3-ubyte",
+        y_file="data/mnist/train-labels-idx1-ubyte",
+        num_images=60000,
+    )
+    test_dtl = MnistDataLoader(
+        x_file="data/mnist/t10k-images-idx3-ubyte",
+        y_file="data/mnist/t10k-labels-idx1-ubyte",
+        num_images=10000,
+    )
 
     # Hierachical Softmax
     utils = Utils()
     hr_softmax = utils.get_hierarchical_softmax(10)
 
-    # Load dataset
-    train_dtl = MnistDataLoader(x_train_file, y_train_file, 60000)
-    test_dtl = MnistDataLoader(x_test_file, y_test_file, 10000)
-
     # Network configuration
     net = FNN
     out_updater = OutputUpdater(net.device)
 
-    # Training loop
+    # Training
     error_rates = []
     var_y = np.zeros((batch_size * hr_softmax.num_obs,), dtype=np.float32) + sigma_v**2
     pbar = tqdm(range(num_epochs), desc="Training Progress")
@@ -165,4 +166,4 @@ def run_classification_trainer(num_epochs=10, batch_size=20, sigma_v: float = 1.
 
 
 if __name__ == "__main__":
-    fire.Fire(run_classification_trainer)
+    fire.Fire(main)

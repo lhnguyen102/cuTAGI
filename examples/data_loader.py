@@ -137,8 +137,8 @@ class RegressionDataLoader(DataloaderBase):
 class MnistDataLoader:
     """Data loader for MNIST dataset without relying on PyTorch."""
 
-    def __init__(self, x_train_file: str, y_train_file: str, num_images: int):
-        self.dataset = self.process_data(x_train_file, y_train_file, num_images)
+    def __init__(self, x_file: str, y_file: str, num_images: int):
+        self.dataset = self.process_data(x_file, y_file, num_images)
 
     @staticmethod
     def load_mnist_images(image_file: str, label_file: str, num_images: int):
