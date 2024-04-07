@@ -87,51 +87,80 @@ class DataloaderBase(ABC):
         return np.concatenate((random_idx, reminder_idx))
 
 
-class RegressionDataLoader(DataloaderBase):
+class RegressionDataLoader:
     """Load and format data that are feeded to the neural network.
     The user must provide the input and output data file in *csv"""
 
-    def __init__(self, batch_size: int, num_inputs: int, num_outputs: int) -> None:
-        super().__init__(batch_size)
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
+    def __init__(
+        self,
+        x_file: str,
+        y_file: str,
+        x_mean: Optional[np.ndarray] = None,
+        x_std: Optional[np.ndarray] = None,
+        y_mean: Optional[np.ndarray] = None,
+        y_std: Optional[np.ndarray] = None,
+    ) -> None:
+        self.x_file = x_file
+        self.y_file = y_file
+        self.x_mean = x_mean
+        self.x_std = x_std
+        self.y_mean = y_mean
+        self.y_std = y_std
 
-    def process_data(
-        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
-    ) -> dict:
+        self.dataset = self.process_data()
+
+    def load_data_from_csv(self, data_file: str) -> pd.DataFrame:
+        """Load data from csv file"""
+
+        data = pd.read_csv(data_file, skiprows=1, delimiter=",", header=None)
+
+        return data.values
+
+    @staticmethod
+    def batch_generator(
+        input_data: np.ndarray,
+        output_data: np.ndarray,
+        batch_size: int,
+        shuffle: bool = True,
+    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
+        """
+        Generator function to yield batches of data.
+        """
+        num_data = input_data.shape[0]
+        indices = np.arange(num_data)
+        if shuffle:
+            np.random.shuffle(indices)
+
+        for start_idx in range(0, num_data, batch_size):
+            if start_idx + batch_size > num_data:
+                continue
+            end_idx = min(start_idx + batch_size, num_data)
+            idx = indices[start_idx:end_idx]
+            yield input_data[idx].flatten(), output_data[idx].flatten()
+
+    def process_data(self) -> dict:
         """Process data from the csv file"""
 
         # Load data
-        x_train = self.load_data_from_csv(x_train_file)
-        y_train = self.load_data_from_csv(y_train_file)
-        x_test = self.load_data_from_csv(x_test_file)
-        y_test = self.load_data_from_csv(y_test_file)
+        x = self.load_data_from_csv(self.x_file)
+        y = self.load_data_from_csv(self.y_file)
 
         # Normalizer
-        x_mean, x_std = self.normalizer.compute_mean_std(
-            np.concatenate((x_train, x_test))
-        )
-        y_mean, y_std = self.normalizer.compute_mean_std(
-            np.concatenate((y_train, y_test))
-        )
+        if self.x_mean is None:
+            self.x_mean, self.x_std = Normalizer.compute_mean_std(x)
+            self.y_mean, self.y_std = Normalizer.compute_mean_std(y)
 
-        x_train = self.normalizer.standardize(data=x_train, mu=x_mean, std=x_std)
-        y_train = self.normalizer.standardize(data=y_train, mu=y_mean, std=y_std)
-        x_test = self.normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
-        y_test = self.normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
+        x = Normalizer.standardize(data=x, mu=self.x_mean, std=self.x_std)
+        y = Normalizer.standardize(data=y, mu=self.y_mean, std=self.y_std)
 
         # Dataloader
-        data_loader = {}
-        data_loader["train"] = (x_train, y_train)
-        data_loader["test"] = self.create_data_loader(
-            raw_input=x_test, raw_output=y_test
-        )
-        data_loader["x_norm_param_1"] = x_mean
-        data_loader["x_norm_param_2"] = x_std
-        data_loader["y_norm_param_1"] = y_mean
-        data_loader["y_norm_param_2"] = y_std
+        dataset = {}
+        dataset["value"] = (np.float32(x), np.float32(y))
 
-        return data_loader
+        return dataset
+
+    def create_data_loader(self, batch_size: int, shuffle: bool = True):
+        return self.batch_generator(*self.dataset["value"], batch_size, shuffle)
 
 
 class MnistDataLoader:

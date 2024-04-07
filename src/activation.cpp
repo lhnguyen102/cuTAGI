@@ -19,8 +19,8 @@ void relu_mean_var(std::vector<float> const &mu_z,
 /*
  */
 {
-    float zero_pad = 0;
-    float one_pad = 1;
+    float zero_pad = 0.0f;
+    float one_pad = 1.0f;
     float tmp;
     int col;
     for (col = start_chunk; col < end_chunk; col++) {

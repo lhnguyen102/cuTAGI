@@ -31,7 +31,6 @@ from examples.data_loader import MnistDataloader
 
 dtl = MnistDataLoader()
 
-# Hierarchical Softmax
 metric = HRCSoftmaxMetric(num_classes=10)
 
 net = Sequential(
@@ -61,9 +60,22 @@ for i, (x, y, y_idx, label) in enumerate(batch_iter):
 
 ```
 cuTAGI offers a diverse set of examples to demonstrate its capabilities, including:
+- Regression
+  ```shell
+  python -m examples.regression
+  ```
 - Classification on MNIST using various layers such as Linear, CNNs, Batch & Layer Norms.
+  ```shell
+  python -m examples.classification
+  ```
 - Generation of MNIST images using an Autoencoder.
+  ```shell
+  python -m examples.autoencoder
+  ```
 - Time series forecasting
+  ```shell
+  python -m examples.time_series_forecasting
+  ```
 
 ## Installation
 cuTAGI is available on PyPI. To install, execute the following command in Terminal:

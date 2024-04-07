@@ -43,11 +43,12 @@ Args:
         for (int j = 0; j < input_size; j++) {
             mu_a_tmp = mu_a[n * col + j];
             var_a_tmp = var_a[n * col + j];
-            sum_mu_z += mu_w[row * n + j] * mu_a_tmp;
-            sum_var_z +=
-                (mu_w[row * n + j] * mu_w[row * n + j] + var_w[row * n + j]) *
-                    var_a_tmp +
-                var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
+            float mu_w_tmp = mu_w[row * n + j];
+            float var_w_tmp = var_w[row * n + j];
+
+            sum_mu_z += mu_w_tmp * mu_a_tmp;
+            sum_var_z += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                         var_w_tmp * mu_a_tmp * mu_a_tmp;
         }
         if (bias) {
             mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
