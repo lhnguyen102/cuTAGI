@@ -1,7 +1,7 @@
-# cuTAGU
+# cuTAGI
 [Examples](#examples) | [License](#license) | [Related Papers](#related-papers) | [Citation](#citation)
 
-What is cuTAGI ?
+
 cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
 Some key features of cuTAGI include:
