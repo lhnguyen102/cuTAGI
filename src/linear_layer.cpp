@@ -470,7 +470,10 @@ Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
     this->output_size = op_size;
     this->bias = bias;
     this->num_weights = this->input_size * this->output_size;
-    this->num_biases = this->output_size;
+    this->num_biases = 0;
+    if (this->bias) {
+        this->num_biases = this->output_size;
+    }
 
     // Initalize weights and bias
     if (this->device.compare("cpu") == 0) {

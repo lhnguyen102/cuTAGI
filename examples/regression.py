@@ -36,7 +36,6 @@ def main(num_epochs: int = 50, batch_size: int = 10, sigma_v: float = 0.2):
         ReLU(),
         Linear(50, 1),
     )
-    # net.to_device("cuda")
 
     out_updater = OutputUpdater(net.device)
     var_y = np.full((batch_size,), sigma_v**2, dtype=np.float32)

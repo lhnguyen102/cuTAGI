@@ -30,6 +30,10 @@ void BaseHiddenStates::set_input_x(const std::vector<float> &mu_x,
         for (int i = 0; i < data_size; i++) {
             this->var_a[i] = var_x[i];
         }
+    } else {
+        for (int i = 0; i < data_size; i++) {
+            this->var_a[i] = 0.0f;
+        }
     }
 }
 

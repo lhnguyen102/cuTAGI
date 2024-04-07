@@ -217,6 +217,7 @@ void BaseLayer::save(std::ofstream &file)
     }
 
     // Save the name length and name
+    // TODO remove get_layer_name because cuda and cpu version
     auto layer_name = this->get_layer_name();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
