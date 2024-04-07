@@ -327,8 +327,7 @@ Args:
                  state.mha.remax.mu_logsum, state.mha.remax.var_logsum,
                  state.mha.remax.cov_log_logsum, state.mha.mu_att_score,
                  state.mha.var_att_score, att_pos, z_remax_pos, z_sum_remax_pos,
-                 timestep, timestep * num_heads * batch_size,
-                 net_prop.omega_tol);
+                 timestep, timestep * num_heads * batch_size);
 
     // Score time values
     tagi_4d_matrix_mul(state.mha.mu_att_score, state.mha.var_att_score,

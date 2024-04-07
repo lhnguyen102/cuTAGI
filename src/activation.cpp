@@ -158,48 +158,31 @@ void tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
 }
 
 void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a)
 /*
  */
 {
-    float alpha, beta, omega, kappa, mu_z_til, var_z_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     for (int i = start_chunk; i < end_chunk; i++) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mu_z[i] / powf(var_z[i], 0.5);
-        omega = std::max(1 - normcdf_cpu(alpha), omega_tol);
-        beta = normpdf_cpu(alpha, 0.0f, 1.0f) / omega;
-        kappa = 1 + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(var_z[i], 0.5);
+        alpha = mu_z[i] / std_z;
+        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        cdf_alpha = normcdf_cpu(alpha);
 
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] + beta * powf(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        if (omega * mu_z_til > omega_tol) {
-            mu_a[i] = omega * mu_z_til;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(mu_z_til, 2);
-            // jcb[i] = powf(omega * kappa, 0.5); // Approximate formulation
-            jcb[i] =
-                (((pow(mu_z[i], 2) + var_z[i]) *  // Exact form. (Huber, 2020)
-                      normcdf_cpu(mu_z[i] / pow(var_z[i], 0.5)) +
-                  mu_z[i] * var_z[i] *
-                      normpdf_cpu(0.0f, mu_z[i], pow(var_z[i], 0.5))) -
-                 (mu_a[i] * mu_z[i])) /
-                var_z[i];
-        } else {
-            mu_a[i] = omega_tol;
-            var_a[i] =
-                omega * var_z_til + omega * (1 - omega) * powf(omega_tol, 2);
-            jcb[i] = 0.0f;
-        }
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = mu_z[i] * cdf_alpha + std_z * pdf_alpha;
+        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
+                   mu_z[i] * std_z * pdf_alpha +
+                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+        jcb[i] = cdf_alpha;
     }
 }
 
 void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
@@ -218,8 +201,8 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_relu_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_relu_mean_var(mu_z, var_z, start_chunk,
                                       end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -231,46 +214,38 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
 }
 
 void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol,
+                              std::vector<float> &var_z,
                               int start_chunk, int end_chunk,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
 /*
  */
 {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_chunk; i < end_chunk; i++) {
-        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+        // cdf and pdf for truncated normal distribution
+        std_z = powf(var_z[i], 0.5);
+        alpha_l = (1.0f + mu_z[i]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mu_z[i]) / std_z;  // Upper truncation
+        cdf_l = normcdf_cpu(alpha_l);
+        cdf_u = normcdf_cpu(alpha_u);
+        pdf_l = normpdf_cpu(alpha_l, 0.0f, 1.0f);
+        pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        mu_a[i] =
-            (omega * mu_z_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
-        var_a[i] = (omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
-                    cdf_lower * powf(1 + mu_a[i], 2) +
-                    (1 - cdf_upper) * powf(1 - mu_a[i], 2)) /
-                   4.0f;
-        jcb[i] = omega * 0.5;
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
+                   std_z * (pdf_l - pdf_u) - mu_z[i];
+        var_a[i] = (cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
+                    cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
+                    std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
+                    powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] +
+                    powf(mu_z[i], 2) - var_z[i] + 2) / 4.0f;
+        mu_a[i] = mu_a[i] / 2.0f + 0.5f;
+        jcb[i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z, float omega_tol,
+                                 std::vector<float> &var_z,
                                  int n, unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,
@@ -290,8 +265,8 @@ void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_sigmoid_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_sigmoid_mean_var(mu_z, var_z, start_chunk,
                                          end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -304,45 +279,37 @@ void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
 }
 
 void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a)
 /*
  */
 {
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_chunk; i < end_chunk; i++) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        alpha_upper = (1.0f - mu_z[i]) / powf(var_z[i], 0.5);
-        cdf_lower = normcdf_cpu(alpha_lower);
-        cdf_upper = normcdf_cpu(alpha_upper);
-        pdf_lower = normpdf_cpu(alpha_lower, 0.0f, 1.0f);
-        pdf_upper = normpdf_cpu(alpha_upper, 0.0f, 1.0f);
+        std_z = powf(var_z[i], 0.5);
+        alpha_l = (1.0f + mu_z[i]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mu_z[i]) / std_z;  // Upper truncation
+        cdf_l = normcdf_cpu(alpha_l);
+        cdf_u = normcdf_cpu(alpha_u);
+        pdf_l = normpdf_cpu(alpha_l, 0.0f, 1.0f);
+        pdf_u = normpdf_cpu(alpha_u, 0.0f, 1.0f);
 
-        // Truncated distribution's parameters
-        omega = std::max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                ((pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega) -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[i] - beta * pow(var_z[i], 0.5);
-        var_z_til = kappa * var_z[i];
-
-        // Activation distribution
-        mu_a[i] = omega * mu_z_til - cdf_lower + (1 - cdf_upper);
-        var_a[i] = omega * var_z_til + omega * powf(mu_z_til - mu_a[i], 2) +
-                   cdf_lower * powf(1 + mu_a[i], 2) +
-                   (1 - cdf_upper) * powf(1 - mu_a[i], 2);
-        jcb[i] = omega;
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
+                  std_z * (pdf_l - pdf_u) - mu_z[i];
+        var_a[i] = cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
+                   cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
+                   std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
+                   powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] + powf(mu_z[i], 2) -
+                   var_z[i] + 2;
+        jcb[i] = cdf_u + cdf_l - 1;
     }
 }
 
 void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
@@ -361,8 +328,8 @@ void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back(
-            [=, &mu_z, &var_z, &omega_tol, &mu_a, &jcb, &var_a] {
-                mixture_tanh_mean_var(mu_z, var_z, omega_tol, start_chunk,
+            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+                mixture_tanh_mean_var(mu_z, var_z, start_chunk,
                                       end_chunk, mu_a, jcb, var_a);
             });
     }
@@ -744,7 +711,7 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_relu_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -808,7 +775,7 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_sigmoid_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
@@ -872,7 +839,7 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     mixture_tanh_mean_var(
-        input_states.mu_a, input_states.var_a, this->omega_tol, start_chunk,
+        input_states.mu_a, input_states.var_a, start_chunk,
         end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass

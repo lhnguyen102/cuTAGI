@@ -326,8 +326,7 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("init_method", &Network::init_method)
         .def_readwrite("noise_type", &Network::noise_type)
         .def_readwrite("device", &Network::device)
-        .def_readwrite("ra_mt", &Network::ra_mt)
-        .def_readwrite("omega_tol", &Network::omega_tol);
+        .def_readwrite("ra_mt", &Network::ra_mt);
 
     pybind11::class_<HrSoftmax>(m, "HrSoftmax")
         .def(pybind11::init<>())

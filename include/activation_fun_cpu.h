@@ -26,7 +26,7 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
                   std::vector<float> &var_logsum,
                   std::vector<float> &cov_log_logsum, std::vector<float> &ma,
                   std::vector<float> &Sa, int z_pos, int z_remax_pos,
-                  int z_sum_remax_pos, int no, int B, float omega_tol);
+                  int z_sum_remax_pos, int no, int B);
 
 void compute_cov_m_a_check_cpu(std::vector<float> &var_log,
                                std::vector<float> &cov_log_logsum,
@@ -66,21 +66,21 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                             std::vector<float> &Sa);
 
 void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      float omega_tol, int zpos, int z_pos, int start_idx,
+                      int zpos, int z_pos, int start_idx,
                       int end_idx, std::vector<float> &ma,
                       std::vector<float> &J, std::vector<float> &Sa);
 
 void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      float omega_tol, int zpos, int start_idx, int end_idx,
+                      int zpos, int start_idx, int end_idx,
                       std::vector<float> &ma, std::vector<float> &J,
                       std::vector<float> &Sa);
 
 void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                         float omega_tol, int zpos, int start_idx, int end_idx,
+                         int zpos, int start_idx, int end_idx,
                          std::vector<float> &ma, std::vector<float> &J,
                          std::vector<float> &Sa);
 
-void silu(std::vector<float> &mu_z, std::vector<float> &var_z, float omega_tol,
+void silu(std::vector<float> &mu_z, std::vector<float> &var_z,
           int z_pos, int n, std::vector<float> &mu_a, std::vector<float> &J,
           std::vector<float> &var_a);
 
@@ -137,25 +137,25 @@ void leakyrelu_mean_var_multithreading(
     std::vector<float> &J, std::vector<float> &Sa);
 
 void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
-                                 float omega_tol, int zpos, int n,
+                                 int zpos, int n,
                                  unsigned int num_threads,
                                  std::vector<float> &ma, std::vector<float> &J,
                                  std::vector<float> &Sa);
 
 void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
-                                 float omega_tol, int zpos, int n,
+                                 int zpos, int n,
                                  unsigned int num_threads,
                                  std::vector<float> &ma, std::vector<float> &J,
                                  std::vector<float> &Sa);
 
 void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
-                                 float omega_tol, int zpos, int n,
+                                 int zpos, int n,
                                  unsigned int num_threads,
                                  std::vector<float> &ma, std::vector<float> &J,
                                  std::vector<float> &Sa);
 
 void mixture_sigmoid_multithreading(std::vector<float> &mz,
-                                    std::vector<float> &Sz, float omega_tol,
+                                    std::vector<float> &Sz,
                                     int zpos, int n, unsigned int num_threads,
                                     std::vector<float> &ma,
                                     std::vector<float> &J,

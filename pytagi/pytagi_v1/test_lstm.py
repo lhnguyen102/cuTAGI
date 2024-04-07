@@ -49,6 +49,7 @@ class TimeSeriesForecaster:
             Linear(5 * input_seq_len, 1),
         )
 
+        self.num_epochs = 5
         self.viz = viz
         self.dtype = dtype
 

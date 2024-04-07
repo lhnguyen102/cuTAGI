@@ -112,122 +112,92 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
     }
 }
 
-__global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
-                             int zpos, int apos, int n, float *ma, float *J,
-                             float *Sa) {
+__global__ void mixture_relu(float const *mz, float const *Sz, int zpos,
+                            int apos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha, beta, omega, kappa, mz_til, Sz_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     float pi = 3.141592;  // pi number
     if (col < n) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mz[zpos + col] / powf(Sz[zpos + col], 0.5);
-        omega = max(1.0f - normcdff(alpha), omega_tol);
-        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
-               omega;
-        kappa = 1.0f + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(Sz[zpos + col], 0.5);
+        alpha = mz[zpos + col] / std_z;
+        pdf_alpha =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
+        cdf_alpha = normcdff(alpha);
 
-        // Gaussian mixture's parameters
-        mz_til = mz[zpos + col] + beta * powf(Sz[zpos + col], 0.5);
-        Sz_til = kappa * Sz[zpos + col];
-
-        // Activation distribution
-        if (omega * mz_til > omega_tol) {
-            ma[apos + col] = omega * mz_til;
-            Sa[apos + col] =
-                omega * Sz_til + omega * (1.0f - omega) * powf(mz_til, 2);
-            // J[apos + col] = powf(omega * kappa, 0.5); // Approx. formulation
-            J[apos + col] = (((powf(mz[zpos + col], 2) + Sz[zpos + col]) *
-                                  normcdff(-alpha) +
-                              mz[zpos + col] * powf(Sz[zpos + col], 0.5) *
-                                  (1.0f / powf(2.0f * pi, 0.5)) *
-                                  expf(-powf(-alpha, 2) / 2.0f)) -
-                             (ma[apos + col] * mz[zpos + col])) /
-                            Sz[zpos + col];
-        } else {
-            ma[apos + col] = omega_tol;
-            Sa[apos + col] =
-                omega * Sz_til + omega * (1.0f - omega) * powf(omega_tol, 2);
-            J[apos + col] = 0.0f;  // TODO replace by 1.0f
-        }
+        // Moments calculations (L. Alric, 2024)
+        ma[apos + col] = mz[zpos + col] * cdf_alpha + std_z * pdf_alpha;
+        Sa[apos + col] = -powf(ma[apos + col], 2) +
+                         2 * ma[apos + col] * mz[zpos + col] -
+                         mz[zpos + col] * std_z * pdf_alpha +
+                         (Sz[zpos + col] - powf(mz[zpos + col], 2)) * cdf_alpha;
+        J[apos + col] = cdf_alpha;
     }
 }
 
-__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+__global__ void mixture_tanh(float const *mz, float const *Sz,
                              int zpos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
     if (col < n) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
-        alpha_upper = (1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
-        cdf_lower = normcdff(alpha_lower);
-        cdf_upper = normcdff(alpha_upper);
-        pdf_lower =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
-        pdf_upper =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+        std_z = powf(Sz[zpos + col], 0.5);
+        alpha_l = (1.0f + mz[zpos + col]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mz[zpos + col]) / std_z;  // Upper truncation
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
+        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
+        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
-        // Truncated distribution's parameters
-        omega = max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mz_til = mz[zpos + col] - beta * powf(Sz[zpos + col], 0.5);
-        Sz_til = kappa * Sz[zpos + col];
-
-        // Activation distribution
-        ma[zpos + col] = omega * mz_til - cdf_lower + (1 - cdf_upper);
-        Sa[zpos + col] = omega * Sz_til +
-                         omega * powf(mz_til - ma[zpos + col], 2) +
-                         cdf_lower * powf(1 + ma[zpos + col], 2) +
-                         (1 - cdf_upper) * powf(1 - ma[zpos + col], 2);
-        J[zpos + col] = omega;
+        // Moments calculations (L. Alric, 2024)
+        ma[zpos + col] = (mz[zpos + col] + 1) * cdf_l +
+                         (mz[zpos + col] - 1) * cdf_u +
+                         std_z * (pdf_l - pdf_u) - mz[zpos + col];
+        Sa[zpos + col] =
+            cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
+                     2 * mz[zpos + col] - 1) +
+            cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) +
+                     2 * mz[zpos + col] - 1) +
+            std_z *
+                (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
+            powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
+            powf(mz[zpos + col], 2) - Sz[zpos + col] + 2;
+        J[zpos + col] = cdf_u + cdf_l - 1;
     }
 }
 
 __global__ void mixture_sigmoid(float const *mz, float const *Sz,
-                                float omega_tol, int zpos, int n, float *ma,
+                                int zpos, int n, float *ma,
                                 float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha_lower, alpha_upper, omega, beta, kappa, mz_til, Sz_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
     if (col < n) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
-        alpha_upper = (1.0f - mz[zpos + col]) / powf(Sz[zpos + col], 0.5);
-        cdf_lower = normcdff(alpha_lower);
-        cdf_upper = normcdff(alpha_upper);
-        pdf_lower =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
-        pdf_upper =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+        std_z = powf(Sz[zpos + col], 0.5);
+        alpha_l = (1.0f + mz[zpos + col]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mz[zpos + col]) / std_z;  // Upper truncation
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
+        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
+        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
-        // Truncated distribution's parameters
-        omega = max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mz_til = mz[zpos + col] - beta * powf(Sz[zpos + col], 0.5);
-        Sz_til = kappa * Sz[zpos + col];
-
-        // Activation distribution
+        // Moments calculations (L. Alric, 2024)
         ma[zpos + col] =
-            (omega * mz_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
+            (mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
+             std_z * (pdf_l - pdf_u) - mz[zpos + col];
         Sa[zpos + col] =
-            (omega * Sz_til + omega * powf(mz_til - ma[zpos + col], 2) +
-             cdf_lower * powf(1 + ma[zpos + col], 2) +
-             (1 - cdf_upper) * powf(1 - ma[zpos + col], 2)) /
-            4.0f;
-        J[zpos + col] = omega;
+            (cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
+                      2 * mz[zpos + col] - 1) +
+             cdf_u * (Sz[zpos + col] - powf(mz[zpos + col], 2) +
+                      2 * mz[zpos + col] - 1) +
+             std_z *
+                 (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
+             powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
+             powf(mz[zpos + col], 2) - Sz[zpos + col] + 2) / 4.0f;
+        ma[zpos + col] = ma[zpos + col] / 2.0f + 0.5f;
+        J[zpos + col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 
@@ -395,7 +365,7 @@ void remax(Network &net, StateGPU &state, int l) {
     dim3 dim_grid_1(1, grid_row);
 
     // mrelu
-    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                       z_pos, 0, no * B, state.remax.d_mu_m,
                                       state.remax.d_J_m, state.remax.d_var_m);
 
@@ -493,20 +463,20 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
 
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
-        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                           z_pos, z_pos, MB, state.d_ma,
                                           state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {
-        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, net.omega_tol,
+        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
                                           z_pos, MB, state.d_ma, state.d_J,
                                           state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
     {
         mixture_sigmoid<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                             net.omega_tol, z_pos, MB,
+                                             z_pos, MB,
                                              state.d_ma, state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.softmax) {

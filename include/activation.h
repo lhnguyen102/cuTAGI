@@ -44,36 +44,36 @@ void tanh_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
                       std::vector<float> &jcb, std::vector<float> &var_a);
 
 void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a);
 
 void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a);
 
 void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol,
+                              std::vector<float> &var_z,
                               int start_chunk, int end_chunk,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a);
 
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z, float omega_tol,
+                                 std::vector<float> &var_z,
                                  int n, unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a);
 
 void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                           float omega_tol, int start_chunk, int end_chunk,
+                           int start_chunk, int end_chunk,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a);
 
 void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, float omega_tol, int n,
+                              std::vector<float> &var_z, int n,
                               unsigned int num_threads,
                               std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a);
@@ -240,7 +240,6 @@ class Tanh : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 class MixtureRelu : public BaseLayer {
    public:
-    float omega_tol = 0.0000001f;
     MixtureRelu();
     ~MixtureRelu();
 
@@ -286,7 +285,6 @@ class MixtureRelu : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 class MixtureSigmoid : public BaseLayer {
    public:
-    float omega_tol = 0.0000001f;
     MixtureSigmoid();
     ~MixtureSigmoid();
 
@@ -332,7 +330,6 @@ class MixtureSigmoid : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 class MixtureTanh : public BaseLayer {
    public:
-    float omega_tol = 0.0000001f;
     MixtureTanh();
     ~MixtureTanh();
 

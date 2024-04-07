@@ -272,7 +272,7 @@ void MixtureReluCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_relu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, 
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -343,7 +343,7 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_sigmoid_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -414,7 +414,7 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_tanh_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->omega_tol,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
         num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
@@ -716,138 +716,99 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
 }
 
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a)
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a)
 /*
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha, beta, omega, kappa, mu_z_til, var_z_til;
+    float std_z, alpha, pdf_alpha, cdf_alpha;
     float pi = 3.141592;  // pi number
     if (col < num_states) {
-        // Hyper-parameters for Gaussian mixture
-        alpha = -mu_z[col] / powf(var_z[col], 0.5);
-        omega = max(1.0f - normcdff(alpha), omega_tol);
-        beta = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f) /
-               omega;
-        kappa = 1.0f + alpha * beta - powf(beta, 2);
+        // Reused components for moments calculations
+        std_z = powf(var_z[col], 0.5);
+        alpha = mu_z[col] / std_z;
+        pdf_alpha =
+            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
+        cdf_alpha = normcdff(alpha);
 
-        // Gaussian mixture's parameters
-        mu_z_til = mu_z[col] + beta * powf(var_z[col], 0.5);
-        var_z_til = kappa * var_z[col];
-
-        // Activation distribution
-        if (omega * mu_z_til > omega_tol) {
-            mu_a[col] = omega * mu_z_til;
-            var_a[col] =
-                omega * var_z_til + omega * (1.0f - omega) * powf(mu_z_til, 2);
-            // jcb[col] = powf(omega * kappa, 0.5); //Approx. formulation
-            jcb[col] =  // Exact form. (Huber, 2020)
-                ((powf(mu_z[col], 2) + var_z[col]) * normcdff(-alpha) +
-                 mu_z[col] * powf(var_z[col], 0.5) *
-                     (1.0f / powf(2.0f * pi, 0.5)) *
-                     expf(-powf(-alpha, 2) / 2.0f) -
-                 (mu_a[col] * mu_z[col])) /
-                var_z[col];
-        } else {
-            mu_a[col] = omega_tol;
-            var_a[col] =
-                omega * var_z_til + omega * (1.0f - omega) * powf(omega_tol, 2);
-            jcb[col] = 0.0f;  // TODO replace by 1.0f
-        }
+        // Moments calculations (L. Alric, 2024)
+        mu_a[col] = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
+        var_a[col] = -powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] -
+                     mu_z[col] * std_z * pdf_alpha +
+                     (var_z[col] - powf(mu_z[col], 2)) * cdf_alpha;
+        jcb[col] = cdf_alpha;
     }
 }
 
 __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
                                               float const *var_z,
-                                              float omega_tol, int num_states,
-                                              float *mu_a, float *jcb,
-                                              float *var_a)
+                                              int num_states, float *mu_a,
+                                              float *jcb, float *var_a)
 /*
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
 
     if (col < num_states) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[col]) / powf(var_z[col], 0.5);
-        alpha_upper = (1.0f - mu_z[col]) / powf(var_z[col], 0.5);
-        cdf_lower = normcdff(alpha_lower);
-        cdf_upper = normcdff(alpha_upper);
-        pdf_lower =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
-        pdf_upper =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+        std_z = powf(var_z[col], 0.5);
+        alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
+        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
+        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
-        // Truncated distribution's parameters
-        omega = max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[col] - beta * powf(var_z[col], 0.5);
-        var_z_til = kappa * var_z[col];
-
-        // Activation distribution
-        mu_a[col] =
-            (omega * mu_z_til - cdf_lower + (1 - cdf_upper)) / 2.0f + 0.5f;
-
+        // Moments calculations (L. Alric, 2024)
+        mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
+                    std_z * (pdf_l - pdf_u) - mu_z[col];
         var_a[col] =
-            (omega * var_z_til + omega * powf(mu_z_til - mu_a[col], 2) +
-             cdf_lower * powf(1 + mu_a[col], 2) +
-             (1 - cdf_upper) * powf(1 - mu_a[col], 2)) /
+            (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
+             cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
+             std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
+             powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
+             powf(mu_z[col], 2) - var_z[col] + 2) /
             4.0f;
-
-        jcb[col] = omega * 0.5;
+        mu_a[col] = mu_a[col] / 2.0f + 0.5f;
+        jcb[col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 
 __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, float omega_tol,
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a)
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a)
 /*
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float alpha_lower, alpha_upper, omega, beta, kappa, mu_z_til, var_z_til,
-        cdf_lower, cdf_upper, pdf_lower, pdf_upper;
+    float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
 
     if (col < num_states) {
         // cdf and pdf for truncated normal distribution
-        alpha_lower = (-1.0f - mu_z[col]) / powf(var_z[col], 0.5);
-        alpha_upper = (1.0f - mu_z[col]) / powf(var_z[col], 0.5);
-        cdf_lower = normcdff(alpha_lower);
-        cdf_upper = normcdff(alpha_upper);
-        pdf_lower =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_lower, 2) / 2.0f);
-        pdf_upper =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_upper, 2) / 2.0f);
+        std_z = powf(var_z[col], 0.5);
+        alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
+        alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
+        cdf_l = normcdff(alpha_l);
+        cdf_u = normcdff(alpha_u);
+        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
+        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
-        // Truncated distribution's parameters
-        omega = max(cdf_upper - cdf_lower, omega_tol);
-        beta = (pdf_upper - pdf_lower) / omega;
-        kappa = 1 -
-                (pdf_upper * alpha_upper - pdf_lower * alpha_lower) / omega -
-                powf(beta, 2);
-
-        // Gaussian mixture's paramters
-        mu_z_til = mu_z[col] - beta * powf(var_z[col], 0.5);
-        var_z_til = kappa * var_z[col];
-
-        // Activation distribution
-        mu_a[col] = omega * mu_z_til - cdf_lower + (1 - cdf_upper);
-        var_a[col] = omega * var_z_til + omega * powf(mu_z_til - mu_a[col], 2) +
-                     cdf_lower * powf(1 + mu_a[col], 2) +
-                     (1 - cdf_upper) * powf(1 - mu_a[col], 2);
-        jcb[col] = omega;
+        // Moments calculations (L. Alric, 2024)
+        mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
+                    std_z * (pdf_l - pdf_u) - mu_z[col];
+        var_a[col] =
+            cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
+            cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
+            std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
+            powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
+            powf(mu_z[col], 2) - var_z[col] + 2;
+        jcb[col] = cdf_u + cdf_l - 1;
     }
 }
 

@@ -32,14 +32,14 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
                                  float *ma, float *J, float *Sa, int zpos,
                                  int n);
 
-__global__ void mixture_relu(float const *mz, float const *Sz, float omega_tol,
+__global__ void mixture_relu(float const *mz, float const *Sz,
                              int zpos, int n, float *ma, float *J, float *Sa);
 
-__global__ void mixture_tanh(float const *mz, float const *Sz, float omega_tol,
+__global__ void mixture_tanh(float const *mz, float const *Sz,
                              int zpos, int n, float *ma, float *J, float *Sa);
 
 __global__ void mixture_sigmoid(float const *mz, float const *Sz,
-                                float omega_tol, int zpos, int n, float *ma,
+                                int zpos, int n, float *ma,
                                 float *J, float *Sa);
 
 __global__ void exp_fun(float const *mz, float const *Sz, int n, float *ma,
