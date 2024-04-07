@@ -1,11 +1,7 @@
-# Table of Contents
-* [What is cuTAGI ?](#What-is-cuTAGI)
-* [Quick Tour](#quick-tour)
-* [License](#license)
-* [Related Papers](#related-papers)
-* [Citation](#citation)
+# cuTAGU
+[Examples](#examples) | [License](#license) | [Related Papers](#related-papers) | [Citation](#citation)
 
-## What is cuTAGI ?
+What is cuTAGI ?
 cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
 Some key features of cuTAGI include:
@@ -22,7 +18,7 @@ Examples of regression task using the diagonal (top left) or full (top right) co
 </p>
 
 
-## Quick Tour
+##  Examples
 Here is an example for training a classifer using pytagi on MNIST dataset
 ```Python
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
