@@ -1,14 +1,7 @@
-# Temporary import. It will be removed in the final verion
-import sys
-import os
 from typing import List
 
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
+import cutagi
 
-import cutagitest
 from pytagi.nn.base_layer import BaseLayer
 
 
@@ -26,7 +19,7 @@ class BatchNorm2d(BaseLayer):
         self.eps = eps
         self.momentum = momentum
         self.is_bias = bias
-        self._cpp_backend = cutagitest.BatchNorm2d(num_features, eps, momentum, bias)
+        self._cpp_backend = cutagi.BatchNorm2d(num_features, eps, momentum, bias)
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()

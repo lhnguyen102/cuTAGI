@@ -1,4 +1,6 @@
 prune data/*
+global-exclude __pycache__/*
+global-exclude *.py[cod]
 exclude saved_param/*
 exclude examples/*
 exclude saved_results/*

@@ -1,13 +1,5 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
+import cutagi
 
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
-import cutagitest
 from pytagi.nn.base_layer import BaseLayer
 
 
@@ -15,7 +7,7 @@ class ReLU(BaseLayer):
     """ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.ReLU()
+        self._cpp_backend = cutagi.ReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -28,7 +20,7 @@ class Sigmoid(BaseLayer):
     """Sigmoid"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.Sigmoid()
+        self._cpp_backend = cutagi.Sigmoid()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -41,7 +33,7 @@ class Tanh(BaseLayer):
     """Tanh"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.Tanh()
+        self._cpp_backend = cutagi.Tanh()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -54,7 +46,7 @@ class MixtureReLU(BaseLayer):
     """Mixture ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.MixtureReLU()
+        self._cpp_backend = cutagi.MixtureReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -67,7 +59,7 @@ class MixtureSigmoid(BaseLayer):
     """Mixture Sigmoid"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.MixtureSigmoid()
+        self._cpp_backend = cutagi.MixtureSigmoid()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -80,7 +72,7 @@ class MixtureTanh(BaseLayer):
     """Mixture Tanh"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.MixtureTanh()
+        self._cpp_backend = cutagi.MixtureTanh()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -93,7 +85,7 @@ class Softplus(BaseLayer):
     """Softplus"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.Softplus()
+        self._cpp_backend = cutagi.Softplus()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -106,7 +98,7 @@ class LeakyReLU(BaseLayer):
     """Leaky ReLU"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.LeakyReLU()
+        self._cpp_backend = cutagi.LeakyReLU()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -119,7 +111,7 @@ class Softmax(BaseLayer):
     """Softmax"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.Softmax()
+        self._cpp_backend = cutagi.Softmax()
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()

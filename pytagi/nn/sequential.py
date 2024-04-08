@@ -1,18 +1,10 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
 from typing import List, Tuple
 
-import cutagitest
+import cutagi
 import numpy as np
+
 from pytagi.nn.base_layer import BaseLayer
-from pytagi.nn.data_struct import BaseHiddenStates, BaseDeltaStates
+from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates
 
 
 class Sequential:
@@ -25,7 +17,7 @@ class Sequential:
             layers: A variable number of layers (instances of BaseLayer or derived classes).
         """
         backend_layers = [layer._cpp_backend for layer in layers]
-        self._cpp_backend = cutagitest.Sequential(backend_layers)
+        self._cpp_backend = cutagi.Sequential(backend_layers)
 
     def __call__(
         self, mu_x: np.ndarray, var_x: np.ndarray = None

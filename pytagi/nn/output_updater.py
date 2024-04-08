@@ -1,21 +1,12 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
-
-import cutagitest
+import cutagi
 import numpy as np
+
 from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates
 
 
 class OutputUpdater:
     def __init__(self, model_device: str):
-        self._cpp_backend = cutagitest.OutputUpdater(model_device)
+        self._cpp_backend = cutagi.OutputUpdater(model_device)
 
     def update(
         self,

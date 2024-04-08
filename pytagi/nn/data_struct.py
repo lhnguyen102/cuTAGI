@@ -1,23 +1,14 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
 from typing import List, Optional
 
-import cutagitest
+import cutagi
 
 
 class BaseHiddenStates:
     def __init__(self, size: Optional[int] = None, block_size: Optional[int] = None):
         if size is not None and block_size is not None:
-            self._cpp_backend = cutagitest.BaseHiddenStates(size, block_size)
+            self._cpp_backend = cutagi.BaseHiddenStates(size, block_size)
         else:
-            self._cpp_backend = cutagitest.BaseHiddenStates()
+            self._cpp_backend = cutagi.BaseHiddenStates()
 
     @property
     def mu_a(self) -> List[float]:
@@ -65,9 +56,9 @@ class BaseHiddenStates:
 class BaseDeltaStates:
     def __init__(self, size: Optional[int] = None, block_size: Optional[int] = None):
         if size is not None and block_size is not None:
-            self._cpp_backend = cutagitest.BaseDeltaStates(size, block_size)
+            self._cpp_backend = cutagi.BaseDeltaStates(size, block_size)
         else:
-            self._cpp_backend = cutagitest.BaseDeltaStates()
+            self._cpp_backend = cutagi.BaseDeltaStates()
 
     @property
     def delta_mu(self) -> List[float]:
@@ -121,7 +112,7 @@ class HRCSoftmax:
     """
 
     def __init__(self) -> None:
-        self._cpp_backend = cutagitest.HRCSoftmax()
+        self._cpp_backend = cutagi.HRCSoftmax()
 
     @property
     def obs(self) -> List[float]:

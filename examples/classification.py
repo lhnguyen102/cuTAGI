@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 from examples.data_loader import MnistDataLoader
-from pytagi import Utils, HRCSoftmaxMetric
+from pytagi import HRCSoftmaxMetric
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,

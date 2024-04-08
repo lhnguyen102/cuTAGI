@@ -1,14 +1,7 @@
-import os
-import sys
 from typing import Tuple, Union
 
+import cutagi
 import numpy as np
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
-)
-import cutagitest
 
 from pytagi.nn import HRCSoftmax
 
@@ -21,7 +14,7 @@ class Utils:
     """
 
     def __init__(self) -> None:
-        self._cpp_backend = cutagitest.Utils()
+        self._cpp_backend = cutagi.Utils()
 
     def label_to_obs(
         self, labels: np.ndarray, num_classes: int
