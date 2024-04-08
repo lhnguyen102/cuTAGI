@@ -10,7 +10,7 @@ Some key features of cuTAGI include:
 - **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA from the scratch, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API.
 - **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Average Pooling,  Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
 - **Model Building and Execution**: Currently, it supports sequential model building, with plans to introduce Eager Execution in the future for better debugging
-- **Open Platform**: cuTAGI provides open access to its entire codebase, written in C++ and CUDA, through Python bindings created from scratch. This transparency and accessibility encourage researchers and developers to dive deep into the cuTAGI's core functionalities.
+- **Open Platform**: cuTAGI provides open access to its entire codebase. This transparency and accessibility allows researchers and developers to dive deep into the cuTAGI's core functionalities.
 
 cuTAGI targets machine learning researchers and developers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
