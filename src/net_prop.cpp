@@ -422,7 +422,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
-    float scale, float gain, float noise_gain, int N)
+    float scale, float out_gain, float noise_gain, int N)
 /* Parmeter initialization of TAGI neural network including the noise's hidden
  * states
  *
@@ -451,7 +451,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     for (int i = 0; i < N; i++) {
         // Variance for output and noise's hidden states
         if (i < N / 2) {
-            S[i] = gain * pow(scale, 2);
+            S[i] = out_gain * pow(scale, 2);
         } else {
             S[i] = noise_gain * pow(scale, 2);
             scale = pow(S[i], 0.5);
@@ -1040,7 +1040,7 @@ Param initialize_param(Network &net) {
                 if (net.noise_type.compare("heteros") == 0 &&
                     j == num_layers - 1) {
                     std::tie(mw_j, Sw_j) = gaussian_param_init_ni(
-                        scale, net.gain_w[j], net.noise_gain,
+                        scale, net.out_gain, net.noise_gain,
                         net.num_weights[j]);
                 } else {
                     std::tie(mw_j, Sw_j) = gaussian_param_init(
@@ -1052,8 +1052,8 @@ Param initialize_param(Network &net) {
             if (net.num_biases[j] > 0) {
                 if (net.noise_type.compare("heteros") == 0 &&
                     j == num_layers - 1) {
-                    std::tie(mb_j, Sb_j) = gaussian_param_init_ni(
-                        scale, net.gain_b[j], net.noise_gain,
+                    std::tie(mb_j, Sb_j) = gaussian_param_init(
+                        scale, 1.0,
                         net.num_biases[j]);
                 } else {
                     std::tie(mb_j, Sb_j) = gaussian_param_init(
@@ -1229,7 +1229,7 @@ void load_cfg(std::string net_file, Network &net)
                                "sigma_v_min",    "sigma_x",
                                "init_method",    "is_full_cov",
                                "noise_type",     "mu_v2b",
-                               "sigma_v2b",      "noise_gain",
+                               "sigma_v2b",      "noise_gain", "out_gain"
                                "multithreading", "collect_derivative",
                                "input_seq_len",  "output_seq_len",
                                "seq_stride",     "gain_w",
@@ -1365,6 +1365,12 @@ void load_cfg(std::string net_file, Network &net)
                     if (ss.good()) {
                         ss >> f;
                         net.noise_gain = f;
+                    }
+                } else if (key_words[k] == "out_gain") {
+                    std::stringstream ss(line.substr(pos + key.size()));
+                    if (ss.good()) {
+                        ss >> f;
+                        net.out_gain = f;
                     }
                 } else if (key_words[k] == "multithreading") {
                     std::stringstream ss(line.substr(pos + key.size()));

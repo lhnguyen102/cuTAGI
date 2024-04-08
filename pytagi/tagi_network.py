@@ -61,7 +61,9 @@ class NetProp(tagi.Network):
                    layers
         last_backward_layer: Index of last layer whose hidden states are updated
         nye: Number of observation for hierarchical softmax
-        noise_gain : Gain fof biases parameters relating to noise's hidden
+        out_gain : Gain for weight parameters relating to output's hidden
+            states
+        noise_gain : Gain for weight parameters relating to noise's hidden
             states
         noise_type: homosce or heteros
         batch_size: Number of batches of data
@@ -98,6 +100,7 @@ class NetProp(tagi.Network):
     is_output_ud: bool
     last_backward_layer: int
     nye: int
+    out_gain: float
     noise_gain: float
     noise_type: str
     batch_size: int
