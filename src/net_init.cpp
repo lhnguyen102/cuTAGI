@@ -60,7 +60,7 @@ void map_config_to_prop(NetConfig &config, Network &net) {
     net.mu_v2b = config.mu_v2b;
     net.sigma_v2b = config.sigma_v2b;
     net.noise_gain = config.noise_gain;
-    net.noise_gain = config.out_gain;
+    net.out_gain = config.out_gain;
     net.batch_size = config.batch_size;
     net.input_seq_len = config.input_seq_len;
     net.output_seq_len = config.output_seq_len;
