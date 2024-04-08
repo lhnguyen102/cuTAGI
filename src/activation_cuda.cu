@@ -272,8 +272,8 @@ void MixtureReLUCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_relu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, 
-        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
@@ -343,8 +343,8 @@ void MixtureSigmoidCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_sigmoid_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a,
-        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
@@ -414,8 +414,8 @@ void MixtureTanhCuda::forward(BaseHiddenStates &input_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     mixture_tanh_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
-        cu_input_states->d_mu_a, cu_input_states->d_var_a,
-        num_states, cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
     if (this->input_size != input_states.actual_size) {
