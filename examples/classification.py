@@ -145,7 +145,7 @@ def main(num_epochs: int = 10, batch_size: int = 20, sigma_v: float = 1.0):
 
         # Testing
         test_error_rates = []
-        test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
+        test_batch_iter = test_dtl.create_data_loader(32, shuffle=False)
         for x, _, _, label in test_batch_iter:
             m_pred, v_pred = net(x)
 

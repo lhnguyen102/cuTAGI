@@ -5,11 +5,12 @@
 cuTAGI is a probabilistic array framework  built upon the principles of Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
 Some key features of cuTAGI include:
-- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API.
+- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA from the scratch, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API.
 - **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Average Pooling,  Batch and Layer normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
-- **Model Building and Execution**: Currently, it supports sequential model building, with plans to introduce Eager Execution by year's end.
+- **Model Building and Execution**: Currently, it supports sequential model building, with plans to introduce Eager Execution in the future for better debugging
+- **Open Platform**: cuTAGI provides open access to its entire codebase, written in C++ and CUDA, through Python bindings created from scratch. This transparency and accessibility encourage researchers and developers to dive deep into the cuTAGI's core functionalities.
 
-cuTAGI targets machine learning researchers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
+cuTAGI targets machine learning researchers and developers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
 
 
 Examples of regression task using the diagonal (top left) or full (top right) covariance modes for hidden layers, an example of heteroscedastic aleatory uncertainty inferrence (bottom left), and an example for the estimation of the derivative of a function modeled by a neural network (bottom right).
@@ -25,8 +26,8 @@ from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
 from pytagi import Utils, HRCSoftmaxMetric
 from examples.data_loader import MnistDataloader
 
+batch_size = 20
 dtl = MnistDataLoader()
-
 metric = HRCSoftmaxMetric(num_classes=10)
 
 net = Sequential(
@@ -41,8 +42,7 @@ net = Sequential(
 out_updater = OutputUpdater(net.device)
 var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
 
-batch_iter = dtl.create_data_loader(batch_size=batch_size)
-
+batch_iter = dtl.create_data_loader(batch_size)
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   m_pred, v_pred = net(x)
   # Update output layer based on targets

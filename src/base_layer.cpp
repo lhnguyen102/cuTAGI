@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      April 06, 2024
+// Updated:      April 08, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -192,8 +192,8 @@ void BaseLayer::storing_states_for_training(BaseHiddenStates &input_states,
 /*
  */
 {
-    if (this->bwd_states->mu_a.size() == 0) {
-        int act_size = input_states.actual_size * input_states.block_size;
+    int act_size = input_states.actual_size * input_states.block_size;
+    if (this->bwd_states->mu_a.size() != act_size) {
         this->allocate_bwd_vector(act_size);
     }
 

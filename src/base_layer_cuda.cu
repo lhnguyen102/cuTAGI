@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 13, 2023
-// Updated:      April 06, 2024
+// Updated:      April 08, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -376,12 +376,12 @@ void BaseLayerCuda::store_states_for_training_cuda(
 {
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
-    if (bwd_states.size == 0) {
-        bwd_states.size = input_states.actual_size * batch_size;
+    int act_size = input_states.actual_size * batch_size;
+    if (bwd_states.size != act_size) {
+        bwd_states.size = act_size;
         bwd_states.allocate_memory();
     }
 
-    int act_size = input_states.actual_size * batch_size;
     unsigned int blocks = (act_size + threads - 1) / threads;
 
     fill_bwd_states_on_device<<<blocks, threads>>>(

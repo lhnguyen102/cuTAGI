@@ -1,5 +1,6 @@
 prune data/*
 exclude saved_param/*
+exclude examples/*
 exclude saved_results/*
 prune debug_data/*
 exclude cfg/*
