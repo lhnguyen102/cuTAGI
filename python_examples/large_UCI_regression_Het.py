@@ -23,7 +23,7 @@ from pytagi import NetProp
 # data_names = ["Wine", \
 #               "Kin8nm","Naval",\
 #               "Power-plant","Protein"]
-data_names = ["pol"] # "elevators","skillcraft","pol", "keggdirected", "keggundirected"
+data_names = ["keggdirected"] # "elevators","skillcraft","pol", "keggdirected", "keggundirected"
 
 for j in range(len(data_names)):
 
@@ -62,7 +62,7 @@ for j in range(len(data_names)):
     num_inputs  = len(index_features)     # 1 explanatory variable
     num_outputs = 1      # 1 predicted output
     num_epochs  = 200     # row for 40 epochs
-    BATCH_SIZE  = 10     # batch size
+    BATCH_SIZE  = 100     # batch size
     num_hidden_layers = 50
 
     if data_names[j]=="pol":
@@ -135,7 +135,7 @@ for j in range(len(data_names)):
             self.sigma_v_min    =  0
             self.out_gain       =  OUT_GAIN[data_names[j]]
             self.noise_gain     =  NOISE_GAIN[data_names[j]]
-            self.noise_type     =   "heteros" # "heteros" or "homosce"
+            self.noise_type     =  "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cuda" # cpu, cuda
             self.early_stop     =  0
