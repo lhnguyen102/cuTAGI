@@ -31,7 +31,7 @@ pip install .
 
 ## Commands to run each python script
 
-1. Obtain the optimal epoch for all 20 splits by running this command. This will perform the training with early-stopping while considering a validation set. The results will be stored in the folder "benchmarks/logs/results_small_uci_regression_earlystop" such that it contains the test log-likelihood, optimal epoch, test RMSE, and training time with early-stopping.
+1. Obtain the optimal epoch for all 20 splits by running this command. This will perform the training with early-stopping while considering a validation set. The results will be stored in the folder `benchmarks/logs/results_small_uci_regression_earlystop` such that it contains the test log-likelihood, optimal epoch, test RMSE, and training time with early-stopping.
 ```
 python -m benchmarks.small_uci_regression_earlystop
 ```
@@ -42,12 +42,12 @@ python -m benchmarks.small_uci_regression_earlystop
 python -m benchmarks.small_uci_regression_optimal_epoch
 ```
 
-3. Or, you can simply run this command to run the datasets for user-defined epochs and see the learning curves. For example, the learning curve for Boston_housing can be found here -> "benchmarks/logs/results_small_uci_regression/Boston_housing/RMSE_LL.png"
+3. Or, you can simply run this command to run the datasets for user-defined epochs and see the learning curves. For example, the learning curve for Boston_housing can be found here -> `benchmarks/logs/results_small_uci_regression/Boston_housing/RMSE_LL.png`
 
 ```
 python -m benchmarks.small_uci_regression
 ```
-4. Finally, you can run the following command to produce the benchmark results.
+4. Finally, you can run the following command to produce the benchmark results. The results are stored in `benchmarks/logs/results_small_uci_regression_optimal_epoch/small_uci_regression_table.txt`
 
 ```
 python -m benchmarks.benchmark_table_small_uci_regression
