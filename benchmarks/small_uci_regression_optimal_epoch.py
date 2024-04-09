@@ -38,21 +38,21 @@ total_run = 5
 for j in range(len(data_names)):
 
     # check if the results folder already exists; create it if does not exist or remove the existing one
-    if not os.path.exists("benchmarks/logs/results_small_uci_regression/{}".format(data_names[j])):
-        os.makedirs("benchmarks/logs/results_small_uci_regression/{}".format(data_names[j]))
-    elif os.path.isfile("benchmarks/logs/results_small_uci_regression/{}/RMSEtest_opt_Epoch.txt".format(data_names[j])) and \
-        os.path.isfile("benchmarks/logs/results_small_uci_regression/{}/LLtest_opt_Epoch.txt".format(data_names[j])) and \
-        os.path.isfile("benchmarks/logs/results_small_uci_regression/{}/runtime_train_opt_Epoch.txt".format(data_names[j])):
+    if not os.path.exists("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}".format(data_names[j])):
+        os.makedirs("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}".format(data_names[j]))
+    elif os.path.isfile("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/RMSEtest_opt_Epoch.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/LLtest_opt_Epoch.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/runtime_train_opt_Epoch.txt".format(data_names[j])):
 
-        os.remove("benchmarks/logs/results_small_uci_regression/{}/RMSEtest_opt_Epoch.txt".format(data_names[j]))
-        os.remove("benchmarks/logs/results_small_uci_regression/{}/LLtest_opt_Epoch.txt".format(data_names[j]))
-        os.remove("benchmarks/logs/results_small_uci_regression/{}/runtime_train_opt_Epoch.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/RMSEtest_opt_Epoch.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/LLtest_opt_Epoch.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_small_uci_regression_optimal_epoch/{}/runtime_train_opt_Epoch.txt".format(data_names[j]))
 
 
     # File paths for the results
-    RESULTS_RMSEtest = "benchmarks/logs/results_small_uci_regression/"+data_names[j]+"/RMSEtest_opt_Epoch.txt"
-    RESULTS_LLtest = "benchmarks/logs/results_small_uci_regression/"+data_names[j]+"/LLtest_opt_Epoch.txt"
-    RESULTS_RUNTIME = "benchmarks/logs/results_small_uci_regression/"+data_names[j]+"/runtime_train_opt_Epoch.txt"
+    RESULTS_RMSEtest = "benchmarks/logs/results_small_uci_regression_optimal_epoch/"+data_names[j]+"/RMSEtest_opt_Epoch.txt"
+    RESULTS_LLtest = "benchmarks/logs/results_small_uci_regression_optimal_epoch/"+data_names[j]+"/LLtest_opt_Epoch.txt"
+    RESULTS_RUNTIME = "benchmarks/logs/results_small_uci_regression_optimal_epoch/"+data_names[j]+"/runtime_train_opt_Epoch.txt"
 
     # getting data name
     data_name = 'benchmarks/data/UCI/' + data_names[j]
