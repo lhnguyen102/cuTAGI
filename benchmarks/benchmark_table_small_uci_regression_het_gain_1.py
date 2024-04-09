@@ -8,7 +8,7 @@ data = []
 
 for dataset in datasets:
 
-    folder_path = os.path.join("benchmarks/logs/results_small_uci_regression_het_optimal_epoch", dataset)
+    folder_path = os.path.join("benchmarks/logs/results_small_uci_regression_het_gain_1_optimal_epoch", dataset)
     rmse_file = os.path.join(folder_path, "RMSEtest_opt_Epoch.txt")
     ll_file = os.path.join(folder_path, "LLtest_opt_Epoch.txt")
     time_file = os.path.join(folder_path, "runtime_train_opt_Epoch.txt")
@@ -55,7 +55,7 @@ df = pd.DataFrame(data, columns=["Dataset", "RMSE", "Log-Likelihood", "Average T
 df_rounded = df.round(3)
 
 # saving table as a markdown file (.txt)
-with open("benchmarks/logs/results_small_uci_regression_het_optimal_epoch/small_uci_regression_het_table.txt", "w") as f:
+with open("benchmarks/logs/results_small_uci_regression_het_gain_1_optimal_epoch/small_uci_regression_het_gain_1_table.txt", "w") as f:
     f.write(df_rounded.to_markdown(index=False))
 
 # Plotting the rounded DataFrame as a table
@@ -68,7 +68,7 @@ plt.axis('off')  # Hide the axes
 plt.tight_layout()
 
 # Save the plot as a PNG file
-plt.savefig("benchmarks/logs/results_small_uci_regression_het_optimal_epoch/small_uci_regression_het_table.png", bbox_inches='tight', dpi=300)
+# plt.savefig("benchmarks/logs/results_small_uci_regression_het_gain_1_optimal_epoch/small_uci_regression_het_gain_1_table.png", bbox_inches='tight', dpi=300)
 
 
 
