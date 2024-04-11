@@ -96,8 +96,8 @@ void fnn_mnist() {
                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
                      Linear(100, 11));
 
-    // model.set_threads(8);
-    model.to_device("cuda");
+    model.set_threads(8);
+    // model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
@@ -145,7 +145,7 @@ void fnn_mnist() {
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
     int batch_size = 256;
-    float sigma_obs = 2.0;
+    float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -243,9 +243,24 @@ void fnn_mnist() {
         std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // Testing
-    //////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
+    // // Testing
+    // //////////////////////////////////////////////////////////////////////
+    // int test_batch_size = 96;
+    // int test_iters = test_db.num_data / test_batch_size;
+    // std::vector<float> test_x_batch(test_batch_size * n_x, 0.0f);
+    // std::vector<float> test_var_obs(test_batch_size * test_db.output_len,
+    //                                 pow(sigma_obs, 2));
+    // std::vector<int> test_batch_idx(test_batch_size);
+    // auto test_data_idx = create_range(test_db.num_data);
+    // for (int i = 0; i < 2; i++) {
+    //     // Load data
+    //     get_batch_images_labels(test_db, test_data_idx, test_batch_size, i,
+    //                             x_batch, y_batch, idx_ud_batch, label_batch);
+
+    //     // // Forward pass
+    //     model.forward(x_batch);
+    // }
 }
 
 int test_fnn_mnist() {

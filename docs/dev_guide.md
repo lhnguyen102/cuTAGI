@@ -18,7 +18,7 @@
 - [x] LSTM
 - [x] Average Pooling
 - [x] Batch Normalization
-- [x] Layer Normalization
+- [] Layer Normalization (Bugs)
 - [ ] GRU
 
 ### Model Development Tools:

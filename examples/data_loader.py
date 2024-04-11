@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Tuple, Optional
+from typing import Generator, Optional, Tuple
 
 import numpy as np
 import pandas as pd

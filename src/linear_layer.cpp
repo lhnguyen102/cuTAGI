@@ -23,7 +23,12 @@ void linear_fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
 Args:
   mu_w: Mean of weights
   mu_b: Mean of the biases
-  mu_a: Mean of activation units
+  mu_a: Mean of activation unitsthis->mu_a.resize(this->size, 0.0f);
+    this->var_a.resize(this->size, 0.0f);
+    this->jcb.resize(this->size, 0.0f);
+
+    this->deallocate_memory();
+    this->allocate_memory();
   mu_z: Mean of hidden states
   start_chunk: Start index of the chunk
   end_chunk: End index of the chunk

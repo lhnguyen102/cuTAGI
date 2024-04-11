@@ -107,6 +107,8 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
     )
     # encoder.to_device("cuda")
     # decoder.to_device("cuda")
+    # encoder.set_threads(8)
+    # decoder.set_threads(8)
 
     out_updater = OutputUpdater(decoder.device)
 

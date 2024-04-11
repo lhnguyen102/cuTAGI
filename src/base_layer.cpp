@@ -54,18 +54,17 @@ void BaseLayer::allocate_param_delta()
     this->delta_var_b.resize(this->num_biases, 0.0f);
 }
 
-void BaseLayer::allocate_bwd_vector(int size)
+void BaseLayer::allocate_bwd_vector(int new_size)
 /*
  */
 {
-    if (size <= 0) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    " - Invalid size: " + std::to_string(size));
+    if (new_size <= 0) {
+        throw std::invalid_argument(
+            "Error in file: " + std::string(__FILE__) +
+            " at line: " + std::to_string(__LINE__) +
+            " - Invalid size: " + std::to_string(new_size));
     }
-
-    this->bwd_states->mu_a.resize(size, 0.0f);
-    this->bwd_states->jcb.resize(size, 0.0f);
+    this->bwd_states->set_size(new_size);
 }
 
 void BaseLayer::fill_output_states(BaseHiddenStates &output_states)
@@ -193,7 +192,7 @@ void BaseLayer::storing_states_for_training(BaseHiddenStates &input_states,
  */
 {
     int act_size = input_states.actual_size * input_states.block_size;
-    if (this->bwd_states->mu_a.size() != act_size) {
+    if (this->bwd_states->size != act_size) {
         this->allocate_bwd_vector(act_size);
     }
 

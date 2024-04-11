@@ -52,6 +52,9 @@ class BaseHiddenStates:
     def get_name(self) -> str:
         return self._cpp_backend.get_name()
 
+    def set_size(self, new_size: int, new_block_size: int) -> str:
+        self._cpp_backend.set_size(new_size, new_block_size)
+
 
 class BaseDeltaStates:
     def __init__(self, size: Optional[int] = None, block_size: Optional[int] = None):
@@ -98,6 +101,9 @@ class BaseDeltaStates:
     def copy_from(self, source: "BaseDeltaStates", num_data: int = -1) -> None:
         """Copy values of delta_mu and delta_var from delta states"""
         self._cpp_backend.copy_from(source, num_data)
+
+    def set_size(self, new_size: int, new_block_size: int) -> str:
+        self._cpp_backend.set_size(new_size, new_block_size)
 
 
 class HRCSoftmax:
