@@ -3,7 +3,7 @@
 // Description:  Header file for dataloader
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      January 27, 2023
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cost.h"
+#include "data_struct.h"
 #include "struct_var.h"
 #include "utils.h"
 
@@ -61,7 +62,7 @@ void get_batch_images(ImageData &imdb, std::vector<int> &data_idx,
                       int batch_size, int iter, std::vector<float> &x_batch,
                       std::vector<int> &label_batch);
 
-void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
+void labels_to_hrs(std::vector<int> &labels, HRCSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx);
 
 std::vector<float> label_to_one_hot(std::vector<int> &labels, int n_classes);

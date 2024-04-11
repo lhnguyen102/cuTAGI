@@ -3,7 +3,7 @@
 // Description:  Load different batches of data to network
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      February 06, 2022
-// Updated:      November 25, 2023
+// Updated:      April 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -105,7 +105,9 @@ std::vector<float> load_mnist_images(std::string image_file, int num)
     std::ifstream data_file(image_file.c_str(),
                             std::ios::in | std::ios::binary);
     if (data_file.fail()) {
-        throw std::invalid_argument("Image files do not exist.");
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Image files do not exist.");
     }
 
     // Check the magic number (see http://yann.lecun.com/exdb/mnist/)
@@ -167,8 +169,9 @@ std::vector<int> load_mnist_labels(std::string label_file, int num)
                             std::ios::in | std::ios::binary);
 
     if (data_file.fail()) {
-        throw std::invalid_argument(
-            "Label files do not exist - dataloader.cpp");
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Label files do not exist.");
     }
 
     // Check the magic number
@@ -193,7 +196,7 @@ std::vector<int> load_mnist_labels(std::string label_file, int num)
     return n_labels;
 }
 
-void labels_to_hrs(std::vector<int> &labels, HrSoftmax &hrs,
+void labels_to_hrs(std::vector<int> &labels, HRCSoftmax &hrs,
                    std::vector<float> &obs, std::vector<int> &obs_idx)
 /*
  * Convert labels to hierarchical softmax.
@@ -226,7 +229,9 @@ std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
     std::ifstream data_file(image_file.c_str(),
                             std::ios::in | std::ios::binary);
     if (data_file.fail()) {
-        throw std::invalid_argument("Image files do not exist.");
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Image files do not exist.");
     }
 
     int n_size = 10000;
@@ -275,7 +280,7 @@ ImageData get_images(std::string data_name,
     image_file: Directory path to image file
     label_file: Directory path to label file
     num: Number of images files
-    HrSoftmax: Hierarchical softmax for classification
+    HRCSoftmax: Hierarchical softmax for classification
 
 Returns:
     ImageData: Image database
@@ -312,7 +317,9 @@ Returns:
         image_data.image_len = 32 * 32 * 3;
 
     } else {
-        throw std::invalid_argument("Dataset does not exist - dataloader.cpp");
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Dataset does not exist");
     }
 
     // Convert label to hierarchical softmax
@@ -364,7 +371,7 @@ ImageData get_images_v2(std::string data_name,
     image_file: Directory path to image file
     label_file: Directory path to label file
     num: Number of images files
-    HrSoftmax: Hierarchical softmax for classification
+    HRCSoftmax: Hierarchical softmax for classification
 
 Returns:
     ImageData: Image database
@@ -401,7 +408,9 @@ Returns:
         image_data.image_len = 32 * 32 * 3;
 
     } else {
-        throw std::invalid_argument("Dataset does not exist - dataloader.cpp");
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Dataset does not exist.");
     }
 
     // Convert label to hierarchical softmax

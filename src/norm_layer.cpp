@@ -1513,6 +1513,7 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 /**/
 {
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
 
     // Assign output dimensions
     output_states.width = this->out_width;
@@ -1943,6 +1944,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
  */
 {
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
 
     if (this->input_size == 0 || this->output_size == 0) {
         this->input_size = input_states.actual_size;

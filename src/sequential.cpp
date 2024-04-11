@@ -172,14 +172,29 @@ void Sequential::forward(const std::vector<float> &mu_x,
     // Batch size
     int batch_size = mu_x.size() / this->layers.front()->get_input_size();
 
-    // Only initialize if batch size changes
-    if (batch_size != this->z_buffer_block_size) {
+    // Lazy initialization
+    if (this->z_buffer_block_size == 0) {
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
         init_output_state_buffer();
         if (this->training) {
             init_delta_state_buffer();
+        }
+    }
+
+    // Reallocate the buffer if batch size changes
+    if (batch_size != this->z_buffer_block_size) {
+        this->z_buffer_size =
+            batch_size * (this->z_buffer_size / this->z_buffer_block_size);
+        this->z_buffer_block_size = batch_size;
+
+        this->input_z_buffer->set_size(this->z_buffer_size, batch_size);
+        if (this->training) {
+            this->input_delta_z_buffer->set_size(this->z_buffer_size,
+                                                 batch_size);
+            this->output_delta_z_buffer->set_size(this->z_buffer_size,
+                                                  batch_size);
         }
     }
 
@@ -208,7 +223,7 @@ void Sequential::forward(BaseHiddenStates &input_states)
     int batch_size = input_states.block_size;
 
     // Only initialize if batch size changes
-    if (batch_size != this->z_buffer_block_size) {
+    if (this->z_buffer_block_size == 0) {
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
@@ -217,6 +232,21 @@ void Sequential::forward(BaseHiddenStates &input_states)
             init_delta_state_buffer();
         }
     }
+
+    if (batch_size != this->z_buffer_block_size) {
+        this->z_buffer_size =
+            batch_size * (this->z_buffer_size / this->z_buffer_block_size);
+        this->z_buffer_block_size = batch_size;
+
+        this->input_z_buffer->set_size(this->z_buffer_size, batch_size);
+        if (this->training) {
+            this->input_delta_z_buffer->set_size(this->z_buffer_size,
+                                                 batch_size);
+            this->output_delta_z_buffer->set_size(this->z_buffer_size,
+                                                  batch_size);
+        }
+    }
+
     auto *first_layer = this->layers[0].get();
     first_layer->forward(input_states, *this->input_z_buffer,
                          *this->temp_states);

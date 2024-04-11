@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 13, 2023
-// Updated:      January 19, 2024
+// Updated:      April 08, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,9 +33,9 @@ __global__ void fill_output_states_on_device(int size, float *jcb)
     }
 }
 
-__global__ void device_weight_update(float const *delta_mu_w,
-                                     float const *delta_var_w, size_t size,
-                                     float *mu_w, float *var_w)
+__global__ void device_raw_weight_update(float const *delta_mu_w,
+                                         float const *delta_var_w, size_t size,
+                                         float *mu_w, float *var_w)
 /*
  */
 {
@@ -47,9 +47,9 @@ __global__ void device_weight_update(float const *delta_mu_w,
     }
 }
 
-__global__ void device_bias_update(float const *delta_mu_b,
-                                   float const *delta_var_b, size_t size,
-                                   float *mu_b, float *var_b)
+__global__ void device_raw_bias_update(float const *delta_mu_b,
+                                       float const *delta_var_b, size_t size,
+                                       float *mu_b, float *var_b)
 /*
  */
 {
@@ -61,10 +61,10 @@ __global__ void device_bias_update(float const *delta_mu_b,
     }
 }
 
-__global__ void device_weight_update_with_limit(float const *delta_mu_w,
-                                                float const *delta_var_w,
-                                                float cap_factor, size_t size,
-                                                float *mu_w, float *var_w)
+__global__ void device_weight_update(float const *delta_mu_w,
+                                     float const *delta_var_w,
+                                     float cap_factor_udapte, size_t size,
+                                     float *mu_w, float *var_w)
 /*
  */
 {
@@ -73,17 +73,17 @@ __global__ void device_weight_update_with_limit(float const *delta_mu_w,
     if (col < size) {
         delta_mu_sign = (delta_mu_w[col] > 0) - (delta_mu_w[col] < 0);
         delta_var_sign = (delta_var_w[col] > 0) - (delta_var_w[col] < 0);
-        delta_bar = powf(var_w[col], 0.5) / cap_factor;
+        delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
 
         mu_w[col] += delta_mu_sign * min(fabsf(delta_mu_w[col]), delta_bar);
         var_w[col] += delta_var_sign * min(fabsf(delta_var_w[col]), delta_bar);
     }
 }
 
-__global__ void device_bias_update_with_limit(float const *delta_mu_b,
-                                              float const *delta_var_b,
-                                              float cap_factor, size_t size,
-                                              float *mu_b, float *var_b)
+__global__ void device_bias_update(float const *delta_mu_b,
+                                   float const *delta_var_b,
+                                   float cap_factor_udapte, size_t size,
+                                   float *mu_b, float *var_b)
 /*
  */
 {
@@ -92,7 +92,7 @@ __global__ void device_bias_update_with_limit(float const *delta_mu_b,
     if (col < size) {
         delta_mu_sign = (delta_mu_b[col] > 0) - (delta_mu_b[col] < 0);
         delta_var_sign = (delta_var_b[col] > 0) - (delta_var_b[col] < 0);
-        delta_bar = powf(var_b[col], 0.5) / cap_factor;
+        delta_bar = powf(var_b[col], 0.5) / cap_factor_udapte;
 
         mu_b[col] += delta_mu_sign * min(fabsf(delta_mu_b[col]), delta_bar);
         var_b[col] += delta_var_sign * min(fabsf(delta_var_b[col]), delta_bar);
@@ -143,6 +143,40 @@ void BaseLayerCuda::allocate_param_delta()
     }
 }
 
+void BaseLayerCuda::raw_update_weights()
+/*
+ */
+{
+    // TODO: replace with capped update version
+    unsigned int blocks = (this->num_weights + this->num_cuda_threads - 1) /
+                          this->num_cuda_threads;
+
+    device_raw_weight_update<<<blocks, this->num_cuda_threads>>>(
+        this->d_delta_mu_w, this->d_delta_var_w, this->num_weights,
+        this->d_mu_w, this->d_var_w);
+
+    // this->params_to_host();
+    // this->delta_params_to_host();
+}
+
+void BaseLayerCuda::raw_update_biases()
+/*
+ */
+{
+    if (this->bias) {
+        // TODO: replace with capped update version
+        unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
+                              this->num_cuda_threads;
+
+        device_raw_bias_update<<<blocks, this->num_cuda_threads>>>(
+            this->d_delta_mu_b, this->d_delta_var_b, this->num_biases,
+            this->d_mu_b, this->d_var_b);
+    }
+
+    // this->params_to_host();
+    // this->delta_params_to_host();
+}
+
 void BaseLayerCuda::update_weights()
 /*
  */
@@ -152,11 +186,8 @@ void BaseLayerCuda::update_weights()
                           this->num_cuda_threads;
 
     device_weight_update<<<blocks, this->num_cuda_threads>>>(
-        this->d_delta_mu_w, this->d_delta_var_w, this->num_weights,
-        this->d_mu_w, this->d_var_w);
-
-    // this->params_to_host();
-    // this->delta_params_to_host();
+        this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
+        this->num_weights, this->d_mu_w, this->d_var_w);
 }
 
 void BaseLayerCuda::update_biases()
@@ -169,12 +200,9 @@ void BaseLayerCuda::update_biases()
                               this->num_cuda_threads;
 
         device_bias_update<<<blocks, this->num_cuda_threads>>>(
-            this->d_delta_mu_b, this->d_delta_var_b, this->num_biases,
-            this->d_mu_b, this->d_var_b);
+            this->d_delta_mu_b, this->d_delta_var_b, this->cap_factor_update,
+            this->num_biases, this->d_mu_b, this->d_var_b);
     }
-
-    // this->params_to_host();
-    // this->delta_params_to_host();
 }
 
 void BaseLayerCuda::allocate_param_memory()
@@ -348,12 +376,12 @@ void BaseLayerCuda::store_states_for_training_cuda(
 {
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
-    if (bwd_states.size == 0) {
-        bwd_states.size = input_states.actual_size * batch_size;
+    int act_size = input_states.actual_size * batch_size;
+    if (bwd_states.size != act_size) {
+        bwd_states.size = act_size;
         bwd_states.allocate_memory();
     }
 
-    int act_size = input_states.actual_size * batch_size;
     unsigned int blocks = (act_size + threads - 1) / threads;
 
     fill_bwd_states_on_device<<<blocks, threads>>>(

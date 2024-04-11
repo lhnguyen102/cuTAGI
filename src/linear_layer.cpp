@@ -23,7 +23,12 @@ void linear_fwd_mean_var(std::vector<float> &mu_w, std::vector<float> &var_w,
 Args:
   mu_w: Mean of weights
   mu_b: Mean of the biases
-  mu_a: Mean of activation units
+  mu_a: Mean of activation unitsthis->mu_a.resize(this->size, 0.0f);
+    this->var_a.resize(this->size, 0.0f);
+    this->jcb.resize(this->size, 0.0f);
+
+    this->deallocate_memory();
+    this->allocate_memory();
   mu_z: Mean of hidden states
   start_chunk: Start index of the chunk
   end_chunk: End index of the chunk
@@ -43,11 +48,12 @@ Args:
         for (int j = 0; j < input_size; j++) {
             mu_a_tmp = mu_a[n * col + j];
             var_a_tmp = var_a[n * col + j];
-            sum_mu_z += mu_w[row * n + j] * mu_a_tmp;
-            sum_var_z +=
-                (mu_w[row * n + j] * mu_w[row * n + j] + var_w[row * n + j]) *
-                    var_a_tmp +
-                var_w[row * n + j] * mu_a_tmp * mu_a_tmp;
+            float mu_w_tmp = mu_w[row * n + j];
+            float var_w_tmp = var_w[row * n + j];
+
+            sum_mu_z += mu_w_tmp * mu_a_tmp;
+            sum_var_z += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                         var_w_tmp * mu_a_tmp * mu_a_tmp;
         }
         if (bias) {
             mu_z[col * output_size + row] = sum_mu_z + mu_b[row];
@@ -469,7 +475,10 @@ Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
     this->output_size = op_size;
     this->bias = bias;
     this->num_weights = this->input_size * this->output_size;
-    this->num_biases = this->output_size;
+    this->num_biases = 0;
+    if (this->bias) {
+        this->num_biases = this->output_size;
+    }
 
     // Initalize weights and bias
     if (this->device.compare("cpu") == 0) {
@@ -525,6 +534,7 @@ void Linear::forward(BaseHiddenStates &input_states,
 {
     // Initialization
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
 
     // Forward pass
     if (this->num_threads > 1) {

@@ -238,11 +238,11 @@ if(CMAKE_CUDA_COMPILER)
   # Executablecode i.e. application
   add_executable(main main.cu)
 
-  # Python wrapper for C++/CUDA code
-  pybind11_add_module(cutagi "src/python_api.cu")
+  # # Python wrapper for C++/CUDA code
+  # pybind11_add_module(cutagi "src/python_api.cu")
 
   # TODO: Remove when releasing new version
-  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
+  pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
 else()
   add_library(cutagi_lib STATIC ${CPU_SOURCES})
   target_link_libraries(cutagi_lib PRIVATE ${CMAKE_DL_LIBS})
@@ -250,11 +250,11 @@ else()
   # Executable code i.e. application
   add_executable(main main.cpp)
 
-  # Python wrapper for C++/CUDA code
-  pybind11_add_module(cutagi "src/python_api_cpu.cpp")
+  # # Python wrapper for C++/CUDA code
+  # pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 
   # TODO: Remove when releasing new version
-  pybind11_add_module(cutagitest "src/bindings/main_bindings.cpp")
+  pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
 endif()
 
 # Embedding Python into a C++ program
@@ -264,5 +264,5 @@ target_link_libraries(main PUBLIC cutagi_lib)
 
 target_link_libraries(cutagi PRIVATE cutagi_lib)
 
-# TODO: Remove when releasing new version
-target_link_libraries(cutagitest PRIVATE cutagi_lib)
+# # TODO: Remove when releasing new version
+# target_link_libraries(cutagitest PRIVATE cutagi_lib)

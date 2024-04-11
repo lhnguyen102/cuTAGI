@@ -3,7 +3,7 @@
 // Description:  Cost functions for TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 01, 2022
-// Updated:      January 25, 2023
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,7 +80,7 @@ int bi_to_dec(std::vector<int> &v, int base)
     return num;
 }
 
-HrSoftmax class_to_obs(int n_classes)
+HRCSoftmax class_to_obs(int n_classes)
 /*
  * Convert class to hierachical softmax for classificaiton task.
  *
@@ -155,7 +155,7 @@ HrSoftmax class_to_obs(int n_classes)
 // }
 
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
-                                HrSoftmax &hs, int n_classes)
+                                HRCSoftmax &hs, int n_classes)
 /*
  * Convert observation to classes.
  *
@@ -356,7 +356,7 @@ float compute_average_error_rate(std::vector<int> &error_rate, int curr_idx,
 ////////////////////////////////
 void test_class_to_obs() {
     int n_classes = 10;
-    HrSoftmax hs = class_to_obs(n_classes);
+    HRCSoftmax hs = class_to_obs(n_classes);
 
     std::cout << "Observation = "
               << "\n";
@@ -370,7 +370,7 @@ void test_obs_to_class() {
     // Get obs
     int n_classes = 10, B = 2;
     std::vector<int> labels = {2, 3};
-    HrSoftmax hs = class_to_obs(n_classes);
+    HRCSoftmax hs = class_to_obs(n_classes);
 
     // Get prob
     std::vector<float> mz = {1, 1, 0, -1, 0, 0, 0, 1,  0, 0, 0,

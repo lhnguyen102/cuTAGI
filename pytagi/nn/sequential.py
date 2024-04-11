@@ -1,18 +1,10 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
 from typing import List, Tuple
 
-import cutagitest
+import cutagi
 import numpy as np
-from base_layer import BaseLayer
-from data_struct import BaseHiddenStates, BaseDeltaStates
+
+from pytagi.nn.base_layer import BaseLayer
+from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates
 
 
 class Sequential:
@@ -25,10 +17,12 @@ class Sequential:
             layers: A variable number of layers (instances of BaseLayer or derived classes).
         """
         backend_layers = [layer._cpp_backend for layer in layers]
-        self._cpp_backend = cutagitest.Sequential(backend_layers)
+        self._cpp_backend = cutagi.Sequential(backend_layers)
 
-    def __call__(self, mu_x: np.ndarray, var_x: np.ndarray = None) -> None:
-        self.forward(mu_x, var_x)
+    def __call__(
+        self, mu_x: np.ndarray, var_x: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        return self.forward(mu_x, var_x)
 
     @property
     def output_z_buffer(self) -> BaseHiddenStates:
@@ -98,9 +92,13 @@ class Sequential:
         """Set the number of threads to use."""
         self._cpp_backend.set_threads(num_threads)
 
-    def forward(self, mu_x: np.ndarray, var_x: np.ndarray = None) -> None:
+    def forward(
+        self, mu_x: np.ndarray, var_x: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Perform a forward pass."""
         self._cpp_backend.forward(mu_x, var_x)
+
+        return self.get_outputs()
 
     def backward(self):
         """Perform a backward pass."""

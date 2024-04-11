@@ -1,5 +1,8 @@
-tqdm
-matplotlib
-pandas
-ninja
-numpy
+matplotlib==3.8.2
+ninja==1.11.1.1
+numpy==1.26.0
+pandas==2.1.4
+pytagi==0.1.6
+snakeviz==2.2.0
+tqdm==4.66.1
+fire==0.5.0

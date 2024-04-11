@@ -219,7 +219,10 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
     this->output_size = op_size;
     this->bias = bias;
     this->num_weights = this->input_size * this->output_size;
-    this->num_biases = this->output_size;
+    this->num_biases = 0;
+    if (this->bias) {
+        this->num_biases = this->output_size;
+    }
 
     // Initalize weights and bias
     this->init_weight_bias();
@@ -283,6 +286,7 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
 
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
+    this->set_cap_factor_udapte(batch_size);
 
     // Forward pass
     unsigned int grid_rows = (this->output_size + threads - 1) / threads;
@@ -309,21 +313,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         cu_bwd_states->allocate_memory();
     }
 
-    // // Update backward state for inferring parameters
-    // if (this->training) {
-    //     int act_size = input_states.actual_size * batch_size;
-    //     unsigned int blocks = (act_size + threads - 1) / threads;
-
-    //     fill_bwd_states_on_device<<<blocks, threads>>>(
-    //         cu_input_states->d_mu_a, cu_input_states->d_jcb, act_size,
-    //         cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
-
-    //     int out_size = this->output_size * batch_size;
-    //     unsigned int out_blocks = (out_size + threads - 1) / threads;
-
-    //     fill_output_states_on_device<<<out_blocks, threads>>>(
-    //         out_size, cu_output_states->d_jcb);
-    // }
     // Update backward state for inferring parameters
     if (this->training) {
         BackwardStateCuda *cu_bwd_states =

@@ -1,18 +1,10 @@
-# Temporary import. It will be removed in the final vserion
-import sys
-import os
+import cutagi
 
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
-import cutagitest
-from base_layer import BaseLayer
+from pytagi.nn.base_layer import BaseLayer
 
 
-class Conv2d(BaseLayer):
-    """Fully-connected layer"""
+class ConvTranspose2d(BaseLayer):
+    """Tranposed convolutional layer"""
 
     def __init__(
         self,
@@ -43,7 +35,7 @@ class Conv2d(BaseLayer):
         self.gain_bias = gain_bias
         self.init_method = init_method
 
-        self._cpp_backend = cutagitest.Conv2d(
+        self._cpp_backend = cutagi.ConvTranspose2d(
             in_channels,
             out_channels,
             kernel_size,

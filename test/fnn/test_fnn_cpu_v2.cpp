@@ -10,6 +10,76 @@
 
 #include "test_fnn_cpu_v2.h"
 
+#include "../../include/debugger.h"
+
+void debug_fnn() {
+    //////////////////////////////////////////////////////////////////////
+    // Data preprocessing
+    //////////////////////////////////////////////////////////////////////
+    std::string x_train_dir, y_train_dir, x_test_dir, y_test_dir;
+    std::vector<std::string> x_train_path, y_train_path, x_test_path,
+        y_test_path;
+    SavePath path;
+    path.curr_path = get_current_dir();
+    std::string data_path = path.curr_path + "/test/data/" + "1D";
+    x_train_dir = data_path + "/x_train.csv";
+    y_train_dir = data_path + "/y_train.csv";
+    x_test_dir = data_path + "/x_test.csv";
+    y_test_dir = data_path + "/y_test.csv";
+    x_train_path.push_back(x_train_dir);
+    y_train_path.push_back(y_train_dir);
+    x_test_path.push_back(x_test_dir);
+    y_test_path.push_back(y_test_dir);
+
+    int n_x = 1;
+    int n_y = 1;
+    std::vector<float> mu_x, sigma_x, mu_y, sigma_y;
+    auto train_db = get_dataloader(x_train_path, y_train_path, mu_x, sigma_x,
+                                   mu_y, sigma_y, 20, n_x, n_y, true);
+    auto test_db = get_dataloader(x_test_path, y_test_path, train_db.mu_x,
+                                  train_db.sigma_x, train_db.mu_y,
+                                  train_db.sigma_y, 100, n_x, n_y, true);
+
+    Sequential cpu_model(Linear(1, 50), ReLU(), Linear(50, 1));
+    Sequential model(Linear(1, 50), ReLU(), Linear(50, 1));
+    model.to_device("cuda");
+    model.preinit_layer();
+    model.load("test_model/test.bin");
+
+    // DEBUGGER
+    cpu_model.preinit_layer();
+    cpu_model.load("test_model/test.bin");
+    // cpu_model.params_from(model);
+    ModelDebugger model_debugger(model, cpu_model);
+
+    //////////////////////////////////////////////////////////////////////
+    // Training
+    //////////////////////////////////////////////////////////////////////
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine seed_e(seed);
+    int batch_size = 10;
+    float sigma_obs = 0.06;
+    int iters = test_db.num_data / batch_size;
+    std::vector<float> var_obs(batch_size * n_y, pow(sigma_obs, 2));
+    std::vector<float> x_batch(batch_size * n_x, 0.0f);
+    std::vector<float> y_batch(batch_size * n_y, 0.0f);
+    std::vector<int> idx_ud_batch = {};
+    std::vector<int> batch_idx(batch_size);
+    auto data_idx = create_range(test_db.num_data);
+
+    for (int e = 0; e < 1; e++) {
+        for (int i = 0; i < 2; i++) {
+            // Load data
+            get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
+            get_batch_data(test_db.x, batch_idx, n_x, x_batch);
+            get_batch_data(test_db.y, batch_idx, n_y, y_batch);
+
+            model_debugger.debug_forward(x_batch);
+            // model_debugger.debug_backward(y_batch, var_obs, idx_ud_batch);
+        }
+    }
+}
+
 void fnn_v2()
 /*
  */
@@ -41,55 +111,46 @@ void fnn_v2()
                                   train_db.sigma_x, train_db.mu_y,
                                   train_db.sigma_y, 100, n_x, n_y, true);
 
-    //////////////////////////////////////////////////////////////////////
-    // TAGI network
-    //////////////////////////////////////////////////////////////////////
-    // Method 1: Stack layer one-by-one
-    // Sequential model;
-    // model.add_layer(std::make_unique<Linear>(13, 10));
-    // model.add_layer(std::make_unique<ReLU>());
-    // model.add_layer(std::make_unique<Linear>(10, 5));
-    // model.add_layer(std::make_unique<ReLU>());
-    // model.add_layer(std::make_unique<Linear>(5, 1));
-
-    // Method 2: Stack layers all together when initializing the model
     Sequential model(Linear(1, 50), ReLU(), Linear(50, 1));
+    model.load("test_model/test.bin");
+    model.set_threads(1);
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int batch_size = 1;
+    int batch_size = 10;
     float sigma_obs = 0.06;
-    int iters = train_db.num_data / batch_size;
+    int iters = test_db.num_data / batch_size;
     std::vector<float> var_obs(batch_size * n_y, pow(sigma_obs, 2));
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> y_batch(batch_size * n_y, 0.0f);
     std::vector<int> batch_idx(batch_size);
     auto data_idx = create_range(train_db.num_data);
-    for (int e = 0; e < 50; e++) {
-        if (e > 0) {
-            // Shuffle data
-            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
-        }
-        for (int i = 0; i < iters; i++) {
+    for (int e = 0; e < 1; e++) {
+        // if (e > 0) {
+        //     // Shuffle data
+        //     std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        // }
+        for (int i = 0; i < 2; i++) {
             // Load data
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
-            get_batch_data(train_db.x, batch_idx, n_x, x_batch);
-            get_batch_data(train_db.y, batch_idx, n_y, y_batch);
+            get_batch_data(test_db.x, batch_idx, n_x, x_batch);
+            get_batch_data(test_db.y, batch_idx, n_y, y_batch);
 
             // Forward pass
             model.forward(x_batch);
+            int check = 1;
 
-            // Output layer
-            update_output_delta_z(*model.output_z_buffer, y_batch, var_obs,
-                                  model.input_delta_z_buffer->delta_mu,
-                                  model.input_delta_z_buffer->delta_var);
+            // // Output layer
+            // update_output_delta_z(*model.output_z_buffer, y_batch, var_obs,
+            //                       model.input_delta_z_buffer->delta_mu,
+            //                       model.input_delta_z_buffer->delta_var);
 
-            // Backward pass
-            model.backward();
-            model.step();
+            // // Backward pass
+            // model.backward();
+            // model.step();
         }
     }
 
@@ -164,16 +225,11 @@ void fnn_v2()
     std::string save_path = get_current_dir() + "/saved_results/";
     save_predictions(save_path, my, sy, suffix);
 
-    // // Saving/loading model
-    // model.save("test_model/test_model.bin");
-    // model.load("test_model/test_model.bin");
-    // model.save_csv("test_model/test_model");
-    // model.load_csv("test_model/test_model");
-
     int check = 1;
 }
 
 int test_fnn_cpu_v2() {
+    // debug_fnn();
     fnn_v2();
     return 0;
 }

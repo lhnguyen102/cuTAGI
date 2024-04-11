@@ -11,13 +11,13 @@
 
 #include "../include/bindings/main_bindings.h"
 
-PYBIND11_MODULE(cutagitest, modo) {
+PYBIND11_MODULE(cutagi, modo) {
     modo.doc() =
-        "Tractable Approximate Gaussian Inference - Backend C++/CUDA -  JUST A "
-        "TEST";
+        "Tractable Approximate Gaussian Inference - Backend C++/CUDA  ";
 
     bind_base_hidden_states(modo);
     bind_base_delta_states(modo);
+    bind_hrcsoftmax(modo);
     bind_base_layer(modo);
     bind_relu(modo);
     bind_sigmoid(modo);

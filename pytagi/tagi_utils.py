@@ -1,41 +1,20 @@
-###############################################################################
-# File:         tagi_utils.py
-# Description:  Python frontend for TAGI utility functions
-# Authors:      Luong-Ha Nguyen & James-A. Goulet
-# Created:      October 19, 2022
-# Updated:      January 27, 2023
-# Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-# License:      This code is released under the MIT License.
-###############################################################################
 from typing import Tuple, Union
 
+import cutagi
 import numpy as np
-import pandas as pd
-from cutagi import HrSoftmax, UtilityWrapper
 
-from pytagi import Param
-
-
-class HierarchicalSoftmax(HrSoftmax):
-    """Hierarchical softmax wrapper. Further details can be found here
-    https://building-babylon.net/2017/08/01/hierarchical-softmax
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
+from pytagi.nn import HRCSoftmax
 
 
 class Utils:
     """Frontend for utility functions from C++/CUDA backend
 
     Attributes:
-        backend_utils: Utility functionalities from the backend
+        _cpp_backend: Utility functionalities from the backend
     """
 
-    backend_utils = UtilityWrapper()
-
     def __init__(self) -> None:
-        pass
+        self._cpp_backend = cutagi.Utils()
 
     def label_to_obs(
         self, labels: np.ndarray, num_classes: int
@@ -52,7 +31,7 @@ class Utils:
             num_obs: Number of encoded observations
         """
 
-        obs, obs_idx, num_obs = self.backend_utils.label_to_obs_wrapper(
+        obs, obs_idx, num_obs = self._cpp_backend.label_to_obs_wrapper(
             labels, num_classes
         )
 
@@ -68,7 +47,7 @@ class Utils:
             one_hot: One hot encoder
         """
 
-        return self.backend_utils.label_to_one_hot_wrapper(labels, num_classes)
+        return self._cpp_backend.label_to_one_hot_wrapper(labels, num_classes)
 
     def load_mnist_images(
         self, image_file: str, label_file: str, num_images: int
@@ -84,7 +63,7 @@ class Utils:
             labels: Label dataset
             num_images: Total number of images
         """
-        images, labels = self.backend_utils.load_mnist_dataset_wrapper(
+        images, labels = self._cpp_backend.load_mnist_dataset_wrapper(
             image_file, label_file, num_images
         )
 
@@ -103,7 +82,7 @@ class Utils:
             labels: Label dataset
         """
 
-        images, labels = self.backend_utils.load_cifar_dataset_wrapper(image_file, num)
+        images, labels = self._cpp_backend.load_cifar_dataset_wrapper(image_file, num)
 
         return images, labels
 
@@ -111,7 +90,7 @@ class Utils:
         self,
         ma: np.ndarray,
         Sa: np.ndarray,
-        hr_softmax: HierarchicalSoftmax,
+        hr_softmax: HRCSoftmax,
         num_classes: int,
         batch_size: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -128,7 +107,7 @@ class Utils:
             prob: Probability for each label
         """
 
-        pred, prob = self.backend_utils.get_labels_wrapper(
+        pred, prob = self._cpp_backend.get_labels_wrapper(
             ma, Sa, hr_softmax, num_classes, batch_size
         )
 
@@ -139,7 +118,7 @@ class Utils:
         ma: np.ndarray,
         Sa: np.ndarray,
         labels: np.ndarray,
-        hr_softmax: HierarchicalSoftmax,
+        hr_softmax: HRCSoftmax,
         num_classes: int,
         batch_size: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -157,13 +136,13 @@ class Utils:
             prob: Probability for each label
         """
 
-        pred, prob = self.backend_utils.get_error_wrapper(
+        pred, prob = self._cpp_backend.get_error_wrapper(
             ma, Sa, labels, hr_softmax, num_classes, batch_size
         )
 
         return pred, prob
 
-    def get_hierarchical_softmax(self, num_classes: int) -> HierarchicalSoftmax:
+    def get_hierarchical_softmax(self, num_classes: int) -> HRCSoftmax:
         """Convert labels to binary tree
 
         Args:
@@ -171,7 +150,7 @@ class Utils:
         Returns:
             hr_softmax: Hierarchical softmax
         """
-        hr_softmax = self.backend_utils.hierarchical_softmax_wrapper(num_classes)
+        hr_softmax = self._cpp_backend.hierarchical_softmax_wrapper(num_classes)
 
         return hr_softmax
 
@@ -179,7 +158,7 @@ class Utils:
         self,
         ma: np.ndarray,
         Sa: np.ndarray,
-        hr_softmax: HierarchicalSoftmax,
+        hr_softmax: HRCSoftmax,
         num_classes: int,
     ) -> np.ndarray:
         """Convert observation to label probabilities
@@ -193,7 +172,7 @@ class Utils:
             prob: Probability for each label
         """
 
-        prob = self.backend_utils.obs_to_label_prob_wrapper(
+        prob = self._cpp_backend.obs_to_label_prob_wrapper(
             ma, Sa, hr_softmax, num_classes
         )
 
@@ -225,7 +204,7 @@ class Utils:
             (len(data) / num_features - input_seq_len - output_seq_len) / stride + 1
         )
 
-        input_data, output_data = self.backend_utils.create_rolling_window_wrapper(
+        input_data, output_data = self._cpp_backend.create_rolling_window_wrapper(
             data.flatten(),
             output_col,
             input_seq_len,
@@ -243,9 +222,7 @@ class Utils:
     ) -> np.ndarray:
         """Create an upper triangle covriance matrix for inputs"""
 
-        vx_f = self.backend_utils.get_upper_triu_cov_wrapper(
-            batch_size, num_data, sigma
-        )
+        vx_f = self._cpp_backend.get_upper_triu_cov_wrapper(batch_size, num_data, sigma)
 
         return np.array(vx_f)
 
@@ -265,9 +242,8 @@ class Normalizer:
     def __init__(self, method: Union[str, None] = None) -> None:
         self.method = method
 
-    def standardize(
-        self, data: np.ndarray, mu: np.ndarray, std: np.ndarray
-    ) -> np.ndarray:
+    @staticmethod
+    def standardize(data: np.ndarray, mu: np.ndarray, std: np.ndarray) -> np.ndarray:
         """Z-score normalization where
         data_norm = (data - data_mean) / data_std"""
 
@@ -320,42 +296,3 @@ class Normalizer:
         """Compute max min values"""
 
         return (np.nanmax(data, axis=0), np.nanmin(data, axis=0))
-
-
-def load_param_from_files(
-    mw_file: str,
-    Sw_file: str,
-    mb_file: str,
-    Sb_file: str,
-    mw_sc_file: str,
-    Sw_sc_file: str,
-    mb_sc_file: str,
-    Sb_sc_file: str,
-) -> Param:
-    """Load parameter from csv file"""
-    mw_df = pd.read_csv(mw_file, header=None)
-    Sw_df = pd.read_csv(Sw_file, header=None)
-    mb_df = pd.read_csv(mb_file, header=None)
-    Sb_df = pd.read_csv(Sb_file, header=None)
-
-    try:
-        mw_sc_df = pd.read_csv(mw_sc_file, header=None)
-        Sw_sc_df = pd.read_csv(Sw_sc_file, header=None)
-        mb_sc_df = pd.read_csv(mb_sc_file, header=None)
-        Sb_sc_df = pd.read_csv(Sb_sc_file, header=None)
-    except ValueError:
-        mw_sc_df = pd.DataFrame()
-        Sw_sc_df = pd.DataFrame()
-        mb_sc_df = pd.DataFrame()
-        Sb_sc_df = pd.DataFrame()
-
-    return Param(
-        mw=mw_df.values,
-        Sw=Sw_df.values,
-        mb=mb_df.values,
-        Sb=Sb_df.values,
-        mw_sc=mw_sc_df.values,
-        Sw_sc=Sw_sc_df.values,
-        mb_sc=mb_sc_df.values,
-        Sb_sc=Sb_sc_df.values,
-    )

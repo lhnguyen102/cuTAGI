@@ -1,13 +1,4 @@
-# Temporary import. It will be removed in the final vserion
-import sys
-import os
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
-import cutagitest
+import cutagi
 import numpy as np
 
 
@@ -15,7 +6,7 @@ class BaseLayer:
     """Base layer"""
 
     def __init__(self):
-        self._cpp_backend = cutagitest.BaseLayer()
+        self._cpp_backend = cutagi.BaseLayer()
 
     def to_cuda(self):
         self._cpp_backend.to_cuda()

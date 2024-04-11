@@ -19,8 +19,8 @@ void relu_mean_var(std::vector<float> const &mu_z,
 /*
  */
 {
-    float zero_pad = 0;
-    float one_pad = 1;
+    float zero_pad = 0.0f;
+    float one_pad = 1.0f;
     float tmp;
     int col;
     for (col = start_chunk; col < end_chunk; col++) {
@@ -200,11 +200,10 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-                mixture_relu_mean_var(mu_z, var_z, start_chunk,
-                                      end_chunk, mu_a, jcb, var_a);
-            });
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            mixture_relu_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a,
+                                  jcb, var_a);
+        });
     }
     for (auto &thread : threads) {
         if (thread.joinable()) {
@@ -214,9 +213,9 @@ void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
 }
 
 void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
-                              std::vector<float> &var_z,
-                              int start_chunk, int end_chunk,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
+                              std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, std::vector<float> &mu_a,
+                              std::vector<float> &jcb,
                               std::vector<float> &var_a)
 /*
  */
@@ -234,19 +233,20 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
 
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
-                   std_z * (pdf_l - pdf_u) - mu_z[i];
+                  std_z * (pdf_l - pdf_u) - mu_z[i];
         var_a[i] = (cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
                     cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
                     std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
                     powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] +
-                    powf(mu_z[i], 2) - var_z[i] + 2) / 4.0f;
+                    powf(mu_z[i], 2) - var_z[i] + 2) /
+                   4.0f;
         mu_a[i] = mu_a[i] / 2.0f + 0.5f;
         jcb[i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
-                                 std::vector<float> &var_z,
-                                 int n, unsigned int num_threads,
+                                 std::vector<float> &var_z, int n,
+                                 unsigned int num_threads,
                                  std::vector<float> &mu_a,
                                  std::vector<float> &jcb,
                                  std::vector<float> &var_a)
@@ -264,11 +264,10 @@ void mixture_sigmoid_mean_var_mp(std::vector<float> &mu_z,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-                mixture_sigmoid_mean_var(mu_z, var_z, start_chunk,
-                                         end_chunk, mu_a, jcb, var_a);
-            });
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            mixture_sigmoid_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a,
+                                     jcb, var_a);
+        });
     }
 
     for (auto &thread : threads) {
@@ -327,11 +326,10 @@ void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back(
-            [=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
-                mixture_tanh_mean_var(mu_z, var_z, start_chunk,
-                                      end_chunk, mu_a, jcb, var_a);
-            });
+        threads.emplace_back([=, &mu_z, &var_z, &mu_a, &jcb, &var_a] {
+            mixture_tanh_mean_var(mu_z, var_z, start_chunk, end_chunk, mu_a,
+                                  jcb, var_a);
+        });
     }
 
     for (auto &thread : threads) {
@@ -669,17 +667,17 @@ std::unique_ptr<BaseLayer> Tanh::to_cuda() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Mixture ReLU
 ////////////////////////////////////////////////////////////////////////////////
-MixtureRelu::MixtureRelu() {}
-MixtureRelu::~MixtureRelu() {}
+MixtureReLU::MixtureReLU() {}
+MixtureReLU::~MixtureReLU() {}
 
-std::string MixtureRelu::get_layer_info() const
+std::string MixtureReLU::get_layer_info() const
 /*
  */
 {
     return "MixtureReLU()";
 }
 
-std::string MixtureRelu::get_layer_name() const
+std::string MixtureReLU::get_layer_name() const
 /*
  */
 
@@ -687,14 +685,14 @@ std::string MixtureRelu::get_layer_name() const
     return "MixtureReLU";
 }
 
-LayerType MixtureRelu::get_layer_type() const
+LayerType MixtureReLU::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void MixtureRelu::forward(BaseHiddenStates &input_states,
+void MixtureReLU::forward(BaseHiddenStates &input_states,
                           BaseHiddenStates &output_states,
                           BaseTempStates &temp_states)
 /*
@@ -710,9 +708,9 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    mixture_relu_mean_var(
-        input_states.mu_a, input_states.var_a, start_chunk,
-        end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
+    mixture_relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                          end_chunk, output_states.mu_a, output_states.jcb,
+                          output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -724,9 +722,9 @@ void MixtureRelu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> MixtureRelu::to_cuda() {
+std::unique_ptr<BaseLayer> MixtureReLU::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<MixtureReluCuda>();
+    return std::make_unique<MixtureReLUCuda>();
 }
 #endif
 
@@ -774,9 +772,9 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    mixture_sigmoid_mean_var(
-        input_states.mu_a, input_states.var_a, start_chunk,
-        end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
+    mixture_sigmoid_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                             end_chunk, output_states.mu_a, output_states.jcb,
+                             output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -838,9 +836,9 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
-    mixture_tanh_mean_var(
-        input_states.mu_a, input_states.var_a, start_chunk,
-        end_chunk, output_states.mu_a, output_states.jcb, output_states.var_a);
+    mixture_tanh_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                          end_chunk, output_states.mu_a, output_states.jcb,
+                          output_states.var_a);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
@@ -924,17 +922,17 @@ std::unique_ptr<BaseLayer> Softplus::to_cuda() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Leaky ReLU
 ////////////////////////////////////////////////////////////////////////////////
-LeakyRelu::LeakyRelu(){};
-LeakyRelu::~LeakyRelu(){};
+LeakyReLU::LeakyReLU(){};
+LeakyReLU::~LeakyReLU(){};
 
-std::string LeakyRelu::get_layer_info() const
+std::string LeakyReLU::get_layer_info() const
 /*
  */
 {
     return "leakyReLU()";
 }
 
-std::string LeakyRelu::get_layer_name() const
+std::string LeakyReLU::get_layer_name() const
 /*
  */
 
@@ -942,14 +940,14 @@ std::string LeakyRelu::get_layer_name() const
     return "leakReLU";
 }
 
-LayerType LeakyRelu::get_layer_type() const
+LayerType LeakyReLU::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void LeakyRelu::forward(BaseHiddenStates &input_states,
+void LeakyReLU::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states)
 /*
@@ -979,9 +977,9 @@ void LeakyRelu::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LeakyRelu::to_cuda() {
+std::unique_ptr<BaseLayer> LeakyReLU::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<LeakyReluCuda>();
+    return std::make_unique<LeakyReLUCuda>();
 }
 #endif
 

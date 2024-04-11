@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      March 31, 2024
+// Updated:      April 02, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,20 +32,19 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
                                    float *var_a);
 
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
-                                           float const *var_z, 
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a);
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a);
 
 __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
                                               float const *var_z,
-                                              int num_states,
-                                              float *mu_a, float *jcb,
-                                              float *var_a);
+                                              int num_states, float *mu_a,
+                                              float *jcb, float *var_a);
 
 __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
-                                           float const *var_z,
-                                           int num_states, float *mu_a,
-                                           float *jcb, float *var_a);
+                                           float const *var_z, int num_states,
+                                           float *mu_a, float *jcb,
+                                           float *var_a);
 
 __global__ void softplus_mean_var_cuda(float const *mu_z, float const *var_z,
                                        int num_states, float *mu_a, float *jcb,
@@ -174,19 +173,19 @@ class TanhCuda : public BaseLayerCuda {
     std::unique_ptr<BaseLayer> to_host() override;
 };
 
-class MixtureReluCuda : public BaseLayerCuda {
+class MixtureReLUCuda : public BaseLayerCuda {
    public:
-    MixtureReluCuda();
-    ~MixtureReluCuda();
+    MixtureReLUCuda();
+    ~MixtureReLUCuda();
 
     // Delete copy constructor and copy assignment
-    MixtureReluCuda(const MixtureReluCuda &) = delete;
-    MixtureReluCuda &operator=(const MixtureReluCuda &) = delete;
+    MixtureReLUCuda(const MixtureReLUCuda &) = delete;
+    MixtureReLUCuda &operator=(const MixtureReLUCuda &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    MixtureReluCuda(MixtureReluCuda &&) = default;
-    MixtureReluCuda &operator=(MixtureReluCuda &&) = default;
+    MixtureReLUCuda(MixtureReLUCuda &&) = default;
+    MixtureReLUCuda &operator=(MixtureReLUCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -322,20 +321,20 @@ class SoftplusCuda : public BaseLayerCuda {
     std::unique_ptr<BaseLayer> to_host() override;
 };
 
-class LeakyReluCuda : public BaseLayerCuda {
+class LeakyReLUCuda : public BaseLayerCuda {
    public:
     float alpha = 0.1f;
-    LeakyReluCuda();
-    ~LeakyReluCuda();
+    LeakyReLUCuda();
+    ~LeakyReLUCuda();
 
     // Delete copy constructor and copy assignment
-    LeakyReluCuda(const LeakyReluCuda &) = delete;
-    LeakyReluCuda &operator=(const LeakyReluCuda &) = delete;
+    LeakyReLUCuda(const LeakyReLUCuda &) = delete;
+    LeakyReLUCuda &operator=(const LeakyReLUCuda &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    LeakyReluCuda(LeakyReluCuda &&) = default;
-    LeakyReluCuda &operator=(LeakyReluCuda &&) = default;
+    LeakyReLUCuda(LeakyReLUCuda &&) = default;
+    LeakyReLUCuda &operator=(LeakyReLUCuda &&) = default;
 
     std::string get_layer_info() const override;
 

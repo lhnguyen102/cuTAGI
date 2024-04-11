@@ -1,14 +1,6 @@
-# Temporary import. It will be removed in the final vserion
-import sys
-import os
+import cutagi
 
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
-)
-
-import cutagitest
-from base_layer import BaseLayer
+from pytagi.nn.base_layer import BaseLayer
 
 
 class LSTM(BaseLayer):
@@ -33,7 +25,7 @@ class LSTM(BaseLayer):
         self.gain_bias = gain_bias
         self.init_method = init_method
 
-        self._cpp_backend = cutagitest.LSTM(
+        self._cpp_backend = cutagi.LSTM(
             input_size, output_size, seq_len, bias, gain_weight, gain_bias, init_method
         )
 

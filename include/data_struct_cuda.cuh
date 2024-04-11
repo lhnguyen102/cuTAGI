@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 28, 2024
+// Updated:      April 10, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,9 +31,11 @@ class HiddenStateCuda : public BaseHiddenStates {
 
     std::string get_name() const override { return "HiddenStateCuda"; };
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void chunks_to_device(const size_t chunk_size);
     void to_host();
+    void set_size(size_t size, size_t block_size) override;
 };
 
 class DeltaStateCuda : public BaseDeltaStates {
@@ -47,10 +49,12 @@ class DeltaStateCuda : public BaseDeltaStates {
 
     std::string get_name() const override { return "DeltaStateCuda"; };
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void to_host();
     void reset_zeros() override;
     void copy_from(const BaseDeltaStates &source, int num_data = -1) override;
+    void set_size(size_t size, size_t block_size) override;
 };
 
 class TempStateCuda : public BaseTempStates {
@@ -65,8 +69,10 @@ class TempStateCuda : public BaseTempStates {
     std::string get_name() const override { return "TempStateCuda"; };
 
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void to_host();
+    void set_size(size_t size, size_t block_size) override;
 };
 
 class BackwardStateCuda : public BaseBackwardStates {
@@ -80,8 +86,10 @@ class BackwardStateCuda : public BaseBackwardStates {
     std::string get_name() const override { return "BackwardStateCuda"; };
 
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void to_host();
+    void set_size(size_t size) override;
 };
 
 class ObservationCuda : public BaseObservation {
@@ -96,8 +104,10 @@ class ObservationCuda : public BaseObservation {
     std::string get_name() const override { return "ObservationCuda"; };
 
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void to_host();
+    void set_size(size_t size, size_t block_size) override;
 };
 
 class LSTMStateCuda : public BaseLSTMStates {
@@ -118,6 +128,7 @@ class LSTMStateCuda : public BaseLSTMStates {
     std::string get_name() const override { return "LSTMStateCuda"; };
     void set_num_states(size_t num_states, size_t num_inputs) override;
     void allocate_memory();
+    void deallocate_memory();
     void to_device();
     void to_host();
 };

@@ -4,7 +4,7 @@
 // Description:  API for Python bindings of C++/CUDA
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 31, 2024
-// Updated:      March 31, 2024
+// Updated:      April 04, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,8 +36,8 @@ pybind11::array_t<float> Utils::label_to_one_hot_wrapper(
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<int>>
-Utils::load_mnist_dataset_wrapper(std::string &image_file,
-                                  std::string &label_file, int num) {
+Utils::load_mnist_dataset_wrapper(const std::string &image_file,
+                                  const std::string &label_file, int num) {
     auto images = load_mnist_images(image_file, num);
     auto labels = load_mnist_labels(label_file, num);
     auto py_images = pybind11::array_t<float>(images.size(), images.data());
@@ -59,7 +59,7 @@ Utils::load_cifar_dataset_wrapper(std::string &image_file, int num) {
 
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
 Utils::get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
-                          HrSoftmax &hs, int num_classes, int B) {
+                          HRCSoftmax &hs, int num_classes, int B) {
     // Initialization
     std::vector<float> prob(B * num_classes);
     std::vector<int> pred(B);
@@ -92,14 +92,14 @@ Utils::get_labels_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
     return {py_pred, py_prob};
 }
 
-HrSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
+HRCSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
     auto hs = class_to_obs(num_classes);
 
     return hs;
 }
 std::vector<float> Utils::obs_to_label_prob_wrapper(std::vector<float> &mz,
                                                     std::vector<float> &Sz,
-                                                    HrSoftmax &hs,
+                                                    HRCSoftmax &hs,
                                                     int num_classes) {
     auto prob = obs_to_class(mz, Sz, hs, num_classes);
     return prob;
@@ -158,12 +158,15 @@ void bind_utils(pybind11::module_ &m) {
         .def("label_to_one_hot_wrapper", &Utils::label_to_one_hot_wrapper)
         .def("hierarchical_softmax_wrapper",
              &Utils::hierarchical_softmax_wrapper)
-        .def("load_mnist_dataset_wrapper", &Utils::load_mnist_dataset_wrapper)
+        .def("load_mnist_dataset_wrapper", &Utils::load_mnist_dataset_wrapper,
+             pybind11::arg("image_file"), pybind11::arg("label_file"),
+             pybind11::arg("num"))
         .def("load_cifar_dataset_wrapper", &Utils::load_cifar_dataset_wrapper)
         .def("get_labels_wrapper", &Utils::get_labels_wrapper)
         .def("obs_to_label_prob_wrapper", &Utils::obs_to_label_prob_wrapper)
         .def("get_error_wrapper", &Utils::get_error_wrapper)
         .def("create_rolling_window_wrapper",
              &Utils::create_rolling_window_wrapper)
+        .def("get_name", &Utils::get_name)
         .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }

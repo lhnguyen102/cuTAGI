@@ -133,6 +133,7 @@ void Conv2d::forward(BaseHiddenStates &input_states,
  */
 {
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
 
     // Only need to initalize at the first iteration
     if (this->num_weights == 0) {

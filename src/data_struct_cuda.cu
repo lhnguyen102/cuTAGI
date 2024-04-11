@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      March 28, 2024
+// Updated:      April 11, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,9 +29,24 @@ HiddenStateCuda::~HiddenStateCuda()
 Free GPU memory using cudaFree
 */
 {
+    this->deallocate_memory();
+}
+void HiddenStateCuda::deallocate_memory() {
     cudaFree(this->d_mu_a);
     cudaFree(this->d_var_a);
     cudaFree(this->d_jcb);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory Deallocation.");
+    }
+
+    // Reset pointers to nullptr to avoid dangling pointers
+    this->d_mu_a = nullptr;
+    this->d_var_a = nullptr;
+    this->d_jcb = nullptr;
 }
 
 void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
@@ -56,6 +71,11 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
 }
 
 void HiddenStateCuda::allocate_memory() {
+    // Check if already allocated, and deallocate if necessary
+    if (this->d_mu_a != nullptr || this->d_var_a != nullptr ||
+        this->d_jcb != nullptr) {
+        this->deallocate_memory();
+    }
     // Allocate memory on the GPU using cudaMalloc
     cudaMalloc(&this->d_mu_a, size * sizeof(float));
     cudaMalloc(&this->d_var_a, size * sizeof(float));
@@ -80,13 +100,12 @@ void HiddenStateCuda::to_device()
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 
-    // cudaError_t error = cudaGetLastError();
-    // if (error != cudaSuccess) {
-    //     throw std::invalid_argument("Error in file: " + std::string(__FILE__)
-    //     +
-    //                                 " at line: " + std::to_string(__LINE__) +
-    //                                 ". Copying host to device.");
-    // }
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying host to device.");
+    }
 }
 
 void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
@@ -115,6 +134,30 @@ void HiddenStateCuda::to_host()
                cudaMemcpyDeviceToHost);
 }
 
+void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
+/*
+ */
+{
+    // NOTE: hidden state is used as buffer, so we only care the max size of
+    // hidden states in the total network in order to store the data. We only
+    // reallocate the pointer if the new size is greater than the current size.
+    if (new_size > this->size) {
+        cudaDeviceSynchronize();
+
+        this->size = new_size;
+        this->mu_a.resize(this->size, 0.0f);
+        this->var_a.resize(this->size, 0.0f);
+        this->jcb.resize(this->size, 0.0f);
+
+        this->deallocate_memory();
+        this->allocate_memory();
+    }
+    // The actual size and block size need to be updated because these sizes
+    // will be required between layers during forward pass
+    this->block_size = new_block_size;
+    this->actual_size = new_size / new_block_size;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Delta Hidden States
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,8 +176,23 @@ DeltaStateCuda::~DeltaStateCuda()
 /*
  */
 {
+    this->deallocate_memory();
+}
+
+void DeltaStateCuda::deallocate_memory() {
     cudaFree(this->d_delta_mu);
     cudaFree(this->d_delta_var);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory Deallocation.");
+    }
+
+    // Reset pointers to nullptr to avoid dangling pointers
+    this->d_delta_mu = nullptr;
+    this->d_delta_var = nullptr;
 }
 
 void DeltaStateCuda::allocate_memory()
@@ -215,6 +273,22 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
     }
 }
 
+void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
+/*
+ */
+{
+    // Same as HiddenStateCuda
+    if (new_size > this->size) {
+        cudaDeviceSynchronize();
+        this->size = new_size;
+        this->reset_zeros();
+        this->deallocate_memory();
+        this->allocate_memory();
+    }
+    this->block_size = new_block_size;
+    this->actual_size = new_size / new_block_size;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,8 +307,25 @@ TempStateCuda::~TempStateCuda()
 /*
  */
 {
+    this->deallocate_memory();
+}
+
+void TempStateCuda::deallocate_memory()
+/*
+ */
+{
     cudaFree(this->d_tmp_1);
     cudaFree(this->d_tmp_2);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory Deallocation.");
+    }
+
+    this->d_tmp_1 = nullptr;
+    this->d_tmp_2 = nullptr;
 }
 
 void TempStateCuda::to_device()
@@ -269,14 +360,43 @@ void TempStateCuda::to_host() {
     }
 }
 
+void TempStateCuda::set_size(size_t new_size, size_t new_block_size)
+/*
+ */
+{
+    if (new_size > this->size) {
+        cudaDeviceSynchronize();
+        this->size = new_size;
+        this->tmp_1.resize(this->size, 0.0f);
+        this->tmp_2.resize(this->size, 0.0f);
+
+        this->deallocate_memory();
+        this->allocate_memory();
+    }
+    this->size = new_size;
+    this->block_size = new_block_size;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Backward States
 ////////////////////////////////////////////////////////////////////////////////
 
 BackwardStateCuda::BackwardStateCuda() {}
-BackwardStateCuda::~BackwardStateCuda() {
+BackwardStateCuda::~BackwardStateCuda()
+/*
+ */
+{
+    this->deallocate_memory();
+}
+
+void BackwardStateCuda::deallocate_memory()
+/*
+ */
+{
     cudaFree(this->d_mu_a);
     cudaFree(this->d_jcb);
+    this->d_mu_a = nullptr;
+    this->d_jcb = nullptr;
 }
 
 void BackwardStateCuda::allocate_memory()
@@ -328,15 +448,50 @@ void BackwardStateCuda::to_host()
     }
 }
 
+void BackwardStateCuda::set_size(size_t new_size)
+/*
+ */
+{
+    if (new_size > this->size) {
+        cudaDeviceSynchronize();
+        this->size = new_size;
+        this->mu_a.resize(new_size, 0.0);
+        this->jcb.resize(new_size, 1.0f);
+
+        this->deallocate_memory();
+        this->allocate_memory();
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Observation
 ////////////////////////////////////////////////////////////////////////////////
-
 ObservationCuda::ObservationCuda() {}
-ObservationCuda::~ObservationCuda() {
+ObservationCuda::~ObservationCuda()
+/*
+ */
+{
+    this->deallocate_memory();
+}
+
+void ObservationCuda::deallocate_memory()
+/*
+ */
+{
     cudaFree(d_mu_obs);
     cudaFree(d_var_obs);
     cudaFree(d_selected_idx);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory Deallocation.");
+    }
+
+    this->d_mu_obs = nullptr;
+    this->d_var_obs = nullptr;
+    this->d_selected_idx = nullptr;
 }
 
 void ObservationCuda::allocate_memory() {
@@ -388,6 +543,20 @@ void ObservationCuda::to_host() {
                                     ". Copying device to host.");
     }
 }
+void ObservationCuda::set_size(size_t new_size, size_t new_block_size)
+/*
+ */
+{
+    if (new_size > this->size) {
+        cudaDeviceSynchronize();
+        this->size = size;
+
+        this->deallocate_memory();
+        this->allocate_memory();
+    }
+    this->block_size = new_block_size;
+    this->actual_size = new_size / new_block_size;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // LSTM states
@@ -402,6 +571,13 @@ LSTMStateCuda::LSTMStateCuda(size_t num_states, size_t num_inputs)
 }
 
 LSTMStateCuda::~LSTMStateCuda()
+/*
+ */
+{
+    this->deallocate_memory();
+}
+
+void LSTMStateCuda::deallocate_memory()
 /*
  */
 {
@@ -455,6 +631,13 @@ LSTMStateCuda::~LSTMStateCuda()
     d_cov_i_c = nullptr;
     cudaFree(d_cov_o_tanh_c);
     d_cov_o_tanh_c = nullptr;
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Device memory Deallocation.");
+    }
 }
 
 void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
@@ -464,6 +647,8 @@ void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
     this->num_states = num_states;
     this->num_inputs = num_inputs;
     this->reset_zeros();
+
+    this->deallocate_memory();
     this->allocate_memory();
 }
 

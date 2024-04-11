@@ -171,6 +171,7 @@ void ModelDebugger::debug_forward(const std::vector<float> &mu_x,
     // Output buffer is considered as the final output of network
     std::swap(this->test_output_z_buffer, this->test_input_z_buffer);
     std::swap(this->ref_output_z_buffer, this->ref_input_z_buffer);
+    int check = 1;
 }
 
 void ModelDebugger::debug_backward(std::vector<float> &y_batch,
@@ -181,31 +182,59 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
 {
     int batch_size = this->ref_output_z_buffer->block_size;
     // Output layer
-    if (this->test_model.device.compare("cpu") == 0) {
-        this->cpu_output_updater.update_using_indices(
-            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->test_input_delta_z_buffer);
-    }
+    if (idx_ud_batch.size() != 0) {
+        if (this->test_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update_using_indices(
+                *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->test_input_delta_z_buffer);
+        }
 #ifdef USE_CUDA
-    else {
-        this->cuda_output_updater.update_using_indices(
-            *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->test_input_delta_z_buffer);
-    }
+        else {
+            this->cuda_output_updater.update_using_indices(
+                *this->test_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->test_input_delta_z_buffer);
+        }
 #endif
 
-    if (this->ref_model.device.compare("cpu") == 0) {
-        this->cpu_output_updater.update_using_indices(
-            *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->ref_input_delta_z_buffer);
-    }
+        if (this->ref_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update_using_indices(
+                *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->ref_input_delta_z_buffer);
+        }
 #ifdef USE_CUDA
-    else {
-        this->cuda_output_updater.update_using_indices(
-            *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
-            *this->ref_input_delta_z_buffer);
-    }
+        else {
+            this->cuda_output_updater.update_using_indices(
+                *this->ref_output_z_buffer, y_batch, var_obs, idx_ud_batch,
+                *this->ref_input_delta_z_buffer);
+        }
 #endif
+    } else {
+        if (this->test_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update(*this->test_output_z_buffer,
+                                            y_batch, var_obs,
+                                            *this->test_input_delta_z_buffer);
+        }
+#ifdef USE_CUDA
+        else {
+            this->cuda_output_updater.update(*this->test_output_z_buffer,
+                                             y_batch, var_obs,
+                                             *this->test_input_delta_z_buffer);
+        }
+#endif
+
+        if (this->ref_model.device.compare("cpu") == 0) {
+            this->cpu_output_updater.update(*this->ref_output_z_buffer, y_batch,
+                                            var_obs,
+                                            *this->ref_input_delta_z_buffer);
+        }
+#ifdef USE_CUDA
+        else {
+            this->cuda_output_updater.update(*this->ref_output_z_buffer,
+                                             y_batch, var_obs,
+                                             *this->ref_input_delta_z_buffer);
+        }
+#endif
+    }
 
     int num_layers = test_model.layers.size();
 
@@ -290,7 +319,8 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 }
             }
 
-            // for (int k = 0; k < test_current_layer->delta_mu_b.size(); k++) {
+            // for (int k = 0; k < test_current_layer->delta_mu_b.size();
+            // k++) {
             //     if (test_current_layer->delta_mu_b[k] !=
             //         ref_current_layer->delta_mu_b[k]) {
             //         std::cout << "Layer name: " << layer_name << " "

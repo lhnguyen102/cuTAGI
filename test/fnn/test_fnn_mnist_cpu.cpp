@@ -66,8 +66,8 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 100), MixtureRelu(), Linear(100, 100),
-                     MixtureRelu(), Linear(100, 11));
+    // Sequential model(Linear(784, 100), ReLU(), Linear(100, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // Sequential model(Linear(784, 100), BatchNorm2d(100), ReLU(),
     //                  Linear(100, 100), BatchNorm2d(100), ReLU(),
@@ -89,15 +89,15 @@ void fnn_mnist() {
     //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
     //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
-    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+                     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+                     AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+                     LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+                     Linear(100, 11));
 
-    // model.set_threads(8);
-    model.to_device("cuda");
+    model.set_threads(8);
+    // model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
@@ -144,7 +144,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
+    int batch_size = 256;
     float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -243,9 +243,24 @@ void fnn_mnist() {
         std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // Testing
-    //////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
+    // // Testing
+    // //////////////////////////////////////////////////////////////////////
+    // int test_batch_size = 96;
+    // int test_iters = test_db.num_data / test_batch_size;
+    // std::vector<float> test_x_batch(test_batch_size * n_x, 0.0f);
+    // std::vector<float> test_var_obs(test_batch_size * test_db.output_len,
+    //                                 pow(sigma_obs, 2));
+    // std::vector<int> test_batch_idx(test_batch_size);
+    // auto test_data_idx = create_range(test_db.num_data);
+    // for (int i = 0; i < 2; i++) {
+    //     // Load data
+    //     get_batch_images_labels(test_db, test_data_idx, test_batch_size, i,
+    //                             x_batch, y_batch, idx_ud_batch, label_batch);
+
+    //     // // Forward pass
+    //     model.forward(x_batch);
+    // }
 }
 
 int test_fnn_mnist() {

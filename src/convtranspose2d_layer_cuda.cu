@@ -356,6 +356,7 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&output_states);
 
     int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
     int threads = this->num_cuda_threads;
 
     if (this->num_weights == 0) {
