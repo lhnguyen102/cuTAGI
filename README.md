@@ -41,16 +41,14 @@ net = Sequential(
 )
 #net.to_device("cuda")
 
-out_updater = OutputUpdater(net.device)
+udt = OutputUpdater(net.device)
 var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
 
 batch_iter = dtl.create_data_loader(batch_size)
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   m_pred, v_pred = net(x)
   # Update output layer based on targets
-  out_updater.update_using_indices(
-      net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer
-  )
+  udt.update_using_indices(net.output_z_buffer, y, var_y, y_idx, net.input_delta_z_buffer)
   net.backward()
   net.step()
   error_rate = metric.error_rate(m_pred, v_pred, label)
