@@ -2,7 +2,7 @@
   <img src="./logo/cupyTAGI.png" width="200px">
 </p>
 
-### [Examples](#examples) | [License](#license) | [Related Papers](#related-papers) | [Citation](#citation)
+#### [Examples](#examples) | [License](#license) | [Related Papers](#related-papers) | [Citation](#citation)
 
 cuTAGI is a probabilistic array framework  built upon the principles of the Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks.
 
@@ -45,6 +45,7 @@ udt = OutputUpdater(net.device)
 var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
 
 batch_iter = dtl.create_data_loader(batch_size)
+
 for i, (x, y, y_idx, label) in enumerate(batch_iter):
   m_pred, v_pred = net(x)
   # Update output layer based on targets
