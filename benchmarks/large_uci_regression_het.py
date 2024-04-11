@@ -1,3 +1,15 @@
+###############################################################################
+# File:         large_uci_regression_het.py
+# Description:  Running large uci datasets with heteroscedasticity for user-defined no. of epochs
+# Authors:      Bhargob Deka & Luong-Ha Nguyen & James-A. Goulet
+# Created:      April 11, 2024
+# Updated:      --
+# Contact:      bhargobdeka11@gmail.com & luongha.nguyen@gmail.com
+#               & james.goulet@polymtl.ca
+# License:      This code is released under the MIT License.
+###############################################################################
+
+
 ## Libraries
 import time
 import csv
@@ -9,43 +21,35 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from scipy import stats
-# go one level down to import the data_loader and regression classes
-# os.chdir('..')
-import sys
-print(sys.path)
-sys.path.append('/home/bd/documents/cuTAGI') # always append the path to the root directory
 
 from python_examples.data_loader import RegressionDataLoader
 from python_examples.regression import Regression
 from pytagi import NetProp
 
 ## Load the data
-# data_names = ["Wine", \
-#               "Kin8nm","Naval",\
-#               "Power-plant","Protein"]
 data_names = ["elevators"] # "elevators","skillcraft","pol", "keggdirected", "keggundirected"
 
 for j in range(len(data_names)):
 
     # check if the results folder already exists; create it if does not exist or remove the existing one
-    if not os.path.exists("results_large_UCI_TAGI_AGVI_Het/{}".format(data_names[j])):
-        os.makedirs("results_large_UCI_TAGI_AGVI_Het/{}".format(data_names[j]))
-    elif os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j])):
+    if not os.path.exists("benchmarks/logs/results_large_uci_regression_het/{}".format(data_names[j])):
+        os.makedirs("benchmarks/logs/results_large_uci_regression_het/{}".format(data_names[j]))
+    elif os.path.isfile("benchmarks/logs/results_large_uci_regression_het/{}/RMSEtest.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_large_uci_regression_het/{}/LLtest.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_large_uci_regression_het/{}/runtime_train.txt".format(data_names[j])):
 
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j]))
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j]))
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het/{}/RMSEtest.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het/{}/LLtest.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het/{}/runtime_train.txt".format(data_names[j]))
 
 
     # File paths for the results
-    RESULTS_RMSEtest = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSEtest.txt"
-    RESULTS_LLtest = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/LLtest.txt"
-    RESULTS_RUNTIME = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_RMSEtest = "benchmarks/logs/results_large_uci_regression_het/"+data_names[j]+"/RMSEtest.txt"
+    RESULTS_LLtest = "benchmarks/logs/results_large_uci_regression_het/"+data_names[j]+"/LLtest.txt"
+    RESULTS_RUNTIME = "benchmarks/logs/results_large_uci_regression_het/"+data_names[j]+"/runtime_train.txt"
 
     # getting data name
-    data_name = 'data/UCI/' + data_names[j]
+    data_name = 'benchmarks/data/UCI/' + data_names[j]
 
     # load data
     data = np.loadtxt(data_name + '/data.txt')
@@ -69,7 +73,9 @@ for j in range(len(data_names)):
         num_epochs  = 200
 
 
-    # gain values for each dataset
+    # Gain values for each dataset as provided in Table H.1 of the Supplementary material
+    # of the paper "Analytically tractable heteroscedastic uncertainty quantification
+    # in Bayesian neural networks for regression tasks"
     OUT_GAIN = {"elevators": 0.1, "pol": 0.5, "skillcraft": 0.1, "keggdirected": 0.1,\
         "keggundirected": 0.1}
     NOISE_GAIN = {"elevators": 0.1, "pol": 0.001, "skillcraft": 0.1, "keggdirected": 0.0001,\
@@ -77,7 +83,7 @@ for j in range(len(data_names)):
 
     EPOCHS = {}
     # Path to the directory containing optimal_epoch.txt files
-    filepath_opt_epoch = "results_large_UCI_TAGI_AGVI_Het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
+    filepath_opt_epoch = "benchmarks/logs/results_large_uci_regression_het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
 
     # Read the optimal epochs
     try:
@@ -110,8 +116,6 @@ for j in range(len(data_names)):
     X = data[ : , index_features.tolist() ]
     Y = data[ : , index_target.tolist() ]
     input_dim = X.shape[1]
-
-
 
     ## classes
     class HeterosUCIMLP(NetProp):
@@ -274,19 +278,7 @@ for j in range(len(data_names)):
 
     mean_RMSE = np.mean(rmse_splitlist, axis=0)
     mean_normal_LL   = np.mean(normal_LL_splitlist,axis=0)
-    # mean_RMSE = np.mean(rmsetests,axis=0)
-    # print("best LL"+str(mean_ll[-1]))
 
-    # plot the mean RMSE and mean LL
-    # plt.plot(range(num_epochs), mean_RMSE)
-    # plt.xlabel('Epochs')
-    # plt.ylabel('RMSE')
-    # plt.show()
-
-    # plt.plot(range(num_epochs), mean_normal_LL)
-    # plt.xlabel('Epochs')
-    # plt.ylabel('Log-likelihood')
-    # plt.show()
 
     fig, ax = plt.subplots(1, 2, figsize=(15, 5))
     ax[0].plot(range(num_epochs), mean_RMSE)
@@ -301,7 +293,7 @@ for j in range(len(data_names)):
     ax[1].set_ylabel('Log-likelihood')
     # set the main title for the figure
     fig.suptitle(data_names[j])
-    plt.savefig("results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSE_LL.png")
+    plt.savefig("benchmarks/logs/results_large_uci_regression_het/"+data_names[j]+"/RMSE_LL.png")
 
     # Print the average results
     print("Average MSE: ", np.mean(mse_list))

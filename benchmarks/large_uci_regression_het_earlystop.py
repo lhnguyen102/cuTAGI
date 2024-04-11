@@ -1,3 +1,15 @@
+###############################################################################
+# File:         large_uci_regression_het_earlystop.py
+# Description:  Running large uci datasets with heteroscedasticity and early-stopping
+# Authors:      Bhargob Deka & Luong-Ha Nguyen & James-A. Goulet
+# Created:      April 11, 2024
+# Updated:      --
+# Contact:      bhargobdeka11@gmail.com & luongha.nguyen@gmail.com
+#               & james.goulet@polymtl.ca
+# License:      This code is released under the MIT License.
+###############################################################################
+
+
 ## Libraries
 import time
 import csv
@@ -9,43 +21,39 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from scipy import stats
-# go one level down to import the data_loader and regression classes
-# os.chdir('..')
-import sys
-print(sys.path)
-sys.path.append('/home/bd/documents/cuTAGI') # always append the path to the root directory
 
 from python_examples.data_loader import RegressionDataLoader
 from python_examples.regression import Regression
 from pytagi import NetProp
 
 ## Load the data
-# data_names = ["Wine", \
-#               "Kin8nm","Naval",\
-#               "Power-plant","Protein"]
-data_names = ["elevators"] # "elevators","skillcraft","pol", "keggdirected", "keggundirected"
+data_names = ["elevators"] #"elevators","skillcraft","pol", "keggdirected", "keggundirected"
+
+# setting early stopping
+early_stop = 1
 
 for j in range(len(data_names)):
 
     # check if the results folder already exists; create it if does not exist or remove the existing one
-    if not os.path.exists("results_large_UCI_TAGI_AGVI_Het/{}".format(data_names[j])):
-        os.makedirs("results_large_UCI_TAGI_AGVI_Het/{}".format(data_names[j]))
-    elif os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j])) and \
-        os.path.isfile("results_large_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j])):
+    if not os.path.exists("benchmarks/logs/results_large_uci_regression_het_earlystop/{}".format(data_names[j])):
+        os.makedirs("benchmarks/logs/results_large_uci_regression_het_earlystop/{}".format(data_names[j]))
+    elif os.path.isfile("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/RMSEtest.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/LLtest.txt".format(data_names[j])) and \
+        os.path.isfile("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/optimal_epoch.txt".format(data_names[j])):
 
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/RMSEtest.txt".format(data_names[j]))
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/LLtest.txt".format(data_names[j]))
-        os.remove("results_large_UCI_TAGI_AGVI_Het/{}/runtime_train.txt".format(data_names[j]))
-
+        os.remove("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/RMSEtest.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/LLtest.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/runtime_train.txt".format(data_names[j]))
+        os.remove("benchmarks/logs/results_large_uci_regression_het_earlystop/{}/optimal_epoch.txt".format(data_names[j]))
 
     # File paths for the results
-    RESULTS_RMSEtest = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSEtest.txt"
-    RESULTS_LLtest = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/LLtest.txt"
-    RESULTS_RUNTIME = "results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_RMSEtest = "benchmarks/logs/results_large_uci_regression_het_earlystop/"+data_names[j]+"/RMSEtest.txt"
+    RESULTS_LLtest = "benchmarks/logs/results_large_uci_regression_het_earlystop/"+data_names[j]+"/LLtest.txt"
+    RESULTS_RUNTIME = "benchmarks/logs/results_large_uci_regression_het_earlystop/"+data_names[j]+"/runtime_train.txt"
+    RESULTS_EPOCH = "benchmarks/logs/results_large_uci_regression_het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
 
     # getting data name
-    data_name = 'data/UCI/' + data_names[j]
+    data_name = 'benchmarks/data/UCI/' + data_names[j]
 
     # load data
     data = np.loadtxt(data_name + '/data.txt')
@@ -61,31 +69,17 @@ for j in range(len(data_names)):
     n_splits    = 10    # number of splits
     num_inputs  = len(index_features)     # 1 explanatory variable
     num_outputs = 1      # 1 predicted output
-    num_epochs  = 100     # row for 40 epochs
+    num_epochs  = 200    # row for 40 epochs
     BATCH_SIZE  = 10     # batch size
     num_hidden_layers = 50
 
-    if data_names[j]=="pol":
-        num_epochs  = 200
-
-
-    # gain values for each dataset
+    # Gain values for each dataset as provided in Table H.1 of the Supplementary material
+    # of the paper "Analytically tractable heteroscedastic uncertainty quantification
+    # in Bayesian neural networks for regression tasks"
     OUT_GAIN = {"elevators": 0.1, "pol": 0.5, "skillcraft": 0.1, "keggdirected": 0.1,\
         "keggundirected": 0.1}
     NOISE_GAIN = {"elevators": 0.1, "pol": 0.001, "skillcraft": 0.1, "keggdirected": 0.0001,\
         "keggundirected": 0.1}
-
-    EPOCHS = {}
-    # Path to the directory containing optimal_epoch.txt files
-    filepath_opt_epoch = "results_large_UCI_TAGI_AGVI_Het_earlystop/"+data_names[j]+"/optimal_epoch.txt"
-
-    # Read the optimal epochs
-    try:
-        with open(filepath_opt_epoch, 'r') as file:
-            epoch = int(file.read().strip())
-            EPOCHS[data_names[j]] = epoch
-    except FileNotFoundError:
-        print(f"File not found: {filepath_opt_epoch}")
 
     def remove_outliers(data, threshold=5):
         """
@@ -105,12 +99,12 @@ for j in range(len(data_names)):
     # remove outliers if required
     if data_names[j]=="skillcraft":
         data = remove_outliers(data, threshold=5)
+        num_epochs = 20
 
     # Input data and output data
     X = data[ : , index_features.tolist() ]
     Y = data[ : , index_target.tolist() ]
     input_dim = X.shape[1]
-
 
 
     ## classes
@@ -129,16 +123,17 @@ for j in range(len(data_names)):
             else:
                 self.nodes          =  [num_inputs, 1000, 1000, 500, 50, 2]  # output layer = [mean, std]
 
-
             self.batch_size     =  BATCH_SIZE
             self.sigma_v        =  0 # sigma_v_values[data_names[j]]
             self.sigma_v_min    =  0
             self.out_gain       =  OUT_GAIN[data_names[j]]
             self.noise_gain     =  NOISE_GAIN[data_names[j]]
-            self.noise_type     =  "heteros" # "heteros" or "homosce"
+            self.noise_type     =   "heteros" # "heteros" or "homosce"
             self.init_method    =  "He"
             self.device         =  "cuda" # cpu, cuda
-            self.early_stop     =  0
+            self.early_stop     =  early_stop
+            self.delta          =  0.01
+            self.patience       =  5
 
 
     ## Functions
@@ -192,12 +187,20 @@ for j in range(len(data_names)):
     rmse_splitlist = []
     LL_splitlist = []
     normal_LL_splitlist = []
+    stopEpoch_list = []
     for i in range(n_splits):
 
         # Split the data
         x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.1, random_state=i)
         y_train = np.reshape(y_train,[len(y_train),1])
         y_test = np.reshape(y_test,[len(y_test),1])
+
+
+        # splitting training data into train and val data if early-stopping is needed
+        if early_stop == 1:
+           x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.1, random_state=42)
+        else:
+            x_val, y_val = [], []
 
         # print(x_train.shape)
 
@@ -220,11 +223,23 @@ for j in range(len(data_names)):
         x_test = normalizer.standardize(data=x_test, mu=x_mean, std=x_std)
         y_test = normalizer.standardize(data=y_test, mu=y_mean, std=y_std)
 
+
+        # normalize val data
+        if early_stop==1:
+            x_val = normalizer.standardize(data=x_val, mu=x_mean, std=x_std)
+            y_val = normalizer.standardize(data=y_val, mu=y_mean, std=y_std)
+
+
+
         # Dataloader
         data_loader = {}
         data_loader["train"] = (x_train, y_train)
         data_loader["test"] = create_data_loader(
             raw_input=x_test, raw_output=y_test, batch_size=BATCH_SIZE
+        )
+        if early_stop==1:
+            data_loader["val"] = create_data_loader(
+            raw_input=x_val, raw_output=y_val, batch_size=BATCH_SIZE
         )
         data_loader["x_norm_param_1"] = x_mean
         data_loader["x_norm_param_2"] = x_std
@@ -250,17 +265,14 @@ for j in range(len(data_names)):
 
         # Train the network
         start_time = time.time()
-        _, rmse_Epochlist, LL_Epochlist, normal_LL_Epochlist, _ = reg_task.train_UCI()
+        _, _, _, _, stop_epoch = reg_task.train_UCI()
 
-        # store rmse and LL lists for each split in rmse_splitlist and LL_splitlist
-        rmse_splitlist.append(rmse_Epochlist)
-        LL_splitlist.append(LL_Epochlist)
-        normal_LL_splitlist.append(normal_LL_Epochlist)
+        # storing stop_epoch for each split
+        stopEpoch_list.append(stop_epoch)
 
-        # print(rmse_Epochlist)
-        # print(LL_Epochlist)
-        # time to run max epochs
+        # Time to run max epochs
         runtime = time.time()-start_time
+
 
         # Predict for one split
         mse, log_lik, rmse, normal_LL = reg_task.predict_UCI()
@@ -271,52 +283,19 @@ for j in range(len(data_names)):
         normal_log_lik_list.append(normal_LL)
         runtime_list.append(runtime)
 
-
-    mean_RMSE = np.mean(rmse_splitlist, axis=0)
-    mean_normal_LL   = np.mean(normal_LL_splitlist,axis=0)
-    # mean_RMSE = np.mean(rmsetests,axis=0)
-    # print("best LL"+str(mean_ll[-1]))
-
-    # plot the mean RMSE and mean LL
-    # plt.plot(range(num_epochs), mean_RMSE)
-    # plt.xlabel('Epochs')
-    # plt.ylabel('RMSE')
-    # plt.show()
-
-    # plt.plot(range(num_epochs), mean_normal_LL)
-    # plt.xlabel('Epochs')
-    # plt.ylabel('Log-likelihood')
-    # plt.show()
-
-    fig, ax = plt.subplots(1, 2, figsize=(15, 5))
-    ax[0].plot(range(num_epochs), mean_RMSE)
-    if os.path.exists(filepath_opt_epoch):
-        ax[0].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on RMSE plot
-    ax[0].set_xlabel('Epochs')
-    ax[0].set_ylabel('RMSE')
-    ax[1].scatter(range(num_epochs), mean_normal_LL)
-    if os.path.exists(filepath_opt_epoch):
-        ax[1].axvline(x=EPOCHS[data_names[j]], color='r', linestyle='--')  # Dashed line for optimal epoch on RMSE plot
-    ax[1].set_xlabel('Epochs')
-    ax[1].set_ylabel('Log-likelihood')
-    # set the main title for the figure
-    fig.suptitle(data_names[j])
-    plt.savefig("results_large_UCI_TAGI_AGVI_Het/"+data_names[j]+"/RMSE_LL.png")
-
     # Print the average results
     print("Average MSE: ", np.mean(mse_list))
-    print("Average Log-likelihood: ", np.mean(normal_log_lik_list))
+    print("Average Normalised Log-likelihood: ", np.mean(normal_log_lik_list))
     print("Average RMSE: ", np.mean(rmse_list))
     print("Average Runtime: ", np.mean(runtime_list))
+    print("Average optimal epoch: ", np.mean(stopEpoch_list))
 
     # Save the average results
     with open(RESULTS_RMSEtest, "a") as file:
         file.write(str(np.mean(rmse_list)) + "\n")
     with open(RESULTS_LLtest, "a") as file:
-        file.write(str(np.mean(log_lik_list)) + "\n")
+        file.write(str(np.mean(normal_log_lik_list)) + "\n")
     with open(RESULTS_RUNTIME, "a") as file:
         file.write(str(np.mean(runtime_list)) + "\n")
-
-
-
-
+    with open(RESULTS_EPOCH, "a") as file:
+        file.write(str(round(np.mean(stopEpoch_list))) + "\n")
