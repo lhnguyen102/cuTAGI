@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 08, 2024
+// Updated:      March 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,16 +51,6 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
     }
 }
 
-__global__ void norm_sum_reduced(float *vec, float *result, int N)
-/*Reduced sum of a vector*/
-{
-    int index = threadIdx.x + blockIdx.x * blockDim.x;
-    if (index < N) atomicAdd(result, vec[index] / N);
-}
-__global__ void layernorm_divide_by_interger(float *value, int batch_size) {
-    *value = *value / batch_size;
-}
-
 __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
                                       float momentum, int num_states,
                                       float *mu_ra, float *var_ra)
@@ -86,11 +76,11 @@ __global__ void layernorm_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (col < ni && row < B) {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[0] + epsilon);
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
         int idx = col + row * ni;
         float mu_w_term = mu_w[col];
         float mu_a_term = mu_a[idx];
-        float mu_ra_term = mu_ra[0];
+        float mu_ra_term = mu_ra[row];
 
         mu_z[idx] =
             inv_sqrt_var_ra * (mu_a_term - mu_ra_term) * mu_w_term + mu_b[col];
@@ -114,8 +104,8 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < k && row < m)  // k = wihi * fi, m = B
     {
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[0] + epsilon);
-        float mu_ra_term = mu_ra[0];
+        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[row] + epsilon);
+        float mu_ra_term = mu_ra[row];
         int idx = col + row * k;
         int div_idx = col / wihi;
         float mu_w_term = mu_w[div_idx];
@@ -145,7 +135,7 @@ __global__ void layernorm_bwd_delta_z_cuda(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
-        float tmp = (1.0f / sqrtf(var_hat[0] + epsilon)) * mu_w[col] *
+        float tmp = (1.0f / sqrtf(var_hat[row] + epsilon)) * mu_w[col] *
                     jcb[col + row * ni];
 
         delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
@@ -166,8 +156,8 @@ __global__ void layernorm_bwd_delta_w_cuda(
         float sum_mu = 0.0f;
         float sum_var = 0.0f;
         for (int i = 0; i < batch_size; i++) {
-            float A = (1.0f / sqrtf(var_hat[0] + epsilon)) *
-                      (mu_a[col + i * ni] - mu_hat[0]) * var_w[col];
+            float A = (1.0f / sqrtf(var_hat[i] + epsilon)) *
+                      (mu_a[col + i * ni] - mu_hat[i]) * var_w[col];
             sum_mu += A * delta_mu_out[col + i * ni];
             sum_var += A * delta_var_out[col + i * ni] * A;
         }
@@ -211,7 +201,7 @@ __global__ void layernorm2d_bwd_delta_z_cuda(
     int k = wihi * fi;
     if (col < k && row < batch_size)  // k = wihi * fi, m = B
     {
-        float tmp = (1 / sqrtf(var_hat[0] + epsilon)) * mu_w[col / wihi] *
+        float tmp = (1 / sqrtf(var_hat[row] + epsilon)) * mu_w[col / wihi] *
                     jcb[col + row * k];
 
         delta_mu[col + row * k] = tmp * delta_mu_out[col + row * k];
@@ -232,8 +222,8 @@ __global__ void layernorm2d_bwd_delta_w_cuda(
     int k = wihi * fi;
     if (col < k && row < batch_size)  // k = wihi*fi, m = B
     {
-        float A = (1.0f / sqrtf(var_ra[0] + epsilon)) *
-                  (mu_a[col + row * k] - mu_ra[0]) * var_w[col / wihi];
+        float A = (1.0f / sqrtf(var_ra[row] + epsilon)) *
+                  (mu_a[col + row * k] - mu_ra[row]) * var_w[col / wihi];
         delta_mu_w[col + row * k] = A * delta_mu_out[col + row * k];
         delta_var_w[col + row * k] = A * delta_var_out[col + row * k] * A;
     }
@@ -560,19 +550,13 @@ batch-normalization layer applied to convolutional layer.
 //// Layer Norm
 ////////////////////////////////////////////////////////////////////////////////
 LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
-                             float eps, float momentum, bool bias)
+                             float eps, bool bias)
 /*
  */
 {
     this->normalized_shape = normalized_shape;
     this->epsilon = eps;
-    this->momentum = momentum;
     this->bias = bias;
-    this->init_weight_bias();
-    this->allocate_running_mean_var();
-    if (this->training) {
-        this->allocate_param_delta();
-    }
     if (this->normalized_shape.size() == 1) {
         this->input_size = this->normalized_shape[0];
         this->output_size = normalized_shape[0];
@@ -592,13 +576,26 @@ LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
             " at line: " + std::to_string(__LINE__) +
             ". Normalized shape provided are not supported.");
     }
+    this->init_weight_bias();
+    if (this->training) {
+        this->allocate_param_delta();
+    }
 }
 
-LayerNormCuda::~LayerNormCuda() {
-    cudaFree(d_mu_ra);
-    cudaFree(d_var_ra);
-    cudaFree(d_mu_norm_batch);
-    cudaFree(d_var_norm_batch);
+LayerNormCuda::~LayerNormCuda()
+/*
+ */
+{
+    this->deallocate_running_mean_var();
+}
+
+void LayerNormCuda::deallocate_running_mean_var() {
+    if (d_mu_ra != nullptr) {
+        cudaFree(d_mu_ra);
+    }
+    if (d_var_ra != nullptr) {
+        cudaFree(d_var_ra);
+    }
 }
 
 std::string LayerNormCuda::get_layer_info() const
@@ -643,17 +640,10 @@ void LayerNormCuda::allocate_running_mean_var()
 /*
  */
 {
-    if (this->mu_ra.size() == 0) {
-        this->mu_ra.resize(1, 0.0f);
-        this->var_ra.resize(1, 1.0f);
-        cudaMalloc(&this->d_mu_ra, sizeof(float));
-        cudaMalloc(&this->d_var_ra, sizeof(float));
-    }
-
-    this->mu_norm_batch.resize(1, 0.0f);
-    this->var_norm_batch.resize(1, 1.0f);
-    cudaMalloc(&this->d_mu_norm_batch, sizeof(float));
-    cudaMalloc(&this->d_var_norm_batch, sizeof(float));
+    this->mu_ra.resize(this->_batch_size, 0.0f);
+    this->var_ra.resize(this->_batch_size, 1.0f);
+    cudaMalloc(&this->d_mu_ra, this->_batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_ra, this->_batch_size * sizeof(float));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -672,12 +662,6 @@ void LayerNormCuda::running_mean_var_to_device()
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
                this->var_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_mu_norm_batch, this->mu_norm_batch.data(),
-               this->mu_norm_batch.size() * sizeof(float),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_norm_batch, this->var_norm_batch.data(),
-               this->var_norm_batch.size() * sizeof(float),
-               cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -696,12 +680,6 @@ void LayerNormCuda::running_mean_var_to_host()
                this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
                this->var_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->mu_norm_batch.data(), this->d_mu_norm_batch,
-               this->mu_norm_batch.size() * sizeof(float),
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->var_norm_batch.data(), this->d_var_norm_batch,
-               this->var_norm_batch.size() * sizeof(float),
-               cudaMemcpyDeviceToHost);
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -709,28 +687,6 @@ void LayerNormCuda::running_mean_var_to_host()
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Running mean var device to host.");
-    }
-}
-
-void LayerNormCuda::reset_norm_mean_var()
-/*
- */
-{
-    this->mu_norm_batch.assign({0});
-    this->var_norm_batch.assign({0});
-    cudaMemcpy(this->d_mu_norm_batch, this->mu_norm_batch.data(),
-               this->mu_norm_batch.size() * sizeof(float),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_var_norm_batch, this->var_norm_batch.data(),
-               this->var_norm_batch.size() * sizeof(float),
-               cudaMemcpyHostToDevice);
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var host to device.");
     }
 }
 
@@ -748,6 +704,12 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     int batch_size = input_states.block_size;
+    if (this->_batch_size < batch_size) {
+        this->_batch_size = batch_size;
+        this->deallocate_running_mean_var();
+        this->allocate_running_mean_var();
+    }
+
     int num_threads = this->num_cuda_threads;
     unsigned int grid_size_ra = (batch_size + num_threads - 1) / num_threads;
     dim3 block_dim(num_threads, num_threads);
@@ -759,53 +721,30 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    // Lazy intialization
-    float _momentum = this->momentum;
-    if (this->first_batch) {
-        if (this->training) {
-            _momentum = 0.0f;
-        }
-        this->first_batch = false;
-    }
     unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
     unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
     dim3 grid_size(grid_col, grid_row);
-    auto d_mu_target = this->training ? this->d_mu_norm_batch : this->d_mu_ra;
-    auto d_var_target =
-        this->training ? this->d_var_norm_batch : this->d_var_ra;
-    if (this->training) {
-        layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-            batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
 
-        layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            cu_input_states->d_mu_a, cu_temp_states->d_tmp_1,
-            cu_temp_states->d_tmp_2, this->input_size, batch_size,
-            cu_temp_states->d_tmp_2);
+    layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
+        batch_size, this->d_mu_ra, cu_temp_states->d_tmp_2);
 
-        // Compute the sum over the batch size
-        this->reset_norm_mean_var();
-        norm_sum_reduced<<<grid_row, num_threads>>>(
-            cu_temp_states->d_tmp_1, this->d_mu_norm_batch, batch_size);
-        norm_sum_reduced<<<grid_row, num_threads>>>(
-            cu_temp_states->d_tmp_2, this->d_var_norm_batch, batch_size);
+    layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+        cu_input_states->d_mu_a, this->d_mu_ra, cu_temp_states->d_tmp_2,
+        this->input_size, batch_size, this->d_var_ra);
 
-        running_mean_var_cuda<<<1, 1>>>(
-            this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
-            batch_size, this->d_mu_ra, this->d_var_ra);
-    }
     if (this->normalized_shape.size() == 1) {
         layernorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
-            d_var_target, this->epsilon, this->input_size, batch_size,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
+            this->d_var_ra, this->epsilon, this->input_size, batch_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         int wihi = this->in_height * this->in_width;
         layernorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
-            d_var_target, this->epsilon, wihi, batch_size, this->input_size,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
+            this->d_var_ra, this->epsilon, wihi, batch_size, this->input_size,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
 
@@ -847,7 +786,7 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->normalized_shape.size() == 1) {
         layernorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, cu_output_delta_states->d_delta_mu,
@@ -856,7 +795,7 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
         int wihi = this->in_height * this->in_width;
 
         layernorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
+            this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
             cu_input_delta_states->d_delta_mu,
             cu_input_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, batch_size, cu_output_delta_states->d_delta_mu,
@@ -886,8 +825,8 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
 
     if (this->normalized_shape.size() == 1) {
         layernorm_bwd_delta_w_cuda<<<grid_col, num_threads>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
-            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+            this->d_var_ra, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, this->input_size,
             batch_size, this->d_delta_mu_w, this->d_delta_var_w);
 
@@ -908,8 +847,8 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
         // Weights
         // TODO: Not sure if it should be batch_size or batch_size * fi
         layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_norm_batch,
-            this->d_var_norm_batch, cu_delta_states->d_delta_mu,
+            this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+            this->d_var_ra, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->epsilon, wihi,
             this->in_channels, batch_size, cu_temp_states->d_tmp_1,
             cu_temp_states->d_tmp_2);
@@ -940,7 +879,7 @@ std::unique_ptr<BaseLayer> LayerNormCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_layer = std::make_unique<LayerNorm>(
-        this->normalized_shape, this->epsilon, this->momentum, this->bias);
+        this->normalized_shape, this->epsilon, this->bias);
 
     host_layer->mu_w = this->mu_w;
     host_layer->var_w = this->var_w;
@@ -969,7 +908,6 @@ void LayerNormCuda::save(std::ofstream &file)
     }
     // Transfer data to host
     this->params_to_host();
-    this->running_mean_var_to_host();
 
     // Save the name length and name
     auto layer_name = this->get_layer_name();
@@ -1045,12 +983,8 @@ void LayerNormCuda::load(std::ifstream &file)
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
     }
 
-    // It wont set momentum to zero for running average of norm's mean & var
-    this->first_batch = false;
-
     // Transfer data to device
     this->params_to_device();
-    this->running_mean_var_to_device();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

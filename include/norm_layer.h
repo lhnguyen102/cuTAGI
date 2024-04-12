@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 04, 2024
+// Updated:      March 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,16 +17,13 @@ std::tuple<int, int> get_number_params_layer_norm(
 class LayerNorm : public BaseLayer {
    public:
     std::vector<int> normalized_shape;
-    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
+    std::vector<float> mu_ra, var_ra;
     float epsilon;
-    float momentum;
     bool bias;
-
-    // momentum of running average of first batch is set to zero
-    bool first_batch = true;
+    int _batch_size = 0;
 
     LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-5,
-              float mometum = 0.9, bool bias = true);
+              bool bias = true);
     ~LayerNorm();
 
     // Delete copy constructor and copy assignment

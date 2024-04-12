@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 04, 2024
+// Updated:      April 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,18 +14,15 @@
 class LayerNormCuda : public BaseLayerCuda {
    public:
     std::vector<int> normalized_shape;
-    std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
-    float *d_mu_ra, *d_var_ra, *d_mu_norm_batch, *d_var_norm_batch;
+    std::vector<float> mu_ra, var_ra;
+    float *d_mu_ra = nullptr, *d_var_ra = nullptr;
 
     float epsilon;
-    float momentum;
     bool bias;
-
-    // momentum of running average of first batch is set to zero
-    bool first_batch = true;
+    int _batch_size = 0;
 
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
-                  float mometum = 0.9, bool bias = true);
+                  bool bias = true);
     ~LayerNormCuda();
 
     // Delete copy constructor and copy assignment
@@ -68,9 +65,9 @@ class LayerNormCuda : public BaseLayerCuda {
 
    protected:
     void allocate_running_mean_var();
+    void deallocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
-    void reset_norm_mean_var();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };
