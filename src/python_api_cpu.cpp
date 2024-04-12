@@ -315,6 +315,7 @@ PYBIND11_MODULE(cutagi, m) {
         .def_readwrite("last_backward_layer", &Network::last_backward_layer)
         .def_readwrite("nye", &Network::nye)
         .def_readwrite("decay_factor_sigma_v", &Network::decay_factor_sigma_v)
+        .def_readwrite("out_gain", &Network::out_gain)
         .def_readwrite("noise_gain", &Network::noise_gain)
         .def_readwrite("batch_size", &Network::batch_size)
         .def_readwrite("input_seq_len", &Network::input_seq_len)

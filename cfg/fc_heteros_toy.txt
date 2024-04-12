@@ -4,6 +4,7 @@ activations:[0,     4,       4,     0]
 batch_size: 20
 sigma_v: 0.0
 noise_type: heteros
+out_gain: 1
 noise_gain: 1
 multithreading: true
 init_method: He

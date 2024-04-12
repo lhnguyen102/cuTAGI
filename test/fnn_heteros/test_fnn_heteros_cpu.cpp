@@ -20,6 +20,7 @@ const int EPOCHS = 1;
 
 const float SIGMA_V = 0.0;
 const std::string NOISE_TYPE = "heteros";
+const int OUT_GAIN = 1;
 const int NOISE_GAIN = 1;
 const std::string INIT_METHOD = "He";
 const bool NORMALIZE = true;
@@ -35,6 +36,7 @@ bool test_fnn_heteros_cpu(bool recompute_outputs, std::string date,
     net.batch_size = BATCH_SIZE;
 
     net.noise_type = NOISE_TYPE;
+    net.out_gain = OUT_GAIN;
     net.noise_gain = NOISE_GAIN;
     net.sigma_v = SIGMA_V;
     net.init_method = INIT_METHOD;

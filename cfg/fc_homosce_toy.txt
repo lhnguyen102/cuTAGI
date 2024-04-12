@@ -6,6 +6,7 @@ sigma_v: 0.0
 mu_v2b: [0.1]
 sigma_v2b: [0.1]
 noise_type: homosce
+out_gain: 1
 noise_gain: 1
 multithreading: true
 init_method: He
