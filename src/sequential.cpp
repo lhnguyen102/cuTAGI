@@ -43,6 +43,7 @@ void Sequential::add_layers()
 /*
  */
 {
+    // After variadic template, meanings vector of layers has formed
     if (this->device == "cpu") {
         this->compute_input_output_size();
         this->set_buffer_size();

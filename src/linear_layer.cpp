@@ -635,11 +635,3 @@ Args:
         }
     }
 }
-#ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Linear::to_cuda() {
-    this->device = "cuda";
-    return std::make_unique<LinearCuda>(this->input_size, this->output_size,
-                                        this->bias, this->gain_w, this->gain_b,
-                                        this->init_method);
-}
-#endif
