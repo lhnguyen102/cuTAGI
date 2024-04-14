@@ -33,15 +33,15 @@ FNN_BATCHNORM = Sequential(
     Linear(100, 11),
 )
 
-# FNN_LAYERNORM = Sequential(
-#     Linear(784, 100, bias=False),
-#     ReLU(),
-#     LayerNorm((100,)),
-#     Linear(100, 100, bias=False),
-#     ReLU(),
-#     LayerNorm((100,)),
-#     Linear(100, 11),
-# )
+FNN_LAYERNORM = Sequential(
+    Linear(784, 100, bias=False),
+    ReLU(),
+    LayerNorm((100,)),
+    Linear(100, 100, bias=False),
+    ReLU(),
+    LayerNorm((100,)),
+    Linear(100, 11),
+)
 
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
@@ -69,22 +69,22 @@ CNN_BATCHNORM = Sequential(
     Linear(100, 11),
 )
 
-# CNN_LAYERNORM = Sequential(
-#     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-#     LayerNorm((16, 27, 27)),
-#     ReLU(),
-#     AvgPool2d(3, 2),
-#     Conv2d(16, 32, 5, bias=False),
-#     LayerNorm((32, 9, 9)),
-#     ReLU(),
-#     AvgPool2d(3, 2),
-#     Linear(32 * 4 * 4, 100),
-#     ReLU(),
-#     Linear(100, 11),
-# )
+CNN_LAYERNORM = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
+    LayerNorm((16, 27, 27)),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False),
+    LayerNorm((32, 9, 9)),
+    ReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100),
+    ReLU(),
+    Linear(100, 11),
+)
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 1.0):
+def main(num_epochs: int = 10, batch_size: int = 512, sigma_v: float = 2.0):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
@@ -108,9 +108,9 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 1.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
+    net = FNN_LAYERNORM
     # net.to_device("cuda")
-    # net.set_threads(8)
+    # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training
