@@ -210,19 +210,19 @@ python -m benchmarks.benchmark_table_large_uci_regression_het
 
 
 ### Final Table
-The results shown below for the test RMSE, Log-likelihood, and the average training time per split (in s.) are averaged over 3 random seeds and the computations are done using `CUDA`. 
+The results shown below for the test RMSE, Log-likelihood, and the average training time per split (in s.) are averaged over 3 random seeds and the computations are done using `CUDA`. The results with optimized gains are better, except for keggdirected. However, it is to be noted that obtaining the gain values also require  grid-search.
 
-| Dataset        | RMSE          | Log-Likelihood   | Average Training Time per split ( in s.)  |
-|:---------------|:--------------|:-----------------|:--------------------------------|
-| elevators      | 0.088 ± 0.002 | -0.335 ± 0.024   | 30.161 ± 3.864                  |
-| skillcraft     | 0.262 ± 0.013 | -1.055 ± 0.073   | 4.631 ± 0.400                   |
-| pol            | 2.833 ± 0.215 | 0.964 ± 0.135    | 625.676 ± 131.296               |
-| keggdirected   | 0.119 ± 0.006 | 1.147 ± 0.161    | 584.465 ± 132.171               |
-| keggundirected | 0.112 ± 0.004 | 1.809 ± 0.157    | 606.755 ± 47.238                |
+| Dataset        | RMSE (TAGI-V)      | Log-Likelihood (TAGI-V)   | Avg. Training Time/ split (s.) (TAGI-V) | RMSE (TAGI-V with gain=1) | Log-Likelihood (TAGI-V with gain=1)  | Avg. Training Time/ split (s.) (TAGI-V with gain=1) |
+|:---------------|:------------------------|:--------------------------|:----------------------------------------|:-------------------------|:------------------------------------|:---------------------------------------------------|
+| elevators      | 0.088 ± 0.002      | -0.335 ± 0.024            | 30.161 ± 3.864                           | 0.093 ± 0.001            | -0.464 ± 0.025                      | 65.819 ± 6.936                                      |
+| skillcraft     | 0.262 ± 0.013      | -1.055 ± 0.073            | 4.631 ± 0.400                            | 0.279 ± 0.009            | -1.128 ± 0.047                      | 5.726 ± 0.008                                       |
+| pol            | 2.833 ± 0.215      | 0.964 ± 0.135             | 625.676 ± 131.296                       | 3.007 ± 0.228            | 0.640 ± 0.117                       | 866.668 ± 5.315                                     |
+| keggdirected   | 0.119 ± 0.006      | 1.147 ± 0.161             | 584.465 ± 132.171                       | 0.117 ± 0.005            | 1.366 ± 0.042                       | 990.828 ± 93.170                                    |
+| keggundirected | 0.112 ± 0.004      | 1.809 ± 0.157             | 606.755 ± 47.238                        | 0.112 ± 0.004            | 1.325 ± 0.128                       | 794.805 ± 8.542                                     |
 
 
 ### To-Do
 
-- run large uci datasets with gain=1
+- image regression datasets
 - there is discrepency in the results from pytagi to the MATLAB version especially for the small UCI datasets indicating that there is a difference in the setups.
 - figure out if there is a solution to bypass the gain parameters -- learning them together with same initial gain will make the the prior variance for the error variance much higher than the expected value. This results in the initial epochs to only learn the error intead of the expected value. This is the reason why the gain parameters needs to be reduced for the error variance so that the expected value can also be learnt in the initial epochs. This is a conundrum: what is the best way to learn both together as there is unidentifiability between them unless one is learnt after the other, i.e. a two-network setup.
