@@ -273,17 +273,10 @@ void Sequential::backward()
          ++layer) {
         auto *current_layer = layer->get();
 
-        // Backward pass for parameters and hidden states
-        if (this->param_update) {
-            current_layer->param_backward(*current_layer->bwd_states,
-                                          *this->input_delta_z_buffer,
-                                          *this->temp_states);
-        }
-
         // Backward pass for hidden states
-        current_layer->state_backward(
-            *current_layer->bwd_states, *this->input_delta_z_buffer,
-            *this->output_delta_z_buffer, *this->temp_states);
+        current_layer->backward(*this->input_delta_z_buffer,
+                                *this->output_delta_z_buffer,
+                                *this->temp_states);
 
         // Pass new input data for next iteration
         if (current_layer->get_layer_type() != LayerType::Activation) {
@@ -291,19 +284,50 @@ void Sequential::backward()
         }
     }
 
-    // Parameter update for input layer
-    if (this->param_update) {
-        this->layers[0]->param_backward(*this->layers[0]->bwd_states,
-                                        *this->input_delta_z_buffer,
-                                        *this->temp_states);
-    }
-
     // State update for input layer
-    if (this->input_state_update) {
-        this->layers[0]->state_backward(
-            *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
-            *this->output_delta_z_buffer, *this->temp_states);
-    }
+
+    this->layers[0]->backward(*this->input_delta_z_buffer,
+                              *this->output_delta_z_buffer, *this->temp_states,
+                              this->input_state_update);
+
+    // // Hidden layers
+    // for (auto layer = this->layers.rbegin(); layer != this->layers.rend() -
+    // 1;
+    //      ++layer) {
+    //     auto *current_layer = layer->get();
+
+    //     // Backward pass for parameters and hidden states
+    //     if (this->param_update) {
+    //         current_layer->param_backward(*current_layer->bwd_states,
+    //                                       *this->input_delta_z_buffer,
+    //                                       *this->temp_states);
+    //     }
+
+    //     // Backward pass for hidden states
+    //     current_layer->state_backward(
+    //         *current_layer->bwd_states, *this->input_delta_z_buffer,
+    //         *this->output_delta_z_buffer, *this->temp_states);
+
+    //     // Pass new input data for next iteration
+    //     if (current_layer->get_layer_type() != LayerType::Activation) {
+    //         std::swap(this->input_delta_z_buffer,
+    //         this->output_delta_z_buffer);
+    //     }
+    // }
+
+    // // Parameter update for input layer
+    // if (this->param_update) {
+    //     this->layers[0]->param_backward(*this->layers[0]->bwd_states,
+    //                                     *this->input_delta_z_buffer,
+    //                                     *this->temp_states);
+    // }
+
+    // // State update for input layer
+    // if (this->input_state_update) {
+    //     this->layers[0]->state_backward(
+    //         *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
+    //         *this->output_delta_z_buffer, *this->temp_states);
+    // }
 }
 
 void Sequential::step()

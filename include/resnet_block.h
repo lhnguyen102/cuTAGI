@@ -55,7 +55,9 @@ class LayerBlock : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
-    void init_weight_bias();
+    int get_max_num_states() override;
+
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

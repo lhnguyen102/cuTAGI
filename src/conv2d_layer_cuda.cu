@@ -358,6 +358,94 @@ void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
     }
 }
 
+void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states, bool state_udapte)
+/**/
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
+    dim3 dim_block(threads, threads);
+
+    // Launch kernel
+    int wihi = this->in_width * this->in_height;
+    int woho = this->out_width * this->out_height;
+    int row_zw_fo = this->row_zw * this->out_channels;
+
+    if (state_udapte) {
+        int pad_idx = woho * this->out_channels * batch_size + 1;
+
+        unsigned int grid_row_p = (batch_size + threads - 1) / threads;
+        unsigned int grid_col_p =
+            (wihi * this->in_channels + threads - 1) / threads;
+        dim3 dim_grid_p(grid_col_p, grid_row_p);
+
+        unsigned int grid_row = (this->in_channels + threads - 1) / threads;
+        unsigned int grid_col = (wihi * batch_size + threads - 1) / threads;
+        dim3 dim_grid(grid_col, grid_row);
+
+        permmute_jacobian_cuda<<<dim_grid_p, dim_block>>>(
+            cu_next_bwd_states->d_jcb, wihi, this->in_channels, batch_size,
+            cu_temp_states->d_tmp_1);
+
+        conv2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
+            this->d_mu_w, cu_temp_states->d_tmp_1,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->d_idx_cov_zwa_1,
+            this->d_idx_var_z_ud, woho, this->out_channels, wihi,
+            this->in_channels, this->kernel_size, this->row_zw, row_zw_fo,
+            batch_size, pad_idx, cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    }
+    if (param_update) {
+        int woho_batch = woho * batch_size;
+        int wohofo = woho * this->out_channels;
+        int param_pad_idx = wihi * this->in_channels * batch_size + 1;
+        int ki2_fi = this->kernel_size * this->kernel_size * this->in_channels;
+
+        unsigned int grid_row_pp = (batch_size + threads - 1) / threads;
+        unsigned int grid_col_pp = (wohofo + threads - 1) / threads;
+        unsigned int grid_row_w = (ki2_fi + threads - 1) / threads;
+        unsigned int grid_col_w = (this->out_channels + threads - 1) / threads;
+
+        dim3 dim_grid_pp(grid_col_pp, grid_row_pp);
+        dim3 dim_grid_w(grid_col_w, grid_row_w);
+        dim3 dim_block(threads, threads);
+
+        permute_delta_cuda<<<dim_grid_pp, dim_block>>>(
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, woho, wohofo, batch_size,
+            cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
+
+        conv2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
+            this->d_var_w, cu_next_bwd_states->d_mu_a, cu_temp_states->d_tmp_1,
+            cu_temp_states->d_tmp_2, this->d_idx_mwa_2, batch_size,
+            this->out_channels, woho, wihi, this->in_channels,
+            this->kernel_size, param_pad_idx, this->d_delta_mu_w,
+            this->d_delta_var_w);
+
+        if (this->bias) {
+            unsigned int grid_col_bias =
+                (this->out_channels + threads - 1) / threads;
+
+            conv2d_bwd_delta_b_cuda<<<grid_col_bias, threads>>>(
+                this->d_var_b, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2,
+                woho_batch, this->out_channels, this->d_delta_mu_b,
+                this->d_delta_var_b);
+        }
+    }
+}
+
 std::unique_ptr<BaseLayer> Conv2dCuda::to_host()
 /* Transfer to cpu version
  */

@@ -995,6 +995,15 @@ int LSTM::get_output_size()
     return this->output_size * this->seq_len;
 }
 
+int LSTM::get_max_num_states()
+/*
+ */
+{
+    int in_size = static_cast<int>(this->input_size) * this->seq_len;
+    int out_size = static_cast<int>(this->output_size) * this->seq_len;
+    return std::max(in_size, out_size);
+}
+
 void LSTM::get_number_param()
 /*
  */

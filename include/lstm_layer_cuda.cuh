@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 28, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ class LSTMCuda : public BaseLayerCuda {
 
     void get_number_param();
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void prepare_input(BaseHiddenStates &input_state);
 

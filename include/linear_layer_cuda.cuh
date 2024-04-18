@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 28, 2023
-// Updated:      March 09, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +88,7 @@ class LinearCuda : public BaseLayerCuda {
 
     LayerType get_layer_type() const override;
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -102,6 +102,10 @@ class LinearCuda : public BaseLayerCuda {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states, bool state_udapte) override;
 
     std::unique_ptr<BaseLayer> to_host() override;
 

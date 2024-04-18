@@ -78,10 +78,10 @@ void fnn_mnist() {
     //                  LayerNorm(std::vector<int>({100})), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
-    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
-    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
+                     AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),
+                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+                     Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     // BatchNorm2d(16),
@@ -89,12 +89,12 @@ void fnn_mnist() {
     //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
     //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-                     LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
-                     AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-                     LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
-                     AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
-                     Linear(100, 11));
+    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
+    //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
+    //                  AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
+    //                  LayerNorm(std::vector<int>({32, 9, 9})), ReLU(),
+    //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
+    //                  Linear(100, 11));
 
     // model.set_threads(8);
     model.to_device("cuda");
@@ -144,7 +144,7 @@ void fnn_mnist() {
         1;  // std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 512;
+    int batch_size = 256;
     float sigma_obs = 2.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      April 12, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +46,7 @@ class BaseLayer {
     size_t in_width = 0, in_height = 0, in_channels = 0;
     size_t out_width = 0, out_height = 0, out_channels = 0;
     bool bias = true;
+    bool param_update = true;
     float cap_factor_update = 1.0f;
 
     std::vector<float> mu_w;
@@ -86,6 +87,10 @@ class BaseLayer {
 
     virtual int get_output_size();
 
+    virtual int get_max_num_states();
+
+    virtual void init_weight_bias();
+
     virtual void forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states);
@@ -98,6 +103,11 @@ class BaseLayer {
     virtual void param_backward(BaseBackwardStates &next_bwd_states,
                                 BaseDeltaStates &delta_states,
                                 BaseTempStates &temp_states);
+
+    virtual void backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states,
+                          bool state_udapte = true);
 
     virtual void allocate_param_delta();
 

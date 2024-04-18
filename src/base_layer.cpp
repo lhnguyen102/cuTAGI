@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      April 08, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,6 +31,13 @@ int BaseLayer::get_input_size() { return static_cast<int>(this->input_size); }
 
 int BaseLayer::get_output_size() { return static_cast<int>(this->output_size); }
 
+int BaseLayer::get_max_num_states() {
+    size_t max_size = std::max(this->output_size, this->input_size);
+    return static_cast<int>(max_size);
+}
+
+void BaseLayer::init_weight_bias() {}
+
 void BaseLayer::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states) {}
@@ -43,6 +50,10 @@ void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
 void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
                                BaseDeltaStates &delta_states,
                                BaseTempStates &temp_states) {}
+
+void BaseLayer::backward(BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         BaseTempStates &temp_states, bool state_udapte) {}
 
 void BaseLayer::allocate_param_delta()
 /*

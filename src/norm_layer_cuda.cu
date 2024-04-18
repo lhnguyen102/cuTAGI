@@ -772,8 +772,6 @@ void LayerNormCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
     DeltaStateCuda *cu_output_delta_states =
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
-    // *>(&temp_states);
 
     // Initialization
     int batch_size = input_delta_states.block_size;
@@ -870,6 +868,117 @@ void LayerNormCuda::param_backward(BaseBackwardStates &next_bwd_states,
                 cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
                 this->in_channels, batch_size, this->d_delta_mu_b,
                 this->d_delta_var_b);
+        }
+    }
+}
+
+void LayerNormCuda::backward(BaseDeltaStates &input_delta_states,
+                             BaseDeltaStates &output_delta_states,
+                             BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int num_threads = this->num_cuda_threads;
+    dim3 block_dim(num_threads, num_threads);
+
+    unsigned int grid_row = (batch_size + num_threads - 1) / num_threads;
+    unsigned int grid_col = (this->input_size + num_threads - 1) / num_threads;
+    dim3 grid_size(grid_col, grid_row);
+
+    if (state_udapte) {
+        if (this->normalized_shape.size() == 1) {
+            layernorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+                this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon,
+                this->input_size, batch_size,
+                cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        } else {
+            int wihi = this->in_height * this->in_width;
+
+            layernorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+                this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_ra,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                this->in_channels, batch_size,
+                cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        }
+    }
+
+    if (param_update) {
+        TempStateCuda *cu_temp_states =
+            dynamic_cast<TempStateCuda *>(&temp_states);
+        // Initalization
+        int batch_size = cu_input_delta_states->block_size;
+        int num_threads = this->num_cuda_threads;
+        dim3 block_dim(num_threads, num_threads);
+
+        unsigned int grid_col =
+            (this->input_size + num_threads - 1) / num_threads;
+
+        if (this->normalized_shape.size() == 1) {
+            layernorm_bwd_delta_w_cuda<<<grid_col, num_threads>>>(
+                this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+                this->d_var_ra, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon,
+                this->input_size, batch_size, this->d_delta_mu_w,
+                this->d_delta_var_w);
+
+            if (this->bias) {
+                layernorm_bwd_delta_b_cuda<<<grid_col, num_threads>>>(
+                    this->d_var_b, cu_input_delta_states->d_delta_mu,
+                    cu_input_delta_states->d_delta_var, this->epsilon,
+                    this->input_size, batch_size, this->d_delta_mu_b,
+                    this->d_delta_var_b);
+            }
+
+        } else {
+            int wihi = this->in_height * this->in_width;
+            unsigned int grid_row =
+                (batch_size + num_threads - 1) / num_threads;
+            dim3 grid_size(grid_col, grid_row);
+            unsigned int sum_grid_size =
+                (this->in_channels + num_threads - 1) / num_threads;
+
+            // Weights
+            // TODO: Not sure if it should be batch_size or batch_size * fi
+            layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
+                this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
+                this->d_var_ra, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                this->in_channels, batch_size, cu_temp_states->d_tmp_1,
+                cu_temp_states->d_tmp_2);
+
+            delta_param_sum<<<sum_grid_size, num_threads>>>(
+                cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+                this->in_channels, batch_size, this->d_delta_mu_w,
+                this->d_delta_var_w);
+
+            // Biases
+            if (this->bias) {
+                layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(
+                    this->d_var_b, cu_input_delta_states->d_delta_mu,
+                    cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                    this->in_channels, batch_size, cu_temp_states->d_tmp_1,
+                    cu_temp_states->d_tmp_2);
+
+                delta_param_sum<<<sum_grid_size, num_threads>>>(
+                    cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+                    this->in_channels, batch_size, this->d_delta_mu_b,
+                    this->d_delta_var_b);
+            }
         }
     }
 }
@@ -1358,6 +1467,123 @@ void BatchNorm2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
                 cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
                 this->in_channels, batch_size, this->d_delta_mu_b,
                 this->d_delta_var_b);
+        }
+    }
+}
+
+void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
+                               BaseDeltaStates &output_delta_states,
+                               BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    int batch_size = cu_input_delta_states->block_size;
+    int num_threads = this->num_cuda_threads;
+    dim3 block_dim(num_threads, num_threads);
+
+    if (state_udapte) {
+        if (this->in_channels == 0) {
+            unsigned int grid_row =
+                (batch_size + num_threads - 1) / num_threads;
+            unsigned int grid_col =
+                (this->input_size + num_threads - 1) / num_threads;
+            dim3 grid_size(grid_col, grid_row);
+
+            batchnorm_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+                this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon,
+                this->input_size, batch_size,
+                cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+
+        } else {
+            int fi_batch = this->in_channels * batch_size;
+            int wihi = this->in_width * this->in_height;
+
+            unsigned int grid_row = (fi_batch + num_threads - 1) / num_threads;
+            unsigned int grid_col = (wihi + num_threads - 1) / num_threads;
+            dim3 grid_size(grid_col, grid_row);
+
+            batchnorm2d_bwd_delta_z_cuda<<<grid_size, block_dim>>>(
+                this->d_mu_w, cu_next_bwd_states->d_jcb, this->d_var_norm_batch,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                this->in_channels, fi_batch, cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        }
+    }
+
+    if (param_update) {
+        TempStateCuda *cu_temp_states =
+            dynamic_cast<TempStateCuda *>(&temp_states);
+
+        if (this->in_channels == 0) {
+            unsigned int grid_size_p =
+                (this->input_size + num_threads - 1) / num_threads;
+
+            batchnorm_bwd_delta_w_cuda<<<grid_size_p, num_threads>>>(
+                this->d_var_w, cu_next_bwd_states->d_mu_a,
+                this->d_mu_norm_batch, this->d_var_norm_batch,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon,
+                this->input_size, batch_size, this->d_delta_mu_w,
+                this->d_delta_var_w);
+
+            if (this->num_biases > 0) {
+                batchnorm_bwd_delta_b_cuda<<<grid_size_p, num_threads>>>(
+                    this->d_var_b, cu_input_delta_states->d_delta_mu,
+                    cu_input_delta_states->d_delta_var, this->epsilon,
+                    this->input_size, batch_size, this->d_delta_mu_b,
+                    this->d_delta_var_b);
+            }
+
+        } else {
+            int wihi = this->in_width * this->in_height;
+            int fi_batch = this->in_channels * batch_size;
+
+            unsigned int grid_row_p =
+                (fi_batch + num_threads - 1) / num_threads;
+            unsigned int grid_col_p = (wihi + num_threads - 1) / num_threads;
+            unsigned int sum_grid_size =
+                (this->in_channels + num_threads - 1) / num_threads;
+            dim3 dim_grid_p(grid_col_p, grid_row_p);
+
+            batchnorm2d_bwd_delta_w_cuda<<<dim_grid_p, block_dim>>>(
+                this->d_var_w, cu_next_bwd_states->d_mu_a,
+                this->d_mu_norm_batch, this->d_var_norm_batch,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                this->in_channels, fi_batch, cu_temp_states->d_tmp_1,
+                cu_temp_states->d_tmp_2);
+
+            delta_param_sum<<<sum_grid_size, num_threads>>>(
+                cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+                this->in_channels, batch_size, this->d_delta_mu_w,
+                this->d_delta_var_w);
+
+            if (this->num_biases > 0) {
+                batchnorm2d_bwd_delta_b_cuda<<<dim_grid_p, block_dim>>>(
+                    this->d_var_b, cu_input_delta_states->d_delta_mu,
+                    cu_input_delta_states->d_delta_var, this->epsilon, wihi,
+                    this->in_channels, fi_batch, cu_temp_states->d_tmp_1,
+                    cu_temp_states->d_tmp_2);
+
+                delta_param_sum<<<sum_grid_size, num_threads>>>(
+                    cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2, wihi,
+                    this->in_channels, batch_size, this->d_delta_mu_b,
+                    this->d_delta_var_b);
+            }
         }
     }
 }
