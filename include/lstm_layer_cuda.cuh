@@ -81,6 +81,11 @@ class LSTMCuda : public BaseLayerCuda {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
+
     std::unique_ptr<BaseLayer> to_host() override;
 
     void preinit_layer() override;

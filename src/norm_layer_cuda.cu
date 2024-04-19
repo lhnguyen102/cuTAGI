@@ -920,16 +920,12 @@ void LayerNormCuda::backward(BaseDeltaStates &input_delta_states,
     if (param_update) {
         TempStateCuda *cu_temp_states =
             dynamic_cast<TempStateCuda *>(&temp_states);
-        // Initalization
-        int batch_size = cu_input_delta_states->block_size;
-        int num_threads = this->num_cuda_threads;
-        dim3 block_dim(num_threads, num_threads);
 
-        unsigned int grid_col =
+        unsigned int grid_col_p =
             (this->input_size + num_threads - 1) / num_threads;
 
         if (this->normalized_shape.size() == 1) {
-            layernorm_bwd_delta_w_cuda<<<grid_col, num_threads>>>(
+            layernorm_bwd_delta_w_cuda<<<grid_col_p, num_threads>>>(
                 this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
                 this->d_var_ra, cu_input_delta_states->d_delta_mu,
                 cu_input_delta_states->d_delta_var, this->epsilon,
@@ -937,7 +933,7 @@ void LayerNormCuda::backward(BaseDeltaStates &input_delta_states,
                 this->d_delta_var_w);
 
             if (this->bias) {
-                layernorm_bwd_delta_b_cuda<<<grid_col, num_threads>>>(
+                layernorm_bwd_delta_b_cuda<<<grid_col_p, num_threads>>>(
                     this->d_var_b, cu_input_delta_states->d_delta_mu,
                     cu_input_delta_states->d_delta_var, this->epsilon,
                     this->input_size, batch_size, this->d_delta_mu_b,
@@ -946,15 +942,15 @@ void LayerNormCuda::backward(BaseDeltaStates &input_delta_states,
 
         } else {
             int wihi = this->in_height * this->in_width;
-            unsigned int grid_row =
+            unsigned int grid_row_p =
                 (batch_size + num_threads - 1) / num_threads;
-            dim3 grid_size(grid_col, grid_row);
+            dim3 dim_grid_p(grid_col_p, grid_row_p);
             unsigned int sum_grid_size =
                 (this->in_channels + num_threads - 1) / num_threads;
 
             // Weights
             // TODO: Not sure if it should be batch_size or batch_size * fi
-            layernorm2d_bwd_delta_w_cuda<<<grid_size, block_dim>>>(
+            layernorm2d_bwd_delta_w_cuda<<<dim_grid_p, block_dim>>>(
                 this->d_var_w, cu_next_bwd_states->d_mu_a, this->d_mu_ra,
                 this->d_var_ra, cu_input_delta_states->d_delta_mu,
                 cu_input_delta_states->d_delta_var, this->epsilon, wihi,
@@ -968,7 +964,7 @@ void LayerNormCuda::backward(BaseDeltaStates &input_delta_states,
 
             // Biases
             if (this->bias) {
-                layernorm2d_bwd_delta_b_cuda<<<grid_size, block_dim>>>(
+                layernorm2d_bwd_delta_b_cuda<<<dim_grid_p, block_dim>>>(
                     this->d_var_b, cu_input_delta_states->d_delta_mu,
                     cu_input_delta_states->d_delta_var, this->epsilon, wihi,
                     this->in_channels, batch_size, cu_temp_states->d_tmp_1,
@@ -1036,14 +1032,6 @@ void LayerNormCuda::save(std::ofstream &file)
     for (const auto &v_b : this->var_b) {
         file.write(reinterpret_cast<const char *>(&v_b), sizeof(v_b));
     }
-
-    // Running average for nomalization
-    for (const auto &m_ra : this->mu_ra) {
-        file.write(reinterpret_cast<const char *>(&m_ra), sizeof(m_ra));
-    }
-    for (const auto &v_ra : this->var_ra) {
-        file.write(reinterpret_cast<const char *>(&v_ra), sizeof(v_ra));
-    }
 }
 
 void LayerNormCuda::load(std::ifstream &file)
@@ -1082,14 +1070,6 @@ void LayerNormCuda::load(std::ifstream &file)
     }
     for (auto &v_b : this->var_b) {
         file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
-    }
-
-    // Running average for nomalization
-    for (auto &m_ra : this->mu_ra) {
-        file.read(reinterpret_cast<char *>(&m_ra), sizeof(m_ra));
-    }
-    for (auto &v_ra : this->var_ra) {
-        file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
     }
 
     // Transfer data to device

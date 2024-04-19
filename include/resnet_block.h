@@ -1,8 +1,11 @@
 #pragma once
+#include <fstream>
+#include <iostream>
 #include <memory>
 #include <vector>
 
 #include "base_layer.h"
+#include "data_struct.h"
 
 class LayerBlock : public BaseLayer {
    public:
@@ -49,6 +52,8 @@ class LayerBlock : public BaseLayer {
     LayerBlock(LayerBlock &&) = default;
     LayerBlock &operator=(LayerBlock &&) = default;
 
+    void switch_to_cuda();
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -63,14 +68,18 @@ class LayerBlock : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_update = true) override;
 
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
+    void update_weights() override;
+    void update_biases() override;
+
+    void compute_input_output_size(const InitArgs &args) override;
+
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
 
     using BaseLayer::to_cuda;
 
@@ -81,12 +90,16 @@ class LayerBlock : public BaseLayer {
 
 class ResNetBlock : public BaseLayer {
    private:
-    std::shared_ptr<BaseLayer> mainPath;
+    std::shared_ptr<LayerBlock> main_block;
     std::shared_ptr<BaseLayer> shortcut;
+    int _batch_size = 0;
 
    public:
-    ResNetBlock(std::shared_ptr<BaseLayer> main,
-                std::shared_ptr<BaseLayer> shortcutLayer = nullptr);
+    std::shared_ptr<BaseHiddenStates> shortcut_output_z;
+    std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
+
+    ResNetBlock(std::shared_ptr<BaseLayer> main_block_layer,
+                std::shared_ptr<BaseLayer> shortcut_layer = nullptr);
     ~ResNetBlock();
 
     // Delete copy constructor and copy assignment
@@ -103,18 +116,36 @@ class ResNetBlock : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
+    int get_max_num_states() override;
+
+    void init_shortcut_state();
+
+    void init_shortcut_delta_state();
+
     void init_weight_bias();
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_update = true) override;
 
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
+    void update_weights() override;
+    void update_biases() override;
+
+    void compute_input_output_size(const InitArgs &args) override;
+
+    void save(std::ofstream &file) override;
+    void load(std::ifstream &file) override;
+
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
 };
+}
+;

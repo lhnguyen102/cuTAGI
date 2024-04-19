@@ -78,6 +78,11 @@ class LSTM : public BaseLayer {
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
 
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

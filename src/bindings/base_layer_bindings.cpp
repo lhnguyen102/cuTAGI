@@ -38,7 +38,9 @@ void bind_base_layer(pybind11::module_& modo)
         .def_readwrite("num_threads", &BaseLayer::num_threads)
         .def_readwrite("training", &BaseLayer::training)
         .def_readwrite("device", &BaseLayer::device)
-        .def("to_cuda", &BaseLayer::to_cuda);
+        .def("to_cuda", &BaseLayer::to_cuda)
+        .def("backward", &BaseLayer::backward);
+    ;
     // .def("get_layer_info", &BaseLayer::get_layer_info)
     // .def("get_layer_name", &BaseLayer::get_layer_name)
     // .def("update_weights", &BaseLayer::update_weights)
