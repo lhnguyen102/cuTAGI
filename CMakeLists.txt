@@ -150,6 +150,8 @@ set(CPU_SOURCES
   src/param_init.cpp
   src/base_output_updater.cpp
   src/debugger.cpp
+  src/resnet_block.cpp
+  src/layer_block.cpp
 
   src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp
@@ -238,9 +240,6 @@ if(CMAKE_CUDA_COMPILER)
   # Executablecode i.e. application
   add_executable(main main.cu)
 
-  # # Python wrapper for C++/CUDA code
-  # pybind11_add_module(cutagi "src/python_api.cu")
-
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
 else()
@@ -250,8 +249,6 @@ else()
   # Executable code i.e. application
   add_executable(main main.cpp)
 
-  # # Python wrapper for C++/CUDA code
-  # pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
@@ -264,5 +261,3 @@ target_link_libraries(main PUBLIC cutagi_lib)
 
 target_link_libraries(cutagi PRIVATE cutagi_lib)
 
-# # TODO: Remove when releasing new version
-# target_link_libraries(cutagitest PRIVATE cutagi_lib)

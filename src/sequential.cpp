@@ -21,10 +21,9 @@ Sequential::Sequential() {}
 Sequential::~Sequential() {}
 
 void Sequential::switch_to_cuda() {
-    if (this->device == "cuda") {
-        for (size_t i = 0; i < this->layers.size(); ++i) {
-            layers[i] = layers[i]->to_cuda();
-        }
+    for (size_t i = 0; i < this->layers.size(); ++i) {
+        auto cuda_layer = layers[i]->to_cuda();
+        layers[i] = std::move(cuda_layer);
     }
 }
 

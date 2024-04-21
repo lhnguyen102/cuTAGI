@@ -1,14 +1,10 @@
 #pragma once
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <vector>
+#include <cuda.h>
 
-#include "base_layer.h"
-#include "data_struct.h"
+#include "base_layer_cuda.cuh"
 #include "layer_block.h"
 
-class ResNetBlock : public BaseLayer {
+class ResNetBlockCuda : public BaseLayerCuda {
    private:
     std::shared_ptr<LayerBlock> main_block;
     std::shared_ptr<BaseLayer> shortcut;
@@ -18,17 +14,17 @@ class ResNetBlock : public BaseLayer {
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;
     std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
 
-    ResNetBlock(std::shared_ptr<LayerBlock> main_block_layer,
-                std::shared_ptr<BaseLayer> shortcut_layer = nullptr);
-    ~ResNetBlock();
+    ResNetBlockCuda(std::shared_ptr<LayerBlock> main_block_layer,
+                    std::shared_ptr<BaseLayer> shortcut_layer = nullptr);
+    ~ResNetBlockCuda();
 
     // Delete copy constructor and copy assignment
-    ResNetBlock(const ResNetBlock &) = delete;
-    ResNetBlock &operator=(const ResNetBlock &) = delete;
+    ResNetBlockCuda(const ResNetBlockCuda &) = delete;
+    ResNetBlockCuda &operator=(const ResNetBlockCuda &) = delete;
 
     // Optionally implement move constructor and move assignment
-    ResNetBlock(ResNetBlock &&) = default;
-    ResNetBlock &operator=(ResNetBlock &&) = default;
+    ResNetBlockCuda(ResNetBlockCuda &&) = default;
+    ResNetBlockCuda &operator=(ResNetBlockCuda &&) = default;
 
     std::string get_layer_info() const override;
 

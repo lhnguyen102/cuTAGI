@@ -74,6 +74,8 @@ class Sequential {
     // the last argument
     void add_layers();
 
+    void add_layer(std::shared_ptr<BaseLayer> layer);
+
     Sequential();
 
     ~Sequential();
@@ -81,8 +83,6 @@ class Sequential {
     void switch_to_cuda();
 
     void to_device(const std::string& new_device);
-
-    void add_layer(std::shared_ptr<BaseLayer> layer);
 
     void set_buffer_size();
 

@@ -96,8 +96,8 @@ void fnn_mnist() {
                      AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
                      Linear(100, 11));
 
-    model.set_threads(8);
-    // model.to_device("cuda");
+    // model.set_threads(8);
+    model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
 
