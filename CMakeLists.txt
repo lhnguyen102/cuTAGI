@@ -212,6 +212,7 @@ set(GPU_SOURCES
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
+  src/resnet_block_cuda.cu
 
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu

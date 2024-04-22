@@ -1,5 +1,4 @@
 #pragma once
-#include <cuda.h>
 
 #include "base_layer_cuda.cuh"
 #include "layer_block.h"
@@ -34,6 +33,8 @@ class ResNetBlockCuda : public BaseLayerCuda {
 
     int get_max_num_states() override;
 
+    void compute_input_output_size(const InitArgs &args) override;
+
     void init_shortcut_state();
 
     void init_shortcut_delta_state();
@@ -52,14 +53,10 @@ class ResNetBlockCuda : public BaseLayerCuda {
     void update_weights() override;
     void update_biases() override;
 
-    void compute_input_output_size(const InitArgs &args) override;
-
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
 
     using BaseLayer::to_cuda;
 
-#ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
-#endif
+    std::unique_ptr<BaseLayer> to_host() override;
 };

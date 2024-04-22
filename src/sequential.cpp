@@ -73,10 +73,8 @@ void Sequential::set_buffer_size()
  */
 {
     for (auto &layer : this->layers) {
-        int output_size = layer->get_output_size();
-        int input_size = layer->get_input_size();
-        this->z_buffer_size = std::max(output_size, this->z_buffer_size);
-        this->z_buffer_size = std::max(input_size, this->z_buffer_size);
+        int max_size = layer->get_max_num_states();
+        this->z_buffer_size = std::max(max_size, this->z_buffer_size);
     }
 }
 

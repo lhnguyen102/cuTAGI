@@ -38,6 +38,8 @@ class ResNetBlock : public BaseLayer {
 
     int get_max_num_states() override;
 
+    void compute_input_output_size(const InitArgs &args) override;
+
     void init_shortcut_state();
 
     void init_shortcut_delta_state();
@@ -55,8 +57,6 @@ class ResNetBlock : public BaseLayer {
 
     void update_weights() override;
     void update_biases() override;
-
-    void compute_input_output_size(const InitArgs &args) override;
 
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;

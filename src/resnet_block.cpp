@@ -59,6 +59,13 @@ int ResNetBlock::get_max_num_states()
     return std::max(max_main_block, max_shortcut);
 }
 
+void ResNetBlock::compute_input_output_size(const InitArgs &args) {
+    this->main_block->compute_input_output_size(args);
+    if (this->shortcut != nullptr) {
+        this->shortcut->compute_input_output_size(args);
+    }
+}
+
 void ResNetBlock::init_shortcut_state()
 /*
  */
@@ -187,6 +194,9 @@ void ResNetBlock::load(std::ifstream &file)
     }
 }
 
-// #ifdef USE_CUDA
-// std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {}
-// #endif
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
+    this->device = "cuda";
+    return std::make_unique<ResNetBlockCuda>(this->main_block, this->shortcut);
+}
+#endif
