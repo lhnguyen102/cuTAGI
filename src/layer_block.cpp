@@ -18,9 +18,9 @@ it will be corrected at the first run in the forward pass.
 {
     // Stack layer
     if (this->device.compare("cpu") == 0) {
-        this->layers.push_back(layer);
+        this->layers.push_back(std::move(layer));
     } else if (this->device.compare("cuda") == 0) {
-        this->layers.push_back(layer->to_cuda());
+        this->layers.push_back(std::move(layer->to_cuda()));
     } else {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +

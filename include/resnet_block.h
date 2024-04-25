@@ -18,8 +18,27 @@ class ResNetBlock : public BaseLayer {
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;
     std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
 
-    ResNetBlock(std::shared_ptr<LayerBlock> main_block_layer,
-                std::shared_ptr<BaseLayer> shortcut_layer = nullptr);
+    // Template to accept any type of LayerBlock and shortcut
+    template <typename MainBlock, typename Shortcut = BaseLayer>
+    ResNetBlock(MainBlock &&main, Shortcut &&shortcut_layer = Shortcut()) {
+        static_assert(
+            std::is_base_of<BaseLayer,
+                            typename std::decay<MainBlock>::type>::value,
+            "MainBlock must be derived from BaseLayer");
+        static_assert(
+            std::is_base_of<BaseLayer,
+                            typename std::decay<Shortcut>::type>::value,
+            "Shortcut must be derived from BaseLayer");
+
+        main_block =
+            std::make_shared<LayerBlock>(std::forward<MainBlock>(main));
+        if (!std::is_same<typename std::decay<Shortcut>::type,
+                          BaseLayer>::value) {
+            shortcut = std::make_shared<Shortcut>(
+                std::forward<Shortcut>(shortcut_layer));
+        }
+    };
+
     ~ResNetBlock();
 
     // Delete copy constructor and copy assignment

@@ -13,8 +13,7 @@ class LayerBlock : public BaseLayer {
    public:
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Variadic template. Note that for the template function the definition of
-    // template must be included in the herder
+    // Variadic template
     template <typename... Layers>
     LayerBlock(Layers &&...layers) {
         add_layers(std::forward<Layers>(layers)...);
@@ -27,11 +26,11 @@ class LayerBlock : public BaseLayer {
             std::is_base_of<BaseLayer, typename std::decay<T>::type>::value,
             "Type T must be derived from BaseLayer");
 
-        add_layer(std::make_shared<typename std::decay<T>::type>(
-            std::forward<T>(first)));
+        add_layer(std::make_shared<typename std::remove_reference<T>::type>(
+            std::move(first)));
 
         // Recursively adding next layer
-        add_layers(std::forward<Rest>(rest)...);
+        add_layers(std::move(rest)...);
     }
     // Base case for recursive variadic template. This function is called after
     // the last argument

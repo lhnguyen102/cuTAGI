@@ -17,12 +17,6 @@ void add_shortcut_mean_var(const std::vector<float> &mu_s,
     }
 }
 
-ResNetBlock::ResNetBlock(std::shared_ptr<LayerBlock> main_block_layer,
-                         std::shared_ptr<BaseLayer> shortcut_layer)
-    : main_block(std::move(main_block_layer)),
-      shortcut(std::move(shortcut_layer))
-/**/
-{}
 ResNetBlock::~ResNetBlock() {}
 
 std::string ResNetBlock::get_layer_info() const
@@ -197,6 +191,7 @@ void ResNetBlock::load(std::ifstream &file)
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<ResNetBlockCuda>(this->main_block, this->shortcut);
+    return std::make_unique<ResNetBlockCuda>(std::move(*this->main_block),
+                                             std::move(*this->shortcut));
 }
 #endif

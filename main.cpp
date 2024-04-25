@@ -3,7 +3,7 @@
 // Description:  API for c++
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 23, 2022
-// Updated:      March 27, 2024
+// Updated:      April 24, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,6 +20,7 @@
 #include "test/fnn/test_fnn_mnist_cpu.h"
 #include "test/lstm/test_lstm_v2.h"
 #include "test/mha/test_mha_cpu.h"
+#include "test/resnet/test_resnet_1d_toy.h"
 #include "test/test_cpu.h"
 #include "test/test_lstm_cpu.h"
 
@@ -70,6 +71,8 @@ int main(int argc, char *argv[]) {
         auto is_passed = test_autoecoder_v2();
     } else if (user_input_file.compare("lstm_toy") == 0) {
         auto is_passed = test_lstm_v2();
+    } else if (user_input_file.compare("resnet_toy") == 0) {
+        auto is_passed = test_resnet_1d_toy();
     } else {
         task_command_cpu(user_input, path);
     }

@@ -45,11 +45,10 @@ class Sequential {
     std::string device = "cpu";
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Variadic template. Note that for the template function the definition of
-    // template must be included in the herder
+    // Variadic template
     template <typename... Layers>
     Sequential(Layers&&... layers) {
-        add_layers(std::forward<Layers>(layers)...);
+        add_layers(std::move(layers)...);
     }
     // Recursive variadic template
     template <typename T, typename... Rest>
@@ -59,16 +58,17 @@ class Sequential {
                              typename std::remove_reference<T>::type>::value) {
             std::cerr << "Error in file: " << __FILE__
                       << " at line: " << __LINE__
-                      << ". Reason: Type T must be derived from BaseLayer.\n";
+                      << ". Type T must be derived from BaseLayer.\n";
             throw std::invalid_argument(
                 "Error: Type T must be derived from BaseLayer");
         }
 
-        // Add layer using shared_ptr
-        add_layer(std::make_shared<T>(std::forward<T>(first)));
+        // Move the argument to add_layer function. No copy needed
+        add_layer(std::make_shared<typename std::remove_reference<T>::type>(
+            std::move(first)));
 
         // Recursively adding next layer
-        add_layers(std::forward<Rest>(rest)...);
+        add_layers(std::move(rest)...);
     }
     // Base case for recursive variadic template. This function is called after
     // the last argument

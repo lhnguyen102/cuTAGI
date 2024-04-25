@@ -129,6 +129,9 @@ class BaseLayer {
 
     virtual void save(std::ofstream &file);
     virtual void load(std::ifstream &file);
+
+    // NOTE: each layer has its own conversion to cuda layer. The idea is to
+    // move the ownership of the layer to cuda layer, so unique_ptr is used.
     virtual std::unique_ptr<BaseLayer> to_cuda() {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                                  " at line: " + std::to_string(__LINE__) +

@@ -16,12 +16,6 @@ __global__ void add_shortcut_mean_var_cuda(float const *mu_s,
     }
 }
 
-ResNetBlockCuda::ResNetBlockCuda(std::shared_ptr<LayerBlock> main_block_layer,
-                                 std::shared_ptr<BaseLayer> shortcut_layer)
-    : main_block(std::move(main_block_layer)),
-      shortcut(std::move(shortcut_layer))
-/**/
-{}
 ResNetBlockCuda::~ResNetBlockCuda() {}
 
 std::string ResNetBlockCuda::get_layer_info() const
@@ -232,8 +226,9 @@ std::unique_ptr<BaseLayer> ResNetBlockCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer =
-        std::make_unique<ResNetBlock>(this->main_block, this->shortcut);
+    // TODO: need to transfer each layer
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<ResNetBlock>(
+        std::move(*this->main_block), std::move(*this->shortcut));
 
     return host_layer;
 }

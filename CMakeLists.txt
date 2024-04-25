@@ -185,6 +185,7 @@ set(CPU_SOURCES
   test/cross_val/cross_val.cpp
   test/autoencoder/test_autoencoder_v2.cpp
   test/lstm/test_lstm_v2.cpp
+  test/resnet/test_resnet_1d_toy.cpp
 )
 
 # Sources code for CUDA
