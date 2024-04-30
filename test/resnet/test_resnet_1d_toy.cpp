@@ -51,8 +51,8 @@ void resnet_1d_toy()
 
     Sequential model(Linear(1, 50), ReLU(), resnet_1, Linear(50, 1));
 
-    // model.set_threads(1);
-    model.to_device("cuda");
+    model.set_threads(1);
+    // model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
     // Training

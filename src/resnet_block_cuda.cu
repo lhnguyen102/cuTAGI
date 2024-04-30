@@ -200,16 +200,15 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
                                  *this->shortcut_output_delta_z, temp_states,
                                  state_update);
 
-        DeltaStateCuda *cu_shortcut_output_delta_z =
+        DeltaStateCuda *cu_shortcut_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->shortcut_output_delta_z.get());
 
         DeltaStateCuda *cu_output_delta_states =
             dynamic_cast<DeltaStateCuda *>(&output_delta_states);
 
         add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
-            cu_shortcut_output_delta_z->d_delta_mu,
-            cu_shortcut_output_delta_z->d_delta_var, num_states,
-            cu_output_delta_states->d_delta_mu,
+            cu_shortcut_delta_z->d_delta_mu, cu_shortcut_delta_z->d_delta_var,
+            num_states, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
     } else {
         DeltaStateCuda *cu_input_delta_z =
@@ -269,7 +268,6 @@ std::unique_ptr<BaseLayer> ResNetBlockCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    // TODO: need to transfer each layer
     std::unique_ptr<BaseLayer> host_layer = std::make_unique<ResNetBlock>(
         std::move(*this->main_block), std::move(*this->shortcut));
 
