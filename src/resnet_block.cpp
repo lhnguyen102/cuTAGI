@@ -64,16 +64,20 @@ void ResNetBlock::init_shortcut_state()
 /*
  */
 {
-    this->shortcut_output_z = std::make_shared<BaseHiddenStates>(
-        this->shortcut->get_max_num_states(), this->_batch_size);
+    int max_num_states = this->shortcut->get_max_num_states();
+    int size = max_num_states * this->_batch_size;
+    this->shortcut_output_z =
+        std::make_shared<BaseHiddenStates>(size, this->_batch_size);
 }
 
 void ResNetBlock::init_shortcut_delta_state()
 /*
  */
 {
-    this->shortcut_output_delta_z = std::make_shared<BaseDeltaStates>(
-        this->shortcut->get_max_num_states(), this->_batch_size);
+    int max_num_states = this->shortcut->get_max_num_states();
+    int size = max_num_states * this->_batch_size;
+    this->shortcut_output_delta_z =
+        std::make_shared<BaseDeltaStates>(size, this->_batch_size);
 }
 
 void ResNetBlock::init_weight_bias()
@@ -83,6 +87,16 @@ void ResNetBlock::init_weight_bias()
     this->main_block->init_weight_bias();
     if (this->shortcut != nullptr) {
         this->shortcut->init_weight_bias();
+    }
+}
+
+void ResNetBlock::set_threads(int num)
+/*
+ */
+{
+    this->main_block->set_threads(num);
+    if (this->shortcut != nullptr) {
+        this->shortcut->set_threads(num);
     }
 }
 
@@ -110,14 +124,20 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
         this->shortcut->forward(input_states, *this->shortcut_output_z,
                                 temp_states);
 
-        add_shortcut_mean_var(shortcut_output_z->mu_a, shortcut_output_z->var_a,
-                              num_states, output_states.mu_a,
-                              output_states.var_a);
+        add_shortcut_mean_var(this->shortcut_output_z->mu_a,
+                              this->shortcut_output_z->var_a, num_states,
+                              output_states.mu_a, output_states.var_a);
 
     } else {
         add_shortcut_mean_var(input_states.mu_a, input_states.var_a, num_states,
                               output_states.mu_a, output_states.var_a);
     }
+
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
 }
 
 void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
@@ -191,7 +211,6 @@ void ResNetBlock::load(std::ifstream &file)
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<ResNetBlockCuda>(std::move(*this->main_block),
-                                             std::move(*this->shortcut));
+    return std::make_unique<ResNetBlockCuda>(this->main_block, this->shortcut);
 }
 #endif

@@ -12,7 +12,7 @@ __global__ void add_shortcut_mean_var_cuda(float const *mu_s,
 
     if (col < num_states) {
         mu_a[col] += mu_s[col];
-        var_a[col] += mu_s[col];
+        var_a[col] += var_s[col];
     }
 }
 
@@ -63,16 +63,20 @@ void ResNetBlockCuda::init_shortcut_state()
 /*
  */
 {
-    this->shortcut_output_z = std::make_shared<HiddenStateCuda>(
-        this->shortcut->get_max_num_states(), this->_batch_size);
+    int max_num_states = this->shortcut->get_max_num_states();
+    int size = max_num_states * this->_batch_size;
+    this->shortcut_output_z =
+        std::make_shared<HiddenStateCuda>(size, this->_batch_size);
 }
 
 void ResNetBlockCuda::init_shortcut_delta_state()
 /*
  */
 {
-    this->shortcut_output_delta_z = std::make_shared<BaseDeltaStates>(
-        this->shortcut->get_max_num_states(), this->_batch_size);
+    int max_num_states = this->shortcut->get_max_num_states();
+    int size = max_num_states * this->_batch_size;
+    this->shortcut_output_delta_z =
+        std::make_shared<DeltaStateCuda>(size, this->_batch_size);
 }
 
 void ResNetBlockCuda::init_weight_bias()
@@ -82,6 +86,28 @@ void ResNetBlockCuda::init_weight_bias()
     this->main_block->init_weight_bias();
     if (this->shortcut != nullptr) {
         this->shortcut->init_weight_bias();
+    }
+}
+
+void ResNetBlockCuda::set_threads(int num)
+/*
+ */
+{
+    this->main_block->set_threads(num);
+    if (this->shortcut != nullptr) {
+        this->shortcut->set_threads(num);
+    }
+}
+
+void ResNetBlockCuda::set_cuda_threads(int num)
+/*
+ */
+{
+    this->main_block->set_cuda_threads(num);
+    if (this->shortcut != nullptr) {
+        BaseLayerCuda *cu_shortcut =
+            dynamic_cast<BaseLayerCuda *>(this->shortcut.get());
+        cu_shortcut->set_cuda_threads(num);
     }
 }
 
@@ -136,6 +162,25 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
             cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
             num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
+
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
+    // Update backward state for inferring parameters
+    if (this->training) {
+        HiddenStateCuda *cu_input_states =
+            dynamic_cast<HiddenStateCuda *>(&input_states);
+        HiddenStateCuda *cu_output_states =
+            dynamic_cast<HiddenStateCuda *>(&output_states);
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states, *cu_bwd_states);
+    }
 }
 
 void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
@@ -146,8 +191,7 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
 
-    int num_states =
-        output_delta_states.block_size * output_delta_states.actual_size;
+    int num_states = output_delta_states.block_size * this->input_size;
     unsigned int grid_size =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
@@ -168,16 +212,15 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
             cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
     } else {
-        DeltaStateCuda *cu_shortcut_output_delta_z =
+        DeltaStateCuda *cu_input_delta_z =
             dynamic_cast<DeltaStateCuda *>(&input_delta_states);
 
         DeltaStateCuda *cu_output_delta_states =
             dynamic_cast<DeltaStateCuda *>(&output_delta_states);
 
         add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
-            cu_shortcut_output_delta_z->d_delta_mu,
-            cu_shortcut_output_delta_z->d_delta_var, num_states,
-            cu_output_delta_states->d_delta_mu,
+            cu_input_delta_z->d_delta_mu, cu_input_delta_z->d_delta_var,
+            num_states, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
     }
 }

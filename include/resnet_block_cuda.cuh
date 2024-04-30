@@ -25,14 +25,42 @@ class ResNetBlockCuda : public BaseLayerCuda {
                             typename std::decay<Shortcut>::type>::value,
             "Shortcut must be derived from BaseLayer");
 
-        main_block =
-            std::make_shared<LayerBlock>(std::forward<MainBlock>(main));
-        if (!std::is_same<typename std::decay<Shortcut>::type,
-                          BaseLayer>::value) {
-            shortcut = std::make_shared<Shortcut>(
-                std::forward<Shortcut>(shortcut_layer));
+        main_block = std::make_shared<LayerBlock>(std::move(main));
+        this->main_block->switch_to_cuda();
+        bool is_shortcut_exist =
+            !std::is_same<typename std::decay<Shortcut>::type,
+                          BaseLayer>::value;
+        if (is_shortcut_exist) {
+            this->shortcut =
+                std::make_shared<Shortcut>(std::move(shortcut_layer));
+            this->shortcut->to_cuda();
         }
+
+        // Set input & output sizes
+        this->input_size = this->main_block->input_size;
+        this->output_size = this->main_block->output_size;
     };
+
+    template <typename MainBlock, typename Shortcut = BaseLayer>
+    ResNetBlockCuda(std::shared_ptr<MainBlock> main,
+                    std::shared_ptr<Shortcut> shortcut_layer = nullptr) {
+        static_assert(std::is_base_of<BaseLayer, MainBlock>::value,
+                      "MainBlock must be derived from BaseLayer");
+        static_assert(std::is_base_of<BaseLayer, Shortcut>::value,
+                      "Shortcut must be derived from BaseLayer");
+
+        this->main_block = std::move(main);
+        main_block->switch_to_cuda();
+
+        if (shortcut_layer) {
+            auto cu_layer = shortcut_layer;
+            this->shortcut = std::move(cu_layer);
+        }
+
+        this->input_size = main_block->input_size;
+        this->output_size = main_block->output_size;
+    }
+
     ~ResNetBlockCuda();
 
     // Delete copy constructor and copy assignment
@@ -58,6 +86,10 @@ class ResNetBlockCuda : public BaseLayerCuda {
     void init_shortcut_delta_state();
 
     void init_weight_bias();
+
+    void set_threads(int num) override;
+
+    void set_cuda_threads(int num) override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

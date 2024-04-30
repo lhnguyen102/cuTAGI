@@ -205,6 +205,12 @@ void BaseLayerCuda::update_biases()
     }
 }
 
+void BaseLayerCuda::set_cuda_threads(int num)
+/**/
+{
+    this->num_cuda_threads = num;
+}
+
 void BaseLayerCuda::allocate_param_memory()
 /*
  */

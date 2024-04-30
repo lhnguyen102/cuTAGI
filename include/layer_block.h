@@ -21,16 +21,13 @@ class LayerBlock : public BaseLayer {
     // Recursive variadic template
     template <typename T, typename... Rest>
     void add_layers(T &&first, Rest &&...rest) {
-        // Runtime check to verify if T is derived from BaseLayer
         static_assert(
             std::is_base_of<BaseLayer, typename std::decay<T>::type>::value,
             "Type T must be derived from BaseLayer");
 
         add_layer(std::make_shared<typename std::remove_reference<T>::type>(
-            std::move(first)));
-
-        // Recursively adding next layer
-        add_layers(std::move(rest)...);
+            std::forward<T>(first)));
+        add_layers(std::forward<Rest>(rest)...);
     }
     // Base case for recursive variadic template. This function is called after
     // the last argument
@@ -60,6 +57,12 @@ class LayerBlock : public BaseLayer {
     int get_max_num_states() override;
 
     void init_weight_bias() override;
+
+    void set_threads(int num) override;
+
+#ifdef USE_CUDA
+    void set_cuda_threads(int num);
+#endif
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

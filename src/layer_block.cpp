@@ -1,5 +1,9 @@
 #include "../include/layer_block.h"
 
+#ifdef USE_CUDA
+#include "../include/base_layer_cuda.cuh"
+#endif
+
 LayerBlock::~LayerBlock() {}
 
 LayerBlock::LayerBlock() {}
@@ -7,7 +11,18 @@ LayerBlock::LayerBlock() {}
 void LayerBlock::add_layers()
 /*
  */
-{}
+{
+    this->input_size = this->layers.front()->input_size;
+
+    auto layer_type = this->layers.back()->get_layer_type();
+    int num_layers = this->layers.size();
+    int i = num_layers - 2;
+    while (layer_type == LayerType::Activation && i >= 0) {
+        this->output_size = this->layers[i]->output_size;
+        layer_type = this->layers[i]->get_layer_type();
+        i--;
+    }
+}
 
 void LayerBlock::add_layer(std::shared_ptr<BaseLayer> layer)
 /*
@@ -77,6 +92,27 @@ void LayerBlock::init_weight_bias()
     }
 }
 
+void LayerBlock::set_threads(int num)
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->set_threads(num);
+    }
+}
+
+#ifdef USE_CUDA
+void LayerBlock::set_cuda_threads(int num)
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        BaseLayerCuda *cu_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
+        cu_layer->set_cuda_threads(num);
+    }
+}
+#endif
+
 void LayerBlock::forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states)
@@ -84,6 +120,8 @@ void LayerBlock::forward(BaseHiddenStates &input_states,
  */
 {
     // Forward pass for all layers
+    int batch_size = input_states.block_size;
+
     for (auto &layer : this->layers) {
         auto *current_layer = layer.get();
 
@@ -93,6 +131,12 @@ void LayerBlock::forward(BaseHiddenStates &input_states,
     }
 
     std::swap(output_states, input_states);
+
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
 }
 
 void LayerBlock::backward(BaseDeltaStates &input_delta_states,

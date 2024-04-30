@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      April 19, 2024
+// Updated:      April 26, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +121,8 @@ class BaseLayer {
     virtual void raw_update_biases();
 
     virtual void set_cap_factor_udapte(int batch_size);
+
+    virtual void set_threads(int num);
 
     virtual void compute_input_output_size(const InitArgs &args);
 

@@ -59,7 +59,9 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
 // Base Delta States
 ////////////////////////////////////////////////////////////////////////////////
 BaseDeltaStates::BaseDeltaStates(size_t n, size_t m)
-    : delta_mu(n, 0.0f), delta_var(n, 0.0f), size(n), block_size(m) {}
+    : delta_mu(n, 0.0f), delta_var(n, 0.0f), size(n), block_size(m) {
+    this->actual_size = this->size / block_size;
+}
 
 BaseDeltaStates::BaseDeltaStates() {}
 

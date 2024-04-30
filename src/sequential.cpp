@@ -17,7 +17,7 @@
 #endif
 #include <memory>
 
-Sequential::Sequential() {}
+// Sequential::Sequential() {}
 Sequential::~Sequential() {}
 
 void Sequential::switch_to_cuda() {
@@ -158,7 +158,7 @@ void Sequential::set_threads(unsigned int num_threads)
 {
     this->num_threads = num_threads;
     for (auto &layer : this->layers) {
-        layer->num_threads = num_threads;
+        layer->set_threads(num_threads);
     }
 }
 

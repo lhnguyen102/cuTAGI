@@ -40,15 +40,19 @@ void resnet_1d_toy()
                                   train_db.sigma_y, 100, n_x, n_y, true);
 
     // Model
-    LayerBlock block_1(Linear(50, 50), ReLU(), Linear(50, 50), ReLU());
     LayerBlock block_2(Linear(50, 50), ReLU(), Linear(50, 50), ReLU());
+    LayerBlock block_1(Linear(50, 50), ReLU(), Linear(50, 50), ReLU());
 
+    // NOTE: block_1
     ResNetBlock resnet_1(block_1, Linear(50, 50));
     ResNetBlock resnet_2(block_2);
 
-    Sequential model(Linear(1, 50), ReLU(), block_1, Linear(50, 1));
+    Linear linear(1, 50);
 
-    model.set_threads(1);
+    Sequential model(Linear(1, 50), ReLU(), resnet_1, Linear(50, 1));
+
+    // model.set_threads(1);
+    model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
     // Training

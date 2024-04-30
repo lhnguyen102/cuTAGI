@@ -35,8 +35,10 @@ class Sequential {
     std::shared_ptr<BaseDeltaStates> output_delta_z_buffer;
     std::shared_ptr<BaseDeltaStates> input_delta_z_buffer;
     std::shared_ptr<BaseTempStates> temp_states;
+
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
+
     int input_size = 0;
     bool training = true;
     bool param_update = true;
@@ -48,35 +50,27 @@ class Sequential {
     // Variadic template
     template <typename... Layers>
     Sequential(Layers&&... layers) {
-        add_layers(std::move(layers)...);
+        add_layers(std::forward<Layers>(layers)...);
     }
     // Recursive variadic template
     template <typename T, typename... Rest>
     void add_layers(T&& first, Rest&&... rest) {
-        // Runtime check to verify if T is derived from BaseLayer
-        if (!std::is_base_of<BaseLayer,
-                             typename std::remove_reference<T>::type>::value) {
-            std::cerr << "Error in file: " << __FILE__
-                      << " at line: " << __LINE__
-                      << ". Type T must be derived from BaseLayer.\n";
-            throw std::invalid_argument(
-                "Error: Type T must be derived from BaseLayer");
-        }
+        static_assert(
+            std::is_base_of<BaseLayer, typename std::decay<T>::type>::value,
+            "Type T must be derived from BaseLayer");
 
-        // Move the argument to add_layer function. No copy needed
         add_layer(std::make_shared<typename std::remove_reference<T>::type>(
             std::move(first)));
-
-        // Recursively adding next layer
-        add_layers(std::move(rest)...);
+        add_layers(std::forward<Rest>(rest)...);
     }
+
     // Base case for recursive variadic template. This function is called after
     // the last argument
     void add_layers();
 
     void add_layer(std::shared_ptr<BaseLayer> layer);
 
-    Sequential();
+    Sequential() = default;
 
     ~Sequential();
 

@@ -10,11 +10,11 @@
 
 class ResNetBlock : public BaseLayer {
    private:
-    std::shared_ptr<LayerBlock> main_block;
-    std::shared_ptr<BaseLayer> shortcut;
     int _batch_size = 0;
 
    public:
+    std::shared_ptr<LayerBlock> main_block;
+    std::shared_ptr<BaseLayer> shortcut;
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;
     std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
 
@@ -30,13 +30,20 @@ class ResNetBlock : public BaseLayer {
                             typename std::decay<Shortcut>::type>::value,
             "Shortcut must be derived from BaseLayer");
 
-        main_block =
-            std::make_shared<LayerBlock>(std::forward<MainBlock>(main));
-        if (!std::is_same<typename std::decay<Shortcut>::type,
-                          BaseLayer>::value) {
-            shortcut = std::make_shared<Shortcut>(
+        main_block = std::make_shared<LayerBlock>(std::move(main));
+        bool is_shortcut_exist =
+            !std::is_same<typename std::decay<Shortcut>::type,
+                          BaseLayer>::value;
+        if (is_shortcut_exist) {
+            shortcut = std::make_shared<typename std::decay<Shortcut>::type>(
                 std::forward<Shortcut>(shortcut_layer));
+        } else {
+            shortcut = nullptr;
         }
+
+        // Set input & output sizes
+        this->input_size = this->main_block->input_size;
+        this->output_size = this->main_block->output_size;
     };
 
     ~ResNetBlock();
@@ -64,6 +71,8 @@ class ResNetBlock : public BaseLayer {
     void init_shortcut_delta_state();
 
     void init_weight_bias();
+
+    void set_threads(int num) override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

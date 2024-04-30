@@ -183,6 +183,12 @@ Returns:
     }
 }
 
+void BaseLayer::set_threads(int num)
+/**/
+{
+    this->num_threads = num;
+}
+
 void BaseLayer::compute_input_output_size(const InitArgs &args)
 /*
  */
