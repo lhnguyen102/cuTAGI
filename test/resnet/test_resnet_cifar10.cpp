@@ -54,8 +54,12 @@ void resnet_cifar10()
     ////////////////////////////////////////////////////////////////////////////
     LayerBlock block_1(Conv2d(64, 64, 3, false, 1), BatchNorm2d(64),
                        Conv2d(64, 64, 3, false, 1), BatchNorm2d(64));
-    LayerBlock block_2(Conv2d(128, 128, 3, false, 1), BatchNorm2d(128),
+    LayerBlock block_2(Conv2d(64, 128, 3, false, 1, 2), BatchNorm2d(128),
                        Conv2d(128, 128, 3, false, 1), BatchNorm2d(128));
+    LayerBlock block_3(Conv2d(128, 256, 3, false, 1, 2), BatchNorm2d(256),
+                       Conv2d(256, 256, 3, false, 1), BatchNorm2d(256));
+    LayerBlock block_4(Conv2d(256, 512, 3, false, 1, 2), BatchNorm2d(512),
+                       Conv2d(512, 512, 3, false, 1), BatchNorm2d(512));
 
     Sequential model(
         Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1, 2),
