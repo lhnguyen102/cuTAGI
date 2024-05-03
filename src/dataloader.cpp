@@ -436,6 +436,7 @@ Returns:
         sigma.resize(channel);
         compute_mean_std_each_channel(imgs, mu, sigma, width, height, channel,
                                       num);
+        normalize_images(imgs, mu, sigma, width, height, channel, num);
     }
     image_data.images = imgs;
     image_data.obs_label = obs;

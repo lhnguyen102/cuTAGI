@@ -192,6 +192,10 @@ void LayerBlock::compute_input_output_size(const InitArgs &args)
 /*
  */
 {
+    this->in_channels = args.depth;
+    this->in_height = args.height;
+    this->in_width = args.width;
+
     InitArgs tmp = InitArgs(args.width, args.height, args.depth);
 
     for (size_t i = 0; i < this->layers.size(); i++) {
@@ -201,6 +205,13 @@ void LayerBlock::compute_input_output_size(const InitArgs &args)
         tmp.height = this->layers[i]->out_height;
         tmp.depth = this->layers[i]->out_channels;
     }
+
+    this->out_channels = this->layers.back()->out_channels;
+    this->out_height = this->layers.back()->out_height;
+    this->out_width = this->layers.back()->out_width;
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
 }
 
 void LayerBlock::save(std::ofstream &file)
@@ -228,3 +239,9 @@ std::unique_ptr<BaseLayer> LayerBlock::to_cuda() {
     return std::make_unique<LayerBlock>(std::move(*this));
 }
 #endif
+
+void LayerBlock::preinit_layer() {
+    for (auto &layer : this->layers) {
+        layer->preinit_layer();
+    }
+}

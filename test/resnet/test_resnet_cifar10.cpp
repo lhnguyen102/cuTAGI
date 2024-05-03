@@ -1,5 +1,7 @@
 #include "test_resnet_cifar10.h"
 
+#include <iostream>
+
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
 #include "../../include/conv2d_layer.h"
@@ -13,13 +15,50 @@
 #include "../../include/resnet_block.h"
 #include "../../include/sequential.h"
 
+// Function to convert normalized RGB to grayscale
+float rgb_to_gray(float red, float green, float blue) {
+    return 0.299 * red + 0.587 * green + 0.114 * blue;
+}
+
+// Function to map grayscale to ASCII
+char gray_to_ascii(float gray) {
+    const std::string chars = "@%#*+=-:. ";
+    return chars[int(gray * (chars.size() - 1))];
+}
+
+void visualize_image(std::vector<float> &data)
+/**/
+{
+    const int width = 32;
+    const int height = 32;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int idx = 3072 + y * width + x;
+            float r = data[idx];
+            float g = data[idx + 1024];
+            float b = data[idx + 2048];
+            float gray = rgb_to_gray(r, g, b);
+            std::cout << gray_to_ascii(gray);
+        }
+        std::cout << '\n';
+    }
+}
+
+LayerBlock create_layer_block(int in_channels, int out_channels,
+                              int stride = 1) {
+    return LayerBlock(Conv2d(in_channels, out_channels, 3, false, stride, 1),
+                      BatchNorm2d(out_channels), ReLU(),
+                      Conv2d(out_channels, out_channels, 3, false, 1, 1),
+                      BatchNorm2d(out_channels));
+}
+
 void resnet_cifar10()
 /**/
 {
     ////////////////////////////////////////////////////////////////////////////
     // Data preprocessing
     ////////////////////////////////////////////////////////////////////////////
-    std::vector<std::string> x_train_paths, , x_test_paths;
+    std::vector<std::string> y_train_paths, y_test_paths;
     std::string x_train_path = "./data/cifar/train-images-idx3-ubyte";
     std::string y_train_path = "./data/cifar/train-labels-idx1-ubyte";
     std::string x_test_path = "./data/cifar/t10k-images-idx3-ubyte";
@@ -28,7 +67,7 @@ void resnet_cifar10()
         "./data/cifar/data_batch_1.bin", "./data/cifar/data_batch_2.bin",
         "./data/cifar/data_batch_3.bin", "./data/cifar/data_batch_4.bin",
         "./data/cifar/data_batch_5.bin"};
-    std::vector<std::string> x_train_paths = {"./data/cifar/test_batch.bin"}
+    std::vector<std::string> x_test_paths = {"./data/cifar/test_batch.bin"};
 
     std::string data_name = "cifar";
     std::vector<float> mu;
@@ -49,26 +88,54 @@ void resnet_cifar10()
         get_images_v2(data_name, x_test_paths, y_test_paths, mu, sigma,
                       num_test_data, num_classes, width, height, channel, true);
 
+    // visualize_image(train_db.images);
+
     ////////////////////////////////////////////////////////////////////////////
     // Model
     ////////////////////////////////////////////////////////////////////////////
-    LayerBlock block_1(Conv2d(64, 64, 3, false, 1), BatchNorm2d(64),
-                       Conv2d(64, 64, 3, false, 1), BatchNorm2d(64));
-    LayerBlock block_2(Conv2d(64, 128, 3, false, 1, 2), BatchNorm2d(128),
-                       Conv2d(128, 128, 3, false, 1), BatchNorm2d(128));
-    LayerBlock block_3(Conv2d(128, 256, 3, false, 1, 2), BatchNorm2d(256),
-                       Conv2d(256, 256, 3, false, 1), BatchNorm2d(256));
-    LayerBlock block_4(Conv2d(256, 512, 3, false, 1, 2), BatchNorm2d(512),
-                       Conv2d(512, 512, 3, false, 1), BatchNorm2d(512));
+    auto block_1 = create_layer_block(64, 64);
+    auto block_2 = create_layer_block(64, 128, 2);
+    auto block_3 = create_layer_block(128, 128);
+    auto block_4 = create_layer_block(128, 256, 2);
+    auto block_5 = create_layer_block(256, 256);
+    auto block_6 = create_layer_block(256, 512, 2);
+    auto block_7 = create_layer_block(512, 512);
 
-    Sequential model(
-        Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1, 2),
-        Conv2d(32, 32, 5, true, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
-        Conv2d(32, 64, 5, true, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
-        Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    ResNetBlock resnet_block_1(block_1);
+    ResNetBlock resnet_block_2(block_1);
+
+    ResNetBlock resnet_block_3(block_2, Conv2d(64, 128, 2));
+    ResNetBlock resnet_block_4(block_3);
+
+    ResNetBlock resnet_block_5(block_4, Conv2d(64, 128, 2));
+    ResNetBlock resnet_block_6(block_5);
+
+    ResNetBlock resnet_block_7(block_6, Conv2d(128, 256, 2));
+    ResNetBlock resnet_block_8(block_7);
+
+    // Sequential model(
+    //     // Input block
+    //     Conv2d(3, 64, 3, false, 1), BatchNorm2d(64), ReLU(),
+
+    //     // Residual blocks
+    //     resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3,
+    //     resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6,
+    //     ReLU(), resnet_block_7, ReLU(), resnet_block_8, ReLU(),
+
+    //     // Output block
+    //     AvgPool2d(4), Linear(512, 11));
+
+    Sequential model(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), BatchNorm2d(32),
+                     ReLU(), AvgPool2d(3, 2, 1, 2),
+                     Conv2d(32, 32, 5, true, 1, 2, 1), BatchNorm2d(32), ReLU(),
+                     AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, true, 1, 2, 1),
+                     BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1, 2),
+                     Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // model.set_threads(8);
-    model.to_device("cuda");
+    // model.to_device("cuda");
+
+    OutputUpdater output_updater(model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
@@ -76,8 +143,8 @@ void resnet_cifar10()
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 4;
-    float sigma_obs = 2.0;
+    int batch_size = 128;
+    float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -105,7 +172,7 @@ void resnet_cifar10()
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);

@@ -187,6 +187,7 @@ set(CPU_SOURCES
   test/autoencoder/test_autoencoder_v2.cpp
   test/lstm/test_lstm_v2.cpp
   test/resnet/test_resnet_1d_toy.cpp
+  test/resnet/test_resnet_cifar10.cpp
 )
 
 # Sources code for CUDA

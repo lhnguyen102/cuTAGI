@@ -53,11 +53,25 @@ int ResNetBlock::get_max_num_states()
     return std::max(max_main_block, max_shortcut);
 }
 
-void ResNetBlock::compute_input_output_size(const InitArgs &args) {
+void ResNetBlock::compute_input_output_size(const InitArgs &args)
+/*
+ */
+{
+    this->in_channels = args.depth;
+    this->in_height = args.height;
+    this->in_width = args.width;
+
     this->main_block->compute_input_output_size(args);
     if (this->shortcut != nullptr) {
         this->shortcut->compute_input_output_size(args);
     }
+
+    this->out_channels = this->main_block->out_channels;
+    this->out_height = this->main_block->out_height;
+    this->out_width = this->main_block->out_width;
+
+    this->input_size = this->in_width * this->in_width * this->in_channels;
+    this->output_size = this->out_width * this->out_height * this->out_channels;
 }
 
 void ResNetBlock::init_shortcut_state()
@@ -214,3 +228,11 @@ std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
     return std::make_unique<ResNetBlockCuda>(this->main_block, this->shortcut);
 }
 #endif
+
+void ResNetBlock::preinit_layer() {
+    this->main_block->preinit_layer();
+
+    if (this->shortcut != nullptr) {
+        this->shortcut->preinit_layer();
+    }
+}

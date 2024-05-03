@@ -109,4 +109,5 @@ class ResNetBlockCuda : public BaseLayerCuda {
     using BaseLayer::to_cuda;
 
     std::unique_ptr<BaseLayer> to_host() override;
+    void preinit_layer() override;
 };
