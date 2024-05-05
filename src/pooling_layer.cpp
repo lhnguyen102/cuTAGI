@@ -220,7 +220,7 @@ void AvgPool2d::backward(BaseDeltaStates &input_delta_states,
 
                 avgpool2d_bwd_delta_z_mp(
                     this->bwd_states->jcb, input_delta_states.delta_mu,
-                    input_delta_states.delta_var, this->out_channels,
+                    input_delta_states.delta_var, this->out_width,
                     this->kernel_size, nums, this->num_threads,
                     output_delta_states.delta_mu,
                     output_delta_states.delta_var);
@@ -243,7 +243,7 @@ void AvgPool2d::backward(BaseDeltaStates &input_delta_states,
 
                 avgpool2d_bwd_delta_z(
                     this->bwd_states->jcb, input_delta_states.delta_mu,
-                    input_delta_states.delta_var, this->out_channels,
+                    input_delta_states.delta_var, this->out_width,
                     this->kernel_size, nums, 0, end_chunk,
                     output_delta_states.delta_mu,
                     output_delta_states.delta_var);
@@ -265,7 +265,7 @@ void AvgPool2d::lazy_index_init()
  */
 {
     if (this->kernel_size == this->stride ||
-        (this->kernel_size == this->in_width && this->stride == 1)) {
+        this->kernel_size == this->in_width) {
         this->overlap = false;
     }
 

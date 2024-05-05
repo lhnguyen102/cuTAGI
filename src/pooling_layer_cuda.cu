@@ -226,7 +226,7 @@ void AvgPool2dCuda::lazy_index_init()
  */
 {
     if (this->kernel_size == this->stride ||
-        (this->kernel_size == this->in_width && this->stride == 1)) {
+        this->kernel_size == this->in_width) {
         this->overlap = false;
     }
 

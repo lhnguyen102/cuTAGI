@@ -15,6 +15,8 @@ class ResNetBlock : public BaseLayer {
    public:
     std::shared_ptr<LayerBlock> main_block;
     std::shared_ptr<BaseLayer> shortcut;
+    std::shared_ptr<BaseHiddenStates> input_z;
+    std::shared_ptr<BaseDeltaStates> input_delta_z;
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;
     std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
 
@@ -64,11 +66,15 @@ class ResNetBlock : public BaseLayer {
 
     int get_max_num_states() override;
 
+    std::string get_device() override;
+
     void compute_input_output_size(const InitArgs &args) override;
 
     void init_shortcut_state();
 
     void init_shortcut_delta_state();
+
+    void init_input_buffer();
 
     void init_weight_bias();
 

@@ -158,6 +158,45 @@ void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
     this->actual_size = new_size / new_block_size;
 }
 
+void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
+/*
+ */
+{
+    if (num_data == -1) {
+        num_data = std::min(this->size, source.size);
+    }
+
+    const HiddenStateCuda *cu_source =
+        dynamic_cast<const HiddenStateCuda *>(&source);
+
+    if (!cu_source) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid source.");
+    }
+
+    cudaMemcpy(this->d_mu_a, cu_source->d_mu_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->d_var_a, cu_source->d_var_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+
+    cudaMemcpy(this->d_jcb, cu_source->d_jcb, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying data on device.");
+    }
+
+    this->block_size = source.block_size;
+    this->actual_size = source.actual_size;
+    this->width = source.width;
+    this->height = source.height;
+    this->depth = source.depth;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Delta Hidden States
 ////////////////////////////////////////////////////////////////////////////////
@@ -271,6 +310,8 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Copying data on device.");
     }
+
+    this->block_size = source.block_size;
 }
 
 void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)

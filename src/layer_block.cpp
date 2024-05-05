@@ -83,6 +83,19 @@ int LayerBlock::get_max_num_states()
     return max_size;
 }
 
+std::string LayerBlock::get_device()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        auto layer_device = layer->get_device();
+        if (layer_device != this->device) {
+            return layer_device;
+        }
+    }
+    return this->device;
+}
+
 void LayerBlock::init_weight_bias()
 /*
  */

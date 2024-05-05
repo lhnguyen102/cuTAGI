@@ -86,6 +86,8 @@ class Sequential {
 
     void set_threads(unsigned num_threads);
 
+    std::string get_device();
+
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());
 

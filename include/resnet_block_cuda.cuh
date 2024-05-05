@@ -10,6 +10,8 @@ class ResNetBlockCuda : public BaseLayerCuda {
     int _batch_size = 0;
 
    public:
+    std::shared_ptr<BaseHiddenStates> input_z;
+    std::shared_ptr<BaseDeltaStates> input_delta_z;
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;
     std::shared_ptr<BaseDeltaStates> shortcut_output_delta_z;
 
@@ -53,7 +55,7 @@ class ResNetBlockCuda : public BaseLayerCuda {
         main_block->switch_to_cuda();
 
         if (shortcut_layer) {
-            auto cu_layer = shortcut_layer;
+            auto cu_layer = shortcut_layer->to_cuda();
             this->shortcut = std::move(cu_layer);
         }
 
@@ -79,11 +81,15 @@ class ResNetBlockCuda : public BaseLayerCuda {
 
     int get_max_num_states() override;
 
+    std::string get_device() override;
+
     void compute_input_output_size(const InitArgs &args) override;
 
     void init_shortcut_state();
 
     void init_shortcut_delta_state();
+
+    void init_input_buffer();
 
     void init_weight_bias();
 

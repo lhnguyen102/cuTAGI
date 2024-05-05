@@ -90,6 +90,8 @@ class BaseLayer {
 
     virtual int get_max_num_states();
 
+    virtual std::string get_device();
+
     virtual void init_weight_bias();
 
     virtual void forward(BaseHiddenStates &input_states,

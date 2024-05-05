@@ -56,6 +56,8 @@ class LayerBlock : public BaseLayer {
 
     int get_max_num_states() override;
 
+    std::string get_device() override;
+
     void init_weight_bias() override;
 
     void set_threads(int num) override;

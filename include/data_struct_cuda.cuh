@@ -36,6 +36,7 @@ class HiddenStateCuda : public BaseHiddenStates {
     void chunks_to_device(const size_t chunk_size);
     void to_host();
     void set_size(size_t size, size_t block_size) override;
+    void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
 };
 
 class DeltaStateCuda : public BaseDeltaStates {

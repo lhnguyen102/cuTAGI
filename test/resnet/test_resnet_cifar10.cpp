@@ -44,12 +44,13 @@ void visualize_image(std::vector<float> &data)
     }
 }
 
-LayerBlock create_layer_block(int in_channels, int out_channels,
-                              int stride = 1) {
-    return LayerBlock(Conv2d(in_channels, out_channels, 3, false, stride, 1),
-                      BatchNorm2d(out_channels), ReLU(),
-                      Conv2d(out_channels, out_channels, 3, false, 1, 1),
-                      BatchNorm2d(out_channels));
+LayerBlock create_layer_block(int in_channels, int out_channels, int stride = 1,
+                              int padding_type = 1) {
+    return LayerBlock(
+        Conv2d(in_channels, out_channels, 3, false, stride, 1, padding_type),
+        BatchNorm2d(out_channels), ReLU(),
+        Conv2d(out_channels, out_channels, 3, false, 1, 1),
+        BatchNorm2d(out_channels));
 }
 
 void resnet_cifar10()
@@ -94,46 +95,84 @@ void resnet_cifar10()
     // Model
     ////////////////////////////////////////////////////////////////////////////
     auto block_1 = create_layer_block(64, 64);
-    auto block_2 = create_layer_block(64, 128, 2);
-    auto block_3 = create_layer_block(128, 128);
-    auto block_4 = create_layer_block(128, 256, 2);
-    auto block_5 = create_layer_block(256, 256);
-    auto block_6 = create_layer_block(256, 512, 2);
-    auto block_7 = create_layer_block(512, 512);
+    auto block_2 = create_layer_block(64, 64);
+    auto block_3 = create_layer_block(64, 128, 2, 2);
+    auto block_4 = create_layer_block(128, 128);
+    auto block_5 = create_layer_block(128, 256, 2, 2);
+    auto block_6 = create_layer_block(256, 256);
+    auto block_7 = create_layer_block(256, 512, 2, 2);
+    auto block_8 = create_layer_block(512, 512);
 
     ResNetBlock resnet_block_1(block_1);
-    ResNetBlock resnet_block_2(block_1);
+    ResNetBlock resnet_block_2(block_2);
 
-    ResNetBlock resnet_block_3(block_2, Conv2d(64, 128, 2));
-    ResNetBlock resnet_block_4(block_3);
+    ResNetBlock resnet_block_3(block_3, Conv2d(64, 128, 2));
+    ResNetBlock resnet_block_4(block_4);
 
-    ResNetBlock resnet_block_5(block_4, Conv2d(64, 128, 2));
-    ResNetBlock resnet_block_6(block_5);
+    ResNetBlock resnet_block_5(block_5, Conv2d(128, 256, 2));
+    ResNetBlock resnet_block_6(block_6);
 
-    ResNetBlock resnet_block_7(block_6, Conv2d(128, 256, 2));
-    ResNetBlock resnet_block_8(block_7);
+    ResNetBlock resnet_block_7(block_7, Conv2d(256, 512, 2));
+    ResNetBlock resnet_block_8(block_8);
+
+    Sequential model(
+        // Input block
+        Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
+
+        // Residual blocks
+        resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3, ReLU(),
+        resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6, ReLU(),
+        resnet_block_7, ReLU(), resnet_block_8, ReLU(),
+
+        // Output block
+        AvgPool2d(4), Linear(512, 11));
+
+    // auto block_1 = create_layer_block(4, 4);
+    // auto block_2 = create_layer_block(4, 4);
+    // auto block_3 = create_layer_block(4, 8, 2, 2);
+    // auto block_4 = create_layer_block(8, 8);
+    // auto block_5 = create_layer_block(8, 16, 2, 2);
+    // auto block_6 = create_layer_block(16, 16);
+    // auto block_7 = create_layer_block(16, 32, 2, 2);
+    // auto block_8 = create_layer_block(32, 32);
+
+    // ResNetBlock resnet_block_1(block_1);
+    // ResNetBlock resnet_block_2(block_2);
+
+    // ResNetBlock resnet_block_3(block_3, Conv2d(4, 8, 2));
+    // ResNetBlock resnet_block_4(block_4);
+
+    // ResNetBlock resnet_block_5(block_5, Conv2d(8, 16, 2));
+    // ResNetBlock resnet_block_6(block_6);
+
+    // ResNetBlock resnet_block_7(block_7, Conv2d(16, 32, 2));
+    // ResNetBlock resnet_block_8(block_8);
 
     // Sequential model(
     //     // Input block
-    //     Conv2d(3, 64, 3, false, 1), BatchNorm2d(64), ReLU(),
+    //     Conv2d(3, 4, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(4), ReLU(),
 
     //     // Residual blocks
     //     resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3,
-    //     resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6,
-    //     ReLU(), resnet_block_7, ReLU(), resnet_block_8, ReLU(),
+    //     ReLU(), resnet_block_4, ReLU(), resnet_block_5, ReLU(),
+    //     resnet_block_6, ReLU(), resnet_block_7, ReLU(), resnet_block_8,
+    //     ReLU(),
 
     //     // Output block
-    //     AvgPool2d(4), Linear(512, 11));
+    //     AvgPool2d(4), Linear(32, 11));
 
-    Sequential model(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), BatchNorm2d(32),
-                     ReLU(), AvgPool2d(3, 2, 1, 2),
-                     Conv2d(32, 32, 5, true, 1, 2, 1), BatchNorm2d(32), ReLU(),
-                     AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, true, 1, 2, 1),
-                     BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1, 2),
-                     Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32),
+    // BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2),
+    //                  Conv2d(32, 32, 5, true, 1, 2, 1), BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, true,
+    //                  1, 2, 1), BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1,
+    //                  2), Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // model.set_threads(8);
-    // model.to_device("cuda");
+    model.to_device("cuda");
+
+    // model.preinit_layer();
 
     OutputUpdater output_updater(model.device);
 
@@ -142,9 +181,9 @@ void resnet_cifar10()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 4;
     int batch_size = 128;
-    float sigma_obs = 1.0;
+    float sigma_obs = 4;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -184,7 +223,7 @@ void resnet_cifar10()
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
                                                 var_obs, idx_ud_batch,
                                                 *model.input_delta_z_buffer);
-            // Backward pass
+            // // Backward pass
             model.backward();
             model.step();
 

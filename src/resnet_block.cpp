@@ -53,6 +53,23 @@ int ResNetBlock::get_max_num_states()
     return std::max(max_main_block, max_shortcut);
 }
 
+std::string ResNetBlock::get_device()
+/*
+ */
+{
+    auto main_block_device = this->main_block->get_device();
+    if (main_block_device != this->device) {
+        return main_block_device;
+    }
+    if (this->shortcut != nullptr) {
+        auto shortcut_device = this->shortcut->get_device();
+        if (shortcut_device != this->device) {
+            return shortcut_device;
+        }
+    }
+    return this->device;
+}
+
 void ResNetBlock::compute_input_output_size(const InitArgs &args)
 /*
  */
@@ -94,6 +111,20 @@ void ResNetBlock::init_shortcut_delta_state()
         std::make_shared<BaseDeltaStates>(size, this->_batch_size);
 }
 
+void ResNetBlock::init_input_buffer()
+/*
+ */
+{
+    int max_num_states = this->input_size;
+    if (this->shortcut != nullptr) {
+        max_num_states = this->shortcut->get_max_num_states();
+    }
+    int size = max_num_states * this->_batch_size;
+    this->input_z = std::make_shared<BaseHiddenStates>(size, this->_batch_size);
+    this->input_delta_z =
+        std::make_shared<BaseDeltaStates>(size, this->_batch_size);
+}
+
 void ResNetBlock::init_weight_bias()
 /*
  */
@@ -121,21 +152,27 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
 
 {
     int batch_size = input_states.block_size;
-
     // Main block
-    if (batch_size > this->_batch_size && this->shortcut != nullptr) {
+    if (batch_size > this->_batch_size) {
         this->_batch_size = batch_size;
-        this->init_shortcut_state();
-        if (this->training) {
-            this->init_shortcut_delta_state();
+        this->init_input_buffer();
+        if (this->shortcut != nullptr) {
+            this->init_shortcut_state();
+            if (this->training) {
+                this->init_shortcut_delta_state();
+            }
         }
     }
+
+    // Make a copy of input states for residual connection
+    this->input_z->copy_from(input_states, this->input_size * batch_size);
+
     this->main_block->forward(input_states, output_states, temp_states);
-    int num_states = output_states.block_size * output_states.actual_size;
+    int num_states = output_states.block_size * this->output_size;
 
     // Shortcut
     if (this->shortcut != nullptr) {
-        this->shortcut->forward(input_states, *this->shortcut_output_z,
+        this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
                                 temp_states);
 
         add_shortcut_mean_var(this->shortcut_output_z->mu_a,
@@ -143,8 +180,9 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
                               output_states.mu_a, output_states.var_a);
 
     } else {
-        add_shortcut_mean_var(input_states.mu_a, input_states.var_a, num_states,
-                              output_states.mu_a, output_states.var_a);
+        add_shortcut_mean_var(this->input_z->mu_a, this->input_z->var_a,
+                              num_states, output_states.mu_a,
+                              output_states.var_a);
     }
 
     output_states.width = this->out_width;
@@ -159,14 +197,17 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
                            BaseTempStates &temp_states, bool state_update)
 /**/
 {
+    // Make a copy of delta input used later for residual connection
+    this->input_delta_z->copy_from(
+        input_delta_states, this->input_size * input_delta_states.block_size);
+
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
 
-    int num_states =
-        output_delta_states.block_size * output_delta_states.actual_size;
+    int num_states = output_delta_states.block_size * this->input_size;
 
     if (this->shortcut != nullptr) {
-        this->shortcut->backward(input_delta_states,
+        this->shortcut->backward(*this->input_delta_z,
                                  *this->shortcut_output_delta_z, temp_states,
                                  state_update);
         add_shortcut_mean_var(this->shortcut_output_delta_z->delta_mu,
@@ -175,8 +216,8 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
                               output_delta_states.delta_var);
 
     } else {
-        add_shortcut_mean_var(input_delta_states.delta_mu,
-                              input_delta_states.delta_var, num_states,
+        add_shortcut_mean_var(this->input_delta_z->delta_mu,
+                              this->input_delta_z->delta_var, num_states,
                               output_delta_states.delta_mu,
                               output_delta_states.delta_var);
     }

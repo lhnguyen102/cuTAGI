@@ -52,6 +52,23 @@ int ResNetBlockCuda::get_max_num_states()
     return std::max(max_main_block, max_shortcut);
 }
 
+std::string ResNetBlockCuda::get_device()
+/*
+ */
+{
+    auto main_block_device = this->main_block->get_device();
+    if (main_block_device != this->device) {
+        return main_block_device;
+    }
+    if (this->shortcut != nullptr) {
+        auto shortcut_device = this->shortcut->get_device();
+        if (shortcut_device != this->device) {
+            return shortcut_device;
+        }
+    }
+    return this->device;
+}
+
 void ResNetBlockCuda::compute_input_output_size(const InitArgs &args)
 
 {
@@ -89,6 +106,20 @@ void ResNetBlockCuda::init_shortcut_delta_state()
     int max_num_states = this->shortcut->get_max_num_states();
     int size = max_num_states * this->_batch_size;
     this->shortcut_output_delta_z =
+        std::make_shared<DeltaStateCuda>(size, this->_batch_size);
+}
+
+void ResNetBlockCuda::init_input_buffer()
+/*
+ */
+{
+    int max_num_states = this->input_size;
+    if (this->shortcut != nullptr) {
+        max_num_states = this->shortcut->get_max_num_states();
+    }
+    int size = max_num_states * this->_batch_size;
+    this->input_z = std::make_shared<HiddenStateCuda>(size, this->_batch_size);
+    this->input_delta_z =
         std::make_shared<DeltaStateCuda>(size, this->_batch_size);
 }
 
@@ -133,19 +164,26 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
 
     // Main block
-    if (batch_size > this->_batch_size && this->shortcut != nullptr) {
+    if (batch_size > this->_batch_size) {
         this->_batch_size = batch_size;
-        this->init_shortcut_state();
-        if (this->training) {
-            this->init_shortcut_delta_state();
+        this->init_input_buffer();
+        if (this->shortcut != nullptr) {
+            this->init_shortcut_state();
+            if (this->training) {
+                this->init_shortcut_delta_state();
+            }
         }
     }
+
+    // Make a copy of input states for residual connection
+    this->input_z->copy_from(input_states, this->input_size * batch_size);
+
     this->main_block->forward(input_states, output_states, temp_states);
-    int num_states = output_states.block_size * output_states.actual_size;
+    int num_states = output_states.block_size * this->output_size;
 
     // Shortcut
     if (this->shortcut != nullptr) {
-        this->shortcut->forward(input_states, *this->shortcut_output_z,
+        this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
                                 temp_states);
 
         HiddenStateCuda *cu_shortcut_output_z =
@@ -163,7 +201,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
 
     } else {
         HiddenStateCuda *cu_shortcut_output_z =
-            dynamic_cast<HiddenStateCuda *>(&input_states);
+            dynamic_cast<HiddenStateCuda *>(this->input_z.get());
 
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(&output_states);
@@ -201,6 +239,12 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
                                BaseTempStates &temp_states, bool state_update)
 /**/
 {
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    // Make a copy of delta input used later for residual connection
+    this->input_delta_z->copy_from(
+        input_delta_states, this->input_size * input_delta_states.block_size);
+
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
 
@@ -209,26 +253,21 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
     if (this->shortcut != nullptr) {
-        this->shortcut->backward(input_delta_states,
+        this->shortcut->backward(*this->input_delta_z,
                                  *this->shortcut_output_delta_z, temp_states,
                                  state_update);
 
         DeltaStateCuda *cu_shortcut_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->shortcut_output_delta_z.get());
 
-        DeltaStateCuda *cu_output_delta_states =
-            dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-
         add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
             cu_shortcut_delta_z->d_delta_mu, cu_shortcut_delta_z->d_delta_var,
             num_states, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
+
     } else {
         DeltaStateCuda *cu_input_delta_z =
-            dynamic_cast<DeltaStateCuda *>(&input_delta_states);
-
-        DeltaStateCuda *cu_output_delta_states =
-            dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+            dynamic_cast<DeltaStateCuda *>(this->input_delta_z.get());
 
         add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
             cu_input_delta_z->d_delta_mu, cu_input_delta_z->d_delta_var,

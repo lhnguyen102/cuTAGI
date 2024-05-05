@@ -13,7 +13,15 @@
 // Base Hidden States
 ////////////////////////////////////////////////////////////////////////////////
 BaseHiddenStates::BaseHiddenStates(size_t n, size_t m)
-    : mu_a(n, 0.0f), var_a(n, 0.0f), jcb(n, 1.0f), size(n), block_size(m) {}
+    : mu_a(n, 0.0f),
+      var_a(n, 0.0f),
+      jcb(n, 1.0f),
+      size(n),
+      block_size(m)
+/**/
+{
+    this->actual_size = n / m;
+}
 
 BaseHiddenStates::BaseHiddenStates() {}
 
@@ -52,7 +60,29 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
     }
 
     this->block_size = block_size;
+
+    // TODO check if we need to modify it
     this->actual_size = new_size / new_block_size;
+}
+
+void BaseHiddenStates::copy_from(const BaseHiddenStates &source, int num_data)
+/*
+ */
+{
+    // TODO: Revise the actual size copy
+    if (num_data == -1) {
+        num_data = std::min(source.size, this->size);
+    }
+    for (int i = 0; i < num_data; i++) {
+        this->mu_a[i] = source.mu_a[i];
+        this->var_a[i] = source.var_a[i];
+        this->jcb[i] = source.jcb[i];
+    }
+    this->block_size = source.block_size;
+    this->actual_size = source.actual_size;
+    this->width = source.width;
+    this->height = source.height;
+    this->depth = source.depth;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +90,7 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
 ////////////////////////////////////////////////////////////////////////////////
 BaseDeltaStates::BaseDeltaStates(size_t n, size_t m)
     : delta_mu(n, 0.0f), delta_var(n, 0.0f), size(n), block_size(m) {
-    this->actual_size = this->size / block_size;
+    this->actual_size = this->size / this->block_size;
 }
 
 BaseDeltaStates::BaseDeltaStates() {}
@@ -75,12 +105,14 @@ void BaseDeltaStates::copy_from(const BaseDeltaStates &source, int num_data)
  */
 {
     if (num_data == -1) {
-        num_data = this->size;
+        num_data = std::min(source.size, this->size);
     }
     for (int i = 0; i < num_data; i++) {
         this->delta_mu[i] = source.delta_mu[i];
         this->delta_var[i] = source.delta_var[i];
     }
+
+    this->block_size = source.block_size;
 }
 
 void BaseDeltaStates::set_size(size_t new_size, size_t new_block_size)

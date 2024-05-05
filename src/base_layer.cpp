@@ -36,6 +36,13 @@ int BaseLayer::get_max_num_states() {
     return static_cast<int>(max_size);
 }
 
+std::string BaseLayer::get_device()
+/*
+ */
+{
+    return this->device;
+}
+
 void BaseLayer::init_weight_bias() {}
 
 void BaseLayer::forward(BaseHiddenStates &input_states,

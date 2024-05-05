@@ -162,6 +162,19 @@ void Sequential::set_threads(unsigned int num_threads)
     }
 }
 
+std::string Sequential::get_device()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        auto layer_device = layer->get_device();
+        if (layer_device != this->device) {
+            return layer_device;
+        }
+    }
+    return this->device;
+}
+
 void Sequential::forward(const std::vector<float> &mu_x,
                          const std::vector<float> &var_x)
 /*

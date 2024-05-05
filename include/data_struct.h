@@ -33,6 +33,35 @@ class BaseHiddenStates {
     virtual std::string get_name() const { return "BaseHiddenStates"; };
 
     virtual void set_size(size_t size, size_t block_size);
+
+    // Custom copy constructor
+    BaseHiddenStates(const BaseHiddenStates &other)
+        : mu_a(other.mu_a),
+          var_a(other.var_a),
+          jcb(other.jcb),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size),
+          width(other.width),
+          height(other.height),
+          depth(other.depth) {}
+
+    // Custom copy assignment operator
+    BaseHiddenStates &operator=(const BaseHiddenStates &other) {
+        if (this != &other) {  // Prevent self-assignment
+            mu_a = other.mu_a;
+            var_a = other.var_a;
+            jcb = other.jcb;
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+            width = other.width;
+            height = other.height;
+            depth = other.depth;
+        }
+        return *this;
+    }
+    virtual void copy_from(const BaseHiddenStates &source, int num_data = -1);
 };
 
 class BaseDeltaStates {
