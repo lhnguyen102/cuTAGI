@@ -221,7 +221,6 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
                               output_delta_states.delta_mu,
                               output_delta_states.delta_var);
     }
-    int check = 1;
 }
 
 void ResNetBlock::update_weights()

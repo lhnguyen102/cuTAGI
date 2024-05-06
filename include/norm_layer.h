@@ -40,7 +40,7 @@ class LayerNorm : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

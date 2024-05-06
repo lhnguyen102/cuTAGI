@@ -320,7 +320,6 @@ void Conv2d::backward(BaseDeltaStates &input_delta_states,
                                param_pad_idx, 0, end_chunk, this->delta_mu_w,
                                this->delta_var_w);
         }
-
         if (this->bias) {
             conv2d_bwd_delta_b(
                 this->var_b, temp_states.tmp_1, temp_states.tmp_2, woho_batch,

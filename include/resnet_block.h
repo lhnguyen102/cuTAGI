@@ -76,7 +76,7 @@ class ResNetBlock : public BaseLayer {
 
     void init_input_buffer();
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void set_threads(int num) override;
 
