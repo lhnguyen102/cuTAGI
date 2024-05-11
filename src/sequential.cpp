@@ -219,6 +219,12 @@ void Sequential::forward(const std::vector<float> &mu_x,
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
 
+        // std::cout << "Address before swap: " << input_z_buffer.get() << ", "
+        //           << output_z_buffer.get() << std::endl;
+        // std::swap(input_z_buffer, output_z_buffer);
+        // std::cout << "Address after swap: " << input_z_buffer.get() << ", "
+        //           << output_z_buffer.get() << std::endl;
+
         std::swap(this->input_z_buffer, this->output_z_buffer);
     }
 

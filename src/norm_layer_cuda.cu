@@ -1015,7 +1015,7 @@ void LayerNormCuda::save(std::ofstream &file)
     this->params_to_host();
 
     // Save the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
     file.write(layer_name.c_str(), name_length);
@@ -1044,7 +1044,7 @@ void LayerNormCuda::load(std::ifstream &file)
                                  ". Failed to open file for loading");
     }
     // Load the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     std::string loaded_name;
     size_t name_length;
     file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
@@ -1070,6 +1070,12 @@ void LayerNormCuda::load(std::ifstream &file)
     }
     for (auto &v_b : this->var_b) {
         file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
+    }
+
+    this->num_weights = this->mu_w.size();
+    this->num_biases = this->mu_b.size();
+    if (this->training) {
+        this->allocate_param_delta();
     }
 
     // Transfer data to device
@@ -1107,7 +1113,7 @@ std::string BatchNorm2dCuda::get_layer_info() const
 /*
  */
 {
-    return "BatchNorm()";
+    return "BatchNorm2d()";
 }
 
 std::string BatchNorm2dCuda::get_layer_name() const
@@ -1150,9 +1156,9 @@ void BatchNorm2dCuda::allocate_running_mean_var()
  */
 {
     this->mu_ra.resize(this->num_features, 0.0f);
-    this->var_ra.resize(this->num_features, 1.0f);
+    this->var_ra.resize(this->num_features, 0.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
-    this->var_norm_batch.resize(this->num_features, 1.0f);
+    this->var_norm_batch.resize(this->num_features, 0.0f);
     cudaMalloc(&this->d_mu_ra, this->num_features * sizeof(float));
     cudaMalloc(&this->d_var_ra, this->num_features * sizeof(float));
     cudaMalloc(&this->d_mu_norm_batch, this->num_features * sizeof(float));
@@ -1597,7 +1603,7 @@ void BatchNorm2dCuda::save(std::ofstream &file)
     this->running_mean_var_to_host();
 
     // Save the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
     file.write(layer_name.c_str(), name_length);
@@ -1634,7 +1640,7 @@ void BatchNorm2dCuda::load(std::ifstream &file)
                                  ". Failed to open file for loading");
     }
     // Load the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     std::string loaded_name;
     size_t name_length;
     file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
@@ -1668,6 +1674,12 @@ void BatchNorm2dCuda::load(std::ifstream &file)
     }
     for (auto &v_ra : this->var_ra) {
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
+    }
+
+    this->num_weights = this->mu_w.size();
+    this->num_biases = this->mu_b.size();
+    if (this->training) {
+        this->allocate_param_delta();
     }
 
     // It wont set momentum to zero for running average of norm's mean & var

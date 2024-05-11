@@ -61,6 +61,34 @@ class BaseHiddenStates {
         }
         return *this;
     }
+
+    // Move constructor
+    BaseHiddenStates(BaseHiddenStates &&other) noexcept
+        : mu_a(std::move(other.mu_a)),
+          var_a(std::move(other.var_a)),
+          jcb(std::move(other.jcb)),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size),
+          width(other.width),
+          height(other.height),
+          depth(other.depth) {}
+
+    // Move assignment operator
+    BaseHiddenStates &operator=(BaseHiddenStates &&other) noexcept {
+        if (this != &other) {
+            mu_a = std::move(other.mu_a);
+            var_a = std::move(other.var_a);
+            jcb = std::move(other.jcb);
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+            width = other.width;
+            height = other.height;
+            depth = other.depth;
+        }
+        return *this;
+    }
     virtual void copy_from(const BaseHiddenStates &source, int num_data = -1);
 };
 

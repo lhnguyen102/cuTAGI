@@ -28,8 +28,11 @@ AvgPool2dCuda::~AvgPool2dCuda() {
 }
 
 std::string AvgPool2dCuda::get_layer_info() const {
-    return "AvgPool2d(" + std::to_string(this->kernel_size) + ")";
-    ;
+    return "AvgPool2d(" + std::to_string(this->in_channels) + "," +
+           std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
+           std::to_string(this->kernel_size) + ")";
 }
 
 std::string AvgPool2dCuda::get_layer_name() const { return "AvgPool2dCuda"; }

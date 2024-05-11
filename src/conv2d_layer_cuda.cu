@@ -64,8 +64,9 @@ Conv2dCuda::~Conv2dCuda() {
 std::string Conv2dCuda::get_layer_info() const {
     return "Conv2d(" + std::to_string(this->in_channels) + "," +
            std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
            std::to_string(this->kernel_size) + ")";
-    ;
 }
 
 std::string Conv2dCuda::get_layer_name() const { return "Conv2dCuda"; }

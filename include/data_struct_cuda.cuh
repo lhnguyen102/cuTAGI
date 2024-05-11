@@ -37,6 +37,39 @@ class HiddenStateCuda : public BaseHiddenStates {
     void to_host();
     void set_size(size_t size, size_t block_size) override;
     void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
+
+    // Move constructor
+    HiddenStateCuda(HiddenStateCuda &&other) noexcept
+        : BaseHiddenStates(std::move(other)) {
+        d_mu_a = other.d_mu_a;
+        d_var_a = other.d_var_a;
+        d_jcb = other.d_jcb;
+
+        // Set the other's pointers to nullptr to avoid double deallocation
+        other.d_mu_a = nullptr;
+        other.d_var_a = nullptr;
+        other.d_jcb = nullptr;
+    }
+
+    // Move assignment operator
+    HiddenStateCuda &operator=(HiddenStateCuda &&other) noexcept {
+        BaseHiddenStates::operator=(std::move(other));
+        if (this != &other) {
+            // Clean up existing resources
+            deallocate_memory();
+
+            // Transfer ownership
+            d_mu_a = other.d_mu_a;
+            d_var_a = other.d_var_a;
+            d_jcb = other.d_jcb;
+
+            // Avoid double free
+            other.d_mu_a = nullptr;
+            other.d_var_a = nullptr;
+            other.d_jcb = nullptr;
+        }
+        return *this;
+    }
 };
 
 class DeltaStateCuda : public BaseDeltaStates {
