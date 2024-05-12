@@ -132,26 +132,40 @@ void LayerBlock::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Cast input and outputs objects to pointers for  an efficient loop
+    // swapping. It avoids swapping each members in their objects
+    BaseHiddenStates *cas_input_states =
+        dynamic_cast<BaseHiddenStates *>(&input_states);
+    BaseHiddenStates *cas_output_states =
+        dynamic_cast<BaseHiddenStates *>(&output_states);
+
     // Forward pass for all layers
     int batch_size = input_states.block_size;
+    int num_layers = this->layers.size();
 
-    for (int i = 0; i < this->layers.size(); ++i) {
+    for (int i = 0; i < num_layers; ++i) {
         auto *current_layer = this->layers[i].get();
 
         std::cout << "Before forward pass of layer " << i << ":\n";
-        std::cout << "Input address: " << &input_states
-                  << ", Output address: " << &output_states << "\n";
+        std::cout << "Input address: " << cas_input_states
+                  << ", Output address: " << cas_output_states << "\n";
 
-        current_layer->forward(input_states, output_states, temp_states);
+        current_layer->forward(*cas_input_states, *cas_output_states,
+                               temp_states);
 
-        std::swap(input_states, output_states);
+        std::swap(cas_input_states, cas_output_states);
 
         std::cout << "After swap in layer " << i << ":\n";
-        std::cout << "Input address: " << &input_states
-                  << ", Output address: " << &output_states << "\n";
+        std::cout << "Input address: " << cas_input_states
+                  << ", Output address: " << cas_output_states << "\n";
     }
 
-    std::swap(output_states, input_states);
+    // Ensure output states contains the output of the last layer in the
+    // block
+    // TODO: Test with GPU hidden states
+    if (num_layers % 2 == 0) {
+        output_states.swap(input_states);
+    }
 
     output_states.width = this->out_width;
     output_states.height = this->out_height;

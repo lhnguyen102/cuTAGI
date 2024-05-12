@@ -158,6 +158,19 @@ void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
     this->actual_size = new_size / new_block_size;
 }
 
+void HiddenStateCuda::swap(BaseHiddenStates &other) {
+    HiddenStateCuda *cu_other = dynamic_cast<HiddenStateCuda *>(&other);
+    if (cu_other) {
+        BaseHiddenStates::swap(other);
+        std::swap(this->delta_mu, cu_other->delta_mu);
+        std::swap(this->delta_var, cu_other->delta_var);
+    } else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Swap input invalid.");
+    }
+}
+
 void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
 /*
  */

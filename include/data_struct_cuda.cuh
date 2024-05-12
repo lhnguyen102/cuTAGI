@@ -45,7 +45,6 @@ class HiddenStateCuda : public BaseHiddenStates {
         d_var_a = other.d_var_a;
         d_jcb = other.d_jcb;
 
-        // Set the other's pointers to nullptr to avoid double deallocation
         other.d_mu_a = nullptr;
         other.d_var_a = nullptr;
         other.d_jcb = nullptr;
@@ -55,7 +54,6 @@ class HiddenStateCuda : public BaseHiddenStates {
     HiddenStateCuda &operator=(HiddenStateCuda &&other) noexcept {
         BaseHiddenStates::operator=(std::move(other));
         if (this != &other) {
-            // Clean up existing resources
             deallocate_memory();
 
             // Transfer ownership
@@ -63,13 +61,14 @@ class HiddenStateCuda : public BaseHiddenStates {
             d_var_a = other.d_var_a;
             d_jcb = other.d_jcb;
 
-            // Avoid double free
             other.d_mu_a = nullptr;
             other.d_var_a = nullptr;
             other.d_jcb = nullptr;
         }
         return *this;
     }
+
+    void swap(BaseHiddenStates &other) override;
 };
 
 class DeltaStateCuda : public BaseDeltaStates {

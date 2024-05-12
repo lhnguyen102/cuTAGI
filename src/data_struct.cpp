@@ -59,10 +59,25 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
         this->jcb.resize(this->size, 0.0f);
     }
 
-    this->block_size = block_size;
+    this->block_size = new_block_size;
 
     // TODO check if we need to modify it
     this->actual_size = new_size / new_block_size;
+}
+
+void BaseHiddenStates::swap(BaseHiddenStates &other)
+/*
+ */
+{
+    std::swap(mu_a, other.mu_a);
+    std::swap(var_a, other.var_a);
+    std::swap(jcb, other.jcb);
+    std::swap(size, other.size);
+    std::swap(block_size, other.block_size);
+    std::swap(actual_size, other.actual_size);
+    std::swap(width, other.width);
+    std::swap(height, other.height);
+    std::swap(depth, other.depth);
 }
 
 void BaseHiddenStates::copy_from(const BaseHiddenStates &source, int num_data)

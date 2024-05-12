@@ -72,7 +72,7 @@ class BaseHiddenStates {
           actual_size(other.actual_size),
           width(other.width),
           height(other.height),
-          depth(other.depth) {}
+          depth(other.depth){};
 
     // Move assignment operator
     BaseHiddenStates &operator=(BaseHiddenStates &&other) noexcept {
@@ -88,7 +88,9 @@ class BaseHiddenStates {
             depth = other.depth;
         }
         return *this;
-    }
+    };
+
+    virtual void swap(BaseHiddenStates &other);
     virtual void copy_from(const BaseHiddenStates &source, int num_data = -1);
 };
 
@@ -105,6 +107,26 @@ class BaseDeltaStates {
     virtual void reset_zeros();
     virtual void copy_from(const BaseDeltaStates &source, int num_data = -1);
     virtual void set_size(size_t size, size_t block_size);
+
+    // Move constructor
+    BaseDeltaStates(BaseDeltaStates &&other) noexcept
+        : delta_mu(std::move(other.delta_mu)),
+          delta_var(std::move(other.delta_var)),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size){};
+
+    // Move assigment operator
+    BaseDeltaStates &operator=(BaseDeltaStates &&other) noexcept {
+        if (this != &other) {
+            delta_mu = std::move(other.delta_mu);
+            delta_var = std::move(other.delta_var);
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+        }
+        return *this;
+    };
 };
 
 class BaseTempStates {
