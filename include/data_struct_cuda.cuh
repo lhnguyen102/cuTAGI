@@ -88,6 +88,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void reset_zeros() override;
     void copy_from(const BaseDeltaStates &source, int num_data = -1) override;
     void set_size(size_t size, size_t block_size) override;
+    void swap(BaseDeltaStates &other) override;
 };
 
 class TempStateCuda : public BaseTempStates {

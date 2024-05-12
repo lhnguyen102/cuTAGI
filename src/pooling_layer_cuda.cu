@@ -215,7 +215,7 @@ void AvgPool2dCuda::backward(BaseDeltaStates &input_delta_states,
             dim3 dim_grid(grid_col, grid_row);
             dim3 dim_block(num_threads, num_threads);
 
-            avgpool2d_bwd_delta_z_cuda<<<dim_grid, grid_row>>>(
+            avgpool2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
                 cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
                 cu_input_delta_states->d_delta_var, this->out_width,
                 this->kernel_size, nums, cu_output_delta_states->d_delta_mu,

@@ -11,6 +11,15 @@ class BaseLayer:
     def to_cuda(self):
         self._cpp_backend.to_cuda()
 
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+    def get_max_num_states(self) -> int:
+        return self._cpp_backend.get_max_num_states()
+
     @property
     def input_size(self) -> int:
         return self._cpp_backend.input_size

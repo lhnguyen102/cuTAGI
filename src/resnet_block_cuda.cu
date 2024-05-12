@@ -175,51 +175,41 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
         }
     }
 
-    // // Make a copy of input states for residual connection
-    // this->input_z->copy_from(input_states, this->input_size * batch_size);
-
-    HiddenStateCuda *cu_input_state =
-        dynamic_cast<HiddenStateCuda *>(&input_states);
-
-    cu_input_state->to_host();
+    // Make a copy of input states for residual connection
+    this->input_z->copy_from(input_states, this->input_size * batch_size);
 
     this->main_block->forward(input_states, output_states, temp_states);
-
-    HiddenStateCuda *cu_output_state =
-        dynamic_cast<HiddenStateCuda *>(&output_states);
-
-    cu_output_state->to_host();
 
     int num_states = output_states.block_size * this->output_size;
     unsigned int grid_size =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
-    // // Shortcut
-    // if (this->shortcut != nullptr) {
-    //     this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
-    //                             temp_states);
+    // Shortcut
+    if (this->shortcut != nullptr) {
+        this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
+                                temp_states);
 
-    //     HiddenStateCuda *cu_shortcut_output_z =
-    //         dynamic_cast<HiddenStateCuda *>(this->shortcut_output_z.get());
+        HiddenStateCuda *cu_shortcut_output_z =
+            dynamic_cast<HiddenStateCuda *>(this->shortcut_output_z.get());
 
-    //     HiddenStateCuda *cu_output_states =
-    //         dynamic_cast<HiddenStateCuda *>(&output_states);
+        HiddenStateCuda *cu_output_states =
+            dynamic_cast<HiddenStateCuda *>(&output_states);
 
-    //     add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
-    //         cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
-    //         num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+            cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
+            num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
 
-    // } else {
-    //     HiddenStateCuda *cu_shortcut_output_z =
-    //         dynamic_cast<HiddenStateCuda *>(this->input_z.get());
+    } else {
+        HiddenStateCuda *cu_shortcut_output_z =
+            dynamic_cast<HiddenStateCuda *>(this->input_z.get());
 
-    //     HiddenStateCuda *cu_output_states =
-    //         dynamic_cast<HiddenStateCuda *>(&output_states);
+        HiddenStateCuda *cu_output_states =
+            dynamic_cast<HiddenStateCuda *>(&output_states);
 
-    //     add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
-    //         cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
-    //         num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
-    // }
+        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+            cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
+            num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    }
 
     output_states.width = this->out_width;
     output_states.height = this->out_height;

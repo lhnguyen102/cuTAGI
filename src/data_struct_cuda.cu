@@ -162,8 +162,9 @@ void HiddenStateCuda::swap(BaseHiddenStates &other) {
     HiddenStateCuda *cu_other = dynamic_cast<HiddenStateCuda *>(&other);
     if (cu_other) {
         BaseHiddenStates::swap(other);
-        std::swap(this->delta_mu, cu_other->delta_mu);
-        std::swap(this->delta_var, cu_other->delta_var);
+        std::swap(this->d_mu_a, cu_other->d_mu_a);
+        std::swap(this->d_var_a, cu_other->d_var_a);
+        std::swap(this->d_jcb, cu_other->d_jcb);
     } else {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
                                     " at line: " + std::to_string(__LINE__) +
@@ -341,6 +342,19 @@ void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
     }
     this->block_size = new_block_size;
     this->actual_size = new_size / new_block_size;
+}
+
+void DeltaStateCuda::swap(BaseDeltaStates &other) {
+    DeltaStateCuda *cu_other = dynamic_cast<DeltaStateCuda *>(&other);
+    if (cu_other) {
+        BaseDeltaStates::swap(other);
+        std::swap(this->d_delta_mu, cu_other->d_delta_mu);
+        std::swap(this->d_delta_var, cu_other->d_delta_var);
+    } else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Swap input invalid.");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

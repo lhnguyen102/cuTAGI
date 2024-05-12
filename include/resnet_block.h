@@ -48,6 +48,24 @@ class ResNetBlock : public BaseLayer {
         this->output_size = this->main_block->output_size;
     };
 
+    template <typename MainBlock, typename Shortcut = BaseLayer>
+    ResNetBlock(std::shared_ptr<MainBlock> main,
+                std::shared_ptr<Shortcut> shortcut_layer = nullptr) {
+        static_assert(std::is_base_of<BaseLayer, MainBlock>::value,
+                      "MainBlock must be derived from BaseLayer");
+        static_assert(std::is_base_of<BaseLayer, Shortcut>::value,
+                      "Shortcut must be derived from BaseLayer");
+
+        this->main_block = std::move(main);
+
+        if (shortcut_layer) {
+            this->shortcut = std::move(shortcut_layer);
+        }
+
+        this->input_size = main_block->input_size;
+        this->output_size = main_block->output_size;
+    }
+
     ~ResNetBlock();
 
     // Delete copy constructor and copy assignment

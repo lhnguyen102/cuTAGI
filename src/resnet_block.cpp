@@ -164,26 +164,26 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
         }
     }
 
-    // // Make a copy of input states for residual connection
-    // this->input_z->copy_from(input_states, this->input_size * batch_size);
+    // Make a copy of input states for residual connection
+    this->input_z->copy_from(input_states, this->input_size * batch_size);
 
     this->main_block->forward(input_states, output_states, temp_states);
     int num_states = output_states.block_size * this->output_size;
 
-    // // Shortcut
-    // if (this->shortcut != nullptr) {
-    //     this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
-    //                             temp_states);
+    // Shortcut
+    if (this->shortcut != nullptr) {
+        this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
+                                temp_states);
 
-    //     add_shortcut_mean_var(this->shortcut_output_z->mu_a,
-    //                           this->shortcut_output_z->var_a, num_states,
-    //                           output_states.mu_a, output_states.var_a);
+        add_shortcut_mean_var(this->shortcut_output_z->mu_a,
+                              this->shortcut_output_z->var_a, num_states,
+                              output_states.mu_a, output_states.var_a);
 
-    // } else {
-    //     add_shortcut_mean_var(this->input_z->mu_a, this->input_z->var_a,
-    //                           num_states, output_states.mu_a,
-    //                           output_states.var_a);
-    // }
+    } else {
+        add_shortcut_mean_var(this->input_z->mu_a, this->input_z->var_a,
+                              num_states, output_states.mu_a,
+                              output_states.var_a);
+    }
 
     output_states.width = this->out_width;
     output_states.height = this->out_height;

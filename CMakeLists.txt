@@ -164,6 +164,8 @@ set(CPU_SOURCES
   src/bindings/lstm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
+  src/bindings/layer_block_bindings.cpp
+  src/bindings/resnet_block_bindings.cpp
   src/bindings/base_output_updater_bindings.cpp
   src/bindings/utils_bindings.cpp
   src/bindings/main_bindings.cpp

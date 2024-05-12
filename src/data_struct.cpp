@@ -142,6 +142,16 @@ void BaseDeltaStates::set_size(size_t new_size, size_t new_block_size)
     this->actual_size = new_size / new_block_size;
 }
 
+void BaseDeltaStates::swap(BaseDeltaStates &other)
+/**/
+{
+    std::swap(delta_mu, other.delta_mu);
+    std::swap(delta_var, other.delta_var);
+    std::swap(size, other.size);
+    std::swap(block_size, other.block_size);
+    std::swap(actual_size, other.actual_size);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Base Temp States
 ////////////////////////////////////////////////////////////////////////////////

@@ -94,6 +94,9 @@ class BaseHiddenStates {
     virtual void copy_from(const BaseHiddenStates &source, int num_data = -1);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// Base Delta States
+////////////////////////////////////////////////////////////////////////////////
 class BaseDeltaStates {
    public:
     std::vector<float> delta_mu;
@@ -127,6 +130,8 @@ class BaseDeltaStates {
         }
         return *this;
     };
+
+    virtual void swap(BaseDeltaStates &other);
 };
 
 class BaseTempStates {

@@ -10,6 +10,7 @@ __pycache__/
 pytagi.egg-info
 dist
 data/cifar
+data/cifar_torch
 !test/data/*.csv
 !test/act_func/data/*.csv
 !test/autoencoder/data/*.csv
