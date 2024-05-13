@@ -27,5 +27,5 @@ void bind_layer_block(pybind11::module_& modo)
             }))
         .def("add_layer", &LayerBlock::add_layer)
         .def("switch_to_cuda", &LayerBlock::switch_to_cuda)
-        .def_readonly("layers", &LayerBlock::layers);
+        .def_readwrite("layers", &LayerBlock::layers);
 }

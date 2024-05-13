@@ -32,7 +32,9 @@ void bind_base_hidden_states(pybind11::module_ &m) {
         .def_readwrite("depth", &BaseHiddenStates::depth)
         .def("set_input_x", &BaseHiddenStates::set_input_x)
         .def("get_name", &BaseHiddenStates::get_name)
-        .def("set_size", &BaseHiddenStates::set_size);
+        .def("set_size", &BaseHiddenStates::set_size)
+        .def("swap", &BaseHiddenStates::swap)
+        .def("copy_from", &BaseHiddenStates::copy_from);
 }
 
 void bind_base_delta_states(pybind11::module_ &m) {
@@ -49,7 +51,8 @@ void bind_base_delta_states(pybind11::module_ &m) {
         .def("reset_zeros", &BaseDeltaStates::reset_zeros)
         .def("copy_from", &BaseDeltaStates::copy_from, pybind11::arg("source"),
              pybind11::arg("num_data") = -1)
-        .def("set_size", &BaseDeltaStates::set_size);
+        .def("set_size", &BaseDeltaStates::set_size)
+        .def("swap", &BaseDeltaStates::swap);
     ;
 }
 

@@ -60,19 +60,18 @@ void resnet_cifar10()
     // Data preprocessing
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::string> y_train_paths, y_test_paths;
-    std::string x_train_path = "./data/cifar/train-images-idx3-ubyte";
-    std::string y_train_path = "./data/cifar/train-labels-idx1-ubyte";
-    std::string x_test_path = "./data/cifar/t10k-images-idx3-ubyte";
-    std::string y_test_path = "./data/cifar/t10k-labels-idx1-ubyte";
     std::vector<std::string> x_train_paths = {
-        "./data/cifar/data_batch_1.bin", "./data/cifar/data_batch_2.bin",
-        "./data/cifar/data_batch_3.bin", "./data/cifar/data_batch_4.bin",
-        "./data/cifar/data_batch_5.bin"};
-    std::vector<std::string> x_test_paths = {"./data/cifar/test_batch.bin"};
+        "./data/cifar/cifar-10-batches-c/data_batch_1.bin",
+        "./data/cifar/cifar-10-batches-c/data_batch_2.bin",
+        "./data/cifar/cifar-10-batches-c/data_batch_3.bin",
+        "./data/cifar/cifar-10-batches-c/data_batch_4.bin",
+        "./data/cifar/cifar-10-batches-c/data_batch_5.bin"};
+    std::vector<std::string> x_test_paths = {
+        "./data/cifar/cifar-10-batches-c/test_batch.bin"};
 
     std::string data_name = "cifar";
-    std::vector<float> mu = {0.485, 0.456, 0.406};
-    std::vector<float> sigma = {1.0, 1.0, 1.0};
+    std::vector<float> mu = {0.4914, 0.4822, 0.4465};
+    std::vector<float> sigma = {0.2023, 0.1994, 0.2010};
     int num_train_data = 50000;
     int num_test_data = 10000;
     int num_classes = 10;
@@ -189,7 +188,7 @@ void resnet_cifar10()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 4;
+    int n_epochs = 1;
     int batch_size = 128;
     float sigma_obs = 1;
     int iters = train_db.num_data / batch_size;

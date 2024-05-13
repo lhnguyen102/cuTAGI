@@ -13,7 +13,7 @@ class ResNetBlock : public BaseLayer {
     int _batch_size = 0;
 
    public:
-    std::shared_ptr<LayerBlock> main_block;
+    std::shared_ptr<BaseLayer> main_block;
     std::shared_ptr<BaseLayer> shortcut;
     std::shared_ptr<BaseHiddenStates> input_z;
     std::shared_ptr<BaseDeltaStates> input_delta_z;
@@ -32,7 +32,11 @@ class ResNetBlock : public BaseLayer {
                             typename std::decay<Shortcut>::type>::value,
             "Shortcut must be derived from BaseLayer");
 
-        main_block = std::make_shared<LayerBlock>(std::move(main));
+        // main_block = std::make_shared<LayerBlock>(std::move(main));
+        // main_block = std::make_shared<BaseLayer>(std::move(main));
+        main_block = std::make_shared<typename std::decay<MainBlock>::type>(
+            std::move(main));
+
         bool is_shortcut_exist =
             !std::is_same<typename std::decay<Shortcut>::type,
                           BaseLayer>::value;

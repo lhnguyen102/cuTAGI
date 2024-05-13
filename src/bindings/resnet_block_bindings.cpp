@@ -14,17 +14,9 @@ void bind_resnet_block(pybind11::module_& modo)
 {
     pybind11::class_<ResNetBlock, std::shared_ptr<ResNetBlock>, BaseLayer>(
         modo, "ResNetBlock")
-        .def(pybind11::init(
-            [](std::shared_ptr<LayerBlock> main,
-               pybind11::object shortcut_layer = pybind11::none()) {
-                if (!shortcut_layer.is_none()) {
-                    auto shortcut_ptr =
-                        shortcut_layer.cast<std::shared_ptr<BaseLayer>>();
-                    return std::make_shared<ResNetBlock>(main, shortcut_ptr);
-                } else {
-                    return std::make_shared<ResNetBlock>(main);
-                }
-            }))
+        .def(pybind11::init<std::shared_ptr<LayerBlock>,
+                            std::shared_ptr<BaseLayer>>(),
+             pybind11::arg("main_block"), pybind11::arg("shortcut") = nullptr)
         .def_readwrite("main_block", &ResNetBlock::main_block)
         .def_readwrite("shortcut", &ResNetBlock::shortcut)
         .def("init_shortcut_state", &ResNetBlock::init_shortcut_state)

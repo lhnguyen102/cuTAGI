@@ -219,12 +219,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
 
-        // std::cout << "Address before swap: " << input_z_buffer.get() << ", "
-        //           << output_z_buffer.get() << std::endl;
-        // std::swap(input_z_buffer, output_z_buffer);
-        // std::cout << "Address after swap: " << input_z_buffer.get() << ", "
-        //           << output_z_buffer.get() << std::endl;
-
+        // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);
     }
 
@@ -301,49 +296,9 @@ void Sequential::backward()
     }
 
     // State update for input layer
-
     this->layers[0]->backward(*this->input_delta_z_buffer,
                               *this->output_delta_z_buffer, *this->temp_states,
                               this->input_state_update);
-
-    // // Hidden layers
-    // for (auto layer = this->layers.rbegin(); layer != this->layers.rend() -
-    // 1;
-    //      ++layer) {
-    //     auto *current_layer = layer->get();
-
-    //     // Backward pass for parameters and hidden states
-    //     if (this->param_update) {
-    //         current_layer->param_backward(*current_layer->bwd_states,
-    //                                       *this->input_delta_z_buffer,
-    //                                       *this->temp_states);
-    //     }
-
-    //     // Backward pass for hidden states
-    //     current_layer->state_backward(
-    //         *current_layer->bwd_states, *this->input_delta_z_buffer,
-    //         *this->output_delta_z_buffer, *this->temp_states);
-
-    //     // Pass new input data for next iteration
-    //     if (current_layer->get_layer_type() != LayerType::Activation) {
-    //         std::swap(this->input_delta_z_buffer,
-    //         this->output_delta_z_buffer);
-    //     }
-    // }
-
-    // // Parameter update for input layer
-    // if (this->param_update) {
-    //     this->layers[0]->param_backward(*this->layers[0]->bwd_states,
-    //                                     *this->input_delta_z_buffer,
-    //                                     *this->temp_states);
-    // }
-
-    // // State update for input layer
-    // if (this->input_state_update) {
-    //     this->layers[0]->state_backward(
-    //         *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
-    //         *this->output_delta_z_buffer, *this->temp_states);
-    // }
 }
 
 void Sequential::step()

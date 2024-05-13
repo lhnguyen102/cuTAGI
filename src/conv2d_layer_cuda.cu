@@ -642,7 +642,7 @@ Args:
           of network
     aidxpos: Position of the activation indices in its vector of the network
     m: ki x ki x fi
-    n: wo x ho xB
+    n: wo x ho x B
     k: fo
     woho: Width x height of the output image
     wihi: Width x height of the input image

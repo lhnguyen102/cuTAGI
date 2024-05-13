@@ -1,3 +1,5 @@
+from typing import Union
+
 import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
@@ -8,8 +10,17 @@ from pytagi.nn.layer_block import LayerBlock
 class ResNetBlock(BaseLayer):
     """A residual architecture contains a main block and a shortcut layer"""
 
-    def __init__(self, main_block: LayerBlock, shortcut: BaseLayer = None):
-        self._cpp_backend = cutagi.ResNetBlock(main_block, shortcut)
+    def __init__(
+        self,
+        main_block: Union[BaseLayer, LayerBlock],
+        shortcut: Union[BaseLayer, LayerBlock] = None,
+    ):
+        if shortcut is not None:
+            self._cpp_backend = cutagi.ResNetBlock(
+                main_block._cpp_backend, shortcut._cpp_backend
+            )
+        else:
+            self._cpp_backend = cutagi.ResNetBlock(main_block._cpp_backend)
 
     def init_shortcut_state(self) -> None:
         """Initialize state buffer for shortcut"""

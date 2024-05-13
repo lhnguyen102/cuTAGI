@@ -147,11 +147,33 @@ void ResNetBlockCuda::set_cuda_threads(int num)
 /*
  */
 {
-    this->main_block->set_cuda_threads(num);
+    // TODO: Any better way?
+    BaseLayerCuda *cu_main_block =
+        dynamic_cast<BaseLayerCuda *>(this->main_block.get());
+    if (cu_main_block) {
+        cu_main_block->set_cuda_threads(num);
+    } else {
+        LayerBlock *layer_block =
+            dynamic_cast<LayerBlock *>(this->main_block.get());
+        if (layer_block) {
+            layer_block->set_cuda_threads(num);
+        } else {
+            throw std::invalid_argument(
+                "Error in file: " + std::string(__FILE__) + " at line: " +
+                std::to_string(__LINE__) + ". Set cuda threads.");
+        }
+    }
+
     if (this->shortcut != nullptr) {
         BaseLayerCuda *cu_shortcut =
             dynamic_cast<BaseLayerCuda *>(this->shortcut.get());
-        cu_shortcut->set_cuda_threads(num);
+        if (cu_shortcut) {
+            cu_shortcut->set_cuda_threads(num);
+        } else {
+            throw std::invalid_argument(
+                "Error in file: " + std::string(__FILE__) + " at line: " +
+                std::to_string(__LINE__) + ". Set cuda threads.");
+        }
     }
 }
 
@@ -164,7 +186,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
 
     // Main block
-    if (batch_size > this->_batch_size) {
+    if (batch_size != this->_batch_size) {
         this->_batch_size = batch_size;
         this->init_input_buffer();
         if (this->shortcut != nullptr) {
@@ -216,20 +238,6 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
-
-    // // Update backward state for inferring parameters
-    // if (this->training) {
-    //     HiddenStateCuda *cu_input_states =
-    //         dynamic_cast<HiddenStateCuda *>(&input_states);
-    //     HiddenStateCuda *cu_output_states =
-    //         dynamic_cast<HiddenStateCuda *>(&output_states);
-    //     BackwardStateCuda *cu_bwd_states =
-    //         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
-    //     this->store_states_for_training_cuda(*cu_input_states,
-    //                                          *cu_output_states,
-    //                                          *cu_bwd_states);
-    // }
 }
 
 void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,

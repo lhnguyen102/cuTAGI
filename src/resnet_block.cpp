@@ -153,7 +153,7 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
 {
     int batch_size = input_states.block_size;
     // Main block
-    if (batch_size > this->_batch_size) {
+    if (batch_size != this->_batch_size) {
         this->_batch_size = batch_size;
         this->init_input_buffer();
         if (this->shortcut != nullptr) {
