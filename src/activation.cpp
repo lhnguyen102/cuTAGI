@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 22, 2024
+// Updated:      April 14, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -234,12 +234,11 @@ void mixture_sigmoid_mean_var(std::vector<float> &mu_z,
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
                   std_z * (pdf_l - pdf_u) - mu_z[i];
-        var_a[i] = (cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
-                    cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
-                    std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
-                    powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] +
-                    powf(mu_z[i], 2) - var_z[i] + 2) /
-                   4.0f;
+        var_a[i] = std::max(0.000001f, (cdf_l * (var_z[i] - powf(mu_z[i], 2)
+                    - 2 * mu_z[i] - 1) + cdf_u * (var_z[i] - powf(mu_z[i], 2)
+                    + 2 * mu_z[i] - 1) + std_z * (pdf_u * (mu_z[i] - 1) - pdf_l
+                    * (mu_z[i] + 1)) - powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i]
+                    + powf(mu_z[i], 2) - var_z[i] + 2) / 4.0f);
         mu_a[i] = mu_a[i] / 2.0f + 0.5f;
         jcb[i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
@@ -298,11 +297,12 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = (mu_z[i] + 1) * cdf_l + (mu_z[i] - 1) * cdf_u +
                   std_z * (pdf_l - pdf_u) - mu_z[i];
-        var_a[i] = cdf_l * (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
+        var_a[i] = std::max(0.000001f, cdf_l *
+                   (var_z[i] - powf(mu_z[i], 2) - 2 * mu_z[i] - 1) +
                    cdf_u * (var_z[i] - powf(mu_z[i], 2) + 2 * mu_z[i] - 1) +
                    std_z * (pdf_u * (mu_z[i] - 1) - pdf_l * (mu_z[i] + 1)) -
                    powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] + powf(mu_z[i], 2) -
-                   var_z[i] + 2;
+                   var_z[i] + 2);
         jcb[i] = cdf_u + cdf_l - 1;
     }
 }
