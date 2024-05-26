@@ -89,7 +89,7 @@ endif()
 # NOTE: This might need to change for higher CUDA version
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
-# list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
+list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
 
 if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")

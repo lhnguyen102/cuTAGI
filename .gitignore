@@ -4,6 +4,7 @@
 *.csv
 debug_data/
 saved_param/
+kernel_playground/
 __pycache__/
 *.DS_Store
 *.pyc
@@ -11,6 +12,10 @@ pytagi.egg-info
 dist
 data/cifar
 data/cifar_torch
+*ncu-rep
+*sys-rep
+*sqlite
+
 !test/data/*.csv
 !test/act_func/data/*.csv
 !test/autoencoder/data/*.csv

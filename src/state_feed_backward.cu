@@ -1549,8 +1549,6 @@ void remax_output_delta_z(ObsGPU &obs, Network &net, StateGPU &state,
     delta_z_y_check<<<dim_grid, dim_block>>>(
         state.d_ma, state.d_Sa, state.remax.d_cov_m_a, obs.d_y_batch,
         obs.d_V_batch, no, B, z_pos, d_state.d_delta_mz, d_state.d_delta_Sz);
-    state.copy_device_to_host();
-    d_state.copy_device_to_host();
 }
 
 void update_output_hidden_states(ObsGPU &obs, Network &net, StateGPU &state,
