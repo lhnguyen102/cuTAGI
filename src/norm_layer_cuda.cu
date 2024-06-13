@@ -14,9 +14,9 @@
 #define WARP_SIZE 32
 
 // Reduction
-__device__ void warp_shared_reduce(volatile float *smem_mu,
-                                   volatile float *smem_var, int tx, int ty,
-                                   int BLOCK_DIM)
+__device__ void dual_warp_smem_reduce(volatile float *smem_mu,
+                                      volatile float *smem_var, int tx, int ty,
+                                      int BLOCK_DIM)
 /*
  */
 {
@@ -63,10 +63,10 @@ __device__ void warp_shared_reduce(volatile float *smem_mu,
 }
 
 template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
-__global__ void mean_var_sum_reduction(float const *delta_mu_in,
-                                       float const *delta_var_in, size_t len_x,
-                                       size_t len_y, float *delta_mu_out,
-                                       float *delta_var_out)
+__global__ void dual_sum_reduction(float const *delta_mu_in,
+                                   float const *delta_var_in, size_t len_x,
+                                   size_t len_y, float *delta_mu_out,
+                                   float *delta_var_out)
 /*
  */
 {
@@ -99,7 +99,7 @@ __global__ void mean_var_sum_reduction(float const *delta_mu_in,
     }
 
     if (tx < WARP_SIZE) {
-        warp_shared_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
+        dual_warp_smem_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
     }
 
     if (tx == 0 && row < len_y) {
@@ -110,54 +110,8 @@ __global__ void mean_var_sum_reduction(float const *delta_mu_in,
     }
 }
 
-template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
-__global__ void batchnorm_sum_reduction(float const *delta_mu_e,
-                                        float const *delta_var_e, int wihi,
-                                        int fi, int batch_size, float *delta_mu,
-                                        float *delta_var) {
-    __shared__ float smem_mu[BLOCK_TILE_Y * BLOCK_TILE_X];
-    __shared__ float smem_var[BLOCK_TILE_Y * BLOCK_TILE_X];
-
-    const size_t col = blockIdx.x * BLOCK_TILE_X + threadIdx.x;
-    const size_t row = blockIdx.y * blockDim.y + threadIdx.y;
-    const size_t tx = threadIdx.x;
-    const size_t ty = threadIdx.y;
-
-    const size_t idx = row * wihi + (col / wihi) * wihi * fi + col % wihi;
-
-    if (col < wihi * batch_size && row < fi) {
-        smem_mu[ty * BLOCK_TILE_X + tx] = delta_mu_e[idx];
-        smem_var[ty * BLOCK_TILE_X + tx] = delta_var_e[idx];
-    } else {
-        smem_mu[ty * BLOCK_TILE_X + tx] = 0.0f;
-        smem_var[ty * BLOCK_TILE_X + tx] = 0.0f;
-    }
-
-    __syncthreads();
-
-    for (size_t i = BLOCK_TILE_X / 2; i > WARP_SIZE; i >>= 1) {
-        if (tx < i) {
-            smem_mu[ty * BLOCK_TILE_X + tx] +=
-                smem_mu[ty * BLOCK_TILE_X + tx + i];
-            smem_var[ty * BLOCK_TILE_X + tx] +=
-                smem_var[ty * BLOCK_TILE_X + tx + i];
-        }
-        __syncthreads();
-    }
-
-    if (tx < WARP_SIZE) {
-        warp_shared_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
-    }
-    if (tx == 0 && row < fi) {
-        delta_mu[row * gridDim.x + blockIdx.x] =
-            smem_mu[ty * BLOCK_TILE_X + tx];
-        delta_var[row * gridDim.x + blockIdx.x] =
-            smem_var[ty * BLOCK_TILE_X + tx];
-    }
-}
-
-__device__ void single_warp_shared_reduce(volatile float *smem_mu, int tx,
-                                          int ty, int BLOCK_DIM)
+__device__ void warp_smem_reduce(volatile float *smem_mu, int tx, int ty,
+                                 int BLOCK_DIM)
 /*
  */
 {
@@ -191,8 +145,8 @@ __device__ void single_warp_shared_reduce(volatile float *smem_mu, int tx,
 }
 
 template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
-__global__ void single_sum_reduction(float const *mu_in, size_t len_x,
-                                     size_t len_y, float *mu_out)
+__global__ void sum_reduction(float const *mu_in, size_t len_x, size_t len_y,
+                              float *mu_out)
 /*
  */
 {
@@ -220,186 +174,12 @@ __global__ void single_sum_reduction(float const *mu_in, size_t len_x,
     }
 
     if (tx < WARP_SIZE) {
-        single_warp_shared_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
+        warp_smem_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
     }
 
     if (tx == 0 && row < len_y) {
         mu_out[row * gridDim.x + blockIdx.x] = smem_mu[ty * BLOCK_TILE_X + tx];
     }
-}
-
-template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
-__global__ void batchnorm_sample_sum_reduction(float const *sample,
-                                               float const *mu_s, int wihi,
-                                               int fi, int batch_size,
-                                               float *var) {
-    __shared__ float smem_mu[BLOCK_TILE_Y * BLOCK_TILE_X];
-
-    const size_t col = blockIdx.x * BLOCK_TILE_X + threadIdx.x;
-    const size_t row = blockIdx.y * blockDim.y + threadIdx.y;
-    const size_t tx = threadIdx.x;
-    const size_t ty = threadIdx.y;
-
-    const size_t idx = row * wihi + (col / wihi) * wihi * fi + col % wihi;
-
-    if (col < wihi * batch_size && row < fi) {
-        float diff = sample[idx] - mu_s[row];
-        smem_mu[ty * BLOCK_TILE_X + tx] = __fmul_rn(diff, diff);
-
-    } else {
-        smem_mu[ty * BLOCK_TILE_X + tx] = 0.0f;
-    }
-
-    __syncthreads();
-
-    for (size_t i = BLOCK_TILE_X / 2; i > WARP_SIZE; i >>= 1) {
-        if (tx < i) {
-            smem_mu[ty * BLOCK_TILE_X + tx] +=
-                smem_mu[ty * BLOCK_TILE_X + tx + i];
-        }
-        __syncthreads();
-    }
-
-    if (tx < WARP_SIZE) {
-        single_warp_shared_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
-    }
-    if (tx == 0 && row < fi) {
-        var[row * gridDim.x + blockIdx.x] = smem_mu[ty * BLOCK_TILE_X + tx];
-    }
-}
-
-void batchnorm_fwd_single_sum_reduction(float *&sample, float *&mu_s,
-                                        int batch_size, int wihi, int fi,
-                                        float *&buf_mu_in, float *&buf_mu_out,
-                                        float *&mu_out)
-/*
- */
-{
-    // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
-    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
-    unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
-    unsigned int grid_size_x =
-        (batch_size * wihi + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
-    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
-    size_t reduced_size = grid_size_x;
-
-    // Stage 1: Perform custom sum reduction
-    batchnorm_sample_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_rd, block_dim_rd>>>(sample, mu_s, wihi, fi, batch_size,
-                                        buf_mu_out);
-
-    // Stage 2: Perform recursive reduction sum
-    while (grid_size_x > BLOCK_SIZE_X) {
-        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
-        grid_dim_rd.x = grid_size_x;
-        single_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, reduced_size, fi,
-                                            buf_mu_in);
-
-        // Swap the buffers
-        std::swap(buf_mu_out, buf_mu_in);
-
-        reduced_size = grid_size_x;
-    }
-
-    // Stage 3: Perform the final reduction
-    dim3 grid_dim_1b(1, grid_size_y);
-    single_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, reduced_size, fi, mu_out);
-}
-
-void batchnorm_fwd_sum_reduction(float *&mu_in, float *&var_in, int batch_size,
-                                 int wihi, int fi, float *&buf_mu_in,
-                                 float *&buf_var_in, float *&buf_mu_out,
-                                 float *&buf_var_out, float *&mu_out,
-                                 float *&var_out)
-/*
- */
-{
-    // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
-    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
-    unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
-    unsigned int grid_size_x =
-        (batch_size * wihi + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
-    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
-    size_t reduced_size = grid_size_x;
-
-    // Stage 1: Perform custom sum reduction
-    batchnorm_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_rd, block_dim_rd>>>(mu_in, var_in, wihi, fi, batch_size,
-                                        buf_mu_out, buf_var_out);
-
-    // Stage 2: Perform recursive reduction sum
-    while (grid_size_x > BLOCK_SIZE_X) {
-        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
-        grid_dim_rd.x = grid_size_x;
-        mean_var_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, buf_var_out,
-                                            reduced_size, fi, buf_mu_in,
-                                            buf_var_in);
-
-        // Swap the buffers
-        std::swap(buf_mu_out, buf_mu_in);
-        std::swap(buf_var_out, buf_var_in);
-
-        reduced_size = grid_size_x;
-    }
-
-    // Stage 3: Perform the final reduction
-    dim3 grid_dim_1b(1, grid_size_y);
-    mean_var_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, buf_var_out, reduced_size,
-                                        fi, mu_out, var_out);
-}
-
-void perform_reduction(int batch_size, int wihi, int fi, float *&buf_mu_in,
-                       float *&buf_var_in, float *&buf_mu_out,
-                       float *&buf_var_out, float *&delta_mu, float *&delta_var)
-/*
- */
-{
-    // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
-    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
-    unsigned int grid_size_y =
-        (static_cast<unsigned int>(fi) + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
-    unsigned int grid_size_x =
-        (static_cast<unsigned int>(batch_size * wihi) + BLOCK_SIZE_X - 1) /
-        BLOCK_SIZE_X;
-    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
-    size_t reduced_size = grid_size_x;
-
-    // Stage 1: Perform custom sum reduction
-    batchnorm_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_rd, block_dim_rd>>>(buf_mu_in, buf_var_in, wihi, fi,
-                                        batch_size, buf_mu_out, buf_var_out);
-
-    // Stage 2: Perform recursive reduction sum
-    while (grid_size_x > BLOCK_SIZE_X) {
-        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
-        grid_dim_rd.x = grid_size_x;
-        mean_var_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, buf_var_out,
-                                            reduced_size, fi, buf_mu_in,
-                                            buf_var_in);
-
-        // Swap the buffers
-        std::swap(buf_mu_out, buf_mu_in);
-        std::swap(buf_var_out, buf_var_in);
-
-        reduced_size = grid_size_x;
-    }
-
-    // Stage 3: Perform the final reduction
-    dim3 grid_dim_1b(1, grid_size_y);
-    mean_var_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
-        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, buf_var_out, reduced_size,
-                                        fi, delta_mu, delta_var);
 }
 
 __global__ void layernorm_stat_mean_var_cuda(float const *mu_a,
@@ -724,6 +504,227 @@ __global__ void batchnorm_fwd_mean_var_cuda(
                                         mu_ra[col] * mu_ra[col] + var_a[idx])) +
                      var_b[col];
     }
+}
+
+template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
+__global__ void batchnorm2d_dual_sum_reduction(float const *delta_mu_e,
+                                               float const *delta_var_e,
+                                               int wihi, int fi, int batch_size,
+                                               float *delta_mu,
+                                               float *delta_var) {
+    __shared__ float smem_mu[BLOCK_TILE_Y * BLOCK_TILE_X];
+    __shared__ float smem_var[BLOCK_TILE_Y * BLOCK_TILE_X];
+
+    const size_t col = blockIdx.x * BLOCK_TILE_X + threadIdx.x;
+    const size_t row = blockIdx.y * blockDim.y + threadIdx.y;
+    const size_t tx = threadIdx.x;
+    const size_t ty = threadIdx.y;
+
+    const size_t idx = row * wihi + (col / wihi) * wihi * fi + col % wihi;
+
+    if (col < wihi * batch_size && row < fi) {
+        smem_mu[ty * BLOCK_TILE_X + tx] = delta_mu_e[idx];
+        smem_var[ty * BLOCK_TILE_X + tx] = delta_var_e[idx];
+    } else {
+        smem_mu[ty * BLOCK_TILE_X + tx] = 0.0f;
+        smem_var[ty * BLOCK_TILE_X + tx] = 0.0f;
+    }
+
+    __syncthreads();
+
+    for (size_t i = BLOCK_TILE_X / 2; i > WARP_SIZE; i >>= 1) {
+        if (tx < i) {
+            smem_mu[ty * BLOCK_TILE_X + tx] +=
+                smem_mu[ty * BLOCK_TILE_X + tx + i];
+            smem_var[ty * BLOCK_TILE_X + tx] +=
+                smem_var[ty * BLOCK_TILE_X + tx + i];
+        }
+        __syncthreads();
+    }
+
+    if (tx < WARP_SIZE) {
+        dual_warp_smem_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
+    }
+    if (tx == 0 && row < fi) {
+        delta_mu[row * gridDim.x + blockIdx.x] =
+            smem_mu[ty * BLOCK_TILE_X + tx];
+        delta_var[row * gridDim.x + blockIdx.x] =
+            smem_var[ty * BLOCK_TILE_X + tx];
+    }
+}
+
+template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
+__global__ void batchnorm2d_sample_sum_reduction(float const *sample,
+                                                 float const *mu_s, int wihi,
+                                                 int fi, int batch_size,
+                                                 float *var) {
+    __shared__ float smem_mu[BLOCK_TILE_Y * BLOCK_TILE_X];
+
+    const size_t col = blockIdx.x * BLOCK_TILE_X + threadIdx.x;
+    const size_t row = blockIdx.y * blockDim.y + threadIdx.y;
+    const size_t tx = threadIdx.x;
+    const size_t ty = threadIdx.y;
+
+    const size_t idx = row * wihi + (col / wihi) * wihi * fi + col % wihi;
+
+    if (col < wihi * batch_size && row < fi) {
+        float diff = sample[idx] - mu_s[row];
+        smem_mu[ty * BLOCK_TILE_X + tx] = __fmul_rn(diff, diff);
+
+    } else {
+        smem_mu[ty * BLOCK_TILE_X + tx] = 0.0f;
+    }
+
+    __syncthreads();
+
+    for (size_t i = BLOCK_TILE_X / 2; i > WARP_SIZE; i >>= 1) {
+        if (tx < i) {
+            smem_mu[ty * BLOCK_TILE_X + tx] +=
+                smem_mu[ty * BLOCK_TILE_X + tx + i];
+        }
+        __syncthreads();
+    }
+
+    if (tx < WARP_SIZE) {
+        warp_smem_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
+    }
+    if (tx == 0 && row < fi) {
+        var[row * gridDim.x + blockIdx.x] = smem_mu[ty * BLOCK_TILE_X + tx];
+    }
+}
+
+void batchnorm2d_fwd_sum_reduction(float *&sample, float *&mu_s, int batch_size,
+                                   int wihi, int fi, float *&buf_mu_in,
+                                   float *&buf_mu_out, float *&mu_out)
+/*
+ */
+{
+    // TODO: remove this hard code
+    constexpr unsigned BLOCK_SIZE_X = 64;
+    constexpr unsigned BLOCK_SIZE_Y = 16;
+    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
+    unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
+    unsigned int grid_size_x =
+        (batch_size * wihi + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
+    size_t reduced_size = grid_size_x;
+
+    // Stage 1: Perform custom sum reduction
+    batchnorm2d_sample_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_rd, block_dim_rd>>>(sample, mu_s, wihi, fi, batch_size,
+                                        buf_mu_out);
+
+    // Stage 2: Perform recursive reduction sum
+    while (grid_size_x > BLOCK_SIZE_X) {
+        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+        grid_dim_rd.x = grid_size_x;
+        sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, reduced_size, fi,
+                                            buf_mu_in);
+
+        // Swap the buffers
+        std::swap(buf_mu_out, buf_mu_in);
+
+        reduced_size = grid_size_x;
+    }
+
+    // Stage 3: Perform the final reduction
+    dim3 grid_dim_1b(1, grid_size_y);
+    sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, reduced_size, fi, mu_out);
+}
+
+void batchnorm2d_fwd_dual_sum_reduction(float *&mu_in, float *&var_in,
+                                        int batch_size, int wihi, int fi,
+                                        float *&buf_mu_in, float *&buf_var_in,
+                                        float *&buf_mu_out, float *&buf_var_out,
+                                        float *&mu_out, float *&var_out)
+/*
+ */
+{
+    // TODO: remove this hard code
+    constexpr unsigned BLOCK_SIZE_X = 64;
+    constexpr unsigned BLOCK_SIZE_Y = 16;
+    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
+    unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
+    unsigned int grid_size_x =
+        (batch_size * wihi + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
+    size_t reduced_size = grid_size_x;
+
+    // Stage 1: Perform custom sum reduction
+    batchnorm2d_dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_rd, block_dim_rd>>>(mu_in, var_in, wihi, fi, batch_size,
+                                        buf_mu_out, buf_var_out);
+
+    // Stage 2: Perform recursive reduction sum
+    while (grid_size_x > BLOCK_SIZE_X) {
+        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+        grid_dim_rd.x = grid_size_x;
+        dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, buf_var_out,
+                                            reduced_size, fi, buf_mu_in,
+                                            buf_var_in);
+
+        // Swap the buffers
+        std::swap(buf_mu_out, buf_mu_in);
+        std::swap(buf_var_out, buf_var_in);
+
+        reduced_size = grid_size_x;
+    }
+
+    // Stage 3: Perform the final reduction
+    dim3 grid_dim_1b(1, grid_size_y);
+    dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, buf_var_out, reduced_size,
+                                        fi, mu_out, var_out);
+}
+
+void batchnorm2d_bwd_dual_sum_reduction(int batch_size, int wihi, int fi,
+                                        float *&buf_mu_in, float *&buf_var_in,
+                                        float *&buf_mu_out, float *&buf_var_out,
+                                        float *&delta_mu, float *&delta_var)
+/*
+ */
+{
+    // TODO: remove this hard code
+    constexpr unsigned BLOCK_SIZE_X = 64;
+    constexpr unsigned BLOCK_SIZE_Y = 16;
+    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
+    unsigned int grid_size_y =
+        (static_cast<unsigned int>(fi) + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
+    unsigned int grid_size_x =
+        (static_cast<unsigned int>(batch_size * wihi) + BLOCK_SIZE_X - 1) /
+        BLOCK_SIZE_X;
+    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
+    size_t reduced_size = grid_size_x;
+
+    // Stage 1: Perform custom sum reduction
+    batchnorm2d_dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_rd, block_dim_rd>>>(buf_mu_in, buf_var_in, wihi, fi,
+                                        batch_size, buf_mu_out, buf_var_out);
+
+    // Stage 2: Perform recursive reduction sum
+    while (grid_size_x > BLOCK_SIZE_X) {
+        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+        grid_dim_rd.x = grid_size_x;
+        dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, buf_var_out,
+                                            reduced_size, fi, buf_mu_in,
+                                            buf_var_in);
+
+        // Swap the buffers
+        std::swap(buf_mu_out, buf_mu_in);
+        std::swap(buf_var_out, buf_var_in);
+
+        reduced_size = grid_size_x;
+    }
+
+    // Stage 3: Perform the final reduction
+    dim3 grid_dim_1b(1, grid_size_y);
+    dual_sum_reduction<BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, buf_var_out, reduced_size,
+                                        fi, delta_mu, delta_var);
 }
 
 __global__ void batchnorm2d_stat_mean_var_cuda(float const *mu_a,
@@ -1581,12 +1582,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
     cudaMalloc(&this->d_mu_norm_batch, this->num_features * sizeof(float));
     cudaMalloc(&this->d_var_norm_batch, this->num_features * sizeof(float));
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
     this->running_mean_var_to_device();
 }
 
@@ -1605,13 +1601,7 @@ void BatchNorm2dCuda::running_mean_var_to_device()
                this->var_norm_batch.size() * sizeof(float),
                cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BatchNorm2dCuda::running_mean_var_to_host()
@@ -1630,13 +1620,7 @@ void BatchNorm2dCuda::running_mean_var_to_host()
                this->var_norm_batch.size() * sizeof(float),
                cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
@@ -1722,7 +1706,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
             float *buf_mu_in = cu_temp_states->d_tmp_1;
             float *buf_var_in = cu_temp_states->d_tmp_2;
 
-            batchnorm_fwd_sum_reduction(
+            batchnorm2d_fwd_dual_sum_reduction(
                 cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size,
                 wihi, this->in_channels, buf_mu_in, buf_var_in, buf_mu_out,
                 buf_var_out, this->d_mu_norm_batch, this->d_var_norm_batch);
@@ -1733,11 +1717,12 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
                 this->d_mu_norm_batch, this->in_channels, scale,
                 this->d_mu_norm_batch);
 
-            batchnorm_fwd_single_sum_reduction(
-                cu_input_states->d_mu_a, this->d_mu_norm_batch, batch_size,
-                wihi, this->in_channels, buf_mu_in, buf_mu_out,
-                cu_temp_states->d_tmp_2);
+            batchnorm2d_fwd_sum_reduction(cu_input_states->d_mu_a,
+                                          this->d_mu_norm_batch, batch_size,
+                                          wihi, this->in_channels, buf_mu_in,
+                                          buf_mu_out, cu_temp_states->d_tmp_2);
 
+            // Statistical sample variance
             scale = scale - 1.0f;
             batchnorm2d_sample_var_post_processing<<<grid_size_ra,
                                                      num_threads>>>(
@@ -1835,8 +1820,6 @@ void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
             unsigned int grid_row_p =
                 (fi_batch + num_threads - 1) / num_threads;
             unsigned int grid_col_p = (wihi + num_threads - 1) / num_threads;
-            unsigned int sum_grid_size =
-                (this->in_channels + num_threads - 1) / num_threads;
             dim3 dim_grid_p(grid_col_p, grid_row_p);
 
             batchnorm2d_bwd_delta_w_cuda<<<dim_grid_p, block_dim>>>(
@@ -1848,16 +1831,17 @@ void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
                 cu_temp_states->d_tmp_2);
 
             // Local pointer for swapping. Leverage the existing and
-            // not-yet-used memory block defined in GPU device to reduce the
+            // not-yet-used memory blocks defined in GPU device to reduce the
             // memory allocation
             float *buf_mu_out = cu_output_delta_states->d_delta_mu;
             float *buf_var_out = cu_output_delta_states->d_delta_var;
             float *buf_mu_in = cu_temp_states->d_tmp_1;
             float *buf_var_in = cu_temp_states->d_tmp_2;
 
-            perform_reduction(batch_size, wihi, this->in_channels, buf_mu_in,
-                              buf_var_in, buf_mu_out, buf_var_out,
-                              this->d_delta_mu_w, this->d_delta_var_w);
+            batchnorm2d_bwd_dual_sum_reduction(
+                batch_size, wihi, this->in_channels, buf_mu_in, buf_var_in,
+                buf_mu_out, buf_var_out, this->d_delta_mu_w,
+                this->d_delta_var_w);
 
             if (this->num_biases > 0) {
                 batchnorm2d_bwd_delta_b_cuda<<<dim_grid_p, block_dim>>>(
@@ -1865,10 +1849,10 @@ void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
                     cu_input_delta_states->d_delta_var, this->epsilon, wihi,
                     this->in_channels, fi_batch, buf_mu_in, buf_var_in);
 
-                perform_reduction(batch_size, wihi, this->in_channels,
-                                  buf_mu_in, buf_var_in, buf_mu_out,
-                                  buf_var_out, this->d_delta_mu_b,
-                                  this->d_delta_var_b);
+                batchnorm2d_bwd_dual_sum_reduction(
+                    batch_size, wihi, this->in_channels, buf_mu_in, buf_var_in,
+                    buf_mu_out, buf_var_out, this->d_delta_mu_b,
+                    this->d_delta_var_b);
             }
         }
     }
