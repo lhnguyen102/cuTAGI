@@ -8,6 +8,7 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/cuda_error_checking.cuh"
 #include "../include/data_struct_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,16 +78,9 @@ void HiddenStateCuda::allocate_memory() {
         this->deallocate_memory();
     }
     // Allocate memory on the GPU using cudaMalloc
-    cudaMalloc(&this->d_mu_a, size * sizeof(float));
-    cudaMalloc(&this->d_var_a, size * sizeof(float));
-    cudaMalloc(&this->d_jcb, size * sizeof(float));
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
 };
 
 void HiddenStateCuda::to_device()
