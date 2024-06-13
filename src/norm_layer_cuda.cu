@@ -13,16 +13,39 @@
 
 #define WARP_SIZE 32
 
-// Reduction
-__device__ void dual_warp_smem_reduce(volatile float *smem_mu,
-                                      volatile float *smem_var, int tx, int ty,
-                                      int BLOCK_DIM)
+// Sum reduction kernels
+__device__ void warp_smem_reduction(volatile float *smem_mu, int tx, int ty,
+                                    int BLOCK_DIM)
+/*
+ */
+{
+    float mu_x = smem_mu[ty * BLOCK_DIM + tx];
+
+    if (blockDim.x >= WARP_SIZE * 2) {
+        mu_x += smem_mu[ty * BLOCK_DIM + tx + 32];
+        __syncwarp();
+        smem_mu[ty * BLOCK_DIM + tx] = mu_x;
+        __syncwarp();
+    }
+
+    for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1) {
+        mu_x += smem_mu[ty * BLOCK_DIM + tx + offset];
+        __syncwarp();
+        smem_mu[ty * BLOCK_DIM + tx] = mu_x;
+        __syncwarp();
+    }
+}
+
+__device__ void dual_warp_smem_reduction(volatile float *smem_mu,
+                                         volatile float *smem_var, int tx,
+                                         int ty, int BLOCK_DIM)
 /*
  */
 {
     float mu_x = smem_mu[ty * BLOCK_DIM + tx];
     float var_x = smem_var[ty * BLOCK_DIM + tx];
-    if (blockDim.x >= 64) {
+
+    if (blockDim.x >= WARP_SIZE * 2) {
         mu_x += smem_mu[ty * BLOCK_DIM + tx + 32];
         var_x += smem_var[ty * BLOCK_DIM + tx + 32];
         __syncwarp();
@@ -30,36 +53,15 @@ __device__ void dual_warp_smem_reduce(volatile float *smem_mu,
         smem_var[ty * BLOCK_DIM + tx] = var_x;
         __syncwarp();
     }
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 16];
-    var_x += smem_var[ty * BLOCK_DIM + tx + 16];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    smem_var[ty * BLOCK_DIM + tx] = var_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 8];
-    var_x += smem_var[ty * BLOCK_DIM + tx + 8];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    smem_var[ty * BLOCK_DIM + tx] = var_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 4];
-    var_x += smem_var[ty * BLOCK_DIM + tx + 4];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    smem_var[ty * BLOCK_DIM + tx] = var_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 2];
-    var_x += smem_var[ty * BLOCK_DIM + tx + 2];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    smem_var[ty * BLOCK_DIM + tx] = var_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 1];
-    var_x += smem_var[ty * BLOCK_DIM + tx + 1];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    smem_var[ty * BLOCK_DIM + tx] = var_x;
-    __syncwarp();
+
+    for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1) {
+        mu_x += smem_mu[ty * BLOCK_DIM + tx + offset];
+        var_x += smem_var[ty * BLOCK_DIM + tx + offset];
+        __syncwarp();
+        smem_mu[ty * BLOCK_DIM + tx] = mu_x;
+        smem_var[ty * BLOCK_DIM + tx] = var_x;
+        __syncwarp();
+    }
 }
 
 template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
@@ -99,7 +101,7 @@ __global__ void dual_sum_reduction(float const *delta_mu_in,
     }
 
     if (tx < WARP_SIZE) {
-        dual_warp_smem_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
+        dual_warp_smem_reduction(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
     }
 
     if (tx == 0 && row < len_y) {
@@ -108,40 +110,6 @@ __global__ void dual_sum_reduction(float const *delta_mu_in,
         delta_var_out[row * gridDim.x + blockIdx.x] =
             smem_var[ty * BLOCK_TILE_X + tx];
     }
-}
-
-__device__ void warp_smem_reduce(volatile float *smem_mu, int tx, int ty,
-                                 int BLOCK_DIM)
-/*
- */
-{
-    float mu_x = smem_mu[ty * BLOCK_DIM + tx];
-    if (blockDim.x >= 64) {
-        mu_x += smem_mu[ty * BLOCK_DIM + tx + 32];
-        __syncwarp();
-        smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-        __syncwarp();
-    }
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 16];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 8];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 4];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 2];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    __syncwarp();
-    mu_x += smem_mu[ty * BLOCK_DIM + tx + 1];
-    __syncwarp();
-    smem_mu[ty * BLOCK_DIM + tx] = mu_x;
-    __syncwarp();
 }
 
 template <int BLOCK_TILE_X, int BLOCK_TILE_Y>
@@ -174,7 +142,7 @@ __global__ void sum_reduction(float const *mu_in, size_t len_x, size_t len_y,
     }
 
     if (tx < WARP_SIZE) {
-        warp_smem_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
+        warp_smem_reduction(smem_mu, tx, ty, BLOCK_TILE_X);
     }
 
     if (tx == 0 && row < len_y) {
@@ -543,7 +511,7 @@ __global__ void batchnorm2d_dual_sum_reduction(float const *delta_mu_e,
     }
 
     if (tx < WARP_SIZE) {
-        dual_warp_smem_reduce(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
+        dual_warp_smem_reduction(smem_mu, smem_var, tx, ty, BLOCK_TILE_X);
     }
     if (tx == 0 && row < fi) {
         delta_mu[row * gridDim.x + blockIdx.x] =
@@ -586,7 +554,7 @@ __global__ void batchnorm2d_sample_sum_reduction(float const *sample,
     }
 
     if (tx < WARP_SIZE) {
-        warp_smem_reduce(smem_mu, tx, ty, BLOCK_TILE_X);
+        warp_smem_reduction(smem_mu, tx, ty, BLOCK_TILE_X);
     }
     if (tx == 0 && row < fi) {
         var[row * gridDim.x + blockIdx.x] = smem_mu[ty * BLOCK_TILE_X + tx];
