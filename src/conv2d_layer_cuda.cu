@@ -428,23 +428,22 @@ Args:
             s_var_w[tile_idx_x] = var_w[row * n + tx + phase * TILE_SIZE];
         }
         __syncthreads();
-
+#pragma unroll
         for (int i = 0; i < TILE_SIZE; i++) {
             mu_w_tmp = s_mu_w[ty * TILE_SIZE + i];
             var_w_tmp = s_var_w[ty * TILE_SIZE + i];
             mu_a_tmp = s_mu_a[tx * PADDED_TILE_SIZE + i];
             var_a_tmp = s_var_a[tx * PADDED_TILE_SIZE + i];
 
-            float mu_w_tmp_2 = mu_w_tmp * mu_w_tmp;
+            float mu_w_tmp_2 = __fmul_rn(mu_w_tmp, mu_w_tmp);
 
-            sum_mu += mu_w_tmp * mu_a_tmp;
+            sum_mu += __fmul_rn(mu_w_tmp, mu_a_tmp);
             sum_var += (mu_w_tmp_2 + var_w_tmp) * var_a_tmp +
                        var_w_tmp * mu_a_tmp * mu_a_tmp;
         }
 
         __syncthreads();
     }
-#pragma unroll
     if (col < woho * B && row < fo) {
         int idx_out = woho * col_div_woho * fo + col_mod_woho + row * woho;
         if (bias) {

@@ -152,7 +152,7 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 1.0):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 1.0):
     """
     Run classification training on the Cifar dataset using a custom neural model.
 

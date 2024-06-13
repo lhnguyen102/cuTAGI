@@ -499,7 +499,6 @@ __global__ void batchnorm2d_dual_sum_reduction(float const *delta_mu_e,
     }
 
     __syncthreads();
-
     for (size_t i = BLOCK_TILE_X / 2; i > WARP_SIZE; i >>= 1) {
         if (tx < i) {
             smem_mu[ty * BLOCK_TILE_X + tx] +=

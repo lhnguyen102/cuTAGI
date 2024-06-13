@@ -92,7 +92,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 512, sigma_v: float = 2.0):
+def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
@@ -117,7 +117,7 @@ def main(num_epochs: int = 10, batch_size: int = 512, sigma_v: float = 2.0):
 
     # Network configuration
     net = CNN_BATCHNORM
-    net.to_device("cuda")
+    # net.to_device("cuda")
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
