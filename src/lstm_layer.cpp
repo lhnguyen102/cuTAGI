@@ -995,6 +995,15 @@ int LSTM::get_output_size()
     return this->output_size * this->seq_len;
 }
 
+int LSTM::get_max_num_states()
+/*
+ */
+{
+    int in_size = static_cast<int>(this->input_size) * this->seq_len;
+    int out_size = static_cast<int>(this->output_size) * this->seq_len;
+    return std::max(in_size, out_size);
+}
+
 void LSTM::get_number_param()
 /*
  */
@@ -1360,6 +1369,103 @@ void LSTM::param_backward(BaseBackwardStates &next_bwd_states,
                 this->b_pos_i, this->b_pos_c, this->b_pos_o, this->output_size,
                 this->seq_len, batch_size, 0, this->output_size,
                 this->delta_mu_b, this->delta_var_b);
+        }
+    }
+}
+
+void LSTM::backward(BaseDeltaStates &input_delta_states,
+                    BaseDeltaStates &output_delta_states,
+                    BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    int batch_size = input_delta_states.block_size;
+    if (state_udapte) {
+        if (this->num_threads > 1) {
+            lstm_delta_mean_var_z_mp(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                this->num_threads, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        } else {
+            int end_chunk = batch_size * this->seq_len * this->input_size;
+            lstm_delta_mean_var_z_worker(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, 0,
+                end_chunk, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        }
+    }
+
+    if (param_update) {
+        if (this->num_threads > 1) {
+            lstm_cat_activations_and_prev_states_mp(
+                this->bwd_states->mu_a, lstm_states.mu_h_prev, this->input_size,
+                this->output_size, this->seq_len, batch_size, this->num_threads,
+                lstm_states.mu_ha);
+
+            lstm_delta_mean_var_w_mp(
+                this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+                lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                this->num_threads, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                lstm_delta_mean_var_b_mp(
+                    this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                    lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                    lstm_states.jcb_c_ga, lstm_states.mu_o_ga,
+                    lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+                    lstm_states.mu_ca, lstm_states.jcb_ca,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->b_pos_f, this->b_pos_i, this->b_pos_c, this->b_pos_o,
+                    this->output_size, this->seq_len, batch_size,
+                    this->num_threads, this->delta_mu_b, this->delta_var_b);
+            }
+        } else {
+            int end_chunk_w =
+                (this->input_size + this->output_size) * this->output_size;
+            lstm_cat_activations_and_prev_states(
+                this->bwd_states->mu_a, lstm_states.mu_h_prev, this->input_size,
+                this->output_size, this->seq_len, batch_size,
+                lstm_states.mu_ha);
+
+            lstm_delta_mean_var_w_worker(
+                this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+                lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                0, end_chunk_w, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                lstm_delta_mean_var_b_worker(
+                    this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                    lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                    lstm_states.jcb_c_ga, lstm_states.mu_o_ga,
+                    lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+                    lstm_states.mu_ca, lstm_states.jcb_ca,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->b_pos_f, this->b_pos_i, this->b_pos_c, this->b_pos_o,
+                    this->output_size, this->seq_len, batch_size, 0,
+                    this->output_size, this->delta_mu_b, this->delta_var_b);
+            }
         }
     }
 }

@@ -966,6 +966,92 @@ void LSTMCuda::param_backward(BaseBackwardStates &next_bwd_states,
     }
 }
 
+void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
+                        BaseDeltaStates &output_delta_states,
+                        BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    unsigned int gridRow_cov =
+        (batch_size * this->seq_len + this->num_cuda_threads - 1) /
+        this->num_cuda_threads;
+    unsigned int gridCol_cov = (this->input_size + this->num_cuda_threads - 1) /
+                               this->num_cuda_threads;
+    dim3 dim_grid(gridCol_cov, gridRow_cov);
+    dim3 dim_block(threads, threads);
+
+    if (state_udapte) {
+        lstm_delta_mean_var_z<<<dim_grid, dim_block>>>(
+            this->d_mu_w, this->lstm_state.d_jcb_f_ga,
+            this->lstm_state.d_mu_i_ga, this->lstm_state.d_jcb_i_ga,
+            this->lstm_state.d_mu_c_ga, this->lstm_state.d_jcb_c_ga,
+            this->lstm_state.d_mu_o_ga, this->lstm_state.d_jcb_o_ga,
+            this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_ca,
+            this->lstm_state.d_jcb_ca, cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->w_pos_f, this->w_pos_i,
+            this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
+            this->seq_len, batch_size, cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    }
+
+    if (param_update) {
+        // Launch kernel
+        unsigned int b_blocks = (this->output_size + threads - 1) / threads;
+        unsigned int grid_row_p =
+            (this->input_size + this->output_size + threads - 1) / threads;
+        unsigned int grid_col_p = (this->output_size + threads - 1) / threads;
+        dim3 dim_grid_p(grid_col_p, grid_row_p);
+
+        // Concatenate the hidden states from the previous time step and
+        // activations from the previous layer
+        unsigned int grid_row_cat = (batch_size + threads - 1) / threads;
+        unsigned int grid_col_cat = (this->seq_len + threads - 1) / threads;
+        dim3 dim_grid_cat(grid_col_cat, grid_row_cat);
+        lstm_cat_act_and_prev_states_cuda<<<dim_grid_cat, dim_block>>>(
+            cu_next_bwd_states->d_mu_a, this->lstm_state.d_mu_h_prev,
+            this->input_size, this->output_size, this->seq_len, batch_size,
+            this->lstm_state.d_mu_ha);
+
+        lstm_delta_mean_var_w<<<dim_grid_p, dim_block>>>(
+            this->d_var_w, this->lstm_state.d_mu_ha,
+            this->lstm_state.d_jcb_f_ga, this->lstm_state.d_mu_i_ga,
+            this->lstm_state.d_jcb_i_ga, this->lstm_state.d_mu_c_ga,
+            this->lstm_state.d_jcb_c_ga, this->lstm_state.d_mu_o_ga,
+            this->lstm_state.d_jcb_o_ga, this->lstm_state.d_mu_c_prev,
+            this->lstm_state.d_mu_ca, this->lstm_state.d_jcb_ca,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->w_pos_f, this->w_pos_i,
+            this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
+            this->seq_len, batch_size, this->d_delta_mu_w, this->d_delta_var_w);
+
+        if (this->bias) {
+            lstm_delta_mean_var_b<<<b_blocks, threads>>>(
+                this->d_var_b, this->lstm_state.d_jcb_f_ga,
+                this->lstm_state.d_mu_i_ga, this->lstm_state.d_jcb_i_ga,
+                this->lstm_state.d_mu_c_ga, this->lstm_state.d_jcb_c_ga,
+                this->lstm_state.d_mu_o_ga, this->lstm_state.d_jcb_o_ga,
+                this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_ca,
+                this->lstm_state.d_jcb_ca, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->b_pos_f,
+                this->b_pos_i, this->b_pos_c, this->b_pos_o, this->output_size,
+                this->seq_len, batch_size, this->d_delta_mu_b,
+                this->d_delta_var_b);
+        }
+    }
+}
+
 std::unique_ptr<BaseLayer> LSTMCuda::to_host()
 /* Transfer to cpu version
  */

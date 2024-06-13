@@ -28,8 +28,11 @@ AvgPool2dCuda::~AvgPool2dCuda() {
 }
 
 std::string AvgPool2dCuda::get_layer_info() const {
-    return "AvgPool2d(" + std::to_string(this->kernel_size) + ")";
-    ;
+    return "AvgPool2d(" + std::to_string(this->in_channels) + "," +
+           std::to_string(this->out_channels) + "," +
+           std::to_string(this->out_width) + "," +
+           std::to_string(this->out_height) + "," +
+           std::to_string(this->kernel_size) + ")";
 }
 
 std::string AvgPool2dCuda::get_layer_name() const { return "AvgPool2dCuda"; }
@@ -169,12 +172,64 @@ void AvgPool2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
  */
 {}
 
+void AvgPool2dCuda::backward(BaseDeltaStates &input_delta_states,
+                             BaseDeltaStates &output_delta_states,
+                             BaseTempStates &temp_states, bool state_udapte)
+/**/
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    unsigned int num_threads = this->num_cuda_threads;
+
+    // Launch kernel
+    if (state_udapte) {
+        int woho = this->out_width * this->out_height;
+        int wihi = this->in_width * this->in_height;
+        int pad_out_idx = woho * this->out_channels * batch_size + 1;
+        if (overlap) {
+            int num_in_states = this->in_width * this->in_height *
+                                this->in_channels * batch_size;
+            unsigned int grid_size =
+                (num_in_states + num_threads - 1) / num_threads;
+
+            avgpool2d_bwd_overlapped_delta_z_cuda<<<grid_size, num_threads>>>(
+                cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->d_z_ud_idx, woho,
+                wihi, this->kernel_size, this->col_z_ud, num_in_states,
+                pad_out_idx, cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+
+        } else {
+            int kiwo = this->kernel_size * this->out_width;
+            int nums = wihi * this->in_channels * batch_size / kiwo;
+            unsigned int grid_row = (kiwo + num_threads - 1) / num_threads;
+            unsigned int grid_col = (nums + num_threads - 1) / num_threads;
+            dim3 dim_grid(grid_col, grid_row);
+            dim3 dim_block(num_threads, num_threads);
+
+            avgpool2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
+                cu_next_bwd_states->d_jcb, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->out_width,
+                this->kernel_size, nums, cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        }
+    }
+}
+
 void AvgPool2dCuda::lazy_index_init()
 /*
  */
 {
     if (this->kernel_size == this->stride ||
-        (this->kernel_size == this->in_width && this->stride == 1)) {
+        this->kernel_size == this->in_width) {
         this->overlap = false;
     }
 

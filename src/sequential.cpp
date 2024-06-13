@@ -17,14 +17,13 @@
 #endif
 #include <memory>
 
-Sequential::Sequential() {}
+// Sequential::Sequential() {}
 Sequential::~Sequential() {}
 
 void Sequential::switch_to_cuda() {
-    if (this->device == "cuda") {
-        for (size_t i = 0; i < this->layers.size(); ++i) {
-            layers[i] = layers[i]->to_cuda();
-        }
+    for (size_t i = 0; i < this->layers.size(); ++i) {
+        auto cuda_layer = layers[i]->to_cuda();
+        layers[i] = std::move(cuda_layer);
     }
 }
 
@@ -43,6 +42,7 @@ void Sequential::add_layers()
 /*
  */
 {
+    // After variadic template, meanings vector of layers has formed
     if (this->device == "cpu") {
         this->compute_input_output_size();
         this->set_buffer_size();
@@ -73,10 +73,8 @@ void Sequential::set_buffer_size()
  */
 {
     for (auto &layer : this->layers) {
-        int output_size = layer->get_output_size();
-        int input_size = layer->get_input_size();
-        this->z_buffer_size = std::max(output_size, this->z_buffer_size);
-        this->z_buffer_size = std::max(input_size, this->z_buffer_size);
+        int max_size = layer->get_max_num_states();
+        this->z_buffer_size = std::max(max_size, this->z_buffer_size);
     }
 }
 
@@ -160,8 +158,21 @@ void Sequential::set_threads(unsigned int num_threads)
 {
     this->num_threads = num_threads;
     for (auto &layer : this->layers) {
-        layer->num_threads = num_threads;
+        layer->set_threads(num_threads);
     }
+}
+
+std::string Sequential::get_device()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        auto layer_device = layer->get_device();
+        if (layer_device != this->device) {
+            return layer_device;
+        }
+    }
+    return this->device;
 }
 
 void Sequential::forward(const std::vector<float> &mu_x,
@@ -208,6 +219,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
 
+        // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);
     }
 
@@ -272,17 +284,10 @@ void Sequential::backward()
          ++layer) {
         auto *current_layer = layer->get();
 
-        // Backward pass for parameters and hidden states
-        if (this->param_update) {
-            current_layer->param_backward(*current_layer->bwd_states,
-                                          *this->input_delta_z_buffer,
-                                          *this->temp_states);
-        }
-
         // Backward pass for hidden states
-        current_layer->state_backward(
-            *current_layer->bwd_states, *this->input_delta_z_buffer,
-            *this->output_delta_z_buffer, *this->temp_states);
+        current_layer->backward(*this->input_delta_z_buffer,
+                                *this->output_delta_z_buffer,
+                                *this->temp_states);
 
         // Pass new input data for next iteration
         if (current_layer->get_layer_type() != LayerType::Activation) {
@@ -290,19 +295,10 @@ void Sequential::backward()
         }
     }
 
-    // Parameter update for input layer
-    if (this->param_update) {
-        this->layers[0]->param_backward(*this->layers[0]->bwd_states,
-                                        *this->input_delta_z_buffer,
-                                        *this->temp_states);
-    }
-
     // State update for input layer
-    if (this->input_state_update) {
-        this->layers[0]->state_backward(
-            *this->layers[0]->bwd_states, *this->input_delta_z_buffer,
-            *this->output_delta_z_buffer, *this->temp_states);
-    }
+    this->layers[0]->backward(*this->input_delta_z_buffer,
+                              *this->output_delta_z_buffer, *this->temp_states,
+                              this->input_state_update);
 }
 
 void Sequential::step()

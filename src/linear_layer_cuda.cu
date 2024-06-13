@@ -337,8 +337,6 @@ void LinearCuda::state_backward(BaseBackwardStates &next_bwd_states,
         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
     DeltaStateCuda *cu_output_delta_states =
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
-    // *>(&temp_states);
 
     // Initialization
     int batch_size = input_delta_states.block_size;
@@ -370,8 +368,6 @@ void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
         dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
     DeltaStateCuda *cu_delta_states =
         dynamic_cast<DeltaStateCuda *>(&delta_states);
-    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
-    // *>(&temp_states);
 
     // Initalization
     int batch_size = delta_states.block_size;
@@ -397,6 +393,66 @@ void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
             this->d_var_b, cu_delta_states->d_delta_mu,
             cu_delta_states->d_delta_var, this->input_size, this->output_size,
             batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+    }
+}
+
+void LinearCuda::backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states, bool state_udapte)
+/**/
+{
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int threads = this->num_cuda_threads;
+
+    // Compute inovation vector
+    unsigned int grid_row = (this->input_size + threads - 1) / threads;
+    unsigned int grid_col = (batch_size + threads - 1) / threads;
+
+    dim3 grid_dim(grid_col, grid_row);
+    dim3 block_dim(threads, threads);
+    if (state_udapte) {
+        linear_bwd_delta_z<<<grid_dim, block_dim>>>(
+            this->d_mu_w, cu_next_bwd_states->d_jcb,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->input_size,
+            this->output_size, batch_size, cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    }
+
+    // Updated values for weights
+    if (this->param_update) {
+        unsigned int grid_row_w = (this->input_size + threads - 1) / threads;
+        unsigned int grid_col_w = (this->output_size + threads - 1) / threads;
+        dim3 grid_dim_w(grid_col_w, grid_row_w);
+
+        linear_bwd_delta_w<<<grid_dim_w, block_dim>>>(
+            this->d_var_w, cu_next_bwd_states->d_mu_a,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->input_size,
+            this->output_size, batch_size, this->d_delta_mu_w,
+            this->d_delta_var_w);
+
+        // Updated values for biases
+        if (this->bias) {
+            unsigned int grid_row_b =
+                (this->output_size + threads - 1) / threads;
+            dim3 grid_dim_b(1, grid_row_b);
+
+            linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
+                this->d_var_b, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->input_size,
+                this->output_size, batch_size, this->d_delta_mu_b,
+                this->d_delta_var_b);
+        }
     }
 }
 

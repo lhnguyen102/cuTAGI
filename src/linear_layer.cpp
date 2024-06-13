@@ -635,6 +635,70 @@ Args:
         }
     }
 }
+
+void Linear::backward(BaseDeltaStates &input_delta_states,
+                      BaseDeltaStates &output_delta_states,
+                      BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+
+    // Compute inovation vector
+    if (state_udapte) {
+        if (this->num_threads > 1) {
+            linear_bwd_fc_delta_z_mp(
+                this->mu_w, this->bwd_states->jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->input_size,
+                this->output_size, batch_size, this->num_threads,
+                output_delta_states.delta_mu, output_delta_states.delta_var);
+        } else {
+            int start_chunk = 0;
+            int end_chunk = batch_size * this->input_size;
+            linear_bwd_fc_delta_z(
+                this->mu_w, this->bwd_states->jcb, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->input_size,
+                this->output_size, batch_size, start_chunk, end_chunk,
+                output_delta_states.delta_mu, output_delta_states.delta_var);
+        }
+    }
+
+    // Update values for weights & biases
+    if (this->param_update) {
+        if (this->num_threads > 1) {
+            linear_bwd_fc_delta_w_mp(
+                this->var_w, this->bwd_states->mu_a,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->input_size, this->output_size, batch_size,
+                this->num_threads, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                linear_bwd_fc_delta_b_mp(
+                    this->var_b, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->output_size, batch_size,
+                    this->num_threads, this->delta_mu_b, this->delta_var_b);
+            }
+        } else {
+            int start_chunk = 0;
+            int end_chunk = this->input_size * this->output_size;
+            linear_bwd_fc_delta_w(
+                this->var_w, this->bwd_states->mu_a,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->input_size, this->output_size, batch_size, start_chunk,
+                end_chunk, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                linear_bwd_fc_delta_b(this->var_b, input_delta_states.delta_mu,
+                                      input_delta_states.delta_var,
+                                      this->output_size, batch_size,
+                                      start_chunk, this->output_size,
+                                      this->delta_mu_b, this->delta_var_b);
+            }
+        }
+    }
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> Linear::to_cuda() {
     this->device = "cuda";

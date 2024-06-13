@@ -238,7 +238,7 @@ void lstm_v2()
     // Model
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
-    // model.to_device("cuda");
+    model.to_device("cuda");
     // model.set_threads(8);
 
     OutputUpdater output_updater(model.device);
@@ -248,7 +248,7 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 20;
+    int n_epochs = 1;
     int batch_size = 10;
     float sigma_obs = 2.0;
 
@@ -277,7 +277,7 @@ void lstm_v2()
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 1; i++) {
             // Load data
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
             get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);

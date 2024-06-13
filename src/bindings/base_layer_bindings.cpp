@@ -1,13 +1,3 @@
-////////////////////////////////////////////////////////////////////////////////
-// File:         base_layer_binding.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 30, 2023
-// Updated:      December 30, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/base_layer_bindings.h"
 
 void bind_base_layer(pybind11::module_& modo)
@@ -38,9 +28,9 @@ void bind_base_layer(pybind11::module_& modo)
         .def_readwrite("num_threads", &BaseLayer::num_threads)
         .def_readwrite("training", &BaseLayer::training)
         .def_readwrite("device", &BaseLayer::device)
-        .def("to_cuda", &BaseLayer::to_cuda);
-    // .def("get_layer_info", &BaseLayer::get_layer_info)
-    // .def("get_layer_name", &BaseLayer::get_layer_name)
-    // .def("update_weights", &BaseLayer::update_weights)
-    // .def("update_biases", &BaseLayer::update_biases);
+        .def("to_cuda", &BaseLayer::to_cuda)
+        .def("backward", &BaseLayer::backward)
+        .def("get_layer_info", &BaseLayer::get_layer_info)
+        .def("get_layer_name", &BaseLayer::get_layer_name)
+        .def("get_max_num_states", &BaseLayer::get_max_num_states);
 }

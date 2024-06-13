@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 12, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +40,7 @@ class LayerNorm : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -54,6 +54,11 @@ class LayerNorm : public BaseLayer {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
 
@@ -101,7 +106,7 @@ class BatchNorm2d : public BaseLayer {
 
     LayerType get_layer_type() const override;
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -115,6 +120,11 @@ class BatchNorm2d : public BaseLayer {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
 

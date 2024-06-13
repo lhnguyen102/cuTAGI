@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 28, 2024
+// Updated:      April 26, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,9 @@ enum class LayerType {
     Pool2d,
     LSTM,
     Activation,
-    Norm
+    Norm,
+    LayerBlock,
+    ResNetBlock
 };
 
 class InitArgs {
@@ -45,6 +47,7 @@ class BaseLayer {
     size_t in_width = 0, in_height = 0, in_channels = 0;
     size_t out_width = 0, out_height = 0, out_channels = 0;
     bool bias = true;
+    bool param_update = true;
     float cap_factor_update = 1.0f;
 
     std::vector<float> mu_w;
@@ -85,6 +88,12 @@ class BaseLayer {
 
     virtual int get_output_size();
 
+    virtual int get_max_num_states();
+
+    virtual std::string get_device();
+
+    virtual void init_weight_bias();
+
     virtual void forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states);
@@ -98,6 +107,11 @@ class BaseLayer {
                                 BaseDeltaStates &delta_states,
                                 BaseTempStates &temp_states);
 
+    virtual void backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states,
+                          bool state_udapte = true);
+
     virtual void allocate_param_delta();
 
     virtual void update_weights();
@@ -110,6 +124,8 @@ class BaseLayer {
 
     virtual void set_cap_factor_udapte(int batch_size);
 
+    virtual void set_threads(int num);
+
     virtual void compute_input_output_size(const InitArgs &args);
 
     void storing_states_for_training(BaseHiddenStates &input_states,
@@ -117,6 +133,9 @@ class BaseLayer {
 
     virtual void save(std::ofstream &file);
     virtual void load(std::ifstream &file);
+
+    // NOTE: each layer has its own conversion to cuda layer. The idea is to
+    // move the ownership of the layer to cuda layer, so unique_ptr is used.
     virtual std::unique_ptr<BaseLayer> to_cuda() {
         throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                                  " at line: " + std::to_string(__LINE__) +

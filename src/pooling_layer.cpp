@@ -188,6 +188,70 @@ void AvgPool2d::param_backward(BaseBackwardStates &next_bwd_states,
  */
 {}
 
+void AvgPool2d::backward(BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         BaseTempStates &temp_states, bool state_udapte)
+/**/
+{
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+
+    // Launch kernel
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int pad_out_idx = woho * this->out_channels * batch_size + 1;
+
+    if (state_udapte) {
+        if (this->num_threads > 1) {
+            if (this->overlap) {
+                int num_in_states = this->in_width * this->in_height *
+                                    this->in_channels * batch_size;
+
+                avgpool2d_bwd_overlapped_delta_z_mp(
+                    this->bwd_states->jcb, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->z_ud_idx, woho, wihi,
+                    this->kernel_size, this->col_z_ud, num_in_states,
+                    pad_out_idx, this->num_threads,
+                    output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            } else {
+                int kiwo = this->kernel_size * this->out_width;
+                int nums = wihi * this->in_channels * batch_size / kiwo;
+
+                avgpool2d_bwd_delta_z_mp(
+                    this->bwd_states->jcb, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->out_width,
+                    this->kernel_size, nums, this->num_threads,
+                    output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        } else {
+            if (this->overlap) {
+                int num_in_states = this->in_width * this->in_height *
+                                    this->in_channels * batch_size;
+
+                avgpool2d_bwd_overlapped_delta_z(
+                    this->bwd_states->jcb, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->z_ud_idx, woho, wihi,
+                    this->kernel_size, this->col_z_ud, num_in_states,
+                    pad_out_idx, 0, num_in_states, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            } else {
+                int kiwo = this->kernel_size * this->out_width;
+                int nums = wihi * this->in_channels * batch_size / kiwo;
+                int end_chunk = this->kernel_size * this->out_width * nums;
+
+                avgpool2d_bwd_delta_z(
+                    this->bwd_states->jcb, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->out_width,
+                    this->kernel_size, nums, 0, end_chunk,
+                    output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        }
+    }
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> AvgPool2d::to_cuda() {
     this->device = "cuda";
@@ -201,7 +265,7 @@ void AvgPool2d::lazy_index_init()
  */
 {
     if (this->kernel_size == this->stride ||
-        (this->kernel_size == this->in_width && this->stride == 1)) {
+        this->kernel_size == this->in_width) {
         this->overlap = false;
     }
 

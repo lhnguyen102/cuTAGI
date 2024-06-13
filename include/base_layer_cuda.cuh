@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      November 29, 2023
-// Updated:      April 05, 2024
+// Updated:      April 26, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,6 +59,8 @@ class BaseLayerCuda : public BaseLayer {
     void raw_update_weights() override;
 
     void raw_update_biases() override;
+
+    virtual void set_cuda_threads(int);
 
     virtual std::unique_ptr<BaseLayer> to_host();
     virtual void params_to_device();

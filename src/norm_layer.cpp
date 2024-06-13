@@ -1700,6 +1700,142 @@ void LayerNorm::param_backward(BaseBackwardStates &next_bwd_states,
     }
 }
 
+void LayerNorm::backward(BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    int batch_size = input_delta_states.block_size;
+
+    if (state_udapte) {
+        if (this->num_threads <= 1) {
+            if (this->normalized_shape.size() == 1) {
+                layernorm_bwd_delta_z(this->mu_w, this->bwd_states->jcb,
+                                      this->var_ra, input_delta_states.delta_mu,
+                                      input_delta_states.delta_var,
+                                      this->epsilon, this->input_size, 0,
+                                      batch_size, output_delta_states.delta_mu,
+                                      output_delta_states.delta_var);
+            } else {
+                int wihi = this->in_height * this->in_width;
+
+                layernorm2d_bwd_delta_z(
+                    this->mu_w, this->bwd_states->jcb, this->var_ra,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, wihi, this->in_channels, 0, batch_size,
+                    output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        } else {
+            if (this->normalized_shape.size() == 1) {
+                layernorm_bwd_delta_z_mp(
+                    this->mu_w, this->bwd_states->jcb, this->var_ra,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, this->input_size, batch_size,
+                    this->num_threads, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            } else {
+                int wihi = this->in_height * this->in_width;
+
+                layernorm2d_bwd_delta_z_mp(
+                    this->mu_w, this->bwd_states->jcb, this->var_ra,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, wihi, this->in_channels, batch_size,
+                    this->num_threads, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        }
+    }
+    if (this->param_update) {
+        if (this->num_threads <= 1) {
+            if (this->normalized_shape.size() == 1) {
+                layernorm_bwd_delta_w(
+                    this->var_w, this->bwd_states->mu_a, this->mu_ra,
+                    this->var_ra, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon,
+                    this->input_size, batch_size, 0, this->input_size,
+                    this->delta_mu_w, this->delta_var_w);
+
+                if (this->bias) {
+                    layernorm_bwd_delta_b(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon,
+                        this->input_size, batch_size, 0, this->input_size,
+                        this->delta_mu_b, this->delta_var_b);
+                }
+            } else {
+                int wihi = this->in_height * this->in_width;
+
+                layernorm2d_bwd_delta_w(
+                    this->var_w, this->bwd_states->mu_a, this->mu_ra,
+                    this->var_ra, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon, wihi,
+                    this->in_channels, 0, batch_size, temp_states.tmp_1,
+                    temp_states.tmp_2);
+
+                delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                this->in_channels, batch_size, this->delta_mu_w,
+                                this->delta_var_w);
+
+                if (this->bias) {
+                    layernorm2d_bwd_delta_b(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon, wihi,
+                        this->in_channels, 0, batch_size, temp_states.tmp_1,
+                        temp_states.tmp_2);
+
+                    delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                    this->in_channels, batch_size,
+                                    this->delta_mu_b, this->delta_var_b);
+                }
+            }
+        } else {
+            if (this->normalized_shape.size() == 1) {
+                layernorm_bwd_delta_w_mp(
+                    this->var_w, this->bwd_states->mu_a, this->mu_ra,
+                    this->var_ra, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon,
+                    this->input_size, batch_size, this->num_threads,
+                    this->delta_mu_w, this->delta_var_w);
+
+                if (this->bias) {
+                    layernorm_bwd_delta_b_mp(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon,
+                        this->input_size, batch_size, this->num_threads,
+                        this->delta_mu_b, this->delta_var_b);
+                }
+            } else {
+                int wihi = this->in_height * this->in_width;
+
+                layernorm2d_bwd_delta_w_mp(
+                    this->var_w, this->bwd_states->mu_a, this->mu_ra,
+                    this->var_ra, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon, wihi,
+                    this->in_channels, batch_size, this->num_threads,
+                    temp_states.tmp_1, temp_states.tmp_2);
+
+                delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                this->in_channels, batch_size, this->delta_mu_w,
+                                this->delta_var_w);
+
+                if (this->bias) {
+                    layernorm2d_bwd_delta_b_mp(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon, wihi,
+                        this->in_channels, batch_size, this->num_threads,
+                        temp_states.tmp_1, temp_states.tmp_2);
+
+                    delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                    this->in_channels, batch_size,
+                                    this->delta_mu_b, this->delta_var_b);
+                }
+            }
+        }
+    }
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LayerNorm::to_cuda() {
     this->device = "cuda";
@@ -1727,7 +1863,7 @@ void LayerNorm::save(std::ofstream &file)
     }
 
     // Save the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
     file.write(layer_name.c_str(), name_length);
@@ -1764,7 +1900,7 @@ void LayerNorm::load(std::ifstream &file)
                                  ". Failed to open file for loading");
     }
     // Load the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     std::string loaded_name;
     size_t name_length;
     file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
@@ -1798,6 +1934,12 @@ void LayerNorm::load(std::ifstream &file)
     }
     for (auto &v_ra : this->var_ra) {
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
+    }
+
+    this->num_weights = this->mu_w.size();
+    this->num_biases = this->mu_b.size();
+    if (this->training) {
+        this->allocate_param_delta();
     }
 }
 
@@ -2159,6 +2301,149 @@ void BatchNorm2d::param_backward(BaseBackwardStates &next_bwd_states,
     }
 }
 
+void BatchNorm2d::backward(BaseDeltaStates &input_delta_states,
+                           BaseDeltaStates &output_delta_states,
+                           BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    int batch_size = input_delta_states.block_size;
+
+    if (state_udapte) {
+        if (this->num_threads == 1) {
+            if (this->in_channels == 0) {
+                batchnorm_bwd_delta_z(
+                    this->mu_w, this->bwd_states->jcb, this->var_norm_batch,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, this->input_size, 0, batch_size,
+                    output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            } else {
+                int wihi = this->in_width * this->in_height;
+                int end_chunk = this->in_channels * batch_size;
+
+                batchnorm2d_bwd_delta_z(
+                    this->mu_w, this->bwd_states->jcb, this->var_norm_batch,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, wihi, this->in_channels, batch_size, 0,
+                    end_chunk, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        } else {
+            if (this->in_channels == 0) {
+                batchnorm_bwd_delta_z_mp(
+                    this->mu_w, this->bwd_states->jcb, this->var_norm_batch,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, this->input_size, batch_size,
+                    this->num_threads, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            } else {
+                int wihi = this->in_width * this->in_height;
+                int end_chunk = this->in_channels * batch_size;
+
+                batchnorm2d_bwd_delta_z_mp(
+                    this->mu_w, this->bwd_states->jcb, this->var_norm_batch,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->epsilon, wihi, this->in_channels, batch_size,
+                    this->num_threads, output_delta_states.delta_mu,
+                    output_delta_states.delta_var);
+            }
+        }
+    }
+
+    if (this->param_update) {
+        if (this->num_threads == 1) {
+            if (this->in_channels == 0) {
+                batchnorm_bwd_delta_w(
+                    this->var_w, this->bwd_states->mu_a, this->mu_norm_batch,
+                    this->var_norm_batch, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon,
+                    this->input_size, batch_size, 0, this->input_size,
+                    this->delta_mu_w, this->delta_var_w);
+
+                if (this->bias) {
+                    batchnorm_bwd_delta_b(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon,
+                        this->input_size, batch_size, 0, this->input_size,
+                        this->delta_mu_b, this->delta_var_b);
+                }
+
+            } else {
+                int wihi = this->in_width * this->in_height;
+                int end_chunk = this->in_channels * batch_size;
+
+                batchnorm2d_bwd_delta_w(
+                    this->var_w, this->bwd_states->mu_a, this->mu_norm_batch,
+                    this->var_norm_batch, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon, wihi,
+                    this->in_channels, batch_size, 0, end_chunk,
+                    temp_states.tmp_1, temp_states.tmp_2);
+
+                delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                this->in_channels, batch_size, this->delta_mu_w,
+                                this->delta_var_w);
+
+                if (this->num_biases > 0) {
+                    batchnorm2d_bwd_delta_b(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon, wihi,
+                        this->in_channels, 0, end_chunk, temp_states.tmp_1,
+                        temp_states.tmp_2);
+
+                    delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                    this->in_channels, batch_size,
+                                    this->delta_mu_b, this->delta_var_b);
+                }
+            }
+        } else {
+            if (this->in_channels == 0) {
+                batchnorm_bwd_delta_w_mp(
+                    this->var_w, this->bwd_states->mu_a, this->mu_norm_batch,
+                    this->var_norm_batch, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon,
+                    this->input_size, batch_size, this->num_threads,
+                    this->delta_mu_w, this->delta_var_w);
+
+                if (this->bias) {
+                    batchnorm_bwd_delta_b_mp(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon,
+                        this->input_size, batch_size, this->num_threads,
+                        this->delta_mu_b, this->delta_var_b);
+                }
+
+            } else {
+                int wihi = this->in_width * this->in_height;
+                int end_chunk = this->in_channels * batch_size;
+
+                batchnorm2d_bwd_delta_w_mp(
+                    this->var_w, this->bwd_states->mu_a, this->mu_norm_batch,
+                    this->var_norm_batch, input_delta_states.delta_mu,
+                    input_delta_states.delta_var, this->epsilon, wihi,
+                    this->in_channels, batch_size, this->num_threads,
+                    temp_states.tmp_1, temp_states.tmp_2);
+
+                delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                this->in_channels, batch_size, this->delta_mu_w,
+                                this->delta_var_w);
+
+                if (this->num_biases > 0) {
+                    batchnorm2d_bwd_delta_b_mp(
+                        this->var_b, input_delta_states.delta_mu,
+                        input_delta_states.delta_var, this->epsilon, wihi,
+                        this->in_channels, batch_size, this->num_threads,
+                        temp_states.tmp_1, temp_states.tmp_2);
+
+                    delta_param_sum(temp_states.tmp_1, temp_states.tmp_2, wihi,
+                                    this->in_channels, batch_size,
+                                    this->delta_mu_b, this->delta_var_b);
+                }
+            }
+        }
+    }
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda() {
     this->device = "cuda";
@@ -2178,7 +2463,7 @@ void BatchNorm2d::save(std::ofstream &file)
     }
 
     // Save the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
     file.write(layer_name.c_str(), name_length);
@@ -2215,7 +2500,7 @@ void BatchNorm2d::load(std::ifstream &file)
                                  ". Failed to open file for loading");
     }
     // Load the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     std::string loaded_name;
     size_t name_length;
     file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
@@ -2249,5 +2534,11 @@ void BatchNorm2d::load(std::ifstream &file)
     }
     for (auto &v_ra : this->var_ra) {
         file.read(reinterpret_cast<char *>(&v_ra), sizeof(v_ra));
+    }
+
+    this->num_weights = this->mu_w.size();
+    this->num_biases = this->mu_b.size();
+    if (this->training) {
+        this->allocate_param_delta();
     }
 }

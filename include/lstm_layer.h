@@ -4,7 +4,7 @@
 //               in TAGI
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      March 22, 2024
-// Updated:      March 23, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,9 +49,11 @@ class LSTM : public BaseLayer {
 
     int get_output_size() override;
 
+    int get_max_num_states() override;
+
     void get_number_param();
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void prepare_input(BaseHiddenStates &input_state);
 
@@ -75,6 +77,11 @@ class LSTM : public BaseLayer {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
 

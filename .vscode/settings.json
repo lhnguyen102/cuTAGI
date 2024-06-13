@@ -201,6 +201,25 @@
         "charconv": "cpp",
         "ios": "cpp",
         "locale": "cpp",
-        "__availability": "cpp"
+        "__availability": "cpp",
+        "any": "cpp",
+        "barrier": "cpp",
+        "cfenv": "cpp",
+        "coroutine": "cpp",
+        "csetjmp": "cpp",
+        "csignal": "cpp",
+        "cuchar": "cpp",
+        "regex": "cpp",
+        "source_location": "cpp",
+        "future": "cpp",
+        "latch": "cpp",
+        "ranges": "cpp",
+        "scoped_allocator": "cpp",
+        "shared_mutex": "cpp",
+        "span": "cpp",
+        "syncstream": "cpp",
+        "expected": "cpp",
+        "spanstream": "cpp",
+        "stacktrace": "cpp"
     }
 }

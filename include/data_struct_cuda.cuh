@@ -36,6 +36,39 @@ class HiddenStateCuda : public BaseHiddenStates {
     void chunks_to_device(const size_t chunk_size);
     void to_host();
     void set_size(size_t size, size_t block_size) override;
+    void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
+
+    // Move constructor
+    HiddenStateCuda(HiddenStateCuda &&other) noexcept
+        : BaseHiddenStates(std::move(other)) {
+        d_mu_a = other.d_mu_a;
+        d_var_a = other.d_var_a;
+        d_jcb = other.d_jcb;
+
+        other.d_mu_a = nullptr;
+        other.d_var_a = nullptr;
+        other.d_jcb = nullptr;
+    }
+
+    // Move assignment operator
+    HiddenStateCuda &operator=(HiddenStateCuda &&other) noexcept {
+        BaseHiddenStates::operator=(std::move(other));
+        if (this != &other) {
+            deallocate_memory();
+
+            // Transfer ownership
+            d_mu_a = other.d_mu_a;
+            d_var_a = other.d_var_a;
+            d_jcb = other.d_jcb;
+
+            other.d_mu_a = nullptr;
+            other.d_var_a = nullptr;
+            other.d_jcb = nullptr;
+        }
+        return *this;
+    }
+
+    void swap(BaseHiddenStates &other) override;
 };
 
 class DeltaStateCuda : public BaseDeltaStates {
@@ -55,6 +88,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     void reset_zeros() override;
     void copy_from(const BaseDeltaStates &source, int num_data = -1) override;
     void set_size(size_t size, size_t block_size) override;
+    void swap(BaseDeltaStates &other) override;
 };
 
 class TempStateCuda : public BaseTempStates {

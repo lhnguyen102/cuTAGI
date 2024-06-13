@@ -35,8 +35,10 @@ class Sequential {
     std::shared_ptr<BaseDeltaStates> output_delta_z_buffer;
     std::shared_ptr<BaseDeltaStates> input_delta_z_buffer;
     std::shared_ptr<BaseTempStates> temp_states;
+
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
+
     int input_size = 0;
     bool training = true;
     bool param_update = true;
@@ -45,8 +47,7 @@ class Sequential {
     std::string device = "cpu";
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Variadic template. Note that for the template function the definition of
-    // template must be included in the herder
+    // Variadic template
     template <typename... Layers>
     Sequential(Layers&&... layers) {
         add_layers(std::forward<Layers>(layers)...);
@@ -54,35 +55,28 @@ class Sequential {
     // Recursive variadic template
     template <typename T, typename... Rest>
     void add_layers(T&& first, Rest&&... rest) {
-        // Runtime check to verify if T is derived from BaseLayer
-        if (!std::is_base_of<BaseLayer,
-                             typename std::remove_reference<T>::type>::value) {
-            std::cerr << "Error in file: " << __FILE__
-                      << " at line: " << __LINE__
-                      << ". Reason: Type T must be derived from BaseLayer.\n";
-            throw std::invalid_argument(
-                "Error: Type T must be derived from BaseLayer");
-        }
+        static_assert(
+            std::is_base_of<BaseLayer, typename std::decay<T>::type>::value,
+            "Type T must be derived from BaseLayer");
 
-        // Add layer using shared_ptr
-        add_layer(std::make_shared<T>(std::forward<T>(first)));
-
-        // Recursively adding next layer
+        add_layer(std::make_shared<typename std::remove_reference<T>::type>(
+            std::move(first)));
         add_layers(std::forward<Rest>(rest)...);
     }
+
     // Base case for recursive variadic template. This function is called after
     // the last argument
     void add_layers();
 
-    Sequential();
+    void add_layer(std::shared_ptr<BaseLayer> layer);
+
+    Sequential() = default;
 
     ~Sequential();
 
     void switch_to_cuda();
 
     void to_device(const std::string& new_device);
-
-    void add_layer(std::shared_ptr<BaseLayer> layer);
 
     void set_buffer_size();
 
@@ -91,6 +85,8 @@ class Sequential {
     void init_delta_state_buffer();
 
     void set_threads(unsigned num_threads);
+
+    std::string get_device();
 
     void forward(const std::vector<float>& mu_a,
                  const std::vector<float>& var_a = std::vector<float>());

@@ -33,8 +33,70 @@ class BaseHiddenStates {
     virtual std::string get_name() const { return "BaseHiddenStates"; };
 
     virtual void set_size(size_t size, size_t block_size);
+
+    // Custom copy constructor
+    BaseHiddenStates(const BaseHiddenStates &other)
+        : mu_a(other.mu_a),
+          var_a(other.var_a),
+          jcb(other.jcb),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size),
+          width(other.width),
+          height(other.height),
+          depth(other.depth) {}
+
+    // Custom copy assignment operator
+    BaseHiddenStates &operator=(const BaseHiddenStates &other) {
+        if (this != &other) {  // Prevent self-assignment
+            mu_a = other.mu_a;
+            var_a = other.var_a;
+            jcb = other.jcb;
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+            width = other.width;
+            height = other.height;
+            depth = other.depth;
+        }
+        return *this;
+    }
+
+    // Move constructor
+    BaseHiddenStates(BaseHiddenStates &&other) noexcept
+        : mu_a(std::move(other.mu_a)),
+          var_a(std::move(other.var_a)),
+          jcb(std::move(other.jcb)),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size),
+          width(other.width),
+          height(other.height),
+          depth(other.depth){};
+
+    // Move assignment operator
+    BaseHiddenStates &operator=(BaseHiddenStates &&other) noexcept {
+        if (this != &other) {
+            mu_a = std::move(other.mu_a);
+            var_a = std::move(other.var_a);
+            jcb = std::move(other.jcb);
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+            width = other.width;
+            height = other.height;
+            depth = other.depth;
+        }
+        return *this;
+    };
+
+    virtual void swap(BaseHiddenStates &other);
+    virtual void copy_from(const BaseHiddenStates &source, int num_data = -1);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// Base Delta States
+////////////////////////////////////////////////////////////////////////////////
 class BaseDeltaStates {
    public:
     std::vector<float> delta_mu;
@@ -48,6 +110,28 @@ class BaseDeltaStates {
     virtual void reset_zeros();
     virtual void copy_from(const BaseDeltaStates &source, int num_data = -1);
     virtual void set_size(size_t size, size_t block_size);
+
+    // Move constructor
+    BaseDeltaStates(BaseDeltaStates &&other) noexcept
+        : delta_mu(std::move(other.delta_mu)),
+          delta_var(std::move(other.delta_var)),
+          size(other.size),
+          block_size(other.block_size),
+          actual_size(other.actual_size){};
+
+    // Move assigment operator
+    BaseDeltaStates &operator=(BaseDeltaStates &&other) noexcept {
+        if (this != &other) {
+            delta_mu = std::move(other.delta_mu);
+            delta_var = std::move(other.delta_var);
+            size = other.size;
+            block_size = other.block_size;
+            actual_size = other.actual_size;
+        }
+        return *this;
+    };
+
+    virtual void swap(BaseDeltaStates &other);
 };
 
 class BaseTempStates {

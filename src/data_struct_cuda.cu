@@ -8,6 +8,7 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/cuda_error_checking.cuh"
 #include "../include/data_struct_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,16 +78,9 @@ void HiddenStateCuda::allocate_memory() {
         this->deallocate_memory();
     }
     // Allocate memory on the GPU using cudaMalloc
-    cudaMalloc(&this->d_mu_a, size * sizeof(float));
-    cudaMalloc(&this->d_var_a, size * sizeof(float));
-    cudaMalloc(&this->d_jcb, size * sizeof(float));
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
 };
 
 void HiddenStateCuda::to_device()
@@ -156,6 +150,59 @@ void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
     // will be required between layers during forward pass
     this->block_size = new_block_size;
     this->actual_size = new_size / new_block_size;
+}
+
+void HiddenStateCuda::swap(BaseHiddenStates &other) {
+    HiddenStateCuda *cu_other = dynamic_cast<HiddenStateCuda *>(&other);
+    if (cu_other) {
+        BaseHiddenStates::swap(other);
+        std::swap(this->d_mu_a, cu_other->d_mu_a);
+        std::swap(this->d_var_a, cu_other->d_var_a);
+        std::swap(this->d_jcb, cu_other->d_jcb);
+    } else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Swap input invalid.");
+    }
+}
+
+void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
+/*
+ */
+{
+    if (num_data == -1) {
+        num_data = std::min(this->size, source.size);
+    }
+
+    const HiddenStateCuda *cu_source =
+        dynamic_cast<const HiddenStateCuda *>(&source);
+
+    if (!cu_source) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Invalid source.");
+    }
+
+    cudaMemcpy(this->d_mu_a, cu_source->d_mu_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->d_var_a, cu_source->d_var_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+
+    cudaMemcpy(this->d_jcb, cu_source->d_jcb, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Copying data on device.");
+    }
+
+    this->block_size = source.block_size;
+    this->actual_size = source.actual_size;
+    this->width = source.width;
+    this->height = source.height;
+    this->depth = source.depth;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -271,6 +318,8 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
                                     " at line: " + std::to_string(__LINE__) +
                                     ". Copying data on device.");
     }
+
+    this->block_size = source.block_size;
 }
 
 void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
@@ -287,6 +336,19 @@ void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
     }
     this->block_size = new_block_size;
     this->actual_size = new_size / new_block_size;
+}
+
+void DeltaStateCuda::swap(BaseDeltaStates &other) {
+    DeltaStateCuda *cu_other = dynamic_cast<DeltaStateCuda *>(&other);
+    if (cu_other) {
+        BaseDeltaStates::swap(other);
+        std::swap(this->d_delta_mu, cu_other->d_delta_mu);
+        std::swap(this->d_delta_var, cu_other->d_delta_var);
+    } else {
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". Swap input invalid.");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

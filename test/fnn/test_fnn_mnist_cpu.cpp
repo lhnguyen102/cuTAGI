@@ -140,8 +140,7 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
-    unsigned seed =
-        1;  // std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
     int batch_size = 512;
@@ -173,7 +172,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 2; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);

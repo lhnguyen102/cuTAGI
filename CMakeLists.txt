@@ -89,6 +89,7 @@ endif()
 # NOTE: This might need to change for higher CUDA version
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
+# list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
 
 if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
@@ -150,6 +151,8 @@ set(CPU_SOURCES
   src/param_init.cpp
   src/base_output_updater.cpp
   src/debugger.cpp
+  src/resnet_block.cpp
+  src/layer_block.cpp
 
   src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp
@@ -161,6 +164,8 @@ set(CPU_SOURCES
   src/bindings/lstm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
+  src/bindings/layer_block_bindings.cpp
+  src/bindings/resnet_block_bindings.cpp
   src/bindings/base_output_updater_bindings.cpp
   src/bindings/utils_bindings.cpp
   src/bindings/main_bindings.cpp
@@ -183,6 +188,8 @@ set(CPU_SOURCES
   test/cross_val/cross_val.cpp
   test/autoencoder/test_autoencoder_v2.cpp
   test/lstm/test_lstm_v2.cpp
+  test/resnet/test_resnet_1d_toy.cpp
+  test/resnet/test_resnet_cifar10.cpp
 )
 
 # Sources code for CUDA
@@ -210,6 +217,7 @@ set(GPU_SOURCES
   src/base_layer_cuda.cu
   src/activation_cuda.cu
   src/output_updater_cuda.cu
+  src/resnet_block_cuda.cu
 
   test/test_gpu.cu
   test/autoencoder/test_autoencoder_gpu.cu
@@ -238,9 +246,6 @@ if(CMAKE_CUDA_COMPILER)
   # Executablecode i.e. application
   add_executable(main main.cu)
 
-  # # Python wrapper for C++/CUDA code
-  # pybind11_add_module(cutagi "src/python_api.cu")
-
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
 else()
@@ -250,8 +255,6 @@ else()
   # Executable code i.e. application
   add_executable(main main.cpp)
 
-  # # Python wrapper for C++/CUDA code
-  # pybind11_add_module(cutagi "src/python_api_cpu.cpp")
 
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
@@ -264,5 +267,3 @@ target_link_libraries(main PUBLIC cutagi_lib)
 
 target_link_libraries(cutagi PRIVATE cutagi_lib)
 
-# # TODO: Remove when releasing new version
-# target_link_libraries(cutagitest PRIVATE cutagi_lib)

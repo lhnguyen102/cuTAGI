@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      March 11, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ class Conv2dCuda : public BaseLayerCuda {
 
     Conv2dCuda(size_t in_channels, size_t out_channels, size_t kernel_size,
                bool bias = true, int stride = 1, int padding = 0,
-               int padding_type = 0, size_t in_width = 0, size_t in_height = 0,
+               int padding_type = 1, size_t in_width = 0, size_t in_height = 0,
                float gain_w = 1.0f, float gain_b = 1.0f,
                std::string init_method = "He");
 
@@ -57,7 +57,7 @@ class Conv2dCuda : public BaseLayerCuda {
 
     void get_number_param();
 
-    void init_weight_bias();
+    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -71,6 +71,11 @@ class Conv2dCuda : public BaseLayerCuda {
     void param_backward(BaseBackwardStates &next_bwd_states,
                         BaseDeltaStates &delta_states,
                         BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
 
     std::unique_ptr<BaseLayer> to_host() override;
 

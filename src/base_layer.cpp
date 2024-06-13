@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 11, 2023
-// Updated:      April 08, 2024
+// Updated:      April 18, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,6 +31,20 @@ int BaseLayer::get_input_size() { return static_cast<int>(this->input_size); }
 
 int BaseLayer::get_output_size() { return static_cast<int>(this->output_size); }
 
+int BaseLayer::get_max_num_states() {
+    size_t max_size = std::max(this->output_size, this->input_size);
+    return static_cast<int>(max_size);
+}
+
+std::string BaseLayer::get_device()
+/*
+ */
+{
+    return this->device;
+}
+
+void BaseLayer::init_weight_bias() {}
+
 void BaseLayer::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states) {}
@@ -43,6 +57,10 @@ void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
 void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
                                BaseDeltaStates &delta_states,
                                BaseTempStates &temp_states) {}
+
+void BaseLayer::backward(BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         BaseTempStates &temp_states, bool state_udapte) {}
 
 void BaseLayer::allocate_param_delta()
 /*
@@ -172,6 +190,12 @@ Returns:
     }
 }
 
+void BaseLayer::set_threads(int num)
+/**/
+{
+    this->num_threads = num;
+}
+
 void BaseLayer::compute_input_output_size(const InitArgs &args)
 /*
  */
@@ -217,7 +241,7 @@ void BaseLayer::save(std::ofstream &file)
 
     // Save the name length and name
     // TODO remove get_layer_name because cuda and cpu version
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     size_t name_length = layer_name.length();
     file.write(reinterpret_cast<char *>(&name_length), sizeof(name_length));
     file.write(layer_name.c_str(), name_length);
@@ -246,7 +270,7 @@ void BaseLayer::load(std::ifstream &file)
                                  ". Failed to open file for loading");
     }
     // Load the name length and name
-    auto layer_name = this->get_layer_name();
+    auto layer_name = this->get_layer_info();
     std::string loaded_name;
     size_t name_length;
     file.read(reinterpret_cast<char *>(&name_length), sizeof(name_length));
@@ -272,6 +296,11 @@ void BaseLayer::load(std::ifstream &file)
     }
     for (auto &v_b : this->var_b) {
         file.read(reinterpret_cast<char *>(&v_b), sizeof(v_b));
+    }
+    this->num_weights = this->mu_w.size();
+    this->num_biases = this->mu_b.size();
+    if (this->training) {
+        this->allocate_param_delta();
     }
 }
 
