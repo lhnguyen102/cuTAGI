@@ -517,8 +517,8 @@ __global__ void conv2d_bwd_delta_z_cuda_tiled(
         }
 
         __syncthreads();
-#pragma unroll
         float tmp_mu_w = 0;
+#pragma unroll
         for (int i = 0; i < TILE_SIZE; i++) {
             int tmp_zw_idx = s_zw_idx[tx * PADDED_TILE_SIZE + i];
 
@@ -989,7 +989,7 @@ void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
     int pad_param_idx = this->num_weights + 1;
 
     if (state_udapte) {
-        int pad_idx = woho * this->out_channels * batch_size + 1;
+        // int pad_idx = woho * this->out_channels * batch_size + 1;
 
         unsigned int grid_row_p = (batch_size + threads - 1) / threads;
         unsigned int grid_col_p =
