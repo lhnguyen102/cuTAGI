@@ -21,6 +21,7 @@ from pytagi.nn import (
     Sequential,
 )
 
+
 plt.rcParams.update(
     {
         "font.size": 18,

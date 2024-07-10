@@ -127,18 +127,17 @@ class ReLU : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -172,18 +171,17 @@ class Sigmoid : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -217,18 +215,17 @@ class Tanh : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -262,18 +259,17 @@ class MixtureReLU : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -307,18 +303,17 @@ class MixtureSigmoid : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -352,18 +347,17 @@ class MixtureTanh : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -397,18 +391,17 @@ class Softplus : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -443,18 +436,17 @@ class LeakyReLU : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -489,18 +481,17 @@ class Softmax : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
@@ -544,18 +535,17 @@ class RemaxA : public BaseLayer {
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override{};
+                 BaseTempStates &temp_states) override {};
 
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
+    using BaseLayer::backward;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
-    void save(std::ofstream &file) override{};
+    void save(std::ofstream &file) override {};
 
-    void load(std::ifstream &file) override{};
+    void load(std::ifstream &file) override {};
 };

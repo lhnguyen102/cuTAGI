@@ -764,13 +764,14 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
         // Moments calculations (L. Alric, 2024)
         mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
                     std_z * (pdf_l - pdf_u) - mu_z[col];
-        var_a[col] = max(0.000001f,
-            (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
-             cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
-             std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
-             powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
-             powf(mu_z[col], 2) - var_z[col] + 2) /
-            4.0f);
+        var_a[col] =
+            max(0.000001f,
+                (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
+                 cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
+                 std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
+                 powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
+                 powf(mu_z[col], 2) - var_z[col] + 2) /
+                    4.0f);
         mu_a[col] = mu_a[col] / 2.0f + 0.5f;
         jcb[col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
@@ -800,12 +801,13 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
         // Moments calculations (L. Alric, 2024)
         mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
                     std_z * (pdf_l - pdf_u) - mu_z[col];
-        var_a[col] = max(0.000001f,
+        var_a[col] = max(
+            0.000001f,
             cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
-            cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
-            std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
-            powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
-            powf(mu_z[col], 2) - var_z[col] + 2);
+                cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
+                std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
+                powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
+                powf(mu_z[col], 2) - var_z[col] + 2);
         jcb[col] = cdf_u + cdf_l - 1;
     }
 }

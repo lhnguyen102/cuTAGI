@@ -46,15 +46,6 @@ class LayerNorm : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
-
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
-
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
@@ -111,15 +102,6 @@ class BatchNorm2d : public BaseLayer {
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
-
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
-
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
 
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,

@@ -27,7 +27,6 @@ void bind_avgpool2d_layer(pybind11::module_& modo)
         .def("get_layer_info", &AvgPool2d::get_layer_info)
         .def("get_layer_name", &AvgPool2d::get_layer_name)
         .def("forward", &AvgPool2d::forward)
-        .def("state_backward", &AvgPool2d::state_backward)
-        .def("param_backward", &AvgPool2d::param_backward);
+        .def("state_backward", &AvgPool2d::backward);
     ;
 }

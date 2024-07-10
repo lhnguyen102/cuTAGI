@@ -45,15 +45,6 @@ class LayerNormCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
-
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
-
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
@@ -113,15 +104,6 @@ class BatchNorm2dCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &output_delta_states,
-                        BaseTempStates &temp_states) override;
-
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
-
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
@@ -134,6 +116,7 @@ class BatchNorm2dCuda : public BaseLayerCuda {
 
    protected:
     void allocate_running_mean_var();
+    void deallocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
     void lazy_init();

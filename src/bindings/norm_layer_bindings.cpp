@@ -27,8 +27,7 @@ void bind_layernorm_layer(pybind11::module_& modo)
         .def("get_layer_info", &LayerNorm::get_layer_info)
         .def("get_layer_name", &LayerNorm::get_layer_name)
         .def("forward", &LayerNorm::forward)
-        .def("state_backward", &LayerNorm::state_backward)
-        .def("param_backward", &LayerNorm::param_backward)
+        .def("backward", &LayerNorm::backward)
         .def("init_weight_bias", &LayerNorm::init_weight_bias);
     ;
 }
@@ -45,8 +44,7 @@ void bind_batchnorm_layer(pybind11::module_& modo)
         .def("get_layer_info", &BatchNorm2d::get_layer_info)
         .def("get_layer_name", &BatchNorm2d::get_layer_name)
         .def("forward", &BatchNorm2d::forward)
-        .def("state_backward", &BatchNorm2d::state_backward)
-        .def("param_backward", &BatchNorm2d::param_backward)
+        .def("backward", &BatchNorm2d::backward)
         .def("init_weight_bias", &BatchNorm2d::init_weight_bias);
     ;
 }

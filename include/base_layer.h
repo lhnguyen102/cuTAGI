@@ -98,15 +98,6 @@ class BaseLayer {
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states);
 
-    virtual void state_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &input_delta_states,
-                                BaseDeltaStates &output_delta_states,
-                                BaseTempStates &temp_states);
-
-    virtual void param_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &delta_states,
-                                BaseTempStates &temp_states);
-
     virtual void backward(BaseDeltaStates &input_delta_states,
                           BaseDeltaStates &output_delta_states,
                           BaseTempStates &temp_states,

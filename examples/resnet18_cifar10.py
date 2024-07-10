@@ -32,6 +32,23 @@ from pytagi.nn import (
 NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
 NORMALIZATION_STD = (0.2023, 0.1994, 0.2010)
 
+CNN_NET = Sequential(
+    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
+    BatchNorm2d(32),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    BatchNorm2d(32),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    Conv2d(32, 64, 5, bias=False, padding=2),
+    BatchNorm2d(64),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    Linear(64 * 4 * 4, 128),
+    ReLU(),
+    Linear(128, 11),
+)
+
 
 def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int = 1):
     """Create a layer block for resnet 18"""

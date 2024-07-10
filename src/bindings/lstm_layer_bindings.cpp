@@ -34,6 +34,5 @@ void bind_lstm_layer(pybind11::module_& modo)
         .def_readwrite("init_method", &LSTM::init_method)
         .def("init_weight_bias", &LSTM::init_weight_bias)
         .def("forward", &LSTM::forward)
-        .def("state_backward", &LSTM::state_backward)
-        .def("param_backward", &LSTM::param_backward);
+        .def("backward", &LSTM::backward);
 }

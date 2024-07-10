@@ -26,8 +26,7 @@ void bind_linear_layer(pybind11::module_& modo)
         .def_readwrite("init_method", &Linear::init_method)
         .def("init_weight_bias", &Linear::init_weight_bias)
         .def("forward", &Linear::forward)
-        .def("state_backward", &Linear::state_backward)
-        .def("param_backward", &Linear::param_backward);
+        .def("state_backward", &Linear::backward);
 }
 
 // PYBIND11_MODULE(neural_net_module, m) {

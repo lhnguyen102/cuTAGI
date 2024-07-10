@@ -116,9 +116,9 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_BATCHNORM
-    # net.to_device("cuda")
-    # net.set_threads(16)
+    net = CNN
+    net.to_device("cuda")
+    net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -155,7 +155,7 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
 
         # Testing
         test_error_rates = []
-        test_batch_iter = test_dtl.create_data_loader(40, shuffle=False)
+        test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
         for x, _, _, label in test_batch_iter:
             m_pred, v_pred = net(x)
 

@@ -47,8 +47,6 @@ class BaseLayerCuda : public BaseLayer {
     BaseLayerCuda &operator=(BaseLayerCuda &&) = default;
 
     using BaseLayer::forward;
-    using BaseLayer::param_backward;
-    using BaseLayer::state_backward;
 
     void allocate_param_delta() override;
 
