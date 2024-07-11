@@ -10,6 +10,9 @@
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
 
+#define WARP_SIZE 32U
+#define BANK_SIZE 32U
+
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     const float *mu_a, const float *var_a,
@@ -42,6 +45,325 @@ __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
         } else {
             mu_z[col * output_size + row] = sum_mu;
             var_z[col * output_size + row] = sum_var;
+        }
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K, size_t THREADS>
+__global__ void linear_fwd_mean_var_v1(const T *mu_w, const T *var_w,
+                                       const T *mu_b, const T *var_b,
+                                       const T *mu_a, const T *var_a,
+                                       size_t input_size, size_t output_size,
+                                       int batch_size, bool bias, T *mu_z,
+                                       T *var_z)
+/*
+ */
+{
+    __shared__ T smem_mu_a[BLOCK_TILE][BLOCK_TILE_K];
+    __shared__ T smem_var_a[BLOCK_TILE][BLOCK_TILE_K];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE];
+    __shared__ T smem_var_w[BLOCK_TILE_K][BLOCK_TILE];
+
+    const size_t row = blockIdx.y * blockDim.y + threadIdx.y;
+    const size_t col = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int num_tiles = (input_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    T sum_mu = static_cast<T>(0);
+    T sum_var = static_cast<T>(0);
+
+    for (int phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            size_t a_ty = (thread_linear_idx + l_i * THREADS) / BLOCK_TILE_K;
+            size_t a_tx = (thread_linear_idx + l_i * THREADS) % BLOCK_TILE_K;
+
+            // input matrix to shared mem (batch_size x input_size)
+            size_t a_row_idx = blockIdx.y * BLOCK_TILE + a_ty;
+            size_t a_col_idx = phase * BLOCK_TILE_K + a_tx;
+            if (a_row_idx < batch_size && a_col_idx < input_size) {
+                smem_mu_a[a_ty][a_tx] =
+                    mu_a[a_row_idx * input_size + a_col_idx];
+                smem_var_a[a_ty][a_tx] =
+                    var_a[a_row_idx * input_size + a_col_idx];
+            } else {
+                smem_mu_a[a_ty][a_tx] = static_cast<T>(0);
+                smem_var_a[a_ty][a_tx] = static_cast<T>(0);
+            }
+
+            // weight matrix to shared mem (output_size x input_size)
+            size_t w_ty = (thread_linear_idx + l_i * THREADS) / BLOCK_TILE;
+            size_t w_tx = (thread_linear_idx + l_i * THREADS) % BLOCK_TILE;
+
+            size_t w_col_idx = phase * BLOCK_TILE_K + w_ty;
+            size_t w_row_idx = blockIdx.x * BLOCK_TILE + w_tx;
+
+            if (w_row_idx < output_size && w_col_idx < input_size) {
+                smem_mu_w[w_ty][w_tx] =
+                    mu_w[w_row_idx * input_size + w_col_idx];
+                smem_var_w[w_ty][w_tx] =
+                    var_w[w_row_idx * input_size + w_col_idx];
+            } else {
+                smem_mu_w[w_ty][w_tx] = static_cast<T>(0);
+                smem_var_w[w_ty][w_tx] = static_cast<T>(0);
+            }
+        }
+        __syncthreads();
+#pragma unroll
+        for (int i = 0; i < BLOCK_TILE_K; i++) {
+            T mu_w_tmp = smem_mu_w[i][threadIdx.x];
+            T var_w_tmp = smem_var_w[i][threadIdx.x];
+            T mu_a_tmp = smem_mu_a[threadIdx.y][i];
+            T var_a_tmp = smem_var_a[threadIdx.y][i];
+
+            sum_mu += mu_w_tmp * mu_a_tmp;
+            sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
+                       var_w_tmp * mu_a_tmp * mu_a_tmp;
+        }
+        __syncthreads();
+    }
+    if (row < batch_size && col < output_size) {
+        mu_z[row * output_size + col] = bias ? sum_mu + mu_b[col] : sum_mu;
+        var_z[row * output_size + col] = bias ? sum_var + var_b[col] : sum_var;
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t SMEM_PADDING>
+__global__ void linear_fwd_mean_var_v2(const T *mu_w, const T *var_w,
+                                       const T *mu_b, const T *var_b,
+                                       const T *mu_a, const T *var_a,
+                                       size_t input_size, size_t output_size,
+                                       int batch_size, bool bias, T *mu_z,
+                                       T *var_z)
+/*
+ */
+{
+    __shared__ T smem_mu_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    const size_t tx = threadIdx.x;
+    const size_t ty = threadIdx.y;
+    const size_t thread_linear_idx = ty * blockDim.x + tx;
+
+    unsigned int num_tiles = (input_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr int num_loads =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T mu_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T mu_a_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_a_val[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < num_loads; l_i++) {
+            // input matrix to shared mem (batch_size x input_size)
+            size_t a_ty = (thread_linear_idx + l_i * THREADS) / BLOCK_TILE_K;
+            size_t a_tx = (thread_linear_idx + l_i * THREADS) % BLOCK_TILE_K;
+
+            size_t a_row_idx = blockIdx.y * BLOCK_TILE + a_ty;
+            size_t a_col_idx = phase * BLOCK_TILE_K + a_tx;
+
+            if (a_row_idx < batch_size && a_col_idx < input_size) {
+                smem_mu_a[a_tx][a_ty] =
+                    mu_a[a_row_idx * input_size + a_col_idx];
+
+                smem_var_a[a_tx][a_ty] =
+                    var_a[a_row_idx * input_size + a_col_idx];
+            } else {
+                smem_mu_a[a_tx][a_ty] = static_cast<T>(0);
+                smem_var_a[a_tx][a_ty] = static_cast<T>(0);
+            }
+
+            // weight matrix to shared mem (output_size x input_size)
+            size_t w_ty = (thread_linear_idx + l_i * THREADS) / BLOCK_TILE;
+            size_t w_tx = (thread_linear_idx + l_i * THREADS) % BLOCK_TILE;
+
+            size_t w_col_idx = phase * BLOCK_TILE_K + w_ty;
+            size_t w_row_idx = blockIdx.x * BLOCK_TILE + w_tx;
+
+            if (w_row_idx < output_size && w_col_idx < input_size) {
+                smem_mu_w[w_ty][w_tx] =
+                    mu_w[w_row_idx * input_size + w_col_idx];
+                smem_var_w[w_ty][w_tx] =
+                    var_w[w_row_idx * input_size + w_col_idx];
+            } else {
+                smem_mu_w[w_ty][w_tx] = static_cast<T>(0);
+                smem_var_w[w_ty][w_tx] = static_cast<T>(0);
+            }
+        }
+        __syncthreads();
+#pragma unroll
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                mu_a_val[j] = smem_mu_a[i][ty * THREAD_TILE + j];
+                var_a_val[j] = smem_var_a[i][ty * THREAD_TILE + j];
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                mu_w_val[j] = smem_mu_w[i][tx * THREAD_TILE + j];
+                var_w_val[j] = smem_var_w[i][tx * THREAD_TILE + j];
+            }
+#pragma unroll
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += mu_w_val[j] * mu_a_val[t];
+                    tmp_var[t][j] +=
+                        (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
+                            var_a_val[t] +
+                        var_w_val[j] * mu_a_val[t] * mu_a_val[t];
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+#pragma unroll
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        size_t row = blockIdx.y * BLOCK_TILE + ty * THREAD_TILE + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            size_t col = blockIdx.x * BLOCK_TILE + tx * THREAD_TILE + j;
+            if (row < batch_size && col < output_size) {
+                if (bias) {
+                    mu_z[row * output_size + col] = tmp_mu[t][j] + mu_b[col];
+                    var_z[row * output_size + col] = tmp_var[t][j] + var_b[col];
+                } else {
+                    mu_z[row * output_size + col] = tmp_mu[t][j];
+                    var_z[row * output_size + col] = tmp_var[t][j];
+                }
+            }
+        }
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
+          size_t WARP_TILE_Y, size_t SMEM_PADDING>
+__global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
+                                       const T *mu_b, const T *var_b,
+                                       const T *mu_a, const T *var_a,
+                                       size_t input_size, size_t output_size,
+                                       int batch_size, bool bias, T *mu_z,
+                                       T *var_z)
+/*
+ */
+{
+    __shared__ T smem_mu_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    // Thread block
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int num_tiles = (input_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr unsigned int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    // Warp
+    constexpr unsigned int WARPS_X = BLOCK_TILE / WARP_TILE_X;
+    constexpr unsigned int THREADS_PER_WARP_X = WARP_TILE_X / THREAD_TILE;
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
+    const size_t warp_row = warp_id / WARPS_X;
+    const size_t warp_col = warp_id % WARPS_X;
+    const size_t thread_row_in_warp = lane_id / THREADS_PER_WARP_X;
+    const size_t thread_col_in_warp = lane_id % THREADS_PER_WARP_X;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T mu_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T mu_a_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_a_val[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+#pragma unroll
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            // input matrix to shared mem (batch_size x input_size)
+            size_t thread_load_idx = thread_linear_idx + l_i * THREADS;
+            size_t a_ty = thread_load_idx / BLOCK_TILE_K;
+            size_t a_tx = thread_load_idx % BLOCK_TILE_K;
+
+            size_t a_row = blockIdx.y * BLOCK_TILE + a_ty;
+            size_t a_col = phase * BLOCK_TILE_K + a_tx;
+
+            if (a_row < batch_size && a_col < input_size) {
+                smem_mu_a[a_tx][a_ty] = mu_a[a_row * input_size + a_col];
+                smem_var_a[a_tx][a_ty] = var_a[a_row * input_size + a_col];
+            } else {
+                smem_mu_a[a_tx][a_ty] = static_cast<T>(0);
+                smem_var_a[a_tx][a_ty] = static_cast<T>(0);
+            }
+
+            // weight matrix to shared mem (output_size x input_size)
+            size_t w_ty = thread_load_idx / BLOCK_TILE;
+            size_t w_tx = thread_load_idx % BLOCK_TILE;
+
+            size_t w_row = blockIdx.x * BLOCK_TILE + w_tx;
+            size_t w_col = phase * BLOCK_TILE_K + w_ty;
+
+            if (w_row < output_size && w_col < input_size) {
+                smem_mu_w[w_ty][w_tx] = mu_w[w_row * input_size + w_col];
+                smem_var_w[w_ty][w_tx] = var_w[w_row * input_size + w_col];
+            } else {
+                smem_mu_w[w_ty][w_tx] = static_cast<T>(0);
+                smem_var_w[w_ty][w_tx] = static_cast<T>(0);
+            }
+        }
+        __syncthreads();
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_in_warp * THREAD_TILE + j;
+                mu_a_val[j] = smem_mu_a[i][idx];
+                var_a_val[j] = smem_var_a[i][idx];
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_in_warp * THREAD_TILE + j;
+                mu_w_val[j] = smem_mu_w[i][idx];
+                var_w_val[j] = smem_var_w[i][idx];
+            }
+#pragma unroll
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += mu_w_val[j] * mu_a_val[t];
+                    tmp_var[t][j] +=
+                        (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
+                            var_a_val[t] +
+                        var_w_val[j] * mu_a_val[t] * mu_a_val[t];
+                }
+            }
+        }
+        __syncwarp();
+    }
+    __syncthreads();
+
+    const size_t base_row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                            thread_row_in_warp * THREAD_TILE;
+    const size_t base_col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                            thread_col_in_warp * THREAD_TILE;
+
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        size_t row = base_row + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            size_t col = base_col + j;
+            if (row < batch_size && col < output_size) {
+                mu_z[row * output_size + col] =
+                    bias ? tmp_mu[t][j] + mu_b[col] : tmp_mu[t][j];
+                var_z[row * output_size + col] =
+                    bias ? tmp_var[t][j] + var_b[col] : tmp_var[t][j];
+            }
         }
     }
 }
@@ -143,6 +465,219 @@ __global__ void linear_bwd_delta_z(float const *mu_w, float const *jcb,
     }
 }
 
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t SMEM_PADDING>
+__global__ void linear_bwd_delta_z_v2(const T *mu_w, const T *jcb,
+                                      const T *delta_mu_out,
+                                      const T *delta_var_out, size_t input_size,
+                                      size_t output_size, int batch_size,
+                                      T *delta_mu_in, T *delta_var_in)
+/*
+ */
+{
+    __shared__ T smem_delta_mu[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_delta_var[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    const size_t tx = threadIdx.x;
+    const size_t ty = threadIdx.y;
+    const size_t thread_linear_idx = ty * blockDim.x + tx;
+
+    unsigned int num_tiles = (output_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+
+    constexpr int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T mu_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T delta_mu_val[THREAD_TILE] = {static_cast<T>(0)};
+    T delta_var_val[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            const int thread_load_idx = thread_linear_idx + l_i * THREADS;
+
+            // delta matrix
+            size_t delta_ty = thread_load_idx / BLOCK_TILE_K;
+            size_t delta_tx = thread_load_idx % BLOCK_TILE_K;
+
+            size_t delta_row = blockIdx.y * BLOCK_TILE + delta_ty;
+            size_t delta_col = phase * BLOCK_TILE_K + delta_tx;
+
+            if (delta_row < batch_size && delta_col < output_size) {
+                smem_delta_mu[delta_tx][delta_ty] =
+                    delta_mu_out[delta_row * output_size + delta_col];
+                smem_delta_var[delta_tx][delta_ty] =
+                    delta_var_out[delta_row * output_size + delta_col];
+            } else {
+                smem_delta_mu[delta_tx][delta_ty] = static_cast<T>(0);
+                smem_delta_var[delta_tx][delta_ty] = static_cast<T>(0);
+            }
+
+            // weight matrix
+            size_t w_ty = thread_load_idx / BLOCK_TILE;
+            size_t w_tx = thread_load_idx % BLOCK_TILE;
+            size_t w_row = phase * BLOCK_TILE_K + w_ty;
+            size_t w_col = blockIdx.x * BLOCK_TILE + w_tx;
+
+            if (w_row < output_size && w_col < input_size) {
+                smem_mu_w[w_ty][w_tx] = mu_w[w_row * input_size + w_col];
+            } else {
+                smem_mu_w[w_ty][w_tx] = static_cast<T>(0);
+            }
+        }
+        __syncthreads();
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                delta_mu_val[j] = smem_delta_mu[i][ty * THREAD_TILE + j];
+                delta_var_val[j] = smem_delta_var[i][ty * THREAD_TILE + j];
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                mu_w_val[j] = smem_mu_w[i][tx * THREAD_TILE + j];
+            }
+
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+#pragma unroll
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += mu_w_val[j] * delta_mu_val[t];
+                    tmp_var[t][j] +=
+                        mu_w_val[j] * delta_var_val[t] * mu_w_val[j];
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        int row = blockIdx.y * BLOCK_TILE + ty * THREAD_TILE + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            int col = blockIdx.x * BLOCK_TILE + tx * THREAD_TILE + j;
+            if (row < batch_size && col < input_size) {
+                T jcb_val = jcb[row * input_size + col];
+
+                delta_mu_in[row * input_size + col] = tmp_mu[t][j] * jcb_val;
+                delta_var_in[row * input_size + col] =
+                    tmp_var[t][j] * jcb_val * jcb_val;
+            }
+        }
+    }
+}
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
+          size_t WARP_TILE_Y, size_t SMEM_PADDING>
+__global__ void linear_bwd_delta_z_v3(const T *mu_w, const T *jcb,
+                                      const T *delta_mu_out,
+                                      const T *delta_var_out, size_t input_size,
+                                      size_t output_size, int batch_size,
+                                      T *delta_mu_in, T *delta_var_in)
+/*
+ */
+{
+    __shared__ T smem_delta_mu[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_delta_var[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int num_tiles = (output_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr unsigned int WARPS_X = BLOCK_TILE / WARP_TILE_X;
+    constexpr unsigned int THREADS_PER_WARP_X = WARP_TILE_X / THREAD_TILE;
+    constexpr int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
+    const size_t warp_row = warp_id / WARPS_X;
+    const size_t warp_col = warp_id % WARPS_X;
+    const size_t thread_row_in_warp = lane_id / THREADS_PER_WARP_X;
+    const size_t thread_col_in_warp = lane_id % THREADS_PER_WARP_X;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_mu[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_var[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_mu_w[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            const int thread_load_idx = thread_linear_idx + l_i * THREADS;
+
+            // delta matrix
+            size_t delta_ty = thread_load_idx / BLOCK_TILE_K;
+            size_t delta_tx = thread_load_idx % BLOCK_TILE_K;
+
+            size_t delta_row = blockIdx.y * BLOCK_TILE + delta_ty;
+            size_t delta_col = phase * BLOCK_TILE_K + delta_tx;
+
+            if (delta_row < batch_size && delta_col < output_size) {
+                smem_delta_mu[delta_tx][delta_ty] =
+                    delta_mu_out[delta_row * output_size + delta_col];
+                smem_delta_var[delta_tx][delta_ty] =
+                    delta_var_out[delta_row * output_size + delta_col];
+            } else {
+                smem_delta_mu[delta_tx][delta_ty] = static_cast<T>(0);
+                smem_delta_var[delta_tx][delta_ty] = static_cast<T>(0);
+            }
+
+            // weight matrix
+            size_t w_ty = thread_load_idx / BLOCK_TILE;
+            size_t w_tx = thread_load_idx % BLOCK_TILE;
+            size_t w_row = phase * BLOCK_TILE_K + w_ty;
+            size_t w_col = blockIdx.x * BLOCK_TILE + w_tx;
+
+            if (w_row < output_size && w_col < input_size) {
+                smem_mu_w[w_ty][w_tx] = mu_w[w_row * input_size + w_col];
+            } else {
+                smem_mu_w[w_ty][w_tx] = static_cast<T>(0);
+            }
+        }
+        __syncthreads();
+
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_in_warp * THREAD_TILE + j;
+                tmp_delta_mu[j] = smem_delta_mu[i][idx];
+                tmp_delta_var[j] = smem_delta_var[i][idx];
+            }
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_in_warp * THREAD_TILE + j;
+                tmp_mu_w[j] = smem_mu_w[i][idx];
+            }
+
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += tmp_mu_w[j] * tmp_delta_mu[t];
+                    tmp_var[t][j] +=
+                        tmp_mu_w[j] * tmp_delta_var[t] * tmp_mu_w[j];
+                }
+            }
+        }
+        __syncwarp();
+    }
+    __syncthreads();
+
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        int row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                  thread_row_in_warp * THREAD_TILE + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            int col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                      thread_col_in_warp * THREAD_TILE + j;
+            if (row < batch_size && col < input_size) {
+                T jcb_val = jcb[row * input_size + col];
+                delta_mu_in[row * input_size + col] = tmp_mu[t][j] * jcb_val;
+                delta_var_in[row * input_size + col] =
+                    tmp_var[t][j] * jcb_val * jcb_val;
+            }
+        }
+    }
+}
+
 __global__ void linear_bwd_delta_w(float const *var_w, float const *mu_a,
                                    float const *delta_mu_out,
                                    float const *delta_var_out,
@@ -171,6 +706,223 @@ __global__ void linear_bwd_delta_w(float const *var_w, float const *mu_a,
         delta_var_w[col * input_size + row] = sum_var *
                                               var_w[col * input_size + row] *
                                               var_w[col * input_size + row];
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t SMEM_PADDING>
+__global__ void linear_bwd_delta_w_v2(const T *var_w, const T *mu_a,
+                                      const T *delta_mu_out,
+                                      const T *delta_var_out, size_t input_size,
+                                      size_t output_size, int batch_size,
+                                      T *delta_mu_w, T *delta_var_w)
+/**/
+{
+    __shared__ T smem_delta_mu[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_delta_var[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    const size_t ty = threadIdx.y;
+    const size_t tx = threadIdx.x;
+    const size_t thread_linear_idx = ty * blockDim.x + tx;
+
+    constexpr unsigned int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+    unsigned int num_tiles = (batch_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_mu[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_var[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_mu_a[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (size_t l_i = 0; l_i < NUM_LOADS; l_i++) {
+            const size_t thread_load_idx = thread_linear_idx + l_i * THREADS;
+
+            // Update quantity matrix
+            size_t delta_ty = thread_load_idx / BLOCK_TILE_K;
+            size_t delta_tx = thread_load_idx % BLOCK_TILE_K;
+            size_t delta_col = blockIdx.y * BLOCK_TILE + delta_ty;
+            size_t delta_row = phase * BLOCK_TILE_K + delta_tx;
+
+            smem_delta_mu[delta_tx][delta_ty] =
+                (delta_row < batch_size && delta_col < output_size)
+                    ? delta_mu_out[delta_row * output_size + delta_col]
+                    : static_cast<T>(0);
+
+            smem_delta_var[delta_tx][delta_ty] =
+                (delta_row < batch_size && delta_col < output_size)
+                    ? delta_var_out[delta_row * output_size + delta_col]
+                    : static_cast<T>(0);
+
+            // activation matrix
+            size_t a_ty = thread_load_idx / BLOCK_TILE;
+            size_t a_tx = thread_load_idx & BLOCK_TILE;
+            size_t a_col = blockIdx.x * BLOCK_TILE + a_tx;
+            size_t a_row = phase * BLOCK_TILE_K + a_ty;
+
+            smem_mu_a[a_ty][a_tx] = (a_row < batch_size && a_col < input_size)
+                                        ? smem_mu_a[a_ty][a_tx] =
+                                              mu_a[a_row * input_size + a_col]
+                                        : static_cast<T>(0);
+        }
+        __syncthreads();
+
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                tmp_delta_mu[j] = smem_delta_mu[i][ty * THREAD_TILE + j];
+                tmp_delta_var[j] = smem_delta_var[i][ty * THREAD_TILE + j];
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                tmp_mu_a[j] = smem_mu_a[i][tx * THREAD_TILE + j];
+            }
+
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+#pragma unroll
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += tmp_mu_a[j] * tmp_delta_mu[t];
+                    tmp_var[t][j] +=
+                        tmp_mu_a[j] * tmp_mu_a[j] * tmp_delta_var[t];
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        size_t row = blockIdx.y * BLOCK_TILE + ty * THREAD_TILE + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            size_t col = blockIdx.x * BLOCK_TILE + tx * THREAD_TILE + j;
+            if (row < output_size && col < input_size) {
+                T tmp_var_w = var_w[row * input_size + col];
+
+                delta_mu_w[row * input_size + col] = tmp_mu[t][j] * tmp_var_w;
+                delta_var_w[row * input_size + col] =
+                    tmp_var[t][j] * tmp_var_w * tmp_var_w;
+            }
+        }
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
+          size_t WARP_TILE_Y, size_t SMEM_PADDING>
+__global__ void linear_bwd_delta_w_v3(const T *var_w, const T *mu_a,
+                                      const T *delta_mu_out,
+                                      const T *delta_var_out, size_t input_size,
+                                      size_t output_size, int batch_size,
+                                      T *delta_mu_w, T *delta_var_w)
+/*
+ */
+{
+    __shared__ T smem_delta_mu[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_delta_var[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    constexpr unsigned int WAPRS_X = BLOCK_TILE / WARP_TILE_X;
+    constexpr unsigned int THREADS_PER_WARP_X = WARP_TILE_X / THREAD_TILE;
+    constexpr unsigned int NUM_LOADS =
+        (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
+
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
+    const size_t warp_row = warp_id / WAPRS_X;
+    const size_t warp_col = warp_id % WAPRS_X;
+    const size_t thread_row_per_warp = lane_id / THREADS_PER_WARP_X;
+    const size_t thread_col_per_warp = lane_id % THREADS_PER_WARP_X;
+
+    const unsigned int num_tiles =
+        (batch_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_mu[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_delta_var[THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_mu_a[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (size_t l_i = 0; l_i < NUM_LOADS; l_i++) {
+            const size_t thread_load_idx = thread_linear_idx + l_i * THREADS;
+
+            // Update quantity matrix
+            size_t delta_ty = thread_load_idx / BLOCK_TILE_K;
+            size_t delta_tx = thread_load_idx % BLOCK_TILE_K;
+            size_t delta_col = blockIdx.y * BLOCK_TILE + delta_ty;
+            size_t delta_row = phase * BLOCK_TILE_K + delta_tx;
+
+            smem_delta_mu[delta_tx][delta_ty] =
+                (delta_row < batch_size && delta_col < output_size)
+                    ? delta_mu_out[delta_row * output_size + delta_col]
+                    : static_cast<T>(0);
+
+            smem_delta_var[delta_tx][delta_ty] =
+                (delta_row < batch_size && delta_col < output_size)
+                    ? delta_var_out[delta_row * output_size + delta_col]
+                    : static_cast<T>(0);
+
+            // activation matrix
+            size_t a_ty = thread_load_idx / BLOCK_TILE;
+            size_t a_tx = thread_load_idx % BLOCK_TILE;
+            size_t a_col = blockIdx.x * BLOCK_TILE + a_tx;
+            size_t a_row = phase * BLOCK_TILE_K + a_ty;
+
+            smem_mu_a[a_ty][a_tx] = (a_row < batch_size && a_col < input_size)
+                                        ? smem_mu_a[a_ty][a_tx] =
+                                              mu_a[a_row * input_size + a_col]
+                                        : static_cast<T>(0);
+        }
+        __syncthreads();
+
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_per_warp * THREAD_TILE + j;
+                tmp_delta_mu[j] = smem_delta_mu[i][idx];
+                tmp_delta_var[j] = smem_delta_var[i][idx];
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_TILE; j++) {
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_per_warp * THREAD_TILE + j;
+                tmp_mu_a[j] = smem_mu_a[i][idx];
+            }
+
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+#pragma unroll
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += tmp_mu_a[j] * tmp_delta_mu[t];
+                    tmp_var[t][j] +=
+                        tmp_mu_a[j] * tmp_mu_a[j] * tmp_delta_var[t];
+                }
+            }
+        }
+        __syncwarp();
+    }
+    __syncthreads();
+    size_t row_base = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                      thread_row_per_warp * THREAD_TILE;
+    size_t col_base = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                      thread_col_per_warp * THREAD_TILE;
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        size_t row = row_base + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_TILE; j++) {
+            size_t col = col_base + j;
+
+            if (row < output_size && col < input_size) {
+                T tmp_var_w = var_w[row * input_size + col];
+
+                delta_mu_w[row * input_size + col] = tmp_mu[t][j] * tmp_var_w;
+                delta_var_w[row * input_size + col] =
+                    tmp_var[t][j] * tmp_var_w * tmp_var_w;
+            }
+        }
     }
 }
 
@@ -206,6 +958,128 @@ __global__ void linear_bwd_delta_b(float const *var_b,
 ////////////////////////////////////////////////////////////////////////////////
 // Fully Connected Layer
 ////////////////////////////////////////////////////////////////////////////////
+void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
+                         HiddenStateCuda *&cu_output_states,
+                         const float *d_mu_w, const float *d_var_w,
+                         const float *d_mu_b, const float *d_var_b,
+                         size_t input_size, size_t output_size, int batch_size,
+                         bool bias) {
+    if (output_size > 128 && input_size > 1024) {
+        // TODO: remove hardcoded kernel config
+        constexpr unsigned int BLOCK_SIZE = 128U;
+        constexpr unsigned int THREAD_TILE = 8U;
+        constexpr unsigned int WARPS_X = 4U;
+        constexpr unsigned int WARPS_Y = 2U;
+        constexpr unsigned int BLOCK_TILE_K = 16U;
+        constexpr unsigned int WARP_TILE_X = BLOCK_SIZE / WARPS_X;
+        constexpr unsigned int WARP_TILE_Y = BLOCK_SIZE / WARPS_Y;
+        constexpr unsigned int THREADS_X =
+            WARPS_X * (WARP_TILE_X / THREAD_TILE);
+        constexpr unsigned int THREADS_Y =
+            WARPS_Y * (WARP_TILE_Y / THREAD_TILE);
+        constexpr unsigned int THREADS = THREADS_X * THREADS_Y;
+        constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
+
+        dim3 block_dim(THREADS_X, THREADS_Y, 1U);
+        dim3 grid_dim(
+            (static_cast<unsigned int>(output_size) + BLOCK_SIZE - 1U) /
+                BLOCK_SIZE,
+            (static_cast<unsigned int>(batch_size) + BLOCK_SIZE - 1U) /
+                BLOCK_SIZE,
+            1U);
+
+        linear_fwd_mean_var_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                               THREADS, WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
+            <<<grid_dim, block_dim>>>(
+                d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
+                cu_input_states->d_var_a, input_size, output_size, batch_size,
+                bias, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    } else {
+        constexpr unsigned int BLOCK_SIZE = 16U;
+        unsigned int grid_rows = (batch_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        unsigned int grid_cols = (output_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1U);
+        dim3 grid_dim(grid_cols, grid_rows, 1U);
+        constexpr size_t THREADS = BLOCK_SIZE * BLOCK_SIZE;
+
+        linear_fwd_mean_var_v1<float, BLOCK_SIZE, BLOCK_SIZE, THREADS>
+            <<<grid_dim, block_dim>>>(
+                d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
+                cu_input_states->d_var_a, input_size, output_size, batch_size,
+                bias, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    }
+}
+
+void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
+                                DeltaStateCuda *&cu_output_delta_states,
+                                BackwardStateCuda *&cu_next_bwd_states,
+                                const float *d_mu_w, size_t input_size,
+                                size_t output_size, int batch_size)
+/*
+ */
+{
+    constexpr unsigned int BLOCK_SIZE = 128U;
+    constexpr unsigned int THREAD_TILE = 8U;
+    constexpr unsigned int WARPS_X = 4U;
+    constexpr unsigned int WARPS_Y = 2U;
+    constexpr unsigned int BLOCK_TILE_K = 16U;
+    constexpr unsigned int WARP_TILE_X = BLOCK_SIZE / WARPS_X;
+    constexpr unsigned int WARP_TILE_Y = BLOCK_SIZE / WARPS_Y;
+    constexpr unsigned int THREADS_X = WARPS_X * (WARP_TILE_X / THREAD_TILE);
+    constexpr unsigned int THREADS_Y = WARPS_Y * (WARP_TILE_Y / THREAD_TILE);
+    constexpr unsigned int THREADS = THREADS_X * THREADS_Y;
+    constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
+
+    dim3 block_dim(THREADS_X, THREADS_Y, 1U);
+    dim3 grid_dim(
+        (static_cast<unsigned int>(input_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
+        (static_cast<unsigned int>(batch_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
+        1U);
+    linear_bwd_delta_z_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE, THREADS,
+                          WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
+        <<<grid_dim, block_dim>>>(d_mu_w, cu_next_bwd_states->d_jcb,
+                                  cu_input_delta_states->d_delta_mu,
+                                  cu_input_delta_states->d_delta_var,
+                                  input_size, output_size, batch_size,
+                                  cu_output_delta_states->d_delta_mu,
+                                  cu_output_delta_states->d_delta_var);
+}
+
+void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
+                                 DeltaStateCuda *&cu_output_delta_states,
+                                 BackwardStateCuda *&cu_next_bwd_states,
+                                 const float *d_var_w, size_t input_size,
+                                 size_t output_size, int batch_size,
+                                 float *d_delta_mu_w, float *d_delta_var_w)
+/*
+ */
+{
+    constexpr unsigned int BLOCK_SIZE = 128U;
+    constexpr unsigned int THREAD_TILE = 8U;
+    constexpr unsigned int WARPS_X = 4U;
+    constexpr unsigned int WARPS_Y = 2U;
+    constexpr unsigned int BLOCK_TILE_K = 16U;
+    constexpr unsigned int WARP_TILE_X = BLOCK_SIZE / WARPS_X;
+    constexpr unsigned int WARP_TILE_Y = BLOCK_SIZE / WARPS_Y;
+    constexpr unsigned int THREADS_X = WARPS_X * (WARP_TILE_X / THREAD_TILE);
+    constexpr unsigned int THREADS_Y = WARPS_Y * (WARP_TILE_Y / THREAD_TILE);
+    constexpr unsigned int THREADS = THREADS_X * THREADS_Y;
+    constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
+
+    dim3 block_dim(THREADS_X, THREADS_Y, 1U);
+    dim3 grid_dim(
+        (static_cast<unsigned int>(input_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
+        (static_cast<unsigned int>(output_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
+        1U);
+
+    linear_bwd_delta_w_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE, THREADS,
+                          WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
+        <<<grid_dim, block_dim>>>(d_var_w, cu_next_bwd_states->d_mu_a,
+                                  cu_input_delta_states->d_delta_mu,
+                                  cu_input_delta_states->d_delta_var,
+                                  input_size, output_size, batch_size,
+                                  d_delta_mu_w, d_delta_var_w);
+}
 
 LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
                        float gain_weight, float gain_bias, std::string method)
@@ -285,21 +1159,13 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     // *>(&temp_states);
 
     int batch_size = input_states.block_size;
-    int threads = this->num_cuda_threads;
+
     this->set_cap_factor_udapte(batch_size);
 
-    // Forward pass
-    unsigned int grid_rows = (this->output_size + threads - 1) / threads;
-    unsigned int grid_cols = (batch_size + threads - 1) / threads;
-
-    dim3 grid_dim(grid_cols, grid_rows);
-    dim3 block_dim(threads, threads);
-
-    linear_fwd_mean_var<<<grid_dim, block_dim>>>(
-        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-        this->output_size, input_states.block_size, this->bias,
-        cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    linear_forward_cuda(cu_input_states, cu_output_states, this->d_mu_w,
+                        this->d_var_w, this->d_mu_b, this->d_var_b,
+                        this->input_size, this->output_size,
+                        input_states.block_size, this->bias);
 
     // Update number of actual states.
     output_states.block_size = batch_size;
@@ -320,79 +1186,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
 
         this->store_states_for_training_cuda(*cu_input_states,
                                              *cu_output_states, *cu_bwd_states);
-    }
-}
-
-void LinearCuda::state_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &input_delta_states,
-                                BaseDeltaStates &output_delta_states,
-                                BaseTempStates &temp_states)
-/*
- */
-{
-    // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
-    DeltaStateCuda *cu_input_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
-    DeltaStateCuda *cu_output_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-
-    // Initialization
-    int batch_size = input_delta_states.block_size;
-    int threads = this->num_cuda_threads;
-
-    // Compute inovation vector
-    unsigned int grid_row = (this->input_size + threads - 1) / threads;
-    unsigned int grid_col = (batch_size + threads - 1) / threads;
-
-    dim3 grid_dim(grid_col, grid_row);
-    dim3 block_dim(threads, threads);
-
-    linear_bwd_delta_z<<<grid_dim, block_dim>>>(
-        this->d_mu_w, cu_next_bwd_states->d_jcb,
-        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
-        this->input_size, this->output_size, batch_size,
-        cu_output_delta_states->d_delta_mu,
-        cu_output_delta_states->d_delta_var);
-}
-
-void LinearCuda::param_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &delta_states,
-                                BaseTempStates &temp_states)
-/*
- */
-{
-    // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
-
-    // Initalization
-    int batch_size = delta_states.block_size;
-    int threads = this->num_cuda_threads;
-    dim3 block_dim(threads, threads);
-
-    // Updated values for weights
-    unsigned int grid_row_w = (this->input_size + threads - 1) / threads;
-    unsigned int grid_col_w = (this->output_size + threads - 1) / threads;
-    dim3 grid_dim_w(grid_col_w, grid_row_w);
-
-    linear_bwd_delta_w<<<grid_dim_w, block_dim>>>(
-        this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
-        cu_delta_states->d_delta_var, this->input_size, this->output_size,
-        batch_size, this->d_delta_mu_w, this->d_delta_var_w);
-
-    // Updated values for biases
-    if (this->bias) {
-        unsigned int grid_row_b = (this->output_size + threads - 1) / threads;
-        dim3 grid_dim_b(1, grid_row_b);
-
-        linear_bwd_delta_b<<<grid_dim_b, block_dim>>>(
-            this->d_var_b, cu_delta_states->d_delta_mu,
-            cu_delta_states->d_delta_var, this->input_size, this->output_size,
-            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
     }
 }
 
@@ -419,27 +1212,19 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
 
     dim3 grid_dim(grid_col, grid_row);
     dim3 block_dim(threads, threads);
+
     if (state_udapte) {
-        linear_bwd_delta_z<<<grid_dim, block_dim>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb,
-            cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, this->input_size,
-            this->output_size, batch_size, cu_output_delta_states->d_delta_mu,
-            cu_output_delta_states->d_delta_var);
+        linear_state_backward_cuda(
+            cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
+            this->d_mu_w, this->input_size, this->output_size, batch_size);
     }
 
     // Updated values for weights
     if (this->param_update) {
-        unsigned int grid_row_w = (this->input_size + threads - 1) / threads;
-        unsigned int grid_col_w = (this->output_size + threads - 1) / threads;
-        dim3 grid_dim_w(grid_col_w, grid_row_w);
-
-        linear_bwd_delta_w<<<grid_dim_w, block_dim>>>(
-            this->d_var_w, cu_next_bwd_states->d_mu_a,
-            cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, this->input_size,
-            this->output_size, batch_size, this->d_delta_mu_w,
-            this->d_delta_var_w);
+        linear_weight_backward_cuda(
+            cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
+            this->d_var_w, this->input_size, this->output_size, batch_size,
+            this->d_delta_mu_w, this->d_delta_var_w);
 
         // Updated values for biases
         if (this->bias) {

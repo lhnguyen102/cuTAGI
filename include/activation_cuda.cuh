@@ -85,15 +85,17 @@ class ReLUCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -122,15 +124,17 @@ class SigmoidCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -160,15 +164,17 @@ class TanhCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -197,15 +203,17 @@ class MixtureReLUCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -234,15 +242,17 @@ class MixtureSigmoidCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -271,15 +281,17 @@ class MixtureTanhCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -308,15 +320,17 @@ class SoftplusCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -346,15 +360,17 @@ class LeakyReLUCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };
@@ -383,15 +399,17 @@ class SoftmaxCuda : public BaseLayerCuda {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void allocate_param_delta() override{};
+    using BaseLayer::backward;
 
-    void update_weights() override{};
+    void allocate_param_delta() override {};
 
-    void update_biases() override{};
+    void update_weights() override {};
 
-    void save(std::ofstream &file) override{};
+    void update_biases() override {};
 
-    void load(std::ifstream &file) override{};
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
 };

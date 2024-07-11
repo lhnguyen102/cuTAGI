@@ -465,6 +465,9 @@ void BackwardStateCuda::allocate_memory()
 /*
  */
 {
+    if (this->d_mu_a != nullptr || this->d_jcb != nullptr) {
+        this->deallocate_memory();
+    }
     this->mu_a.resize(this->size, 0);
     this->jcb.resize(this->size, 0);
     cudaMalloc(&this->d_mu_a, this->size * sizeof(float));

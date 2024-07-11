@@ -34,6 +34,5 @@ void bind_convtranspose2d_layer(pybind11::module_& modo)
         .def_readwrite("init_method", &ConvTranspose2d::init_method)
         .def("init_weight_bias", &ConvTranspose2d::init_weight_bias)
         .def("forward", &ConvTranspose2d::forward)
-        .def("state_backward", &ConvTranspose2d::state_backward)
-        .def("param_backward", &ConvTranspose2d::param_backward);
+        .def("backward", &ConvTranspose2d::backward);
 }

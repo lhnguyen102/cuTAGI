@@ -60,15 +60,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-11
+          - os: macos-13
             python_version: "3.9"
             cibuildwheel_python: "cp39-*"
 
-          - os: macos-11
+          - os: macos-13
             python_version: "3.10"
             cibuildwheel_python: "cp310-*"
 
-          - os: macos-11
+          - os: macos-13
             python_version: "3.11"
             cibuildwheel_python: "cp311-*"
     if: ${{ github.event.pull_request.draft == false }}

@@ -517,8 +517,8 @@ __global__ void conv2d_bwd_delta_z_cuda_tiled(
         }
 
         __syncthreads();
-#pragma unroll
         float tmp_mu_w = 0;
+#pragma unroll
         for (int i = 0; i < TILE_SIZE; i++) {
             int tmp_zw_idx = s_zw_idx[tx * PADDED_TILE_SIZE + i];
 
@@ -858,111 +858,6 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
     }
 }
 
-void Conv2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &input_delta_states,
-                                BaseDeltaStates &output_delta_states,
-                                BaseTempStates &temp_states)
-/*
- */
-{
-    // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
-    DeltaStateCuda *cu_input_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
-    DeltaStateCuda *cu_output_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
-    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
-
-    // Initialization
-    int batch_size = input_delta_states.block_size;
-    int threads = this->num_cuda_threads;
-
-    // Launch kernel
-    int wihi = this->in_width * this->in_height;
-    int woho = this->out_width * this->out_height;
-    int row_zw_fo = this->row_zw * this->out_channels;
-    int pad_idx = woho * this->out_channels * batch_size + 1;
-
-    unsigned int grid_row_p = (batch_size + threads - 1) / threads;
-    unsigned int grid_col_p =
-        (wihi * this->in_channels + threads - 1) / threads;
-    dim3 dim_grid_p(grid_col_p, grid_row_p);
-
-    unsigned int grid_row = (this->in_channels + threads - 1) / threads;
-    unsigned int grid_col = (wihi * batch_size + threads - 1) / threads;
-    dim3 dim_grid(grid_col, grid_row);
-    dim3 dim_block(threads, threads);
-
-    permmute_jacobian_cuda<<<dim_grid_p, dim_block>>>(
-        cu_next_bwd_states->d_jcb, wihi, this->in_channels, batch_size,
-        cu_temp_states->d_tmp_1);
-
-    conv2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
-        this->d_mu_w, cu_temp_states->d_tmp_1,
-        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
-        this->d_idx_cov_zwa_1, this->d_idx_var_z_ud, woho, this->out_channels,
-        wihi, this->in_channels, this->kernel_size, this->row_zw, row_zw_fo,
-        batch_size, pad_idx, cu_output_delta_states->d_delta_mu,
-        cu_output_delta_states->d_delta_var);
-}
-
-void Conv2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
-                                BaseDeltaStates &delta_states,
-                                BaseTempStates &temp_states)
-/*
- */
-{
-    // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
-    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
-
-    // Initalization
-    int batch_size = delta_states.block_size;
-    int threads = this->num_cuda_threads;
-
-    // Lauch kernel
-    int woho = this->out_width * this->out_height;
-    int wihi = this->in_width * this->in_height;
-    int woho_batch = woho * batch_size;
-    int wohofo = woho * this->out_channels;
-    int pad_idx = wihi * this->in_channels * batch_size + 1;
-    int ki2_fi = this->kernel_size * this->kernel_size * this->in_channels;
-
-    unsigned int grid_row = (batch_size + threads - 1) / threads;
-    unsigned int grid_col = (wohofo + threads - 1) / threads;
-    unsigned int grid_row_w = (ki2_fi + threads - 1) / threads;
-    unsigned int grid_col_w = (this->out_channels + threads - 1) / threads;
-
-    dim3 dim_grid(grid_col, grid_row);
-    dim3 dim_grid_w(grid_col_w, grid_row_w);
-    dim3 dim_block(threads, threads);
-
-    permute_delta_cuda<<<dim_grid, dim_block>>>(
-        cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var, woho, wohofo,
-        batch_size, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2);
-
-    conv2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
-        this->d_var_w, cu_next_bwd_states->d_mu_a, cu_temp_states->d_tmp_1,
-        cu_temp_states->d_tmp_2, this->d_idx_mwa_2, batch_size,
-        this->out_channels, woho, wihi, this->in_channels, this->kernel_size,
-        pad_idx, this->d_delta_mu_w, this->d_delta_var_w);
-
-    if (this->bias) {
-        unsigned int grid_col_bias =
-            (this->out_channels + threads - 1) / threads;
-        // dim3 dim_grid_bias(grid_col_bias, 1);
-
-        conv2d_bwd_delta_b_cuda<<<grid_col_bias, threads>>>(
-            this->d_var_b, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2,
-            woho_batch, this->out_channels, this->d_delta_mu_b,
-            this->d_delta_var_b);
-    }
-}
-
 void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
                           BaseDeltaStates &output_delta_states,
                           BaseTempStates &temp_states, bool state_udapte)
@@ -989,7 +884,7 @@ void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
     int pad_param_idx = this->num_weights + 1;
 
     if (state_udapte) {
-        int pad_idx = woho * this->out_channels * batch_size + 1;
+        // int pad_idx = woho * this->out_channels * batch_size + 1;
 
         unsigned int grid_row_p = (batch_size + threads - 1) / threads;
         unsigned int grid_col_p =

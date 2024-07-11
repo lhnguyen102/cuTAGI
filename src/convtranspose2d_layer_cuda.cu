@@ -402,16 +402,16 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
     }
 }
 
-void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
-                                         BaseDeltaStates &input_delta_states,
-                                         BaseDeltaStates &output_delta_states,
-                                         BaseTempStates &temp_states)
+void ConvTranspose2dCuda::backward(BaseDeltaStates &input_delta_states,
+                                   BaseDeltaStates &output_delta_states,
+                                   BaseTempStates &temp_states,
+                                   bool state_udapte)
 /*
  */
 {
     // New poitner will point to the same memory location when casting
     BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     DeltaStateCuda *cu_input_delta_states =
         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
     DeltaStateCuda *cu_output_delta_states =
@@ -436,50 +436,116 @@ void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
         wihi, this->in_channels, this->kernel_size, this->row_zw, batch_size,
         cu_output_delta_states->d_delta_mu,
         cu_output_delta_states->d_delta_var);
-}
 
-void ConvTranspose2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
-                                         BaseDeltaStates &delta_states,
-                                         BaseTempStates &temp_states)
-/**/
-{
-    // New poitner will point to the same memory location when casting
-    BackwardStateCuda *cu_next_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
-
-    // Initalization
-    int batch_size = delta_states.block_size;
-    int threads = this->num_cuda_threads;
+    // Parameter
 
     // Launch kernel
     int ki2 = this->kernel_size * this->kernel_size;
-    int wihi = this->in_height * this->in_width;
-    int woho = this->out_width * this->out_height;
     unsigned int grid_row_w = (this->in_channels + threads - 1) / threads;
     unsigned int grid_col_w =
         (ki2 * this->out_channels + threads - 1) / threads;
 
     dim3 dim_grid_w(grid_col_w, grid_row_w);
-    dim3 dim_block(threads, threads);
 
     convtranspose2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
-        this->d_var_w, cu_next_bwd_states->d_mu_a, cu_delta_states->d_delta_mu,
-        cu_delta_states->d_delta_var, this->d_idx_cov_wz_2,
-        this->d_idx_var_wz_ud, woho, this->out_channels, wihi,
-        this->in_channels, this->kernel_size, batch_size, this->d_delta_mu_w,
-        this->d_delta_var_w);
+        this->d_var_w, cu_next_bwd_states->d_mu_a,
+        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
+        this->d_idx_cov_wz_2, this->d_idx_var_wz_ud, woho, this->out_channels,
+        wihi, this->in_channels, this->kernel_size, batch_size,
+        this->d_delta_mu_w, this->d_delta_var_w);
 
     if (this->bias) {
         unsigned int grid_size = (this->out_channels + threads - 1) / threads;
 
         convtranspose2d_bwd_delta_b_cuda<<<grid_size, threads>>>(
-            this->d_var_b, cu_delta_states->d_delta_mu,
-            cu_delta_states->d_delta_var, woho, this->out_channels, batch_size,
-            this->d_delta_mu_b, this->d_delta_var_b);
+            this->d_var_b, cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, woho, this->out_channels,
+            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
     }
 }
+
+// void ConvTranspose2dCuda::state_backward(BaseBackwardStates &next_bwd_states,
+//                                          BaseDeltaStates &input_delta_states,
+//                                          BaseDeltaStates
+//                                          &output_delta_states, BaseTempStates
+//                                          &temp_states)
+// /*
+//  */
+// {
+//     // New poitner will point to the same memory location when casting
+//     BackwardStateCuda *cu_next_bwd_states =
+//         dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+//     DeltaStateCuda *cu_input_delta_states =
+//         dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+//     DeltaStateCuda *cu_output_delta_states =
+//         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+//     int batch_size = input_delta_states.block_size;
+//     int threads = this->num_cuda_threads;
+
+//     // Lauch kernel
+//     int wihi = this->in_height * this->in_width;
+//     int woho = this->out_width * this->out_height;
+//     unsigned int grid_row = (batch_size + threads - 1) / threads;
+//     unsigned int grid_col = (wihi * this->in_channels + threads - 1) /
+//     threads;
+
+//     dim3 dim_grid(grid_col, grid_row);
+//     dim3 dim_block(threads, threads);
+
+//     convtranspose2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
+//         this->d_mu_w, cu_next_bwd_states->d_jcb,
+//         cu_input_delta_states->d_delta_mu,
+//         cu_input_delta_states->d_delta_var, this->d_idx_cov_z_wa_1,
+//         this->d_idx_var_z_ud, woho, this->out_channels, wihi,
+//         this->in_channels, this->kernel_size, this->row_zw, batch_size,
+//         cu_output_delta_states->d_delta_mu,
+//         cu_output_delta_states->d_delta_var);
+// }
+
+// void ConvTranspose2dCuda::param_backward(BaseBackwardStates &next_bwd_states,
+//                                          BaseDeltaStates &delta_states,
+//                                          BaseTempStates &temp_states)
+// /**/
+// {
+//     // New poitner will point to the same memory location when casting
+//     BackwardStateCuda *cu_next_bwd_states =
+//         dynamic_cast<BackwardStateCuda *>(&next_bwd_states);
+//     DeltaStateCuda *cu_delta_states =
+//         dynamic_cast<DeltaStateCuda *>(&delta_states);
+
+//     // Initalization
+//     int batch_size = delta_states.block_size;
+//     int threads = this->num_cuda_threads;
+
+//     // Launch kernel
+//     int ki2 = this->kernel_size * this->kernel_size;
+//     int wihi = this->in_height * this->in_width;
+//     int woho = this->out_width * this->out_height;
+//     unsigned int grid_row_w = (this->in_channels + threads - 1) / threads;
+//     unsigned int grid_col_w =
+//         (ki2 * this->out_channels + threads - 1) / threads;
+
+//     dim3 dim_grid_w(grid_col_w, grid_row_w);
+//     dim3 dim_block(threads, threads);
+
+//     convtranspose2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
+//         this->d_var_w, cu_next_bwd_states->d_mu_a,
+//         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var,
+//         this->d_idx_cov_wz_2, this->d_idx_var_wz_ud, woho,
+//         this->out_channels, wihi, this->in_channels, this->kernel_size,
+//         batch_size, this->d_delta_mu_w, this->d_delta_var_w);
+
+//     if (this->bias) {
+//         unsigned int grid_size = (this->out_channels + threads - 1) /
+//         threads;
+
+//         convtranspose2d_bwd_delta_b_cuda<<<grid_size, threads>>>(
+//             this->d_var_b, cu_delta_states->d_delta_mu,
+//             cu_delta_states->d_delta_var, woho, this->out_channels,
+//             batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+//     }
+// }
 
 std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()
 /* Transfer to cpu version

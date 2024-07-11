@@ -49,15 +49,6 @@ void BaseLayer::forward(BaseHiddenStates &input_states,
                         BaseHiddenStates &output_states,
                         BaseTempStates &temp_states) {}
 
-void BaseLayer::state_backward(BaseBackwardStates &next_bwd_states,
-                               BaseDeltaStates &input_delta_states,
-                               BaseDeltaStates &output_hidden_states,
-                               BaseTempStates &temp_states) {}
-
-void BaseLayer::param_backward(BaseBackwardStates &next_bwd_states,
-                               BaseDeltaStates &delta_states,
-                               BaseTempStates &temp_states) {}
-
 void BaseLayer::backward(BaseDeltaStates &input_delta_states,
                          BaseDeltaStates &output_delta_states,
                          BaseTempStates &temp_states, bool state_udapte) {}

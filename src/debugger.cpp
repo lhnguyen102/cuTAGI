@@ -149,8 +149,8 @@ void ModelDebugger::debug_forward(const std::vector<float> &mu_x,
             if (this->test_output_z_buffer->mu_a[j] !=
                 this->ref_output_z_buffer->mu_a[j]) {
                 auto layer_name = test_current_layer->get_layer_name();
-                std::cout << "Layer name: " << layer_name << " "
-                          << "Layer no " << i << "\n"
+                std::cout << "Layer name: " << layer_name << " " << "Layer no "
+                          << i << "\n"
                           << std::endl;
                 // std::vector<float> test_mu_ra, test_var_ra, ref_mu_ra,
                 //     ref_var_ra;
@@ -242,25 +242,25 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
         auto *test_current_layer = test_model.layers[i].get();
         auto *ref_current_layer = ref_model.layers[i].get();
 
-        // Backward pass for parameters and hidden states
-        if (test_model.param_update) {
-            test_current_layer->param_backward(*test_current_layer->bwd_states,
-                                               *test_input_delta_z_buffer,
-                                               *test_temp_states);
+        // // Backward pass for parameters and hidden states
+        // if (test_model.param_update) {
+        //     test_current_layer->param_backward(*test_current_layer->bwd_states,
+        //                                        *test_input_delta_z_buffer,
+        //                                        *test_temp_states);
 
-            ref_current_layer->param_backward(*ref_current_layer->bwd_states,
-                                              *ref_input_delta_z_buffer,
-                                              *ref_temp_states);
-        }
+        //     ref_current_layer->param_backward(*ref_current_layer->bwd_states,
+        //                                       *ref_input_delta_z_buffer,
+        //                                       *ref_temp_states);
+        // }
 
-        // Backward pass for hidden states
-        test_current_layer->state_backward(
-            *test_current_layer->bwd_states, *test_input_delta_z_buffer,
-            *test_output_delta_z_buffer, *test_temp_states);
+        // // Backward pass for hidden states
+        // test_current_layer->state_backward(
+        //     *test_current_layer->bwd_states, *test_input_delta_z_buffer,
+        //     *test_output_delta_z_buffer, *test_temp_states);
 
-        ref_current_layer->state_backward(
-            *ref_current_layer->bwd_states, *ref_input_delta_z_buffer,
-            *ref_output_delta_z_buffer, *ref_temp_states);
+        // ref_current_layer->state_backward(
+        //     *ref_current_layer->bwd_states, *ref_input_delta_z_buffer,
+        //     *ref_output_delta_z_buffer, *ref_temp_states);
 
         // Copy to host for gpu model
 #ifdef USE_CUDA
@@ -296,9 +296,8 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 if (this->test_output_delta_z_buffer->delta_var[j] !=
                     this->ref_output_delta_z_buffer->delta_var[j]) {
                     std::cout << "Layer name: " << layer_name << " "
-                              << "Hidden states "
-                              << " "
-                              << "Layer no " << i << "\n"
+                              << "Hidden states " << " " << "Layer no " << i
+                              << "\n"
                               << std::endl;
 
                     int check = 0;
@@ -309,9 +308,7 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
                 if (test_current_layer->delta_var_w[k] !=
                     ref_current_layer->delta_var_w[k]) {
                     std::cout << "Layer name: " << layer_name << " "
-                              << "Weight "
-                              << " "
-                              << "Layer no " << i << "\n"
+                              << "Weight " << " " << "Layer no " << i << "\n"
                               << std::endl;
 
                     int check = 0;
@@ -345,31 +342,31 @@ void ModelDebugger::debug_backward(std::vector<float> &y_batch,
         }
     }
 
-    // Parameter update for input layer
-    if (test_model.param_update) {
-        test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
-                                             *test_input_delta_z_buffer,
-                                             *test_temp_states);
-    }
+    // // Parameter update for input layer
+    // if (test_model.param_update) {
+    //     test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
+    //                                          *test_input_delta_z_buffer,
+    //                                          *test_temp_states);
+    // }
 
-    // State update for input layer
-    if (test_model.input_state_update) {
-        test_model.layers[0]->state_backward(
-            *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
-            *test_output_delta_z_buffer, *test_temp_states);
-    }
+    // // State update for input layer
+    // if (test_model.input_state_update) {
+    //     test_model.layers[0]->state_backward(
+    //         *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
+    //         *test_output_delta_z_buffer, *test_temp_states);
+    // }
 
-    if (ref_model.param_update) {
-        ref_model.layers[0]->param_backward(*ref_model.layers[0]->bwd_states,
-                                            *ref_input_delta_z_buffer,
-                                            *ref_temp_states);
-    }
+    // if (ref_model.param_update) {
+    //     ref_model.layers[0]->param_backward(*ref_model.layers[0]->bwd_states,
+    //                                         *ref_input_delta_z_buffer,
+    //                                         *ref_temp_states);
+    // }
 
-    if (ref_model.input_state_update) {
-        ref_model.layers[0]->state_backward(
-            *ref_model.layers[0]->bwd_states, *ref_input_delta_z_buffer,
-            *ref_output_delta_z_buffer, *ref_temp_states);
-    }
+    // if (ref_model.input_state_update) {
+    //     ref_model.layers[0]->state_backward(
+    //         *ref_model.layers[0]->bwd_states, *ref_input_delta_z_buffer,
+    //         *ref_output_delta_z_buffer, *ref_temp_states);
+    // }
 }
 
 #ifdef USE_CUDA
@@ -508,17 +505,17 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
     for (int i = num_layers - 1; i > 0; i--) {
         auto *test_current_layer = test_model.layers[i].get();
 
-        // Backward pass for parameters and hidden states
-        if (test_model.param_update) {
-            test_current_layer->param_backward(*test_current_layer->bwd_states,
-                                               *test_input_delta_z_buffer,
-                                               *test_temp_states);
-        }
+        // // Backward pass for parameters and hidden states
+        // if (test_model.param_update) {
+        //     test_current_layer->param_backward(*test_current_layer->bwd_states,
+        //                                        *test_input_delta_z_buffer,
+        //                                        *test_temp_states);
+        // }
 
-        // Backward pass for hidden states
-        test_current_layer->state_backward(
-            *test_current_layer->bwd_states, *test_input_delta_z_buffer,
-            *test_output_delta_z_buffer, *test_temp_states);
+        // // Backward pass for hidden states
+        // test_current_layer->state_backward(
+        //     *test_current_layer->bwd_states, *test_input_delta_z_buffer,
+        //     *test_output_delta_z_buffer, *test_temp_states);
 
         // Copy to host for gpu model
         if (this->test_model.device.compare("cuda") == 0) {
@@ -539,18 +536,18 @@ void CrossValidator::validate_backward(std::vector<float> &y_batch,
         }
     }
 
-    // Parameter update for input layer
-    if (test_model.param_update) {
-        test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
-                                             *test_input_delta_z_buffer,
-                                             *test_temp_states);
-    }
+    // // Parameter update for input layer
+    // if (test_model.param_update) {
+    //     test_model.layers[0]->param_backward(*test_model.layers[0]->bwd_states,
+    //                                          *test_input_delta_z_buffer,
+    //                                          *test_temp_states);
+    // }
 
-    // State update for input layer
-    if (test_model.input_state_update) {
-        test_model.layers[0]->state_backward(
-            *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
-            *test_output_delta_z_buffer, *test_temp_states);
-    }
+    // // State update for input layer
+    // if (test_model.input_state_update) {
+    //     test_model.layers[0]->state_backward(
+    //         *test_model.layers[0]->bwd_states, *test_input_delta_z_buffer,
+    //         *test_output_delta_z_buffer, *test_temp_states);
+    // }
 }
 #endif

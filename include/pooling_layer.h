@@ -55,25 +55,16 @@ class AvgPool2d : public BaseLayer {
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
 
-    void state_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &input_delta_states,
-                        BaseDeltaStates &ooutput_delta_states,
-                        BaseTempStates &temp_states) override;
-
-    void param_backward(BaseBackwardStates &next_bwd_states,
-                        BaseDeltaStates &delta_states,
-                        BaseTempStates &temp_states) override;
-
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
 
-    void allocate_param_delta() override{};
+    void allocate_param_delta() override {};
 
-    void update_weights() override{};
+    void update_weights() override {};
 
-    void update_biases() override{};
+    void update_biases() override {};
 
     using BaseLayer::storing_states_for_training;
     using BaseLayer::to_cuda;

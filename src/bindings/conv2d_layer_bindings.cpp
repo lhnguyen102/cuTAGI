@@ -32,6 +32,5 @@ void bind_conv2d_layer(pybind11::module_& modo)
         .def_readwrite("init_method", &Conv2d::init_method)
         .def("init_weight_bias", &Conv2d::init_weight_bias)
         .def("forward", &Conv2d::forward)
-        .def("state_backward", &Conv2d::state_backward)
-        .def("param_backward", &Conv2d::param_backward);
+        .def("backward", &Conv2d::backward);
 }
