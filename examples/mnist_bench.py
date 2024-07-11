@@ -1,11 +1,3 @@
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
-)
-
 import fire
 import numpy as np
 import torch
@@ -242,7 +234,7 @@ def tagi_trainer(
 
 def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
     # Hyperparameters
-    learning_rate = 3e-4
+    learning_rate = 0.01
 
     # torch.set_float32_matmul_precision("high")
 
@@ -327,7 +319,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
 def main(
     framework: str = "tagi",
     batch_size: int = 256,
-    epochs: int = 10,
+    epochs: int = 20,
     device: str = "cuda",
 ):
     if framework == "torch":
