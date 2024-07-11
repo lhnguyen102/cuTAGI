@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final version
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 from typing import Optional
 
 import fire
@@ -72,6 +80,7 @@ def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2):
 
         for x, y in batch_iter:
             # Feed forward
+            breakpoint()
             m_pred, _ = net(x)
 
             # Update output layer

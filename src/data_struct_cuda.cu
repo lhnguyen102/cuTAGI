@@ -62,10 +62,15 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
 
     for (int i = 0; i < data_size; i++) {
         this->mu_a[i] = mu_x[i];
+        this->jcb[i] = 1.0f;
     }
     if (var_x.size() == data_size) {
         for (int i = 0; i < data_size; i++) {
             this->var_a[i] = var_x[i];
+        }
+    } else {
+        for (int i = 0; i < data_size; i++) {
+            this->var_a[i] = 0.0f;
         }
     }
     this->chunks_to_device(data_size);
@@ -81,6 +86,8 @@ void HiddenStateCuda::allocate_memory() {
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
+    cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
+               cudaMemcpyHostToDevice);
 };
 
 void HiddenStateCuda::to_device()
@@ -141,7 +148,7 @@ void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
         this->size = new_size;
         this->mu_a.resize(this->size, 0.0f);
         this->var_a.resize(this->size, 0.0f);
-        this->jcb.resize(this->size, 0.0f);
+        this->jcb.resize(this->size, 1.0f);
 
         this->deallocate_memory();
         this->allocate_memory();
@@ -468,10 +475,11 @@ void BackwardStateCuda::allocate_memory()
     if (this->d_mu_a != nullptr || this->d_jcb != nullptr) {
         this->deallocate_memory();
     }
-    this->mu_a.resize(this->size, 0);
-    this->jcb.resize(this->size, 0);
+    this->mu_a.resize(this->size, 0.0f);
+    this->jcb.resize(this->size, 1.0f);
     cudaMalloc(&this->d_mu_a, this->size * sizeof(float));
     cudaMalloc(&this->d_jcb, this->size * sizeof(float));
+    this->to_device();
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +

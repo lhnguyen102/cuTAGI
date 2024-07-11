@@ -226,7 +226,7 @@ __global__ void lstm_cat_act_and_prev_states_cuda(float const *a,
 /*Concatenate two vectors*/
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.y * blockDim.x + threadIdx.x;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < B && col < seq_len) {
         for (int i = 0; i < n; i++) {
             c[i + col * (n + m) + row * (n + m) * seq_len] =
@@ -954,6 +954,16 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
                 this->seq_len, batch_size, this->d_delta_mu_b,
                 this->d_delta_var_b);
         }
+        // this->delta_params_to_host();
+        // std::cout << std::fixed << std::setprecision(12);
+        // for (int i = 0; i < this->delta_mu_b.size(); i++) {
+        //     if (this->delta_mu_b[i] != 0) {
+        //         std::cout << "MU W GPU value: " << 1e12 * this->delta_mu_b[i]
+        //                   << "i=" << i << "\n"
+        //                   << std::endl;
+        //         break;
+        //     }
+        // }
     }
 }
 

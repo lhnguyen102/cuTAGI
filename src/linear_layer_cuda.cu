@@ -1171,19 +1171,11 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    // Lazy initialization
+    // Update backward state for inferring parameters
     BackwardStateCuda *cu_bwd_states =
         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-    if (cu_bwd_states->size == 0 && this->training) {
-        cu_bwd_states->size = cu_input_states->actual_size * batch_size;
-        cu_bwd_states->allocate_memory();
-    }
 
-    // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
                                              *cu_output_states, *cu_bwd_states);
     }
