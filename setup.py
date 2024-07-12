@@ -18,7 +18,7 @@ def read():
     return version[0]
 
 
-# Convert distutils Windows platform specifiers to CMake -A arguments
+# Convert distutils Windows platform specifiers to CMake -A argument
 PLAT_TO_CMAKE = {
     "win32": "Win32",
     "win-amd64": "x64",
