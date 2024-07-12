@@ -9,6 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer_cuda.cuh"
+#include "../include/cuda_error_checking.cuh"
 
 __global__ void fill_bwd_states_on_device(float const *mu_a_in,
                                           float const *jcb_in, int size,
@@ -135,12 +136,7 @@ void BaseLayerCuda::allocate_param_delta()
         cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
         cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
     }
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BaseLayerCuda::raw_update_weights()
@@ -220,12 +216,7 @@ void BaseLayerCuda::allocate_param_memory()
     cudaMalloc(&this->d_mu_b, this->num_biases * sizeof(float));
     cudaMalloc(&this->d_var_b, this->num_biases * sizeof(float));
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BaseLayerCuda::params_to_device()
@@ -241,13 +232,7 @@ void BaseLayerCuda::params_to_device()
     cudaMemcpy(this->d_var_b, this->var_b.data(),
                this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Params host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BaseLayerCuda::params_to_host()
@@ -263,13 +248,7 @@ void BaseLayerCuda::params_to_host()
     cudaMemcpy(this->var_b.data(), this->d_var_b,
                this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Params device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BaseLayerCuda::delta_params_to_host()
@@ -285,13 +264,7 @@ void BaseLayerCuda::delta_params_to_host()
     cudaMemcpy(this->delta_var_b.data(), this->d_delta_var_b,
                this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Delta params device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BaseLayerCuda::save(std::ofstream &file)
@@ -381,24 +354,25 @@ std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
 }
 
 void BaseLayerCuda::store_states_for_training_cuda(
-    HiddenStateCuda &input_states, HiddenStateCuda &output_states,
-    BackwardStateCuda &bwd_states)
+    HiddenStateCuda &input_states, HiddenStateCuda &output_states)
 /*
  */
 {
+    BackwardStateCuda *cu_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     int batch_size = input_states.block_size;
     int threads = this->num_cuda_threads;
     int act_size = input_states.actual_size * batch_size;
-    if (bwd_states.size != act_size) {
-        bwd_states.size = act_size;
-        bwd_states.allocate_memory();
+    if (cu_bwd_states->size != act_size) {
+        cu_bwd_states->size = act_size;
+        cu_bwd_states->allocate_memory();
     }
 
     unsigned int blocks = (act_size + threads - 1) / threads;
 
     fill_bwd_states_on_device<<<blocks, threads>>>(
-        input_states.d_mu_a, input_states.d_jcb, act_size, bwd_states.d_mu_a,
-        bwd_states.d_jcb);
+        input_states.d_mu_a, input_states.d_jcb, act_size,
+        cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
 
     int out_size = this->output_size * batch_size;
     unsigned int out_blocks = (out_size + threads - 1) / threads;

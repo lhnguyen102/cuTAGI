@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 10, 2023
-// Updated:      April 11, 2024
+// Updated:      July 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,13 +36,6 @@ void HiddenStateCuda::deallocate_memory() {
     cudaFree(this->d_mu_a);
     cudaFree(this->d_var_a);
     cudaFree(this->d_jcb);
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory Deallocation.");
-    }
 
     // Reset pointers to nullptr to avoid dangling pointers
     this->d_mu_a = nullptr;
@@ -86,6 +79,8 @@ void HiddenStateCuda::allocate_memory() {
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
+
+    // TODO: Jacobian needs to be intialized at 1.0. Zeros to mu_a and var_a?
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 };
@@ -101,12 +96,7 @@ void HiddenStateCuda::to_device()
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
@@ -194,16 +184,10 @@ void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
                cudaMemcpyDeviceToDevice);
     cudaMemcpy(this->d_var_a, cu_source->d_var_a, num_data * sizeof(float),
                cudaMemcpyDeviceToDevice);
-
     cudaMemcpy(this->d_jcb, cu_source->d_jcb, num_data * sizeof(float),
                cudaMemcpyDeviceToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying data on device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 
     this->block_size = source.block_size;
     this->actual_size = source.actual_size;
@@ -237,12 +221,7 @@ void DeltaStateCuda::deallocate_memory() {
     cudaFree(this->d_delta_mu);
     cudaFree(this->d_delta_var);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory Deallocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 
     // Reset pointers to nullptr to avoid dangling pointers
     this->d_delta_mu = nullptr;
@@ -257,12 +236,7 @@ void DeltaStateCuda::allocate_memory()
     cudaMalloc(&this->d_delta_mu, size * sizeof(float));
     cudaMalloc(&this->d_delta_var, size * sizeof(float));
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void DeltaStateCuda::to_device()
@@ -274,12 +248,7 @@ void DeltaStateCuda::to_device()
     cudaMemcpy(this->d_delta_var, this->delta_var.data(),
                this->size * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void DeltaStateCuda::to_host()
@@ -319,12 +288,7 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
     cudaMemcpy(this->d_delta_var, cu_source->d_delta_var,
                num_data * sizeof(float), cudaMemcpyDeviceToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying data on device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 
     this->block_size = source.block_size;
 }
@@ -386,12 +350,7 @@ void TempStateCuda::deallocate_memory()
     cudaFree(this->d_tmp_1);
     cudaFree(this->d_tmp_2);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory Deallocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 
     this->d_tmp_1 = nullptr;
     this->d_tmp_2 = nullptr;
@@ -421,12 +380,7 @@ void TempStateCuda::to_host() {
     cudaMemcpy(this->tmp_2.data(), this->d_tmp_2, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void TempStateCuda::set_size(size_t new_size, size_t new_block_size)
@@ -480,12 +434,7 @@ void BackwardStateCuda::allocate_memory()
     cudaMalloc(&this->d_mu_a, this->size * sizeof(float));
     cudaMalloc(&this->d_jcb, this->size * sizeof(float));
     this->to_device();
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BackwardStateCuda::to_device()
@@ -496,12 +445,6 @@ void BackwardStateCuda::to_device()
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying host to device.");
-    }
 }
 
 void BackwardStateCuda::to_host()
@@ -513,12 +456,7 @@ void BackwardStateCuda::to_host()
     cudaMemcpy(this->jcb.data(), this->d_jcb, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void BackwardStateCuda::set_size(size_t new_size)
@@ -555,12 +493,7 @@ void ObservationCuda::deallocate_memory()
     cudaFree(d_var_obs);
     cudaFree(d_selected_idx);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory Deallocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 
     this->d_mu_obs = nullptr;
     this->d_var_obs = nullptr;
@@ -575,12 +508,7 @@ void ObservationCuda::allocate_memory() {
         cudaMalloc(&this->d_selected_idx, this->idx_size * sizeof(int));
     }
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void ObservationCuda::to_device() {
@@ -593,12 +521,7 @@ void ObservationCuda::to_device() {
                    this->size * sizeof(int), cudaMemcpyHostToDevice);
     }
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void ObservationCuda::to_host() {
@@ -609,12 +532,7 @@ void ObservationCuda::to_host() {
     cudaMemcpy(this->selected_idx.data(), this->d_selected_idx,
                this->size * sizeof(int), cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Copying device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 void ObservationCuda::set_size(size_t new_size, size_t new_block_size)
 /*
@@ -705,12 +623,7 @@ void LSTMStateCuda::deallocate_memory()
     cudaFree(d_cov_o_tanh_c);
     d_cov_o_tanh_c = nullptr;
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory Deallocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
@@ -767,12 +680,8 @@ void LSTMStateCuda::allocate_memory()
     cudaMalloc((void **)&d_cov_i_c, size);
     cudaMalloc((void **)&d_cov_o_tanh_c, size);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    // TODO: do we need to clear out all data
+    this->to_device();
 }
 
 void LSTMStateCuda::to_device() {
@@ -847,13 +756,7 @@ void LSTMStateCuda::to_device() {
     cudaMemcpy(d_cov_o_tanh_c, this->cov_o_tanh_c.data(),
                this->num_states * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void LSTMStateCuda::to_host()
@@ -932,11 +835,5 @@ void LSTMStateCuda::to_host()
     cudaMemcpy(this->cov_o_tanh_c.data(), d_cov_o_tanh_c,
                this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }

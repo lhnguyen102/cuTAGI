@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      March 12, 2024
+// Updated:      July 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -1029,14 +1029,8 @@ void LayerNormCuda::allocate_running_mean_var()
     this->var_ra.resize(this->_batch_size, 1.0f);
     cudaMalloc(&this->d_mu_ra, this->_batch_size * sizeof(float));
     cudaMalloc(&this->d_var_ra, this->_batch_size * sizeof(float));
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var memory allocation.");
-    }
     this->running_mean_var_to_device();
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void LayerNormCuda::running_mean_var_to_device()
@@ -1048,13 +1042,7 @@ void LayerNormCuda::running_mean_var_to_device()
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
                this->var_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void LayerNormCuda::running_mean_var_to_host()
@@ -1066,13 +1054,7 @@ void LayerNormCuda::running_mean_var_to_host()
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
                this->var_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Running mean var device to host.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void LayerNormCuda::forward(BaseHiddenStates &input_states,
@@ -1135,11 +1117,8 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 
@@ -1612,11 +1591,8 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 

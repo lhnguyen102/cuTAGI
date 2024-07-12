@@ -80,7 +80,6 @@ def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2):
 
         for x, y in batch_iter:
             # Feed forward
-            breakpoint()
             m_pred, _ = net(x)
 
             # Update output layer

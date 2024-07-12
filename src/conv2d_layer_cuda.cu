@@ -20,6 +20,7 @@
 #include "../include/base_layer.h"
 #include "../include/conv2d_layer.h"
 #include "../include/conv2d_layer_cuda.cuh"
+#include "../include/cuda_error_checking.cuh"
 #include "../include/param_init.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -743,12 +744,7 @@ void Conv2dCuda::allocate_conv_index()
                this->idx_cov_zwa_1.size() * sizeof(int));
     cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void Conv2dCuda::conv_index_to_device()
@@ -763,13 +759,7 @@ void Conv2dCuda::conv_index_to_device()
     cudaMemcpy(this->d_idx_var_z_ud, this->idx_var_z_ud.data(),
                this->idx_var_z_ud.size() * sizeof(int), cudaMemcpyHostToDevice);
 
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void Conv2dCuda::lazy_index_init()
@@ -850,11 +840,8 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 

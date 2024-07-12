@@ -863,11 +863,8 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 
@@ -954,16 +951,6 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
                 this->seq_len, batch_size, this->d_delta_mu_b,
                 this->d_delta_var_b);
         }
-        // this->delta_params_to_host();
-        // std::cout << std::fixed << std::setprecision(12);
-        // for (int i = 0; i < this->delta_mu_b.size(); i++) {
-        //     if (this->delta_mu_b[i] != 0) {
-        //         std::cout << "MU W GPU value: " << 1e12 * this->delta_mu_b[i]
-        //                   << "i=" << i << "\n"
-        //                   << std::endl;
-        //         break;
-        //     }
-        // }
     }
 }
 

@@ -42,8 +42,20 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
         Linear(40 * input_seq_len, 1),
     )
     net.to_device("cuda")
-    # net.set_threads(12)
+    # net.load("test_model/lsmt_model.bin")
+
+    # gpu_net = Sequential(
+    #     LSTM(num_features, 40, input_seq_len),
+    #     LSTM(40, 40, input_seq_len),
+    #     LSTM(40, 40, input_seq_len),
+    #     Linear(40 * input_seq_len, 1),
+    # )
+    # gpu_net.to_device("cuda")
+    # gpu_net.load("test_model/lsmt_model.bin")
+
+    # net.set_threads(8)
     out_updater = OutputUpdater(net.device)
+    # gpu_out_updater = OutputUpdater(gpu_net.device)
 
     # Loop over each time series in the benchmark
     nb_ts = 963
@@ -115,6 +127,8 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
             for x, y in batch_iter:
                 # Feed forward
                 m_pred, _ = net(x)
+                # m_pred_2, _ = gpu_net(x)
+                # breakpoint()
 
                 # Update output layer
                 out_updater.update(
@@ -124,9 +138,18 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
                     delta_states=net.input_delta_z_buffer,
                 )
 
+                # gpu_out_updater.update(
+                #     output_states=gpu_net.output_z_buffer,
+                #     mu_obs=y,
+                #     var_obs=var_y,
+                #     delta_states=gpu_net.input_delta_z_buffer,
+                # )
+
                 # Feed backward
                 net.backward()
                 net.step()
+                # gpu_net.backward()
+                # gpu_net.step()
 
                 # Training metric
                 pred = normalizer.unstandardize(
@@ -199,59 +222,59 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
             if epoch - epoch_optim > patience:
                 break
 
-        # -------------------------------------------------------------------------#
-        # Testing
-        net = net_optim  # load optimal net
-        # test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
-        test_batch_iter = test_dtl.create_data_loader(1, shuffle=False)
+        # # -------------------------------------------------------------------------#
+        # # Testing
+        # net = net_optim  # load optimal net
+        # # test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
+        # test_batch_iter = test_dtl.create_data_loader(1, shuffle=False)
 
-        mu_preds = []
-        var_preds = []
-        y_test = []
-        x_test = []
+        # mu_preds = []
+        # var_preds = []
+        # y_test = []
+        # x_test = []
 
-        for RW_idx_, (x, y) in enumerate(test_batch_iter):
-            # Rolling window predictions
-            RW_idx = RW_idx_ % (rolling_window)
-            if RW_idx > 0:
-                x[-RW_idx * num_features :: num_features] = mu_preds[-RW_idx:]
-            #
+        # for RW_idx_, (x, y) in enumerate(test_batch_iter):
+        #     # Rolling window predictions
+        #     RW_idx = RW_idx_ % (rolling_window)
+        #     if RW_idx > 0:
+        #         x[-RW_idx * num_features :: num_features] = mu_preds[-RW_idx:]
+        #     #
 
-            # Predicion
-            m_pred, v_pred = net(x)
+        #     # Predicion
+        #     m_pred, v_pred = net(x)
 
-            mu_preds.extend(m_pred)
-            var_preds.extend(v_pred + sigma_v**2)
-            x_test.extend(x)
-            y_test.extend(y)
+        #     mu_preds.extend(m_pred)
+        #     var_preds.extend(v_pred + sigma_v**2)
+        #     x_test.extend(x)
+        #     y_test.extend(y)
 
-        mu_preds = np.array(mu_preds)
-        std_preds = np.array(var_preds) ** 0.5
-        y_test = np.array(y_test)
-        x_test = np.array(x_test)
+        # mu_preds = np.array(mu_preds)
+        # std_preds = np.array(var_preds) ** 0.5
+        # y_test = np.array(y_test)
+        # x_test = np.array(x_test)
 
-        mu_preds = normalizer.unstandardize(
-            mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
-        )
-        std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
+        # mu_preds = normalizer.unstandardize(
+        #     mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+        # )
+        # std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
 
-        y_test = normalizer.unstandardize(
-            y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
-        )
+        # y_test = normalizer.unstandardize(
+        #     y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+        # )
 
-        # save test predicitons for each time series
-        ytestPd[:, ts] = mu_preds.flatten()
-        SytestPd[:, ts] = std_preds.flatten() ** 2
+        # # save test predicitons for each time series
+        # ytestPd[:, ts] = mu_preds.flatten()
+        # SytestPd[:, ts] = std_preds.flatten() ** 2
 
     # np.savetxt("traffic_2008_01_14_ytestPd_pyTAGI.csv", ytestPd, delimiter=",")
     # np.savetxt("traffic_2008_01_14_SytestPd_pyTAGI.csv", SytestPd, delimiter=",")
-    # Compute log-likelihood
+    # # Compute log-likelihood
     # mse = metric.mse(mu_preds, y_test)
     # log_lik = metric.log_likelihood(
     #     prediction=mu_preds, observation=y_test, std=std_preds
     # )
 
-    # ##Visualization
+    # Visualization
     # viz.plot_predictions(
     #     x_test=test_dtl.dataset["date_time"][: len(y_test)],
     #     y_test=y_test,

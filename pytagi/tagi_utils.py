@@ -220,45 +220,6 @@ class Utils:
 
         return input_data, output_data
 
-    # def create_rolling_window(
-    #     self,
-    #     data: np.ndarray,
-    #     output_col: np.ndarray,
-    #     input_seq_len: int,
-    #     output_seq_len: int,
-    #     num_features: int,
-    #     stride: int,
-    # ) -> Tuple[np.ndarray, np.ndarray]:
-    #     """Create rolling window for time series data
-
-    #     Args:
-    #         data: dataset
-    #         output_col: Indices of the output columns
-    #         input_seq_len: Length of the input sequence
-    #         output_seq_len: Length of the output sequence
-    #         num_features: Number of features
-    #         stride: Controls number of steps for the window movements
-    #     Returns:
-    #         input_data: Input data for neural networks in sequence
-    #         output_data: Output data for neural networks in sequence
-    #     """
-    #     num_data = int(
-    #         (len(data) / num_features - input_seq_len - output_seq_len) / stride + 1
-    #     )
-
-    #     input_data, output_data = self._cpp_backend.create_rolling_window_wrapper(
-    #         data.flatten(),
-    #         output_col,
-    #         input_seq_len,
-    #         output_seq_len,
-    #         num_features,
-    #         stride,
-    #     )
-    #     input_data = input_data.reshape((num_data, input_seq_len))
-    #     output_data = output_data.reshape((num_data, output_seq_len))
-
-    #     return input_data, output_data
-
     def get_upper_triu_cov(
         self, batch_size: int, num_data: int, sigma: float
     ) -> np.ndarray:

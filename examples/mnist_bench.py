@@ -1,3 +1,12 @@
+# Temporary import. It will be removed in the final version
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
+
 import fire
 import numpy as np
 import torch
@@ -12,7 +21,6 @@ from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
-    LayerNorm,
     Linear,
     OutputUpdater,
     ReLU,
@@ -113,15 +121,11 @@ class TorchCNNBatchNorm(nn.Module):
         super(TorchCNNBatchNorm, self).__init__()
         self.model = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=4, padding=1),
-            nn.BatchNorm2d(
-                16
-            ),  # Add batch normalization after the first convolutional layer
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Conv2d(16, 32, kernel_size=5),
-            nn.BatchNorm2d(
-                32
-            ),  # Add batch normalization after the second convolutional layer
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Flatten(),

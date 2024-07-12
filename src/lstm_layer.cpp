@@ -1368,15 +1368,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
             }
         }
     }
-    // std::cout << std::fixed << std::setprecision(12);
-    // for (int i = 0; i < this->delta_mu_b.size(); i++) {
-    //     if (this->delta_mu_b[i] != 0) {
-    //         std::cout << "MU W CPU value: " << 1e12 * this->delta_mu_b[i]
-    //                   << "i=" << i << "\n"
-    //                   << std::endl;
-    //         break;
-    //     }
-    // }
 }
 
 #ifdef USE_CUDA
