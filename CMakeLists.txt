@@ -1,5 +1,4 @@
 # CMAKE VERSION
-# NOTE: We only test this file using CUDA toolkit >=10.2
 cmake_minimum_required(VERSION 3.23)
 
 # ###########################################################################################
