@@ -36,6 +36,7 @@ void BaseHiddenStates::set_input_x(const std::vector<float> &mu_x,
     this->block_size = block_size;
     for (int i = 0; i < data_size; i++) {
         this->mu_a[i] = mu_x[i];
+        this->jcb[i] = 1.0f;
     }
     if (var_x.size() == data_size) {
         for (int i = 0; i < data_size; i++) {
@@ -56,7 +57,7 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
         this->size = new_size;
         this->mu_a.resize(this->size, 0.0f);
         this->var_a.resize(this->size, 0.0f);
-        this->jcb.resize(this->size, 0.0f);
+        this->jcb.resize(this->size, 1.0f);
     }
 
     this->block_size = new_block_size;
@@ -254,19 +255,19 @@ void BaseLSTMStates::reset_zeros()
     var_ha.resize(num_states + num_inputs, 0);
     mu_f_ga.resize(num_states, 0);
     var_f_ga.resize(num_states, 0);
-    jcb_f_ga.resize(num_states, 0);
+    jcb_f_ga.resize(num_states, 1.0f);
     mu_i_ga.resize(num_states, 0);
     var_i_ga.resize(num_states, 0);
-    jcb_i_ga.resize(num_states, 0);
+    jcb_i_ga.resize(num_states, 1.0f);
     mu_c_ga.resize(num_states, 0);
     var_c_ga.resize(num_states, 0);
-    jcb_c_ga.resize(num_states, 0);
+    jcb_c_ga.resize(num_states, 1.0f);
     mu_o_ga.resize(num_states, 0);
     var_o_ga.resize(num_states, 0);
-    jcb_o_ga.resize(num_states, 0);
+    jcb_o_ga.resize(num_states, 1.0f);
     mu_ca.resize(num_states, 0);
     var_ca.resize(num_states, 0);
-    jcb_ca.resize(num_states, 0);
+    jcb_ca.resize(num_states, 1.0f);
     mu_c.resize(num_states, 0);
     var_c.resize(num_states, 0);
     mu_c_prev.resize(num_states, 0);

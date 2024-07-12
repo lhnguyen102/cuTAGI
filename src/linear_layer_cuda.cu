@@ -964,7 +964,7 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
                          const float *d_mu_b, const float *d_var_b,
                          size_t input_size, size_t output_size, int batch_size,
                          bool bias) {
-    if (output_size > 128 && input_size > 1024) {
+    if (output_size * input_size > 1024 * 128) {
         // TODO: remove hardcoded kernel config
         constexpr unsigned int BLOCK_SIZE = 128U;
         constexpr unsigned int THREAD_TILE = 8U;
@@ -1171,21 +1171,10 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    // Lazy initialization
-    BackwardStateCuda *cu_bwd_states =
-        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-    if (cu_bwd_states->size == 0 && this->training) {
-        cu_bwd_states->size = cu_input_states->actual_size * batch_size;
-        cu_bwd_states->allocate_memory();
-    }
-
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 

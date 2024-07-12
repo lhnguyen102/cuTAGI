@@ -201,7 +201,9 @@ class Utils:
             output_data: Output data for neural networks in sequence
         """
         num_data = int(
-            (len(data) / num_features - input_seq_len - output_seq_len) / stride + 1
+            # (len(data) / num_features - input_seq_len - output_seq_len) / stride + 1
+            (len(data) - input_seq_len - output_seq_len) / stride
+            + 1
         )
 
         input_data, output_data = self._cpp_backend.create_rolling_window_wrapper(
@@ -212,7 +214,8 @@ class Utils:
             num_features,
             stride,
         )
-        input_data = input_data.reshape((num_data, input_seq_len))
+        # input_data = input_data.reshape((num_data, input_seq_len))
+        input_data = input_data.reshape((num_data, input_seq_len * num_features))
         output_data = output_data.reshape((num_data, output_seq_len))
 
         return input_data, output_data

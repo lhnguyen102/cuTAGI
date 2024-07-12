@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      January 23, 2024
+// Updated:      July 12, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,6 +12,7 @@
 #include <cuda_runtime.h>
 
 #include "../include/conv2d_layer.h"
+#include "../include/cuda_error_checking.cuh"
 #include "../include/pooling_layer.h"
 #include "../include/pooling_layer_cuda.cuh"
 
@@ -105,11 +106,8 @@ void AvgPool2dCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 
@@ -198,12 +196,7 @@ void AvgPool2dCuda::allocate_avgpool2d_index()
 {
     cudaMalloc(&this->d_pool_idx, this->pool_idx.size() * sizeof(int));
     cudaMalloc(&this->d_z_ud_idx, this->z_ud_idx.size() * sizeof(int));
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void AvgPool2dCuda::avgpool2d_index_to_device()
@@ -216,12 +209,7 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
                this->z_ud_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
 
     cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Host to device.");
-    }
+    CHECK_LAST_CUDA_ERROR();
 }
 
 void AvgPool2dCuda::preinit_layer() {

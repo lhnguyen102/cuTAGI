@@ -14,7 +14,7 @@ from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
 from examples.data_loader import TimeSeriesDataloader
 
 
-def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2):
+def main(num_epochs: int = 20, batch_size: int = 5, sigma_v: float = 2):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
@@ -54,7 +54,7 @@ def main(num_epochs: int = 20, batch_size: int = 10, sigma_v: float = 2):
         Linear(5 * input_seq_len, 1),
     )
     # net.to_device("cuda")
-    # net.set_threads(8)
+    net.set_threads(8)
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#

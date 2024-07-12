@@ -226,7 +226,7 @@ __global__ void lstm_cat_act_and_prev_states_cuda(float const *a,
 /*Concatenate two vectors*/
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.y * blockDim.x + threadIdx.x;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < B && col < seq_len) {
         for (int i = 0; i < n; i++) {
             c[i + col * (n + m) + row * (n + m) * seq_len] =
@@ -863,11 +863,8 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
 
     // Update backward state for inferring parameters
     if (this->training) {
-        BackwardStateCuda *cu_bwd_states =
-            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
-
         this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states, *cu_bwd_states);
+                                             *cu_output_states);
     }
 }
 

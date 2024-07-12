@@ -1344,7 +1344,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
                 this->bwd_states->mu_a, lstm_states.mu_h_prev, this->input_size,
                 this->output_size, this->seq_len, batch_size,
                 lstm_states.mu_ha);
-
             lstm_delta_mean_var_w_worker(
                 this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,

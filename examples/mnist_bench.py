@@ -12,7 +12,6 @@ from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
-    LayerNorm,
     Linear,
     OutputUpdater,
     ReLU,
@@ -58,6 +57,17 @@ DATA_FOLDER = "./data/mnist"
 
 
 # TORCH
+def initialize_weights(module):
+    if isinstance(module, nn.Conv2d):
+        nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+        if module.bias is not None:
+            nn.init.constant_(module.bias, 0)
+    elif isinstance(module, nn.Linear):
+        nn.init.xavier_uniform_(module.weight)
+        if module.bias is not None:
+            nn.init.constant_(module.bias, 0)
+
+
 class TorchFNN(nn.Module):
     def __init__(self):
         super(TorchFNN, self).__init__()
@@ -68,6 +78,7 @@ class TorchFNN(nn.Module):
             nn.ReLU(),
             nn.Linear(4096, 10),
         )
+        self.model.apply(initialize_weights)
 
     def forward(self, x):
         x = x.view(-1, 28 * 28)
@@ -90,6 +101,7 @@ class TorchCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 10),
         )
+        self.model.apply(initialize_weights)
 
     def forward(self, x):
         return self.model(x)
@@ -100,15 +112,11 @@ class TorchCNNBatchNorm(nn.Module):
         super(TorchCNNBatchNorm, self).__init__()
         self.model = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=4, padding=1),
-            nn.BatchNorm2d(
-                16
-            ),  # Add batch normalization after the first convolutional layer
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Conv2d(16, 32, kernel_size=5),
-            nn.BatchNorm2d(
-                32
-            ),  # Add batch normalization after the second convolutional layer
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Flatten(),
@@ -266,11 +274,6 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-
-    if not torch.cuda.is_available() and "cuda" in device:
-        raise RuntimeError(
-            "CUDA is not available. Please check your CUDA installation."
-        )
 
     # Training loop
     pbar = tqdm(range(num_epochs), desc="Training Progress")
