@@ -20,7 +20,7 @@
 class LSTMCuda : public BaseLayerCuda {
    public:
     int seq_len = 1;
-    int _batch_size = 1;
+    int _batch_size = 0;
     float act_omega = 0.0000001f;
     float gain_w;
     float gain_b;
