@@ -338,8 +338,8 @@ class TimeSeriesDataloader:
             np.random.shuffle(indices)
 
         for start_idx in range(0, num_data, batch_size):
-            if start_idx + batch_size > num_data:
-                continue
+            # if start_idx + batch_size > num_data:
+            #     continue
             end_idx = min(start_idx + batch_size, num_data)
             idx = indices[start_idx:end_idx]
             yield input_data[idx].flatten(), output_data[idx].flatten()
