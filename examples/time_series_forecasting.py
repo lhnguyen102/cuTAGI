@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 from typing import Optional
 
 import fire
@@ -14,12 +22,12 @@ from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
 from examples.data_loader import TimeSeriesDataloader
 
 
-def main(num_epochs: int = 20, batch_size: int = 5, sigma_v: float = 2):
+def main(num_epochs: int = 2, batch_size: int = 1, sigma_v: float = 2):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
     num_features = 1
-    input_seq_len = 5
+    input_seq_len = 1
     output_seq_len = 1
     seq_stride = 1
 
@@ -62,7 +70,7 @@ def main(num_epochs: int = 20, batch_size: int = 5, sigma_v: float = 2):
     mses = []
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        batch_iter = train_dtl.create_data_loader(batch_size)
+        batch_iter = train_dtl.create_data_loader(batch_size, False)
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(

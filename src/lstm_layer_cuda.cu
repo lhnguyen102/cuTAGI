@@ -866,6 +866,22 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
         this->store_states_for_training_cuda(*cu_input_states,
                                              *cu_output_states);
     }
+
+    // Saved the previous hidden states
+    if (this->seq_len == 1) {
+        cudaMemcpy(this->lstm_state.d_mu_h_prev, cu_output_states->d_mu_a,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_var_h_prev, cu_output_states->d_var_a,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_c,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_var_c_prev, this->lstm_state.d_var_c,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+    }
 }
 
 void LSTMCuda::backward(BaseDeltaStates &input_delta_states,

@@ -623,6 +623,16 @@ void LSTMStateCuda::deallocate_memory()
     cudaFree(d_cov_o_tanh_c);
     d_cov_o_tanh_c = nullptr;
 
+    // Prior for hidden and cell states
+    cudaFree(d_mu_c_prior);
+    d_mu_c_prior = nullptr;
+    cudaFree(d_var_c_prior);
+    d_var_c_prior = nullptr;
+    cudaFree(d_mu_h_prior);
+    d_mu_h_prior = nullptr;
+    cudaFree(d_var_h_prior);
+    d_var_h_prior = nullptr;
+
     CHECK_LAST_CUDA_ERROR();
 }
 
@@ -679,6 +689,12 @@ void LSTMStateCuda::allocate_memory()
 
     cudaMalloc((void **)&d_cov_i_c, size);
     cudaMalloc((void **)&d_cov_o_tanh_c, size);
+
+    cudaMalloc((void **)&d_mu_c_prior, size);
+    cudaMalloc((void **)&d_var_c_prior, size);
+
+    cudaMalloc((void **)&d_mu_h_prior, size);
+    cudaMalloc((void **)&d_var_h_prior, size);
 
     // TODO: do we need to clear out all data
     this->to_device();
@@ -754,6 +770,17 @@ void LSTMStateCuda::to_device() {
     cudaMemcpy(d_cov_i_c, this->cov_i_c.data(),
                this->num_states * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_cov_o_tanh_c, this->cov_o_tanh_c.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Prior for cell and hidden states
+    cudaMemcpy(d_mu_c_prior, this->mu_c_prior.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_c_prior, this->var_c_prior.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_mu_h_prior, this->mu_h_prior.data(),
+               this->num_states * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_var_h_prior, this->var_h_prior.data(),
                this->num_states * sizeof(float), cudaMemcpyHostToDevice);
 
     CHECK_LAST_CUDA_ERROR();
@@ -833,6 +860,16 @@ void LSTMStateCuda::to_host()
     cudaMemcpy(this->cov_i_c.data(), d_cov_i_c,
                this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->cov_o_tanh_c.data(), d_cov_o_tanh_c,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Prior for cell and hidden states
+    cudaMemcpy(this->mu_c_prior.data(), d_mu_c_prior,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_c_prior.data(), d_var_c_prior,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_h_prior.data(), d_mu_h_prior,
+               this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_h_prior.data(), d_var_h_prior,
                this->num_states * sizeof(float), cudaMemcpyDeviceToHost);
 
     CHECK_LAST_CUDA_ERROR();

@@ -301,13 +301,13 @@ Args:
     }
 }
 
-void lstm_to_prev_states(std::vector<float> &curr, int n, int z_pos,
-                         int z_pos_lstm, std::vector<float> &prev)
+void lstm_to_prev_states(std::vector<float> &curr, int n,
+                         std::vector<float> &prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
     for (int i = 0; i < n; i++) {
-        prev[i + z_pos_lstm] = curr[i + z_pos];
+        prev[i] = curr[i];
     }
 }
 
@@ -1197,6 +1197,22 @@ void LSTM::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size * this->seq_len;
 
+    // Update the previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(lstm_states.mu_h_prior,
+                            lstm_states.mu_h_prior.size(),
+                            lstm_states.mu_h_prev);
+        lstm_to_prev_states(lstm_states.var_h_prior,
+                            lstm_states.var_h_prior.size(),
+                            lstm_states.var_h_prev);
+        lstm_to_prev_states(lstm_states.mu_c_prior,
+                            lstm_states.mu_c_prev.size(),
+                            lstm_states.mu_c_prev);
+        lstm_to_prev_states(lstm_states.var_c_prior,
+                            lstm_states.var_c_prev.size(),
+                            lstm_states.var_c_prev);
+    }
+
     this->prepare_input(input_states);
     this->forget_gate(batch_size);
     this->input_gate(batch_size);
@@ -1271,6 +1287,17 @@ void LSTM::forward(BaseHiddenStates &input_states,
 
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
+    }
+    // Save the previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(output_states.mu_a, lstm_states.mu_h_prior.size(),
+                            lstm_states.mu_h_prior);
+        lstm_to_prev_states(output_states.var_a, lstm_states.var_h_prior.size(),
+                            lstm_states.var_h_prior);
+        lstm_to_prev_states(lstm_states.mu_c, lstm_states.mu_c_prior.size(),
+                            lstm_states.mu_c_prior);
+        lstm_to_prev_states(lstm_states.var_c, lstm_states.var_c_prior.size(),
+                            lstm_states.var_c_prior);
     }
 }
 

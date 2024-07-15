@@ -13,6 +13,7 @@ dist
 data/cifar
 data/mnist/MNIST
 data/traffic
+test_model/
 *ncu-rep
 *sys-rep
 *sqlite

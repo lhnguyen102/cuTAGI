@@ -152,9 +152,11 @@ class LSTMStateCuda : public BaseLSTMStates {
           *d_var_c_ga = nullptr, *d_jcb_c_ga = nullptr, *d_mu_o_ga = nullptr,
           *d_var_o_ga = nullptr, *d_jcb_o_ga = nullptr, *d_mu_ca = nullptr,
           *d_var_ca = nullptr, *d_jcb_ca = nullptr, *d_mu_c = nullptr,
-          *d_var_c = nullptr, *d_mu_c_prev = nullptr, *d_var_c_prev = nullptr,
-          *d_mu_h_prev = nullptr, *d_var_h_prev = nullptr, *d_cov_i_c = nullptr,
-          *d_cov_o_tanh_c = nullptr;
+          *d_var_c = nullptr, *d_cov_i_c = nullptr, *d_cov_o_tanh_c = nullptr;
+    float *d_mu_c_prev = nullptr, *d_var_c_prev = nullptr,
+          *d_mu_h_prev = nullptr, *d_var_h_prev = nullptr,
+          *d_mu_c_prior = nullptr, *d_var_c_prior = nullptr,
+          *d_mu_h_prior = nullptr, *d_var_h_prior = nullptr;
 
     LSTMStateCuda(size_t num_states, size_t num_inputs);
     LSTMStateCuda();
