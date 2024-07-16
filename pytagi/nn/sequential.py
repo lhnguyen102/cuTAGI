@@ -84,6 +84,16 @@ class Sequential:
         """Set the sevice"""
         self._cpp_backend.device = value
 
+    @property
+    def input_state_update(self) -> bool:
+        """Get the device"""
+        return self._cpp_backend.input_state_update
+
+    @input_state_update.setter
+    def input_state_update(self, value: bool):
+        """Set the sevice"""
+        self._cpp_backend.input_state_update = value
+
     def to_device(self, device: str):
         """Move the model to a specific device."""
         self._cpp_backend.to_device(device)

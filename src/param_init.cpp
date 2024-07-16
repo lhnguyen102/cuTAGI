@@ -86,10 +86,10 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
     float scale;
     if (init_method.compare("Xavier") == 0 ||
         init_method.compare("xavier") == 0) {
-        scale = xavier_init(input_size, output_size);
+        scale = xavier_init(input_size + output_size, output_size);
     } else if (init_method.compare("He") == 0 ||
                init_method.compare("he") == 0) {
-        scale = he_init(input_size);
+        scale = he_init(input_size + output_size);
     } else {
         std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
                   << std::endl;

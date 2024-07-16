@@ -25,8 +25,8 @@ BaseHiddenStates::BaseHiddenStates(size_t n, size_t m)
 
 BaseHiddenStates::BaseHiddenStates() {}
 
-void BaseHiddenStates::set_input_x(const std::vector<float> &mu_x,
-                                   const std::vector<float> &var_x,
+void BaseHiddenStates::set_input_x(const std::vector<float>& mu_x,
+                                   const std::vector<float>& var_x,
                                    const size_t block_size)
 /*
  */
@@ -66,7 +66,7 @@ void BaseHiddenStates::set_size(size_t new_size, size_t new_block_size)
     this->actual_size = new_size / new_block_size;
 }
 
-void BaseHiddenStates::swap(BaseHiddenStates &other)
+void BaseHiddenStates::swap(BaseHiddenStates& other)
 /*
  */
 {
@@ -81,7 +81,7 @@ void BaseHiddenStates::swap(BaseHiddenStates &other)
     std::swap(depth, other.depth);
 }
 
-void BaseHiddenStates::copy_from(const BaseHiddenStates &source, int num_data)
+void BaseHiddenStates::copy_from(const BaseHiddenStates& source, int num_data)
 /*
  */
 {
@@ -116,7 +116,7 @@ void BaseDeltaStates::reset_zeros() {
     std::fill(this->delta_var.begin(), this->delta_var.end(), 0);
 }
 
-void BaseDeltaStates::copy_from(const BaseDeltaStates &source, int num_data)
+void BaseDeltaStates::copy_from(const BaseDeltaStates& source, int num_data)
 /*
  */
 {
@@ -143,7 +143,7 @@ void BaseDeltaStates::set_size(size_t new_size, size_t new_block_size)
     this->actual_size = new_size / new_block_size;
 }
 
-void BaseDeltaStates::swap(BaseDeltaStates &other)
+void BaseDeltaStates::swap(BaseDeltaStates& other)
 /**/
 {
     std::swap(delta_mu, other.delta_mu);
@@ -200,15 +200,15 @@ BaseObservation::BaseObservation(size_t n, size_t m, size_t k)
 
 BaseObservation::BaseObservation() {}
 
-void BaseObservation::set_obs(std::vector<float> &mu_obs,
-                              std::vector<float> &var_obs)
+void BaseObservation::set_obs(std::vector<float>& mu_obs,
+                              std::vector<float>& var_obs)
 /**/
 {
     this->mu_obs = mu_obs;
     this->var_obs = var_obs;
 }
 
-void BaseObservation::set_selected_idx(std::vector<int> &selected_idx)
+void BaseObservation::set_selected_idx(std::vector<int>& selected_idx)
 /*
  */
 {
@@ -251,35 +251,83 @@ void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs)
 void BaseLSTMStates::reset_zeros()
 /**/
 {
-    mu_ha.resize(num_states + num_inputs, 0);
-    var_ha.resize(num_states + num_inputs, 0);
-    mu_f_ga.resize(num_states, 0);
-    var_f_ga.resize(num_states, 0);
-    jcb_f_ga.resize(num_states, 1.0f);
-    mu_i_ga.resize(num_states, 0);
-    var_i_ga.resize(num_states, 0);
-    jcb_i_ga.resize(num_states, 1.0f);
-    mu_c_ga.resize(num_states, 0);
-    var_c_ga.resize(num_states, 0);
-    jcb_c_ga.resize(num_states, 1.0f);
-    mu_o_ga.resize(num_states, 0);
-    var_o_ga.resize(num_states, 0);
-    jcb_o_ga.resize(num_states, 1.0f);
-    mu_ca.resize(num_states, 0);
-    var_ca.resize(num_states, 0);
-    jcb_ca.resize(num_states, 1.0f);
-    mu_c.resize(num_states, 0);
-    var_c.resize(num_states, 0);
-    mu_c_prev.resize(num_states, 0);
-    var_c_prev.resize(num_states, 0);
-    mu_h_prev.resize(num_states, 0);
-    var_h_prev.resize(num_states, 0);
-    cov_i_c.resize(num_states, 0);
-    cov_o_tanh_c.resize(num_states, 0);
+    // Resize and reset mu_ha and var_ha
+    if (mu_ha.size() != num_states + num_inputs)
+        mu_ha.resize(num_states + num_inputs);
+    if (var_ha.size() != num_states + num_inputs)
+        var_ha.resize(num_states + num_inputs);
+    for (auto& val : mu_ha) val = 0;
+    for (auto& val : var_ha) val = 0;
 
-    // Prior for hidden and cell states
-    mu_c_prior.resize(num_states, 0);
-    var_c_prior.resize(num_states, 0);
-    mu_h_prior.resize(num_states, 0);
-    var_h_prior.resize(num_states, 0);
+    // Resize and reset mu_f_ga, var_f_ga, and jcb_f_ga
+    if (mu_f_ga.size() != num_states) mu_f_ga.resize(num_states);
+    if (var_f_ga.size() != num_states) var_f_ga.resize(num_states);
+    if (jcb_f_ga.size() != num_states) jcb_f_ga.resize(num_states);
+    for (auto& val : mu_f_ga) val = 0;
+    for (auto& val : var_f_ga) val = 0;
+    for (auto& val : jcb_f_ga) val = 1.0f;
+
+    // Resize and reset mu_i_ga, var_i_ga, and jcb_i_ga
+    if (mu_i_ga.size() != num_states) mu_i_ga.resize(num_states);
+    if (var_i_ga.size() != num_states) var_i_ga.resize(num_states);
+    if (jcb_i_ga.size() != num_states) jcb_i_ga.resize(num_states);
+    for (auto& val : mu_i_ga) val = 0;
+    for (auto& val : var_i_ga) val = 0;
+    for (auto& val : jcb_i_ga) val = 1.0f;
+
+    // Resize and reset mu_c_ga, var_c_ga, and jcb_c_ga
+    if (mu_c_ga.size() != num_states) mu_c_ga.resize(num_states);
+    if (var_c_ga.size() != num_states) var_c_ga.resize(num_states);
+    if (jcb_c_ga.size() != num_states) jcb_c_ga.resize(num_states);
+    for (auto& val : mu_c_ga) val = 0;
+    for (auto& val : var_c_ga) val = 0;
+    for (auto& val : jcb_c_ga) val = 1.0f;
+
+    // Resize and reset mu_o_ga, var_o_ga, and jcb_o_ga
+    if (mu_o_ga.size() != num_states) mu_o_ga.resize(num_states);
+    if (var_o_ga.size() != num_states) var_o_ga.resize(num_states);
+    if (jcb_o_ga.size() != num_states) jcb_o_ga.resize(num_states);
+    for (auto& val : mu_o_ga) val = 0;
+    for (auto& val : var_o_ga) val = 0;
+    for (auto& val : jcb_o_ga) val = 1.0f;
+
+    // Resize and reset mu_ca, var_ca, and jcb_ca
+    if (mu_ca.size() != num_states) mu_ca.resize(num_states);
+    if (var_ca.size() != num_states) var_ca.resize(num_states);
+    if (jcb_ca.size() != num_states) jcb_ca.resize(num_states);
+    for (auto& val : mu_ca) val = 0;
+    for (auto& val : var_ca) val = 0;
+    for (auto& val : jcb_ca) val = 1.0f;
+
+    // Resize and reset mu_c, var_c, mu_c_prev, and var_c_prev
+    if (mu_c.size() != num_states) mu_c.resize(num_states);
+    if (var_c.size() != num_states) var_c.resize(num_states);
+    if (mu_c_prev.size() != num_states) mu_c_prev.resize(num_states);
+    if (var_c_prev.size() != num_states) var_c_prev.resize(num_states);
+    for (auto& val : mu_c) val = 0;
+    for (auto& val : var_c) val = 0;
+    for (auto& val : mu_c_prev) val = 0;
+    for (auto& val : var_c_prev) val = 0;
+
+    // Resize and reset mu_h_prev and var_h_prev
+    if (mu_h_prev.size() != num_states) mu_h_prev.resize(num_states);
+    if (var_h_prev.size() != num_states) var_h_prev.resize(num_states);
+    for (auto& val : mu_h_prev) val = 0;
+    for (auto& val : var_h_prev) val = 0;
+
+    // Resize and reset cov_i_c and cov_o_tanh_c
+    if (cov_i_c.size() != num_states) cov_i_c.resize(num_states);
+    if (cov_o_tanh_c.size() != num_states) cov_o_tanh_c.resize(num_states);
+    for (auto& val : cov_i_c) val = 0;
+    for (auto& val : cov_o_tanh_c) val = 0;
+
+    // Resize and reset mu_c_prior, var_c_prior, mu_h_prior, and var_h_prior
+    if (mu_c_prior.size() != num_states) mu_c_prior.resize(num_states);
+    if (var_c_prior.size() != num_states) var_c_prior.resize(num_states);
+    if (mu_h_prior.size() != num_states) mu_h_prior.resize(num_states);
+    if (var_h_prior.size() != num_states) var_h_prior.resize(num_states);
+    for (auto& val : mu_c_prior) val = 0;
+    for (auto& val : var_c_prior) val = 0;
+    for (auto& val : mu_h_prior) val = 0;
+    for (auto& val : var_h_prior) val = 0;
 }

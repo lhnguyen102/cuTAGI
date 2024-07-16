@@ -219,10 +219,10 @@ void leakyrelu_mean_var_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 }
 
 // TO BE replace the first one
-void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      int z_pos, int a_pos, int start_idx,
-                      int end_idx, std::vector<float> &ma,
-                      std::vector<float> &J, std::vector<float> &Sa) {
+void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz, int z_pos,
+                      int a_pos, int start_idx, int end_idx,
+                      std::vector<float> &ma, std::vector<float> &J,
+                      std::vector<float> &Sa) {
     float std_z, alpha, pdf_alpha, cdf_alpha;
     for (int i = start_idx; i < end_idx; i++) {
         // Reused components for moments calculations
@@ -241,10 +241,9 @@ void mixture_relu_cpu(std::vector<float> &mz, std::vector<float> &Sz,
     }
 }
 
-void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz,
-                      int zpos, int start_idx, int end_idx,
-                      std::vector<float> &ma, std::vector<float> &J,
-                      std::vector<float> &Sa) {
+void mixture_tanh_cpu(std::vector<float> &mz, std::vector<float> &Sz, int zpos,
+                      int start_idx, int end_idx, std::vector<float> &ma,
+                      std::vector<float> &J, std::vector<float> &Sa) {
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     for (int i = start_idx; i < end_idx; i++) {
         // cdf and pdf for truncated normal distribution
@@ -288,7 +287,7 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
 
         // Moments calculations (L. Alric, 2024)
         ma[zpos + i] = (mz[zpos + i] + 1) * cdf_l + (mz[zpos + i] - 1) * cdf_u +
-             std_z * (pdf_l - pdf_u) - mz[zpos + i];
+                       std_z * (pdf_l - pdf_u) - mz[zpos + i];
         Sa[zpos + i] =
             (cdf_l *
                  (Sz[zpos + i] - powf(mz[zpos + i], 2) - 2 * mz[zpos + i] - 1) +
@@ -296,14 +295,15 @@ void mixture_sigmoid_cpu(std::vector<float> &mz, std::vector<float> &Sz,
                  (Sz[zpos + i] - powf(mz[zpos + i], 2) + 2 * mz[zpos + i] - 1) +
              std_z * (pdf_u * (mz[zpos + i] - 1) - pdf_l * (mz[zpos + i] + 1)) -
              powf(ma[zpos + i], 2) + 2 * ma[zpos + i] * mz[zpos + i] +
-             powf(mz[zpos + i], 2) - Sz[zpos + i] + 2) / 4.0f;
+             powf(mz[zpos + i], 2) - Sz[zpos + i] + 2) /
+            4.0f;
         ma[zpos + i] = ma[zpos + i] / 2.0f + 0.5f;
         J[zpos + i] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
 
-void silu(std::vector<float> &mu_z, std::vector<float> &var_z,
-          int z_pos, int n, std::vector<float> &mu_a, std::vector<float> &J,
+void silu(std::vector<float> &mu_z, std::vector<float> &var_z, int z_pos, int n,
+          std::vector<float> &mu_a, std::vector<float> &J,
           std::vector<float> &var_a)
 /*Sigmoid Linear Unit (silu)
 Observation equation: y   = x * sigmoid(x) where sigmoid function is replaced
@@ -408,9 +408,8 @@ void remax_cpu(Network &net, NetState &state, int l)
     int B = net.batch_size;
 
     // mrelu
-    mixture_relu_cpu(state.mz, state.Sz, z_pos, z_remax_pos, 0,
-                     no * B, state.remax.mu_m, state.remax.J_m,
-                     state.remax.var_m);
+    mixture_relu_cpu(state.mz, state.Sz, z_pos, z_remax_pos, 0, no * B,
+                     state.remax.mu_m, state.remax.J_m, state.remax.var_m);
 
     // log of mrelu
     to_log_cpu(state.remax.mu_m, state.remax.var_m, z_remax_pos, no, B,
@@ -449,8 +448,7 @@ void remax_cpu_v2(std::vector<float> &mz, std::vector<float> &Sz,
 {
     int no_sum = 1;
     // mrelu
-    mixture_relu_cpu(mz, Sz, z_pos, z_remax_pos, 0, no * B, mu_m,
-                     J_m, var_m);
+    mixture_relu_cpu(mz, Sz, z_pos, z_remax_pos, 0, no * B, mu_m, J_m, var_m);
 
     // log of mrelu
     to_log_cpu(mu_m, var_m, z_remax_pos, no, B, mu_log, var_log);
@@ -853,8 +851,7 @@ void leakyrelu_mean_var_multithreading(
 }
 
 void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
-                                 int zpos, int n,
-                                 unsigned int num_threads,
+                                 int zpos, int n, unsigned int num_threads,
                                  std::vector<float> &ma, std::vector<float> &J,
                                  std::vector<float> &Sa) {
     const int n_batch = n / num_threads;
@@ -871,8 +868,8 @@ void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(mixture_relu_cpu, std::ref(mz), std::ref(Sz),
-                                 zpos, zpos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
+                                 zpos, zpos, start_idx, end_idx, std::ref(ma),
+                                 std::ref(J), std::ref(Sa));
     }
     for (int i = 0; i < num_threads; i++) {
         threads[i].join();
@@ -880,8 +877,7 @@ void mixture_relu_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
 }
 
 void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
-                                 int zpos, int n,
-                                 unsigned int num_threads,
+                                 int zpos, int n, unsigned int num_threads,
                                  std::vector<float> &ma, std::vector<float> &J,
                                  std::vector<float> &Sa) {
     const int n_batch = n / num_threads;
@@ -898,8 +894,8 @@ void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
         threads[i] = std::thread(mixture_tanh_cpu, std::ref(mz), std::ref(Sz),
-                                 zpos, start_idx, end_idx,
-                                 std::ref(ma), std::ref(J), std::ref(Sa));
+                                 zpos, start_idx, end_idx, std::ref(ma),
+                                 std::ref(J), std::ref(Sa));
     }
 
     for (int i = 0; i < num_threads; i++) {
@@ -908,8 +904,8 @@ void mixture_tanh_multithreading(std::vector<float> &mz, std::vector<float> &Sz,
 }
 
 void mixture_sigmoid_multithreading(std::vector<float> &mz,
-                                    std::vector<float> &Sz,
-                                    int zpos, int n, unsigned int num_threads,
+                                    std::vector<float> &Sz, int zpos, int n,
+                                    unsigned int num_threads,
                                     std::vector<float> &ma,
                                     std::vector<float> &J,
                                     std::vector<float> &Sa) {
@@ -925,9 +921,9 @@ void mixture_sigmoid_multithreading(std::vector<float> &mz,
             start_idx = n_batch * i + rem_batch;
             end_idx = (n_batch * (i + 1)) + rem_batch;
         }
-        threads[i] = std::thread(
-            mixture_sigmoid_cpu, std::ref(mz), std::ref(Sz), zpos,
-            start_idx, end_idx, std::ref(ma), std::ref(J), std::ref(Sa));
+        threads[i] = std::thread(mixture_sigmoid_cpu, std::ref(mz),
+                                 std::ref(Sz), zpos, start_idx, end_idx,
+                                 std::ref(ma), std::ref(J), std::ref(Sa));
     }
     for (int i = 0; i < num_threads; i++) {
         threads[i].join();
@@ -1041,34 +1037,34 @@ void activate_hidden_states_cpu(Network &net, NetState &state, int j) {
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
         if (no * B > net.min_operations && net.multithreading) {
-            mixture_relu_multithreading(state.mz, state.Sz,
-                                        z_pos_out, no_B, net.num_cpu_threads,
-                                        state.ma, state.J, state.Sa);
+            mixture_relu_multithreading(state.mz, state.Sz, z_pos_out, no_B,
+                                        net.num_cpu_threads, state.ma, state.J,
+                                        state.Sa);
         } else {
-            mixture_relu_cpu(state.mz, state.Sz, z_pos_out,
-                             z_pos_out, 0, no_B, state.ma, state.J, state.Sa);
+            mixture_relu_cpu(state.mz, state.Sz, z_pos_out, z_pos_out, 0, no_B,
+                             state.ma, state.J, state.Sa);
         }
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {
         if (no * B > net.min_operations && net.multithreading) {
-            mixture_tanh_multithreading(state.mz, state.Sz,
-                                        z_pos_out, no_B, net.num_cpu_threads,
-                                        state.ma, state.J, state.Sa);
+            mixture_tanh_multithreading(state.mz, state.Sz, z_pos_out, no_B,
+                                        net.num_cpu_threads, state.ma, state.J,
+                                        state.Sa);
         } else {
-            mixture_tanh_cpu(state.mz, state.Sz, z_pos_out, 0,
-                             no_B, state.ma, state.J, state.Sa);
+            mixture_tanh_cpu(state.mz, state.Sz, z_pos_out, 0, no_B, state.ma,
+                             state.J, state.Sa);
         }
 
     } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
     {
         if (no * B > net.min_operations && net.multithreading) {
-            mixture_sigmoid_multithreading(state.mz, state.Sz,
-                                           z_pos_out, no_B, net.num_cpu_threads,
-                                           state.ma, state.J, state.Sa);
+            mixture_sigmoid_multithreading(state.mz, state.Sz, z_pos_out, no_B,
+                                           net.num_cpu_threads, state.ma,
+                                           state.J, state.Sa);
         } else {
-            mixture_sigmoid_cpu(state.mz, state.Sz, z_pos_out, 0,
-                                no_B, state.ma, state.J, state.Sa);
+            mixture_sigmoid_cpu(state.mz, state.Sz, z_pos_out, 0, no_B,
+                                state.ma, state.J, state.Sa);
         }
 
     } else if (net.activations[j] == net.act_names.softplus)  // softplus

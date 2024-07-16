@@ -109,7 +109,7 @@ void debug_lstm_v2()
     std::vector<std::string> x_test_path{
         "data/toy_time_series/x_test_sin_data.csv"};
 
-    int input_seq_len = 5;
+    int input_seq_len = 1;
     int output_seq_len = 1;
     int seq_stride = 1;
     std::vector<float> mu_x, sigma_x;
@@ -128,7 +128,7 @@ void debug_lstm_v2()
     const std::vector<int> NODES = {1, 5, 5, 1};
     const std::vector<int> ACTIVATIONS = {0, 0, 0, 0};
     const int BATCH_SIZE = 1;
-    const int INPUT_SEQ_LEN = 5;
+    const int INPUT_SEQ_LEN = input_seq_len;
     const int OUTPUT_SEQ_LEN = 1;
     const int SEQ_STRIDE = 1;
     const int SIGMA_V = 2;
@@ -154,11 +154,11 @@ void debug_lstm_v2()
     net_prop.device = "cuda";
 
     TagiNetwork tagi_net(net_prop);
-    std::string param_path = "test/lstm/saved_param/";
+    std::string param_path = "test_model/";
     std::string model_name = "lstm";
     std::string test_name = "toy";
     // save_net_param(test_name, model_name, param_path, tagi_net.theta);
-    // load_net_param(test_name, model_name, param_path, tagi_net.theta);
+    load_net_param(test_name, model_name, param_path, tagi_net.theta);
     tagi_net.theta_gpu.copy_host_to_device();
 
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
@@ -195,14 +195,14 @@ void debug_lstm_v2()
     float min_sigma_obs = 0.3f;
 
     for (int e = 0; e < n_epochs; e++) {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 4; i++) {
             // Load data
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
             get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
             get_batch_data(train_db.y, batch_idx, train_db.ny, y_batch);
 
             validator.validate_forward(x_batch);
-            validator.validate_backward(y_batch, var_obs, idx_ud_batch);
+            // validator.validate_backward(y_batch, var_obs, idx_ud_batch);
         }
     }
 }
@@ -238,26 +238,19 @@ void lstm_v2()
     // Model
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
-    Sequential gpu_model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
-                         Linear(5 * input_seq_len, 1));
+    model.input_state_update = true;
 
-    // model.to_device("cuda");
-
-    model.set_threads(1);
-    // model.load("test_model/lstm_model.bin");
-
-    gpu_model.to_device("cuda");
-    // gpu_model.load("test_model/lstm_model.bin");
+    model.to_device("cuda");
+    // model.set_threads(1);
 
     OutputUpdater output_updater(model.device);
-    OutputUpdater gpu_output_updater(gpu_model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 10;
     int batch_size = 1;
     float sigma_obs = 1.0;
 
@@ -274,14 +267,14 @@ void lstm_v2()
     float min_sigma_obs = 0.3f;
 
     for (int e = 0; e < n_epochs; e++) {
-        // if (e > 0) {
-        //     // Shuffle data
-        //     // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
-        //     // Decay observation noise
-        //     decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
-        //     std::vector<float> var_obs(batch_size * train_db.ny,
-        //                                pow(sigma_obs, 2));
-        // }
+        if (e > 0) {
+            // Shuffle data
+            // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            // Decay observation noise
+            decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
+            std::vector<float> var_obs(batch_size * train_db.ny,
+                                       pow(sigma_obs, 2));
+        }
         std::cout << "################\n";
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
@@ -294,24 +287,12 @@ void lstm_v2()
 
             // Forward
             model.forward(x_batch);
-            // gpu_model.forward(x_batch);
-            // Output layer's update i.e., loss function
-
             output_updater.update(*model.output_z_buffer, y_batch, var_obs,
                                   *model.input_delta_z_buffer);
 
-            // gpu_output_updater.update(*gpu_model.output_z_buffer, y_batch,
-            //                           var_obs,
-            //                           *gpu_model.input_delta_z_buffer);
-
-            // // Extract output
-            // gpu_model.output_to_host();
-
             // Backward pass
-            // model.backward();
-            // model.step();
-            // gpu_model.backward();
-            // gpu_model.step();
+            model.backward();
+            model.step();
         }
 
         // Report running time

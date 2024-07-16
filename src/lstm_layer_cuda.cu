@@ -339,6 +339,36 @@ NOTE: All LSTM states excepted mc_prev are from the next layer e.g., mi_ga(l+1)
     }
 }
 
+__global__ void lstm_update_prev_hidden_states(
+    const float *mu_h_prior, const float *var_h_prior, const float *delta_mu,
+    const float *delta_var, int num_states, float *mu_h_prev, float *var_h_prev)
+/*
+ */
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < num_states) {
+        mu_h_prev[i] = mu_h_prior[i] + delta_mu[i] * var_h_prior[i];
+        var_h_prev[i] = (1.0f + delta_mu[i] * var_h_prior[i]) * var_h_prior[i];
+    }
+}
+
+__global__ void lstm_update_prev_cell_states(
+    const float *mu_c_prior, const float *var_c_prior, const float *jcb_ca,
+    const float *mu_o_ga, const float *delta_mu, const float *delta_var,
+    int num_states, float *mu_c_prev, float *var_c_prev)
+/*
+ */
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < num_states) {
+        float tmp = var_c_prior[i] * jcb_ca[i] * mu_o_ga[i];
+        mu_c_prev[i] = mu_c_prior[i] + tmp * delta_mu[i];
+        var_c_prev[i] = var_c_prior[i] + tmp * delta_var[i] * tmp;
+    }
+}
+
 __global__ void lstm_delta_mean_var_w(
     float const *Sw, float const *mha, float const *Jf_ga, float const *mi_ga,
     float const *Ji_ga, float const *mc_ga, float const *Jc_ga,
@@ -794,6 +824,7 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     this->set_cap_factor_udapte(batch_size);
 
     if (this->_batch_size != batch_size) {
+        this->_batch_size = batch_size;
         this->lstm_state.set_num_states(
             batch_size * this->seq_len * this->output_size,
             batch_size * this->seq_len * this->input_size);
@@ -804,6 +835,23 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size * this->seq_len;
+
+    if (this->seq_len == 1 && batch_size == 1) {
+        cudaMemcpy(this->lstm_state.d_mu_h_prev, this->lstm_state.d_mu_h_prior,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_var_h_prev,
+                   this->lstm_state.d_var_h_prior,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_c_prior,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(this->lstm_state.d_var_c_prev,
+                   this->lstm_state.d_var_c_prior,
+                   this->lstm_state.num_states * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+    }
 
     this->prepare_input(input_states);
     this->forget_gate(batch_size);
@@ -868,17 +916,17 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Saved the previous hidden states
-    if (this->seq_len == 1) {
-        cudaMemcpy(this->lstm_state.d_mu_h_prev, cu_output_states->d_mu_a,
+    if (this->seq_len == 1 && batch_size == 1) {
+        cudaMemcpy(this->lstm_state.d_mu_h_prior, cu_output_states->d_mu_a,
                    this->lstm_state.num_states * sizeof(float),
                    cudaMemcpyDeviceToDevice);
-        cudaMemcpy(this->lstm_state.d_var_h_prev, cu_output_states->d_var_a,
+        cudaMemcpy(this->lstm_state.d_var_h_prior, cu_output_states->d_var_a,
                    this->lstm_state.num_states * sizeof(float),
                    cudaMemcpyDeviceToDevice);
-        cudaMemcpy(this->lstm_state.d_mu_c_prev, this->lstm_state.d_mu_c,
+        cudaMemcpy(this->lstm_state.d_mu_c_prior, this->lstm_state.d_mu_c,
                    this->lstm_state.num_states * sizeof(float),
                    cudaMemcpyDeviceToDevice);
-        cudaMemcpy(this->lstm_state.d_var_c_prev, this->lstm_state.d_var_c,
+        cudaMemcpy(this->lstm_state.d_var_c_prior, this->lstm_state.d_var_c,
                    this->lstm_state.num_states * sizeof(float),
                    cudaMemcpyDeviceToDevice);
     }
@@ -922,6 +970,26 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
             this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
             this->seq_len, batch_size, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
+
+        if (this->seq_len == 1 && batch_size == 1) {
+            const unsigned int ps_grid_size =
+                (this->lstm_state.num_states + this->num_cuda_threads - 1) /
+                this->num_cuda_threads;
+
+            lstm_update_prev_hidden_states<<<ps_grid_size,
+                                             this->num_cuda_threads>>>(
+                this->lstm_state.d_mu_h_prior, this->lstm_state.d_var_h_prior,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
+                this->lstm_state.d_mu_h_prev, this->lstm_state.d_var_h_prev);
+            lstm_update_prev_cell_states<<<ps_grid_size,
+                                           this->num_cuda_threads>>>(
+                this->lstm_state.d_mu_c_prior, this->lstm_state.d_var_c_prior,
+                this->lstm_state.d_jcb_ca, this->lstm_state.d_mu_o_ga,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
+                this->lstm_state.d_mu_c_prev, this->lstm_state.d_var_c_prev);
+        }
     }
 
     if (param_update) {
