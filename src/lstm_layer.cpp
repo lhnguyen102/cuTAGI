@@ -660,17 +660,17 @@ void lstm_delta_mean_var_z_worker(
             // Forget gate
             Czz_f = Jca[k] * mo_ga[k] * Jf_ga[k] *
                     mw[(ni + no) * j + z + w_pos_f] * mc_prev[k];
-            sum_mf += Czz_f * delta_m[i];
+            sum_mf += Czz_f * delta_m_out[i];
 
             // Input gate
             Czz_i = Jca[k] * mo_ga[k] * Ji_ga[k] *
                     mw[(ni + no) * j + z + w_pos_i] * mc_ga[k];
-            sum_mi += Czz_i * delta_m[i];
+            sum_mi += Czz_i * delta_m_out[i];
 
             // Cell state gate
             Czz_c = Jca[k] * mo_ga[k] * Jc_ga[k] *
                     mw[(ni + no) * j + z + w_pos_c] * mi_ga[k];
-            sum_mc += Czz_c * delta_m[i];
+            sum_mc += Czz_c * delta_m_out[i];
 
             // Output gate
             Czz_o = Jo_ga[k] * mw[(ni + no) * j + z + w_pos_o] * mca[k];
