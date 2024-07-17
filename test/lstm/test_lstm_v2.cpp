@@ -109,7 +109,7 @@ void debug_lstm_v2()
     std::vector<std::string> x_test_path{
         "data/toy_time_series/x_test_sin_data.csv"};
 
-    int input_seq_len = 5;
+    int input_seq_len = 1;
     int output_seq_len = 1;
     int seq_stride = 1;
     std::vector<float> mu_x, sigma_x;
@@ -128,7 +128,7 @@ void debug_lstm_v2()
     const std::vector<int> NODES = {1, 5, 5, 1};
     const std::vector<int> ACTIVATIONS = {0, 0, 0, 0};
     const int BATCH_SIZE = 1;
-    const int INPUT_SEQ_LEN = 5;
+    const int INPUT_SEQ_LEN = input_seq_len;
     const int OUTPUT_SEQ_LEN = 1;
     const int SEQ_STRIDE = 1;
     const int SIGMA_V = 2;
@@ -154,11 +154,11 @@ void debug_lstm_v2()
     net_prop.device = "cuda";
 
     TagiNetwork tagi_net(net_prop);
-    std::string param_path = "test/lstm/saved_param/";
+    std::string param_path = "test_model/";
     std::string model_name = "lstm";
     std::string test_name = "toy";
     // save_net_param(test_name, model_name, param_path, tagi_net.theta);
-    // load_net_param(test_name, model_name, param_path, tagi_net.theta);
+    load_net_param(test_name, model_name, param_path, tagi_net.theta);
     tagi_net.theta_gpu.copy_host_to_device();
 
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
@@ -195,14 +195,14 @@ void debug_lstm_v2()
     float min_sigma_obs = 0.3f;
 
     for (int e = 0; e < n_epochs; e++) {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 4; i++) {
             // Load data
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
             get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
             get_batch_data(train_db.y, batch_idx, train_db.ny, y_batch);
 
             validator.validate_forward(x_batch);
-            validator.validate_backward(y_batch, var_obs, idx_ud_batch);
+            // validator.validate_backward(y_batch, var_obs, idx_ud_batch);
         }
     }
 }
@@ -221,7 +221,7 @@ void lstm_v2()
     std::vector<std::string> x_test_path{
         "data/toy_time_series/x_test_sin_data.csv"};
 
-    int input_seq_len = 5;
+    int input_seq_len = 1;
     int output_seq_len = 1;
     int seq_stride = 1;
     std::vector<float> mu_x, sigma_x;
@@ -238,8 +238,10 @@ void lstm_v2()
     // Model
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
+    model.input_state_update = true;
+
     model.to_device("cuda");
-    // model.set_threads(8);
+    // model.set_threads(1);
 
     OutputUpdater output_updater(model.device);
 
@@ -248,9 +250,9 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 10;
     int batch_size = 1;
-    float sigma_obs = 2.0;
+    float sigma_obs = 1.0;
 
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -267,7 +269,7 @@ void lstm_v2()
     for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
             // Shuffle data
-            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
             // Decay observation noise
             decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
             std::vector<float> var_obs(batch_size * train_db.ny,
@@ -277,7 +279,7 @@ void lstm_v2()
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
             get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
@@ -285,8 +287,6 @@ void lstm_v2()
 
             // Forward
             model.forward(x_batch);
-            // Output layer's update i.e., loss function
-
             output_updater.update(*model.output_z_buffer, y_batch, var_obs,
                                   *model.input_delta_z_buffer);
 
@@ -318,7 +318,7 @@ void lstm_v2()
     // Output results
     std::vector<float> mu_a_output_test(test_db.num_data * test_db.ny, 0);
     std::vector<float> var_a_output_test(test_db.num_data * test_db.ny, 0);
-    auto test_data_idx = create_range(train_db.num_data);
+    auto test_data_idx = create_range(test_db.num_data);
 
     int n_iter =
         static_cast<float>(test_db.num_data) / static_cast<float>(batch_size);

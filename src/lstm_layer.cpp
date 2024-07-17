@@ -301,13 +301,13 @@ Args:
     }
 }
 
-void lstm_to_prev_states(std::vector<float> &curr, int n, int z_pos,
-                         int z_pos_lstm, std::vector<float> &prev)
+void lstm_to_prev_states(std::vector<float> &curr, int n,
+                         std::vector<float> &prev)
 /*Transfer data from current cell & hidden to previous cell & hidden states
    which are used for the next step*/
 {
     for (int i = 0; i < n; i++) {
-        prev[i + z_pos_lstm] = curr[i + z_pos];
+        prev[i] = curr[i];
     }
 }
 
@@ -604,27 +604,6 @@ void lstm_cat_activations_and_prev_states_mp(std::vector<float> &a,
     }
 }
 
-// void lstm_save_prev_states_cpu(Network &net, NetState &state)
-// /*Save the hidden and cell states of the previous time step*/
-// {
-//     for (int j = 1; j < net.layers.size(); j++) {
-//         if (net.layers[j] == net.layer_names.lstm) {
-//             int no_b_seq = net.nodes[j] * net.batch_size * net.input_seq_len;
-//             int z_pos_o_lstm = net.z_pos_lstm[j];
-//             int z_pos_o = net.z_pos[j];
-//             to_prev_states_cpu(state.lstm.mc, no_b_seq, z_pos_o_lstm,
-//                                z_pos_o_lstm, state.lstm.mc_prev);
-//             to_prev_states_cpu(state.lstm.Sc, no_b_seq, z_pos_o_lstm,
-//                                z_pos_o_lstm, state.lstm.Sc_prev);
-
-//             to_prev_states_cpu(state.mz, no_b_seq, z_pos_o, z_pos_o_lstm,
-//                                state.lstm.mh_prev);
-//             to_prev_states_cpu(state.Sz, no_b_seq, z_pos_o, z_pos_o_lstm,
-//                                state.lstm.Sh_prev);
-//         }
-//     }
-// }
-
 ////////////////////////////////////////////////////////////////////////////////
 // BACKWARD PASS
 ////////////////////////////////////////////////////////////////////////////////
@@ -718,6 +697,103 @@ void lstm_delta_mean_var_z_mp(
     for (int i = 0; i < NUM_THREADS; i++) {
         threads[i].join();
     }
+}
+
+void lstm_update_prev_hidden_states_worker(
+    std::vector<float> &mu_h_prior, std::vector<float> &var_h_prior,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int start_idx,
+    int end_idx, std::vector<float> &mu_h_prev, std::vector<float> &var_h_prev)
+/*
+ */
+{
+    for (size_t i = start_idx; i < end_idx; i++) {
+        mu_h_prev[i] = mu_h_prior[i] + delta_mu[i] * var_h_prior[i];
+        var_h_prev[i] = (1.0f + delta_mu[i] * var_h_prior[i]) * var_h_prior[i];
+    }
+}
+
+void lstm_update_prev_hidden_states_mp(std::vector<float> &mu_h_prior,
+                                       std::vector<float> &var_h_prior,
+                                       std::vector<float> &delta_mu,
+                                       std::vector<float> &delta_var,
+                                       int num_states, unsigned NUM_THREADS,
+                                       std::vector<float> &mu_h_prev,
+                                       std::vector<float> &var_h_prev)
+/*
+ */
+{
+    const unsigned int num_per_threads = num_states / NUM_THREADS;
+    int start_idx, end_idx;
+    std::vector<std::thread> threads;
+    threads.reserve(NUM_THREADS);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        start_idx = i * num_per_threads;
+        end_idx =
+            (i == NUM_THREADS - 1) ? num_states : (i + 1) * num_per_threads;
+
+        threads.emplace_back([=, &mu_h_prior, &var_h_prior, &delta_mu,
+                              &delta_var, &mu_h_prev, &var_h_prev] {
+            lstm_update_prev_hidden_states_worker(
+                mu_h_prior, var_h_prior, delta_mu, delta_var, start_idx,
+                end_idx, mu_h_prev, var_h_prev);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    threads.clear();
+}
+
+void lstm_update_prev_cell_states_worker(
+    std::vector<float> &mu_c_prior, std::vector<float> &var_c_prior,
+    std::vector<float> &jcb_ca, std::vector<float> &mu_o_ga,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int start_idx,
+    int end_idx, std::vector<float> &mu_c_prev, std::vector<float> &var_c_prev)
+/*
+ */
+{
+    for (size_t i = start_idx; i < end_idx; i++) {
+        float tmp = var_c_prior[i] * jcb_ca[i] * mu_o_ga[i];
+        mu_c_prev[i] = mu_c_prior[i] + tmp * delta_mu[i];
+        var_c_prev[i] = var_c_prior[i] + tmp * delta_var[i] * tmp;
+    }
+}
+
+void lstm_update_prev_cell_states_mp(
+    std::vector<float> &mu_c_prior, std::vector<float> &var_c_prior,
+    std::vector<float> &jcb_ca, std::vector<float> &mu_o_ga,
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int num_states,
+    unsigned int NUM_THREADS, std::vector<float> &mu_c_prev,
+    std::vector<float> &var_c_prev)
+/*
+ */
+{
+    const unsigned int num_per_threads = num_states / NUM_THREADS;
+    int start_idx, end_idx;
+    std::vector<std::thread> threads;
+    threads.reserve(NUM_THREADS);
+    for (int i = 0; i < NUM_THREADS; i++) {
+        start_idx = i * num_per_threads;
+        end_idx =
+            (i == NUM_THREADS - 1) ? num_states : (i + 1) * num_per_threads;
+        threads.emplace_back([=, &mu_c_prior, &var_c_prior, &jcb_ca, &mu_o_ga,
+                              &delta_mu, &delta_var, &mu_c_prev, &var_c_prev] {
+            lstm_update_prev_cell_states_worker(
+                mu_c_prior, var_c_prior, jcb_ca, mu_o_ga, delta_mu, delta_var,
+                start_idx, end_idx, mu_c_prev, var_c_prev);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    threads.clear();
 }
 
 void lstm_delta_mean_var_w_worker(
@@ -1186,6 +1262,7 @@ void LSTM::forward(BaseHiddenStates &input_states,
     this->set_cap_factor_udapte(batch_size);
 
     if (this->_batch_size != batch_size) {
+        this->_batch_size = batch_size;
         this->lstm_states.set_num_states(
             batch_size * this->seq_len * this->output_size,
             batch_size * this->seq_len * this->input_size);
@@ -1196,6 +1273,23 @@ void LSTM::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size * this->seq_len;
+
+    // TODO: This is not efficient for memory and performance. Update the
+    // previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(this->lstm_states.mu_h_prior,
+                            this->lstm_states.mu_h_prior.size(),
+                            this->lstm_states.mu_h_prev);
+        lstm_to_prev_states(this->lstm_states.var_h_prior,
+                            this->lstm_states.var_h_prior.size(),
+                            this->lstm_states.var_h_prev);
+        lstm_to_prev_states(this->lstm_states.mu_c_prior,
+                            this->lstm_states.mu_c_prev.size(),
+                            this->lstm_states.mu_c_prev);
+        lstm_to_prev_states(this->lstm_states.var_c_prior,
+                            this->lstm_states.var_c_prev.size(),
+                            this->lstm_states.var_c_prev);
+    }
 
     this->prepare_input(input_states);
     this->forget_gate(batch_size);
@@ -1272,6 +1366,21 @@ void LSTM::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
+    // Save the previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(output_states.mu_a,
+                            this->lstm_states.mu_h_prior.size(),
+                            this->lstm_states.mu_h_prior);
+        lstm_to_prev_states(output_states.var_a,
+                            this->lstm_states.var_h_prior.size(),
+                            this->lstm_states.var_h_prior);
+        lstm_to_prev_states(this->lstm_states.mu_c,
+                            this->lstm_states.mu_c_prior.size(),
+                            this->lstm_states.mu_c_prior);
+        lstm_to_prev_states(this->lstm_states.var_c,
+                            this->lstm_states.var_c_prior.size(),
+                            this->lstm_states.var_c_prior);
+    }
 }
 
 void LSTM::backward(BaseDeltaStates &input_delta_states,
@@ -1310,11 +1419,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
 
     if (param_update) {
         if (this->num_threads > 1) {
-            lstm_cat_activations_and_prev_states_mp(
-                this->bwd_states->mu_a, lstm_states.mu_h_prev, this->input_size,
-                this->output_size, this->seq_len, batch_size, this->num_threads,
-                lstm_states.mu_ha);
-
             lstm_delta_mean_var_w_mp(
                 this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
@@ -1340,10 +1444,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
         } else {
             int end_chunk_w =
                 (this->input_size + this->output_size) * this->output_size;
-            lstm_cat_activations_and_prev_states(
-                this->bwd_states->mu_a, lstm_states.mu_h_prev, this->input_size,
-                this->output_size, this->seq_len, batch_size,
-                lstm_states.mu_ha);
             lstm_delta_mean_var_w_worker(
                 this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
@@ -1366,6 +1466,33 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
                     this->output_size, this->seq_len, batch_size, 0,
                     this->output_size, this->delta_mu_b, this->delta_var_b);
             }
+        }
+    }
+    if (this->seq_len == 1 && batch_size == 1) {
+        if (this->num_threads > 1) {
+            lstm_update_prev_hidden_states_mp(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_mp(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior);
+        } else {
+            lstm_update_prev_hidden_states_worker(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_h_prior,
+                this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_worker(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_c_prior,
+                this->lstm_states.var_c_prior);
         }
     }
 }

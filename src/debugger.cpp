@@ -429,6 +429,10 @@ void CrossValidator::validate_forward(const std::vector<float> &mu_x,
     this->ref_model->feed_forward(x_batch, Sx_batch, Sx_f_batch);
     this->ref_model->state_gpu.copy_device_to_host();
     this->ref_model->get_network_outputs();
+    if (this->ref_model->prop.batch_size == 1 &&
+        this->ref_model->prop.input_seq_len == 1) {
+        save_prev_states(this->ref_model->prop, this->ref_model->state_gpu);
+    }
 
     // Test Model
     int batch_size = mu_x.size() / test_model.layers.front()->input_size;

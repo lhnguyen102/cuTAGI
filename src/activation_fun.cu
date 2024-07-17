@@ -113,7 +113,7 @@ __global__ void leakyreluMeanVar(float const *mz, float const *Sz, float alpha,
 }
 
 __global__ void mixture_relu(float const *mz, float const *Sz, int zpos,
-                            int apos, int n, float *ma, float *J, float *Sa) {
+                             int apos, int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha, pdf_alpha, cdf_alpha;
     float pi = 3.141592;  // pi number
@@ -135,8 +135,8 @@ __global__ void mixture_relu(float const *mz, float const *Sz, int zpos,
     }
 }
 
-__global__ void mixture_tanh(float const *mz, float const *Sz,
-                             int zpos, int n, float *ma, float *J, float *Sa) {
+__global__ void mixture_tanh(float const *mz, float const *Sz, int zpos, int n,
+                             float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
@@ -167,9 +167,8 @@ __global__ void mixture_tanh(float const *mz, float const *Sz,
     }
 }
 
-__global__ void mixture_sigmoid(float const *mz, float const *Sz,
-                                int zpos, int n, float *ma,
-                                float *J, float *Sa) {
+__global__ void mixture_sigmoid(float const *mz, float const *Sz, int zpos,
+                                int n, float *ma, float *J, float *Sa) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
     float pi = 3.141592;  // pi number
@@ -184,9 +183,9 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
         pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
 
         // Moments calculations (L. Alric, 2024)
-        ma[zpos + col] =
-            (mz[zpos + col] + 1) * cdf_l + (mz[zpos + col] - 1) * cdf_u +
-             std_z * (pdf_l - pdf_u) - mz[zpos + col];
+        ma[zpos + col] = (mz[zpos + col] + 1) * cdf_l +
+                         (mz[zpos + col] - 1) * cdf_u +
+                         std_z * (pdf_l - pdf_u) - mz[zpos + col];
         Sa[zpos + col] =
             (cdf_l * (Sz[zpos + col] - powf(mz[zpos + col], 2) -
                       2 * mz[zpos + col] - 1) +
@@ -195,7 +194,8 @@ __global__ void mixture_sigmoid(float const *mz, float const *Sz,
              std_z *
                  (pdf_u * (mz[zpos + col] - 1) - pdf_l * (mz[zpos + col] + 1)) -
              powf(ma[zpos + col], 2) + 2 * ma[zpos + col] * mz[zpos + col] +
-             powf(mz[zpos + col], 2) - Sz[zpos + col] + 2) / 4.0f;
+             powf(mz[zpos + col], 2) - Sz[zpos + col] + 2) /
+            4.0f;
         ma[zpos + col] = ma[zpos + col] / 2.0f + 0.5f;
         J[zpos + col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
@@ -365,9 +365,9 @@ void remax(Network &net, StateGPU &state, int l) {
     dim3 dim_grid_1(1, grid_row);
 
     // mrelu
-    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                      z_pos, 0, no * B, state.remax.d_mu_m,
-                                      state.remax.d_J_m, state.remax.d_var_m);
+    mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, z_pos, 0, no * B,
+                                      state.remax.d_mu_m, state.remax.d_J_m,
+                                      state.remax.d_var_m);
 
     // log of mrelu
     to_log<<<dim_grid, dim_block>>>(state.remax.d_mu_m, state.remax.d_var_m, no,
@@ -463,20 +463,18 @@ void activate_hidden_states(Network &net, StateGPU &state, int j) {
 
     } else if (net.activations[j] == net.act_names.mrelu)  // mReLU
     {
-        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                          z_pos, z_pos, MB, state.d_ma,
-                                          state.d_J, state.d_Sa);
+        mixture_relu<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, z_pos, z_pos,
+                                          MB, state.d_ma, state.d_J,
+                                          state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.mtanh)  // mtanh
     {
-        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                          z_pos, MB, state.d_ma, state.d_J,
-                                          state.d_Sa);
+        mixture_tanh<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, z_pos, MB,
+                                          state.d_ma, state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.msigmoid)  // msigmoid
     {
-        mixture_sigmoid<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz,
-                                             z_pos, MB,
+        mixture_sigmoid<<<BLOCKS, THREADS>>>(state.d_mz, state.d_Sz, z_pos, MB,
                                              state.d_ma, state.d_J, state.d_Sa);
 
     } else if (net.activations[j] == net.act_names.softmax) {
