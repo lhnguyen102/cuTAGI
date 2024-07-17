@@ -1415,45 +1415,10 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
                 end_chunk, output_delta_states.delta_mu,
                 output_delta_states.delta_var);
         }
-
-        if (this->seq_len == 1 && batch_size == 1) {
-            if (this->num_threads > 1) {
-                lstm_update_prev_hidden_states_mp(
-                    this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
-                    input_delta_states.delta_mu, input_delta_states.delta_var,
-                    this->lstm_states.num_states, this->num_threads,
-                    this->lstm_states.mu_h_prev, this->lstm_states.var_h_prev);
-                lstm_update_prev_cell_states_mp(
-                    this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
-                    this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
-                    input_delta_states.delta_mu, input_delta_states.delta_var,
-                    this->lstm_states.num_states, this->num_threads,
-                    this->lstm_states.mu_c_prev, this->lstm_states.var_c_prev);
-            } else {
-                lstm_update_prev_hidden_states_worker(
-                    this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
-                    input_delta_states.delta_mu, input_delta_states.delta_var,
-                    0, this->lstm_states.num_states,
-                    this->lstm_states.mu_h_prev, this->lstm_states.var_h_prev);
-                lstm_update_prev_cell_states_worker(
-                    this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
-                    this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
-                    input_delta_states.delta_mu, input_delta_states.delta_var,
-                    0, this->lstm_states.num_states,
-                    this->lstm_states.mu_c_prev, this->lstm_states.var_c_prev);
-            }
-        }
     }
 
     if (param_update) {
         if (this->num_threads > 1) {
-            // TODO: verify if it requires this concat because it is done in the
-            // forward pass
-            // lstm_cat_activations_and_prev_states_mp(
-            //     this->bwd_states->mu_a, lstm_states.mu_h_prev,
-            //     this->input_size, this->output_size, this->seq_len,
-            //     batch_size, this->num_threads, lstm_states.mu_ha);
-
             lstm_delta_mean_var_w_mp(
                 this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
@@ -1479,12 +1444,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
         } else {
             int end_chunk_w =
                 (this->input_size + this->output_size) * this->output_size;
-            // TODO: verify if it requires this concat because it is done in the
-            // forward pass
-            // lstm_cat_activations_and_prev_states(
-            //     this->bwd_states->mu_a, lstm_states.mu_h_prev,
-            //     this->input_size, this->output_size, this->seq_len,
-            //     batch_size, lstm_states.mu_ha);
             lstm_delta_mean_var_w_worker(
                 this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
                 lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
@@ -1507,6 +1466,33 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
                     this->output_size, this->seq_len, batch_size, 0,
                     this->output_size, this->delta_mu_b, this->delta_var_b);
             }
+        }
+    }
+    if (this->seq_len == 1 && batch_size == 1) {
+        if (this->num_threads > 1) {
+            lstm_update_prev_hidden_states_mp(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_mp(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior);
+        } else {
+            lstm_update_prev_hidden_states_worker(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_h_prior,
+                this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_worker(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_c_prior,
+                this->lstm_states.var_c_prior);
         }
     }
 }

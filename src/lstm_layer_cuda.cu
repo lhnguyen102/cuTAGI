@@ -970,26 +970,6 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
             this->w_pos_c, this->w_pos_o, this->output_size, this->input_size,
             this->seq_len, batch_size, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
-
-        if (this->seq_len == 1 && batch_size == 1) {
-            const unsigned int ps_grid_size =
-                (this->lstm_state.num_states + this->num_cuda_threads - 1) /
-                this->num_cuda_threads;
-
-            lstm_update_prev_hidden_states<<<ps_grid_size,
-                                             this->num_cuda_threads>>>(
-                this->lstm_state.d_mu_h_prior, this->lstm_state.d_var_h_prior,
-                cu_input_delta_states->d_delta_mu,
-                cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
-                this->lstm_state.d_mu_h_prev, this->lstm_state.d_var_h_prev);
-            lstm_update_prev_cell_states<<<ps_grid_size,
-                                           this->num_cuda_threads>>>(
-                this->lstm_state.d_mu_c_prior, this->lstm_state.d_var_c_prior,
-                this->lstm_state.d_jcb_ca, this->lstm_state.d_mu_o_ga,
-                cu_input_delta_states->d_delta_mu,
-                cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
-                this->lstm_state.d_mu_c_prev, this->lstm_state.d_var_c_prev);
-        }
     }
 
     if (param_update) {
@@ -999,16 +979,6 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
             (this->input_size + this->output_size + threads - 1) / threads;
         unsigned int grid_col_p = (this->output_size + threads - 1) / threads;
         dim3 dim_grid_p(grid_col_p, grid_row_p);
-
-        // Concatenate the hidden states from the previous time step and
-        // activations from the previous layer
-        unsigned int grid_row_cat = (batch_size + threads - 1) / threads;
-        unsigned int grid_col_cat = (this->seq_len + threads - 1) / threads;
-        dim3 dim_grid_cat(grid_col_cat, grid_row_cat);
-        lstm_cat_act_and_prev_states_cuda<<<dim_grid_cat, dim_block>>>(
-            cu_next_bwd_states->d_mu_a, this->lstm_state.d_mu_h_prev,
-            this->input_size, this->output_size, this->seq_len, batch_size,
-            this->lstm_state.d_mu_ha);
 
         lstm_delta_mean_var_w<<<dim_grid_p, dim_block>>>(
             this->d_var_w, this->lstm_state.d_mu_ha,
@@ -1035,6 +1005,25 @@ void LSTMCuda::backward(BaseDeltaStates &input_delta_states,
                 this->seq_len, batch_size, this->d_delta_mu_b,
                 this->d_delta_var_b);
         }
+    }
+
+    if (this->seq_len == 1 && batch_size == 1) {
+        const unsigned int ps_grid_size =
+            (this->lstm_state.num_states + this->num_cuda_threads - 1) /
+            this->num_cuda_threads;
+
+        lstm_update_prev_hidden_states<<<ps_grid_size,
+                                         this->num_cuda_threads>>>(
+            this->lstm_state.d_mu_h_prior, this->lstm_state.d_var_h_prior,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
+            this->lstm_state.d_mu_h_prior, this->lstm_state.d_var_h_prior);
+        lstm_update_prev_cell_states<<<ps_grid_size, this->num_cuda_threads>>>(
+            this->lstm_state.d_mu_c_prior, this->lstm_state.d_var_c_prior,
+            this->lstm_state.d_jcb_ca, this->lstm_state.d_mu_o_ga,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->lstm_state.num_states,
+            this->lstm_state.d_mu_c_prior, this->lstm_state.d_var_c_prior);
     }
 }
 
