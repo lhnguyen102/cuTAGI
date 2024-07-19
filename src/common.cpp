@@ -218,34 +218,6 @@ Args:
     }
 }
 
-void output_hidden_states(NetState &state, Network &net,
-                          std::vector<float> &ma_output,
-                          std::vector<float> &Sa_output)
-/* Get output's activation units
-
-Args:
-net: Network architecture
-state: Hidden state of network
-ma_output: Mean of output's activation units
-Sa_output: Variance of output's activation units
-
-*/
-{
-    if (net.noise_type.compare("heteros") == 0) {
-        for (int i = 0; i < net.n_y * net.batch_size; i++) {
-            ma_output[i] = state.noise_state.ma_mu[i];
-        }
-        compute_output_variance(state.noise_state.Sa_mu,
-                                state.noise_state.ma_v2b_prior, Sa_output);
-    } else {
-        get_output_hidden_states_cpu(state.ma, net.z_pos.back(), ma_output);
-        get_output_hidden_states_cpu(state.Sa, net.z_pos.back(), Sa_output);
-        if (net.noise_type.compare("homosce") == 0) {
-            compute_output_variance(state.noise_state.Sa_mu,
-                                    state.noise_state.ma_v2b_prior, Sa_output);
-        }
-    }
-}
 void get_output_states(std::vector<float> &ma, std::vector<float> &Sa,
                        std::vector<float> &ma_output,
                        std::vector<float> &Sa_output, int idx)

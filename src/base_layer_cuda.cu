@@ -9,6 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer_cuda.cuh"
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 
 __global__ void fill_bwd_states_on_device(float const *mu_a_in,
@@ -125,16 +126,22 @@ void BaseLayerCuda::allocate_param_delta()
 /*
  */
 {
+    // Recalculate size for the memory alignment
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
     this->delta_mu_w.resize(this->num_weights, 0.0f);
     this->delta_var_w.resize(this->num_weights, 0.0f);
 
-    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
+    cudaMalloc(&this->d_delta_mu_w, num_w * sizeof(float));
+    cudaMalloc(&this->d_delta_var_w, num_w * sizeof(float));
     if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
         this->delta_mu_b.resize(this->num_biases, 0.0f);
         this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
-        cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
+        cudaMalloc(&this->d_delta_mu_b, num_b * sizeof(float));
+        cudaMalloc(&this->d_delta_var_b, num_b * sizeof(float));
     }
     CHECK_LAST_CUDA_ERROR();
 }
@@ -211,10 +218,18 @@ void BaseLayerCuda::allocate_param_memory()
 /*
  */
 {
-    cudaMalloc(&this->d_mu_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_var_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_mu_b, this->num_biases * sizeof(float));
-    cudaMalloc(&this->d_var_b, this->num_biases * sizeof(float));
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_mu_w, num_w * sizeof(float));
+    cudaMalloc(&this->d_var_w, num_w * sizeof(float));
+
+    if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+        cudaMalloc(&this->d_mu_b, num_b * sizeof(float));
+        cudaMalloc(&this->d_var_b, num_b * sizeof(float));
+    }
 
     CHECK_LAST_CUDA_ERROR();
 }

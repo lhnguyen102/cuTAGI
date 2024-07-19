@@ -3,10 +3,11 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      July 12, 2024
+// Updated:      July 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/norm_layer.h"
 #include "../include/norm_layer_cuda.cuh"
@@ -1027,8 +1028,12 @@ void LayerNormCuda::allocate_running_mean_var()
 {
     this->mu_ra.resize(this->_batch_size, 0.0f);
     this->var_ra.resize(this->_batch_size, 1.0f);
-    cudaMalloc(&this->d_mu_ra, this->_batch_size * sizeof(float));
-    cudaMalloc(&this->d_var_ra, this->_batch_size * sizeof(float));
+
+    // Memory aligment
+    unsigned int size_batch_size =
+        ((this->_batch_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    cudaMalloc(&this->d_mu_ra, size_batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_ra, size_batch_size * sizeof(float));
     this->running_mean_var_to_device();
     CHECK_LAST_CUDA_ERROR();
 }
@@ -1420,10 +1425,15 @@ void BatchNorm2dCuda::allocate_running_mean_var()
     this->var_ra.resize(this->num_features, 0.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 0.0f);
-    cudaMalloc(&this->d_mu_ra, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_var_ra, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_mu_norm_batch, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_var_norm_batch, this->num_features * sizeof(float));
+
+    // Memory aligment
+    unsigned int size_num_features =
+        ((this->num_features + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_mu_ra, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_var_ra, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_mu_norm_batch, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_var_norm_batch, size_num_features * sizeof(float));
 
     CHECK_LAST_CUDA_ERROR();
     this->running_mean_var_to_device();

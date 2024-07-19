@@ -10,8 +10,43 @@
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "common.h"
-#include "net_prop.h"
-#include "struct_var.h"
+
+struct RefIndexOut {
+    std::vector<int> ref, base_idx, pad_pos;
+    int w, h;
+};
+struct ConvIndexOut {
+    std::vector<int> Fmwa_2_idx, FCzwa_1_idx, FCzwa_2_idx, Szz_ud_idx;
+    int w, h;
+};
+struct PoolIndex {
+    std::vector<int> pool_idx, Szz_ud_idx;
+    int w, h;
+};
+struct TconvIndexOut {
+    std::vector<int> FCwz_2_idx, Swz_ud_idx, FCzwa_1_idx, Szz_ud_idx;
+    int w_wz, h_wz, w_zz, h_zz;
+};
+
+struct IndexOut {
+    /* Network's hidden states
+       Args:
+        Fmwa_1: Weight indices for mean product WA
+        Fmwa_2: Activation indices for mean product WA
+        FCzwa_1: Weight indices for covariance Z|WA
+        FCzwa_2: Activation indices for covariance Z|WA
+        Szz_ud: Next hidden state indices for covariance Z|Z+
+        pooling: Pooling index
+        FCwz_2: Activation indices for covariance W|Z+
+        Swz_ud: Hidden state (Z+) indices for covariance Z|Z+
+
+    NOTE*: The extension _sc means shortcut i.e. the same indices meaning for
+    the residual network
+    */
+    std::vector<int> Fmwa_1, Fmwa_2, FCzwa_1, FCzwa_2, Szz_ud, pooling, FCwz_2,
+        Swz_ud;
+    std::vector<int> Fmwa_2_sc, FCzwa_1_sc, FCzwa_2_sc, Szz_ud_sc;
+};
 
 ////////////////////////////
 // IMAGE CONSTRUCTION
@@ -127,5 +162,4 @@ TconvIndexOut get_tconv_idx(int kernel, int wi, int hi, int wo, int ho,
                             int pad_idx_in, int pad_idx_out, int param_pad_idx,
                             ConvIndexOut &convIndex);
 
-void tagi_idx(IndexOut &idx, Network &net);
 void index_default(IndexOut &idx);

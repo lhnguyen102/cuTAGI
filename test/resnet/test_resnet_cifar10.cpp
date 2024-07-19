@@ -7,7 +7,7 @@
 #include "../../include/conv2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
-#include "../../include/debugger.h"
+// #include "../../include/debugger.h"
 #include "../../include/layer_block.h"
 #include "../../include/linear_layer.h"
 #include "../../include/norm_layer.h"

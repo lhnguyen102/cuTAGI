@@ -1,4 +1,11 @@
+# Temporary import. It will be removed in the final vserion
 import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 from typing import Optional
 
 import fire
@@ -106,8 +113,8 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
         ReLU(),
         ConvTranspose2d(16, 1, 3, bias=True, padding=1),
     )
-    # encoder.to_device("cuda")
-    # decoder.to_device("cuda")
+    encoder.to_device("cuda")
+    decoder.to_device("cuda")
     # encoder.set_threads(8)
     # decoder.set_threads(8)
 

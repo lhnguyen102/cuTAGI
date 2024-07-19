@@ -15,15 +15,15 @@
 
 #include "../../include/common.h"
 #include "../../include/dataloader.h"
-#include "../../include/debugger.h"
+// #include "../../include/debugger.h"
 #include "../../include/linear_layer.h"
 #include "../../include/lstm_layer.h"
 #include "../../include/sequential.h"
-#include "../../include/state_feed_backward_cpu.h"
-#include "../../include/struct_var.h"
-#ifdef USE_CUDA
-#include "../../include/tagi_network.cuh"
-#endif
+// #include "../../include/state_feed_backward_cpu.h"
+// #include "../../include/struct_var.h"
+// #ifdef USE_CUDA
+// #include "../../include/tagi_network.cuh"
+// #endif
 
 Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
                                       int num_data, int num_features,
@@ -91,122 +91,6 @@ Returns:
 
     return db;
 }
-
-#ifdef USE_CUDA
-void debug_lstm_v2()
-/*
- */
-{
-    //////////////////////////////////////////////////////////////////////
-    // Data preprocessing
-    //////////////////////////////////////////////////////////////////////
-    int num_train_data = 924;
-    int num_test_data = 232;
-    std::vector<int> output_col{0};
-    int num_features = 1;
-    std::vector<std::string> x_train_path{
-        "data/toy_time_series/x_train_sin_data.csv"};
-    std::vector<std::string> x_test_path{
-        "data/toy_time_series/x_test_sin_data.csv"};
-
-    int input_seq_len = 1;
-    int output_seq_len = 1;
-    int seq_stride = 1;
-    std::vector<float> mu_x, sigma_x;
-
-    auto train_db = get_time_series_dataloader(
-        x_train_path, num_train_data, num_features, output_col, true,
-        input_seq_len, output_seq_len, seq_stride, mu_x, sigma_x);
-
-    auto test_db = get_time_series_dataloader(
-        x_test_path, num_test_data, num_features, output_col, true,
-        input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
-        train_db.sigma_x);
-
-    // Model
-    const std::vector<int> LAYERS = {1, 7, 7, 1};
-    const std::vector<int> NODES = {1, 5, 5, 1};
-    const std::vector<int> ACTIVATIONS = {0, 0, 0, 0};
-    const int BATCH_SIZE = 1;
-    const int INPUT_SEQ_LEN = input_seq_len;
-    const int OUTPUT_SEQ_LEN = 1;
-    const int SEQ_STRIDE = 1;
-    const int SIGMA_V = 2;
-    const int SIGMA_V_MIN = 0.3;
-    const float DECAY_FACTOR_SIGMA_V = 0.95;
-
-    const int EPOCHS = 1;
-    const std::vector<int> OUTPUT_COL = {0};
-    const int NUM_FEATURES = 1;
-    const bool NORMALIZE = true;
-
-    Network net_prop;
-    net_prop.layers = LAYERS;
-    net_prop.nodes = NODES;
-    net_prop.activations = ACTIVATIONS;
-    net_prop.batch_size = BATCH_SIZE;
-    net_prop.input_seq_len = INPUT_SEQ_LEN;
-    net_prop.output_seq_len = OUTPUT_SEQ_LEN;
-    net_prop.seq_stride = SEQ_STRIDE;
-    net_prop.sigma_v = SIGMA_V;
-    net_prop.sigma_v_min = SIGMA_V_MIN;
-    net_prop.decay_factor_sigma_v = DECAY_FACTOR_SIGMA_V;
-    net_prop.device = "cuda";
-
-    TagiNetwork tagi_net(net_prop);
-    std::string param_path = "test_model/";
-    std::string model_name = "lstm";
-    std::string test_name = "toy";
-    // save_net_param(test_name, model_name, param_path, tagi_net.theta);
-    load_net_param(test_name, model_name, param_path, tagi_net.theta);
-    tagi_net.theta_gpu.copy_host_to_device();
-
-    Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
-                     Linear(5 * input_seq_len, 1));
-    // model.to_device("cuda");
-    // model.set_threads(8);
-
-    OutputUpdater output_updater(model.device);
-
-    // VALIDATOR
-    std::string param_prefix = param_path + test_name + "_" + model_name;
-    model.preinit_layer();
-    CrossValidator validator(model, &tagi_net, param_prefix);
-
-    //////////////////////////////////////////////////////////////////////
-    // Training
-    //////////////////////////////////////////////////////////////////////
-    unsigned seed = 0;
-    std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
-    int batch_size = BATCH_SIZE;
-    float sigma_obs = SIGMA_V;
-
-    int iters = train_db.num_data / batch_size;
-    std::vector<float> x_batch(batch_size * train_db.nx, 0.0f);
-    std::vector<float> var_obs(batch_size * train_db.ny, pow(sigma_obs, 2));
-    std::vector<float> y_batch(batch_size * train_db.ny, 0.0f);
-    std::vector<int> idx_ud_batch = {};
-    std::vector<int> batch_idx(batch_size);
-    std::vector<float> mu_a_output(batch_size * train_db.ny, 0);
-    std::vector<float> var_a_output(batch_size * train_db.ny, 0);
-    auto data_idx = create_range(train_db.num_data);
-    float decay_factor = 0.95f;
-    float min_sigma_obs = 0.3f;
-
-    for (int e = 0; e < n_epochs; e++) {
-        for (int i = 0; i < 4; i++) {
-            // Load data
-            get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
-            get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
-            get_batch_data(train_db.y, batch_idx, train_db.ny, y_batch);
-
-            validator.validate_forward(x_batch);
-            // validator.validate_backward(y_batch, var_obs, idx_ud_batch);
-        }
-    }
-}
-#endif
 
 void lstm_v2()
 /**/

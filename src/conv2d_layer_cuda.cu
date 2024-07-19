@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 04, 2024
-// Updated:      March 11, 2024
+// Updated:      July 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "../include/base_layer.h"
+#include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/conv2d_layer_cuda.cuh"
 #include "../include/cuda_error_checking.cuh"
@@ -739,10 +740,17 @@ void Conv2dCuda::allocate_conv_index()
 /*
  */
 {
-    cudaMalloc(&this->d_idx_mwa_2, this->idx_mwa_2.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_cov_zwa_1,
-               this->idx_cov_zwa_1.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
+    // Memory alignment
+    unsigned int size_idx_mwa_2 =
+        ((this->idx_mwa_2.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_idx_cov_zwa_1 =
+        ((this->idx_cov_zwa_1.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_idx_var_z_ud =
+        ((this->idx_var_z_ud.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_idx_mwa_2, size_idx_mwa_2 * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_zwa_1, size_idx_cov_zwa_1 * sizeof(int));
+    cudaMalloc(&this->d_idx_var_z_ud, size_idx_var_z_ud * sizeof(int));
 
     CHECK_LAST_CUDA_ERROR();
 }

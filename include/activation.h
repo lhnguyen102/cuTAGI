@@ -8,6 +8,7 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <algorithm>
 #include <memory>
 #include <thread>
 #include <vector>

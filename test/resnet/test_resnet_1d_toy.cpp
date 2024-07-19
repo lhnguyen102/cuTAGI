@@ -18,9 +18,7 @@ void resnet_1d_toy()
     std::string x_train_dir, y_train_dir, x_test_dir, y_test_dir;
     std::vector<std::string> x_train_path, y_train_path, x_test_path,
         y_test_path;
-    SavePath path;
-    path.curr_path = get_current_dir();
-    std::string data_path = path.curr_path + "/test/data/" + "1D";
+    std::string data_path = "/test/data/1D";
     x_train_dir = data_path + "/x_train.csv";
     y_train_dir = data_path + "/y_train.csv";
     x_test_dir = data_path + "/x_test.csv";

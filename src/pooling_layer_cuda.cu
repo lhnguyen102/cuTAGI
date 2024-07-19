@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 08, 2024
-// Updated:      July 12, 2024
+// Updated:      July 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,10 +11,124 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/pooling_layer.h"
 #include "../include/pooling_layer_cuda.cuh"
+
+////////////////////////////////////////////////////////////////////////////////
+// CUDA Kernels
+////////////////////////////////////////////////////////////////////////////////
+__global__ void avgpool2d_fwd_overlapped_mean_var_cuda(
+    float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
+    int ki, int k, int pad_idx, float *mu_z, float *var_z)
+/*Compute product mean & variance WA for average pooling for the case where
+there is the overlap when sliding kernel size.
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu_z = 0;
+    float sum_var_z = 0;
+    int a_idx_tmp = 0;
+    int ki2 = ki * ki;
+    if (col < k) {
+        for (int i = 0; i < ki2; i++) {
+            a_idx_tmp = a_idx[col % woho + woho * i];
+            if (a_idx_tmp > -1) {
+                a_idx_tmp += (col / woho) * wihi;
+                // index in a_idx starts at 1
+                sum_mu_z += mu_a[a_idx_tmp - 1];
+                sum_var_z += var_a[a_idx_tmp - 1];
+            }
+        }
+        mu_z[col] = sum_mu_z / ki2;
+        var_z[col] = sum_var_z / (ki2 * ki2);
+    }
+}
+
+__global__ void avgpool2d_fwd_mean_var_cuda(float const *mu_a,
+                                            float const *var_a,
+                                            int const *a_idx, int woho,
+                                            int wihi, int ki, int k,
+                                            float *mu_z, float *var_z)
+/* Compute product mean & variance WA for average pooling for the case there
+is no overlap when sliding kernel size.
+*/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_mu_z = 0;
+    float sum_var_z = 0;
+    int a_idx_tmp = 0;
+    int ki2 = ki * ki;
+    if (col < k) {
+        for (int i = 0; i < ki2; i++) {
+            // index in a_idx starts at 1
+            a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi - 1;
+            sum_mu_z += mu_a[a_idx_tmp];
+            sum_var_z += var_a[a_idx_tmp];
+        }
+        mu_z[col] = sum_mu_z / ki2;
+        var_z[col] = sum_var_z / (ki2 * ki2);
+    }
+}
+
+__global__ void avgpool2d_bwd_overlapped_delta_z_cuda(
+    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
+    int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
+    float *delta_mu, float *delta_var)
+/* Compute updated quantities for the mean and variance of hidden states for
+ average pooling layer. Note that this case the kernel size overlap each other
+ when scaning images.
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    float sum_delta_mu = 0;
+    float sum_delta_var = 0;
+    int z_idx_tmp = 0;
+    int ki2 = ki * ki;
+    if (col < k) {
+        for (int i = 0; i < n; i++) {
+            z_idx_tmp = z_ud_idx[col % wihi + wihi * i];
+            if (z_idx_tmp > -1) {
+                z_idx_tmp += (col / wihi) * woho;
+                sum_delta_mu += delta_mu_out[z_idx_tmp - 1];
+                sum_delta_var += delta_var_out[z_idx_tmp - 1];
+            }
+        }
+        delta_mu[col] = sum_delta_mu * jcb[col] / ki2;
+        delta_var[col] = sum_delta_var * jcb[col] * jcb[col] / (ki2 * ki2);
+    }
+}
+
+__global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
+                                           float const *delta_mu_out,
+                                           float const *delta_var_out, int wo,
+                                           int ki, int k, float *delta_mu,
+                                           float *delta_var)
+/* Compute updated quantities for the mean and variance of hidden states for
+ average pooling layer.
+
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int ki2 = ki * ki;
+    int m = ki * wo;
+    if (col < k && row < m)  // k = wihi * fi * B / (k*wo); m = k*wo
+    {
+        delta_mu[row + col * m] =
+            delta_mu_out[row / ki + (col / ki) * wo] * jcb[row + col * m] / ki2;
+
+        delta_var[row + col * m] = delta_var_out[row / ki + (col / ki) * wo] *
+                                   jcb[row + col * m] * jcb[row + col * m] /
+                                   (ki2 * ki2);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Avg. Pooling 2D
+////////////////////////////////////////////////////////////////////////////////
 
 AvgPool2dCuda::AvgPool2dCuda(size_t kernel_size, int stride, int padding,
                              int padding_type)
@@ -194,8 +308,14 @@ void AvgPool2dCuda::allocate_avgpool2d_index()
 /*
  */
 {
-    cudaMalloc(&this->d_pool_idx, this->pool_idx.size() * sizeof(int));
-    cudaMalloc(&this->d_z_ud_idx, this->z_ud_idx.size() * sizeof(int));
+    // Memory aligment
+    unsigned int size_pool_idx =
+        ((this->pool_idx.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_z_ud_idx =
+        ((this->z_ud_idx.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_pool_idx, size_pool_idx * sizeof(int));
+    cudaMalloc(&this->d_z_ud_idx, size_z_ud_idx * sizeof(int));
     CHECK_LAST_CUDA_ERROR();
 }
 
@@ -215,114 +335,5 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
 void AvgPool2dCuda::preinit_layer() {
     if (this->pool_idx.size() == 0) {
         this->lazy_index_init();
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// CUDA Kernels
-////////////////////////////////////////////////////////////////////////////////
-__global__ void avgpool2d_fwd_overlapped_mean_var_cuda(
-    float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
-    int ki, int k, int pad_idx, float *mu_z, float *var_z)
-/*Compute product mean & variance WA for average pooling for the case where
-there is the overlap when sliding kernel size.
-*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_mu_z = 0;
-    float sum_var_z = 0;
-    int a_idx_tmp = 0;
-    int ki2 = ki * ki;
-    if (col < k) {
-        for (int i = 0; i < ki2; i++) {
-            a_idx_tmp = a_idx[col % woho + woho * i];
-            if (a_idx_tmp > -1) {
-                a_idx_tmp += (col / woho) * wihi;
-                // index in a_idx starts at 1
-                sum_mu_z += mu_a[a_idx_tmp - 1];
-                sum_var_z += var_a[a_idx_tmp - 1];
-            }
-        }
-        mu_z[col] = sum_mu_z / ki2;
-        var_z[col] = sum_var_z / (ki2 * ki2);
-    }
-}
-
-__global__ void avgpool2d_fwd_mean_var_cuda(float const *mu_a,
-                                            float const *var_a,
-                                            int const *a_idx, int woho,
-                                            int wihi, int ki, int k,
-                                            float *mu_z, float *var_z)
-/* Compute product mean & variance WA for average pooling for the case there
-is no overlap when sliding kernel size.
-*/
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_mu_z = 0;
-    float sum_var_z = 0;
-    int a_idx_tmp = 0;
-    int ki2 = ki * ki;
-    if (col < k) {
-        for (int i = 0; i < ki2; i++) {
-            // index in a_idx starts at 1
-            a_idx_tmp = a_idx[col % woho + woho * i] + (col / woho) * wihi - 1;
-            sum_mu_z += mu_a[a_idx_tmp];
-            sum_var_z += var_a[a_idx_tmp];
-        }
-        mu_z[col] = sum_mu_z / ki2;
-        var_z[col] = sum_var_z / (ki2 * ki2);
-    }
-}
-
-__global__ void avgpool2d_bwd_overlapped_delta_z_cuda(
-    float const *jcb, float const *delta_mu_out, float const *delta_var_out,
-    int const *z_ud_idx, int woho, int wihi, int ki, int n, int k, int pad_idx,
-    float *delta_mu, float *delta_var)
-/* Compute updated quantities for the mean and variance of hidden states for
- average pooling layer. Note that this case the kernel size overlap each other
- when scaning images.
- */
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float sum_delta_mu = 0;
-    float sum_delta_var = 0;
-    int z_idx_tmp = 0;
-    int ki2 = ki * ki;
-    if (col < k) {
-        for (int i = 0; i < n; i++) {
-            z_idx_tmp = z_ud_idx[col % wihi + wihi * i];
-            if (z_idx_tmp > -1) {
-                z_idx_tmp += (col / wihi) * woho;
-                sum_delta_mu += delta_mu_out[z_idx_tmp - 1];
-                sum_delta_var += delta_var_out[z_idx_tmp - 1];
-            }
-        }
-        delta_mu[col] = sum_delta_mu * jcb[col] / ki2;
-        delta_var[col] = sum_delta_var * jcb[col] * jcb[col] / (ki2 * ki2);
-    }
-}
-
-__global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
-                                           float const *delta_mu_out,
-                                           float const *delta_var_out, int wo,
-                                           int ki, int k, float *delta_mu,
-                                           float *delta_var)
-/* Compute updated quantities for the mean and variance of hidden states for
- average pooling layer.
-
- */
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int ki2 = ki * ki;
-    int m = ki * wo;
-    if (col < k && row < m)  // k = wihi * fi * B / (k*wo); m = k*wo
-    {
-        delta_mu[row + col * m] =
-            delta_mu_out[row / ki + (col / ki) * wo] * jcb[row + col * m] / ki2;
-
-        delta_var[row + col * m] = delta_var_out[row / ki + (col / ki) * wo] *
-                                   jcb[row + col * m] * jcb[row + col * m] /
-                                   (ki2 * ki2);
     }
 }

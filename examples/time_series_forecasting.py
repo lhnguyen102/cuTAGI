@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 from typing import Optional
 
 import fire
@@ -14,12 +22,12 @@ from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
 from examples.data_loader import TimeSeriesDataloader
 
 
-def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
+def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
     num_features = 1
-    input_seq_len = 1
+    input_seq_len = 5
     output_seq_len = 1
     seq_stride = 1
 
@@ -53,9 +61,9 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         LSTM(8, 8, input_seq_len),
         Linear(8 * input_seq_len, 1),
     )
-    # net.to_device("cuda")
-    net.set_threads(1)  # multi-processing is slow on a small net
-    net.input_state_update = True
+    net.to_device("cuda")
+    # net.set_threads(1)  # multi-processing is slow on a small net
+    # net.input_state_update = True
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#

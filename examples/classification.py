@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 from tqdm import tqdm
@@ -108,7 +116,7 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
+    net = CNN_BATCHNORM
     net.to_device("cuda")
     net.set_threads(16)
     out_updater = OutputUpdater(net.device)

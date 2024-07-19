@@ -21,8 +21,43 @@
 
 #include "cost.h"
 #include "data_struct.h"
-#include "struct_var.h"
 #include "utils.h"
+
+struct Dataloader {
+    /* Regression-like database's format
+    Args:
+        x: Input data
+        y: Output data
+        mu_x: Sample mean of input data
+        sigma_x: Sample standard deviation of input data
+        mu_y: Sample mean of output data
+        sigma_y: Sample standard deviation of output data
+        num_data: Total number of data
+        nx: Number of input features
+        ny: Number of output features
+     */
+    std::vector<float> x, y, mu_x, sigma_x, mu_y, sigma_y;
+    int num_data, nx, ny;
+};
+
+struct ImageData {
+    /* Image database's format
+       Args:
+        images: Images stored as a giant vector
+        obs_label: Converted observation from the labels
+        obs_idx: Observation indices assigned to each label
+        labels: Raw labels
+
+    NOTE*: In the context of TAGI, we uses the hierarchical softmax for the
+    classification problem. So, we convert the raw lable for the label fictive
+    observation.
+    */
+    std::vector<float> images;
+    std::vector<float> obs_label;
+    std::vector<int> obs_idx;
+    std::vector<int> labels;
+    int num_data, image_len, output_len;
+};
 
 std::vector<int> create_range(int N);
 
@@ -74,12 +109,6 @@ std::vector<int> load_mnist_labels(std::string label_file, int num);
 std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
     std::string image_file, int num);
 
-ImageData get_images(std::string data_name,
-                     std::vector<std::string> &image_file,
-                     std::vector<std::string> &label_file,
-                     std::vector<float> &mu, std::vector<float> &sigma, int num,
-                     int num_classes, Network &net_prop);
-
 ImageData get_images_v2(std::string data_name,
                         std::vector<std::string> &image_file,
                         std::vector<std::string> &label_file,
@@ -112,9 +141,6 @@ void compute_mean_std_each_channel(std::vector<float> &imgs,
                                    std::vector<float> &mu,
                                    std::vector<float> &sigma, int w, int h,
                                    int d, int num);
-
-Dataloader make_time_series_dataloader(UserInput &user_input, Network &net,
-                                       std::string &data_name);
 
 void create_rolling_windows(std::vector<float> &data,
                             std::vector<int> &output_col, int num_input_ts,

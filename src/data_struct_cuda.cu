@@ -8,6 +8,7 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/data_struct_cuda.cuh"
 
@@ -652,8 +653,10 @@ void LSTMStateCuda::allocate_memory()
 /*
  */
 {
-    size_t size = num_states * sizeof(float);
-    size_t size_ha = (num_states + num_inputs) * sizeof(float);
+    size_t size =
+        ((num_states + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE * sizeof(float);
+    size_t size_ha = ((num_states + num_inputs + PACK_SIZE - 1) / PACK_SIZE) *
+                     PACK_SIZE * sizeof(float);
 
     cudaMalloc((void **)&d_mu_ha, size_ha);
     cudaMalloc((void **)&d_var_ha, size_ha);

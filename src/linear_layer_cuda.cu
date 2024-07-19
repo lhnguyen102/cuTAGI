@@ -7,6 +7,9 @@
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
+#include <cstdint>
+
+#include "../include/config.h"
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
 
@@ -363,6 +366,191 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
                     bias ? tmp_mu[t][j] + mu_b[col] : tmp_mu[t][j];
                 var_z[row * output_size + col] =
                     bias ? tmp_var[t][j] + var_b[col] : tmp_var[t][j];
+            }
+        }
+    }
+}
+
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
+          size_t WARP_TILE_Y, size_t PACK_SIZE, size_t SMEM_PADDING>
+__global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
+                                       const T *mu_b, const T *var_b,
+                                       const T *mu_a, const T *var_a,
+                                       size_t input_size, size_t output_size,
+                                       int batch_size, bool bias, T *mu_z,
+                                       T *var_z)
+/*
+ */
+{
+    __shared__ T smem_mu_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_a[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_var_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    // Thread block
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int num_tiles = (input_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr unsigned int K_PACKS = BLOCK_TILE_K / PACK_SIZE;
+    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE;
+    constexpr unsigned int NUM_LOADS =
+        (BLOCK_TILE * K_PACKS + THREADS - 1) / THREADS;
+
+    // Warp
+    constexpr unsigned int WARPS_X = BLOCK_TILE / WARP_TILE_X;
+    constexpr unsigned int THREADS_PER_WARP_X = WARP_TILE_X / THREAD_TILE;
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
+    const size_t warp_row = warp_id / WARPS_X;
+    const size_t warp_col = warp_id % WARPS_X;
+    const size_t thread_row_in_warp = lane_id / THREADS_PER_WARP_X;
+    const size_t thread_col_in_warp = lane_id % THREADS_PER_WARP_X;
+
+    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
+    T mu_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_w_val[THREAD_TILE] = {static_cast<T>(0)};
+    T mu_a_val[THREAD_TILE] = {static_cast<T>(0)};
+    T var_a_val[THREAD_TILE] = {static_cast<T>(0)};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            // input matrix to shared mem (batch_size x input_size)
+            size_t thread_load_idx = thread_linear_idx + l_i * THREADS;
+            size_t a_ty = thread_load_idx / K_PACKS;
+            size_t a_tx = thread_load_idx % K_PACKS * PACK_SIZE;
+
+            size_t a_row = blockIdx.y * BLOCK_TILE + a_ty;
+            size_t a_col = phase * BLOCK_TILE_K + a_tx;
+
+            // Hardcoded 4 values
+            int4 mu_a_row_val = {0, 0, 0, 0};
+            int4 var_a_row_val = {0, 0, 0, 0};
+            if (a_row < batch_size && a_col < input_size) {
+                mu_a_row_val = *reinterpret_cast<const int4 *>(
+                    &mu_a[a_row * input_size + a_col]);
+                var_a_row_val = *reinterpret_cast<const int4 *>(
+                    &var_a[a_row * input_size + a_col]);
+            }
+            for (size_t p = 0; p < PACK_SIZE; p++) {
+                smem_mu_a[a_tx + p][a_ty] =
+                    reinterpret_cast<const T *>(&mu_a_row_val)[p];
+                smem_var_a[a_tx + p][a_ty] =
+                    reinterpret_cast<const T *>(&var_a_row_val)[p];
+            }
+        }
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            // weight matrix to shared mem(output_size x input_size)
+            size_t thread_load_idx = thread_linear_idx + l_i * THREADS;
+            size_t w_ty = (thread_load_idx / BLOCK_TILE) * PACK_SIZE;
+            size_t w_tx = thread_load_idx % BLOCK_TILE;
+
+            size_t w_row = blockIdx.x * BLOCK_TILE + w_tx;
+            size_t w_col = phase * BLOCK_TILE_K + w_ty;
+
+            int4 mu_w_row_val = {0, 0, 0, 0};
+            int4 var_w_row_val = {0, 0, 0, 0};
+            if (w_row < output_size && w_col < input_size) {
+                mu_w_row_val = *reinterpret_cast<const int4 *>(
+                    &mu_w[w_row * input_size + w_col]);
+                var_w_row_val = *reinterpret_cast<const int4 *>(
+                    &var_w[w_row * input_size + w_col]);
+            }
+            for (size_t p = 0; p < PACK_SIZE; p++) {
+                smem_mu_w[w_ty + p][w_tx] =
+                    reinterpret_cast<const T *>(&mu_w_row_val)[p];
+                smem_var_w[w_ty + p][w_tx] =
+                    reinterpret_cast<const T *>(&var_w_row_val)[p];
+            }
+        }
+        __syncthreads();
+#pragma unroll
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
+            for (size_t j = 0; j < THREAD_PACKS; j++) {
+                size_t idx =
+                    warp_row * WARP_TILE_Y + thread_row_in_warp * THREAD_TILE;
+
+                *reinterpret_cast<int4 *>(&mu_a_val[j * PACK_SIZE]) =
+                    *reinterpret_cast<const int4 *>(
+                        &smem_mu_a[i][idx + j * PACK_SIZE]);
+
+                *reinterpret_cast<int4 *>(&var_a_val[j * PACK_SIZE]) =
+                    *reinterpret_cast<const int4 *>(
+                        &smem_var_a[i][idx + j * PACK_SIZE]);
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_PACKS; j++) {
+                size_t idx =
+                    warp_col * WARP_TILE_X + thread_col_in_warp * THREAD_TILE;
+
+                *reinterpret_cast<int4 *>(&mu_w_val[j * PACK_SIZE]) =
+                    *reinterpret_cast<const int4 *>(
+                        &smem_mu_w[i][idx + j * PACK_SIZE]);
+                *reinterpret_cast<int4 *>(&var_w_val[j * PACK_SIZE]) =
+                    *reinterpret_cast<const int4 *>(
+                        &smem_var_w[i][idx + j * PACK_SIZE]);
+            }
+#pragma unroll
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+#pragma unroll
+                for (size_t j = 0; j < THREAD_TILE; j++) {
+                    tmp_mu[t][j] += mu_w_val[j] * mu_a_val[t];
+                    tmp_var[t][j] +=
+                        (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
+                            var_a_val[t] +
+                        var_w_val[j] * mu_a_val[t] * mu_a_val[t];
+                }
+            }
+        }
+        __syncwarp();
+    }
+    __syncthreads();
+
+#pragma unroll
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        size_t row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                     thread_row_in_warp * THREAD_TILE + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_PACKS; j++) {
+            size_t col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                         thread_col_in_warp * THREAD_TILE + j * PACK_SIZE;
+            if (row < batch_size && col < output_size) {
+                if (bias) {
+                    int4 mu_z_val = *reinterpret_cast<const int4 *>(
+                        &mu_z[row * output_size + col]);
+                    int4 var_z_val = *reinterpret_cast<const int4 *>(
+                        &var_z[row * output_size + col]);
+                    int4 mu_b_val = *reinterpret_cast<const int4 *>(&mu_b[col]);
+                    int4 var_b_val =
+                        *reinterpret_cast<const int4 *>(&var_b[col]);
+                    const int4 mu_acc_tmp = *reinterpret_cast<const int4 *>(
+                        &tmp_mu[t][j * PACK_SIZE]);
+                    const int4 var_acc_tmp = *reinterpret_cast<const int4 *>(
+                        &tmp_var[t][j * PACK_SIZE]);
+
+                    for (size_t p = 0; p < PACK_SIZE; p++) {
+                        reinterpret_cast<T *>(&mu_z_val)[p] =
+                            reinterpret_cast<const T *>(&mu_acc_tmp)[p] +
+                            reinterpret_cast<const T *>(&mu_b_val)[p];
+                        reinterpret_cast<T *>(&var_z_val)[p] =
+                            reinterpret_cast<const T *>(&var_acc_tmp)[p] +
+                            reinterpret_cast<const T *>(&var_b_val)[p];
+                    }
+                    *reinterpret_cast<int4 *>(&mu_z[row * output_size + col]) =
+                        mu_z_val;
+                    *reinterpret_cast<int4 *>(&var_z[row * output_size + col]) =
+                        var_z_val;
+                } else {
+                    const int4 mu_acc_tmp = *reinterpret_cast<const int4 *>(
+                        &tmp_mu[t][j * PACK_SIZE]);
+                    const int4 var_acc_tmp = *reinterpret_cast<const int4 *>(
+                        &tmp_var[t][j * PACK_SIZE]);
+                    *reinterpret_cast<int4 *>(&mu_z[row * output_size + col]) =
+                        mu_acc_tmp;
+                    *reinterpret_cast<int4 *>(&var_z[row * output_size + col]) =
+                        var_acc_tmp;
+                }
             }
         }
     }
@@ -978,7 +1166,7 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
         constexpr unsigned int THREADS_Y =
             WARPS_Y * (WARP_TILE_Y / THREAD_TILE);
         constexpr unsigned int THREADS = THREADS_X * THREADS_Y;
-        constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
+        constexpr unsigned int SMEM_PADDING = 4;
 
         dim3 block_dim(THREADS_X, THREADS_Y, 1U);
         dim3 grid_dim(
@@ -987,13 +1175,28 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
             (static_cast<unsigned int>(batch_size) + BLOCK_SIZE - 1U) /
                 BLOCK_SIZE,
             1U);
-
-        linear_fwd_mean_var_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
-                               THREADS, WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
-            <<<grid_dim, block_dim>>>(
-                d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
-                cu_input_states->d_var_a, input_size, output_size, batch_size,
-                bias, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+        // if (((uintptr_t)d_mu_b % (PACK_SIZE * sizeof(float)) != 0) ||
+        //     ((uintptr_t)d_var_b % (PACK_SIZE * sizeof(float)) != 0)) {
+        //     std::cerr << "Memory is not aligned!" << std::endl;
+        // } else {
+        //     std::cout << "Memory is properly aligned." << std::endl;
+        // }
+        // if (((uintptr_t)cu_output_states->d_mu_a %
+        //          (PACK_SIZE * sizeof(float)) !=
+        //      0) ||
+        //     ((uintptr_t)cu_output_states->d_var_a %
+        //          (PACK_SIZE * sizeof(float)) !=
+        //      0)) {
+        //     std::cerr << "Out Memory is not aligned!" << std::endl;
+        // } else {
+        //     std::cout << "out Memory is properly aligned." << std::endl;
+        // }
+        linear_fwd_mean_var_v4<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                               THREADS, WARP_TILE_X, WARP_TILE_Y, PACK_SIZE,
+                               SMEM_PADDING><<<grid_dim, block_dim>>>(
+            d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
+            cu_input_states->d_var_a, input_size, output_size, batch_size, bias,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         constexpr unsigned int BLOCK_SIZE = 16U;
         unsigned int grid_rows = (batch_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
