@@ -338,12 +338,15 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
             }
 #pragma unroll
             for (size_t t = 0; t < THREAD_TILE; t++) {
+                float first_part = mu_a_val[t] * mu_a_val[t] + var_a_val[t];
                 for (size_t j = 0; j < THREAD_TILE; j++) {
                     tmp_mu[t][j] += mu_w_val[j] * mu_a_val[t];
-                    tmp_var[t][j] +=
-                        (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
-                            var_a_val[t] +
-                        var_w_val[j] * mu_a_val[t] * mu_a_val[t];
+                    tmp_var[t][j] += first_part * var_w_val[j] +
+                                     var_a_val[t] * mu_w_val[j] * mu_w_val[j];
+                    // tmp_var[t][j] +=
+                    //     (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
+                    //         var_a_val[t] +
+                    //     var_w_val[j] * mu_a_val[t] * mu_a_val[t];
                 }
             }
         }
@@ -369,10 +372,6 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
             }
         }
     }
-}
-
-bool is_aligned(const void *ptr, size_t alignment) {
-    return reinterpret_cast<uintptr_t>(ptr) % alignment == 0;
 }
 
 template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
@@ -497,13 +496,16 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
             }
 #pragma unroll
             for (size_t t = 0; t < THREAD_TILE; t++) {
+                float first_part = mu_a_val[t] * mu_a_val[t] + var_a_val[t];
 #pragma unroll
                 for (size_t j = 0; j < THREAD_TILE; j++) {
                     tmp_mu[t][j] += mu_w_val[j] * mu_a_val[t];
-                    tmp_var[t][j] +=
-                        (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
-                            var_a_val[t] +
-                        var_w_val[j] * mu_a_val[t] * mu_a_val[t];
+                    tmp_var[t][j] += first_part * var_w_val[j] +
+                                     var_a_val[t] * mu_w_val[j] * mu_w_val[j];
+                    // tmp_var[t][j] +=
+                    //     (mu_w_val[j] * mu_w_val[j] + var_w_val[j]) *
+                    //         var_a_val[t] +
+                    //     var_w_val[j] * mu_a_val[t] * mu_a_val[t];
                 }
             }
         }
@@ -520,10 +522,7 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
             int col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
                       thread_col_in_warp * THREAD_TILE + j * PACK_SIZE;
             if (row < batch_size && col < output_size) {
-                int4 mu_z_val = *reinterpret_cast<const int4 *>(
-                    &mu_z[row * output_size + col]);
-                int4 var_z_val = *reinterpret_cast<const int4 *>(
-                    &var_z[row * output_size + col]);
+                int4 mu_z_val, var_z_val;
                 const int4 mu_acc_tmp =
                     *reinterpret_cast<const int4 *>(&tmp_mu[t][j * PACK_SIZE]);
                 const int4 var_acc_tmp =

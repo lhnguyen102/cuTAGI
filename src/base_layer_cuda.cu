@@ -73,12 +73,14 @@ __global__ void device_weight_update(float const *delta_mu_w,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float delta_mu_sign, delta_var_sign, delta_bar;
     if (col < size) {
-        delta_mu_sign = (delta_mu_w[col] > 0) - (delta_mu_w[col] < 0);
-        delta_var_sign = (delta_var_w[col] > 0) - (delta_var_w[col] < 0);
+        float tmp_mu = delta_mu_w[col];
+        float tmp_var = delta_var_w[col];
+        delta_mu_sign = (tmp_mu > 0) - (tmp_mu < 0);
+        delta_var_sign = (tmp_var > 0) - (tmp_var < 0);
         delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
 
-        mu_w[col] += delta_mu_sign * min(fabsf(delta_mu_w[col]), delta_bar);
-        var_w[col] += delta_var_sign * min(fabsf(delta_var_w[col]), delta_bar);
+        mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
+        var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
     }
 }
 
@@ -185,10 +187,11 @@ void BaseLayerCuda::update_weights()
  */
 {
     // TODO: replace with capped update version
-    unsigned int blocks = (this->num_weights + this->num_cuda_threads - 1) /
-                          this->num_cuda_threads;
+    unsigned int num_add_threads = 256;
+    unsigned int blocks =
+        (this->num_weights + num_add_threads - 1) / num_add_threads;
 
-    device_weight_update<<<blocks, this->num_cuda_threads>>>(
+    device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
         this->num_weights, this->d_mu_w, this->d_var_w);
 }
@@ -199,10 +202,11 @@ void BaseLayerCuda::update_biases()
 {
     if (this->bias) {
         // TODO: replace with capped update version
-        unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
-                              this->num_cuda_threads;
+        unsigned int num_add_threads = 256;
+        unsigned int blocks =
+            (this->num_biases + num_add_threads - 1) / num_add_threads;
 
-        device_bias_update<<<blocks, this->num_cuda_threads>>>(
+        device_bias_update<<<blocks, num_add_threads>>>(
             this->d_delta_mu_b, this->d_delta_var_b, this->cap_factor_update,
             this->num_biases, this->d_mu_b, this->d_var_b);
     }
