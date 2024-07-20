@@ -77,9 +77,9 @@ void HiddenStateCuda::allocate_memory() {
         this->deallocate_memory();
     }
     // Allocate memory on the GPU using cudaMalloc
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_mu_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_var_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_jcb, size * sizeof(float)));
 
     // TODO: Jacobian needs to be intialized at 1.0. Zeros to mu_a and var_a?
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),

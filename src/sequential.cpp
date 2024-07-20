@@ -83,7 +83,6 @@ void Sequential::set_buffer_size()
         this->z_buffer_size =
             ((this->z_buffer_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
     }
-    int check = 1;
 }
 
 void Sequential::compute_input_output_size()

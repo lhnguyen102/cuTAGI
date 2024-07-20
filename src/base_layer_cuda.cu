@@ -133,15 +133,15 @@ void BaseLayerCuda::allocate_param_delta()
     this->delta_mu_w.resize(this->num_weights, 0.0f);
     this->delta_var_w.resize(this->num_weights, 0.0f);
 
-    cudaMalloc(&this->d_delta_mu_w, num_w * sizeof(float));
-    cudaMalloc(&this->d_delta_var_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
     if (this->bias) {
         unsigned int num_b =
             ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
         this->delta_mu_b.resize(this->num_biases, 0.0f);
         this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc(&this->d_delta_mu_b, num_b * sizeof(float));
-        cudaMalloc(&this->d_delta_var_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
     }
     CHECK_LAST_CUDA_ERROR();
 }
@@ -221,14 +221,14 @@ void BaseLayerCuda::allocate_param_memory()
     unsigned int num_w =
         ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
 
-    cudaMalloc(&this->d_mu_w, num_w * sizeof(float));
-    cudaMalloc(&this->d_var_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_var_w, num_w * sizeof(float));
 
     if (this->bias) {
         unsigned int num_b =
             ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
-        cudaMalloc(&this->d_mu_b, num_b * sizeof(float));
-        cudaMalloc(&this->d_var_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_var_b, num_b * sizeof(float));
     }
 
     CHECK_LAST_CUDA_ERROR();

@@ -143,7 +143,7 @@ void fnn_mnist() {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
+    int batch_size = 256;
     float sigma_obs = 2.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
