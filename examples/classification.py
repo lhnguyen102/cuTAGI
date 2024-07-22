@@ -24,11 +24,11 @@ from pytagi.nn import (
 )
 
 FNN = Sequential(
-    Linear(784, 100),
+    Linear(784, 128),
     ReLU(),
-    Linear(100, 100),
+    Linear(128, 128),
     ReLU(),
-    Linear(100, 11),
+    Linear(128, 11),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -116,7 +116,7 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_BATCHNORM
+    net = FNN
     net.to_device("cuda")
     net.set_threads(16)
     out_updater = OutputUpdater(net.device)

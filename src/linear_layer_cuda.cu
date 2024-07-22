@@ -16,6 +16,10 @@
 #define WARP_SIZE 32U
 #define BANK_SIZE 32U
 
+////////////////////////////////////////////////////////////////////////////////
+// Forward
+////////////////////////////////////////////////////////////////////////////////
+
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
                                     const float *mu_a, const float *var_a,
@@ -78,6 +82,7 @@ __global__ void linear_fwd_mean_var_v1(const T *mu_w, const T *var_w,
     T sum_var = static_cast<T>(0);
 
     for (int phase = 0; phase < num_tiles; phase++) {
+#pragma unroll
         for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
             size_t a_ty = (thread_linear_idx + l_i * THREADS) / BLOCK_TILE_K;
             size_t a_tx = (thread_linear_idx + l_i * THREADS) % BLOCK_TILE_K;
@@ -120,13 +125,10 @@ __global__ void linear_fwd_mean_var_v1(const T *mu_w, const T *var_w,
             T mu_a_tmp = smem_mu_a[threadIdx.y][i];
             T var_a_tmp = smem_var_a[threadIdx.y][i];
 
-            sum_mu = fma(mu_w_tmp, mu_a_tmp, sum_mu);
-            sum_var = fma(mu_w_tmp * mu_w_tmp + var_w_tmp, var_a_tmp,
-                          fma(var_w_tmp, mu_a_tmp * mu_a_tmp, sum_var));
-
-            // sum_mu += mu_w_tmp * mu_a_tmp;
-            // sum_var += (mu_w_tmp * mu_w_tmp + var_w_tmp) * var_a_tmp +
-            //            var_w_tmp * mu_a_tmp * mu_a_tmp;
+            sum_mu = __fmaf_rn(mu_w_tmp, mu_a_tmp, sum_mu);
+            sum_var =
+                __fmaf_rn(mu_w_tmp * mu_w_tmp + var_w_tmp, var_a_tmp,
+                          __fmaf_rn(var_w_tmp, mu_a_tmp * mu_a_tmp, sum_var));
         }
         __syncthreads();
     }
@@ -325,6 +327,7 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
             }
         }
         __syncthreads();
+#pragma unroll
         for (size_t i = 0; i < BLOCK_TILE_K; i++) {
 #pragma unroll
             for (size_t j = 0; j < THREAD_TILE; j++) {
@@ -342,27 +345,27 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
             }
 #pragma unroll
             for (size_t t = 0; t < THREAD_TILE; t++) {
-                float mu_a_val_t = mu_a_val[t];
-                float var_a_val_t = var_a_val[t];
-                float mu_a_val_sqrt_t = mu_a_val_t * mu_a_val_t;
 #pragma unroll
                 for (size_t j = 0; j < THREAD_TILE; j++) {
-                    tmp_mu[t][j] = fma(mu_w_val[j], mu_a_val_t, tmp_mu[t][j]);
-                    tmp_var[t][j] = fma(
-                        mu_w_val[j] * mu_w_val[j] + var_w_val[j], var_a_val_t,
-                        fma(var_w_val[j], mu_a_val_sqrt_t, tmp_var[t][j]));
+                    tmp_mu[t][j] =
+                        __fmaf_rn(mu_w_val[j], mu_a_val[t], tmp_mu[t][j]);
+                    tmp_var[t][j] = __fmaf_rn(
+                        mu_w_val[j] * mu_w_val[j] + var_w_val[j], var_a_val[t],
+                        __fmaf_rn(var_w_val[j], mu_a_val[t] * mu_a_val[t],
+                                  tmp_var[t][j]));
                 }
             }
         }
-        __syncwarp();
+        // __syncwarp();
+        __syncthreads();
     }
-    __syncthreads();
+    // __syncthreads();
 
     const size_t base_row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
                             thread_row_in_warp * THREAD_TILE;
     const size_t base_col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
                             thread_col_in_warp * THREAD_TILE;
-
+#pragma unroll
     for (size_t t = 0; t < THREAD_TILE; t++) {
         size_t row = base_row + t;
 #pragma unroll
@@ -381,12 +384,12 @@ __global__ void linear_fwd_mean_var_v3(const T *mu_w, const T *var_w,
 template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
           size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
           size_t WARP_TILE_Y, size_t PACK_SIZE, size_t SMEM_PADDING>
-__global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
-                                       const T *mu_b, const T *var_b,
-                                       const T *mu_a, const T *var_a,
-                                       size_t input_size, size_t output_size,
-                                       int batch_size, bool bias, T *mu_z,
-                                       T *var_z)
+__global__ void linear_fwd_mean_var_v4(
+    const T *__restrict__ mu_w, const T *__restrict__ var_w,
+    const T *__restrict__ mu_b, const T *__restrict__ var_b,
+    const T *__restrict__ mu_a, const T *__restrict__ var_a, size_t input_size,
+    size_t output_size, int batch_size, bool bias, T *__restrict__ mu_z,
+    T *__restrict__ var_z)
 /*
  */
 {
@@ -413,12 +416,8 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
     const size_t thread_row_in_warp = lane_id / THREADS_PER_WARP_X;
     const size_t thread_col_in_warp = lane_id % THREADS_PER_WARP_X;
 
-    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
-    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
-    T mu_w_val[THREAD_TILE] = {static_cast<T>(0)};
-    T var_w_val[THREAD_TILE] = {static_cast<T>(0)};
-    T mu_a_val[THREAD_TILE] = {static_cast<T>(0)};
-    T var_a_val[THREAD_TILE] = {static_cast<T>(0)};
+    float4 tmp_mu[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
+    float4 tmp_var[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
 
     for (size_t phase = 0; phase < num_tiles; phase++) {
         for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
@@ -431,14 +430,15 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
             size_t a_col = phase * BLOCK_TILE_K + a_tx;
 
             // Hardcoded 4 values
-            int4 mu_a_row_val = {0, 0, 0, 0};
-            int4 var_a_row_val = {0, 0, 0, 0};
+            float4 mu_a_row_val = {0, 0, 0, 0};
+            float4 var_a_row_val = {0, 0, 0, 0};
             if (a_row < batch_size && a_col < input_size) {
-                mu_a_row_val = *reinterpret_cast<const int4 *>(
+                mu_a_row_val = *reinterpret_cast<const float4 *>(
                     &mu_a[a_row * input_size + a_col]);
-                var_a_row_val = *reinterpret_cast<const int4 *>(
+                var_a_row_val = *reinterpret_cast<const float4 *>(
                     &var_a[a_row * input_size + a_col]);
             }
+#pragma unroll
             for (size_t p = 0; p < PACK_SIZE; p++) {
                 smem_mu_a[a_tx + p][a_ty] =
                     reinterpret_cast<const T *>(&mu_a_row_val)[p];
@@ -455,14 +455,16 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
             size_t w_row = blockIdx.x * BLOCK_TILE + w_tx;
             size_t w_col = phase * BLOCK_TILE_K + w_ty;
 
-            int4 mu_w_row_val = {0, 0, 0, 0};
-            int4 var_w_row_val = {0, 0, 0, 0};
+            float4 mu_w_row_val = {0, 0, 0, 0};
+            float4 var_w_row_val = {0, 0, 0, 0};
             if (w_row < output_size && w_col < input_size) {
-                mu_w_row_val = *reinterpret_cast<const int4 *>(
+                mu_w_row_val = *reinterpret_cast<const float4 *>(
                     &mu_w[w_row * input_size + w_col]);
-                var_w_row_val = *reinterpret_cast<const int4 *>(
+                var_w_row_val = *reinterpret_cast<const float4 *>(
                     &var_w[w_row * input_size + w_col]);
             }
+
+#pragma unroll
             for (size_t p = 0; p < PACK_SIZE; p++) {
                 smem_mu_w[w_ty + p][w_tx] =
                     reinterpret_cast<const T *>(&mu_w_row_val)[p];
@@ -473,87 +475,105 @@ __global__ void linear_fwd_mean_var_v4(const T *mu_w, const T *var_w,
         __syncthreads();
 #pragma unroll
         for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+            float4 mu_w_val[THREAD_PACKS] = {0.0f};
+            float4 var_w_val[THREAD_PACKS] = {0.0f};
+            float4 mu_a_val[THREAD_PACKS] = {0.0f};
+            float4 var_a_val[THREAD_PACKS] = {0.0f};
 #pragma unroll
             for (size_t j = 0; j < THREAD_PACKS; j++) {
-                size_t idx =
-                    warp_row * WARP_TILE_Y + thread_row_in_warp * THREAD_TILE;
-
-                *reinterpret_cast<int4 *>(&mu_a_val[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_mu_a[i][idx + j * PACK_SIZE]);
-
-                *reinterpret_cast<int4 *>(&var_a_val[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_var_a[i][idx + j * PACK_SIZE]);
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_in_warp * THREAD_TILE + j * PACK_SIZE;
+                mu_a_val[j] =
+                    *reinterpret_cast<const float4 *>(&smem_mu_a[i][idx]);
+                var_a_val[j] =
+                    *reinterpret_cast<const float4 *>(&smem_var_a[i][idx]);
             }
 #pragma unroll
             for (size_t j = 0; j < THREAD_PACKS; j++) {
-                size_t idx =
-                    warp_col * WARP_TILE_X + thread_col_in_warp * THREAD_TILE;
-
-                *reinterpret_cast<int4 *>(&mu_w_val[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_mu_w[i][idx + j * PACK_SIZE]);
-                *reinterpret_cast<int4 *>(&var_w_val[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_var_w[i][idx + j * PACK_SIZE]);
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_in_warp * THREAD_TILE + j * PACK_SIZE;
+                mu_w_val[j] =
+                    *reinterpret_cast<const float4 *>(&smem_mu_w[i][idx]);
+                var_w_val[j] =
+                    *reinterpret_cast<const float4 *>(&smem_var_w[i][idx]);
             }
+
 #pragma unroll
             for (size_t t = 0; t < THREAD_TILE; t++) {
-                float mu_a_val_t = mu_a_val[t];
-                float var_a_val_t = var_a_val[t];
-                float mu_a_val_sqrt_t = mu_a_val_t * mu_a_val_t;
+                float mu_a_val_t = reinterpret_cast<float *>(
+                    &mu_a_val[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
+                float var_a_val_t = reinterpret_cast<float *>(
+                    &var_a_val[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
 #pragma unroll
-                for (size_t j = 0; j < THREAD_TILE; j++) {
-                    tmp_mu[t][j] = fma(mu_w_val[j], mu_a_val_t, tmp_mu[t][j]);
-                    tmp_var[t][j] = fma(
-                        mu_w_val[j] * mu_w_val[j] + var_w_val[j], var_a_val_t,
-                        fma(var_w_val[j], mu_a_val_sqrt_t, tmp_var[t][j]));
+                for (size_t j = 0; j < THREAD_PACKS; j++) {
+                    float4 mu_w_val_j = mu_w_val[j];
+                    float4 var_w_val_j = var_w_val[j];
+
+                    tmp_mu[t][j].x =
+                        __fmaf_rn(mu_w_val_j.x, mu_a_val_t, tmp_mu[t][j].x);
+                    tmp_mu[t][j].y =
+                        __fmaf_rn(mu_w_val_j.y, mu_a_val_t, tmp_mu[t][j].y);
+                    tmp_mu[t][j].z =
+                        __fmaf_rn(mu_w_val_j.z, mu_a_val_t, tmp_mu[t][j].z);
+                    tmp_mu[t][j].w =
+                        __fmaf_rn(mu_w_val_j.w, mu_a_val_t, tmp_mu[t][j].w);
+
+                    float4 var_term;
+                    var_term.x = __fmaf_rn(
+                        mu_w_val_j.x * mu_w_val_j.x + var_w_val_j.x,
+                        var_a_val_t, mu_a_val_t * mu_a_val_t * var_w_val_j.x);
+                    var_term.y = __fmaf_rn(
+                        mu_w_val_j.y * mu_w_val_j.y + var_w_val_j.y,
+                        var_a_val_t, mu_a_val_t * mu_a_val_t * var_w_val_j.y);
+                    var_term.z = __fmaf_rn(
+                        mu_w_val_j.z * mu_w_val_j.z + var_w_val_j.z,
+                        var_a_val_t, mu_a_val_t * mu_a_val_t * var_w_val_j.z);
+                    var_term.w = __fmaf_rn(
+                        mu_w_val_j.w * mu_w_val_j.w + var_w_val_j.w,
+                        var_a_val_t, mu_a_val_t * mu_a_val_t * var_w_val_j.w);
+
+                    tmp_var[t][j].x += var_term.x;
+                    tmp_var[t][j].y += var_term.y;
+                    tmp_var[t][j].z += var_term.z;
+                    tmp_var[t][j].w += var_term.w;
                 }
             }
         }
-        __syncwarp();
+        __syncthreads();
     }
-    __syncthreads();
+
+    const size_t row_base = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                            thread_row_in_warp * THREAD_TILE;
+    const size_t col_base = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                            thread_col_in_warp * THREAD_TILE;
 
 #pragma unroll
     for (size_t t = 0; t < THREAD_TILE; t++) {
-        int row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
-                  thread_row_in_warp * THREAD_TILE + t;
+        size_t row = row_base + t;
 #pragma unroll
         for (size_t j = 0; j < THREAD_PACKS; j++) {
-            int col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
-                      thread_col_in_warp * THREAD_TILE + j * PACK_SIZE;
+            const size_t col = col_base + j * PACK_SIZE;
             if (row < batch_size && col < output_size) {
-                int4 mu_z_val, var_z_val;
-                const int4 mu_acc_tmp =
-                    *reinterpret_cast<const int4 *>(&tmp_mu[t][j * PACK_SIZE]);
-                const int4 var_acc_tmp =
-                    *reinterpret_cast<const int4 *>(&tmp_var[t][j * PACK_SIZE]);
-
                 if (bias) {
-                    const int4 mu_b_val =
-                        *reinterpret_cast<const int4 *>(&mu_b[col]);
-                    const int4 var_b_val =
-                        *reinterpret_cast<const int4 *>(&var_b[col]);
+                    const float4 mu_b_val =
+                        *reinterpret_cast<const float4 *>(&mu_b[col]);
+                    const float4 var_b_val =
+                        *reinterpret_cast<const float4 *>(&var_b[col]);
 
-                    for (size_t p = 0; p < PACK_SIZE; p++) {
-                        reinterpret_cast<T *>(&mu_z_val)[p] =
-                            reinterpret_cast<const T *>(&mu_acc_tmp)[p] +
-                            reinterpret_cast<const T *>(&mu_b_val)[p];
-                        reinterpret_cast<T *>(&var_z_val)[p] =
-                            reinterpret_cast<const T *>(&var_acc_tmp)[p] +
-                            reinterpret_cast<const T *>(&var_b_val)[p];
-                    }
+                    tmp_mu[t][j].x = __fadd_rn(tmp_mu[t][j].x, mu_b_val.x);
+                    tmp_mu[t][j].y = __fadd_rn(tmp_mu[t][j].y, mu_b_val.y);
+                    tmp_mu[t][j].z = __fadd_rn(tmp_mu[t][j].z, mu_b_val.z);
+                    tmp_mu[t][j].w = __fadd_rn(tmp_mu[t][j].w, mu_b_val.w);
 
-                } else {
-                    mu_z_val = mu_acc_tmp;
-                    var_z_val = var_acc_tmp;
+                    tmp_var[t][j].x = __fadd_rn(tmp_var[t][j].x, var_b_val.x);
+                    tmp_var[t][j].y = __fadd_rn(tmp_var[t][j].y, var_b_val.y);
+                    tmp_var[t][j].z = __fadd_rn(tmp_var[t][j].z, var_b_val.z);
+                    tmp_var[t][j].w = __fadd_rn(tmp_var[t][j].w, var_b_val.w);
                 }
-                *reinterpret_cast<int4 *>(&mu_z[row * output_size + col]) =
-                    mu_z_val;
-                *reinterpret_cast<int4 *>(&var_z[row * output_size + col]) =
-                    var_z_val;
+                *reinterpret_cast<float4 *>(&mu_z[row * output_size + col]) =
+                    tmp_mu[t][j];
+                *reinterpret_cast<float4 *>(&var_z[row * output_size + col]) =
+                    tmp_var[t][j];
             }
         }
     }
@@ -626,6 +646,9 @@ __global__ void linear_fwd_full_var(float const *mu_w, float const *var_w,
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// State backward
+////////////////////////////////////////////////////////////////////////////////
 __global__ void linear_bwd_delta_z(float const *mu_w, float const *jcb,
                                    float const *delta_mu_out,
                                    float const *delta_var_out,
@@ -828,12 +851,14 @@ __global__ void linear_bwd_delta_z_v3(const T *mu_w, const T *jcb,
         __syncthreads();
 
         for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+#pragma unroll
             for (size_t j = 0; j < THREAD_TILE; j++) {
                 size_t idx = warp_row * WARP_TILE_Y +
                              thread_row_in_warp * THREAD_TILE + j;
                 tmp_delta_mu[j] = smem_delta_mu[i][idx];
                 tmp_delta_var[j] = smem_delta_var[i][idx];
             }
+#pragma unroll
             for (size_t j = 0; j < THREAD_TILE; j++) {
                 size_t idx = warp_col * WARP_TILE_X +
                              thread_col_in_warp * THREAD_TILE + j;
@@ -841,16 +866,19 @@ __global__ void linear_bwd_delta_z_v3(const T *mu_w, const T *jcb,
             }
 
             for (size_t t = 0; t < THREAD_TILE; t++) {
+#pragma unroll
                 for (size_t j = 0; j < THREAD_TILE; j++) {
-                    tmp_mu[t][j] += tmp_mu_w[j] * tmp_delta_mu[t];
-                    tmp_var[t][j] +=
-                        tmp_mu_w[j] * tmp_delta_var[t] * tmp_mu_w[j];
+                    tmp_mu[t][j] =
+                        __fmaf_rn(tmp_mu_w[j], tmp_delta_mu[t], tmp_mu[t][j]);
+                    tmp_var[t][j] = __fmaf_rn(tmp_mu_w[j] * tmp_mu_w[j],
+                                              tmp_delta_var[t], tmp_var[t][j]);
                 }
             }
         }
-        __syncwarp();
+        // __syncwarp();
+        __syncthreads();
     }
-    __syncthreads();
+    // __syncthreads();
 
     for (size_t t = 0; t < THREAD_TILE; t++) {
         int row = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
@@ -860,15 +888,192 @@ __global__ void linear_bwd_delta_z_v3(const T *mu_w, const T *jcb,
             int col = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
                       thread_col_in_warp * THREAD_TILE + j;
             if (row < batch_size && col < input_size) {
-                T jcb_val = jcb[row * input_size + col];
-                delta_mu_in[row * input_size + col] = tmp_mu[t][j] * jcb_val;
-                delta_var_in[row * input_size + col] =
-                    tmp_var[t][j] * jcb_val * jcb_val;
+                delta_mu_in[row * input_size + col] =
+                    __fmul_rn(tmp_mu[t][j], jcb[row * input_size + col]);
+                delta_var_in[row * input_size + col] = __fmul_rn(
+                    jcb[row * input_size + col] * jcb[row * input_size + col],
+                    tmp_var[t][j]);
             }
         }
     }
 }
 
+template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
+          size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
+          size_t WARP_TILE_Y, size_t PACK_SIZE, size_t SMEM_PADDING>
+__global__ void linear_bwd_delta_z_v4(const T *mu_w, const T *jcb,
+                                      const T *delta_mu_out,
+                                      const T *delta_var_out, size_t input_size,
+                                      size_t output_size, int batch_size,
+                                      T *delta_mu_in, T *delta_var_in)
+/*
+ */
+{
+    __shared__ T smem_delta_mu[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_delta_var[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+    __shared__ T smem_mu_w[BLOCK_TILE_K][BLOCK_TILE + SMEM_PADDING];
+
+    const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int num_tiles = (output_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
+    constexpr unsigned int WARPS_X = BLOCK_TILE / WARP_TILE_X;
+    constexpr unsigned int THREADS_PER_WARP_X = WARP_TILE_X / THREAD_TILE;
+    constexpr unsigned int XY_PACKS = BLOCK_TILE / PACK_SIZE;
+    constexpr unsigned int K_PACKS = BLOCK_TILE_K / PACK_SIZE;
+    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE;
+    constexpr int NUM_LOADS = (K_PACKS * BLOCK_TILE + THREADS - 1) / THREADS;
+
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
+    const size_t warp_row = warp_id / WARPS_X;
+    const size_t warp_col = warp_id % WARPS_X;
+    const size_t thread_row_in_warp = lane_id / THREADS_PER_WARP_X;
+    const size_t thread_col_in_warp = lane_id % THREADS_PER_WARP_X;
+
+    float4 tmp_mu[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
+    float4 tmp_var[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
+
+    for (size_t phase = 0; phase < num_tiles; phase++) {
+        for (int l_i = 0; l_i < NUM_LOADS; l_i++) {
+            const int thread_load_idx = thread_linear_idx + l_i * THREADS;
+
+            // delta matrix
+            size_t delta_ty = thread_load_idx / K_PACKS;
+            size_t delta_tx = thread_load_idx % K_PACKS * PACK_SIZE;
+
+            size_t delta_row = blockIdx.y * BLOCK_TILE + delta_ty;
+            size_t delta_col = phase * BLOCK_TILE_K + delta_tx;
+
+            // Hardcoded value
+            float4 delta_mu_row_val = {0, 0, 0, 0};
+            float4 delta_var_row_val = {0, 0, 0, 0};
+            if (delta_row < batch_size && delta_col < output_size) {
+                delta_mu_row_val = *reinterpret_cast<const float4 *>(
+                    &delta_mu_out[delta_row * output_size + delta_col]);
+                delta_var_row_val = *reinterpret_cast<const float4 *>(
+                    &delta_var_out[delta_row * output_size + delta_col]);
+            }
+
+#pragma unroll
+            for (size_t p = 0; p < PACK_SIZE; p++) {
+                smem_delta_mu[delta_tx + p][delta_ty] =
+                    reinterpret_cast<const T *>(&delta_mu_row_val)[p];
+                smem_delta_var[delta_tx + p][delta_ty] =
+                    reinterpret_cast<const T *>(&delta_var_row_val)[p];
+            }
+
+            // weight matrix
+            size_t w_ty = thread_load_idx / XY_PACKS;
+            size_t w_tx = thread_load_idx % XY_PACKS * PACK_SIZE;
+            size_t w_row = phase * BLOCK_TILE_K + w_ty;
+            size_t w_col = blockIdx.x * BLOCK_TILE + w_tx;
+
+            // Hardcoded value
+            float4 mu_w_row_val = {0, 0, 0, 0};
+            if (w_row < output_size && w_col < input_size) {
+                mu_w_row_val = *reinterpret_cast<const float4 *>(
+                    &mu_w[w_row * input_size + w_col]);
+            }
+
+            *reinterpret_cast<float4 *>(&smem_mu_w[w_ty][w_tx]) = mu_w_row_val;
+        }
+        __syncthreads();
+
+#pragma unroll
+        for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+            float4 tmp_delta_mu[THREAD_TILE] = {0.0f};
+            float4 tmp_delta_var[THREAD_TILE] = {0.0f};
+            float4 tmp_mu_w[THREAD_TILE] = {0.0f};
+
+#pragma unroll
+            for (size_t j = 0; j < THREAD_PACKS; j++) {
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_in_warp * THREAD_TILE + j * PACK_SIZE;
+                tmp_delta_mu[j] =
+                    *reinterpret_cast<float4 *>(&smem_delta_mu[i][idx]);
+                tmp_delta_var[j] =
+                    *reinterpret_cast<float4 *>(&smem_delta_var[i][idx]);
+            }
+#pragma unroll
+            for (size_t j = 0; j < THREAD_PACKS; j++) {
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_in_warp * THREAD_TILE + j * PACK_SIZE;
+                tmp_mu_w[j] = *reinterpret_cast<float4 *>(&smem_mu_w[i][idx]);
+            }
+
+            for (size_t t = 0; t < THREAD_TILE; t++) {
+                float delta_mu_t = reinterpret_cast<T *>(
+                    &tmp_delta_mu[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
+                float delta_var_t = reinterpret_cast<T *>(
+                    &tmp_delta_var[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
+#pragma unroll
+                for (size_t j = 0; j < THREAD_PACKS; j++) {
+                    tmp_mu[t][j].x =
+                        __fmaf_rn(tmp_mu_w[j].x, delta_mu_t, tmp_mu[t][j].x);
+                    tmp_mu[t][j].y =
+                        __fmaf_rn(tmp_mu_w[j].y, delta_mu_t, tmp_mu[t][j].y);
+                    tmp_mu[t][j].z =
+                        __fmaf_rn(tmp_mu_w[j].z, delta_mu_t, tmp_mu[t][j].z);
+                    tmp_mu[t][j].w =
+                        __fmaf_rn(tmp_mu_w[j].w, delta_mu_t, tmp_mu[t][j].w);
+
+                    tmp_var[t][j].x = __fmaf_rn(tmp_mu_w[j].x * tmp_mu_w[j].x,
+                                                delta_var_t, tmp_var[t][j].x);
+                    tmp_var[t][j].y = __fmaf_rn(tmp_mu_w[j].y * tmp_mu_w[j].y,
+                                                delta_var_t, tmp_var[t][j].y);
+                    tmp_var[t][j].z = __fmaf_rn(tmp_mu_w[j].z * tmp_mu_w[j].z,
+                                                delta_var_t, tmp_var[t][j].z);
+                    tmp_var[t][j].w = __fmaf_rn(tmp_mu_w[j].w * tmp_mu_w[j].w,
+                                                delta_var_t, tmp_var[t][j].w);
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+    const int row_base = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
+                         thread_row_in_warp * THREAD_TILE;
+    const int col_base = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
+                         thread_col_in_warp * THREAD_TILE;
+
+#pragma unroll
+    for (size_t t = 0; t < THREAD_TILE; t++) {
+        const int row = row_base + t;
+#pragma unroll
+        for (size_t j = 0; j < THREAD_PACKS; j++) {
+            const int col = col_base + j * PACK_SIZE;
+
+            if (row < batch_size && col < input_size) {
+                float4 jcb_row_val = *reinterpret_cast<const float4 *>(
+                    &jcb[row * input_size + col]);
+
+                tmp_mu[t][j].x = __fmul_rn(tmp_mu[t][j].x, jcb_row_val.x);
+                tmp_mu[t][j].y = __fmul_rn(tmp_mu[t][j].y, jcb_row_val.y);
+                tmp_mu[t][j].z = __fmul_rn(tmp_mu[t][j].z, jcb_row_val.z);
+                tmp_mu[t][j].w = __fmul_rn(tmp_mu[t][j].w, jcb_row_val.w);
+
+                tmp_var[t][j].x =
+                    __fmul_rn(tmp_var[t][j].x, jcb_row_val.x * jcb_row_val.x);
+                tmp_var[t][j].y =
+                    __fmul_rn(tmp_var[t][j].y, jcb_row_val.y * jcb_row_val.y);
+                tmp_var[t][j].z =
+                    __fmul_rn(tmp_var[t][j].z, jcb_row_val.z * jcb_row_val.z);
+                tmp_var[t][j].w =
+                    __fmul_rn(tmp_var[t][j].w, jcb_row_val.w * jcb_row_val.w);
+
+                __stcs(reinterpret_cast<float4 *>(
+                           &delta_mu_in[row * input_size + col]),
+                       tmp_mu[t][j]);
+                __stcs(reinterpret_cast<float4 *>(
+                           &delta_var_in[row * input_size + col]),
+                       tmp_var[t][j]);
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Param Backward
+////////////////////////////////////////////////////////////////////////////////
 __global__ void linear_bwd_delta_w(float const *var_w, float const *mu_a,
                                    float const *delta_mu_out,
                                    float const *delta_var_out,
@@ -1087,15 +1292,16 @@ __global__ void linear_bwd_delta_w_v3(const T *var_w, const T *mu_a,
             for (size_t t = 0; t < THREAD_TILE; t++) {
 #pragma unroll
                 for (size_t j = 0; j < THREAD_TILE; j++) {
-                    tmp_mu[t][j] += tmp_mu_a[j] * tmp_delta_mu[t];
-                    tmp_var[t][j] +=
-                        tmp_mu_a[j] * tmp_mu_a[j] * tmp_delta_var[t];
+                    tmp_mu[t][j] =
+                        __fmaf_rn(tmp_mu_a[j], tmp_delta_mu[t], tmp_mu[t][j]);
+                    tmp_var[t][j] = __fmaf_rn(tmp_mu_a[j] * tmp_mu_a[j],
+                                              tmp_delta_var[t], tmp_var[t][j]);
                 }
             }
         }
-        __syncwarp();
+        __syncthreads();
     }
-    __syncthreads();
+
     size_t row_base = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
                       thread_row_per_warp * THREAD_TILE;
     size_t col_base = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
@@ -1109,9 +1315,10 @@ __global__ void linear_bwd_delta_w_v3(const T *var_w, const T *mu_a,
             if (row < output_size && col < input_size) {
                 T tmp_var_w = var_w[row * input_size + col];
 
-                delta_mu_w[row * input_size + col] = tmp_mu[t][j] * tmp_var_w;
+                delta_mu_w[row * input_size + col] =
+                    __fmul_rn(tmp_mu[t][j], tmp_var_w);
                 delta_var_w[row * input_size + col] =
-                    tmp_var[t][j] * tmp_var_w * tmp_var_w;
+                    __fmul_rn(tmp_var_w * tmp_var_w, tmp_var[t][j]);
             }
         }
     }
@@ -1141,8 +1348,8 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
         (BLOCK_TILE * K_PACKS + THREADS - 1) / THREADS;
 
     const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
-    const size_t warp_id = thread_linear_idx / 32U;
-    const size_t lane_id = thread_linear_idx % 32U;
+    const size_t warp_id = thread_linear_idx / WARP_SIZE;
+    const size_t lane_id = thread_linear_idx % WARP_SIZE;
     const size_t warp_row = warp_id / WAPRS_X;
     const size_t warp_col = warp_id % WAPRS_X;
     const size_t thread_row_per_warp = lane_id / THREADS_PER_WARP_X;
@@ -1151,11 +1358,8 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
     const unsigned int num_tiles =
         (batch_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
 
-    T tmp_mu[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
-    T tmp_var[THREAD_TILE][THREAD_TILE] = {static_cast<T>(0)};
-    T tmp_delta_mu[THREAD_TILE] = {static_cast<T>(0)};
-    T tmp_delta_var[THREAD_TILE] = {static_cast<T>(0)};
-    T tmp_mu_a[THREAD_TILE] = {static_cast<T>(0)};
+    float4 tmp_mu[THREAD_TILE][THREAD_TILE / PACK_SIZE] = {{0.0f}};
+    float4 tmp_var[THREAD_TILE][THREAD_TILE / PACK_SIZE] = {{0.0f}};
 
     for (size_t phase = 0; phase < num_tiles; phase++) {
         for (size_t l_i = 0; l_i < NUM_LOADS; l_i++) {
@@ -1167,19 +1371,19 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
             size_t delta_col = blockIdx.y * BLOCK_TILE + delta_ty;
             size_t delta_row = phase * BLOCK_TILE_K + delta_tx;
 
-            // Harded code values
-            int4 delta_mu_val = {0, 0, 0, 0};
-            int4 delta_var_val = {0, 0, 0, 0};
-            if (delta_col < batch_size && delta_row < output_size) {
-                delta_mu_val = *reinterpret_cast<const int4 *>(
+            // Hardcode values
+            float4 delta_mu_val = {0, 0, 0, 0};
+            float4 delta_var_val = {0, 0, 0, 0};
+            if (delta_row < batch_size && delta_col < output_size) {
+                delta_mu_val = *reinterpret_cast<const float4 *>(
                     &delta_mu_out[delta_row * output_size + delta_col]);
-                delta_var_val = *reinterpret_cast<const int4 *>(
+                delta_var_val = *reinterpret_cast<const float4 *>(
                     &delta_var_out[delta_row * output_size + delta_col]);
             }
 
-            *reinterpret_cast<int4 *>(&smem_delta_mu[delta_tx][delta_ty]) =
+            *reinterpret_cast<float4 *>(&smem_delta_mu[delta_tx][delta_ty]) =
                 delta_mu_val;
-            *reinterpret_cast<int4 *>(&smem_delta_var[delta_tx][delta_ty]) =
+            *reinterpret_cast<float4 *>(&smem_delta_var[delta_tx][delta_ty]) =
                 delta_var_val;
 
             // activation matrix
@@ -1189,53 +1393,71 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
             size_t a_row = phase * BLOCK_TILE_K + a_ty;
 
             // Harded code values
-            int4 mu_a_val = {0, 0, 0, 0};
+            float4 mu_a_val = {0, 0, 0, 0};
             if (a_row < batch_size && a_col < input_size) {
-                mu_a_val = *reinterpret_cast<const int4 *>(
+                mu_a_val = *reinterpret_cast<const float4 *>(
                     &mu_a[a_row * input_size + a_col]);
             }
-            *reinterpret_cast<int4 *>(&smem_mu_a[a_ty][a_tx]) = mu_a_val;
+            *reinterpret_cast<float4 *>(&smem_mu_a[a_ty][a_tx]) = mu_a_val;
         }
         __syncthreads();
 
         for (size_t i = 0; i < BLOCK_TILE_K; i++) {
+            float4 tmp_delta_mu[THREAD_TILE / PACK_SIZE];
+            float4 tmp_delta_var[THREAD_TILE / PACK_SIZE];
+            float4 tmp_mu_a[THREAD_TILE / PACK_SIZE];
+
 #pragma unroll
             for (size_t j = 0; j < THREAD_PACKS; j++) {
-                size_t idx =
-                    warp_row * WARP_TILE_Y + thread_row_per_warp * THREAD_TILE;
-                *reinterpret_cast<int4 *>(&tmp_delta_mu[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_delta_mu[i][idx + j * PACK_SIZE]);
-                *reinterpret_cast<int4 *>(&tmp_delta_var[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_delta_var[i][idx + j * PACK_SIZE]);
+                size_t idx = warp_row * WARP_TILE_Y +
+                             thread_row_per_warp * THREAD_TILE + j * PACK_SIZE;
+                tmp_delta_mu[j] =
+                    *reinterpret_cast<const float4 *>(&smem_delta_mu[i][idx]);
+                tmp_delta_var[j] =
+                    *reinterpret_cast<const float4 *>(&smem_delta_var[i][idx]);
             }
 #pragma unroll
-            for (size_t j = 0; j < THREAD_TILE; j++) {
-                size_t idx =
-                    warp_col * WARP_TILE_X + thread_col_per_warp * THREAD_TILE;
-                *reinterpret_cast<int4 *>(&tmp_mu_a[j * PACK_SIZE]) =
-                    *reinterpret_cast<const int4 *>(
-                        &smem_mu_a[i][idx + j * PACK_SIZE]);
+            for (size_t j = 0; j < THREAD_PACKS; j++) {
+                size_t idx = warp_col * WARP_TILE_X +
+                             thread_col_per_warp * THREAD_TILE + j * PACK_SIZE;
+                tmp_mu_a[j] =
+                    *reinterpret_cast<const float4 *>(&smem_mu_a[i][idx]);
             }
 
             for (size_t t = 0; t < THREAD_TILE; t++) {
-                T delta_mu_t = tmp_delta_mu[t];
-                T delta_var_t = tmp_delta_var[t];
+                T delta_mu_t = reinterpret_cast<T *>(
+                    &tmp_delta_mu[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
+                T delta_var_t = reinterpret_cast<T *>(
+                    &tmp_delta_var[t / PACK_SIZE])[t & (PACK_SIZE - 1)];
 #pragma unroll
-                for (size_t j = 0; j < THREAD_TILE; j++) {
-                    T mu_a_j = tmp_mu_a[j];
-                    T mu_a_squared = mu_a_j * mu_a_j;
+                for (size_t j = 0; j < THREAD_PACKS; j++) {
+                    float4 mu_a_j = tmp_mu_a[j];
+                    float4 mu_a_squared = {
+                        mu_a_j.x * mu_a_j.x, mu_a_j.y * mu_a_j.y,
+                        mu_a_j.z * mu_a_j.z, mu_a_j.w * mu_a_j.w};
 
-                    tmp_mu[t][j] = fma(mu_a_j, delta_mu_t, tmp_mu[t][j]);
-                    tmp_var[t][j] =
-                        fma(mu_a_squared, delta_var_t, tmp_var[t][j]);
+                    tmp_mu[t][j].x =
+                        __fmaf_rn(mu_a_j.x, delta_mu_t, tmp_mu[t][j].x);
+                    tmp_mu[t][j].y =
+                        __fmaf_rn(mu_a_j.y, delta_mu_t, tmp_mu[t][j].y);
+                    tmp_mu[t][j].z =
+                        __fmaf_rn(mu_a_j.z, delta_mu_t, tmp_mu[t][j].z);
+                    tmp_mu[t][j].w =
+                        __fmaf_rn(mu_a_j.w, delta_mu_t, tmp_mu[t][j].w);
+
+                    tmp_var[t][j].x =
+                        __fmaf_rn(mu_a_squared.x, delta_var_t, tmp_var[t][j].x);
+                    tmp_var[t][j].y =
+                        __fmaf_rn(mu_a_squared.y, delta_var_t, tmp_var[t][j].y);
+                    tmp_var[t][j].z =
+                        __fmaf_rn(mu_a_squared.z, delta_var_t, tmp_var[t][j].z);
+                    tmp_var[t][j].w =
+                        __fmaf_rn(mu_a_squared.w, delta_var_t, tmp_var[t][j].w);
                 }
             }
         }
-        __syncwarp();
+        __syncthreads();
     }
-    __syncthreads();
     size_t row_base = blockIdx.y * BLOCK_TILE + warp_row * WARP_TILE_Y +
                       thread_row_per_warp * THREAD_TILE;
     size_t col_base = blockIdx.x * BLOCK_TILE + warp_col * WARP_TILE_X +
@@ -1244,31 +1466,30 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
     for (size_t t = 0; t < THREAD_TILE; t++) {
         size_t row = row_base + t;
         if (row >= output_size) break;
+#pragma unroll
         for (size_t j = 0; j < THREAD_PACKS; j++) {
             size_t col = col_base + j * PACK_SIZE;
             if (col >= input_size) break;
-            int4 delta_mu_w_val, delta_var_w_val;
-            int4 tmp_var_w =
-                *reinterpret_cast<const int4 *>(&var_w[row * input_size + col]);
-            const int4 mu_acc_tmp =
-                *reinterpret_cast<const int4 *>(&tmp_mu[t][j * PACK_SIZE]);
-            const int4 var_acc_tmp =
-                *reinterpret_cast<const int4 *>(&tmp_var[t][j * PACK_SIZE]);
 
-#pragma unroll
-            for (size_t p = 0; p < PACK_SIZE; p++) {
-                reinterpret_cast<T *>(&delta_mu_w_val)[p] =
-                    reinterpret_cast<const T *>(&mu_acc_tmp)[p] *
-                    reinterpret_cast<const T *>(&tmp_var_w)[p];
-                reinterpret_cast<T *>(&delta_var_w_val)[p] =
-                    reinterpret_cast<const T *>(&var_acc_tmp)[p] *
-                    reinterpret_cast<const T *>(&tmp_var_w)[p] *
-                    reinterpret_cast<const T *>(&tmp_var_w)[p];
-            }
-            *reinterpret_cast<int4 *>(&delta_mu_w[row * input_size + col]) =
-                delta_mu_w_val;
-            *reinterpret_cast<int4 *>(&delta_var_w[row * input_size + col]) =
-                delta_var_w_val;
+            float4 tmp_var_w = *reinterpret_cast<const float4 *>(
+                &var_w[row * input_size + col]);
+            float4 mu_acc_tmp = tmp_mu[t][j];
+            float4 var_acc_tmp = tmp_var[t][j];
+
+            mu_acc_tmp.x = __fmul_rn(mu_acc_tmp.x, tmp_var_w.x);
+            mu_acc_tmp.y = __fmul_rn(mu_acc_tmp.y, tmp_var_w.y);
+            mu_acc_tmp.z = __fmul_rn(mu_acc_tmp.z, tmp_var_w.z);
+            mu_acc_tmp.w = __fmul_rn(mu_acc_tmp.w, tmp_var_w.w);
+
+            var_acc_tmp.x = __fmul_rn(tmp_var_w.x * tmp_var_w.x, var_acc_tmp.x);
+            var_acc_tmp.y = __fmul_rn(tmp_var_w.y * tmp_var_w.y, var_acc_tmp.y);
+            var_acc_tmp.z = __fmul_rn(tmp_var_w.z * tmp_var_w.z, var_acc_tmp.z);
+            var_acc_tmp.w = __fmul_rn(tmp_var_w.w * tmp_var_w.w, var_acc_tmp.w);
+
+            *reinterpret_cast<float4 *>(&delta_mu_w[row * input_size + col]) =
+                mu_acc_tmp;
+            *reinterpret_cast<float4 *>(&delta_var_w[row * input_size + col]) =
+                var_acc_tmp;
         }
     }
 }
@@ -1313,8 +1534,8 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
                          bool bias) {
     if (output_size * input_size > 1024 * 128) {
         // TODO: remove hardcoded kernel config
-        constexpr unsigned int BLOCK_SIZE = 128U;
-        constexpr unsigned int THREAD_TILE = 8U;
+        constexpr unsigned int BLOCK_SIZE = 64U;
+        constexpr unsigned int THREAD_TILE = 4U;
         constexpr unsigned int WARPS_X = 4U;
         constexpr unsigned int WARPS_Y = 2U;
         constexpr unsigned int BLOCK_TILE_K = 16U;
@@ -1334,18 +1555,19 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
                 BLOCK_SIZE,
             1U);
 
-        if (output_size % PACK_SIZE != 0) {
-            constexpr unsigned int SMEM_PADDING = WARP_SIZE / THREADS_X;
-            linear_fwd_mean_var_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
-                                   THREADS, WARP_TILE_X, WARP_TILE_Y,
+        if (output_size % PACK_SIZE == 0) {
+            constexpr unsigned int SMEM_PADDING = PACK_SIZE;
+            linear_fwd_mean_var_v4<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                                   THREADS, WARP_TILE_X, WARP_TILE_Y, PACK_SIZE,
                                    SMEM_PADDING><<<grid_dim, block_dim>>>(
                 d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
                 cu_input_states->d_var_a, input_size, output_size, batch_size,
                 bias, cu_output_states->d_mu_a, cu_output_states->d_var_a);
+
         } else {
-            constexpr unsigned int SMEM_PADDING = PACK_SIZE;
-            linear_fwd_mean_var_v4<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
-                                   THREADS, WARP_TILE_X, WARP_TILE_Y, PACK_SIZE,
+            constexpr unsigned int SMEM_PADDING = WARP_SIZE / THREADS_X;
+            linear_fwd_mean_var_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                                   THREADS, WARP_TILE_X, WARP_TILE_Y,
                                    SMEM_PADDING><<<grid_dim, block_dim>>>(
                 d_mu_w, d_var_w, d_mu_b, d_var_b, cu_input_states->d_mu_a,
                 cu_input_states->d_var_a, input_size, output_size, batch_size,
@@ -1375,8 +1597,8 @@ void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
 /*
  */
 {
-    constexpr unsigned int BLOCK_SIZE = 128U;
-    constexpr unsigned int THREAD_TILE = 8U;
+    constexpr unsigned int BLOCK_SIZE = 64U;
+    constexpr unsigned int THREAD_TILE = 4U;
     constexpr unsigned int WARPS_X = 4U;
     constexpr unsigned int WARPS_Y = 2U;
     constexpr unsigned int BLOCK_TILE_K = 16U;
@@ -1385,21 +1607,34 @@ void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
     constexpr unsigned int THREADS_X = WARPS_X * (WARP_TILE_X / THREAD_TILE);
     constexpr unsigned int THREADS_Y = WARPS_Y * (WARP_TILE_Y / THREAD_TILE);
     constexpr unsigned int THREADS = THREADS_X * THREADS_Y;
-    constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
 
     dim3 block_dim(THREADS_X, THREADS_Y, 1U);
     dim3 grid_dim(
         (static_cast<unsigned int>(input_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
         (static_cast<unsigned int>(batch_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
         1U);
-    linear_bwd_delta_z_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE, THREADS,
-                          WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
-        <<<grid_dim, block_dim>>>(d_mu_w, cu_next_bwd_states->d_jcb,
-                                  cu_input_delta_states->d_delta_mu,
-                                  cu_input_delta_states->d_delta_var,
-                                  input_size, output_size, batch_size,
-                                  cu_output_delta_states->d_delta_mu,
-                                  cu_output_delta_states->d_delta_var);
+
+    if (output_size % PACK_SIZE == 0 && input_size % PACK_SIZE == 0) {
+        constexpr unsigned int SMEM_PADDING = PACK_SIZE;
+        linear_bwd_delta_z_v4<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                              THREADS, WARP_TILE_X, WARP_TILE_Y, PACK_SIZE,
+                              SMEM_PADDING><<<grid_dim, block_dim>>>(
+            d_mu_w, cu_next_bwd_states->d_jcb,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, input_size, output_size,
+            batch_size, cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
+    } else {
+        constexpr unsigned int SMEM_PADDING = BANK_SIZE / THREADS_X;
+        linear_bwd_delta_z_v3<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
+                              THREADS, WARP_TILE_X, WARP_TILE_Y, SMEM_PADDING>
+            <<<grid_dim, block_dim>>>(d_mu_w, cu_next_bwd_states->d_jcb,
+                                      cu_input_delta_states->d_delta_mu,
+                                      cu_input_delta_states->d_delta_var,
+                                      input_size, output_size, batch_size,
+                                      cu_output_delta_states->d_delta_mu,
+                                      cu_output_delta_states->d_delta_var);
+    }
 }
 
 void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
@@ -1411,8 +1646,8 @@ void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
 /*
  */
 {
-    constexpr unsigned int BLOCK_SIZE = 128U;
-    constexpr unsigned int THREAD_TILE = 8U;
+    constexpr unsigned int BLOCK_SIZE = 64U;
+    constexpr unsigned int THREAD_TILE = 4U;
     constexpr unsigned int WARPS_X = 4U;
     constexpr unsigned int WARPS_Y = 2U;
     constexpr unsigned int BLOCK_TILE_K = 16U;
@@ -1428,8 +1663,8 @@ void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
         (static_cast<unsigned int>(output_size) + BLOCK_SIZE - 1U) / BLOCK_SIZE,
         1U);
 
-    if (output_size % PACK_SIZE == 0) {
-        constexpr unsigned int SMEM_PADDING = PACK_SIZE;
+    if (output_size % PACK_SIZE == 0 && input_size % PACK_SIZE == 0) {
+        constexpr unsigned int SMEM_PADDING = 0;
         linear_bwd_delta_w_v4<float, BLOCK_SIZE, BLOCK_TILE_K, THREAD_TILE,
                               THREADS, WARP_TILE_X, WARP_TILE_Y, PACK_SIZE,
                               SMEM_PADDING><<<grid_dim, block_dim>>>(
