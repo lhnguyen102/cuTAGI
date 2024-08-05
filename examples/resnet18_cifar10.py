@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 import torch
@@ -160,7 +168,7 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 1.0):
+def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     """
     Run classification training on the Cifar dataset using a custom neural model.
 

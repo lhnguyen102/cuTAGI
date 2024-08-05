@@ -47,15 +47,15 @@ TAGI_CNN = Sequential(
 )
 
 TAGI_CNN_BATCHNORM = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-    ReLU(),
-    BatchNorm2d(16),
-    AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False),
+    Conv2d(1, 32, 4, padding=1, in_width=28, in_height=28, bias=False),
     ReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 256),
+    Conv2d(32, 64, 5, bias=False),
+    ReLU(),
+    BatchNorm2d(64),
+    AvgPool2d(3, 2),
+    Linear(64 * 4 * 4, 256),
     ReLU(),
     Linear(256, 11),
 )
@@ -119,19 +119,20 @@ class TorchCNNBatchNorm(nn.Module):
     def __init__(self):
         super(TorchCNNBatchNorm, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=4, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(16, 32, kernel_size=5),
+            nn.Conv2d(1, 32, kernel_size=4, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(32, 64, kernel_size=5),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Flatten(),
-            nn.Linear(32 * 4 * 4, 256),
+            nn.Linear(64 * 4 * 4, 256),
             nn.ReLU(),
             nn.Linear(256, 10),
         )
+        self.model.apply(initialize_weights)
 
     def forward(self, x):
         return self.model(x)
@@ -186,7 +187,7 @@ def tagi_trainer(
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=10)
-    net = TAGI_FNN
+    net = TAGI_CNN_BATCHNORM
     net.to_device(device)
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -200,7 +201,7 @@ def tagi_trainer(
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
-            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
+            curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
         )
         var_y = np.full(
             (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
@@ -277,11 +278,11 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = TorchFNN().to(torch_device)
+    model = TorchCNNBatchNorm().to(torch_device)
     # model = torch.compile(model, mode="reduce-overhead")
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training loop
     pbar = tqdm(range(num_epochs), desc="Training Progress")

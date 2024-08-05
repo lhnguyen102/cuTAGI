@@ -13,7 +13,6 @@
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
 
-#define WARP_SIZE 32U
 #define BANK_SIZE 32U
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -570,10 +569,12 @@ __global__ void linear_fwd_mean_var_v4(
                     tmp_var[t][j].z = __fadd_rn(tmp_var[t][j].z, var_b_val.z);
                     tmp_var[t][j].w = __fadd_rn(tmp_var[t][j].w, var_b_val.w);
                 }
-                *reinterpret_cast<float4 *>(&mu_z[row * output_size + col]) =
-                    tmp_mu[t][j];
-                *reinterpret_cast<float4 *>(&var_z[row * output_size + col]) =
-                    tmp_var[t][j];
+                __stcs(
+                    reinterpret_cast<float4 *>(&mu_z[row * output_size + col]),
+                    tmp_mu[t][j]);
+                __stcs(
+                    reinterpret_cast<float4 *>(&var_z[row * output_size + col]),
+                    tmp_var[t][j]);
             }
         }
     }
@@ -1358,8 +1359,8 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
     const unsigned int num_tiles =
         (batch_size + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
 
-    float4 tmp_mu[THREAD_TILE][THREAD_TILE / PACK_SIZE] = {{0.0f}};
-    float4 tmp_var[THREAD_TILE][THREAD_TILE / PACK_SIZE] = {{0.0f}};
+    float4 tmp_mu[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
+    float4 tmp_var[THREAD_TILE][THREAD_PACKS] = {{0.0f}};
 
     for (size_t phase = 0; phase < num_tiles; phase++) {
         for (size_t l_i = 0; l_i < NUM_LOADS; l_i++) {
@@ -1486,10 +1487,12 @@ __global__ void linear_bwd_delta_w_v4(const T *var_w, const T *mu_a,
             var_acc_tmp.z = __fmul_rn(tmp_var_w.z * tmp_var_w.z, var_acc_tmp.z);
             var_acc_tmp.w = __fmul_rn(tmp_var_w.w * tmp_var_w.w, var_acc_tmp.w);
 
-            *reinterpret_cast<float4 *>(&delta_mu_w[row * input_size + col]) =
-                mu_acc_tmp;
-            *reinterpret_cast<float4 *>(&delta_var_w[row * input_size + col]) =
-                var_acc_tmp;
+            __stcs(
+                reinterpret_cast<float4 *>(&delta_mu_w[row * input_size + col]),
+                mu_acc_tmp);
+            __stcs(reinterpret_cast<float4 *>(
+                       &delta_var_w[row * input_size + col]),
+                   var_acc_tmp);
         }
     }
 }
