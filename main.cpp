@@ -42,8 +42,6 @@ int main(int argc, char *argv[]) {
         auto is_passed = test_resnet_1d_toy();
     } else if (user_input_file.compare("resnet_cifar10") == 0) {
         auto is_passed = test_resnet_cifar10();
-    } else {
-        task_command_cpu(user_input, path);
     }
     return 0;
 }
