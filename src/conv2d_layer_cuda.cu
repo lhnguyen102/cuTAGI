@@ -57,7 +57,7 @@ void conv2d_forward_cuda(HiddenStateCuda *&cu_input_states, const float *d_mu_w,
             1U);
 
         if (ki2_fi % PACK_SIZE == 0) {
-            constexpr size_t SMEM_PADDING = PACK_SIZE;
+            constexpr size_t SMEM_PADDING = 0;
             conv2d_fwd_mean_var_cuda_v3<float, BLOCK_SIZE, BLOCK_TILE_K,
                                         THREAD_TILE, THREADS, WARP_TILE_X,
                                         WARP_TILE_Y, PACK_SIZE, SMEM_PADDING>

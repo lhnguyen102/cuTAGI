@@ -218,7 +218,7 @@ void resnet_cifar10()
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < iters; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);
@@ -230,26 +230,27 @@ void resnet_cifar10()
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
                                                 var_obs, idx_ud_batch,
                                                 *model.input_delta_z_buffer);
-            // // Backward pass
-            model.backward();
-            model.step();
+            // // // Backward pass
+            // model.backward();
+            // model.step();
 
-            // Extract output
-            if (model.device == "cuda") {
-                model.output_to_host();
-            }
-            // model.delta_z_to_host();
+            // // Extract output
+            // if (model.device == "cuda") {
+            //     model.output_to_host();
+            // }
+            // // model.delta_z_to_host();
 
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model.output_z_buffer->mu_a[j];
-                var_a_output[j] = model.output_z_buffer->var_a[j];
-            }
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(mu_a_output, var_a_output, label_batch, num_classes,
-                          batch_size);
+            // for (int j = 0; j < batch_size * n_y; j++) {
+            //     mu_a_output[j] = model.output_z_buffer->mu_a[j];
+            //     var_a_output[j] = model.output_z_buffer->var_a[j];
+            // }
+            // std::tie(error_rate_batch, prob_class_batch) =
+            //     get_error(mu_a_output, var_a_output, label_batch,
+            //     num_classes,
+            //               batch_size);
 
-            mt_idx = i * batch_size;
-            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+            // mt_idx = i * batch_size;
+            // update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
             if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;

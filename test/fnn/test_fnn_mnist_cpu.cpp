@@ -84,10 +84,10 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
-                     ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-                     BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
-                     Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(Conv2d(1, 32, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(32, 64, 5, false),
+                     BatchNorm2d(64), ReLU(), AvgPool2d(3, 2),
+                     Linear(64 * 4 * 4, 100), ReLU(), Linear(256, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
@@ -172,7 +172,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 1; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);

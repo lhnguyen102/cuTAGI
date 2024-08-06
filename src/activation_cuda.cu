@@ -51,10 +51,6 @@ void ReLUCuda::forward(BaseHiddenStates &input_states,
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
 
-    int num_states = input_states.actual_size * input_states.block_size;
-    unsigned int blocks =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
-
     // Assign output dimensions
     cu_output_states->height = cu_input_states->height;
     cu_output_states->depth = cu_input_states->depth;
@@ -62,7 +58,11 @@ void ReLUCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 
-    relu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+    constexpr unsigned int THREADS = 256;
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks = (num_states + THREADS - 1) / THREADS;
+
+    relu_mean_var_cuda<<<blocks, THREADS>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
@@ -664,18 +664,75 @@ __global__ void relu_mean_var_cuda(float const *mu_z, float const *var_z,
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float one_pad = 1.0f;
-    float zero_pad = 0;
-    float tmp = 0;
+
     if (col < num_states) {
-        tmp = max(mu_z[col], zero_pad);
+        float tmp = fmaxf(mu_z[col], 0.0f);
         mu_a[col] = tmp;
-        if (tmp == 0) {
-            jcb[col] = zero_pad;
-            var_a[col] = zero_pad;
-        } else {
-            jcb[col] = one_pad;
-            var_a[col] = var_z[col];
+
+        bool is_zero = (tmp == 0.0f);
+        jcb[col] = is_zero ? 0.0f : 1.0f;
+        var_a[col] = is_zero ? 0.0f : var_z[col];
+    }
+}
+
+__global__ void relu_mean_var_cuda_vectorized(float const *mu_z,
+                                              float const *var_z,
+                                              int num_states, float *mu_a,
+                                              float *jcb, float *var_a) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int vec_idx = idx * 4;
+
+    if (vec_idx < num_states) {
+        float4 mu_z_vec, var_z_vec, mu_a_vec, jcb_vec, var_a_vec;
+
+        // Load 4 float values into float4 vectors
+        mu_z_vec.x = mu_z[vec_idx];
+        mu_z_vec.y = vec_idx + 1 < num_states ? mu_z[vec_idx + 1] : 0.0f;
+        mu_z_vec.z = vec_idx + 2 < num_states ? mu_z[vec_idx + 2] : 0.0f;
+        mu_z_vec.w = vec_idx + 3 < num_states ? mu_z[vec_idx + 3] : 0.0f;
+
+        var_z_vec.x = var_z[vec_idx];
+        var_z_vec.y = vec_idx + 1 < num_states ? var_z[vec_idx + 1] : 0.0f;
+        var_z_vec.z = vec_idx + 2 < num_states ? var_z[vec_idx + 2] : 0.0f;
+        var_z_vec.w = vec_idx + 3 < num_states ? var_z[vec_idx + 3] : 0.0f;
+
+        // Process the data
+        mu_a_vec.x = fmaxf(mu_z_vec.x, 0.0f);
+        mu_a_vec.y = fmaxf(mu_z_vec.y, 0.0f);
+        mu_a_vec.z = fmaxf(mu_z_vec.z, 0.0f);
+        mu_a_vec.w = fmaxf(mu_z_vec.w, 0.0f);
+
+        jcb_vec.x = (mu_a_vec.x == 0.0f) ? 0.0f : 1.0f;
+        jcb_vec.y = (mu_a_vec.y == 0.0f) ? 0.0f : 1.0f;
+        jcb_vec.z = (mu_a_vec.z == 0.0f) ? 0.0f : 1.0f;
+        jcb_vec.w = (mu_a_vec.w == 0.0f) ? 0.0f : 1.0f;
+
+        var_a_vec.x = (mu_a_vec.x == 0.0f) ? 0.0f : var_z_vec.x;
+        var_a_vec.y = (mu_a_vec.y == 0.0f) ? 0.0f : var_z_vec.y;
+        var_a_vec.z = (mu_a_vec.z == 0.0f) ? 0.0f : var_z_vec.z;
+        var_a_vec.w = (mu_a_vec.w == 0.0f) ? 0.0f : var_z_vec.w;
+
+        // Store the results back as individual floats
+        mu_a[vec_idx] = mu_a_vec.x;
+        jcb[vec_idx] = jcb_vec.x;
+        var_a[vec_idx] = var_a_vec.x;
+
+        if (vec_idx + 1 < num_states) {
+            mu_a[vec_idx + 1] = mu_a_vec.y;
+            jcb[vec_idx + 1] = jcb_vec.y;
+            var_a[vec_idx + 1] = var_a_vec.y;
+        }
+
+        if (vec_idx + 2 < num_states) {
+            mu_a[vec_idx + 2] = mu_a_vec.z;
+            jcb[vec_idx + 2] = jcb_vec.z;
+            var_a[vec_idx + 2] = var_a_vec.z;
+        }
+
+        if (vec_idx + 3 < num_states) {
+            mu_a[vec_idx + 3] = mu_a_vec.w;
+            jcb[vec_idx + 3] = jcb_vec.w;
+            var_a[vec_idx + 3] = var_a_vec.w;
         }
     }
 }

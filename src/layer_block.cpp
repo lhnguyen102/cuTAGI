@@ -114,6 +114,24 @@ void LayerBlock::set_threads(int num)
     }
 }
 
+void LayerBlock::train()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->train();
+    }
+}
+
+void LayerBlock::eval()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->eval();
+    }
+}
+
 #ifdef USE_CUDA
 void LayerBlock::set_cuda_threads(int num)
 /*

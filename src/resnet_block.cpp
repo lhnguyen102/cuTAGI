@@ -145,6 +145,26 @@ void ResNetBlock::set_threads(int num)
     }
 }
 
+void ResNetBlock::train()
+/*
+ */
+{
+    this->main_block->train();
+    if (this->shortcut != nullptr) {
+        this->shortcut->train();
+    }
+}
+
+void ResNetBlock::eval()
+/*
+ */
+{
+    this->main_block->eval();
+    if (this->shortcut != nullptr) {
+        this->shortcut->eval();
+    }
+}
+
 void ResNetBlock::forward(BaseHiddenStates &input_states,
                           BaseHiddenStates &output_states,
                           BaseTempStates &temp_states)

@@ -143,6 +143,26 @@ void ResNetBlockCuda::set_threads(int num)
     }
 }
 
+void ResNetBlockCuda::train()
+/*
+ */
+{
+    this->main_block->train();
+    if (this->shortcut != nullptr) {
+        this->shortcut->train();
+    }
+}
+
+void ResNetBlockCuda::eval()
+/*
+ */
+{
+    this->main_block->eval();
+    if (this->shortcut != nullptr) {
+        this->shortcut->eval();
+    }
+}
+
 void ResNetBlockCuda::set_cuda_threads(int num)
 /*
  */
@@ -203,8 +223,8 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     this->main_block->forward(input_states, output_states, temp_states);
 
     int num_states = output_states.block_size * this->output_size;
-    unsigned int grid_size =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    constexpr unsigned int THREADS = 256;
+    unsigned int grid_size = (num_states + THREADS - 1) / THREADS;
 
     // Shortcut
     if (this->shortcut != nullptr) {
@@ -217,7 +237,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(&output_states);
 
-        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+        add_shortcut_mean_var_cuda<<<grid_size, THREADS>>>(
             cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
             num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
 
@@ -228,7 +248,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(&output_states);
 
-        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+        add_shortcut_mean_var_cuda<<<grid_size, THREADS>>>(
             cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
             num_states, cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }

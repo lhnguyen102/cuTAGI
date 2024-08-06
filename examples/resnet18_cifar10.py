@@ -1,11 +1,3 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
-)
 import fire
 import numpy as np
 import torch
@@ -19,13 +11,12 @@ from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
-    LayerBlock,
     Linear,
     OutputUpdater,
     ReLU,
-    ResNetBlock,
     Sequential,
 )
+from examples.tagi_resnet_model import resnet18_cifar10
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
@@ -47,68 +38,6 @@ CNN_NET = Sequential(
     ReLU(),
     Linear(128, 11),
 )
-
-
-def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int = 1):
-    """Create a layer block for resnet 18"""
-
-    return LayerBlock(
-        Conv2d(
-            in_c,
-            out_c,
-            3,
-            bias=False,
-            stride=stride,
-            padding=1,
-            padding_type=padding_type,
-        ),
-        BatchNorm2d(out_c),
-        ReLU(),
-        Conv2d(out_c, out_c, 3, bias=False, padding=1),
-        BatchNorm2d(out_c),
-    )
-
-
-def resnet18_cifar10() -> Sequential:
-    """Resnet18 architecture for cifar10"""
-    # 32x32
-    initial_layers = [
-        Conv2d(3, 64, 3, bias=False, padding=1, in_width=32, in_height=32),
-        BatchNorm2d(64),
-        ReLU(),
-    ]
-
-    resnet_layers = [
-        # 32x32
-        ResNetBlock(make_layer_block(64, 64)),
-        ResNetBlock(make_layer_block(64, 64)),
-        ReLU(),
-        # 16x16
-        ResNetBlock(
-            make_layer_block(64, 128, 2, 2),
-            LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2), BatchNorm2d(128)),
-        ),
-        ResNetBlock(make_layer_block(128, 128)),
-        ReLU(),
-        # 8x8
-        ResNetBlock(
-            make_layer_block(128, 256, 2, 2),
-            LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2), BatchNorm2d(256)),
-        ),
-        ResNetBlock(make_layer_block(256, 256)),
-        ReLU(),
-        # 4x4
-        ResNetBlock(
-            make_layer_block(256, 512, 2, 2),
-            LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2), BatchNorm2d(512)),
-        ),
-        ResNetBlock(make_layer_block(512, 512)),
-        ReLU(),
-    ]
-
-    final_layers = [ReLU(), AvgPool2d(4), Linear(512, 11)]
-
-    return Sequential(*initial_layers, *resnet_layers, *final_layers)
 
 
 def custom_collate_fn(batch):

@@ -102,6 +102,14 @@ class Sequential:
         """Set the number of threads to use."""
         self._cpp_backend.set_threads(num_threads)
 
+    def train(self):
+        """Set the number of threads to use."""
+        self._cpp_backend.train()
+
+    def eval(self):
+        """Set the number of threads to use."""
+        self._cpp_backend.eval()
+
     def forward(
         self, mu_x: np.ndarray, var_x: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray]:

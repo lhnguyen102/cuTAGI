@@ -62,6 +62,9 @@ class LayerBlock : public BaseLayer {
 
     void set_threads(int num) override;
 
+    void train() override;
+    void eval() override;
+
 #ifdef USE_CUDA
     void set_cuda_threads(int num);
 #endif

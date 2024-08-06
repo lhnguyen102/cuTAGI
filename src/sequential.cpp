@@ -169,6 +169,24 @@ void Sequential::set_threads(unsigned int num_threads)
     }
 }
 
+void Sequential::train()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->train();
+    }
+}
+
+void Sequential::eval()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->eval();
+    }
+}
+
 std::string Sequential::get_device()
 /*
  */

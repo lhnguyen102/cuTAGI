@@ -50,6 +50,8 @@ void bind_sequential(pybind11::module_& m) {
         .def_readwrite("device", &Sequential::device)
         .def("to_device", &Sequential::to_device)
         .def("set_threads", &Sequential::set_threads)
+        .def("train", &Sequential::train)
+        .def("eval", &Sequential::eval)
         .def("forward", &Sequential::forward_py)
         .def("forward",
              [](Sequential& self, pybind11::object arg1,

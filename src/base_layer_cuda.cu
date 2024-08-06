@@ -380,22 +380,28 @@ void BaseLayerCuda::store_states_for_training_cuda(
     BackwardStateCuda *cu_bwd_states =
         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     int batch_size = input_states.block_size;
-    int threads = this->num_cuda_threads;
+    // int threads = this->num_cuda_threads;
     int act_size = input_states.actual_size * batch_size;
     if (cu_bwd_states->size != act_size) {
         cu_bwd_states->size = act_size;
         cu_bwd_states->allocate_memory();
     }
 
-    unsigned int blocks = (act_size + threads - 1) / threads;
+    constexpr unsigned int THREADS = 256;
+    // unsigned int blocks = (act_size + THREADS - 1) / THREADS;
 
-    fill_bwd_states_on_device<<<blocks, threads>>>(
-        input_states.d_mu_a, input_states.d_jcb, act_size,
-        cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
+    // fill_bwd_states_on_device<<<blocks, THREADS>>>(
+    //     input_states.d_mu_a, input_states.d_jcb, act_size,
+    //     cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
+
+    cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
+               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
+               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
     int out_size = this->output_size * batch_size;
-    unsigned int out_blocks = (out_size + threads - 1) / threads;
+    unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
 
-    fill_output_states_on_device<<<out_blocks, threads>>>(out_size,
+    fill_output_states_on_device<<<out_blocks, THREADS>>>(out_size,
                                                           output_states.d_jcb);
 }

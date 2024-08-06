@@ -1,11 +1,3 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
-)
 import fire
 import numpy as np
 import torch
@@ -206,6 +198,7 @@ def tagi_trainer(
         var_y = np.full(
             (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
         )
+        net.train()
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -233,6 +226,7 @@ def tagi_trainer(
 
         # Testing
         test_error_rates = []
+        net.eval()
         for x, labels in test_loader:
 
             m_pred, v_pred = net(x)
@@ -324,7 +318,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
         test_loss /= len(test_loader.dataset)
         test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
         pbar.set_description(
-            f"Epoch# {epoch/num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%"
+            f"Epoch# {epoch + 1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%"
         )
 
 
