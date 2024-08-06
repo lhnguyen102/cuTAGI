@@ -32,9 +32,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Run task
-    if (user_input_file.compare("test_fc_v2") == 0) {
-        auto is_passed = test_fnn_cpu_v2();
-    } else if (user_input_file.compare("test_fc_mnist") == 0) {
+    if (user_input_file.compare("test_fc_mnist") == 0) {
         auto is_passed = test_fnn_mnist();
     } else if (user_input_file.compare("autoencoder_mnist") == 0) {
         auto is_passed = test_autoecoder_v2();
