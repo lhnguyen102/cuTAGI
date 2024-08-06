@@ -11,7 +11,6 @@
 #include <iostream>
 #include <string>
 
-#include "include/struct_var.h"
 #include "test/autoencoder/test_autoencoder_v2.h"
 #include "test/fnn/test_fnn_mnist_cpu.h"
 #include "test/lstm/test_lstm_v2.h"
