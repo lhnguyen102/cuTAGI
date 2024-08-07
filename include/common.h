@@ -26,8 +26,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "struct_var.h"
-
 template <typename T>
 void print_matrix(std::vector<T> &M, int w, int h)
 /*
@@ -236,10 +234,6 @@ void get_output_hidden_states_ni_cpu(std::vector<float> &z, int ny, int z_pos,
 
 void get_noise_hidden_states_cpu(std::vector<float> &z, int ny, int z_pos,
                                  std::vector<float> &z_v2);
-
-void output_hidden_states(NetState &state, Network &net,
-                          std::vector<float> &ma_output,
-                          std::vector<float> &Sa_output);
 
 void get_output_states(std::vector<float> &ma, std::vector<float> Sa,
                        std::vector<float> &ma_output,

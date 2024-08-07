@@ -9,6 +9,134 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/param_init.h"
 
+float he_init(float fan_in)
+
+/* He initialization for neural networks. Further details can be found in
+ * Delving Deep into Rectifiers: Surpassing Human-Level Performance on
+ * ImageNet Classification. He et al., 2015.
+ *
+ * Args:
+ *    fan_in: Number of input variables
+ * Returns:
+ *    scale: Standard deviation for weight distribution
+ *
+ *  */
+
+{
+    float scale = pow(1 / fan_in, 0.5);
+
+    return scale;
+}
+
+float xavier_init(float fan_in, float fan_out)
+
+/* Xavier initialization for neural networks. Further details can be found in
+ *  Understanding the difficulty of training deep feedforward neural networks
+ *  - Glorot, X. & Bengio, Y. (2010).
+ *
+ * Args:
+ *    fan_in: Number of input variables
+ *    fan_out: Number of output variables
+ *
+ * Returns:
+ *    scale: Standard deviation for weight distribution
+ *
+ *  */
+
+{
+    float scale;
+    scale = pow(2 / (fan_in + fan_out), 0.5);
+
+    return scale;
+}
+
+std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
+    float scale, float gain, int N)
+/* Parmeter initialization of TAGI neural networks.
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Variance
+        S[i] = gain * pow(scale, 2);
+
+        // Get normal distribution
+        std::normal_distribution<float> d(0.0f, scale);
+
+        // Get sample for weights
+        m[i] = d(gen);
+    }
+
+    return {m, S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
+    float scale, float gain, float noise_gain, int N)
+/* Parmeter initialization of TAGI neural network including the noise's hidden
+ * states
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Variance for output and noise's hidden states
+        if (i < N / 2) {
+            S[i] = gain * pow(scale, 2);
+        } else {
+            S[i] = noise_gain * pow(scale, 2);
+            scale = pow(S[i], 0.5);
+            int a = 0;
+        }
+
+        // Get normal distribution
+        std::normal_distribution<float> d(0.0f, scale);
+
+        // Get sample for weights
+        m[i] = d(gen);
+    }
+
+    return {m, S};
+}
+
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
 init_weight_bias_linear(const std::string &init_method, const float gain_w,

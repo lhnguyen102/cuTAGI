@@ -23,7 +23,7 @@
 #include "../../include/conv2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
-#include "../../include/debugger.h"
+// #include "../../include/debugger.h"
 #include "../../include/linear_layer.h"
 #include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
@@ -66,8 +66,9 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 4096), ReLU(), Linear(4096, 4096), ReLU(),
-                     Linear(4096, 11));
+    // Sequential model(Linear(784, 4 * 4096), ReLU(), Linear(4 * 4096, 4 *
+    // 4096),
+    //                  ReLU(), Linear(4 * 4096, 11));
 
     // Sequential model(Linear(784, 1024), BatchNorm2d(1024), ReLU(),
     //                  Linear(1024, 1024), BatchNorm2d(1024), ReLU(),
@@ -83,11 +84,10 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
-    // BatchNorm2d(16),
-    //                  ReLU(), AvgPool2d(3, 2), Conv2d(16, 32, 5, false),
-    //                  BatchNorm2d(32), ReLU(), AvgPool2d(3, 2),
-    //                  Linear(32 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(Conv2d(1, 32, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(32, 64, 5, false),
+                     BatchNorm2d(64), ReLU(), AvgPool2d(3, 2),
+                     Linear(64 * 4 * 4, 100), ReLU(), Linear(256, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
@@ -142,7 +142,7 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 10;
+    int n_epochs = 1;
     int batch_size = 256;
     float sigma_obs = 2.0;
     int iters = train_db.num_data / batch_size;
@@ -172,7 +172,7 @@ void fnn_mnist() {
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < iters; i++) {
+        for (int i = 0; i < 1; i++) {
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                     y_batch, idx_ud_batch, label_batch);

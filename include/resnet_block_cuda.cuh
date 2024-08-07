@@ -103,6 +103,10 @@ class ResNetBlockCuda : public BaseLayerCuda {
 
     void set_cuda_threads(int num) override;
 
+    void train() override;
+
+    void eval() override;
+
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

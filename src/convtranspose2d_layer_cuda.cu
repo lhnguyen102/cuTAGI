@@ -8,6 +8,8 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/common.h"
+#include "../include/config.h"
 #include "../include/convtranspose2d_layer.h"
 #include "../include/convtranspose2d_layer_cuda.cuh"
 #include "../include/param_init.h"
@@ -296,15 +298,29 @@ void ConvTranspose2dCuda::allocate_convtranspose_index()
 /*
  */
 {
-    cudaMalloc(&this->d_idx_mwa_1, this->idx_mwa_1.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_mwa_2, this->idx_mwa_2.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_cov_wz_2, this->idx_cov_wz_2.size() * sizeof(int));
+    // Memory alignment
+    unsigned int size_idx_mwa_1 =
+        ((this->idx_mwa_1.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_idx_mwa_2 =
+        ((this->idx_mwa_2.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_idx_cov_wz_2 =
+        ((this->idx_cov_wz_2.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
 
-    cudaMalloc(&this->d_idx_var_wz_ud,
-               this->idx_var_wz_ud.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_cov_z_wa_1,
-               this->idx_cov_z_wa_1.size() * sizeof(int));
-    cudaMalloc(&this->d_idx_var_z_ud, this->idx_var_z_ud.size() * sizeof(int));
+    unsigned int size_idx_var_wz_ud =
+        ((this->idx_var_wz_ud.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    unsigned int size_idx_cov_z_wa_1 =
+        ((this->idx_cov_z_wa_1.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    unsigned int size_idx_var_z_ud =
+        ((this->idx_var_z_ud.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_idx_mwa_1, size_idx_mwa_1 * sizeof(int));
+    cudaMalloc(&this->d_idx_mwa_2, size_idx_mwa_2 * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_wz_2, size_idx_cov_wz_2 * sizeof(int));
+
+    cudaMalloc(&this->d_idx_var_wz_ud, size_idx_var_wz_ud * sizeof(int));
+    cudaMalloc(&this->d_idx_cov_z_wa_1, size_idx_cov_z_wa_1 * sizeof(int));
+    cudaMalloc(&this->d_idx_var_z_ud, size_idx_var_z_ud * sizeof(int));
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {

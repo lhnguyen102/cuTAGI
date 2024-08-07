@@ -119,6 +119,9 @@ class BaseLayer {
 
     virtual void compute_input_output_size(const InitArgs &args);
 
+    virtual void train();
+    virtual void eval();
+
     void storing_states_for_training(BaseHiddenStates &input_states,
                                      BaseHiddenStates &output_states);
 

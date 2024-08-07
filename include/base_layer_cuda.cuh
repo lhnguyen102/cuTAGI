@@ -14,7 +14,6 @@
 
 #include "base_layer.h"
 #include "data_struct_cuda.cuh"
-#include "struct_var.h"
 
 __global__ void fill_bwd_states_on_device(float const *mu_a_in,
                                           float const *jcb_in, int size,

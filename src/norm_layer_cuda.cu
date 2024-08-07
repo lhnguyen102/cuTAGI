@@ -3,10 +3,11 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      January 24, 2024
-// Updated:      July 12, 2024
+// Updated:      July 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/norm_layer.h"
 #include "../include/norm_layer_cuda.cuh"
@@ -199,8 +200,8 @@ __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < num_states) {
-        mu_ra[col] = mu_ra[col] * momentum + mu_s[col] * (1 - momentum);
-        var_ra[col] = var_ra[col] * momentum + var_s[col] * (1 - momentum);
+        mu_ra[col] = mu_ra[col] * momentum + mu_s[col] * (1.0f - momentum);
+        var_ra[col] = var_ra[col] * momentum + var_s[col] * (1.0f - momentum);
     }
 }
 
@@ -567,8 +568,8 @@ void batchnorm2d_fwd_sum_reduction(float *&sample, float *&mu_s, int batch_size,
  */
 {
     // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
+    constexpr unsigned int BLOCK_SIZE_X = 64;
+    constexpr unsigned int BLOCK_SIZE_Y = 16;
     const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
     unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
     unsigned int grid_size_x =
@@ -610,8 +611,8 @@ void batchnorm2d_fwd_dual_sum_reduction(float *&mu_in, float *&var_in,
  */
 {
     // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
+    constexpr unsigned int BLOCK_SIZE_X = 64U;
+    constexpr unsigned int BLOCK_SIZE_Y = 16U;
     const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
     unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
     unsigned int grid_size_x =
@@ -1027,8 +1028,12 @@ void LayerNormCuda::allocate_running_mean_var()
 {
     this->mu_ra.resize(this->_batch_size, 0.0f);
     this->var_ra.resize(this->_batch_size, 1.0f);
-    cudaMalloc(&this->d_mu_ra, this->_batch_size * sizeof(float));
-    cudaMalloc(&this->d_var_ra, this->_batch_size * sizeof(float));
+
+    // Memory aligment
+    unsigned int size_batch_size =
+        ((this->_batch_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+    cudaMalloc(&this->d_mu_ra, size_batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_ra, size_batch_size * sizeof(float));
     this->running_mean_var_to_device();
     CHECK_LAST_CUDA_ERROR();
 }
@@ -1387,12 +1392,12 @@ void BatchNorm2dCuda::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
-    float scale = 1.0f / this->num_weights;
+    float scale = 1.0f / sqrtf(this->num_weights);
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale);
+        this->var_b.resize(this->num_weights, scale / 10);
 
     } else {
         this->num_biases = 0;
@@ -1420,10 +1425,15 @@ void BatchNorm2dCuda::allocate_running_mean_var()
     this->var_ra.resize(this->num_features, 0.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 0.0f);
-    cudaMalloc(&this->d_mu_ra, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_var_ra, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_mu_norm_batch, this->num_features * sizeof(float));
-    cudaMalloc(&this->d_var_norm_batch, this->num_features * sizeof(float));
+
+    // Memory aligment
+    unsigned int size_num_features =
+        ((this->num_features + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc(&this->d_mu_ra, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_var_ra, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_mu_norm_batch, size_num_features * sizeof(float));
+    cudaMalloc(&this->d_var_norm_batch, size_num_features * sizeof(float));
 
     CHECK_LAST_CUDA_ERROR();
     this->running_mean_var_to_device();
@@ -1540,42 +1550,37 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         unsigned int grid_size_ra =
             (this->in_channels + num_threads - 1) / num_threads;
 
-        if (this->training) {
-            // Local pointer for swapping. Leverage the existing and
-            // not-yet-used memory block defined in GPU device to reduce the
-            // memory allocation
-            float *buf_mu_out = cu_output_states->d_mu_a;
-            float *buf_var_out = cu_output_states->d_var_a;
-            float *buf_mu_in = cu_temp_states->d_tmp_1;
-            float *buf_var_in = cu_temp_states->d_tmp_2;
+        // Local pointer for swapping. Leverage the existing and
+        // not-yet-used memory block defined in GPU device to reduce the
+        // memory allocation
+        float *buf_mu_out = cu_output_states->d_mu_a;
+        float *buf_var_out = cu_output_states->d_var_a;
+        float *buf_mu_in = cu_temp_states->d_tmp_1;
+        float *buf_var_in = cu_temp_states->d_tmp_2;
 
-            batchnorm2d_fwd_dual_sum_reduction(
-                cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size,
-                wihi, this->in_channels, buf_mu_in, buf_var_in, buf_mu_out,
-                buf_var_out, this->d_mu_norm_batch, this->d_var_norm_batch);
+        batchnorm2d_fwd_dual_sum_reduction(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size, wihi,
+            this->in_channels, buf_mu_in, buf_var_in, buf_mu_out, buf_var_out,
+            this->d_mu_norm_batch, this->d_var_norm_batch);
 
-            float scale = wihi * batch_size;
-            batchnorm2d_sample_mu_post_processing<<<grid_size_ra,
-                                                    num_threads>>>(
-                this->d_mu_norm_batch, this->in_channels, scale,
-                this->d_mu_norm_batch);
+        float scale = wihi * batch_size;
+        batchnorm2d_sample_mu_post_processing<<<grid_size_ra, num_threads>>>(
+            this->d_mu_norm_batch, this->in_channels, scale,
+            this->d_mu_norm_batch);
 
-            batchnorm2d_fwd_sum_reduction(cu_input_states->d_mu_a,
-                                          this->d_mu_norm_batch, batch_size,
-                                          wihi, this->in_channels, buf_mu_in,
-                                          buf_mu_out, cu_temp_states->d_tmp_2);
+        batchnorm2d_fwd_sum_reduction(
+            cu_input_states->d_mu_a, this->d_mu_norm_batch, batch_size, wihi,
+            this->in_channels, buf_mu_in, buf_mu_out, cu_temp_states->d_tmp_2);
 
-            // Statistical sample variance
-            scale = scale - 1.0f;
-            batchnorm2d_sample_var_post_processing<<<grid_size_ra,
-                                                     num_threads>>>(
-                this->d_var_norm_batch, cu_temp_states->d_tmp_2,
-                this->in_channels, scale, this->d_var_norm_batch);
+        // Statistical sample variance
+        scale = scale - 1.0f;
+        batchnorm2d_sample_var_post_processing<<<grid_size_ra, num_threads>>>(
+            this->d_var_norm_batch, cu_temp_states->d_tmp_2, this->in_channels,
+            scale, this->d_var_norm_batch);
 
-            running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-                this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
-                this->in_channels, this->d_mu_ra, this->d_var_ra);
-        }
+        // running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+        //     this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+        //     this->in_channels, this->d_mu_ra, this->d_var_ra);
 
         int fi_batch = this->in_channels * batch_size;
         unsigned int grid_row = (fi_batch + num_threads - 1) / num_threads;
@@ -1584,9 +1589,10 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
         batchnorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
-            d_var_target, this->epsilon, wihi, this->in_channels, fi_batch,
-            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+            cu_input_states->d_mu_a, cu_input_states->d_var_a,
+            this->d_mu_norm_batch, this->d_var_norm_batch, this->epsilon, wihi,
+            this->in_channels, fi_batch, cu_output_states->d_mu_a,
+            cu_output_states->d_var_a);
     }
 
     // Update backward state for inferring parameters

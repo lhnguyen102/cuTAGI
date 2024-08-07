@@ -3,13 +3,14 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      March 18, 2024
+// Updated:      July 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/sequential.h"
 
+#include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/pooling_layer.h"
 #ifdef USE_CUDA
@@ -75,6 +76,12 @@ void Sequential::set_buffer_size()
     for (auto &layer : this->layers) {
         int max_size = layer->get_max_num_states();
         this->z_buffer_size = std::max(max_size, this->z_buffer_size);
+    }
+
+    // Convert to the size that is multiple of PACK_SIZE
+    if (this->z_buffer_size % PACK_SIZE != 0) {
+        this->z_buffer_size =
+            ((this->z_buffer_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
     }
 }
 
@@ -159,6 +166,24 @@ void Sequential::set_threads(unsigned int num_threads)
     this->num_threads = num_threads;
     for (auto &layer : this->layers) {
         layer->set_threads(num_threads);
+    }
+}
+
+void Sequential::train()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->train();
+    }
+}
+
+void Sequential::eval()
+/*
+ */
+{
+    for (auto &layer : this->layers) {
+        layer->eval();
     }
 }
 

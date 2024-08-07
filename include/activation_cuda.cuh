@@ -17,11 +17,15 @@
 #include <vector>
 
 #include "base_layer_cuda.cuh"
-#include "struct_var.h"
 
 __global__ void relu_mean_var_cuda(float const *mu_z, float const *var_z,
                                    int num_states, float *mu_a, float *jcb,
                                    float *var_a);
+
+__global__ void relu_mean_var_cuda_vectorized(float const *mu_z,
+                                              float const *var_z,
+                                              int num_states, float *mu_a,
+                                              float *jcb, float *var_a);
 
 __global__ void sigmoid_mean_var_cuda(float const *mu_z, float const *var_z,
                                       int num_states, float *mu_a, float *jcb,

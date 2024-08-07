@@ -201,6 +201,9 @@ void BaseLayer::compute_input_output_size(const InitArgs &args)
     this->out_channels = args.depth;
 }
 
+void BaseLayer::train() { this->training = true; }
+void BaseLayer::eval() { this->training = false; }
+
 void BaseLayer::storing_states_for_training(BaseHiddenStates &input_states,
                                             BaseHiddenStates &output_states)
 /*

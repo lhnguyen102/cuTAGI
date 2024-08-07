@@ -88,8 +88,8 @@ endif()
 # NOTE: This might need to change for higher CUDA version
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
-# list(APPEND CUDA_NVCC_FLAGS "--use_fast_math")
-# list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
+list(APPEND CUDA_NVCC_FLAGS "--use_fast_math")
+list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
 
 if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4")
@@ -115,28 +115,11 @@ set(CPU_SOURCES
   src/common.cpp
   src/cost.cpp
   src/dataloader.cpp
-  src/data_transfer_cpu.cpp
-  src/global_param_update_cpu.cpp
   src/indices.cpp
-  src/net_init.cpp
-  src/net_prop.cpp
-  src/feed_forward_cpu.cpp
-  src/param_feed_backward_cpu.cpp
-  src/state_feed_backward_cpu.cpp
-  src/lstm_feed_forward_cpu.cpp
-  src/lstm_feed_backward_cpu.cpp
-  src/activation_fun_cpu.cpp
-  src/task_cpu.cpp
-  src/user_input.cpp
   src/utils.cpp
-  src/feature_availability.cpp
-  src/derivative_calcul_cpu.cpp
-  src/tagi_network_cpu.cpp
-  src/tagi_network_base.cpp
-  src/self_attention_cpu.cpp
-  src/struct_var.cpp
-  src/fc_layer_cpu.cpp
-  src/embedding_cpu.cpp
+  # src/derivative_calcul_cpu.cpp
+  # src/self_attention_cpu.cpp
+  # src/embedding_cpu.cpp
   src/linear_layer.cpp
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
@@ -150,7 +133,7 @@ set(CPU_SOURCES
   src/data_struct.cpp
   src/param_init.cpp
   src/base_output_updater.cpp
-  src/debugger.cpp
+  # src/debugger.cpp
   src/resnet_block.cpp
   src/layer_block.cpp
 
@@ -170,22 +153,11 @@ set(CPU_SOURCES
   src/bindings/utils_bindings.cpp
   src/bindings/main_bindings.cpp
 
-  test/act_func/test_act_func_cpu.cpp
-  test/fnn/test_fnn_cpu.cpp
-  test/fnn_heteros/test_fnn_heteros_cpu.cpp
-  test/fnn_full_cov/test_fnn_full_cov_cpu.cpp
-  test/fnn_derivatives/test_fnn_derivatives_cpu.cpp
-  test/lstm/test_lstm_cpu.cpp
-  test/test_lstm.cpp
-  test/test_lstm_cpu.cpp
-  test/test_cpu.cpp
-  test/test_regression.cpp
-  test/test_dataloader.cpp
-  test/mha/test_mha_cpu.cpp
-  test/embedding/test_emb_cpu.cpp
+  # test/mha/test_mha_cpu.cpp
+  # test/embedding/test_emb_cpu.cpp
   test/fnn/test_fnn_cpu_v2.cpp
   test/fnn/test_fnn_mnist_cpu.cpp
-  test/cross_val/cross_val.cpp
+  # test/cross_val/cross_val.cpp
   test/autoencoder/test_autoencoder_v2.cpp
   test/lstm/test_lstm_v2.cpp
   test/resnet/test_resnet_1d_toy.cpp
@@ -195,18 +167,8 @@ set(CPU_SOURCES
 # Sources code for CUDA
 set(GPU_SOURCES
   ${CPU_SOURCES}
-  src/data_transfer.cu
-  src/global_param_update.cu
-  src/feed_forward.cu
-  src/param_feed_backward.cu
-  src/state_feed_backward.cu
-  src/derivative_calcul.cu
-  src/lstm_feed_forward.cu
-  src/lstm_feed_backward.cu
-  src/activation_fun.cu
-  src/task.cu
-  src/tagi_network.cu
-  src/gpu_debug_utils.cpp
+  # src/derivative_calcul.cu
+  # src/gpu_debug_utils.cpp
   src/data_struct_cuda.cu
   src/linear_layer_cuda.cu
   src/conv2d_layer_cuda.cu
@@ -219,12 +181,6 @@ set(GPU_SOURCES
   src/output_updater_cuda.cu
   src/resnet_block_cuda.cu
 
-  test/test_gpu.cu
-  test/autoencoder/test_autoencoder_gpu.cu
-  test/cnn/test_cnn_gpu.cu
-  test/cnn_batch_norm/test_cnn_batch_norm_gpu.cu
-  test/test_classification.cu
-  test/test_autoencoder.cu
 )
 
 # Output binary folder der for different mode

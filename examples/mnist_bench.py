@@ -39,15 +39,15 @@ TAGI_CNN = Sequential(
 )
 
 TAGI_CNN_BATCHNORM = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-    ReLU(),
-    BatchNorm2d(16),
-    AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False),
+    Conv2d(1, 32, 4, padding=1, in_width=28, in_height=28, bias=False),
     ReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 256),
+    Conv2d(32, 64, 5, bias=False),
+    ReLU(),
+    BatchNorm2d(64),
+    AvgPool2d(3, 2),
+    Linear(64 * 4 * 4, 256),
     ReLU(),
     Linear(256, 11),
 )
@@ -111,19 +111,20 @@ class TorchCNNBatchNorm(nn.Module):
     def __init__(self):
         super(TorchCNNBatchNorm, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=4, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(16, 32, kernel_size=5),
+            nn.Conv2d(1, 32, kernel_size=4, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(32, 64, kernel_size=5),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=3, stride=2),
             nn.Flatten(),
-            nn.Linear(32 * 4 * 4, 256),
+            nn.Linear(64 * 4 * 4, 256),
             nn.ReLU(),
             nn.Linear(256, 10),
         )
+        self.model.apply(initialize_weights)
 
     def forward(self, x):
         return self.model(x)
@@ -192,11 +193,12 @@ def tagi_trainer(
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
-            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
+            curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
         )
         var_y = np.full(
             (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
         )
+        net.train()
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -224,6 +226,7 @@ def tagi_trainer(
 
         # Testing
         test_error_rates = []
+        net.eval()
         for x, labels in test_loader:
 
             m_pred, v_pred = net(x)
@@ -273,7 +276,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
     # model = torch.compile(model, mode="reduce-overhead")
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training loop
     pbar = tqdm(range(num_epochs), desc="Training Progress")
@@ -315,13 +318,13 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
         test_loss /= len(test_loader.dataset)
         test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
         pbar.set_description(
-            f"Epoch# {epoch/num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%"
+            f"Epoch# {epoch + 1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%"
         )
 
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 256,
+    batch_size: int = 128,
     epochs: int = 20,
     device: str = "cuda",
 ):

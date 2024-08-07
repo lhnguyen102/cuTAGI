@@ -20,7 +20,6 @@
 #include "base_layer_cuda.cuh"
 #include "data_struct.h"
 #include "param_init.h"
-#include "struct_var.h"
 
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,

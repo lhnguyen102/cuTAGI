@@ -9,11 +9,14 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <iomanip>
 #include <iostream>
+#include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "net_prop.h"
+// #include "net_prop.h"
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>

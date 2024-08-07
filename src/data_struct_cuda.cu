@@ -8,6 +8,7 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/data_struct_cuda.cuh"
 
@@ -76,9 +77,9 @@ void HiddenStateCuda::allocate_memory() {
         this->deallocate_memory();
     }
     // Allocate memory on the GPU using cudaMalloc
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_mu_a, size * sizeof(float)));
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_var_a, size * sizeof(float)));
-    CHECK_CUDA_ERROR(cudaMalloc(&this->d_jcb, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_mu_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_var_a, size * sizeof(float)));
+    CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_jcb, size * sizeof(float)));
 
     // TODO: Jacobian needs to be intialized at 1.0. Zeros to mu_a and var_a?
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
@@ -652,8 +653,10 @@ void LSTMStateCuda::allocate_memory()
 /*
  */
 {
-    size_t size = num_states * sizeof(float);
-    size_t size_ha = (num_states + num_inputs) * sizeof(float);
+    size_t size =
+        ((num_states + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE * sizeof(float);
+    size_t size_ha = ((num_states + num_inputs + PACK_SIZE - 1) / PACK_SIZE) *
+                     PACK_SIZE * sizeof(float);
 
     cudaMalloc((void **)&d_mu_ha, size_ha);
     cudaMalloc((void **)&d_var_ha, size_ha);

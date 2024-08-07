@@ -9,6 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/base_layer_cuda.cuh"
+#include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
 
 __global__ void fill_bwd_states_on_device(float const *mu_a_in,
@@ -72,12 +73,14 @@ __global__ void device_weight_update(float const *delta_mu_w,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float delta_mu_sign, delta_var_sign, delta_bar;
     if (col < size) {
-        delta_mu_sign = (delta_mu_w[col] > 0) - (delta_mu_w[col] < 0);
-        delta_var_sign = (delta_var_w[col] > 0) - (delta_var_w[col] < 0);
+        float tmp_mu = delta_mu_w[col];
+        float tmp_var = delta_var_w[col];
+        delta_mu_sign = (tmp_mu > 0) - (tmp_mu < 0);
+        delta_var_sign = (tmp_var > 0) - (tmp_var < 0);
         delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
 
-        mu_w[col] += delta_mu_sign * min(fabsf(delta_mu_w[col]), delta_bar);
-        var_w[col] += delta_var_sign * min(fabsf(delta_var_w[col]), delta_bar);
+        mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
+        var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
     }
 }
 
@@ -125,16 +128,22 @@ void BaseLayerCuda::allocate_param_delta()
 /*
  */
 {
+    // Recalculate size for the memory alignment
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
     this->delta_mu_w.resize(this->num_weights, 0.0f);
     this->delta_var_w.resize(this->num_weights, 0.0f);
 
-    cudaMalloc(&this->d_delta_mu_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_delta_var_w, this->num_weights * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
     if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
         this->delta_mu_b.resize(this->num_biases, 0.0f);
         this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc(&this->d_delta_mu_b, this->num_biases * sizeof(float));
-        cudaMalloc(&this->d_delta_var_b, this->num_biases * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
     }
     CHECK_LAST_CUDA_ERROR();
 }
@@ -178,10 +187,11 @@ void BaseLayerCuda::update_weights()
  */
 {
     // TODO: replace with capped update version
-    unsigned int blocks = (this->num_weights + this->num_cuda_threads - 1) /
-                          this->num_cuda_threads;
+    unsigned int num_add_threads = 256;
+    unsigned int blocks =
+        (this->num_weights + num_add_threads - 1) / num_add_threads;
 
-    device_weight_update<<<blocks, this->num_cuda_threads>>>(
+    device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
         this->num_weights, this->d_mu_w, this->d_var_w);
 }
@@ -192,10 +202,11 @@ void BaseLayerCuda::update_biases()
 {
     if (this->bias) {
         // TODO: replace with capped update version
-        unsigned int blocks = (this->num_biases + this->num_cuda_threads - 1) /
-                              this->num_cuda_threads;
+        unsigned int num_add_threads = 256;
+        unsigned int blocks =
+            (this->num_biases + num_add_threads - 1) / num_add_threads;
 
-        device_bias_update<<<blocks, this->num_cuda_threads>>>(
+        device_bias_update<<<blocks, num_add_threads>>>(
             this->d_delta_mu_b, this->d_delta_var_b, this->cap_factor_update,
             this->num_biases, this->d_mu_b, this->d_var_b);
     }
@@ -211,10 +222,18 @@ void BaseLayerCuda::allocate_param_memory()
 /*
  */
 {
-    cudaMalloc(&this->d_mu_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_var_w, this->num_weights * sizeof(float));
-    cudaMalloc(&this->d_mu_b, this->num_biases * sizeof(float));
-    cudaMalloc(&this->d_var_b, this->num_biases * sizeof(float));
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    cudaMalloc((void **)&this->d_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_var_w, num_w * sizeof(float));
+
+    if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+        cudaMalloc((void **)&this->d_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_var_b, num_b * sizeof(float));
+    }
 
     CHECK_LAST_CUDA_ERROR();
 }
@@ -361,22 +380,28 @@ void BaseLayerCuda::store_states_for_training_cuda(
     BackwardStateCuda *cu_bwd_states =
         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     int batch_size = input_states.block_size;
-    int threads = this->num_cuda_threads;
+    // int threads = this->num_cuda_threads;
     int act_size = input_states.actual_size * batch_size;
     if (cu_bwd_states->size != act_size) {
         cu_bwd_states->size = act_size;
         cu_bwd_states->allocate_memory();
     }
 
-    unsigned int blocks = (act_size + threads - 1) / threads;
+    constexpr unsigned int THREADS = 256;
+    // unsigned int blocks = (act_size + THREADS - 1) / THREADS;
 
-    fill_bwd_states_on_device<<<blocks, threads>>>(
-        input_states.d_mu_a, input_states.d_jcb, act_size,
-        cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
+    // fill_bwd_states_on_device<<<blocks, THREADS>>>(
+    //     input_states.d_mu_a, input_states.d_jcb, act_size,
+    //     cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
+
+    cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
+               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
+               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
     int out_size = this->output_size * batch_size;
-    unsigned int out_blocks = (out_size + threads - 1) / threads;
+    unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
 
-    fill_output_states_on_device<<<out_blocks, threads>>>(out_size,
+    fill_output_states_on_device<<<out_blocks, THREADS>>>(out_size,
                                                           output_states.d_jcb);
 }

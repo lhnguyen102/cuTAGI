@@ -19,7 +19,6 @@
 #include "common.h"
 #include "data_struct.h"
 #include "output_layer_update_cpu.h"
-#include "struct_var.h"
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
 #endif
@@ -85,6 +84,9 @@ class Sequential {
     void init_delta_state_buffer();
 
     void set_threads(unsigned num_threads);
+
+    void train();
+    void eval();
 
     std::string get_device();
 

@@ -220,6 +220,8 @@
         "syncstream": "cpp",
         "expected": "cpp",
         "spanstream": "cpp",
-        "stacktrace": "cpp"
+        "stacktrace": "cpp",
+        "__string": "cpp",
+        "filesystem": "cpp"
     }
 }
