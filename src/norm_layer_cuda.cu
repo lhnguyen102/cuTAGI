@@ -568,8 +568,8 @@ void batchnorm2d_fwd_sum_reduction(float *&sample, float *&mu_s, int batch_size,
  */
 {
     // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
+    constexpr unsigned int BLOCK_SIZE_X = 64;
+    constexpr unsigned int BLOCK_SIZE_Y = 16;
     const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
     unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
     unsigned int grid_size_x =
@@ -611,8 +611,8 @@ void batchnorm2d_fwd_dual_sum_reduction(float *&mu_in, float *&var_in,
  */
 {
     // TODO: remove this hard code
-    constexpr unsigned BLOCK_SIZE_X = 64;
-    constexpr unsigned BLOCK_SIZE_Y = 16;
+    constexpr unsigned int BLOCK_SIZE_X = 64U;
+    constexpr unsigned int BLOCK_SIZE_Y = 16U;
     const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
     unsigned int grid_size_y = (fi + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
     unsigned int grid_size_x =
@@ -1392,12 +1392,12 @@ void BatchNorm2dCuda::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
-    float scale = 1.0f / this->num_weights;
+    float scale = 1.0f / sqrtf(this->num_weights);
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale);
+        this->var_b.resize(this->num_weights, scale / 10);
 
     } else {
         this->num_biases = 0;
@@ -1500,7 +1500,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     float _momentum = this->momentum;
     if (this->first_batch) {
         if (this->training) {
-            _momentum = 1.0f;
+            _momentum = 0.0f;
         }
         this->first_batch = false;
     }

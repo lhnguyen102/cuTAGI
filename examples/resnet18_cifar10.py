@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 import torch
@@ -6,7 +14,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from pytagi import HRCSoftmaxMetric, Utils
+from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -34,9 +42,9 @@ CNN_NET = Sequential(
     BatchNorm2d(64),
     ReLU(),
     AvgPool2d(3, 2, padding=1, padding_type=2),
-    Linear(64 * 4 * 4, 128),
+    Linear(64 * 4 * 4, 256),
     ReLU(),
-    Linear(128, 11),
+    Linear(256, 11),
 )
 
 
@@ -44,13 +52,16 @@ def custom_collate_fn(batch):
     # batch is a list of tuples (image, label)
     batch_images, batch_labels = zip(*batch)
 
-    # Convert to a single tensor and then to numpy
+    # Convert to a single tensor
     batch_images = torch.stack(batch_images)
     batch_labels = torch.tensor(batch_labels)
 
-    # Flatten images and labels to 1D
-    batch_images = batch_images.numpy().reshape(len(batch_images), -1).flatten()
-    batch_labels = batch_labels.numpy().flatten()
+    # Flatten images to shape (B*C*H*W,)
+    batch_images = batch_images.reshape(-1)
+
+    # Convert to numpy arrays
+    batch_images = batch_images.numpy()
+    batch_labels = batch_labels.numpy()
 
     return batch_images, batch_labels
 
@@ -97,7 +108,7 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 1):
     """
     Run classification training on the Cifar dataset using a custom neural model.
 
@@ -112,7 +123,8 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    net = resnet18_cifar10()
+    # net = resnet18_cifar10()
+    net = CNN_NET
     net.to_device("cuda")
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -124,7 +136,14 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        # count = 0
+        if epoch > 1:
+            sigma_v = exponential_scheduler(
+                curr_v=sigma_v, min_v=0.3, decaying_factor=0.95, curr_iter=epoch
+            )
+            var_y = np.full(
+                (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
+            )
+        net.train()
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -152,6 +171,7 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
 
         # Testing
         test_error_rates = []
+        net.eval()
         for x, labels in test_loader:
 
             m_pred, v_pred = net(x)

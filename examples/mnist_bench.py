@@ -179,7 +179,7 @@ def tagi_trainer(
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=10)
-    net = TAGI_CNN_BATCHNORM
+    net = TAGI_FNN
     net.to_device(device)
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -272,7 +272,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = TorchCNNBatchNorm().to(torch_device)
+    model = TorchFNN().to(torch_device)
     # model = torch.compile(model, mode="reduce-overhead")
 
     criterion = nn.CrossEntropyLoss()
@@ -324,7 +324,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 256,
+    batch_size: int = 128,
     epochs: int = 20,
     device: str = "cuda",
 ):

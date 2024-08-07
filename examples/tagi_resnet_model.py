@@ -42,6 +42,7 @@ def resnet18_cifar10() -> Sequential:
     resnet_layers = [
         # 32x32
         ResNetBlock(make_layer_block(64, 64)),
+        ReLU(),
         ResNetBlock(make_layer_block(64, 64)),
         ReLU(),
         # 16x16
@@ -49,6 +50,7 @@ def resnet18_cifar10() -> Sequential:
             make_layer_block(64, 128, 2, 2),
             LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2), BatchNorm2d(128)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(128, 128)),
         ReLU(),
         # 8x8
@@ -56,6 +58,7 @@ def resnet18_cifar10() -> Sequential:
             make_layer_block(128, 256, 2, 2),
             LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2), BatchNorm2d(256)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(256, 256)),
         ReLU(),
         # 4x4
@@ -63,10 +66,11 @@ def resnet18_cifar10() -> Sequential:
             make_layer_block(256, 512, 2, 2),
             LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2), BatchNorm2d(512)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(512, 512)),
         ReLU(),
     ]
 
-    final_layers = [ReLU(), AvgPool2d(4), Linear(512, 11)]
+    final_layers = [AvgPool2d(4), Linear(512, 11)]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)

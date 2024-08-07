@@ -1,11 +1,3 @@
-# Temporary import. It will be removed in the final vserion
-import os
-import sys
-
-# Add the 'build' directory to sys.path in one line
-sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
-)
 import fire
 import numpy as np
 import torch
@@ -25,20 +17,23 @@ torch.manual_seed(42)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
-NORMALIZATION_STD = (0.247, 0.243, 0.261)
+NORMALIZATION_STD = (0.2023, 0.1994, 0.2010)
 
 
 def custom_collate_fn(batch):
     # batch is a list of tuples (image, label)
     batch_images, batch_labels = zip(*batch)
 
-    # Convert to a single tensor and then to numpy
+    # Convert to a single tensor
     batch_images = torch.stack(batch_images)
     batch_labels = torch.tensor(batch_labels)
 
-    # Flatten images and labels to 1D
-    batch_images = batch_images.numpy().flatten()
-    batch_labels = batch_labels.numpy().flatten()
+    # Flatten images to shape (B*C*H*W,)
+    batch_images = batch_images.reshape(-1)
+
+    # Convert to numpy arrays
+    batch_images = batch_images.numpy()
+    batch_labels = batch_labels.numpy()
 
     return batch_images, batch_labels
 
