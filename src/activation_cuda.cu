@@ -268,10 +268,10 @@ void MixtureReLUCuda::forward(BaseHiddenStates &input_states,
     // *>(&temp_states);
 
     int num_states = input_states.actual_size * input_states.block_size;
-    unsigned int blocks =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    constexpr unsigned int THREADS = 256;
+    unsigned int blocks = (num_states + THREADS - 1) / THREADS;
 
-    mixture_relu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+    mixture_relu_mean_var_cuda<<<blocks, THREADS>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);

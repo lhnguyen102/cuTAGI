@@ -173,6 +173,7 @@ void Sequential::train()
 /*
  */
 {
+    this->training = true;
     for (auto &layer : this->layers) {
         layer->train();
     }
@@ -182,6 +183,7 @@ void Sequential::eval()
 /*
  */
 {
+    this->training = false;
     for (auto &layer : this->layers) {
         layer->eval();
     }

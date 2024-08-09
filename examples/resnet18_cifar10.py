@@ -31,18 +31,18 @@ NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
 NORMALIZATION_STD = (0.2023, 0.1994, 0.2010)
 
 CNN_NET = Sequential(
-    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    BatchNorm2d(32),
-    ReLU(),
-    AvgPool2d(3, 2, padding=1, padding_type=2),
-    BatchNorm2d(32),
-    ReLU(),
-    AvgPool2d(3, 2, padding=1, padding_type=2),
-    Conv2d(32, 64, 5, bias=False, padding=2),
+    Conv2d(3, 64, 5, bias=False, padding=2, in_width=32, in_height=32),
     BatchNorm2d(64),
     ReLU(),
     AvgPool2d(3, 2, padding=1, padding_type=2),
-    Linear(64 * 4 * 4, 256),
+    BatchNorm2d(64),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    Conv2d(64, 128, 5, bias=False, padding=2),
+    BatchNorm2d(128),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    Linear(128 * 4 * 4, 256),
     ReLU(),
     Linear(256, 11),
 )
@@ -108,7 +108,7 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 1):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.8):
     """
     Run classification training on the Cifar dataset using a custom neural model.
 
@@ -138,7 +138,7 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 1):
     for epoch in pbar:
         if epoch > 1:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.3, decaying_factor=0.95, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.2, decaying_factor=0.95, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32

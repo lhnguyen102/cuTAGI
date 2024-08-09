@@ -1392,12 +1392,12 @@ void BatchNorm2dCuda::init_weight_bias()
     this->num_weights = this->num_features;
     this->num_biases = this->num_features;
 
-    float scale = 1.0f / sqrtf(this->num_weights);
+    float scale = pow(1, 2);
     this->mu_w.resize(this->num_weights, 1.0f);
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale / 10);
+        this->var_b.resize(this->num_weights, scale / 1e4);
 
     } else {
         this->num_biases = 0;
@@ -1422,7 +1422,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
  */
 {
     this->mu_ra.resize(this->num_features, 0.0f);
-    this->var_ra.resize(this->num_features, 0.0f);
+    this->var_ra.resize(this->num_features, 1.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 0.0f);
 
@@ -1553,6 +1553,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         // Local pointer for swapping. Leverage the existing and
         // not-yet-used memory block defined in GPU device to reduce the
         // memory allocation
+
         float *buf_mu_out = cu_output_states->d_mu_a;
         float *buf_var_out = cu_output_states->d_var_a;
         float *buf_mu_in = cu_temp_states->d_tmp_1;

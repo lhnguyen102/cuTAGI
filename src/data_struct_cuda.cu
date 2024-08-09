@@ -82,6 +82,10 @@ void HiddenStateCuda::allocate_memory() {
     CHECK_CUDA_ERROR(cudaMalloc((void **)&this->d_jcb, size * sizeof(float)));
 
     // TODO: Jacobian needs to be intialized at 1.0. Zeros to mu_a and var_a?
+    cudaMemcpy(this->d_mu_a, this->mu_a.data(), this->size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_a, this->var_a.data(), this->size * sizeof(float),
+               cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 };

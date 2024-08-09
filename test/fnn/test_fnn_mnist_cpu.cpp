@@ -173,9 +173,11 @@ void fnn_mnist() {
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < 1; i++) {
+            mt_idx = i * batch_size;
             // Load data
-            get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
-                                    y_batch, idx_ud_batch, label_batch);
+            get_batch_images_labels(train_db, data_idx, batch_size, mt_idx,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
             // // Forward pass
             model.forward(x_batch);
@@ -215,7 +217,6 @@ void fnn_mnist() {
                 get_error(mu_a_output, var_a_output, label_batch, num_classes,
                           batch_size);
 
-            mt_idx = i * batch_size;
             update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
             if (i % 100 == 0 && i != 0) {

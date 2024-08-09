@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 import torch
@@ -9,15 +17,92 @@ import torch.nn as nn
 import torch.optim as optim
 
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import OutputUpdater
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    Linear,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
 
 torch.manual_seed(42)
 
 # Constants for dataset normalization
-NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
-NORMALIZATION_STD = (0.2023, 0.1994, 0.2010)
+NORMALIZATION_MEAN = [0.4914, 0.4822, 0.4465]
+NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
+
+TAGI_CNN_NET = Sequential(
+    # 32x32
+    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
+    BatchNorm2d(32),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    # 16x16
+    Conv2d(32, 32, 5, bias=False, padding=2),
+    BatchNorm2d(32),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    # 8x8
+    Conv2d(32, 64, 5, bias=False, padding=2),
+    BatchNorm2d(64),
+    ReLU(),
+    AvgPool2d(3, 2, padding=1, padding_type=2),
+    # 4x4
+    Linear(64 * 4 * 4, 256),
+    ReLU(),
+    Linear(256, 11),
+)
+
+
+# TORCH
+def initialize_weights(module):
+    if isinstance(module, nn.Conv2d):
+        nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+        if module.bias is not None:
+            nn.init.constant_(module.bias, 0)
+    elif isinstance(module, nn.Linear):
+        nn.init.xavier_uniform_(module.weight)
+        if module.bias is not None:
+            nn.init.constant_(module.bias, 0)
+
+
+class TorchCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = nn.Sequential(
+            # 32x32
+            nn.Conv2d(3, 32, kernel_size=5, padding=2, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
+            # 16x16
+            nn.Conv2d(32, 32, kernel_size=5, bias=False, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
+            # 8x8
+            nn.Conv2d(32, 64, kernel_size=5, bias=False, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
+            # 4x4
+            nn.Flatten(),
+            nn.Linear(64 * 4 * 4, 256),
+            nn.ReLU(),
+            nn.Linear(256, 10),
+        )
+        self.model.apply(initialize_weights)
+
+    def forward(self, x):
+        # for i, layer in enumerate(self.model):
+        #     x = layer(x)
+        #     print(f"Layer {i}: {layer.__class__.__name__}, Output shape {x.shape}")
+        # return x
+        return self.model(x)
 
 
 def custom_collate_fn(batch):
@@ -90,9 +175,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
 
 def tagi_trainer(
     num_epochs: int = 10,
-    batch_size: int = 128,
+    batch_size: int = 256,
     device: str = "cuda",
-    sigma_v: float = 1.0,
+    sigma_v: float = 0.5,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -119,9 +204,9 @@ def tagi_trainer(
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
-        if epoch > 1:
+        if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
@@ -173,7 +258,7 @@ def tagi_trainer(
 
 def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
     # Hyperparameters
-    learning_rate = 0.01
+    learning_rate = 0.001
 
     torch.set_float32_matmul_precision("high")
     train_loader, test_loader = load_datasets(batch_size, "torch")
@@ -184,7 +269,8 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = ResNet18()
+    # model = ResNet18()
+    model = TorchCNN()
     # model = torch.compile(model)
     model.to(torch_device)
 
@@ -237,7 +323,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 128,
+    batch_size: int = 256,
     epochs: int = 40,
     device: str = "cuda",
 ):

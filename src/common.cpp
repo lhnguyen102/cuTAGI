@@ -75,28 +75,6 @@ void create_directory(std::string &path) {
 #endif
 }
 
-float get_cap_factor(int batch_size)
-/*Get the cap factor w.r.t the bacth size.
-We define a cap factor for regularizing the updating quantities of the
-parameters when the batch size is large. NOTE: the current values of the cap
-factor is based on what we have tested in practice.
-
-Args:
-    batch_size: Size of minibatches
-
-Returns:
-    cap_factor: Cap factor
-*/
-{
-    if (batch_size >= 100 && batch_size < 500) {
-        return 10.0f;
-    }
-    if (batch_size >= 500) {
-        return 20.0f;
-    }
-    return 1.0f;
-}
-
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min)
 /* Decrease the value of observation noise after each epoch
 

@@ -72,19 +72,53 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::mt19937 gen(rd());
 
     // Initialize pointers
-    std::vector<float> S(N);
+    std::vector<float> S(N, pow(gain * scale, 2));
     std::vector<float> m(N);
+
+    // Standard normal distribution
+    std::normal_distribution<float> d(0.0f, 1.0f);
 
     // Weights
     for (int i = 0; i < N; i++) {
-        // Variance
-        S[i] = gain * pow(scale, 2);
-
-        // Get normal distribution
-        std::normal_distribution<float> d(0.0f, scale);
-
         // Get sample for weights
-        m[i] = d(gen);
+        m[i] = gain * scale * d(gen);
+    }
+
+    return {m, S};
+}
+
+std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
+    float scale, float gain, int N)
+/* Parmeter initialization of TAGI neural networks.
+ *
+ * Args:
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ *  */
+{
+    // Initialize device
+    std::random_device rd;
+
+    // Mersenne twister PRNG - seed
+    std::mt19937 gen(rd());
+
+    // Initialize pointers
+    std::vector<float> S(N, pow(gain * scale, 2));
+    std::vector<float> m(N);
+
+    // Uniform distribution
+    std::uniform_real_distribution<float> d(-1.0f, 1.0f);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        // Get sample for weights
+        m[i] = gain * scale * d(gen);
     }
 
     return {m, S};
@@ -120,9 +154,9 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     for (int i = 0; i < N; i++) {
         // Variance for output and noise's hidden states
         if (i < N / 2) {
-            S[i] = gain * pow(scale, 2);
+            S[i] = pow(gain * scale, 2);
         } else {
-            S[i] = noise_gain * pow(scale, 2);
+            S[i] = noise_gain * pow(gain * scale, 2);
             scale = pow(S[i], 0.5);
             int a = 0;
         }

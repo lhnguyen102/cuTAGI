@@ -189,9 +189,8 @@ void LayerBlock::backward(BaseDeltaStates &input_delta_states,
  */
 {
     // Hidden layers
-    for (auto layer = this->layers.rbegin(); layer != this->layers.rend() - 1;
-         ++layer) {
-        auto *current_layer = layer->get();
+    for (size_t i = layers.size() - 1; i > 0; --i) {
+        auto *current_layer = this->layers[i].get();
 
         // Backward pass for hidden states
         current_layer->backward(input_delta_states, output_delta_states,

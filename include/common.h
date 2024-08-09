@@ -216,8 +216,6 @@ std::vector<int> transpose_matrix(std::vector<int> &M, int w, int h);
 
 void create_directory(std::string &path);
 
-float get_cap_factor(int batch_size);
-
 void decay_obs_noise(float &sigma_v, float &decay_factor, float &sigma_v_min);
 
 void get_multithread_indices(int i, int n_batch, int rem_batch, int &start_idx,
