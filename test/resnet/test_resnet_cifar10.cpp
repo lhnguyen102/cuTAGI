@@ -166,12 +166,13 @@ void resnet_cifar10()
     //     // Output block
     //     AvgPool2d(4), Linear(64, 11));
 
-    Sequential model(Conv2d(3, 32, 5, false, 1, 2, 1, 32, 32), BatchNorm2d(32),
-                     ReLU(), AvgPool2d(3, 2, 1, 2),
-                     Conv2d(32, 32, 5, false, 1, 2, 1), BatchNorm2d(32), ReLU(),
-                     AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, false, 1, 2, 1),
-                     BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1, 2),
-                     Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(3, 32, 5, false, 1, 2, 1, 32, 32),
+    // BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2),
+    //                  Conv2d(32, 32, 5, false, 1, 2, 1), BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, false,
+    //                  1, 2, 1), BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1,
+    //                  2), Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
     // Sequential model(
     //     Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1,

@@ -24,12 +24,13 @@ from pytagi.nn import (
     Linear,
     OutputUpdater,
     ReLU,
+    MixtureReLU,
     Sequential,
 )
 from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
 
-torch.manual_seed(42)
+torch.manual_seed(1334)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = [0.4914, 0.4822, 0.4465]
@@ -37,18 +38,18 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 
 TAGI_CNN_NET = Sequential(
     # 32x32
-    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    BatchNorm2d(32),
+    Conv2d(3, 32, 5, bias=True, padding=2, in_width=32, in_height=32),
+    # BatchNorm2d(32),
     ReLU(),
     AvgPool2d(3, 2, padding=1, padding_type=2),
     # 16x16
-    Conv2d(32, 32, 5, bias=False, padding=2),
-    BatchNorm2d(32),
+    Conv2d(32, 32, 5, bias=True, padding=2),
+    # BatchNorm2d(32),
     ReLU(),
     AvgPool2d(3, 2, padding=1, padding_type=2),
     # 8x8
-    Conv2d(32, 64, 5, bias=False, padding=2),
-    BatchNorm2d(64),
+    Conv2d(32, 64, 5, bias=True, padding=2),
+    # BatchNorm2d(64),
     ReLU(),
     AvgPool2d(3, 2, padding=1, padding_type=2),
     # 4x4
@@ -61,11 +62,11 @@ TAGI_CNN_NET = Sequential(
 # TORCH
 def initialize_weights(module):
     if isinstance(module, nn.Conv2d):
-        nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+        nn.init.kaiming_normal_(module.weight, nonlinearity="relu")
         if module.bias is not None:
             nn.init.constant_(module.bias, 0)
     elif isinstance(module, nn.Linear):
-        nn.init.xavier_uniform_(module.weight)
+        nn.init.xavier_normal_(module.weight)
         if module.bias is not None:
             nn.init.constant_(module.bias, 0)
 
@@ -76,17 +77,17 @@ class TorchCNN(nn.Module):
         self.model = nn.Sequential(
             # 32x32
             nn.Conv2d(3, 32, kernel_size=5, padding=2, bias=False),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
             # 16x16
             nn.Conv2d(32, 32, kernel_size=5, bias=False, padding=2),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
             # 8x8
             nn.Conv2d(32, 64, kernel_size=5, bias=False, padding=2),
-            nn.BatchNorm2d(64),
+            # nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=3, stride=2, ceil_mode=True),
             # 4x4
@@ -174,10 +175,10 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
 
 
 def tagi_trainer(
-    num_epochs: int = 10,
-    batch_size: int = 256,
-    device: str = "cuda",
-    sigma_v: float = 0.5,
+    num_epochs: int,
+    batch_size: int,
+    device: str,
+    sigma_v: float,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -193,7 +194,8 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    net = resnet18_cifar10()
+    net = TAGI_CNN_NET
+    # net = resnet18_cifar10()
     net.to_device(device)
     out_updater = OutputUpdater(net.device)
 
@@ -206,7 +208,7 @@ def tagi_trainer(
     for epoch in pbar:
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.1, decaying_factor=0.9, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
@@ -260,7 +262,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
     # Hyperparameters
     learning_rate = 0.001
 
-    torch.set_float32_matmul_precision("high")
+    # torch.set_float32_matmul_precision("high")
     train_loader, test_loader = load_datasets(batch_size, "torch")
 
     # Initialize the model, loss function, and optimizer
@@ -323,14 +325,17 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 256,
+    batch_size: int = 32,
     epochs: int = 40,
     device: str = "cuda",
+    sigma_v: float = 1.0,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
     elif framework == "tagi":
-        tagi_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
+        tagi_trainer(
+            batch_size=batch_size, num_epochs=epochs, device=device, sigma_v=sigma_v
+        )
     else:
         raise RuntimeError(f"Invalid Framework: {framework}")
 

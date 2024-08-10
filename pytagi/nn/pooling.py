@@ -11,7 +11,7 @@ class AvgPool2d(BaseLayer):
         kernel_size: int,
         stride: int = -1,
         padding: int = 0,
-        padding_type: int = 0,
+        padding_type: int = 1,
     ):
         super().__init__()
         self.kernel_size = kernel_size

@@ -194,6 +194,10 @@ void BaseLayerCuda::update_weights()
     device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
         this->num_weights, this->d_mu_w, this->d_var_w);
+
+    // device_raw_weight_update<<<blocks, num_add_threads>>>(
+    //     this->d_delta_mu_w, this->d_delta_var_w, this->num_weights,
+    //     this->d_mu_w, this->d_var_w);
 }
 
 void BaseLayerCuda::update_biases()
@@ -209,6 +213,10 @@ void BaseLayerCuda::update_biases()
         device_bias_update<<<blocks, num_add_threads>>>(
             this->d_delta_mu_b, this->d_delta_var_b, this->cap_factor_update,
             this->num_biases, this->d_mu_b, this->d_var_b);
+
+        // device_raw_bias_update<<<blocks, num_add_threads>>>(
+        //     this->d_delta_mu_b, this->d_delta_var_b, this->num_biases,
+        //     this->d_mu_b, this->d_var_b);
     }
 }
 

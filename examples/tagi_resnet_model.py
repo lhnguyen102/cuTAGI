@@ -24,10 +24,7 @@ def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int =
             padding_type=padding_type,
         ),
         ReLU(),
-        BatchNorm2d(out_c),
         Conv2d(out_c, out_c, 3, bias=False, padding=1),
-        ReLU(),
-        BatchNorm2d(out_c),
     )
 
 
@@ -37,37 +34,38 @@ def resnet18_cifar10() -> Sequential:
     initial_layers = [
         Conv2d(3, 64, 3, bias=False, padding=1, in_width=32, in_height=32),
         ReLU(),
-        BatchNorm2d(64),
     ]
 
     resnet_layers = [
         # 32x32
         ResNetBlock(make_layer_block(64, 64)),
+        ReLU(),
         ResNetBlock(make_layer_block(64, 64)),
+        ReLU(),
         # 16x16
         ResNetBlock(
             make_layer_block(64, 128, 2, 2),
-            LayerBlock(
-                Conv2d(64, 128, 2, bias=False, stride=2), ReLU(), BatchNorm2d(128)
-            ),
+            LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(128, 128)),
+        ReLU(),
         # 8x8
         ResNetBlock(
             make_layer_block(128, 256, 2, 2),
-            LayerBlock(
-                Conv2d(128, 256, 2, bias=False, stride=2), ReLU(), BatchNorm2d(256)
-            ),
+            LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(256, 256)),
+        ReLU(),
         # 4x4
         ResNetBlock(
             make_layer_block(256, 512, 2, 2),
-            LayerBlock(
-                Conv2d(256, 512, 2, bias=False, stride=2), ReLU(), BatchNorm2d(512)
-            ),
+            LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2)),
         ),
+        ReLU(),
         ResNetBlock(make_layer_block(512, 512)),
+        ReLU(),
     ]
 
     final_layers = [AvgPool2d(4), Linear(512, 11)]
