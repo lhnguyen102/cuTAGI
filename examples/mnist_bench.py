@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 import torch
@@ -17,6 +25,8 @@ from pytagi.nn import (
     ReLU,
     Sequential,
 )
+
+torch.manual_seed(1334)
 
 TAGI_FNN = Sequential(
     Linear(784, 4096),
@@ -146,7 +156,7 @@ def custom_collate_fn(batch):
 
 
 def tagi_trainer(
-    batch_size: int, num_epochs: int, device: str = "cpu", sigma_v: float = 2.0
+    batch_size: int, num_epochs: int, device: str = "cpu", sigma_v: float = 1.0
 ):
     # Data loading and preprocessing
     transform = transforms.Compose(
@@ -245,7 +255,7 @@ def tagi_trainer(
 
 def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
     # Hyperparameters
-    learning_rate = 0.01
+    learning_rate = 0.001
 
     # torch.set_float32_matmul_precision("high")
 

@@ -104,6 +104,8 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
     DeltaStateCuda *cu_delta_states =
         dynamic_cast<DeltaStateCuda *>(&delta_states);
 
+    // TODO: replace the following with a check function because the size of
+    // batch might change
     if (cu_obs->d_mu_obs == nullptr) {
         cu_obs->allocate_memory();
     }

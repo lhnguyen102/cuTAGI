@@ -54,20 +54,21 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
     this->actual_size = data_size / block_size;
     this->block_size = block_size;
 
-    for (int i = 0; i < data_size; i++) {
-        this->mu_a[i] = mu_x[i];
-        this->jcb[i] = 1.0f;
-    }
+    // Copy mu_x and jcb to device memory
+    cudaMemcpy(this->d_mu_a, mu_x.data(), data_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_jcb, std::vector<float>(data_size, 1.0f).data(),
+               data_size * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy var_x to device memory if it has the same size as mu_x
     if (var_x.size() == data_size) {
-        for (int i = 0; i < data_size; i++) {
-            this->var_a[i] = var_x[i];
-        }
+        cudaMemcpy(this->d_var_a, var_x.data(), data_size * sizeof(float),
+                   cudaMemcpyHostToDevice);
     } else {
-        for (int i = 0; i < data_size; i++) {
-            this->var_a[i] = 0.0f;
-        }
+        // Set var_a to 0.0f on device memory
+        cudaMemset(this->d_var_a, 0, data_size * sizeof(float));
     }
-    this->chunks_to_device(data_size);
+    // this->chunks_to_device(data_size);
 }
 
 void HiddenStateCuda::allocate_memory() {

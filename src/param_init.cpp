@@ -50,75 +50,108 @@ float xavier_init(float fan_in, float fan_out)
     return scale;
 }
 
+// std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
+//     float scale, float gain, int N)
+// /* Parmeter initialization of TAGI neural networks.
+//  *
+//  * Args:
+//  *    scale: Standard deviation for weight distribution
+//  *    gain: Mutiplication factor
+//  *    N: Number of parameters
+//  *
+//  * Returns:
+//  *    m: Mean
+//  *    S: Variance
+//  *
+//  *  */
+// {
+//     // Initialize device
+//     std::random_device rd;
+
+//     // Mersenne twister PRNG - seed
+//     std::mt19937 gen(rd());
+
+//     // Initialize pointers
+//     std::vector<float> S(N, pow(gain * scale, 2));
+//     std::vector<float> m(N);
+
+//     // Standard normal distribution
+//     std::normal_distribution<float> d(0.0f, 1.0f);
+
+//     // Weights
+//     for (int i = 0; i < N; i++) {
+//         // Get sample for weights
+//         m[i] = gain * scale * d(gen);
+//     }
+
+//     return {m, S};
+// }
+
+// std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
+//     float scale, float gain, int N)
+// /* Parmeter initialization of TAGI neural networks.
+//  *
+//  * Args:
+//  *    scale: Standard deviation for weight distribution
+//  *    gain: Mutiplication factor
+//  *    N: Number of parameters
+//  *
+//  * Returns:
+//  *    m: Mean
+//  *    S: Variance
+//  *
+//  *  */
+// {
+//     // Initialize device
+//     std::random_device rd;
+
+//     // Mersenne twister PRNG - seed
+//     std::mt19937 gen(rd());
+
+//     // Initialize pointers
+//     std::vector<float> S(N, pow(gain * scale, 2));
+//     std::vector<float> m(N);
+
+//     // Uniform distribution
+//     std::uniform_real_distribution<float> d(-1.0f, 1.0f);
+
+//     // Weights
+//     for (int i = 0; i < N; i++) {
+//         // Get sample for weights
+//         m[i] = gain * scale * d(gen);
+//     }
+
+//     return {m, S};
+// }
+
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
-    float scale, float gain, int N)
-/* Parmeter initialization of TAGI neural networks.
- *
- * Args:
- *    scale: Standard deviation for weight distribution
- *    gain: Mutiplication factor
- *    N: Number of parameters
- *
- * Returns:
- *    m: Mean
- *    S: Variance
- *
- *  */
-{
-    // Initialize device
+    float scale, float gain, int N, unsigned int seed = 42) {
+    // Initialize random device and generator
     std::random_device rd;
-
-    // Mersenne twister PRNG - seed
     std::mt19937 gen(rd());
 
-    // Initialize pointers
-    std::vector<float> S(N, pow(gain * scale, 2));
+    // Create vectors for mean (m) and variance (S)
     std::vector<float> m(N);
+    std::vector<float> S(N, std::pow(gain * scale, 2));
 
-    // Standard normal distribution
-    std::normal_distribution<float> d(0.0f, 1.0f);
+    // Create Gaussian distribution
+    std::normal_distribution<float> dist(0.0f, 1.0f);
 
-    // Weights
+    std::uniform_real_distribution<float> s_dist(1e-6f,
+                                                 std::pow(gain * scale, 2));
+
+    // Set limit to 3 times the scale (you can adjust this as needed)
+    float limit = 3.0f;
+
+    // Generate weights
     for (int i = 0; i < N; i++) {
-        // Get sample for weights
-        m[i] = gain * scale * d(gen);
-    }
+        float value;
+        do {
+            value = dist(gen);
+        } while (std::abs(value) > limit);
 
-    return {m, S};
-}
-
-std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
-    float scale, float gain, int N)
-/* Parmeter initialization of TAGI neural networks.
- *
- * Args:
- *    scale: Standard deviation for weight distribution
- *    gain: Mutiplication factor
- *    N: Number of parameters
- *
- * Returns:
- *    m: Mean
- *    S: Variance
- *
- *  */
-{
-    // Initialize device
-    std::random_device rd;
-
-    // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
-
-    // Initialize pointers
-    std::vector<float> S(N, pow(gain * scale, 2));
-    std::vector<float> m(N);
-
-    // Uniform distribution
-    std::uniform_real_distribution<float> d(-1.0f, 1.0f);
-
-    // Weights
-    for (int i = 0; i < N; i++) {
-        // Get sample for weights
-        m[i] = gain * scale * d(gen);
+        m[i] = gain * scale * value;
+        S[i] = s_dist(gen);
     }
 
     return {m, S};
@@ -197,6 +230,9 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        for (int i = 0; i < num_biases; i++) {
+            mu_b[i] = 0.0f;
+        }
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -234,6 +270,9 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
 
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        for (int i = 0; i < num_biases; i++) {
+            mu_b[i] = 0.0f;
+        }
     }
     return {mu_w, var_w, mu_b, var_b};
 }

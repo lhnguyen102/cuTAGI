@@ -117,17 +117,18 @@ void resnet_cifar10()
         block_7, LayerBlock(Conv2d(256, 512, 2, false, 2), BatchNorm2d(512)));
     ResNetBlock resnet_block_8(block_8);
 
-    Sequential model(
-        // Input block
-        Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
+    // Sequential model(
+    //     // Input block
+    //     Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
 
-        // Residual blocks
-        resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3, ReLU(),
-        resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6, ReLU(),
-        resnet_block_7, ReLU(), resnet_block_8, ReLU(),
+    //     // Residual blocks
+    //     resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3,
+    //     ReLU(), resnet_block_4, ReLU(), resnet_block_5, ReLU(),
+    //     resnet_block_6, ReLU(), resnet_block_7, ReLU(), resnet_block_8,
+    //     ReLU(),
 
-        // Output block
-        AvgPool2d(4), Linear(512, 11));
+    //     // Output block
+    //     AvgPool2d(4), Linear(512, 11));
 
     // auto block_1 = create_layer_block(8, 8);
     // auto block_2 = create_layer_block(8, 8);
@@ -174,11 +175,11 @@ void resnet_cifar10()
     //                  1, 2, 1), BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1,
     //                  2), Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
 
-    // Sequential model(
-    //     Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1,
-    //     2), Conv2d(32, 32, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
-    //     Conv2d(32, 64, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
-    //     Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(
+        Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1, 2),
+        Conv2d(32, 32, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
+        Conv2d(32, 64, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
+        Linear(64 * 4 * 4, 128), ReLU(), Linear(128, 11));
 
     // model.set_threads(1);
     // model.preinit_layer();
@@ -195,7 +196,7 @@ void resnet_cifar10()
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 20;
-    int batch_size = 100;
+    int batch_size = 128;
     float sigma_obs = 1;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";
@@ -286,7 +287,7 @@ void resnet_cifar10()
     ////////////////////////////////////////////////////////////////////////
     model.eval();
     std::cout << "Testing...\n";
-    int test_batch_size = 100;
+    int test_batch_size = 128;
     int test_iters = test_db.num_data / test_batch_size;
     std::vector<float> test_x_batch(test_batch_size * n_x, 0.0f);
     std::vector<float> test_y_batch(test_batch_size * test_db.output_len, 0.0f);
