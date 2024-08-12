@@ -72,7 +72,7 @@ class BaseHiddenStates {
           actual_size(other.actual_size),
           width(other.width),
           height(other.height),
-          depth(other.depth){};
+          depth(other.depth) {};
 
     // Move assignment operator
     BaseHiddenStates &operator=(BaseHiddenStates &&other) noexcept {
@@ -117,7 +117,7 @@ class BaseDeltaStates {
           delta_var(std::move(other.delta_var)),
           size(other.size),
           block_size(other.block_size),
-          actual_size(other.actual_size){};
+          actual_size(other.actual_size) {};
 
     // Move assigment operator
     BaseDeltaStates &operator=(BaseDeltaStates &&other) noexcept {
@@ -134,11 +134,28 @@ class BaseDeltaStates {
     virtual void swap(BaseDeltaStates &other);
 };
 
+class BaseLinearSmoother {
+   public:
+    float mu_prior, var_prior;
+    float mu_post, var_post;
+    std::vector<float> mu_w, var_w, var_b;
+    std::vector<float> mu_zo_smooths, var_zo_smooths;
+    size_t num_w = 0;
+
+    BaseLinearSmoother(size_t num_w);
+    BaseLinearSmoother();
+    ~BaseLinearSmoother() = default;
+    // virtual void set_size(size_t size, size_t size_w);
+    virtual void set_num_states_w(size_t num_w);
+    void reset_zeros();
+};
+
 class BaseTempStates {
    public:
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
     size_t size = 0, block_size = 0, actual_size = 0;
+    BaseLinearSmoother linear_states;
 
     BaseTempStates(size_t n, size_t m);
     BaseTempStates();
@@ -186,8 +203,15 @@ class BaseLSTMStates {
     std::vector<float> mu_ha, var_ha, mu_f_ga, var_f_ga, jcb_f_ga, mu_i_ga,
         var_i_ga, jcb_i_ga, mu_c_ga, var_c_ga, jcb_c_ga, mu_o_ga, var_o_ga,
         jcb_o_ga, mu_ca, var_ca, jcb_ca, mu_c, var_c, cov_i_c, cov_o_tanh_c;
+
     std::vector<float> mu_c_prev, var_c_prev, mu_h_prev, var_h_prev, mu_h_prior,
-        var_h_prior, mu_c_prior, var_c_prior;
+        var_h_prior, mu_c_prior, var_c_prior, mu_zo_priors, var_zo_priors,
+        mu_zo_posts, var_zo_posts, mu_zo_smooths, var_zo_smooths, cov_zo;
+
+    std::vector<std::vector<float>> mu_h_priors, var_h_priors, mu_c_priors,
+        var_c_priors, mu_h_posts, var_h_posts, mu_c_posts, var_c_posts,
+        mu_h_smooths, var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc,
+        cov_cc, cov_hh;
 
     BaseLSTMStates(size_t num_states, size_t num_inputs);
     BaseLSTMStates();

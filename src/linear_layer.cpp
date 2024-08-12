@@ -463,6 +463,17 @@ void linear_bwd_fc_delta_b_mp(std::vector<float> &var_b,
     }
 }
 
+void linear_update_hidden_states_worker(float &mu_a_prior, float &var_a_prior,
+                                        std::vector<float> &delta_mu,
+                                        std::vector<float> &delta_var,
+                                        float &mu_a_post, float &var_a_post)
+/*
+ */
+{
+    mu_a_post = mu_a_prior + delta_mu[0] * var_a_prior;
+    var_a_post = (1.0f + delta_var[0] * var_a_prior) * var_a_prior;
+}
+
 Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
                float gain_bias, std::string method)
     : gain_w(gain_weight),
@@ -534,6 +545,9 @@ void Linear::forward(BaseHiddenStates &input_states,
     // Initialization
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
+    if (temp_states.linear_states.num_w == 0) {
+        temp_states.linear_states.set_num_states_w(this->mu_w.size());
+    }
 
     // Forward pass
     if (this->num_threads > 1) {
@@ -557,6 +571,10 @@ void Linear::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
+
+    // // save output's prior for smoothing:
+    temp_states.linear_states.mu_prior = output_states.mu_a[0];
+    temp_states.linear_states.var_prior = output_states.var_a[0];
 
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
@@ -589,6 +607,15 @@ void Linear::backward(BaseDeltaStates &input_delta_states,
                 this->output_size, batch_size, start_chunk, end_chunk,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
+        linear_update_hidden_states_worker(
+            temp_states.linear_states.mu_prior,
+            temp_states.linear_states.var_prior, input_delta_states.delta_mu,
+            input_delta_states.delta_var, temp_states.linear_states.mu_post,
+            temp_states.linear_states.var_post);
+        // copy weights and biases for lstm smoother
+        temp_states.linear_states.mu_w = this->mu_w;
+        temp_states.linear_states.var_w = this->var_w;
+        temp_states.linear_states.var_b = this->var_b;
     }
 
     // Update values for weights & biases

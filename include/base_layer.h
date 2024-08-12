@@ -103,6 +103,9 @@ class BaseLayer {
                           BaseTempStates &temp_states,
                           bool state_udapte = true);
 
+    virtual void smoother(std::string next_layer_type,
+                          BaseTempStates &temp_states);
+
     virtual void allocate_param_delta();
 
     virtual void update_weights();

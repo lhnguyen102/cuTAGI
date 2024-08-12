@@ -57,6 +57,9 @@ void BaseLayer::backward(BaseDeltaStates &input_delta_states,
                          BaseDeltaStates &output_delta_states,
                          BaseTempStates &temp_states, bool state_udapte) {}
 
+void BaseLayer::smoother(std::string next_layer_type,
+                         BaseTempStates &temp_states) {}
+
 void BaseLayer::allocate_param_delta()
 /*
  */

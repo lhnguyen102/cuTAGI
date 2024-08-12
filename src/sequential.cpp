@@ -353,6 +353,24 @@ void Sequential::backward()
                               this->input_state_update);
 }
 
+void Sequential::smoother()
+/*
+ */
+{
+    // Hidden layers
+    for (auto layer = this->layers.begin(); layer != this->layers.end();
+         layer++) {
+        auto *current_layer = layer->get();
+        auto *next_layer = (layer + 1)->get();
+
+        // Smooth only for LSTM layer
+        if (current_layer->get_layer_name() == "LSTM") {
+            current_layer->smoother(next_layer->get_layer_name(),
+                                    *this->temp_states);
+        }
+    }
+}
+
 void Sequential::step()
 /*
  */
@@ -718,4 +736,19 @@ Sequential::get_outputs()
         pybind11::array_t<float>(var_a_output.size(), var_a_output.data());
 
     return {py_m_pred, py_v_pred};
+}
+
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+Sequential::get_outputs_smoother()
+/*
+ */
+{
+    auto py_mu_zo_smooths = pybind11::array_t<float>(
+        this->temp_states->linear_states.mu_zo_smooths.size(),
+        this->temp_states->linear_states.mu_zo_smooths.data());
+    auto py_var_zo_smooths = pybind11::array_t<float>(
+        this->temp_states->linear_states.var_zo_smooths.size(),
+        this->temp_states->linear_states.var_zo_smooths.data());
+
+    return {py_mu_zo_smooths, py_var_zo_smooths};
 }
