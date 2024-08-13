@@ -61,15 +61,17 @@ __global__ void update_delta_z_cuda_noise(float const *mu_a, float const *var_a,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (col % 2 == 0) {
-        // float mu_V2_bar_tilde = expf(mu_a[col + 1] + 0.5f * var_a[col + 1]);
-        // float var_V2_bar_tilde = expf(2.0f * mu_a[col + 1] + var_a[col + 1])
-        // *
-        //                          (expf(var_a[col + 1]) - 1.0f);
-        // float cov_V2_bar_tilde = var_a[col + 1] * mu_V2_bar_tilde;
+        // Need to pass through exponential activantion function in the update
+        // class in CUDA. To do: just use the exponential activation function
+        // from the activation class.
+        float mu_V2_bar_tilde = expf(mu_a[col + 1] + 0.5f * var_a[col + 1]);
+        float var_V2_bar_tilde = expf(2.0f * mu_a[col + 1] + var_a[col + 1]) *
+                                 (expf(var_a[col + 1]) - 1.0f);
+        float cov_V2_bar_tilde = var_a[col + 1] * mu_V2_bar_tilde;
 
-        float mu_V2_bar_tilde = mu_a[col + 1];
-        float var_V2_bar_tilde = var_a[col + 1];
-        float cov_V2_bar_tilde = jcb[col + 1];
+        // float mu_V2_bar_tilde = mu_a[col + 1];
+        // float var_V2_bar_tilde = var_a[col + 1];
+        // float cov_V2_bar_tilde = jcb[col + 1];
 
         float cov_y_V2 = mu_V2_bar_tilde;
         float mu_V2 = mu_V2_bar_tilde;
