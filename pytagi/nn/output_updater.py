@@ -42,3 +42,25 @@ class OutputUpdater:
     @device.setter
     def device(self, value: str):
         self._cpp_backend.device = value
+
+class NoiseOutputUpdater:
+    def __init__(self, model_device: str):
+        self._cpp_backend = cutagi.NoiseOutputUpdater(model_device)
+
+    def update(
+        self,
+        output_states: BaseHiddenStates,
+        mu_obs: np.ndarray,
+        delta_states: BaseDeltaStates,
+    ):
+        self._cpp_backend.update(
+            output_states, mu_obs.tolist(), delta_states
+        )
+
+    @property
+    def device(self) -> str:
+        return self._cpp_backend.device
+
+    @device.setter
+    def device(self, value: str):
+        self._cpp_backend.device = value

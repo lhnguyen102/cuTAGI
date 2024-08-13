@@ -475,6 +475,54 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
+void agvi_mean_var(std::vector<float> const &mu_z,
+                   std::vector<float> const &var_z, std::vector<float> &jcb_z,
+                   int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                   std::vector<float> &var_a, std::vector<float> &jcb_a)
+
+{
+    for (int i = start_chunk; i < end_chunk; i++) {
+        if (i % 2 == 0) {
+            mu_a[i] = mu_z[i];
+            var_a[i] = var_z[i];
+            jcb_a[i] = jcb_z[i];
+        } else {
+            mu_a[i] = expf(mu_z[i] + 0.5 * var_z[i]);
+            var_a[i] = expf(2 * mu_z[i] + var_z[i]) * (expf(var_z[i]) - 1);
+            jcb_a[i] = var_z[i] * mu_a[i];
+        }
+    }
+}
+
+void agvi_mean_var_mp(std::vector<float> const &mu_z,
+                      std::vector<float> const &var_z,
+                      std::vector<float> &jcb_z, int n,
+                      unsigned int num_threads, std::vector<float> &mu_a,
+                      std::vector<float> &var_a, std::vector<float> &jcb_a) {
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        int start_chunk =
+            i * n_per_thread + std::min(static_cast<int>(i), extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &mu_z, &var_z, &jcb_z, &mu_a, &var_a, &jcb_a] {
+            agvi_mean_var(mu_z, var_z, jcb_z, start_chunk, end_chunk, mu_a,
+                          var_a, jcb_a);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
 ////////////////////////////////////////////////////////////////////////////////
@@ -1147,3 +1195,72 @@ void RemaxA::compute_remax_prob(std::vector<float> &mu_log,
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// AGVI
+////////////////////////////////////////////////////////////////////////////////
+AGVI::AGVI() {}
+AGVI::~AGVI() {}
+
+std::string AGVI::get_layer_info() const
+/*
+ */
+{
+    return "AGVI()";
+}
+
+std::string AGVI::get_layer_name() const
+/*
+ */
+
+{
+    return "AGVI";
+}
+
+LayerType AGVI::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void AGVI::forward(BaseHiddenStates &input_states,
+                   BaseHiddenStates &output_states, BaseTempStates &temp_states)
+/*
+ */
+{
+    // Validate input. TODO: to be removed
+    if (input_states.size == 0) {
+        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
+                  << ". Reason: Invalid input state size (size is 0).\n";
+        throw std::invalid_argument("Error: Invalid input state size");
+    }
+
+    int start_chunk = 0;
+    int end_chunk = input_states.actual_size * input_states.block_size;
+    if (this->num_threads > 1) {
+        agvi_mean_var_mp(input_states.mu_a, input_states.var_a,
+                         input_states.jcb, end_chunk, this->num_threads,
+                         output_states.mu_a, output_states.var_a,
+                         output_states.jcb);
+    } else {
+        agvi_mean_var(input_states.mu_a, input_states.var_a, input_states.jcb,
+                      start_chunk, end_chunk, output_states.mu_a,
+                      output_states.var_a, output_states.jcb);
+    }
+
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> AGVI::to_cuda() {
+    this->device = "cuda";
+    return std::make_unique<AGVICuda>();
+}
+#endif

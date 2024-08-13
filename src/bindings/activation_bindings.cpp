@@ -160,3 +160,20 @@ void bind_softmax(pybind11::module_& modo)
         .def("save", &Softmax::save)
         .def("to_cuda", &Softmax::to_cuda);
 }
+
+void bind_agvi(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<AGVI, std::shared_ptr<AGVI>, BaseLayer>(modo, "AGVI")
+        .def(pybind11::init<>())
+        .def("get_layer_info", &AGVI::get_layer_info)
+        .def("get_layer_name", &AGVI::get_layer_name)
+        .def("get_layer_type", &AGVI::get_layer_type)
+        .def("forward", &AGVI::forward)
+        .def("update_weights", &AGVI::update_weights)
+        .def("update_biases", &AGVI::update_biases)
+        .def("load", &AGVI::load)
+        .def("save", &AGVI::save)
+        .def("to_cuda", &AGVI::to_cuda);
+}

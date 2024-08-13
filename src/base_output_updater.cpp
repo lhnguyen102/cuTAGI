@@ -36,6 +36,57 @@ void compute_delta_z_output(std::vector<float> &mu_a, std::vector<float> &var_a,
     }
 }
 
+void compute_delta_z_noise(std::vector<float> &mu_a, std::vector<float> &var_a,
+                           std::vector<float> &jcb, std::vector<float> &obs,
+                           int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var) {
+    const float zero_pad = 0.0f;
+
+    for (int col = start_chunk; col < end_chunk; col += 2) {
+        float mu_V2_bar_tilde = mu_a[col + 1];
+        float var_V2_bar_tilde = var_a[col + 1];
+        float cov_V2_bar_tilde = jcb[col + 1];
+
+        float cov_y_V2 = mu_V2_bar_tilde;
+        float mu_V2 = mu_V2_bar_tilde;
+        float var_V2 =
+            3.0f * var_V2_bar_tilde + 2.0f * mu_V2_bar_tilde * mu_V2_bar_tilde;
+
+        float var_a_col = var_a[col];
+        float mu_a_col = mu_a[col];
+        float jcb_col = jcb[col];
+        float var_sum = var_a_col + mu_V2;
+
+        float tmp = jcb_col / var_sum;
+        if (std::isinf(tmp) || std::isnan(tmp)) {
+            delta_mu[col] = zero_pad;
+            delta_var[col] = zero_pad;
+        } else {
+            float obs_diff = obs[col / 2] - mu_a_col;
+            delta_mu[col] = tmp * obs_diff;
+            delta_var[col] = -tmp * jcb_col;
+        }
+
+        float mu_V_pos = 0 + cov_y_V2 / var_sum * (obs[col / 2] - mu_a_col);
+        float var_V_pos = mu_V2 - cov_y_V2 / var_sum * cov_y_V2;
+
+        float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
+        float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
+                           4.0f * var_V_pos * mu_V_pos * mu_V_pos;
+
+        float k = var_V2_bar_tilde / var_V2;
+        float mu_V2_bar_tilde_pos = mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
+        float var_V2_bar_tilde_pos =
+            var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
+
+        float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
+        delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
+        delta_var[col + 1] =
+            Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
+    }
+}
+
 void compute_delta_z_output_mp(std::vector<float> &mu_a,
                                std::vector<float> &var_a,
                                std::vector<float> &jcb, std::vector<float> &obs,
@@ -178,6 +229,22 @@ void BaseOutputUpdater::update_selected_output_delta_z(
         delta_states.delta_mu, delta_states.delta_var);
 }
 
+void BaseOutputUpdater::update_output_delta_z_noise(
+    BaseHiddenStates &output_states, BaseObservation &obs,
+    BaseDeltaStates &delta_states)
+/*
+ */
+{
+    int start_chunk = 0;
+    int end_chunk = obs.size * 2;
+
+    delta_states.reset_zeros();
+
+    compute_delta_z_noise(output_states.mu_a, output_states.var_a,
+                          output_states.jcb, obs.mu_obs, start_chunk, end_chunk,
+                          delta_states.delta_mu, delta_states.delta_var);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Output Updater
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,4 +300,43 @@ void OutputUpdater::update_using_indices(BaseHiddenStates &output_states,
     }
     this->updater->update_selected_output_delta_z(output_states, *this->obs,
                                                   delta_states);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Noise Output Updater
+////////////////////////////////////////////////////////////////////////////////
+
+NoiseOutputUpdater::NoiseOutputUpdater(const std::string model_device)
+    : device(model_device) {
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {
+        this->updater = std::make_shared<NoiseOutputUpdaterCuda>();
+        this->obs = std::make_shared<ObservationCuda>();
+    } else
+#endif
+    {
+        this->updater = std::make_shared<BaseOutputUpdater>();
+        this->obs = std::make_shared<BaseObservation>();
+    }
+}
+
+NoiseOutputUpdater::NoiseOutputUpdater() {}
+
+NoiseOutputUpdater::~NoiseOutputUpdater() {}
+
+void NoiseOutputUpdater::update(BaseHiddenStates &output_states,
+                                std::vector<float> &mu_obs,
+                                BaseDeltaStates &delta_states)
+/*
+ */
+{
+    auto var_obs = std::vector<float>(mu_obs.size(), 0.0f);
+
+    this->obs->set_obs(mu_obs, var_obs);
+    this->obs->block_size = output_states.block_size;
+    this->obs->size = mu_obs.size();
+    this->obs->actual_size = mu_obs.size() / output_states.block_size;
+
+    this->updater->update_output_delta_z_noise(output_states, *this->obs,
+                                               delta_states);
 }

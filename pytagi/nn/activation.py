@@ -118,3 +118,15 @@ class Softmax(BaseLayer):
 
     def get_layer_name(self) -> str:
         return self._cpp_backend.get_layer_name()
+
+class AGVI(BaseLayer):
+    """AGVI"""
+
+    def __init__(self):
+        self._cpp_backend = cutagi.AGVI()
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()

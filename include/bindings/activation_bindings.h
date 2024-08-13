@@ -32,3 +32,5 @@ void bind_softplus(pybind11::module_& modo);
 void bind_leakyrelu(pybind11::module_& modo);
 
 void bind_softmax(pybind11::module_& modo);
+
+void bind_agvi(pybind11::module_& modo);

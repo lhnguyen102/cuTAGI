@@ -62,6 +62,10 @@ __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
                                       size_t output_size, int batch_size,
                                       float *mu_a, float *jcb, float *var_a);
 
+__global__ void agvi_mean_var_cuda(float const *mu_z, float const *var_z,
+                                   float const *jcb_z, int num_states,
+                                   float *mu_a, float *var_a, float *jcb_a);
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
 ////////////////////////////////////////////////////////////////////////////////
@@ -404,6 +408,45 @@ class SoftmaxCuda : public BaseLayerCuda {
                  BaseTempStates &temp_states) override;
 
     using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+};
+
+class AGVICuda : public BaseLayerCuda {
+   public:
+    AGVICuda();
+    ~AGVICuda();
+
+    unsigned int num_cuda_threads = 16;
+
+    // Delete copy constructor and copy assignment
+    AGVICuda(const AGVICuda &) = delete;
+    AGVICuda &operator=(const AGVICuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    AGVICuda(AGVICuda &&) = default;
+    AGVICuda &operator=(AGVICuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void allocate_param_delta() override {};
 

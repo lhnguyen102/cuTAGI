@@ -4,7 +4,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      March 31, 2024
+// Updated:      August 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,6 +28,7 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_softplus(modo);
     bind_leakyrelu(modo);
     bind_softmax(modo);
+    bind_agvi(modo);
     bind_linear_layer(modo);
     bind_conv2d_layer(modo);
     bind_convtranspose2d_layer(modo);
@@ -39,5 +40,6 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_resnet_block(modo);
     bind_sequential(modo);
     bind_output_updater(modo);
+    bind_noise_output_updater(modo);
     bind_utils(modo);
 }

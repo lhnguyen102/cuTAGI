@@ -36,3 +36,19 @@ class OutputUpdaterCuda : public BaseOutputUpdater {
 
     std::string get_name() const override { return "OutputUpdaterCuda"; };
 };
+
+class NoiseOutputUpdaterCuda : public BaseOutputUpdater {
+   public:
+    unsigned int num_cuda_threads = 16;
+
+    NoiseOutputUpdaterCuda();
+    ~NoiseOutputUpdaterCuda() = default;
+
+    void set_num_cuda_threads(unsigned int num_threads);
+
+    void update_output_delta_z_noise(BaseHiddenStates &output_states,
+                                     BaseObservation &obs,
+                                     BaseDeltaStates &delta_states) override;
+
+    std::string get_name() const override { return "NoiseOutputUpdaterCuda"; };
+};

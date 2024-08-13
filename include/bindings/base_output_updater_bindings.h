@@ -14,3 +14,5 @@ class module_;
 }
 
 void bind_output_updater(pybind11::module_& modo);
+
+void bind_noise_output_updater(pybind11::module_& modo);
