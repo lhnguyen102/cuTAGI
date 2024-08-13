@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         test_fnn_heteros_cpu_v2.cpp
 // Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
+// Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 13, 2024
 // Updated:      August 13, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
