@@ -23,6 +23,7 @@ enum class LayerType {
     ConvTranspose2d,
     Pool2d,
     LSTM,
+    SLSTM,
     Activation,
     Norm,
     LayerBlock,

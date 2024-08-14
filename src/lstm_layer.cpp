@@ -1819,3 +1819,403 @@ void LSTM::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// SLSTM: LSTM layer with smoother
+////////////////////////////////////////////////////////////////////////////////
+
+void SLSTM::forward(BaseHiddenStates &input_states,
+                    BaseHiddenStates &output_states,
+                    BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
+
+    if (this->_batch_size != batch_size) {
+        this->_batch_size = batch_size;
+        this->lstm_states.set_num_states(
+            batch_size * this->seq_len * this->output_size,
+            batch_size * this->seq_len * this->input_size);
+    }
+    // Update number of actual states.
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size * this->seq_len;
+
+    // TODO: This is not efficient for memory and performance. Update the
+    // previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(this->lstm_states.mu_h_prior,
+                            this->lstm_states.mu_h_prior.size(),
+                            this->lstm_states.mu_h_prev);
+        lstm_to_prev_states(this->lstm_states.var_h_prior,
+                            this->lstm_states.var_h_prior.size(),
+                            this->lstm_states.var_h_prev);
+        lstm_to_prev_states(this->lstm_states.mu_c_prior,
+                            this->lstm_states.mu_c_prior.size(),
+                            this->lstm_states.mu_c_prev);
+        lstm_to_prev_states(this->lstm_states.var_c_prior,
+                            this->lstm_states.var_c_prior.size(),
+                            this->lstm_states.var_c_prev);
+    }
+
+    this->prepare_input(input_states);
+    this->forget_gate(batch_size);
+    this->input_gate(batch_size);
+    this->cell_state_gate(batch_size);
+    this->output_gate(batch_size);
+
+    int end_chunk = this->output_size * batch_size * this->seq_len;
+
+    if (this->num_threads > 1) {
+        lstm_cov_input_cell_states_mp(
+            lstm_states.var_ha, this->mu_w, lstm_states.jcb_i_ga,
+            lstm_states.jcb_c_ga, this->w_pos_i, this->w_pos_c,
+            this->input_size, this->output_size, this->seq_len, batch_size,
+            this->num_threads, lstm_states.cov_i_c);
+
+        lstm_cell_state_mean_var_mp(
+            lstm_states.mu_f_ga, lstm_states.var_f_ga, lstm_states.mu_i_ga,
+            lstm_states.var_i_ga, lstm_states.mu_c_ga, lstm_states.var_c_ga,
+            lstm_states.mu_c_prev, lstm_states.var_c_prev, lstm_states.cov_i_c,
+            this->output_size, this->seq_len, batch_size, this->num_threads,
+            lstm_states.mu_c, lstm_states.var_c);
+
+        tanh_mean_var_mp(lstm_states.mu_c, lstm_states.var_c, end_chunk,
+                         this->num_threads, lstm_states.mu_ca,
+                         lstm_states.jcb_ca, lstm_states.var_ca);
+
+        lstm_cov_output_tanh_cell_states_mp(
+            this->mu_w, lstm_states.var_ha, lstm_states.mu_c_prev,
+            lstm_states.jcb_ca, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.jcb_o_ga, this->w_pos_f, this->w_pos_i, this->w_pos_c,
+            this->w_pos_o, this->input_size, this->output_size, this->seq_len,
+            batch_size, this->num_threads, lstm_states.cov_o_tanh_c);
+
+        lstm_hidden_state_mean_var_mp(
+            lstm_states.mu_o_ga, lstm_states.var_o_ga, lstm_states.mu_ca,
+            lstm_states.var_ca, lstm_states.cov_o_tanh_c, this->output_size,
+            this->seq_len, batch_size, this->num_threads, output_states.mu_a,
+            output_states.var_a);
+
+    } else {
+        lstm_cov_input_cell_states(
+            lstm_states.var_ha, this->mu_w, lstm_states.jcb_i_ga,
+            lstm_states.jcb_c_ga, this->w_pos_i, this->w_pos_c,
+            this->input_size, this->output_size, this->seq_len, batch_size,
+            lstm_states.cov_i_c);
+
+        lstm_cell_state_mean_var(
+            lstm_states.mu_f_ga, lstm_states.var_f_ga, lstm_states.mu_i_ga,
+            lstm_states.var_i_ga, lstm_states.mu_c_ga, lstm_states.var_c_ga,
+            lstm_states.mu_c_prev, lstm_states.var_c_prev, lstm_states.cov_i_c,
+            this->output_size, this->seq_len, batch_size, lstm_states.mu_c,
+            lstm_states.var_c);
+
+        tanh_mean_var(lstm_states.mu_c, lstm_states.var_c, 0, end_chunk,
+                      lstm_states.mu_ca, lstm_states.jcb_ca,
+                      lstm_states.var_ca);
+
+        lstm_cov_output_tanh_cell_states(
+            this->mu_w, lstm_states.var_ha, lstm_states.mu_c_prev,
+            lstm_states.jcb_ca, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+            lstm_states.jcb_o_ga, this->w_pos_f, this->w_pos_i, this->w_pos_c,
+            this->w_pos_o, this->input_size, this->output_size, this->seq_len,
+            batch_size, lstm_states.cov_o_tanh_c);
+
+        lstm_hidden_state_mean_var(
+            lstm_states.mu_o_ga, lstm_states.var_o_ga, lstm_states.mu_ca,
+            lstm_states.var_ca, lstm_states.cov_o_tanh_c, this->output_size,
+            this->seq_len, batch_size, output_states.mu_a, output_states.var_a);
+    }
+
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
+    }
+    // Save the previous states
+    if (this->seq_len == 1 && batch_size == 1) {
+        lstm_to_prev_states(output_states.mu_a,
+                            this->lstm_states.mu_h_prior.size(),
+                            this->lstm_states.mu_h_prior);
+        lstm_to_prev_states(output_states.var_a,
+                            this->lstm_states.var_h_prior.size(),
+                            this->lstm_states.var_h_prior);
+        lstm_to_prev_states(this->lstm_states.mu_c,
+                            this->lstm_states.mu_c_prior.size(),
+                            this->lstm_states.mu_c_prior);
+        lstm_to_prev_states(this->lstm_states.var_c,
+                            this->lstm_states.var_c_prior.size(),
+                            this->lstm_states.var_c_prior);
+
+        // Save priors for smoothing
+        this->lstm_states.mu_h_priors.push_back(this->lstm_states.mu_h_prior);
+        this->lstm_states.var_h_priors.push_back(this->lstm_states.var_h_prior);
+        this->lstm_states.mu_c_priors.push_back(this->lstm_states.mu_c_prior);
+        this->lstm_states.var_c_priors.push_back(this->lstm_states.var_c_prior);
+
+        // Save the cross-covariances for smoothing
+        lstm_cov_cell_states_smoother(lstm_states.var_c_prev,
+                                      lstm_states.mu_f_ga, lstm_states.cov_cc);
+        lstm_cov_hidden_cell_states_smoother(
+            lstm_states.var_c_prior, lstm_states.mu_o_ga, lstm_states.jcb_ca,
+            lstm_states.cov_hc);
+    }
+}
+
+void SLSTM::backward(BaseDeltaStates &input_delta_states,
+                     BaseDeltaStates &output_delta_states,
+                     BaseTempStates &temp_states, bool state_udapte)
+/*
+ */
+{
+    int batch_size = input_delta_states.block_size;
+    if (state_udapte) {
+        if (this->num_threads > 1) {
+            lstm_delta_mean_var_z_mp(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                this->num_threads, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        } else {
+            int end_chunk = batch_size * this->seq_len * this->input_size;
+            lstm_delta_mean_var_z_worker(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, 0,
+                end_chunk, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
+        }
+
+        if (this->seq_len == 1 && batch_size == 1) {
+            int end_chunk_ = batch_size * this->seq_len * this->output_size;
+            std::vector<float> cov_hh(end_chunk_ * end_chunk_, 0);
+            float cov_zo = 0;
+
+            lstm_cov_h_zo_smoother(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prior, lstm_states.mu_h_prev,
+                lstm_states.var_h_prev, lstm_states.mu_c_prev,
+                lstm_states.mu_ca, lstm_states.jcb_ca, this->w_pos_f,
+                this->w_pos_i, this->w_pos_c, this->w_pos_o, this->output_size,
+                this->input_size, 0, end_chunk_, temp_states.linear_states.mu_w,
+                temp_states.linear_states.var_w,
+                temp_states.linear_states.var_b, cov_hh, cov_zo);
+            // print_matrix_1Dvec(cov_hh);
+            this->lstm_states.cov_hh.push_back(cov_hh);
+            this->lstm_states.cov_zo.push_back(cov_zo);
+        }
+    }
+
+    if (param_update) {
+        if (this->num_threads > 1) {
+            lstm_delta_mean_var_w_mp(
+                this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+                lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                this->num_threads, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                lstm_delta_mean_var_b_mp(
+                    this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                    lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                    lstm_states.jcb_c_ga, lstm_states.mu_o_ga,
+                    lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+                    lstm_states.mu_ca, lstm_states.jcb_ca,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->b_pos_f, this->b_pos_i, this->b_pos_c, this->b_pos_o,
+                    this->output_size, this->seq_len, batch_size,
+                    this->num_threads, this->delta_mu_b, this->delta_var_b);
+            }
+        } else {
+            int end_chunk_w =
+                (this->input_size + this->output_size) * this->output_size;
+            lstm_delta_mean_var_w_worker(
+                this->var_w, lstm_states.mu_ha, lstm_states.jcb_f_ga,
+                lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+                this->output_size, this->input_size, this->seq_len, batch_size,
+                0, end_chunk_w, this->delta_mu_w, this->delta_var_w);
+
+            if (this->bias) {
+                lstm_delta_mean_var_b_worker(
+                    this->var_b, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                    lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+                    lstm_states.jcb_c_ga, lstm_states.mu_o_ga,
+                    lstm_states.jcb_o_ga, lstm_states.mu_c_prev,
+                    lstm_states.mu_ca, lstm_states.jcb_ca,
+                    input_delta_states.delta_mu, input_delta_states.delta_var,
+                    this->b_pos_f, this->b_pos_i, this->b_pos_c, this->b_pos_o,
+                    this->output_size, this->seq_len, batch_size, 0,
+                    this->output_size, this->delta_mu_b, this->delta_var_b);
+            }
+        }
+    }
+    if (this->seq_len == 1 && batch_size == 1) {
+        if (this->num_threads > 1) {
+            lstm_update_prev_hidden_states_mp(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_mp(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->lstm_states.num_states, this->num_threads,
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior);
+        } else {
+            lstm_update_prev_hidden_states_worker(
+                this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_h_prior,
+                this->lstm_states.var_h_prior);
+            lstm_update_prev_cell_states_worker(
+                this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
+                this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
+                input_delta_states.delta_mu, input_delta_states.delta_var, 0,
+                this->lstm_states.num_states, this->lstm_states.mu_c_prior,
+                this->lstm_states.var_c_prior);
+        }
+
+        // save posteriors for smoothing
+        this->lstm_states.mu_h_posts.push_back(this->lstm_states.mu_h_prior);
+        this->lstm_states.var_h_posts.push_back(this->lstm_states.var_h_prior);
+        this->lstm_states.mu_c_posts.push_back(this->lstm_states.mu_c_prior);
+        this->lstm_states.var_c_posts.push_back(this->lstm_states.var_c_prior);
+        this->lstm_states.mu_zo_priors.push_back(
+            temp_states.linear_states.mu_prior);
+        this->lstm_states.var_zo_priors.push_back(
+            temp_states.linear_states.var_prior);
+        this->lstm_states.mu_zo_posts.push_back(
+            temp_states.linear_states.mu_post);
+        this->lstm_states.var_zo_posts.push_back(
+            temp_states.linear_states.var_post);
+    }
+}
+
+void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
+/*
+ */
+{
+    int num_timestep = lstm_states.cov_cc.size();
+    int num_hidden_states = lstm_states.cov_cc[0].size();
+
+    lstm_states.mu_c_smooths.resize(num_timestep);
+    lstm_states.var_c_smooths.resize(num_timestep);
+    lstm_states.mu_h_smooths.resize(num_timestep);
+    lstm_states.var_h_smooths.resize(num_timestep);
+    lstm_states.mu_zo_smooths.resize(num_timestep);
+    lstm_states.var_zo_smooths.resize(num_timestep);
+
+    for (auto &val : lstm_states.mu_c_smooths) {
+        val.resize(num_hidden_states, 0.0f);
+    }
+    for (auto &val : lstm_states.var_c_smooths) {
+        val.resize(num_hidden_states, 0.0f);
+    }
+    for (auto &val : lstm_states.mu_h_smooths) {
+        val.resize(num_hidden_states, 0.0f);
+    }
+    for (auto &val : lstm_states.var_h_smooths) {
+        val.resize(num_hidden_states, 0.0f);
+    }
+    for (auto &val : lstm_states.mu_zo_smooths) {
+        val = 0.0f;
+    }
+    for (auto &val : lstm_states.var_zo_smooths) {
+        val = 0.0f;
+    }
+
+    // Initialize the last time step for smoothing
+    lstm_states.mu_c_smooths.back() = lstm_states.mu_c_posts.back();
+    lstm_states.var_c_smooths.back() = lstm_states.var_c_posts.back();
+    lstm_states.mu_h_smooths.back() = lstm_states.mu_h_posts.back();
+    lstm_states.var_h_smooths.back() = lstm_states.var_h_posts.back();
+    lstm_states.mu_zo_smooths.back() = lstm_states.mu_zo_posts.back();
+    lstm_states.var_zo_smooths.back() = lstm_states.var_zo_posts.back();
+
+    lstm_smoother_cell_states(num_timestep, lstm_states.cov_cc,
+                              lstm_states.mu_c_priors, lstm_states.var_c_priors,
+                              lstm_states.mu_c_posts, lstm_states.var_c_posts,
+                              lstm_states.mu_c_smooths,
+                              lstm_states.var_c_smooths);
+
+    lstm_smoother_hidden_states(
+        num_timestep, lstm_states.cov_hc, lstm_states.mu_c_priors,
+        lstm_states.var_c_priors, lstm_states.mu_h_posts,
+        lstm_states.var_h_posts, lstm_states.mu_c_smooths,
+        lstm_states.var_c_smooths, lstm_states.mu_h_smooths,
+        lstm_states.var_h_smooths);
+
+    // only smooth the z_output for the last linear layer
+    if (next_layer_type == "Linear") {
+        lstm_smoother_z_ouput(
+            num_timestep, lstm_states.cov_zo, lstm_states.mu_zo_priors,
+            lstm_states.var_zo_priors, lstm_states.mu_zo_posts,
+            lstm_states.var_zo_posts, lstm_states.mu_zo_smooths,
+            lstm_states.var_zo_smooths);
+    }
+
+    // take the smoothed z_output for python
+    if (next_layer_type == "Linear") {
+        temp_states.linear_states.mu_zo_smooths =
+            this->lstm_states.mu_zo_smooths;
+        temp_states.linear_states.var_zo_smooths =
+            this->lstm_states.var_zo_smooths;
+    }
+
+    // transfer h and c to the first time step of the next epoch
+    // this->lstm_states.mu_h_prior = this->lstm_states.mu_h_smooths[0];
+    // this->lstm_states.var_h_prior =
+    // this->lstm_states.var_h_smooths[0]; this->lstm_states.mu_c_prior
+    // = this->lstm_states.mu_c_smooths[0];
+    // this->lstm_states.var_c_prior =
+    // this->lstm_states.var_c_smooths[0];
+
+    // Clear variables for next epoch
+    this->lstm_states.mu_h_priors.clear();
+    this->lstm_states.var_h_priors.clear();
+    this->lstm_states.mu_c_priors.clear();
+    this->lstm_states.var_c_priors.clear();
+    this->lstm_states.mu_h_posts.clear();
+    this->lstm_states.var_h_posts.clear();
+    this->lstm_states.mu_c_posts.clear();
+    this->lstm_states.var_c_posts.clear();
+    this->lstm_states.mu_h_smooths.clear();
+    this->lstm_states.var_h_smooths.clear();
+    this->lstm_states.mu_c_smooths.clear();
+    this->lstm_states.var_c_smooths.clear();
+    this->lstm_states.cov_cc.clear();
+    this->lstm_states.cov_hc.clear();
+    this->lstm_states.cov_hh.clear();
+    this->lstm_states.cov_zo.clear();
+    this->lstm_states.mu_zo_priors.clear();
+    this->lstm_states.var_zo_priors.clear();
+    this->lstm_states.mu_zo_posts.clear();
+    this->lstm_states.var_zo_posts.clear();
+    this->lstm_states.reset_zeros();
+}

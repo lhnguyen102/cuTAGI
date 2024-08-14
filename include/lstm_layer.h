@@ -65,6 +65,37 @@ class LSTM : public BaseLayer {
 
     void output_gate(int batch_size);
 
+    virtual void forward(BaseHiddenStates &input_states,
+                         BaseHiddenStates &output_states,
+                         BaseTempStates &temp_states) override;
+
+    virtual void backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states,
+                          bool state_udapte = true) override;
+
+    virtual void smoother(std::string next_layer_type,
+                          BaseTempStates &temp_states) override;
+
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
+    void preinit_layer() override;
+
+   protected:
+};
+
+class SLSTM : public LSTM {
+   public:
+    SLSTM(size_t input_size, size_t output_size, int seq_len = 1,
+          bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
+          std::string init_method = "Xavier")
+        : LSTM(input_size, output_size, seq_len, bias, gain_w, gain_b,
+               init_method) {
+        // SLSTM-specific initialization (if any)
+    }
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;
@@ -76,13 +107,4 @@ class LSTM : public BaseLayer {
 
     void smoother(std::string next_layer_type,
                   BaseTempStates &temp_states) override;
-
-    using BaseLayer::to_cuda;
-
-#ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
-#endif
-    void preinit_layer() override;
-
-   protected:
 };

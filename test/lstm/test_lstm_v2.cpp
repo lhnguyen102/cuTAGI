@@ -120,12 +120,12 @@ void lstm_v2()
         train_db.sigma_x);
 
     // Model
-    Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
+    Sequential model(SLSTM(1, 5, input_seq_len), SLSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
     model.input_state_update = true;
 
-    model.to_device("cuda");
-    // model.set_threads(1);
+    // model.to_device("cuda");
+    model.set_threads(1);
 
     OutputUpdater output_updater(model.device);
 
@@ -178,6 +178,8 @@ void lstm_v2()
             model.backward();
             model.step();
         }
+
+        model.smoother();
 
         // Report running time
         std::cout << std::endl;

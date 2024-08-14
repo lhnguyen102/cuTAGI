@@ -12,3 +12,4 @@
 #include <pybind11/pybind11.h>
 
 void bind_lstm_layer(pybind11::module_& modo);
+void bind_slstm_layer(pybind11::module_& modo);

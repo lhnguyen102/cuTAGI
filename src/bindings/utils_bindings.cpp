@@ -11,8 +11,8 @@
 
 #include "../include/bindings/utils_bindings.h"
 
-Utils::Utils(){};
-Utils::~Utils(){};
+Utils::Utils() {};
+Utils::~Utils() {};
 std::tuple<std::vector<float>, std::vector<int>, int>
 Utils::label_to_obs_wrapper(std::vector<int> &labels, int num_classes) {
     // Create tree
