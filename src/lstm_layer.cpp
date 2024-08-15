@@ -1524,27 +1524,27 @@ void LSTM::preinit_layer() {
 // SLSTM: LSTM layer with smoother
 ////////////////////////////////////////////////////////////////////////////////
 
-// std::string SLSTM::get_layer_info() const
-// /*
-//  */
-// {
-//     return "SLSTM(" + std::to_string(this->input_size) + "," +
-//            std::to_string(this->output_size) + ")";
-// }
+std::string SLSTM::get_layer_info() const
+/*
+ */
+{
+    return "SLSTM(" + std::to_string(this->input_size) + "," +
+           std::to_string(this->output_size) + ")";
+}
 
-// std::string SLSTM::get_layer_name() const
-// /*
-//  */
-// {
-//     return "SLSTM";
-// }
+std::string SLSTM::get_layer_name() const
+/*
+ */
+{
+    return "SLSTM";
+}
 
-// LayerType SLSTM::get_layer_type() const
-// /*
-//  */
-// {
-//     return LayerType::SLSTM;
-// }
+LayerType SLSTM::get_layer_type() const
+/*
+ */
+{
+    return LayerType::SLSTM;
+}
 
 void lstm_cov_cell_states_smoother(std::vector<float> &var_c_prev,
                                    std::vector<float> &mu_f_ga,

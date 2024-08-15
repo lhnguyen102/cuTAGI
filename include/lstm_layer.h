@@ -95,11 +95,11 @@ class SLSTM : public LSTM {
         : LSTM(input_size, output_size, seq_len, bias, gain_w, gain_b,
                init_method) {}
 
-    // std::string get_layer_info() const override;
+    std::string get_layer_info() const override;
 
-    // std::string get_layer_name() const override;
+    std::string get_layer_name() const override;
 
-    // LayerType get_layer_type() const override;
+    LayerType get_layer_type() const override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
