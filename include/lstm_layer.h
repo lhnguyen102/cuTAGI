@@ -39,11 +39,11 @@ class LSTM : public BaseLayer {
     LSTM(LSTM &&) = default;
     LSTM &operator=(LSTM &&) = default;
 
-    std::string get_layer_info() const override;
+    virtual std::string get_layer_info() const override;
 
-    std::string get_layer_name() const override;
+    virtual std::string get_layer_name() const override;
 
-    LayerType get_layer_type() const override;
+    virtual LayerType get_layer_type() const override;
 
     int get_input_size() override;
 
@@ -93,9 +93,14 @@ class SLSTM : public LSTM {
           bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
           std::string init_method = "Xavier")
         : LSTM(input_size, output_size, seq_len, bias, gain_w, gain_b,
-               init_method) {
-        // SLSTM-specific initialization (if any)
-    }
+               init_method) {}
+
+    // std::string get_layer_info() const override;
+
+    // std::string get_layer_name() const override;
+
+    // LayerType get_layer_type() const override;
+
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

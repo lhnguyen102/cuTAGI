@@ -363,6 +363,8 @@ void Sequential::smoother()
         auto *current_layer = layer->get();
         auto *next_layer = (layer + 1)->get();
 
+        std::cout << current_layer->get_layer_name() << std::endl;
+
         // Smooth only for LSTM layer
         if (current_layer->get_layer_name() == "LSTM") {
             current_layer->smoother(next_layer->get_layer_name(),
