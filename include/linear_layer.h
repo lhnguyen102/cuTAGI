@@ -125,13 +125,42 @@ class Linear : public BaseLayer {
     Linear(Linear &&) = default;
     Linear &operator=(Linear &&) = default;
 
+    virtual std::string get_layer_info() const override;
+
+    virtual std::string get_layer_name() const override;
+
+    virtual LayerType get_layer_type() const override;
+
+    void init_weight_bias() override;
+
+    virtual void forward(BaseHiddenStates &input_states,
+                         BaseHiddenStates &output_states,
+                         BaseTempStates &temp_states) override;
+
+    virtual void backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states,
+                          bool state_udapte) override;
+
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
+};
+
+class SLinear : public Linear {
+   public:
+    SLinear(size_t ip_size, size_t op_size, bool bias = true,
+            float gain_weight = 1.0f, float gain_bias = 1.0f,
+            std::string method = "He")
+        : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method) {}
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
 
     LayerType get_layer_type() const override;
-
-    void init_weight_bias() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
@@ -140,10 +169,4 @@ class Linear : public BaseLayer {
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states, bool state_udapte) override;
-
-    using BaseLayer::to_cuda;
-
-#ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
-#endif
 };

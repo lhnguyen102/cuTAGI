@@ -9,7 +9,7 @@ from tqdm import tqdm
 import pytagi.metric as metric
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
-from pytagi.nn import SLSTM, LSTM, Linear, OutputUpdater, Sequential
+from pytagi.nn import SLSTM, LSTM, Linear, SLinear, OutputUpdater, Sequential
 
 from examples.data_loader import TimeSeriesDataloader
 
@@ -56,7 +56,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     net = Sequential(
         SLSTM(num_features + input_seq_len - 1, 40, 1),
         SLSTM(40, 40, 1),
-        Linear(40, 1),
+        SLinear(40, 1),
     )
 
     # net.to_device("cuda")

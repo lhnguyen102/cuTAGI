@@ -19,6 +19,7 @@
 enum class LayerType {
     Base,
     Linear,
+    SLinear,
     Conv2d,
     ConvTranspose2d,
     Pool2d,

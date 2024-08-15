@@ -17,7 +17,7 @@ from pytagi.nn.convtranspose2d import ConvTranspose2d
 from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates, HRCSoftmax
 from pytagi.nn.layer_block import LayerBlock
 from pytagi.nn.layer_norm import LayerNorm
-from pytagi.nn.linear import Linear
+from pytagi.nn.linear import Linear, SLinear
 from pytagi.nn.lstm import LSTM, SLSTM
 from pytagi.nn.output_updater import OutputUpdater
 from pytagi.nn.pooling import AvgPool2d

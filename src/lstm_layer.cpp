@@ -2048,7 +2048,7 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
         lstm_states.var_h_smooths);
 
     // only smooth the z_output for the last linear layer
-    if (next_layer_type == "Linear") {
+    if (next_layer_type == "SLinear") {
         lstm_smoother_z_ouput(
             num_timestep, lstm_states.cov_zo, lstm_states.mu_zo_priors,
             lstm_states.var_zo_priors, lstm_states.mu_zo_posts,
@@ -2057,7 +2057,7 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
     }
 
     // take the smoothed z_output for python
-    if (next_layer_type == "Linear") {
+    if (next_layer_type == "SLinear") {
         temp_states.linear_states.mu_zo_smooths =
             this->lstm_states.mu_zo_smooths;
         temp_states.linear_states.var_zo_smooths =
