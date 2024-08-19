@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,57 +33,6 @@ void compute_delta_z_output(std::vector<float> &mu_a, std::vector<float> &var_a,
             delta_mu[col] = tmp * (obs[col] - mu_a[col]);
             delta_var[col] = -tmp * jcb[col];
         }
-    }
-}
-
-void compute_delta_z_noise(std::vector<float> &mu_a, std::vector<float> &var_a,
-                           std::vector<float> &jcb, std::vector<float> &obs,
-                           int start_chunk, int end_chunk,
-                           std::vector<float> &delta_mu,
-                           std::vector<float> &delta_var) {
-    const float zero_pad = 0.0f;
-
-    for (int col = start_chunk; col < end_chunk; col += 2) {
-        float mu_V2_bar_tilde = mu_a[col + 1];
-        float var_V2_bar_tilde = var_a[col + 1];
-        float cov_V2_bar_tilde = jcb[col + 1];
-
-        float cov_y_V2 = mu_V2_bar_tilde;
-        float mu_V2 = mu_V2_bar_tilde;
-        float var_V2 =
-            3.0f * var_V2_bar_tilde + 2.0f * mu_V2_bar_tilde * mu_V2_bar_tilde;
-
-        float var_a_col = var_a[col];
-        float mu_a_col = mu_a[col];
-        float jcb_col = jcb[col];
-        float var_sum = var_a_col + mu_V2;
-
-        float tmp = jcb_col / var_sum;
-        if (std::isinf(tmp) || std::isnan(tmp)) {
-            delta_mu[col] = zero_pad;
-            delta_var[col] = zero_pad;
-        } else {
-            float obs_diff = obs[col / 2] - mu_a_col;
-            delta_mu[col] = tmp * obs_diff;
-            delta_var[col] = -tmp * jcb_col;
-        }
-
-        float mu_V_pos = 0 + cov_y_V2 / var_sum * (obs[col / 2] - mu_a_col);
-        float var_V_pos = mu_V2 - cov_y_V2 / var_sum * cov_y_V2;
-
-        float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
-        float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
-                           4.0f * var_V_pos * mu_V_pos * mu_V_pos;
-
-        float k = var_V2_bar_tilde / var_V2;
-        float mu_V2_bar_tilde_pos = mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
-        float var_V2_bar_tilde_pos =
-            var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
-
-        float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
-        delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
-        delta_var[col + 1] =
-            Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
     }
 }
 
@@ -187,6 +136,131 @@ void compute_selected_delta_z_output_mp(
     }
 }
 
+void compute_delta_z_heteros(std::vector<float> &mu_a,
+                             std::vector<float> &var_a, std::vector<float> &jcb,
+                             std::vector<float> &obs, int start_chunk,
+                             int end_chunk, std::vector<float> &delta_mu,
+                             std::vector<float> &delta_var)
+/*
+ * Compute delta hidden states for output layer with learned heteroscedastic
+ * noise. This function receives a vector of observations and the twice output
+ * hidden states. Using AGVI, we can infere the posterior for observation noise
+ * v and use it to update the hidden states Z_out. In the code,
+ * - V: refers to the Gaussian random variable describing the error variance
+ * sigma^2.
+ * - V2: square of the error (V^2).
+ * - V2_bar: refers to the Gaussian random variable describing the expected
+ * value of V2 (mu_V2).
+ * - V2_bar_tilde: refers to the Gaussian random variable describing V2 after
+ * passing through an exponential activation function to restrict the values to
+ * the positive domain.
+ *
+ * For more detail see https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf
+ *
+ * Args:
+ *    mu_a: mean of the hidden states, i.e., Z_out and V2_bar_tilde
+ *    var_a: variance of the hidden states
+ *    jcb: Jacobian of the hidden states
+ *    obs: observed data
+ *    start_chunk: start index of the hidden states
+ *    end_chunk: end index of the hidden states
+ *    delta_mu: delta mean of the hidden states
+ *    delta_var: delta variance of the hidden states
+ */
+{
+    const float zero_pad = 0.0f;
+
+    for (int col = start_chunk; col < end_chunk; col += 2) {
+        // Even positions of activation units correspond to the Z_out
+        float var_a_col = var_a[col];
+        float mu_a_col = mu_a[col];
+        float jcb_col = jcb[col];
+
+        // Odd positions of activation units correspond to the V2_bar_tilde,
+        // which is V2 after passing through an exponential activation function
+        float mu_V2_bar_tilde = mu_a[col + 1];
+        float var_V2_bar_tilde = var_a[col + 1];
+        float cov_V2_bar_tilde = jcb[col + 1];
+
+        // Compute the prior predictive PDF for V2
+        float mu_V2 = mu_V2_bar_tilde;
+        float var_V2 =
+            3.0f * var_V2_bar_tilde + 2.0f * mu_V2_bar_tilde * mu_V2_bar_tilde;
+        float cov_y_V = mu_V2;
+
+        // Calculate predictive variance for y
+        float var_sum = var_a_col + mu_V2;
+
+        // Compute deltas for Z_out
+        float tmp = jcb_col / var_sum;
+        if (std::isinf(tmp) || std::isnan(tmp)) {
+            delta_mu[col] = zero_pad;
+            delta_var[col] = zero_pad;
+        } else {
+            float obs_diff = obs[col / 2] - mu_a_col;
+            delta_mu[col] = tmp * obs_diff;
+            delta_var[col] = -tmp * jcb_col;
+        }
+
+        // Compute the posterior mean and variance for V
+        float mu_V_pos = cov_y_V / var_sum * (obs[col / 2] - mu_a_col);
+        float var_V_pos = mu_V2 - cov_y_V / var_sum * cov_y_V;
+
+        // Compute the posterior mean and variance for V2
+        float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
+        float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
+                           4.0f * var_V_pos * mu_V_pos * mu_V_pos;
+
+        // Compute the posterior mean and variance for V2_bar_tilde
+        float k = var_V2_bar_tilde / var_V2;
+        float mu_V2_bar_tilde_pos = mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
+        float var_V2_bar_tilde_pos =
+            var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
+
+        // Compute deltas for V2_bar
+        float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
+        delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
+        delta_var[col + 1] =
+            Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
+    }
+}
+
+void compute_delta_z_heteros_mp(std::vector<float> &mu_a,
+                                std::vector<float> &var_a,
+                                std::vector<float> &jcb,
+                                std::vector<float> &obs, int n,
+                                unsigned int num_threads,
+                                std::vector<float> &delta_mu,
+                                std::vector<float> &delta_var)
+/*
+ */
+{
+    const int n_batch = n / num_threads;
+    const int rem_batch = n % num_threads;
+    int start_chunk, end_chunk;
+    std::vector<std::thread> threads(num_threads);
+
+    for (int i = 0; i < num_threads; i++) {
+        if (i == 0) {
+            start_chunk = n_batch * i;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        } else {
+            start_chunk = n_batch * i + rem_batch;
+            end_chunk = (n_batch * (i + 1)) + rem_batch;
+        }
+        threads[i] = std::thread(compute_delta_z_heteros, std::ref(mu_a),
+                                 std::ref(var_a), std::ref(jcb), std::ref(obs),
+                                 start_chunk, end_chunk, std::ref(delta_mu),
+                                 std::ref(delta_var));
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        if (threads[i].joinable()) {
+            threads[i].join();
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Base Output Updater
 ////////////////////////////////////////////////////////////////////////////////
@@ -229,7 +303,7 @@ void BaseOutputUpdater::update_selected_output_delta_z(
         delta_states.delta_mu, delta_states.delta_var);
 }
 
-void BaseOutputUpdater::update_output_delta_z_noise(
+void BaseOutputUpdater::update_output_delta_z_heteros(
     BaseHiddenStates &output_states, BaseObservation &obs,
     BaseDeltaStates &delta_states)
 /*
@@ -240,9 +314,9 @@ void BaseOutputUpdater::update_output_delta_z_noise(
 
     delta_states.reset_zeros();
 
-    compute_delta_z_noise(output_states.mu_a, output_states.var_a,
-                          output_states.jcb, obs.mu_obs, start_chunk, end_chunk,
-                          delta_states.delta_mu, delta_states.delta_var);
+    compute_delta_z_heteros(
+        output_states.mu_a, output_states.var_a, output_states.jcb, obs.mu_obs,
+        start_chunk, end_chunk, delta_states.delta_mu, delta_states.delta_var);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -302,31 +376,9 @@ void OutputUpdater::update_using_indices(BaseHiddenStates &output_states,
                                                   delta_states);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Noise Output Updater
-////////////////////////////////////////////////////////////////////////////////
-
-NoiseOutputUpdater::NoiseOutputUpdater(const std::string model_device)
-    : device(model_device) {
-#ifdef USE_CUDA
-    if (this->device.compare("cuda") == 0) {
-        this->updater = std::make_shared<NoiseOutputUpdaterCuda>();
-        this->obs = std::make_shared<ObservationCuda>();
-    } else
-#endif
-    {
-        this->updater = std::make_shared<BaseOutputUpdater>();
-        this->obs = std::make_shared<BaseObservation>();
-    }
-}
-
-NoiseOutputUpdater::NoiseOutputUpdater() {}
-
-NoiseOutputUpdater::~NoiseOutputUpdater() {}
-
-void NoiseOutputUpdater::update(BaseHiddenStates &output_states,
-                                std::vector<float> &mu_obs,
-                                BaseDeltaStates &delta_states)
+void OutputUpdater::update_heteros(BaseHiddenStates &output_states,
+                                   std::vector<float> &mu_obs,
+                                   BaseDeltaStates &delta_states)
 /*
  */
 {
@@ -337,6 +389,6 @@ void NoiseOutputUpdater::update(BaseHiddenStates &output_states,
     this->obs->size = mu_obs.size();
     this->obs->actual_size = mu_obs.size() / output_states.block_size;
 
-    this->updater->update_output_delta_z_noise(output_states, *this->obs,
-                                               delta_states);
+    this->updater->update_output_delta_z_heteros(output_states, *this->obs,
+                                                 delta_states);
 }

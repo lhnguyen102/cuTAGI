@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Miquel Florensa & Luong-Ha Nguyen & James-A. Goulet
 // Created:      August 13, 2024
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ void fnn_heteros_v2()
                                   train_db.sigma_x, train_db.mu_y,
                                   train_db.sigma_y, 51, n_x, n_y, true);
 
-    Sequential model(Linear(13, 50), ReLU(), Linear(50, 2), AGVI());
+    Sequential model(Linear(13, 50), ReLU(), Linear(50, 2), EvenExp());
     model.set_threads(8);
 
     //////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ void fnn_heteros_v2()
     std::vector<int> batch_idx(batch_size);
     auto data_idx = create_range(train_db.num_data);
 
-    NoiseOutputUpdater output_updater(model.device);
+    OutputUpdater output_updater(model.device);
 
     for (int e = 0; e < 30; e++) {
         // if (e > 0) {
@@ -78,8 +78,8 @@ void fnn_heteros_v2()
             // Forward pass
             model.forward(x_batch);
 
-            output_updater.update(*model.output_z_buffer, y_batch,
-                                  *model.input_delta_z_buffer);
+            output_updater.update_heteros(*model.output_z_buffer, y_batch,
+                                          *model.input_delta_z_buffer);
 
             // Backward pass
             model.backward();

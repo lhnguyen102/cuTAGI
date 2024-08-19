@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,21 +34,9 @@ class OutputUpdaterCuda : public BaseOutputUpdater {
                                         BaseObservation &obs,
                                         BaseDeltaStates &delta_states) override;
 
+    void update_output_delta_z_heteros(BaseHiddenStates &output_states,
+                                       BaseObservation &obs,
+                                       BaseDeltaStates &delta_states) override;
+
     std::string get_name() const override { return "OutputUpdaterCuda"; };
-};
-
-class NoiseOutputUpdaterCuda : public BaseOutputUpdater {
-   public:
-    unsigned int num_cuda_threads = 16;
-
-    NoiseOutputUpdaterCuda();
-    ~NoiseOutputUpdaterCuda() = default;
-
-    void set_num_cuda_threads(unsigned int num_threads);
-
-    void update_output_delta_z_noise(BaseHiddenStates &output_states,
-                                     BaseObservation &obs,
-                                     BaseDeltaStates &delta_states) override;
-
-    std::string get_name() const override { return "NoiseOutputUpdaterCuda"; };
 };

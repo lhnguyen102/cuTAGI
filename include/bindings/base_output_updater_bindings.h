@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 31, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,5 +14,3 @@ class module_;
 }
 
 void bind_output_updater(pybind11::module_& modo);
-
-void bind_noise_output_updater(pybind11::module_& modo);

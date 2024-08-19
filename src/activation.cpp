@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -475,10 +475,11 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void agvi_mean_var(std::vector<float> const &mu_z,
-                   std::vector<float> const &var_z, std::vector<float> &jcb_z,
-                   int start_chunk, int end_chunk, std::vector<float> &mu_a,
-                   std::vector<float> &var_a, std::vector<float> &jcb_a)
+void even_exp_mean_var(std::vector<float> const &mu_z,
+                       std::vector<float> const &var_z,
+                       std::vector<float> &jcb_z, int start_chunk,
+                       int end_chunk, std::vector<float> &mu_a,
+                       std::vector<float> &var_a, std::vector<float> &jcb_a)
 
 {
     for (int i = start_chunk; i < end_chunk; i++) {
@@ -494,11 +495,12 @@ void agvi_mean_var(std::vector<float> const &mu_z,
     }
 }
 
-void agvi_mean_var_mp(std::vector<float> const &mu_z,
-                      std::vector<float> const &var_z,
-                      std::vector<float> &jcb_z, int n,
-                      unsigned int num_threads, std::vector<float> &mu_a,
-                      std::vector<float> &var_a, std::vector<float> &jcb_a) {
+void even_exp_mean_var_mp(std::vector<float> const &mu_z,
+                          std::vector<float> const &var_z,
+                          std::vector<float> &jcb_z, int n,
+                          unsigned int num_threads, std::vector<float> &mu_a,
+                          std::vector<float> &var_a,
+                          std::vector<float> &jcb_a) {
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
@@ -511,8 +513,8 @@ void agvi_mean_var_mp(std::vector<float> const &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_z, &var_z, &jcb_z, &mu_a, &var_a, &jcb_a] {
-            agvi_mean_var(mu_z, var_z, jcb_z, start_chunk, end_chunk, mu_a,
-                          var_a, jcb_a);
+            even_exp_mean_var(mu_z, var_z, jcb_z, start_chunk, end_chunk, mu_a,
+                              var_a, jcb_a);
         });
     }
 
@@ -1197,35 +1199,36 @@ void RemaxA::compute_remax_prob(std::vector<float> &mu_log,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// AGVI
+/// EvenExp
 ////////////////////////////////////////////////////////////////////////////////
-AGVI::AGVI() {}
-AGVI::~AGVI() {}
+EvenExp::EvenExp() {}
+EvenExp::~EvenExp() {}
 
-std::string AGVI::get_layer_info() const
+std::string EvenExp::get_layer_info() const
 /*
  */
 {
-    return "AGVI()";
+    return "EvenExp()";
 }
 
-std::string AGVI::get_layer_name() const
+std::string EvenExp::get_layer_name() const
 /*
  */
 
 {
-    return "AGVI";
+    return "EvenExp";
 }
 
-LayerType AGVI::get_layer_type() const
+LayerType EvenExp::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void AGVI::forward(BaseHiddenStates &input_states,
-                   BaseHiddenStates &output_states, BaseTempStates &temp_states)
+void EvenExp::forward(BaseHiddenStates &input_states,
+                      BaseHiddenStates &output_states,
+                      BaseTempStates &temp_states)
 /*
  */
 {
@@ -1239,14 +1242,15 @@ void AGVI::forward(BaseHiddenStates &input_states,
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
-        agvi_mean_var_mp(input_states.mu_a, input_states.var_a,
-                         input_states.jcb, end_chunk, this->num_threads,
-                         output_states.mu_a, output_states.var_a,
-                         output_states.jcb);
+        even_exp_mean_var_mp(input_states.mu_a, input_states.var_a,
+                             input_states.jcb, end_chunk, this->num_threads,
+                             output_states.mu_a, output_states.var_a,
+                             output_states.jcb);
     } else {
-        agvi_mean_var(input_states.mu_a, input_states.var_a, input_states.jcb,
-                      start_chunk, end_chunk, output_states.mu_a,
-                      output_states.var_a, output_states.jcb);
+        even_exp_mean_var(input_states.mu_a, input_states.var_a,
+                          input_states.jcb, start_chunk, end_chunk,
+                          output_states.mu_a, output_states.var_a,
+                          output_states.jcb);
     }
 
     this->input_size = input_states.actual_size;
@@ -1259,8 +1263,8 @@ void AGVI::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> AGVI::to_cuda() {
+std::unique_ptr<BaseLayer> EvenExp::to_cuda() {
     this->device = "cuda";
-    return std::make_unique<AGVICuda>();
+    return std::make_unique<EvenExpCuda>();
 }
 #endif

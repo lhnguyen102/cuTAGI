@@ -6,7 +6,7 @@ import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
 from pytagi import Normalizer
-from pytagi.nn import Linear, NoiseOutputUpdater, ReLU, Sequential, AGVI
+from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential, EvenExp
 
 
 def main(num_epochs: int = 50, batch_size: int = 10):
@@ -49,12 +49,12 @@ def main(num_epochs: int = 50, batch_size: int = 10):
             Linear(150, 150),
             ReLU(),
             Linear(150, 2),
-            AGVI(),
+            EvenExp(),
         )
-        # net.set_threads(8)
+        net.set_threads(8)
 
 
-    out_updater = NoiseOutputUpdater(net.device)
+    out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#
     # Training
@@ -68,7 +68,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
             m_pred, _ = net(x)
 
             # Update output layer
-            out_updater.update(
+            out_updater.update_heteros(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
                 delta_states=net.input_delta_z_buffer,
@@ -107,7 +107,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         m_pred, v_pred = net(x)
 
         if cuda:
-            # CUDA TAGI-V current network does not work with the AGVI activation
+            # CUDA TAGI-V current network does not work with the EvenExp activation
             # function so we need to apply it here. This will be fixed in the
             # following versions.
             aux = np.exp(m_pred[1::2] + 0.5 * v_pred[1::2])
@@ -155,7 +155,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         sy_pred=std_preds,
         std_factor=1,
         label="heteros",
-        title="Heteroscadastic Regression",
+        title="Heteroscedastic Regression",
         time_series=False,
     )
 

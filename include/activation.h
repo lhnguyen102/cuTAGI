@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,16 +102,17 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                       int no, int batch_size, std::vector<float> &mu_a,
                       std::vector<float> &jcb, std::vector<float> &var_a);
 
-void agvi_mean_var(std::vector<float> const &mu_z,
-                   std::vector<float> const &var_z, std::vector<float> &jcb_z,
-                   int start_chunk, int end_chunk, std::vector<float> &mu_a,
-                   std::vector<float> &var_a, std::vector<float> &jcb_a);
+void even_exp_mean_var(std::vector<float> const &mu_z,
+                       std::vector<float> const &var_z,
+                       std::vector<float> &jcb_z, int start_chunk,
+                       int end_chunk, std::vector<float> &mu_a,
+                       std::vector<float> &var_a, std::vector<float> &jcb_a);
 
-void agvi_mean_var_mp(std::vector<float> const &mu_z,
-                      std::vector<float> const &var_z,
-                      std::vector<float> const &jcb_z, int n,
-                      unsigned int num_threads, std::vector<float> &mu_a,
-                      std::vector<float> &var_a, std::vector<float> &jcb_a);
+void even_exp_mean_var_mp(std::vector<float> const &mu_z,
+                          std::vector<float> const &var_z,
+                          std::vector<float> const &jcb_z, int n,
+                          unsigned int num_threads, std::vector<float> &mu_a,
+                          std::vector<float> &var_a, std::vector<float> &jcb_a);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -563,20 +564,20 @@ class RemaxA : public BaseLayer {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-/// AGVI
+/// EvenExp
 ////////////////////////////////////////////////////////////////////////////////
-class AGVI : public BaseLayer {
+class EvenExp : public BaseLayer {
    public:
-    AGVI();
-    ~AGVI();
+    EvenExp();
+    ~EvenExp();
 
     // Delete copy constructor and copy assignment
-    AGVI(const AGVI &) = delete;
-    AGVI &operator=(const AGVI &) = delete;
+    EvenExp(const EvenExp &) = delete;
+    EvenExp &operator=(const EvenExp &) = delete;
 
     // Optionally implement move constructor and move assignment
-    AGVI(AGVI &&) = default;
-    AGVI &operator=(AGVI &&) = default;
+    EvenExp(EvenExp &&) = default;
+    EvenExp &operator=(EvenExp &&) = default;
 
     std::string get_layer_info() const override;
 

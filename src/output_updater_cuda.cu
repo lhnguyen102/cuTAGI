@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,10 +52,11 @@ __global__ void update_delta_z_cuda(float const *mu_a, float const *var_a,
     }
 }
 
-__global__ void update_delta_z_cuda_noise(float const *mu_a, float const *var_a,
-                                          float const *jcb, float const *obs,
-                                          int size, float *delta_mu,
-                                          float *delta_var) {
+__global__ void update_delta_z_cuda_heteros(float const *mu_a,
+                                            float const *var_a,
+                                            float const *jcb, float const *obs,
+                                            int size, float *delta_mu,
+                                            float *delta_var) {
     const float zero_pad = 0.0f;
 
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -187,13 +188,7 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var);
 }
 
-NoiseOutputUpdaterCuda::NoiseOutputUpdaterCuda() {}
-
-void NoiseOutputUpdaterCuda::set_num_cuda_threads(unsigned int num_threads) {
-    this->num_cuda_threads = num_threads;
-}
-
-void NoiseOutputUpdaterCuda::update_output_delta_z_noise(
+void OutputUpdaterCuda::update_output_delta_z_heteros(
     BaseHiddenStates &output_states, BaseObservation &obs,
     BaseDeltaStates &delta_states)
 /*
@@ -220,7 +215,7 @@ void NoiseOutputUpdaterCuda::update_output_delta_z_noise(
     int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
-    update_delta_z_cuda_noise<<<blocks, this->num_cuda_threads>>>(
+    update_delta_z_cuda_heteros<<<blocks, this->num_cuda_threads>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
         cu_output_states->d_jcb, cu_obs->d_mu_obs, num_states,
         cu_delta_states->d_delta_mu, cu_delta_states->d_delta_var);

@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      August 13, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -654,35 +654,35 @@ std::unique_ptr<BaseLayer> SoftmaxCuda::to_host()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// AGVI
+/// EvenExp
 ////////////////////////////////////////////////////////////////////////////////
-AGVICuda::AGVICuda() {}
-AGVICuda::~AGVICuda() {}
+EvenExpCuda::EvenExpCuda() {}
+EvenExpCuda::~EvenExpCuda() {}
 
-std::string AGVICuda::get_layer_info() const
+std::string EvenExpCuda::get_layer_info() const
 /*
  */
 {
-    return "AGVI()";
+    return "EvenExp()";
 }
 
-std::string AGVICuda::get_layer_name() const
+std::string EvenExpCuda::get_layer_name() const
 /*
  */
 {
-    return "AGVICuda";
+    return "EvenExpCuda";
 }
 
-LayerType AGVICuda::get_layer_type() const
+LayerType EvenExpCuda::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void AGVICuda::forward(BaseHiddenStates &input_states,
-                       BaseHiddenStates &output_states,
-                       BaseTempStates &temp_states)
+void EvenExpCuda::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
 /*
  */
 {
@@ -705,7 +705,7 @@ void AGVICuda::forward(BaseHiddenStates &input_states,
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 
-    agvi_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+    even_exp_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a,
         cu_input_states->d_jcb, num_states, cu_output_states->d_mu_a,
         cu_output_states->d_var_a, cu_output_states->d_jcb);
@@ -720,11 +720,11 @@ void AGVICuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
-std::unique_ptr<BaseLayer> AGVICuda::to_host()
+std::unique_ptr<BaseLayer> EvenExpCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer = std::make_unique<AGVI>();
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<EvenExp>();
     host_layer->input_size = this->input_size;
     host_layer->output_size = this->output_size;
 
@@ -1026,9 +1026,9 @@ __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
     }
 }
 
-__global__ void agvi_mean_var_cuda(float const *mu_z, float const *var_z,
-                                   float const *jcb_z, int num_states,
-                                   float *mu_a, float *var_a, float *jcb_a)
+__global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
+                                       float const *jcb_z, int num_states,
+                                       float *mu_a, float *var_a, float *jcb_a)
 /*
  */
 {
