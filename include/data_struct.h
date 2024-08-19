@@ -134,20 +134,40 @@ class BaseDeltaStates {
     virtual void swap(BaseDeltaStates &other);
 };
 
-class BaseLinearSmoother {
-   public:
-    float mu_prior, var_prior;
-    float mu_post, var_post;
-    std::vector<float> mu_w, var_w, var_b;
-    std::vector<float> mu_zo_smooths, var_zo_smooths;
-    size_t num_w = 0;
+// class BaseLinearSmoother {
+//    public:
+//     float mu_prior, var_prior;
+//     float mu_post, var_post;
+//     std::vector<float> mu_w, var_w, var_b;
+//     std::vector<float> mu_zo_smooths, var_zo_smooths;
+//     size_t num_w = 0;
 
-    BaseLinearSmoother(size_t num_w);
-    BaseLinearSmoother();
-    ~BaseLinearSmoother() = default;
+//     BaseLinearSmoother(size_t num_w);
+//     BaseLinearSmoother();
+//     ~BaseLinearSmoother() = default;
+//     // virtual void set_size(size_t size, size_t size_w);
+//     virtual void set_num_states_w(size_t num_w);
+//     void reset_zeros();
+// };
+
+class BaseTempSLinear {
+   public:
+    std::vector<float> cov_hh, mu_h_prev;
+    std::vector<float> mu_zo_smooths, var_zo_smooths;
+    size_t num_hs = 0;
+
+    BaseTempSLinear(size_t num_hs);
+    BaseTempSLinear();
+    ~BaseTempSLinear() = default;
     // virtual void set_size(size_t size, size_t size_w);
-    virtual void set_num_states_w(size_t num_w);
+    virtual void set_num_states(size_t num_hs);
     void reset_zeros();
+};
+
+class BaseSLinear {
+   public:
+    std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
+        var_zo_posts;
 };
 
 class BaseTempStates {
@@ -155,7 +175,7 @@ class BaseTempStates {
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
     size_t size = 0, block_size = 0, actual_size = 0;
-    BaseLinearSmoother linear_states;
+    BaseTempSLinear slinear;
 
     BaseTempStates(size_t n, size_t m);
     BaseTempStates();

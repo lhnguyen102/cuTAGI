@@ -157,27 +157,22 @@ void BaseDeltaStates::swap(BaseDeltaStates& other)
 // Base Linear layer's Smoother States: for saving varibles for z_output
 // smoother in LSTM
 ////////////////////////////////////////////////////////////////////////////////
-BaseLinearSmoother::BaseLinearSmoother(size_t num_w) : num_w(num_w) {}
-BaseLinearSmoother::BaseLinearSmoother() {}
-void BaseLinearSmoother::set_num_states_w(size_t num_w)
+BaseTempSLinear::BaseTempSLinear(size_t num_hs) : num_hs(num_hs) {}
+BaseTempSLinear::BaseTempSLinear() {}
+void BaseTempSLinear::set_num_states(size_t num_hs)
 /*
  */
 {
-    this->num_w = num_w;
+    this->num_hs = num_hs;
     this->reset_zeros();
 }
 
-void BaseLinearSmoother::reset_zeros()
+void BaseTempSLinear::reset_zeros()
 /*
  */
 {
-    mu_prior = 0.0;
-    var_prior = 0.0;
-    mu_post = 0.0;
-    var_post = 0.0;
-    this->mu_w.resize(num_w, 0.0);
-    this->var_w.resize(num_w, 0.0);
-    this->var_b.resize(1, 0.0);
+    this->cov_hh.resize(num_hs * num_hs, 0.0);
+    this->mu_h_prev.resize(num_hs, 0.0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -156,6 +156,8 @@ class SLinear : public Linear {
             std::string method = "He")
         : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method) {}
 
+    BaseSLinear slinear_states;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
@@ -169,4 +171,6 @@ class SLinear : public Linear {
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states, bool state_udapte) override;
+
+    void smoother(BaseTempStates &temp_states);
 };

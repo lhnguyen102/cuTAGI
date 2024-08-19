@@ -1496,7 +1496,7 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
-void LSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
+void LSTM::smoother(BaseTempStates &temp_states)
 /*
  */
 {}
@@ -1574,7 +1574,7 @@ void lstm_cov_hidden_cell_states_smoother(
     cov_hc.push_back(Ch_c);
 }
 
-void lstm_cov_h_zo_smoother(
+void lstm_cov_hidden_states_smoother(
     std::vector<float> &mw, std::vector<float> &Jf_ga,
     std::vector<float> &mi_ga, std::vector<float> &Ji_ga,
     std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
@@ -1583,11 +1583,11 @@ void lstm_cov_h_zo_smoother(
     std::vector<float> &var_h_prev, std::vector<float> &mc_prev,
     std::vector<float> &mca, std::vector<float> &Jca, int w_pos_f, int w_pos_i,
     int w_pos_c, int w_pos_o, int no, int ni, int start_idx, int end_idx,
-    std::vector<float> &mw_next, std::vector<float> &Sw_next,
-    std::vector<float> &Sb_next, std::vector<float> &cov_hh, float &C_zo_zo)
+    std::vector<std::vector<float>> &cov_hh)
 /*
  */
 {
+    std::vector<float> Ch_h(end_idx * end_idx, 0);
     float Czz_f, Czz_i, Czz_c, Czz_o;
     int m;
 
@@ -1611,38 +1611,10 @@ void lstm_cov_h_zo_smoother(
 
             // Updating quantities
             m = t * no + j;
-            cov_hh[m] = Czz_f + Czz_i + Czz_c + Czz_o;
-
-            // C_zo_zo : cov(z^{O}_{t-1}, z^{O}_{t})
-            if (t != j) {
-                C_zo_zo += cov_hh[m] * mw_next[t] * mw_next[j];
-            } else {
-                C_zo_zo +=
-                    Sw_next[t] * (cov_hh[m] + mu_h_prev[t] * mu_h_prior[j]) +
-                    cov_hh[m] * mw_next[t] * mw_next[j];
-            }
+            Ch_h[m] = Czz_f + Czz_i + Czz_c + Czz_o;
         }
     }
-    C_zo_zo = C_zo_zo + Sb_next[0];
-}
-
-void lstm_smoother_z_ouput(int num_timestep, std::vector<float> &cov,
-                           std::vector<float> &mu_priors,
-                           std::vector<float> &var_priors,
-                           std::vector<float> &mu_posts,
-                           std::vector<float> &var_posts,
-                           std::vector<float> &mu_smooths,
-                           std::vector<float> &var_smooths)
-/*
- */
-{
-    for (int i = num_timestep - 2; i >= 0; i--) {
-        float tmp = cov[i + 1] / var_priors[i + 1];
-        mu_smooths[i] =
-            mu_posts[i] + tmp * (mu_smooths[i + 1] - mu_priors[i + 1]);
-        var_smooths[i] =
-            var_posts[i] + tmp * (var_smooths[i + 1] - var_priors[i + 1]) * tmp;
-    }
+    cov_hh.push_back(Ch_h);
 }
 
 void lstm_smoother_cell_states(int num_timestep,
@@ -1660,15 +1632,12 @@ void lstm_smoother_cell_states(int num_timestep,
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = 0; j < num_states; j++) {
             float tmp = cov_cc[i + 1][j] / var_c_priors[i + 1][j];
-            // std::cout << "i: " << i << " .j: " << j << ".tmp: " << tmp
-            //           << std::endl;
             mu_c_smooths[i][j] =
                 mu_c_posts[i][j] +
                 tmp * (mu_c_smooths[i + 1][j] - mu_c_priors[i + 1][j]);
             var_c_smooths[i][j] =
                 var_c_posts[i][j] +
                 tmp * (var_c_smooths[i + 1][j] - var_c_priors[i + 1][j]) * tmp;
-            // std::cout << "mu_c_smooths: " << mu_c_smooths[i][j] << std::endl;
         }
     }
 }
@@ -1836,11 +1805,29 @@ void SLSTM::forward(BaseHiddenStates &input_states,
         this->lstm_states.var_c_priors.push_back(this->lstm_states.var_c_prior);
 
         // Save the cross-covariances for smoothing
-        lstm_cov_cell_states_smoother(lstm_states.var_c_prev,
-                                      lstm_states.mu_f_ga, lstm_states.cov_cc);
-        lstm_cov_hidden_cell_states_smoother(
-            lstm_states.var_c_prior, lstm_states.mu_o_ga, lstm_states.jcb_ca,
-            lstm_states.cov_hc);
+        if (this->seq_len == 1 && batch_size == 1) {
+            lstm_cov_cell_states_smoother(lstm_states.var_c_prev,
+                                          lstm_states.mu_f_ga,
+                                          lstm_states.cov_cc);
+            lstm_cov_hidden_cell_states_smoother(
+                lstm_states.var_c_prior, lstm_states.mu_o_ga,
+                lstm_states.jcb_ca, lstm_states.cov_hc);
+
+            int end_chunk_ = batch_size * this->seq_len * this->output_size;
+            lstm_cov_hidden_states_smoother(
+                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
+                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
+                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+                lstm_states.mu_c_prior, lstm_states.mu_h_prev,
+                lstm_states.var_h_prev, lstm_states.mu_c_prev,
+                lstm_states.mu_ca, lstm_states.jcb_ca, this->w_pos_f,
+                this->w_pos_i, this->w_pos_c, this->w_pos_o, this->output_size,
+                this->input_size, 0, end_chunk_, lstm_states.cov_hh);
+
+            // save temporary variables for smoothing z_output in slinear layer
+            temp_states.slinear.mu_h_prev = lstm_states.mu_h_prev;
+            temp_states.slinear.cov_hh = lstm_states.cov_hh.back();
+        }
     }
 }
 
@@ -1875,27 +1862,6 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
                 this->output_size, this->input_size, this->seq_len, 0,
                 end_chunk, output_delta_states.delta_mu,
                 output_delta_states.delta_var);
-        }
-
-        if (this->seq_len == 1 && batch_size == 1) {
-            int end_chunk_ = batch_size * this->seq_len * this->output_size;
-            std::vector<float> cov_hh(end_chunk_ * end_chunk_, 0);
-            float cov_zo = 0;
-
-            lstm_cov_h_zo_smoother(
-                this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
-                lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
-                lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
-                lstm_states.mu_c_prior, lstm_states.mu_h_prev,
-                lstm_states.var_h_prev, lstm_states.mu_c_prev,
-                lstm_states.mu_ca, lstm_states.jcb_ca, this->w_pos_f,
-                this->w_pos_i, this->w_pos_c, this->w_pos_o, this->output_size,
-                this->input_size, 0, end_chunk_, temp_states.linear_states.mu_w,
-                temp_states.linear_states.var_w,
-                temp_states.linear_states.var_b, cov_hh, cov_zo);
-            // print_matrix_1Dvec(cov_hh);
-            this->lstm_states.cov_hh.push_back(cov_hh);
-            this->lstm_states.cov_zo.push_back(cov_zo);
         }
     }
 
@@ -1982,18 +1948,10 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
         this->lstm_states.var_h_posts.push_back(this->lstm_states.var_h_prior);
         this->lstm_states.mu_c_posts.push_back(this->lstm_states.mu_c_prior);
         this->lstm_states.var_c_posts.push_back(this->lstm_states.var_c_prior);
-        this->lstm_states.mu_zo_priors.push_back(
-            temp_states.linear_states.mu_prior);
-        this->lstm_states.var_zo_priors.push_back(
-            temp_states.linear_states.var_prior);
-        this->lstm_states.mu_zo_posts.push_back(
-            temp_states.linear_states.mu_post);
-        this->lstm_states.var_zo_posts.push_back(
-            temp_states.linear_states.var_post);
     }
 }
 
-void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
+void SLSTM::smoother(BaseTempStates &temp_states)
 /*
  */
 {
@@ -2004,8 +1962,6 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
     lstm_states.var_c_smooths.resize(num_timestep);
     lstm_states.mu_h_smooths.resize(num_timestep);
     lstm_states.var_h_smooths.resize(num_timestep);
-    lstm_states.mu_zo_smooths.resize(num_timestep);
-    lstm_states.var_zo_smooths.resize(num_timestep);
 
     for (auto &val : lstm_states.mu_c_smooths) {
         val.resize(num_hidden_states, 0.0f);
@@ -2019,20 +1975,12 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
     for (auto &val : lstm_states.var_h_smooths) {
         val.resize(num_hidden_states, 0.0f);
     }
-    for (auto &val : lstm_states.mu_zo_smooths) {
-        val = 0.0f;
-    }
-    for (auto &val : lstm_states.var_zo_smooths) {
-        val = 0.0f;
-    }
 
     // Initialize the last time step for smoothing
     lstm_states.mu_c_smooths.back() = lstm_states.mu_c_posts.back();
     lstm_states.var_c_smooths.back() = lstm_states.var_c_posts.back();
     lstm_states.mu_h_smooths.back() = lstm_states.mu_h_posts.back();
     lstm_states.var_h_smooths.back() = lstm_states.var_h_posts.back();
-    lstm_states.mu_zo_smooths.back() = lstm_states.mu_zo_posts.back();
-    lstm_states.var_zo_smooths.back() = lstm_states.var_zo_posts.back();
 
     lstm_smoother_cell_states(num_timestep, lstm_states.cov_cc,
                               lstm_states.mu_c_priors, lstm_states.var_c_priors,
@@ -2046,23 +1994,6 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
         lstm_states.var_h_posts, lstm_states.mu_c_smooths,
         lstm_states.var_c_smooths, lstm_states.mu_h_smooths,
         lstm_states.var_h_smooths);
-
-    // only smooth the z_output for the last linear layer
-    if (next_layer_type == "SLinear") {
-        lstm_smoother_z_ouput(
-            num_timestep, lstm_states.cov_zo, lstm_states.mu_zo_priors,
-            lstm_states.var_zo_priors, lstm_states.mu_zo_posts,
-            lstm_states.var_zo_posts, lstm_states.mu_zo_smooths,
-            lstm_states.var_zo_smooths);
-    }
-
-    // take the smoothed z_output for python
-    if (next_layer_type == "SLinear") {
-        temp_states.linear_states.mu_zo_smooths =
-            this->lstm_states.mu_zo_smooths;
-        temp_states.linear_states.var_zo_smooths =
-            this->lstm_states.var_zo_smooths;
-    }
 
     // transfer h and c to the first time step of the next epoch
     // this->lstm_states.mu_h_prior = this->lstm_states.mu_h_smooths[0];
@@ -2088,10 +2019,5 @@ void SLSTM::smoother(std::string next_layer_type, BaseTempStates &temp_states)
     this->lstm_states.cov_cc.clear();
     this->lstm_states.cov_hc.clear();
     this->lstm_states.cov_hh.clear();
-    this->lstm_states.cov_zo.clear();
-    this->lstm_states.mu_zo_priors.clear();
-    this->lstm_states.var_zo_priors.clear();
-    this->lstm_states.mu_zo_posts.clear();
-    this->lstm_states.var_zo_posts.clear();
     this->lstm_states.reset_zeros();
 }
