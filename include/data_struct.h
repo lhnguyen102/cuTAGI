@@ -134,22 +134,6 @@ class BaseDeltaStates {
     virtual void swap(BaseDeltaStates &other);
 };
 
-// class BaseLinearSmoother {
-//    public:
-//     float mu_prior, var_prior;
-//     float mu_post, var_post;
-//     std::vector<float> mu_w, var_w, var_b;
-//     std::vector<float> mu_zo_smooths, var_zo_smooths;
-//     size_t num_w = 0;
-
-//     BaseLinearSmoother(size_t num_w);
-//     BaseLinearSmoother();
-//     ~BaseLinearSmoother() = default;
-//     // virtual void set_size(size_t size, size_t size_w);
-//     virtual void set_num_states_w(size_t num_w);
-//     void reset_zeros();
-// };
-
 class BaseTempSLinear {
    public:
     std::vector<float> cov_hh, mu_h_prev;
@@ -164,12 +148,6 @@ class BaseTempSLinear {
     void reset_zeros();
 };
 
-class BaseSLinear {
-   public:
-    std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
-        var_zo_posts;
-};
-
 class BaseTempStates {
    public:
     std::vector<float> tmp_1;
@@ -179,7 +157,6 @@ class BaseTempStates {
 
     BaseTempStates(size_t n, size_t m);
     BaseTempStates();
-    ~BaseTempStates() = default;
     virtual std::string get_name() const { return "BaseTempStates"; };
     virtual void set_size(size_t size, size_t block_size);
 };
@@ -225,8 +202,7 @@ class BaseLSTMStates {
         jcb_o_ga, mu_ca, var_ca, jcb_ca, mu_c, var_c, cov_i_c, cov_o_tanh_c;
 
     std::vector<float> mu_c_prev, var_c_prev, mu_h_prev, var_h_prev, mu_h_prior,
-        var_h_prior, mu_c_prior, var_c_prior, mu_zo_priors, var_zo_priors,
-        mu_zo_posts, var_zo_posts, mu_zo_smooths, var_zo_smooths, cov_zo;
+        var_h_prior, mu_c_prior, var_c_prior;
 
     std::vector<std::vector<float>> mu_h_priors, var_h_priors, mu_c_priors,
         var_c_priors, mu_h_posts, var_h_posts, mu_c_posts, var_c_posts,
@@ -239,6 +215,13 @@ class BaseLSTMStates {
     virtual void set_num_states(size_t num_states, size_t num_inputs);
     virtual std::string get_name() const { return "BaseLSTMStates"; };
     void reset_zeros();
+};
+
+// Smoother for linear layer when using LSTM
+class BaseSLinear {
+   public:
+    std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
+        var_zo_posts;
 };
 
 // HIERARCHICAL SOFTMAX
