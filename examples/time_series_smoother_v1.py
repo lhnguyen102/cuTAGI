@@ -14,7 +14,7 @@ from pytagi.nn import SLSTM, LSTM, Linear, SLinear, OutputUpdater, Sequential
 from examples.data_loader import TimeSeriesDataloader
 
 
-def main(num_epochs: int = 2, batch_size: int = 1, sigma_v: float = 1):
+def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]

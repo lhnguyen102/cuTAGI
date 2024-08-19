@@ -8,6 +8,9 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/linear_layer.h"
+
+#include "../include/common.h"
+
 #ifdef USE_CUDA
 #include "../include/linear_layer_cuda.cuh"
 #endif
@@ -661,7 +664,8 @@ LayerType SLinear::get_layer_type() const
     return LayerType::SLinear;
 }
 
-void linear_update_hidden_states_worker(float &mu_a_prior, float &var_a_prior,
+void linear_update_hidden_states_worker(std::vector<float> &mu_a_prior,
+                                        std::vector<float> &var_a_prior,
                                         std::vector<float> &delta_mu,
                                         std::vector<float> &delta_var,
                                         std::vector<float> &mu_a_post,
@@ -669,13 +673,12 @@ void linear_update_hidden_states_worker(float &mu_a_prior, float &var_a_prior,
 /*
  */
 {
-    float mu_a_post_ = mu_a_prior + delta_mu[0] * var_a_prior;
-    float var_a_post_ = (1.0f + delta_var[0] * var_a_prior) * var_a_prior;
-    mu_a_post.push_back(mu_a_post_);
-    var_a_post.push_back(var_a_post_);
-
-    // std::cout << "mu_a_post_: " << mu_a_post_
-    //           << ". var_a_post_: " << var_a_post_ << std::endl;
+    float mu_tmp = mu_a_prior.back();
+    float var_tmp = var_a_prior.back();
+    mu_tmp = mu_tmp + delta_mu[0] * var_tmp;
+    var_tmp = (1.0f + delta_var[0] * var_tmp) * var_tmp;
+    mu_a_post.push_back(mu_tmp);
+    var_a_post.push_back(var_tmp);
 }
 
 void slinear_cov_zo_smoother(int ni, int no, std::vector<float> &mu_w,
@@ -688,7 +691,7 @@ void slinear_cov_zo_smoother(int ni, int no, std::vector<float> &mu_w,
 /*
  */
 {
-    float C_zo_zo;
+    float C_zo_zo = 0;
     int m;
 
     for (int t = 0; t < ni; t++) {
@@ -724,12 +727,6 @@ void slinear_smoother_z_ouput(int num_timestep, std::vector<float> &cov,
             mu_posts[i] + tmp * (mu_smooths[i + 1] - mu_priors[i + 1]);
         var_smooths[i] =
             var_posts[i] + tmp * (var_smooths[i + 1] - var_priors[i + 1]) * tmp;
-
-        std::cout << "cov_zo: " << var_priors[i]
-                  << ". var_priors: " << var_priors[i]
-                  << ". var_posts: " << var_posts[i]
-                  << ". var_smooth: " << var_smooths[i] << std::endl;
-        // std::cout << "cov_zo: " << var_priors[i] << std::endl;
     }
 }
 
@@ -811,10 +808,9 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
         linear_update_hidden_states_worker(
-            slinear_states.mu_zo_priors.back(),
-            slinear_states.var_zo_priors.back(), input_delta_states.delta_mu,
-            input_delta_states.delta_var, slinear_states.mu_zo_posts,
-            slinear_states.var_zo_posts);
+            slinear_states.mu_zo_priors, slinear_states.var_zo_priors,
+            input_delta_states.delta_mu, input_delta_states.delta_var,
+            slinear_states.mu_zo_posts, slinear_states.var_zo_posts);
     }
 
     // Update values for weights & biases
@@ -871,12 +867,6 @@ void SLinear::smoother(BaseTempStates &temp_states)
         slinear_states.var_zo_priors, slinear_states.mu_zo_posts,
         slinear_states.var_zo_posts, temp_states.slinear.mu_zo_smooths,
         temp_states.slinear.var_zo_smooths);
-
-    // temp_states.slinear.mu_zo_smooths = slinear_states.mu_zo_priors;
-    // temp_states.slinear.var_zo_smooths = slinear_states.var_zo_priors;
-
-    // temp_states.slinear.mu_zo_smooths = slinear_states.mu_zo_posts;
-    // temp_states.slinear.var_zo_smooths = slinear_states.var_zo_posts;
 
     // Clear variables for next epoch
     this->slinear_states.cov_zo.clear();
