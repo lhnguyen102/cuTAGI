@@ -361,7 +361,13 @@ void Sequential::smoother()
     for (auto layer = this->layers.begin(); layer != this->layers.end();
          layer++) {
         auto *current_layer = layer->get();
-        current_layer->smoother(*this->temp_states);
+
+        if (auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer)) {
+            slstm_layer->smoother(*this->temp_states);
+        } else if (auto *slinear_layer =
+                       dynamic_cast<SLinear *>(current_layer)) {
+            slinear_layer->smoother(*this->temp_states);
+        }
     }
 }
 

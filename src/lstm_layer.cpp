@@ -1496,11 +1496,6 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
-void LSTM::smoother(BaseTempStates &temp_states)
-/*
- */
-{}
-
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LSTM::to_cuda() {
     this->device = "cuda";

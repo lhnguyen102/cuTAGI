@@ -105,7 +105,7 @@ class BaseLayer {
                           BaseTempStates &temp_states,
                           bool state_udapte = true);
 
-    virtual void smoother(BaseTempStates &temp_states);
+    // virtual void smoother(BaseTempStates &temp_states);
 
     virtual void allocate_param_delta();
 
