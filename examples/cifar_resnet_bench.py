@@ -40,23 +40,23 @@ TAGI_CNN_NET = Sequential(
     # 32x32
     Conv2d(3, 32, 5, bias=True, padding=2, in_width=32, in_height=32),
     # BatchNorm2d(32),
-    ReLU(),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 16x16
     Conv2d(32, 32, 5, bias=True, padding=2),
     # BatchNorm2d(32),
-    ReLU(),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 8x8
     Conv2d(32, 64, 5, bias=True, padding=2),
     # BatchNorm2d(64),
-    ReLU(),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 4x4
     Linear(64 * 4 * 4, 256),
-    ReLU(),
+    MixtureReLU(),
     Linear(256, 128),
-    ReLU(),
+    MixtureReLU(),
     Linear(128, 11),
 )
 
@@ -229,8 +229,8 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    # net = TAGI_CNN_NET
-    net = resnet18_cifar10()
+    net = TAGI_CNN_NET
+    # net = resnet18_cifar10()
     net.to_device(device)
     out_updater = OutputUpdater(net.device)
 
