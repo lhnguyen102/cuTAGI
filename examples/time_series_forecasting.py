@@ -268,13 +268,19 @@ class PredictionViz:
             min_x = min(x_test)
 
         # Plot figure
+        if time_series:
+            marker = ""
+            line_style = "-"
+        else:
+            marker = "o"
+            line_style = ""
         plt.figure(figsize=self.figsize)
         ax = plt.axes()
         ax.set_title(title, fontsize=1.1 * self.fontsize, fontweight="bold")
         if eq is not None:
             ax.text(x_eq, y_eq, eq, color="k", fontsize=self.fontsize)
         ax.plot(x_test, y_pred, "r", lw=self.lw, label=r"$\mathbb{E}[Y^{'}]$")
-        ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}$")
+        ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}$", marker=marker, linestyle=line_style)
 
         ax.fill_between(
             x_test,
@@ -294,12 +300,6 @@ class PredictionViz:
                 label=r"$y_{{test}}\pm{}\sigma$".format(std_factor),
             )
         if x_train is not None:
-            if time_series:
-                marker = ""
-                line_style = "-"
-            else:
-                marker = "o"
-                line_style = ""
             ax.plot(
                 x_train,
                 y_train,

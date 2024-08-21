@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      October 09, 2023
-// Updated:      April 02, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,6 +101,18 @@ void leaky_relu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
 void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                       int no, int batch_size, std::vector<float> &mu_a,
                       std::vector<float> &jcb, std::vector<float> &var_a);
+
+void even_exp_mean_var(std::vector<float> const &mu_z,
+                       std::vector<float> const &var_z,
+                       std::vector<float> &jcb_z, int start_chunk,
+                       int end_chunk, std::vector<float> &mu_a,
+                       std::vector<float> &var_a, std::vector<float> &jcb_a);
+
+void even_exp_mean_var_mp(std::vector<float> const &mu_z,
+                          std::vector<float> const &var_z,
+                          std::vector<float> const &jcb_z, int n,
+                          unsigned int num_threads, std::vector<float> &mu_a,
+                          std::vector<float> &var_a, std::vector<float> &jcb_a);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -549,4 +561,47 @@ class RemaxA : public BaseLayer {
     void save(std::ofstream &file) override {};
 
     void load(std::ifstream &file) override {};
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// EvenExp
+////////////////////////////////////////////////////////////////////////////////
+class EvenExp : public BaseLayer {
+   public:
+    EvenExp();
+    ~EvenExp();
+
+    // Delete copy constructor and copy assignment
+    EvenExp(const EvenExp &) = delete;
+    EvenExp &operator=(const EvenExp &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    EvenExp(EvenExp &&) = default;
+    EvenExp &operator=(EvenExp &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda() override;
+#endif
 };

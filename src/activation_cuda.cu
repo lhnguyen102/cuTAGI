@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      April 02, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -654,6 +654,84 @@ std::unique_ptr<BaseLayer> SoftmaxCuda::to_host()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// EvenExp
+////////////////////////////////////////////////////////////////////////////////
+EvenExpCuda::EvenExpCuda() {}
+EvenExpCuda::~EvenExpCuda() {}
+
+std::string EvenExpCuda::get_layer_info() const
+/*
+ */
+{
+    return "EvenExp()";
+}
+
+std::string EvenExpCuda::get_layer_name() const
+/*
+ */
+{
+    return "EvenExpCuda";
+}
+
+LayerType EvenExpCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void EvenExpCuda::forward(BaseHiddenStates &input_states,
+                          BaseHiddenStates &output_states,
+                          BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
+
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+
+    // Assign output dimensions
+    cu_output_states->height = cu_input_states->height;
+    cu_output_states->depth = cu_input_states->depth;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
+
+    even_exp_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
+        cu_input_states->d_jcb, num_states, cu_output_states->d_mu_a,
+        cu_output_states->d_var_a, cu_output_states->d_jcb);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // Update number of actual states.
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
+}
+
+std::unique_ptr<BaseLayer> EvenExpCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<EvenExp>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // CUDA kernels
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -945,5 +1023,27 @@ __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
         var_a[j + output_size * i] = jcb[j + output_size * i] *
                                      (var_z[j + output_size * i] + max_var) *
                                      jcb[j + output_size * i];
+    }
+}
+
+__global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
+                                       float const *jcb_z, int num_states,
+                                       float *mu_a, float *var_a, float *jcb_a)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (col < num_states) {
+        if (col % 2 == 0) {
+            mu_a[col] = mu_z[col];
+            var_a[col] = var_z[col];
+            jcb_a[col] = jcb_z[col];
+        } else {
+            mu_a[col] = expf(mu_z[col] + 0.5f * var_z[col]);
+            var_a[col] =
+                expf(2.0f * mu_z[col] + var_z[col]) * (expf(var_z[col]) - 1.0f);
+            jcb_a[col] = var_z[col] * mu_a[col];
+        }
     }
 }

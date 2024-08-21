@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 27, 2023
-// Updated:      December 27, 2023
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +46,20 @@ void compute_selected_delta_z_output(
     int n_enc, int start_chunk, int end_chunk, std::vector<float> &delta_mu,
     std::vector<float> &delta_var);
 
+void compute_delta_z_heteros(std::vector<float> &mu_a,
+                             std::vector<float> &var_a, std::vector<float> &jcb,
+                             std::vector<float> &obs, int start_chunk,
+                             int end_chunk, std::vector<float> &delta_mu,
+                             std::vector<float> &delta_var);
+
+void compute_delta_z_heteros_mp(std::vector<float> &mu_a,
+                                std::vector<float> &var_a,
+                                std::vector<float> &jcb,
+                                std::vector<float> &obs, int n,
+                                unsigned int num_threads,
+                                std::vector<float> &delta_mu,
+                                std::vector<float> &delta_var);
+
 ////////////////////////////////////////////////////////////////////////////////
 // Base Output Updater
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,6 +76,10 @@ class BaseOutputUpdater {
     virtual void update_selected_output_delta_z(BaseHiddenStates &output_states,
                                                 BaseObservation &obs,
                                                 BaseDeltaStates &delta_states);
+
+    virtual void update_output_delta_z_heteros(BaseHiddenStates &output_states,
+                                               BaseObservation &obs,
+                                               BaseDeltaStates &delta_states);
 
     virtual std::string get_name() const { return "BaseOutputUpdater"; };
 };
@@ -88,4 +106,8 @@ class OutputUpdater {
                               std::vector<float> &var_obs,
                               std::vector<int> &selected_idx,
                               BaseDeltaStates &delta_states);
+
+    void update_heteros(BaseHiddenStates &output_states,
+                        std::vector<float> &mu_obs,
+                        BaseDeltaStates &delta_states);
 };

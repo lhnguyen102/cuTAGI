@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      April 02, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -159,4 +159,22 @@ void bind_softmax(pybind11::module_& modo)
         .def("load", &Softmax::load)
         .def("save", &Softmax::save)
         .def("to_cuda", &Softmax::to_cuda);
+}
+
+void bind_even_exp(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<EvenExp, std::shared_ptr<EvenExp>, BaseLayer>(modo,
+                                                                   "EvenExp")
+        .def(pybind11::init<>())
+        .def("get_layer_info", &EvenExp::get_layer_info)
+        .def("get_layer_name", &EvenExp::get_layer_name)
+        .def("get_layer_type", &EvenExp::get_layer_type)
+        .def("forward", &EvenExp::forward)
+        .def("update_weights", &EvenExp::update_weights)
+        .def("update_biases", &EvenExp::update_biases)
+        .def("load", &EvenExp::load)
+        .def("save", &EvenExp::save)
+        .def("to_cuda", &EvenExp::to_cuda);
 }

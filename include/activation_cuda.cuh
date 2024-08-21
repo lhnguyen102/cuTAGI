@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 04, 2023
-// Updated:      April 02, 2024
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +61,10 @@ __global__ void leakyrelu_mean_var_cuda(float const *mu_z, float const *var_z,
 __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
                                       size_t output_size, int batch_size,
                                       float *mu_a, float *jcb, float *var_a);
+
+__global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
+                                       float const *jcb_z, int num_states,
+                                       float *mu_a, float *var_a, float *jcb_a);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
@@ -404,6 +408,45 @@ class SoftmaxCuda : public BaseLayerCuda {
                  BaseTempStates &temp_states) override;
 
     using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+};
+
+class EvenExpCuda : public BaseLayerCuda {
+   public:
+    EvenExpCuda();
+    ~EvenExpCuda();
+
+    unsigned int num_cuda_threads = 16;
+
+    // Delete copy constructor and copy assignment
+    EvenExpCuda(const EvenExpCuda &) = delete;
+    EvenExpCuda &operator=(const EvenExpCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    EvenExpCuda(EvenExpCuda &&) = default;
+    EvenExpCuda &operator=(EvenExpCuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
 
     void allocate_param_delta() override {};
 

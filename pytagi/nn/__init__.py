@@ -8,6 +8,7 @@ from pytagi.nn.activation import (
     Softmax,
     Softplus,
     Tanh,
+    EvenExp,
 )
 from pytagi.nn.base_layer import BaseLayer
 from pytagi.nn.batch_norm import BatchNorm2d

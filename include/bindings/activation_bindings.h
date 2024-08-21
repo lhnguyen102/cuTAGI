@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      December 30, 2023
+// Updated:      August 19, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,3 +32,5 @@ void bind_softplus(pybind11::module_& modo);
 void bind_leakyrelu(pybind11::module_& modo);
 
 void bind_softmax(pybind11::module_& modo);
+
+void bind_even_exp(pybind11::module_& modo);
