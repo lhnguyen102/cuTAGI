@@ -121,11 +121,13 @@ set(CPU_SOURCES
   # src/self_attention_cpu.cpp
   # src/embedding_cpu.cpp
   src/linear_layer.cpp
+  src/slinear_layer.cpp
   src/conv2d_layer.cpp
   src/pooling_layer.cpp
   src/norm_layer.cpp
   src/convtranspose2d_layer.cpp
   src/lstm_layer.cpp
+  src/slstm_layer.cpp
   src/activation.cpp
   src/sequential.cpp
   src/output_layer_update_cpu.cpp
@@ -140,11 +142,13 @@ set(CPU_SOURCES
   src/bindings/data_struct_bindings.cpp
   src/bindings/base_layer_bindings.cpp
   src/bindings/linear_layer_bindings.cpp
+  src/bindings/slinear_layer_bindings.cpp
   src/bindings/conv2d_layer_bindings.cpp
   src/bindings/convtranspose2d_layer_bindings.cpp
   src/bindings/pooling_layer_bindings.cpp
   src/bindings/norm_layer_bindings.cpp
   src/bindings/lstm_layer_bindings.cpp
+  src/bindings/slstm_layer_bindings.cpp
   src/bindings/activation_bindings.cpp
   src/bindings/sequential_bindings.cpp
   src/bindings/layer_block_bindings.cpp

@@ -13,6 +13,7 @@
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/pooling_layer.h"
+// #include "slinear_layer.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #endif

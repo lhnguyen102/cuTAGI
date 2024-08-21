@@ -16,4 +16,3 @@
 #include "../linear_layer.h"
 
 void bind_linear_layer(pybind11::module_& modo);
-void bind_slinear_layer(pybind11::module_& modo);

@@ -3,7 +3,7 @@ import cutagi
 from pytagi.nn.base_layer import BaseLayer
 
 
-class LSTM(BaseLayer):
+class SLSTM(BaseLayer):
     """Fully-connected layer"""
 
     def __init__(
@@ -25,7 +25,7 @@ class LSTM(BaseLayer):
         self.gain_bias = gain_bias
         self.init_method = init_method
 
-        self._cpp_backend = cutagi.LSTM(
+        self._cpp_backend = cutagi.SLSTM(
             input_size, output_size, seq_len, bias, gain_weight, gain_bias, init_method
         )
 

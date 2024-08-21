@@ -149,28 +149,28 @@ class Linear : public BaseLayer {
 #endif
 };
 
-class SLinear : public Linear {
-   public:
-    SLinear(size_t ip_size, size_t op_size, bool bias = true,
-            float gain_weight = 1.0f, float gain_bias = 1.0f,
-            std::string method = "He")
-        : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method) {}
+// class SLinear : public Linear {
+//    public:
+//     SLinear(size_t ip_size, size_t op_size, bool bias = true,
+//             float gain_weight = 1.0f, float gain_bias = 1.0f,
+//             std::string method = "He")
+//         : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method) {}
 
-    BaseSLinear slinear_states;
+//     BaseSLinear slinear_states;
 
-    std::string get_layer_info() const override;
+//     std::string get_layer_info() const override;
 
-    std::string get_layer_name() const override;
+//     std::string get_layer_name() const override;
 
-    LayerType get_layer_type() const override;
+//     LayerType get_layer_type() const override;
 
-    void forward(BaseHiddenStates &input_states,
-                 BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override;
+//     void forward(BaseHiddenStates &input_states,
+//                  BaseHiddenStates &output_states,
+//                  BaseTempStates &temp_states) override;
 
-    void backward(BaseDeltaStates &input_delta_states,
-                  BaseDeltaStates &output_delta_states,
-                  BaseTempStates &temp_states, bool state_udapte) override;
+//     void backward(BaseDeltaStates &input_delta_states,
+//                   BaseDeltaStates &output_delta_states,
+//                   BaseTempStates &temp_states, bool state_udapte) override;
 
-    void smoother(BaseTempStates &temp_states);
-};
+//     void smoother(BaseTempStates &temp_states);
+// };

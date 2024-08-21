@@ -19,6 +19,8 @@
 #include "../../include/linear_layer.h"
 #include "../../include/lstm_layer.h"
 #include "../../include/sequential.h"
+#include "../../include/slinear_layer.h"
+#include "../../include/slstm_layer.h"
 // #include "../../include/state_feed_backward_cpu.h"
 // #include "../../include/struct_var.h"
 // #ifdef USE_CUDA

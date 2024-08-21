@@ -9,7 +9,7 @@ from tqdm import tqdm
 import pytagi.metric as metric
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
-from pytagi.nn import SLSTM, LSTM, Linear, SLinear, OutputUpdater, Sequential
+from pytagi.nn import SLSTM, SLinear, OutputUpdater, Sequential
 
 from examples.data_loader import TimeSeriesDataloader
 
