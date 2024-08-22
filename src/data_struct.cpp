@@ -104,20 +104,6 @@ void BaseHiddenStates::copy_from(const BaseHiddenStates& source, int num_data)
 ////////////////////////////////////////////////////////////////////////////////
 // Base Smoothing Hidden States
 ////////////////////////////////////////////////////////////////////////////////
-
-// void SmoothingHiddenStates::set_input_x(const std::vector<float>& mu_x,
-//                                         const std::vector<float>& var_x,
-//                                         const size_t block_size,
-//                                         const std::vector<float>& mu_h_prev,
-//                                         const std::vector<float>& cov_hh) {
-//     // Set the input variables for BaseHiddenStates
-//     BaseHiddenStates::set_input_x(mu_x, var_x, block_size);
-
-//     // Set the new variables
-//     this->mu_h_prev = mu_h_prev;
-//     this->cov_hh = cov_hh;
-// }
-
 void SmoothingHiddenStates::set_size(size_t new_size, size_t new_block_size) {
     // Set the size of BaseHiddenStates variables
     BaseHiddenStates::set_size(new_size, new_block_size);

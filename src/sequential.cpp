@@ -138,10 +138,17 @@ void Sequential::init_output_state_buffer()
  */
 {
     if (this->device.compare("cpu") == 0) {
-        this->output_z_buffer = std::make_shared<BaseHiddenStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
-        this->input_z_buffer = std::make_shared<BaseHiddenStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
+        if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
+            this->output_z_buffer = std::make_shared<SmoothingHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+            this->input_z_buffer = std::make_shared<SmoothingHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+        } else {
+            this->output_z_buffer = std::make_shared<BaseHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+            this->input_z_buffer = std::make_shared<BaseHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+        }
         this->temp_states = std::make_shared<BaseTempStates>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
