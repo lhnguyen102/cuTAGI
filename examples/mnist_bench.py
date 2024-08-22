@@ -228,7 +228,6 @@ def tagi_trainer(
         test_error_rates = []
         net.eval()
         for x, labels in test_loader:
-
             m_pred, v_pred = net(x)
 
             # Training metric

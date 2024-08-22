@@ -119,6 +119,7 @@ class Softmax(BaseLayer):
     def get_layer_name(self) -> str:
         return self._cpp_backend.get_layer_name()
 
+
 class EvenExp(BaseLayer):
     """EvenExp"""
 

@@ -276,6 +276,8 @@ void MixtureReLUCuda::forward(BaseHiddenStates &input_states,
         cu_output_states->d_mu_a, cu_output_states->d_jcb,
         cu_output_states->d_var_a);
 
+    // cu_output_states->to_device();
+
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
         this->output_size = input_states.actual_size;
@@ -848,6 +850,26 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
     }
 }
 
+__device__ float normcdf_cuda(float x) {
+    return 0.5f * erfc(-x * 0.7071067811865475f);
+}
+
+__device__ float normpdf_cuda(float x, float mu, float sigma) {
+    const float pi = 3.14159265358979323846f;
+
+    // We can't throw exceptions in CUDA device code, so we'll return 0 for
+    // invalid input
+    if (sigma <= 0.0f) {
+        return 0.0f;
+    }
+
+    float diff = x - mu;
+    float prob_pdf = (1.0f / (sigma * sqrtf(2.0f * pi))) *
+                     expf(-(diff * diff) / (2.0f * sigma * sigma));
+
+    return prob_pdf;
+}
+
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
                                            float const *var_z, int num_states,
                                            float *mu_a, float *jcb,
@@ -856,19 +878,25 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float std_z, alpha, pdf_alpha, cdf_alpha;
-    float pi = 3.141592;  // pi number
+    // float std_z, alpha, pdf_alpha, cdf_alpha;
+    // const float PI = 3.14159265358979323846f;        // pi number
+    constexpr float SQRT_2PI = 2.5066282746310002f;  // Precomputed √(2π)
     if (col < num_states) {
         // Reused components for moments calculations
-        std_z = powf(var_z[col], 0.5);
-        alpha = mu_z[col] / std_z;
-        pdf_alpha =
-            (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
-        cdf_alpha = normcdff(alpha);
+        float std_z = powf(var_z[col], 0.5);
+        float alpha = mu_z[col] / std_z;
+        // float pdf_alpha =
+        //     (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
+
+        // float v1 = powf(2.0f * PI, 0.5);
+        // float v2 = expf(-powf(alpha, 2) / 2.0f);
+        float pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
+        float cdf_alpha = normcdf_cuda(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[col] = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        var_a[col] = -powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] -
+        float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
+        mu_a[col] = tmp_mu_a;
+        var_a[col] = -powf(tmp_mu_a, 2) + 2 * tmp_mu_a * mu_z[col] -
                      mu_z[col] * std_z * pdf_alpha +
                      (var_z[col] - powf(mu_z[col], 2)) * cdf_alpha;
         jcb[col] = cdf_alpha;
