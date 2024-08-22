@@ -115,6 +115,16 @@ void lstm_cov_hidden_states_smoother(
     cov_hh.push_back(Ch_h);
 }
 
+void flatten2DVector(const std::vector<std::vector<float>> &vec2D,
+                     std::vector<float> &vec1D) {
+    // Reserve space in vec1D for efficiency
+    vec1D.reserve(vec2D.size() * vec2D[0].size());
+
+    for (const auto &row : vec2D) {
+        vec1D.insert(vec1D.end(), row.begin(), row.end());
+    }
+}
+
 void lstm_smoother_cell_states(int num_timestep,
                                std::vector<std::vector<float>> &cov_cc,
                                std::vector<std::vector<float>> &mu_c_priors,
@@ -138,6 +148,35 @@ void lstm_smoother_cell_states(int num_timestep,
                 tmp * (var_c_smooths[i + 1][j] - var_c_priors[i + 1][j]) * tmp;
         }
     }
+
+    // int n = mu_c_priors[0].size();
+    // int current, next;
+    // std::vector<float> cov_cc_1D, mu_c_priors_1D, var_c_priors_1D,
+    //     mu_c_posts_1D, var_c_posts_1D, mu_c_smooths_1D, var_c_smooths_1D;
+    // flatten2DVector(cov_cc, cov_cc_1D);
+    // flatten2DVector(mu_c_priors, mu_c_priors_1D);
+    // flatten2DVector(var_c_priors, var_c_priors_1D);
+    // flatten2DVector(mu_c_posts, mu_c_posts_1D);
+    // flatten2DVector(var_c_posts, var_c_posts_1D);
+    // flatten2DVector(mu_c_smooths, mu_c_smooths_1D);
+    // flatten2DVector(var_c_smooths, var_c_smooths_1D);
+
+    // for (int i = num_timestep - 2; i >= 0; --i) {
+    //     for (int j = n - 1; j >= 0; --j) {
+    //         current = i * n + j;
+    //         next = (i + 1) * n + j;
+    //         float tmp = cov_cc_1D[current] / var_c_priors_1D[next];
+
+    //         mu_c_smooths_1D[current] =
+    //             mu_c_posts_1D[current] +
+    //             tmp * (mu_c_smooths_1D[next] - mu_c_priors_1D[next]);
+
+    //         var_c_smooths_1D[current] =
+    //             var_c_posts_1D[current] +
+    //             tmp * (var_c_smooths_1D[next] - var_c_priors_1D[next]) * tmp;
+    //         std::cout << var_c_smooths_1D[current] << ". ";
+    //     }
+    // }
 }
 
 void lstm_smoother_hidden_states(int num_timestep,

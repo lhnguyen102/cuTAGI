@@ -95,6 +95,61 @@ class BaseHiddenStates {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// Base Smoothing Hidden States
+////////////////////////////////////////////////////////////////////////////////
+
+class SmoothingHiddenStates : public BaseHiddenStates {
+   public:
+    std::vector<float> mu_h_prev;
+    std::vector<float> cov_hh;
+
+    // Constructor with initialization
+    SmoothingHiddenStates(size_t n, size_t m)
+        : BaseHiddenStates(n, m), mu_h_prev(n, 0.0f), cov_hh(n * n, 0.0f) {}
+
+    // Default constructor
+    SmoothingHiddenStates() = default;
+    ~SmoothingHiddenStates() = default;
+
+    // Custom copy constructor
+    SmoothingHiddenStates(const SmoothingHiddenStates &other)
+        : BaseHiddenStates(other),
+          cov_hh(other.cov_hh),
+          mu_h_prev(other.mu_h_prev) {}
+
+    // Custom copy assignment operator
+    SmoothingHiddenStates &operator=(const SmoothingHiddenStates &other) {
+        if (this != &other) {
+            BaseHiddenStates::operator=(other);
+            cov_hh = other.cov_hh;
+            mu_h_prev = other.mu_h_prev;
+        }
+        return *this;
+    }
+
+    // Move constructor
+    SmoothingHiddenStates(SmoothingHiddenStates &&other) noexcept
+        : BaseHiddenStates(std::move(other)),
+          cov_hh(std::move(other.cov_hh)),
+          mu_h_prev(std::move(other.mu_h_prev)) {}
+
+    // Move assignment operator
+    SmoothingHiddenStates &operator=(SmoothingHiddenStates &&other) noexcept {
+        if (this != &other) {
+            BaseHiddenStates::operator=(std::move(other));
+            cov_hh = std::move(other.cov_hh);
+            mu_h_prev = std::move(other.mu_h_prev);
+        }
+        return *this;
+    }
+
+    std::string get_name() const override { return "SmoothingHiddenStates"; }
+    void set_size(size_t new_size, size_t new_block_size) override;
+    void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
+    void swap(BaseHiddenStates &other) override;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // Base Delta States
 ////////////////////////////////////////////////////////////////////////////////
 class BaseDeltaStates {
@@ -134,26 +189,11 @@ class BaseDeltaStates {
     virtual void swap(BaseDeltaStates &other);
 };
 
-class BaseTempSLinear {
-   public:
-    std::vector<float> cov_hh, mu_h_prev;
-    std::vector<float> mu_zo_smooths, var_zo_smooths;
-    size_t num_hs = 0;
-
-    BaseTempSLinear(size_t num_hs);
-    BaseTempSLinear();
-    ~BaseTempSLinear() = default;
-    // virtual void set_size(size_t size, size_t size_w);
-    virtual void set_num_states(size_t num_hs);
-    void reset_zeros();
-};
-
 class BaseTempStates {
    public:
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
     size_t size = 0, block_size = 0, actual_size = 0;
-    BaseTempSLinear slinear;
 
     BaseTempStates(size_t n, size_t m);
     BaseTempStates();
@@ -217,7 +257,7 @@ class BaseLSTMStates {
     void reset_zeros();
 };
 
-// Smoother for linear layer when using LSTM
+// Smoother for linear layer
 class BaseSLinear {
    public:
     std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,

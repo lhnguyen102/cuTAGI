@@ -102,6 +102,52 @@ void BaseHiddenStates::copy_from(const BaseHiddenStates& source, int num_data)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Base Smoothing Hidden States
+////////////////////////////////////////////////////////////////////////////////
+
+// void SmoothingHiddenStates::set_input_x(const std::vector<float>& mu_x,
+//                                         const std::vector<float>& var_x,
+//                                         const size_t block_size,
+//                                         const std::vector<float>& mu_h_prev,
+//                                         const std::vector<float>& cov_hh) {
+//     // Set the input variables for BaseHiddenStates
+//     BaseHiddenStates::set_input_x(mu_x, var_x, block_size);
+
+//     // Set the new variables
+//     this->mu_h_prev = mu_h_prev;
+//     this->cov_hh = cov_hh;
+// }
+
+void SmoothingHiddenStates::set_size(size_t new_size, size_t new_block_size) {
+    // Set the size of BaseHiddenStates variables
+    BaseHiddenStates::set_size(new_size, new_block_size);
+    this->cov_hh.resize(this->size, 0.0f);
+    this->mu_h_prev.resize(this->size * this->size, 0.0f);
+}
+
+//  Override the copy_from method
+void SmoothingHiddenStates::copy_from(const BaseHiddenStates& source,
+                                      int num_data = -1) {
+    BaseHiddenStates::copy_from(source, num_data);
+
+    const SmoothingHiddenStates* source_other =
+        dynamic_cast<const SmoothingHiddenStates*>(&source);
+
+    this->cov_hh = source_other.cov_hh;
+    this->mu_h_prev = source_other.mu_h_prev;
+}
+
+//  Override the swap method
+void SmoothingHiddenStates::swap(BaseHiddenStates& other) {
+    BaseHiddenStates::swap(other);
+
+    SmoothingHiddenStates* source_other =
+        dynamic_cast<SmoothingHiddenStates*>(&source);
+    std::swap(this->cov_hh, source_other->cov_hh);
+    std::swap(this->mu_h_prev, source_other->mu_h_prev);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Base Delta States
 ////////////////////////////////////////////////////////////////////////////////
 BaseDeltaStates::BaseDeltaStates(size_t n, size_t m)
@@ -151,28 +197,6 @@ void BaseDeltaStates::swap(BaseDeltaStates& other)
     std::swap(size, other.size);
     std::swap(block_size, other.block_size);
     std::swap(actual_size, other.actual_size);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Base Linear layer's Smoother States: for saving varibles for z_output
-// smoother in LSTM
-////////////////////////////////////////////////////////////////////////////////
-BaseTempSLinear::BaseTempSLinear(size_t num_hs) : num_hs(num_hs) {}
-BaseTempSLinear::BaseTempSLinear() {}
-void BaseTempSLinear::set_num_states(size_t num_hs)
-/*
- */
-{
-    this->num_hs = num_hs;
-    this->reset_zeros();
-}
-
-void BaseTempSLinear::reset_zeros()
-/*
- */
-{
-    this->cov_hh.resize(num_hs * num_hs, 0.0);
-    this->mu_h_prev.resize(num_hs, 0.0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

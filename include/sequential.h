@@ -44,6 +44,7 @@ class Sequential {
 
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
+    int num_samples = 0;          // number of training samples
 
     int input_size = 0;
     bool training = true;
