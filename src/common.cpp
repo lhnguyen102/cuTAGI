@@ -349,8 +349,8 @@ float normpdf_cpu(float x, float mu, float sigma)
     if (sigma < 0.0f) {
         throw std::invalid_argument("Sigma value is negative");
     }
-    float pi = 3.141592;  // pi number
-    float prob_pdf = (1 / (sigma * pow(2 * pi, 0.5))) *
+    const float PI = 3.14159265358979323846f;
+    float prob_pdf = (1 / (sigma * pow(2 * PI, 0.5))) *
                      exp(-pow(x - mu, 2) / (2 * pow(sigma, 2)));
 
     return prob_pdf;

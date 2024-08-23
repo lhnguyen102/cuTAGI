@@ -829,8 +829,8 @@ __global__ void sigmoid_mean_var_cuda(float const *mu_z, float const *var_z,
     if (col < num_states) {
         tmp = 1.0f / (1.0f + expf(-mu_z[col]));
         mu_a[col] = tmp;
-        jcb[col] = tmp * (1 - tmp);
-        var_a[col] = tmp * (1 - tmp) * var_z[col] * tmp * (1 - tmp);
+        jcb[col] = tmp * (1.0f - tmp);
+        var_a[col] = tmp * (1.0f - tmp) * var_z[col] * tmp * (1.0f - tmp);
     }
 }
 
@@ -844,30 +844,19 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
     float tmp = 0.0f;
     if (col < num_states) {
         tmp = tanhf(mu_z[col]);
+        float tmp_2 = tmp * tmp;
         mu_a[col] = tmp;
-        jcb[col] = (1 - powf(tmp, 2));
-        var_a[col] = (1 - powf(tmp, 2)) * var_z[col] * (1 - powf(tmp, 2));
+        jcb[col] = (1.0f - tmp_2);
+        var_a[col] = (1.0f - tmp_2) * var_z[col] * (1.0f - tmp_2);
     }
 }
 
-__device__ float normcdf_cuda(float x) {
-    return 0.5f * erfc(-x * 0.7071067811865475f);
-}
-
-__device__ float normpdf_cuda(float x, float mu, float sigma) {
-    const float pi = 3.14159265358979323846f;
-
-    // We can't throw exceptions in CUDA device code, so we'll return 0 for
-    // invalid input
-    if (sigma <= 0.0f) {
-        return 0.0f;
-    }
-
-    float diff = x - mu;
-    float prob_pdf = (1.0f / (sigma * sqrtf(2.0f * pi))) *
-                     expf(-(diff * diff) / (2.0f * sigma * sigma));
-
-    return prob_pdf;
+__device__ float normcdf_cuda(float x)
+/*
+Normal cumulative distribution function
+ */
+{
+    return 0.5f * erfcf(-x * 0.7071067811865475f);
 }
 
 __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
@@ -878,27 +867,21 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    // float std_z, alpha, pdf_alpha, cdf_alpha;
-    // const float PI = 3.14159265358979323846f;        // pi number
-    constexpr float SQRT_2PI = 2.5066282746310002f;  // Precomputed √(2π)
+    constexpr float SQRT_2PI = 2.5066282746310002f;
     if (col < num_states) {
         // Reused components for moments calculations
+        float tmp_mu_z = mu_z[col];
         float std_z = powf(var_z[col], 0.5);
-        float alpha = mu_z[col] / std_z;
-        // float pdf_alpha =
-        //     (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha, 2) / 2.0f);
-
-        // float v1 = powf(2.0f * PI, 0.5);
-        // float v2 = expf(-powf(alpha, 2) / 2.0f);
+        float alpha = tmp_mu_z / std_z;
         float pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
         float cdf_alpha = normcdf_cuda(alpha);
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
         mu_a[col] = tmp_mu_a;
-        var_a[col] = -powf(tmp_mu_a, 2) + 2 * tmp_mu_a * mu_z[col] -
-                     mu_z[col] * std_z * pdf_alpha +
-                     (var_z[col] - powf(mu_z[col], 2)) * cdf_alpha;
+        var_a[col] = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
+                     tmp_mu_z * std_z * pdf_alpha +
+                     (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
         jcb[col] = cdf_alpha;
     }
 }
@@ -912,30 +895,34 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
-    float pi = 3.141592;  // pi number
+    constexpr float SQRT_2PI = 2.5066282746310002f;
 
     if (col < num_states) {
         // cdf and pdf for truncated normal distribution
         std_z = powf(var_z[col], 0.5);
         alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
         alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
-        cdf_l = normcdff(alpha_l);
-        cdf_u = normcdff(alpha_u);
-        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
-        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
+        cdf_l = normcdf_cuda(alpha_l);
+        cdf_u = normcdf_cuda(alpha_u);
+        pdf_l = (1.0f / SQRT_2PI) * expf(-0.5f * alpha_l * alpha_l);
+        pdf_u = (1.0f / SQRT_2PI) * expf(-0.5f * alpha_u * alpha_u);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
-                    std_z * (pdf_l - pdf_u) - mu_z[col];
+        float tmp_mu_z = mu_z[col];
+        float tmp_mu_z_2 = tmp_mu_z * tmp_mu_z;
+        float tmp_mu_a = (tmp_mu_z + 1) * cdf_l + (tmp_mu_z - 1) * cdf_u +
+                         std_z * (pdf_l - pdf_u) - tmp_mu_z;
+
+        mu_a[col] = tmp_mu_a;
         var_a[col] =
             max(0.000001f,
-                (cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
-                 cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
-                 std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
-                 powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
-                 powf(mu_z[col], 2) - var_z[col] + 2) /
+                (cdf_l * (var_z[col] - tmp_mu_z_2 - 2 * tmp_mu_z - 1) +
+                 cdf_u * (var_z[col] - tmp_mu_z_2 + 2 * tmp_mu_z - 1) +
+                 std_z * (pdf_u * (tmp_mu_z - 1) - pdf_l * (tmp_mu_z + 1)) -
+                 tmp_mu_a * tmp_mu_a + 2 * mu_a[col] * tmp_mu_z +
+                 tmp_mu_z * tmp_mu_z - var_z[col] + 2) /
                     4.0f);
-        mu_a[col] = mu_a[col] / 2.0f + 0.5f;
+        mu_a[col] = tmp_mu_a / 2.0f + 0.5f;
         jcb[col] = (cdf_u + cdf_l - 1) / 2.0f;
     }
 }
@@ -949,28 +936,31 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float std_z, alpha_l, alpha_u, pdf_l, pdf_u, cdf_l, cdf_u;
-    float pi = 3.141592;  // pi number
+    constexpr float SQRT_2PI = 2.5066282746310002f;
 
     if (col < num_states) {
         // cdf and pdf for truncated normal distribution
+        float tmp_mu_z = mu_z[col];
         std_z = powf(var_z[col], 0.5);
-        alpha_l = (1.0f + mu_z[col]) / std_z;  // Lower truncation
-        alpha_u = (1.0f - mu_z[col]) / std_z;  // Upper truncation
-        cdf_l = normcdff(alpha_l);
-        cdf_u = normcdff(alpha_u);
-        pdf_l = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_l, 2) / 2.0f);
-        pdf_u = (1.0f / powf(2.0f * pi, 0.5)) * expf(-powf(alpha_u, 2) / 2.0f);
+        alpha_l = (1.0f + tmp_mu_z) / std_z;  // Lower truncation
+        alpha_u = (1.0f - tmp_mu_z) / std_z;  // Upper truncation
+        cdf_l = normcdf_cuda(alpha_l);
+        cdf_u = normcdf_cuda(alpha_u);
+        pdf_l = (1.0f / SQRT_2PI) * expf(-0.5f * alpha_l * alpha_l);
+        pdf_u = (1.0f / SQRT_2PI) * expf(-0.5f * alpha_u * alpha_u);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[col] = (mu_z[col] + 1) * cdf_l + (mu_z[col] - 1) * cdf_u +
-                    std_z * (pdf_l - pdf_u) - mu_z[col];
+        float tmp_mu_a = (tmp_mu_z + 1) * cdf_l + (tmp_mu_z - 1) * cdf_u +
+                         std_z * (pdf_l - pdf_u) - tmp_mu_z;
+
+        mu_a[col] = tmp_mu_a;
         var_a[col] = max(
             0.000001f,
-            cdf_l * (var_z[col] - powf(mu_z[col], 2) - 2 * mu_z[col] - 1) +
-                cdf_u * (var_z[col] - powf(mu_z[col], 2) + 2 * mu_z[col] - 1) +
-                std_z * (pdf_u * (mu_z[col] - 1) - pdf_l * (mu_z[col] + 1)) -
-                powf(mu_a[col], 2) + 2 * mu_a[col] * mu_z[col] +
-                powf(mu_z[col], 2) - var_z[col] + 2);
+            cdf_l * (var_z[col] - tmp_mu_z * tmp_mu_z - 2 * tmp_mu_z - 1) +
+                cdf_u * (var_z[col] - tmp_mu_z * tmp_mu_z + 2 * tmp_mu_z - 1) +
+                std_z * (pdf_u * (tmp_mu_z - 1) - pdf_l * (tmp_mu_z + 1)) -
+                tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z + tmp_mu_z - var_z[col] + 2);
+
         jcb[col] = cdf_u + cdf_l - 1;
     }
 }
