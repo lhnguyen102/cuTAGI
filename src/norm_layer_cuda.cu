@@ -778,19 +778,24 @@ layer is a convolutional layer.
     if (col < k && row < m)  // k = wihi, m = fi*B
     {
         int div_idx = row % fi;
-        float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[div_idx] + epsilon);
+        float inv_var_ra = 1.0f / (var_ra[div_idx] + epsilon);
+        float inv_var_ra_sqrt = sqrtf(inv_var_ra);
 
         int idx = col + row * k;
 
+        float tmp_mu_a = mu_a[idx];
+        float tmp_var_a = var_a[idx];
+        float tmp_mu_a_2 = tmp_mu_a * tmp_mu_a;
+        float tmp_mu_w = mu_w[div_idx];
+        float tmp_mu_w_2 = tmp_mu_w * tmp_mu_w;
+        float tmp_mu_ra = mu_ra[div_idx];
+        float tmp_mu_ra_2 = tmp_mu_ra * tmp_mu_a;
         mu_z[idx] =
-            inv_sqrt_var_ra * (mu_a[idx] - mu_ra[div_idx]) * mu_w[div_idx] +
-            mu_b[div_idx];
+            inv_var_ra_sqrt * (tmp_mu_a - tmp_mu_ra) * tmp_mu_w + mu_b[div_idx];
 
-        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                         (var_a[idx] * mu_w[div_idx] * mu_w[div_idx] +
-                          var_w[div_idx] *
-                              (mu_a[idx] * mu_a[idx] -
-                               mu_ra[div_idx] * mu_ra[div_idx] + var_a[idx])) +
+        var_z[idx] = inv_var_ra * (tmp_var_a * tmp_mu_w_2 +
+                                   var_w[div_idx] *
+                                       (tmp_mu_a_2 - tmp_mu_ra_2 + tmp_var_a)) +
                      var_b[div_idx];
     }
 }
@@ -806,12 +811,14 @@ BATCH-NORMALIZATION layer whose the previous layer is full-connected layer.
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
-        float tmp = (1 / sqrtf(var_hat[col] + epsilon)) * mu_w[col] *
-                    jcb[col + row * ni];
+        float inv_var_hat = 1.0f / (var_hat[row] + epsilon);
+        float inv_var_hat_sqrt = sqrtf(inv_var_hat);
+        float tmp = mu_w[col] * jcb[col + row * ni];
 
-        delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
-
-        delta_var[col + row * ni] = tmp * delta_var_out[col + row * ni] * tmp;
+        delta_mu[col + row * ni] =
+            tmp * delta_mu_out[col + row * ni] * inv_var_hat_sqrt;
+        delta_var[col + row * ni] =
+            tmp * delta_var_out[col + row * ni] * tmp * inv_var_hat;
     }
 }
 
@@ -827,13 +834,15 @@ BATCH-NORMALIZATION layer whose the previous layer is convolutional layer.
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < wihi && row < m)  // k = wihi * fi, m = B
     {
-        float tmp = (1 / sqrtf(var_hat[row % fi] + epsilon)) * mu_w[row % fi] *
-                    jcb[col + row * wihi];
+        float inv_var_hat = 1.0f / (var_hat[row % fi] + epsilon);
+        float inv_var_hat_sqrt = sqrtf(inv_var_hat);
+        float tmp = mu_w[row % fi] * jcb[col + row * wihi];
 
-        delta_mu[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
+        delta_mu[col + row * wihi] =
+            tmp * delta_mu_out[col + row * wihi] * inv_var_hat_sqrt;
 
         delta_var[col + row * wihi] =
-            tmp * delta_var_out[col + row * wihi] * tmp;
+            tmp * delta_var_out[col + row * wihi] * tmp * inv_var_hat;
     }
 }
 
@@ -851,10 +860,12 @@ batch-normalization layer applied to full-connected layer.
         float sum_mu = 0;
         float sum_var = 0;
         for (int i = 0; i < batch_size; i++) {
-            float tmp = (1 / sqrtf(var_ra[col] + epsilon)) *
-                        (mu_a[col + i * ni] - mu_ra[col]) * var_w[col];
-            sum_mu += tmp * delta_mu_out[col + i * ni];
-            sum_var += tmp * delta_var_out[col + i * ni] * tmp;
+            float inv_var_ra = 1.0f / (var_ra[col] + epsilon);
+            float inv_var_ra_sqrt = sqrtf(inv_var_ra);
+
+            float tmp = (mu_a[col + i * ni] - mu_ra[col]) * var_w[col];
+            sum_mu += tmp * delta_mu_out[col + i * ni] * inv_var_ra_sqrt;
+            sum_var += tmp * delta_var_out[col + i * ni] * tmp * inv_var_ra;
         }
         delta_mu_w[col] = sum_mu;
         delta_var_w[col] = sum_var;
@@ -900,13 +911,15 @@ batch-normalization layer applied to convolutional layer.
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < wihi && row < m)  // k = wihi, m = fi*B
     {
-        float tmp = (1 / sqrtf(var_ra[row % fi] + epsilon)) *
-                    (mu_a[col + row * wihi] - mu_ra[row % fi]) *
-                    var_w[row % fi];
+        float inv_var_ra = 1.0f / (var_ra[row % fi] + epsilon);
+        float inv_var_ra_sqrt = sqrtf(inv_var_ra);
+        float tmp =
+            (mu_a[col + row * wihi] - mu_ra[row % fi]) * var_w[row % fi];
 
-        delta_mu_w[col + row * wihi] = tmp * delta_mu_out[col + row * wihi];
+        delta_mu_w[col + row * wihi] =
+            tmp * delta_mu_out[col + row * wihi] * inv_var_ra_sqrt;
         delta_var_w[col + row * wihi] =
-            tmp * delta_var_out[col + row * wihi] * tmp;
+            tmp * delta_var_out[col + row * wihi] * tmp * inv_var_ra;
     }
 }
 

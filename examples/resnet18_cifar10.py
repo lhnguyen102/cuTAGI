@@ -141,7 +141,9 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 1):
                 curr_v=sigma_v, min_v=0.3, decaying_factor=0.95, curr_iter=epoch
             )
             var_y = np.full(
-                (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
+                (batch_size * metric.hrc_softmax.num_obs,),
+                sigma_v**2,
+                dtype=np.float32,
             )
         net.train()
         for x, labels in train_loader:
@@ -173,7 +175,6 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 1):
         test_error_rates = []
         net.eval()
         for x, labels in test_loader:
-
             m_pred, v_pred = net(x)
 
             # Training metric

@@ -124,7 +124,7 @@ Args:
         Sc[k] = Sc_prev[k] * mf_ga[k] * mf_ga[k] + Sc_prev[k] * Sf_ga[k] +
                 Sf_ga[k] * mc_prev[k] * mc_prev[k] +
                 Sc_ga[k] * mi_ga[k] * mi_ga[k] + Si_ga[k] * Sc_ga[k] +
-                Si_ga[k] * mc_ga[k] * mc_ga[k] + powf(Ci_c[k], 2) +
+                Si_ga[k] * mc_ga[k] * mc_ga[k] + Ci_c[k] * Ci_c[k] +
                 2 * Ci_c[k] * mi_ga[k] * mc_ga[k];
     }
 }
@@ -215,7 +215,7 @@ Args:
 
         mz[k] = mo_ga[j] * mc_a[j] + Co_tanh_c[j];
         Sz[k] = Sc_a[j] * mo_ga[j] * mo_ga[j] + Sc_a[j] * So_ga[j] +
-                So_ga[j] * mc_a[j] * mc_a[j] + powf(Co_tanh_c[j], 2) +
+                So_ga[j] * mc_a[j] * mc_a[j] + Co_tanh_c[j] * Co_tanh_c[j] +
                 2 * Co_tanh_c[j] * mo_ga[j] * mc_a[j];
     }
 }
@@ -329,7 +329,8 @@ NOTE: All LSTM states excepted mc_prev are from the next layer e.g., mi_ga(l+1)
             // Output gate
             Czz_o = Jo_ga[k] * mw[(ni + no) * j + col + w_pos_o] * mca[k];
             sum_mo += Czz_o * delta_m_out[i];
-            sum_Sz += powf(Czz_f + Czz_i + Czz_c + Czz_o, 2) * delta_S_out[i];
+            float tmp_sum_cov = Czz_f + Czz_i + Czz_c + Czz_o;
+            sum_Sz += tmp_sum_cov * tmp_sum_cov * delta_S_out[i];
         }
 
         // Updating quantities

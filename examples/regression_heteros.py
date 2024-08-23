@@ -53,7 +53,6 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         )
         net.set_threads(8)
 
-
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#

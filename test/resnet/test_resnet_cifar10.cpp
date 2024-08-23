@@ -117,17 +117,18 @@ void resnet_cifar10()
         block_7, LayerBlock(Conv2d(256, 512, 2, false, 2), BatchNorm2d(512)));
     ResNetBlock resnet_block_8(block_8);
 
-    Sequential model(
-        // Input block
-        Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
+    // Sequential model(
+    //     // Input block
+    //     Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
 
-        // Residual blocks
-        resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3, ReLU(),
-        resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6, ReLU(),
-        resnet_block_7, ReLU(), resnet_block_8, ReLU(),
+    //     // Residual blocks
+    //     resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3,
+    //     ReLU(), resnet_block_4, ReLU(), resnet_block_5, ReLU(),
+    //     resnet_block_6, ReLU(), resnet_block_7, ReLU(), resnet_block_8,
+    //     ReLU(),
 
-        // Output block
-        AvgPool2d(4), Linear(512, 11));
+    //     // Output block
+    //     AvgPool2d(4), Linear(512, 11));
 
     // auto block_1 = create_layer_block(8, 8);
     // auto block_2 = create_layer_block(8, 8);
@@ -166,20 +167,19 @@ void resnet_cifar10()
     //     // Output block
     //     AvgPool2d(4), Linear(64, 11));
 
-    // Sequential model(Conv2d(3, 32, 5, false, 1, 2, 1, 32, 32),
-    // BatchNorm2d(32),
-    //                  ReLU(), AvgPool2d(3, 2, 1, 2),
-    //                  Conv2d(32, 32, 5, false, 1, 2, 1), BatchNorm2d(32),
-    //                  ReLU(), AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, false,
-    //                  1, 2, 1), BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1,
-    //                  2), Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+    Sequential model(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), MixtureReLU(),
+                     AvgPool2d(3, 2, 1, 2), Conv2d(32, 32, 5, true, 1, 2, 1),
+                     MixtureReLU(), AvgPool2d(3, 2, 1, 2),
+                     Conv2d(32, 64, 5, true, 1, 2, 1), MixtureReLU(),
+                     AvgPool2d(3, 2, 1, 2), Linear(64 * 4 * 4, 100),
+                     MixtureReLU(), Linear(100, 11));
 
     // model.set_threads(1);
     // model.preinit_layer();
     // model.save("test_model/resnet.bin");
     model.to_device("cuda");
 
-    // model.load("test_model/resnet.bin");
+    model.load("test_model/resnet.bin");
 
     OutputUpdater output_updater(model.device);
 

@@ -280,7 +280,15 @@ class PredictionViz:
         if eq is not None:
             ax.text(x_eq, y_eq, eq, color="k", fontsize=self.fontsize)
         ax.plot(x_test, y_pred, "r", lw=self.lw, label=r"$\mathbb{E}[Y^{'}]$")
-        ax.plot(x_test, y_test, "k", lw=self.lw, label=r"$y_{true}$", marker=marker, linestyle=line_style)
+        ax.plot(
+            x_test,
+            y_test,
+            "k",
+            lw=self.lw,
+            label=r"$y_{true}$",
+            marker=marker,
+            linestyle=line_style,
+        )
 
         ax.fill_between(
             x_test,

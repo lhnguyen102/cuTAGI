@@ -41,9 +41,7 @@ class OutputUpdater:
         mu_obs: np.ndarray,
         delta_states: BaseDeltaStates,
     ):
-        self._cpp_backend.update_heteros(
-            output_states, mu_obs.tolist(), delta_states
-        )
+        self._cpp_backend.update_heteros(output_states, mu_obs.tolist(), delta_states)
 
     @property
     def device(self) -> str:
