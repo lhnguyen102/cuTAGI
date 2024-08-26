@@ -244,11 +244,6 @@ class BaseLSTMStates {
     std::vector<float> mu_c_prev, var_c_prev, mu_h_prev, var_h_prev, mu_h_prior,
         var_h_prior, mu_c_prior, var_c_prior;
 
-    std::vector<std::vector<float>> mu_h_priors, var_h_priors, mu_c_priors,
-        var_c_priors, mu_h_posts, var_h_posts, mu_c_posts, var_c_posts,
-        mu_h_smooths, var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc,
-        cov_cc, cov_hh;
-
     BaseLSTMStates(size_t num_states, size_t num_inputs);
     BaseLSTMStates();
     ~BaseLSTMStates() = default;
@@ -258,10 +253,36 @@ class BaseLSTMStates {
 };
 
 // Smoother for linear layer
-class BaseSLinear {
+class SmoothingSLinear {
    public:
+    size_t num_timesteps;
     std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
         var_zo_posts;
+
+    SmoothingSLinear(size_t num_timesteps);
+    SmoothingSLinear();
+    ~SmoothingSLinear() = default;
+    virtual void set_num_states(size_t num_timesteps);
+    virtual std::string get_name() const { return "SmoothingSLinear"; };
+    void reset_zeros();
+};
+
+// Smoother for LSTM layer
+class SmoothingSLSTM {
+   public:
+    size_t num_states;
+    size_t num_timesteps;
+    std::vector<std::vector<float>> mu_h_priors, var_h_priors, mu_c_priors,
+        var_c_priors, mu_h_posts, var_h_posts, mu_c_posts, var_c_posts,
+        mu_h_smooths, var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc,
+        cov_cc;
+
+    SmoothingSLSTM(size_t num_states, size_t num_timesteps);
+    SmoothingSLSTM();
+    ~SmoothingSLSTM() = default;
+    virtual void set_num_states(size_t num_states, size_t num_timesteps);
+    virtual std::string get_name() const { return "SmoothingSLSTM"; };
+    void reset_zeros();
 };
 
 // HIERARCHICAL SOFTMAX

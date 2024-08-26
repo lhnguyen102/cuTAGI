@@ -125,6 +125,7 @@ void lstm_v2()
     Sequential model(SLSTM(1, 5, input_seq_len), SLSTM(5, 5, input_seq_len),
                      SLinear(5 * input_seq_len, 1));
     model.input_state_update = true;
+    model.num_samples = train_db.num_data;
 
     // model.to_device("cuda");
     model.set_threads(1);

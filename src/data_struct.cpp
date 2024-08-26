@@ -363,3 +363,143 @@ void BaseLSTMStates::reset_zeros()
     for (auto& val : mu_h_prior) val = 0;
     for (auto& val : var_h_prior) val = 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Smoother for Slinear layer
+////////////////////////////////////////////////////////////////////////////////
+SmoothingSLinear::SmoothingSLinear() {}
+SmoothingSLinear::SmoothingSLinear(size_t num_timesteps)
+    : num_timesteps(num_timesteps)
+/*
+ */
+{
+    this->reset_zeros();
+}
+
+void SmoothingSLinear::set_num_states(size_t num_timesteps)
+/*
+ */
+{
+    this->num_timesteps = num_timesteps;
+    this->reset_zeros();
+}
+
+void SmoothingSLinear::reset_zeros()
+/**/
+{
+    // Resize and reset cov_zo
+    if (cov_zo.size() != num_timesteps) cov_zo.resize(num_states);
+    for (auto& val : cov_zo) val = 0;
+
+    // Resize and reset mu_zo_priors
+    if (mu_zo_priors.size() != num_timesteps) mu_zo_priors.resize(num_states);
+    for (auto& val : mu_zo_priors) val = 0;
+
+    // Resize and reset var_zo_priors
+    if (var_zo_priors.size() != num_timesteps) var_zo_priors.resize(num_states);
+    for (auto& val : var_zo_priors) val = 0;
+
+    // Resize and reset mu_zo_posts
+    if (mu_zo_posts.size() != num_timesteps) mu_zo_posts.resize(num_states);
+    for (auto& val : mu_zo_posts) val = 0;
+
+    // Resize and reset var_zo_posts
+    if (var_zo_posts.size() != num_timesteps) var_zo_posts.resize(num_states);
+    for (auto& val : var_zo_posts) val = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Smoother for SLSTM layer
+////////////////////////////////////////////////////////////////////////////////
+SmoothingSLSTM::SmoothingSLSTM() {}
+SmoothingSLSTM::SmoothingSLSTM(size_t num_states, size_t num_timesteps)
+    : num_timesteps(num_timesteps),
+      num_states(num_states)
+/*
+ */
+{
+    this->reset_zeros();
+}
+
+void SmoothingSLSTM::set_num_states(size_t num_states, size_t num_timesteps)
+/*
+ */
+{
+    this->num_states = num_states;
+    this->num_timesteps = num_timesteps;
+    this->reset_zeros();
+}
+
+void SmoothingSLSTM::reset_zeros()
+/**/
+{
+    // Resize and reset mu_h_priors
+    if (mu_h_priors.size() != num_states * num_timesteps)
+        mu_h_priors.resize(num_states * num_timesteps);
+    for (auto& val : mu_h_priors) val = 0;
+
+    // Resize and reset var_h_priors
+    if (var_h_priors.size() != num_states * num_timesteps)
+        var_h_priors.resize(num_states * num_timesteps);
+    for (auto& val : var_h_priors) val = 0;
+
+    // Resize and reset mu_c_priors
+    if (mu_c_priors.size() != num_states * num_timesteps)
+        mu_c_priors.resize(num_states * num_timesteps);
+    for (auto& val : mu_c_priors) val = 0;
+
+    // Resize and reset var_c_priors
+    if (var_c_priors.size() != num_states * num_timesteps)
+        var_c_priors.resize(num_states * num_timesteps);
+    for (auto& val : var_c_priors) val = 0;
+
+    // Resize and reset mu_h_posts
+    if (mu_h_posts.size() != num_states * num_timesteps)
+        mu_h_posts.resize(num_states * num_timesteps);
+    for (auto& val : mu_h_posts) val = 0;
+
+    // Resize and reset var_h_posts
+    if (var_h_posts.size() != num_states * num_timesteps)
+        var_h_posts.resize(num_states * num_timesteps);
+    for (auto& val : var_h_posts) val = 0;
+
+    // Resize and reset mu_c_posts
+    if (mu_c_posts.size() != num_states * num_timesteps)
+        mu_c_posts.resize(num_states * num_timesteps);
+    for (auto& val : mu_c_posts) val = 0;
+
+    // Resize and reset var_c_posts
+    if (var_c_posts.size() != num_states * num_timesteps)
+        var_c_posts.resize(num_states * num_timesteps);
+    for (auto& val : var_c_posts) val = 0;
+
+    // Resize and reset mu_h_smooths
+    if (mu_h_smooths.size() != num_states * num_timesteps)
+        mu_h_smooths.resize(num_states * num_timesteps);
+    for (auto& val : mu_h_smooths) val = 0;
+
+    // Resize and reset var_h_smooths
+    if (var_h_smooths.size() != num_states * num_timesteps)
+        var_h_smooths.resize(num_states * num_timesteps);
+    for (auto& val : var_h_smooths) val = 0;
+
+    // Resize and reset mu_c_smooths
+    if (mu_c_smooths.size() != num_states * num_timesteps)
+        mu_c_smooths.resize(num_states * num_timesteps);
+    for (auto& val : mu_c_smooths) val = 0;
+
+    // Resize and reset var_c_smooths
+    if (var_c_smooths.size() != num_states * num_timesteps)
+        var_c_smooths.resize(num_states * num_timesteps);
+    for (auto& val : var_c_smooths) val = 0;
+
+    // Resize and reset cov_hc
+    if (cov_hc.size() != num_states * num_timesteps)
+        cov_hc.resize(num_states * num_timesteps);
+    for (auto& val : cov_hc) val = 0;
+
+    // Resize and reset cov_cc
+    if (cov_cc.size() != num_states * num_timesteps)
+        cov_cc.resize(num_states * num_timesteps);
+    for (auto& val : cov_cc) val = 0;
+}
