@@ -113,9 +113,6 @@ void SLinear::forward(BaseHiddenStates &input_states,
     // Initialization
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
-    if (temp_states.slinear.num_hs == 0) {
-        temp_states.slinear.set_num_states(this->input_size);
-    }
 
     // Forward pass
     if (this->num_threads > 1) {

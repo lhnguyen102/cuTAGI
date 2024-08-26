@@ -18,6 +18,7 @@
 class SLSTM : public LSTM {
    public:
     SmoothingSLSTM smoothing_states;
+
     SLSTM(size_t input_size, size_t output_size, int seq_len = 1,
           bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
           std::string init_method = "Xavier")

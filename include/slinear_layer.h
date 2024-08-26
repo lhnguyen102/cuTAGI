@@ -21,12 +21,12 @@
 
 class SLinear : public Linear {
    public:
+    SmoothingSLinear smoothing_states;
+
     SLinear(size_t ip_size, size_t op_size, bool bias = true,
             float gain_weight = 1.0f, float gain_bias = 1.0f,
             std::string method = "He")
         : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method) {}
-
-    SmoothingSLinear smoothing_states;
 
     std::string get_layer_info() const override;
 

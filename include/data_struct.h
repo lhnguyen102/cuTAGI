@@ -102,10 +102,14 @@ class SmoothingHiddenStates : public BaseHiddenStates {
    public:
     std::vector<float> mu_h_prev;
     std::vector<float> cov_hh;
+    int num_timesteps;
 
     // Constructor with initialization
-    SmoothingHiddenStates(size_t n, size_t m)
-        : BaseHiddenStates(n, m), mu_h_prev(n, 0.0f), cov_hh(n * n, 0.0f) {}
+    SmoothingHiddenStates(size_t n, size_t m, int num_timesteps)
+        : BaseHiddenStates(n, m),
+          mu_h_prev(n, 0.0f),
+          cov_hh(n * n, 0.0f),
+          num_timesteps(num_timesteps) {}
 
     // Default constructor
     SmoothingHiddenStates() = default;
