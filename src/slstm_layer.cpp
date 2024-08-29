@@ -80,7 +80,7 @@ void save_cov_hidden_states_smoother(
     std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
     std::vector<float> &var_h_prev, std::vector<float> &mc_prev,
     std::vector<float> &mca, std::vector<float> &Jca, int w_pos_f, int w_pos_i,
-    int w_pos_c, int w_pos_o, int no, int start_idx, int end_idx,
+    int w_pos_c, int w_pos_o, int no, int ni, int start_idx, int end_idx,
     std::vector<float> &cov_hh)
 /*
  */
@@ -136,7 +136,7 @@ void smooth_cell_states(
         for (int j = num_states - 1; j >= 0; --j) {
             current = i * num_timestep + j;
             next = (i + 1) * num_timestep + j;
-            float tmp = cov_cc[current] / var_c_priors[next];
+            float tmp = cov_cc[next] / var_c_priors[next];
 
             mu_c_smooths[current] =
                 mu_c_posts[current] +
@@ -396,12 +396,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
         lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.var_h_prev,
         lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
         this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
-        this->output_size, 0, end_chunk_, smooth_output_states->cov_hh);
+        this->output_size, this->input_size, 0, end_chunk_,
+        smooth_output_states->cov_hh);
 
     smooth_output_states->mu_h_prev = lstm_states.mu_h_prev;
-
-    // // Increase index for next time step
-    ++this->time_step;
 }
 
 void SLSTM::backward(BaseDeltaStates &input_delta_states,
@@ -518,6 +516,8 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
     // Save for smoothing
     save_posteriors_smoother(this->time_step, this->output_size,
                              this->lstm_states, this->smoothing_states);
+    // // Increase index for next time step
+    ++this->time_step;
 }
 
 void SLSTM::smoother()

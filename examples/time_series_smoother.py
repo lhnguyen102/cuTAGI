@@ -18,7 +18,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 3
+    num_features = 1
     input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
@@ -31,9 +31,9 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         input_seq_len=input_seq_len,
         output_seq_len=output_seq_len,
         num_features=num_features,
-        stride=seq_stride,
-        time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov = True
+        stride=seq_stride
+        # time_covariates=["hour_of_day", "day_of_week"],
+        # keep_last_time_cov = True
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -44,9 +44,9 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         num_features=num_features,
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
-        x_std=train_dtl.x_std,
-        time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov = True
+        x_std=train_dtl.x_std
+        # time_covariates=["hour_of_day", "day_of_week"],
+        # keep_last_time_cov = True
     )
 
     # Viz

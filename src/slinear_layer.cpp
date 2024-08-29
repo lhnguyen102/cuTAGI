@@ -164,9 +164,6 @@ void SLinear::forward(BaseHiddenStates &input_states,
         this->storing_states_for_training(*smooth_input_states,
                                           *smooth_output_states);
     }
-
-    // // Increase index for next time step
-    ++this->time_step;
 }
 
 void SLinear::backward(BaseDeltaStates &input_delta_states,
@@ -236,6 +233,8 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
             }
         }
     }
+    // // Increase index for next time step
+    ++this->time_step;
 }
 
 void SLinear::smoother()
@@ -258,5 +257,5 @@ void SLinear::smoother()
 
     // Clear variables for next epoch
     this->time_step = 0;
-    this->smoothing_states.reset_zeros();
+    // this->smoothing_states.reset_zeros();
 }
