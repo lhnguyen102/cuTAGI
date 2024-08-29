@@ -78,10 +78,9 @@ void save_cov_hidden_states_smoother(
     std::vector<float> &mi_ga, std::vector<float> &Ji_ga,
     std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
     std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
-    std::vector<float> &mu_h_prior, std::vector<float> &mu_h_prev,
     std::vector<float> &var_h_prev, std::vector<float> &mc_prev,
     std::vector<float> &mca, std::vector<float> &Jca, int w_pos_f, int w_pos_i,
-    int w_pos_c, int w_pos_o, int no, int ni, int start_idx, int end_idx,
+    int w_pos_c, int w_pos_o, int no, int start_idx, int end_idx,
     std::vector<float> &cov_hh)
 /*
  */
@@ -394,11 +393,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
     save_cov_hidden_states_smoother(
         this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
         lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
-        lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.mu_c_prior,
-        lstm_states.mu_h_prev, lstm_states.var_h_prev, lstm_states.mu_c_prev,
-        lstm_states.mu_ca, lstm_states.jcb_ca, this->w_pos_f, this->w_pos_i,
-        this->w_pos_c, this->w_pos_o, this->output_size, this->input_size, 0,
-        end_chunk_, smooth_output_states->cov_hh);
+        lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.var_h_prev,
+        lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
+        this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
+        this->output_size, 0, end_chunk_, smooth_output_states->cov_hh);
 
     smooth_output_states->mu_h_prev = lstm_states.mu_h_prev;
 
