@@ -62,6 +62,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     # net.to_device("cuda")
     net.set_threads(1)  # multi-processing is slow on a small net
     net.input_state_update = True
+    net.num_samples = 216
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#

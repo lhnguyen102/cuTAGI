@@ -44,6 +44,7 @@ void bind_sequential(pybind11::module_& m) {
         .def_readwrite("z_buffer_size", &Sequential::z_buffer_size)
         .def_readwrite("z_buffer_block_size", &Sequential::z_buffer_block_size)
         .def_readwrite("input_size", &Sequential::input_size)
+        .def_readwrite("num_samples", &Sequential::num_samples)
         .def_readwrite("training", &Sequential::training)
         .def_readwrite("param_update", &Sequential::param_update)
         .def_readwrite("device", &Sequential::device)

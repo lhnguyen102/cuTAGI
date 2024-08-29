@@ -99,6 +99,16 @@ class Sequential:
         """Set the sevice"""
         self._cpp_backend.input_state_update = value
 
+    @property
+    def num_samples(self) -> int:
+        """Get the num_samples."""
+        return self._cpp_backend.num_samples
+
+    @z_buffer_size.setter
+    def num_samples(self, value: int):
+        """Set the num_samples."""
+        self._cpp_backend.num_samples = value
+
     def to_device(self, device: str):
         """Move the model to a specific device."""
         self._cpp_backend.to_device(device)
@@ -201,3 +211,5 @@ class Sequential:
 
     def get_outputs_smoother(self) -> Tuple[np.ndarray, np.ndarray]:
         return self._cpp_backend.get_outputs_smoother()
+
+

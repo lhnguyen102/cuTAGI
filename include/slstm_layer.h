@@ -18,18 +18,25 @@
 class SLSTM : public LSTM {
    public:
     SmoothingSLSTM smoothing_states;
-
+    int time_step = 0;
     SLSTM(size_t input_size, size_t output_size, int seq_len = 1,
           bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-          std::string init_method = "Xavier")
+          std::string init_method = "Xavier", int time_step = 0)
         : LSTM(input_size, output_size, seq_len, bias, gain_w, gain_b,
-               init_method) {}
+               init_method),
+          time_step(time_step) {}
 
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
 
     LayerType get_layer_type() const override;
+
+    void prepare_input_smooth(SmoothingHiddenStates &input_state);
+
+    void storing_states_for_training_smooth(
+        SmoothingHiddenStates &input_states,
+        SmoothingHiddenStates &output_states);
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

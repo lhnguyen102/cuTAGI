@@ -102,7 +102,7 @@ class SmoothingHiddenStates : public BaseHiddenStates {
    public:
     std::vector<float> mu_h_prev;
     std::vector<float> cov_hh;
-    int num_timesteps;
+    int num_timesteps = 0;
 
     // Constructor with initialization
     SmoothingHiddenStates(size_t n, size_t m, int num_timesteps)
@@ -197,6 +197,8 @@ class BaseTempStates {
    public:
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
+    std::vector<float> tmp_3;
+    std::vector<float> tmp_4;
     size_t size = 0, block_size = 0, actual_size = 0;
 
     BaseTempStates(size_t n, size_t m);
@@ -259,9 +261,9 @@ class BaseLSTMStates {
 // Smoother for linear layer
 class SmoothingSLinear {
    public:
-    size_t num_timesteps;
+    size_t num_timesteps = 0;
     std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
-        var_zo_posts;
+        var_zo_posts, mu_zo_smooths, var_zo_smooths;
 
     SmoothingSLinear(size_t num_timesteps);
     SmoothingSLinear();
@@ -275,11 +277,10 @@ class SmoothingSLinear {
 class SmoothingSLSTM {
    public:
     size_t num_states;
-    size_t num_timesteps;
-    std::vector<std::vector<float>> mu_h_priors, var_h_priors, mu_c_priors,
-        var_c_priors, mu_h_posts, var_h_posts, mu_c_posts, var_c_posts,
-        mu_h_smooths, var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc,
-        cov_cc;
+    size_t num_timesteps = 0;
+    std::vector<float> mu_h_priors, var_h_priors, mu_c_priors, var_c_priors,
+        mu_h_posts, var_h_posts, mu_c_posts, var_c_posts, mu_h_smooths,
+        var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc, cov_cc;
 
     SmoothingSLSTM(size_t num_states, size_t num_timesteps);
     SmoothingSLSTM();

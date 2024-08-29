@@ -38,7 +38,8 @@ LayerType SLinear::get_layer_type() const
     return LayerType::SLinear;
 }
 
-void linear_update_hidden_states_worker(std::vector<float> &mu_a_prior,
+void linear_update_hidden_states_worker(int time_step,
+                                        std::vector<float> &mu_a_prior,
                                         std::vector<float> &var_a_prior,
                                         std::vector<float> &delta_mu,
                                         std::vector<float> &delta_var,
@@ -47,21 +48,17 @@ void linear_update_hidden_states_worker(std::vector<float> &mu_a_prior,
 /*
  */
 {
-    float mu_tmp = mu_a_prior.back();
-    float var_tmp = var_a_prior.back();
-    mu_tmp = mu_tmp + delta_mu[0] * var_tmp;
-    var_tmp = (1.0f + delta_var[0] * var_tmp) * var_tmp;
-    mu_a_post.push_back(mu_tmp);
-    var_a_post.push_back(var_tmp);
+    mu_a_post[time_step] =
+        mu_a_prior[time_step] + delta_mu[0] * var_a_prior[time_step];
+    var_a_post[time_step] =
+        (1.0f + delta_var[0] * var_a_prior[time_step]) * var_a_prior[time_step];
 }
 
-void slinear_cov_zo_smoother(int ni, int no, std::vector<float> &mu_w,
-                             std::vector<float> &var_w,
-                             std::vector<float> &var_b,
-                             std::vector<float> &mu_h_prev,
-                             std::vector<float> &mu_h_prior,
-                             std::vector<float> &cov_hh,
-                             std::vector<float> &cov_zo)
+void slinear_cov_zo_smoother(
+    int ni, int no, int time_step, std::vector<float> &mu_w,
+    std::vector<float> &var_w, std::vector<float> &var_b,
+    std::vector<float> &mu_h_prev, std::vector<float> &mu_h_prior,
+    std::vector<float> &cov_hh, std::vector<float> &cov_zo)
 /*
  */
 {
@@ -82,7 +79,7 @@ void slinear_cov_zo_smoother(int ni, int no, std::vector<float> &mu_w,
         }
     }
     C_zo_zo = C_zo_zo + var_b[0];
-    cov_zo.push_back(C_zo_zo);
+    cov_zo[time_step] = C_zo_zo;
 }
 
 void slinear_smoother_z_ouput(int num_timestep, std::vector<float> &cov,
@@ -104,51 +101,91 @@ void slinear_smoother_z_ouput(int num_timestep, std::vector<float> &cov,
     }
 }
 
+void SLinear::storing_states_for_training_smooth(
+    SmoothingHiddenStates &input_states, SmoothingHiddenStates &output_states)
+/*
+ */
+{
+    int act_size = input_states.actual_size * input_states.block_size;
+    if (this->bwd_states->size != act_size) {
+        this->allocate_bwd_vector(act_size);
+    }
+
+    // Activation's jacobian and mean from the previous layer
+    this->fill_bwd_vector(input_states);
+
+    // Send a copy of activation's mean and variance to the output buffer
+    // for the current layer.
+    // TODO: consider to have only mu_a and var_a in struct HiddenStates
+    this->fill_output_states(output_states);
+}
+
 void SLinear::forward(BaseHiddenStates &input_states,
                       BaseHiddenStates &output_states,
                       BaseTempStates &temp_states)
 /*
  */
 {
+    // New poitner will point to the same memory location when casting
+    SmoothingHiddenStates *smooth_input_states =
+        dynamic_cast<SmoothingHiddenStates *>(&input_states);
+    SmoothingHiddenStates *smooth_output_states =
+        dynamic_cast<SmoothingHiddenStates *>(&output_states);
+
     // Initialization
-    int batch_size = input_states.block_size;
+    int batch_size = smooth_input_states->block_size;
     this->set_cap_factor_udapte(batch_size);
+    // Initialize smoothing hidden states for SLinear
+    if (this->smoothing_states.num_timesteps !=
+        smooth_input_states->num_timesteps) {
+        smoothing_states.set_num_states(smooth_input_states->num_timesteps);
+    }
+    // Increase index for time step
+    if (this->time_step != 0) {
+        this->time_step = this->time_step + 1;
+    }
 
     // Forward pass
     if (this->num_threads > 1) {
         linear_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                               input_states.mu_a, input_states.var_a,
-                               this->input_size, this->output_size, batch_size,
-                               this->bias, this->num_threads,
-                               output_states.mu_a, output_states.var_a);
+                               smooth_input_states->mu_a,
+                               smooth_input_states->var_a, this->input_size,
+                               this->output_size, batch_size, this->bias,
+                               this->num_threads, smooth_output_states->mu_a,
+                               smooth_output_states->var_a);
     } else {
         int start_chunk = 0;
         int end_chunk = this->output_size * batch_size;
         linear_fwd_mean_var(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                            input_states.mu_a, input_states.var_a, start_chunk,
-                            end_chunk, this->input_size, this->output_size,
-                            batch_size, this->bias, output_states.mu_a,
-                            output_states.var_a);
+                            smooth_input_states->mu_a,
+                            smooth_input_states->var_a, start_chunk, end_chunk,
+                            this->input_size, this->output_size, batch_size,
+                            this->bias, smooth_output_states->mu_a,
+                            smooth_output_states->var_a);
     }
     // Update number of actual states.
-    output_states.width = this->out_width;
-    output_states.height = this->out_height;
-    output_states.depth = this->out_channels;
-    output_states.block_size = batch_size;
-    output_states.actual_size = this->output_size;
+    smooth_output_states->width = this->out_width;
+    smooth_output_states->height = this->out_height;
+    smooth_output_states->depth = this->out_channels;
+    smooth_output_states->block_size = batch_size;
+    smooth_output_states->actual_size = this->output_size;
 
     // save z_output prior for smoothing
-    slinear_states.mu_zo_priors.push_back(output_states.mu_a[0]);
-    slinear_states.var_zo_priors.push_back(output_states.var_a[0]);
+    smoothing_states.mu_zo_priors[this->time_step] =
+        smooth_output_states->mu_a[0];
+    smoothing_states.var_zo_priors[this->time_step] =
+        smooth_output_states->var_a[0];
 
     // save cov_zo for smoother
-    slinear_cov_zo_smoother(this->input_size, this->output_size, this->mu_w,
-                            this->var_w, this->var_b,
-                            temp_states.slinear.mu_h_prev, input_states.mu_a,
-                            temp_states.slinear.cov_hh, slinear_states.cov_zo);
+    slinear_cov_zo_smoother(
+        this->input_size, this->output_size, this->time_step, this->mu_w,
+        this->var_w, this->var_b, smooth_input_states->mu_h_prev,
+        smooth_input_states->mu_a, smooth_input_states->cov_hh,
+        smoothing_states.cov_zo);
 
     if (this->training) {
-        this->storing_states_for_training(input_states, output_states);
+        this->storing_states_for_training_smooth(*smooth_input_states,
+                                                 *smooth_output_states);
     }
 }
 
@@ -179,9 +216,10 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
         linear_update_hidden_states_worker(
-            slinear_states.mu_zo_priors, slinear_states.var_zo_priors,
-            input_delta_states.delta_mu, input_delta_states.delta_var,
-            slinear_states.mu_zo_posts, slinear_states.var_zo_posts);
+            this->time_step, smoothing_states.mu_zo_priors,
+            smoothing_states.var_zo_priors, input_delta_states.delta_mu,
+            input_delta_states.delta_var, smoothing_states.mu_zo_posts,
+            smoothing_states.var_zo_posts);
     }
 
     // Update values for weights & biases
@@ -223,26 +261,18 @@ void SLinear::smoother(BaseTempStates &temp_states)
 /*
  */
 {
-    int num_timestep = slinear_states.cov_zo.size();
-
-    // Initialize the last time step for smoothing
-    temp_states.slinear.mu_zo_smooths.resize(num_timestep);
-    temp_states.slinear.var_zo_smooths.resize(num_timestep);
-    temp_states.slinear.mu_zo_smooths.back() =
-        slinear_states.mu_zo_posts.back();
-    temp_states.slinear.var_zo_smooths.back() =
-        slinear_states.var_zo_posts.back();
+    smoothing_states.mu_zo_smooths.back() = smoothing_states.mu_zo_posts.back();
+    smoothing_states.var_zo_smooths.back() =
+        smoothing_states.var_zo_posts.back();
 
     slinear_smoother_z_ouput(
-        num_timestep, slinear_states.cov_zo, slinear_states.mu_zo_priors,
-        slinear_states.var_zo_priors, slinear_states.mu_zo_posts,
-        slinear_states.var_zo_posts, temp_states.slinear.mu_zo_smooths,
-        temp_states.slinear.var_zo_smooths);
+        this->smoothing_states.num_timesteps, smoothing_states.cov_zo,
+        smoothing_states.mu_zo_priors, smoothing_states.var_zo_priors,
+        smoothing_states.mu_zo_posts, smoothing_states.var_zo_posts,
+        smoothing_states.mu_zo_smooths, smoothing_states.var_zo_smooths);
 
+    temp_states.tmp_3 = smoothing_states.mu_zo_smooths;
+    temp_states.tmp_4 = smoothing_states.var_zo_smooths;
     // Clear variables for next epoch
-    this->slinear_states.cov_zo.clear();
-    this->slinear_states.mu_zo_priors.clear();
-    this->slinear_states.var_zo_priors.clear();
-    this->slinear_states.mu_zo_posts.clear();
-    this->slinear_states.var_zo_posts.clear();
+    this->time_step = 0;
 }

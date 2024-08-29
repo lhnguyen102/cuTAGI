@@ -145,11 +145,11 @@ void Sequential::init_output_state_buffer()
             this->input_z_buffer = std::make_shared<SmoothingHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size,
                 this->num_samples);
-            std::cout << "num_timesteps: " << this->num_samples
-                      << '. output_z_buffer: '
-                      << this->output_z_buffer.num_timesteps
-                      << '. input_z_buffer: '
-                      << this->input_z_buffer.num_timesteps << std::endl;
+            // std::cout << "num_timesteps: " << this->num_samples
+            //           << '. output_z_buffer: '
+            //           << this->output_z_buffer.num_timesteps
+            //           << '. input_z_buffer: '
+            //           << this->input_z_buffer.num_timesteps << std::endl;
         } else {
             this->output_z_buffer = std::make_shared<BaseHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size);
@@ -759,11 +759,16 @@ Sequential::get_outputs_smoother()
  */
 {
     auto py_mu_zo_smooths = pybind11::array_t<float>(
-        this->temp_states->slinear.mu_zo_smooths.size(),
-        this->temp_states->slinear.mu_zo_smooths.data());
+        this->temp_states->tmp_3.size(), this->temp_states->tmp_3.data());
     auto py_var_zo_smooths = pybind11::array_t<float>(
-        this->temp_states->slinear.var_zo_smooths.size(),
-        this->temp_states->slinear.var_zo_smooths.data());
-
+        this->temp_states->tmp_4.size(), this->temp_states->tmp_4.data());
     return {py_mu_zo_smooths, py_var_zo_smooths};
+
+    // auto py_mu_zo_smooths = pybind11::array_t<float>(
+    //     this->layers[2]->smoothing_states.mu_zo_smooths.size(),
+    //     this->layers[2]->smoothing_states.mu_zo_smooths.data());
+    // auto py_var_zo_smooths = pybind11::array_t<float>(
+    //     this->layers[2]->smoothing_states.var_zo_smooths.size(),
+    //     this->layers[2]->smoothing_states.var_zo_smooths.data());
+    // return {py_mu_zo_smooths, py_var_zo_smooths};
 }

@@ -113,24 +113,24 @@ void SmoothingHiddenStates::set_size(size_t new_size, size_t new_block_size) {
 
 //  Override the copy_from method
 void SmoothingHiddenStates::copy_from(const BaseHiddenStates& source,
-                                      int num_data = -1) {
+                                      int num_data) {
     BaseHiddenStates::copy_from(source, num_data);
 
     const SmoothingHiddenStates* source_other =
         dynamic_cast<const SmoothingHiddenStates*>(&source);
 
-    this->cov_hh = source_other.cov_hh;
-    this->mu_h_prev = source_other.mu_h_prev;
+    this->cov_hh = source_other->cov_hh;
+    this->mu_h_prev = source_other->mu_h_prev;
+    this->num_timesteps = source_other->num_timesteps;
 }
 
 //  Override the swap method
 void SmoothingHiddenStates::swap(BaseHiddenStates& other) {
-    BaseHiddenStates::swap(other);
-
-    SmoothingHiddenStates* source_other =
-        dynamic_cast<SmoothingHiddenStates*>(&source);
-    std::swap(this->cov_hh, source_other->cov_hh);
-    std::swap(this->mu_h_prev, source_other->mu_h_prev);
+    SmoothingHiddenStates* smooth_other =
+        dynamic_cast<SmoothingHiddenStates*>(&other);
+    std::swap(this->cov_hh, smooth_other->cov_hh);
+    std::swap(this->mu_h_prev, smooth_other->mu_h_prev);
+    std::swap(this->num_timesteps, smooth_other->num_timesteps);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -388,24 +388,37 @@ void SmoothingSLinear::reset_zeros()
 /**/
 {
     // Resize and reset cov_zo
-    if (cov_zo.size() != num_timesteps) cov_zo.resize(num_states);
+    if (cov_zo.size() != num_timesteps) cov_zo.resize(num_timesteps);
     for (auto& val : cov_zo) val = 0;
 
     // Resize and reset mu_zo_priors
-    if (mu_zo_priors.size() != num_timesteps) mu_zo_priors.resize(num_states);
+    if (mu_zo_priors.size() != num_timesteps)
+        mu_zo_priors.resize(num_timesteps);
     for (auto& val : mu_zo_priors) val = 0;
 
     // Resize and reset var_zo_priors
-    if (var_zo_priors.size() != num_timesteps) var_zo_priors.resize(num_states);
+    if (var_zo_priors.size() != num_timesteps)
+        var_zo_priors.resize(num_timesteps);
     for (auto& val : var_zo_priors) val = 0;
 
     // Resize and reset mu_zo_posts
-    if (mu_zo_posts.size() != num_timesteps) mu_zo_posts.resize(num_states);
+    if (mu_zo_posts.size() != num_timesteps) mu_zo_posts.resize(num_timesteps);
     for (auto& val : mu_zo_posts) val = 0;
 
     // Resize and reset var_zo_posts
-    if (var_zo_posts.size() != num_timesteps) var_zo_posts.resize(num_states);
+    if (var_zo_posts.size() != num_timesteps)
+        var_zo_posts.resize(num_timesteps);
     for (auto& val : var_zo_posts) val = 0;
+
+    // Resize and reset mu_zo_smooths
+    if (mu_zo_smooths.size() != num_timesteps)
+        mu_zo_smooths.resize(num_timesteps);
+    for (auto& val : mu_zo_smooths) val = 0;
+
+    // Resize and reset var_zo_smooths
+    if (var_zo_smooths.size() != num_timesteps)
+        var_zo_smooths.resize(num_timesteps);
+    for (auto& val : var_zo_smooths) val = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -413,8 +426,8 @@ void SmoothingSLinear::reset_zeros()
 ////////////////////////////////////////////////////////////////////////////////
 SmoothingSLSTM::SmoothingSLSTM() {}
 SmoothingSLSTM::SmoothingSLSTM(size_t num_states, size_t num_timesteps)
-    : num_timesteps(num_timesteps),
-      num_states(num_states)
+    : num_states(num_states),
+      num_timesteps(num_timesteps)
 /*
  */
 {

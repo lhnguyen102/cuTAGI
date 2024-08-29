@@ -137,7 +137,7 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 10;
     int batch_size = 1;
     float sigma_obs = 1.0;
 
