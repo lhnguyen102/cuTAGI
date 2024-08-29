@@ -47,5 +47,5 @@ class SLSTM : public LSTM {
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
 
-    void smoother(BaseTempStates &temp_states);
+    void smoother();
 };

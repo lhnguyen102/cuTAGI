@@ -533,7 +533,7 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
                     this->output_size);
 }
 
-void SLSTM::smoother(BaseTempStates &temp_states)
+void SLSTM::smoother()
 /*
  */
 {

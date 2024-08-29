@@ -256,7 +256,7 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
-void SLinear::smoother(BaseTempStates &temp_states)
+void SLinear::smoother()
 /*
  */
 {
@@ -269,9 +269,6 @@ void SLinear::smoother(BaseTempStates &temp_states)
         smoothing_states.mu_zo_priors, smoothing_states.var_zo_priors,
         smoothing_states.mu_zo_posts, smoothing_states.var_zo_posts,
         smoothing_states.mu_zo_smooths, smoothing_states.var_zo_smooths);
-
-    temp_states.tmp_3 = smoothing_states.mu_zo_smooths;
-    temp_states.tmp_4 = smoothing_states.var_zo_smooths;
 
     // Clear variables for next epoch
     this->time_step = 0;

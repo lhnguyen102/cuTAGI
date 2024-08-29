@@ -48,5 +48,5 @@ class SLinear : public Linear {
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states, bool state_udapte) override;
 
-    void smoother(BaseTempStates &temp_states);
+    void smoother();
 };

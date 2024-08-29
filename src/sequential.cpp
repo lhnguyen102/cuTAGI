@@ -371,12 +371,12 @@ void Sequential::smoother()
     for (auto layer = this->layers.begin(); layer != this->layers.end();
          layer++) {
         auto *current_layer = layer->get();
-
-        if (auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer)) {
-            slstm_layer->smoother(*this->temp_states);
-        } else if (auto *slinear_layer =
-                       dynamic_cast<SLinear *>(current_layer)) {
-            slinear_layer->smoother(*this->temp_states);
+        if (current_layer->get_layer_type() == LayerType::SLSTM) {
+            auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer);
+            slstm_layer->smoother();
+        } else if (current_layer->get_layer_type() == LayerType::SLinear) {
+            auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
+            slinear_layer->smoother();
         }
     }
 }
@@ -753,17 +753,14 @@ Sequential::get_outputs_smoother()
 /*
  */
 {
+    auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
     auto py_mu_zo_smooths = pybind11::array_t<float>(
-        this->temp_states->tmp_3.size(), this->temp_states->tmp_3.data());
-    auto py_var_zo_smooths = pybind11::array_t<float>(
-        this->temp_states->tmp_4.size(), this->temp_states->tmp_4.data());
-    return {py_mu_zo_smooths, py_var_zo_smooths};
+        last_layer->smoothing_states.mu_zo_smooths.size(),
+        last_layer->smoothing_states.mu_zo_smooths.data());
 
-    // auto py_mu_zo_smooths = pybind11::array_t<float>(
-    //     this->layers[2]->smoothing_states.mu_zo_smooths.size(),
-    //     this->layers[2]->smoothing_states.mu_zo_smooths.data());
-    // auto py_var_zo_smooths = pybind11::array_t<float>(
-    //     this->layers[2]->smoothing_states.var_zo_smooths.size(),
-    //     this->layers[2]->smoothing_states.var_zo_smooths.data());
-    // return {py_mu_zo_smooths, py_var_zo_smooths};
+    auto py_var_zo_smooths = pybind11::array_t<float>(
+        last_layer->smoothing_states.var_zo_smooths.size(),
+        last_layer->smoothing_states.var_zo_smooths.data());
+
+    return {py_mu_zo_smooths, py_var_zo_smooths};
 }
