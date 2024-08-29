@@ -145,11 +145,6 @@ void Sequential::init_output_state_buffer()
             this->input_z_buffer = std::make_shared<SmoothingHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size,
                 this->num_samples);
-            // std::cout << "num_timesteps: " << this->num_samples
-            //           << '. output_z_buffer: '
-            //           << this->output_z_buffer.num_timesteps
-            //           << '. input_z_buffer: '
-            //           << this->input_z_buffer.num_timesteps << std::endl;
         } else {
             this->output_z_buffer = std::make_shared<BaseHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size);

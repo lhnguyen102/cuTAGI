@@ -140,10 +140,6 @@ void SLinear::forward(BaseHiddenStates &input_states,
         smooth_input_states->num_timesteps) {
         smoothing_states.set_num_states(smooth_input_states->num_timesteps);
     }
-    // Increase index for time step
-    if (this->time_step != 0) {
-        this->time_step = this->time_step + 1;
-    }
 
     // Forward pass
     if (this->num_threads > 1) {
@@ -187,6 +183,9 @@ void SLinear::forward(BaseHiddenStates &input_states,
         this->storing_states_for_training_smooth(*smooth_input_states,
                                                  *smooth_output_states);
     }
+
+    // // Increase index for time step
+    ++this->time_step;
 }
 
 void SLinear::backward(BaseDeltaStates &input_delta_states,
@@ -273,6 +272,8 @@ void SLinear::smoother(BaseTempStates &temp_states)
 
     temp_states.tmp_3 = smoothing_states.mu_zo_smooths;
     temp_states.tmp_4 = smoothing_states.var_zo_smooths;
+
     // Clear variables for next epoch
     this->time_step = 0;
+    // this->smoothing_states.reset_zeros();
 }

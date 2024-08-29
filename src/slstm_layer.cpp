@@ -276,10 +276,6 @@ void SLSTM::forward(BaseHiddenStates &input_states,
         smoothing_states.set_num_states(this->output_size,
                                         smooth_input_states->num_timesteps);
     }
-    // Increase index for time step
-    if (this->time_step != 0) {
-        this->time_step = this->time_step + 1;
-    }
 
     // Update number of actual states.
     smooth_output_states->width = this->out_width;
@@ -419,6 +415,8 @@ void SLSTM::forward(BaseHiddenStates &input_states,
         end_chunk_, smooth_output_states->cov_hh);
 
     smooth_output_states->mu_h_prev = lstm_states.mu_h_prev;
+    // // Increase index for time step
+    ++this->time_step;
 }
 
 void SLSTM::backward(BaseDeltaStates &input_delta_states,
@@ -562,4 +560,6 @@ void SLSTM::smoother(BaseTempStates &temp_states)
 
     // Clear variables for next epoch
     this->time_step = 0;
+    this->smoothing_states.reset_zeros();
+    this->lstm_states.reset_zeros();
 }
