@@ -34,10 +34,6 @@ class SLSTM : public LSTM {
 
     void prepare_input_smooth(SmoothingHiddenStates &input_state);
 
-    void storing_states_for_training_smooth(
-        SmoothingHiddenStates &input_states,
-        SmoothingHiddenStates &output_states);
-
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

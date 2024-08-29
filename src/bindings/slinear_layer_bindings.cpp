@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         linear_layer_binding.cpp
+// File:         slinear_layer_binding.cpp
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 30, 2023
-// Updated:      March 09, 2024
+// Created:      August 21, 2024
+// Updated:      August 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////

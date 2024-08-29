@@ -104,7 +104,7 @@ class Sequential:
         """Get the num_samples."""
         return self._cpp_backend.num_samples
 
-    @z_buffer_size.setter
+    @num_samples.setter
     def num_samples(self, value: int):
         """Set the num_samples."""
         self._cpp_backend.num_samples = value

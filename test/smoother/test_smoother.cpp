@@ -1,14 +1,17 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         test_lstm_v2.cpp
-// Description:
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 27, 2024
-// Updated:      March 31, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
+// File:         test_smoother.cpp
+// Description:  Test smoother for a toy problem using
+// Smoothing in LSTM networks.
+// Authors : Van-Dai Vuong, Luong - Ha Nguyen& James - A.Goulet
+// Created : August 21, 2024
+// Updated:  August 21, 2024
+// Contact:  van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
+// james.goulet@polymtl.ca
+// License : This code is released under the MIT
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "test_lstm_v2.h"
+#include "test_smoother.h"
 
 #include <chrono>
 #include <vector>
@@ -16,22 +19,20 @@
 #include "../../include/common.h"
 #include "../../include/dataloader.h"
 // #include "../../include/debugger.h"
-#include "../../include/linear_layer.h"
-#include "../../include/lstm_layer.h"
 #include "../../include/sequential.h"
+#include "../../include/slinear_layer.h"
+#include "../../include/slstm_layer.h"
 // #include "../../include/state_feed_backward_cpu.h"
 // #include "../../include/struct_var.h"
 // #ifdef USE_CUDA
 // #include "../../include/tagi_network.cuh"
 // #endif
 
-Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
-                                      int num_data, int num_features,
-                                      std::vector<int> &output_col,
-                                      bool data_norm, int input_seq_len,
-                                      int output_seq_len, int seq_stride,
-                                      std::vector<float> &mu_x,
-                                      std::vector<float> &sigma_x)
+Dataloader get_time_series_dataloader_smoother(
+    std::vector<std::string> &data_file, int num_data, int num_features,
+    std::vector<int> &output_col, bool data_norm, int input_seq_len,
+    int output_seq_len, int seq_stride, std::vector<float> &mu_x,
+    std::vector<float> &sigma_x)
 /* Get dataloader for input and output data.
 
 Args:
@@ -92,36 +93,38 @@ Returns:
     return db;
 }
 
-void lstm_v2()
+void smoother_v1()
 /**/
 {
     // Data
-    int num_train_data = 924;
-    int num_test_data = 232;
+    int num_train_data = 240;
+    int num_test_data = 48;
     std::vector<int> output_col{0};
     int num_features = 1;
     std::vector<std::string> x_train_path{
-        "data/toy_time_series/x_train_sin_data.csv"};
+        "data/toy_time_series_smoother/x_train_sin_smoother.csv"};
     std::vector<std::string> x_test_path{
-        "data/toy_time_series/x_test_sin_data.csv"};
+        "data/toy_time_series_smoother/x_test_sin_smoother.csv"};
 
-    int input_seq_len = 1;
+    int input_seq_len = 24;
     int output_seq_len = 1;
     int seq_stride = 1;
     std::vector<float> mu_x, sigma_x;
 
-    auto train_db = get_time_series_dataloader(
+    auto train_db = get_time_series_dataloader_smoother(
         x_train_path, num_train_data, num_features, output_col, true,
         input_seq_len, output_seq_len, seq_stride, mu_x, sigma_x);
 
-    auto test_db = get_time_series_dataloader(
+    auto test_db = get_time_series_dataloader_smoother(
         x_test_path, num_test_data, num_features, output_col, true,
         input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
         train_db.sigma_x);
 
     // Model
-    Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
-                     Linear(5 * input_seq_len, 1));
+    Sequential model(SLSTM(1, 5, input_seq_len), SLSTM(5, 5, input_seq_len),
+                     SLinear(5 * input_seq_len, 1));
+    model.input_state_update = true;
+    model.num_samples = train_db.num_data;
 
     // model.to_device("cuda");
     model.set_threads(1);
@@ -133,7 +136,7 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 10;
+    int n_epochs = 1;
     int batch_size = 1;
     float sigma_obs = 1.0;
 
@@ -152,11 +155,11 @@ void lstm_v2()
     for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
             // Shuffle data
-            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
             // Decay observation noise
             decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
             std::vector<float> var_obs(batch_size * train_db.ny,
-                                       pow(sigma_obs, 2));
+                                       pow(sigma_obs, 1));
         }
         std::cout << "################\n";
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
@@ -177,6 +180,8 @@ void lstm_v2()
             model.backward();
             model.step();
         }
+
+        model.smoother();
 
         // Report running time
         std::cout << std::endl;
@@ -275,11 +280,10 @@ void lstm_v2()
     // save_predictions(saved_inference_path, mu_y, std_y, suffix);
 }
 
-int test_lstm_v2()
+int test_smoother()
 /*
  */
 {
-    lstm_v2();
-    // debug_lstm_v2();
+    smoother_v1();
     return 0;
 }
