@@ -1,13 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         lstm_layer.h
-// Description:  Header file for Long-Short Term Memory (LSTM) forward pass
-//               in TAGI
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 22, 2024
-// Updated:      April 18, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
+// File:         slstm_layer.cpp
+// Description:  Header for Long-Short Term Memory (LSTM) which has smoother
+// function in TAGI Authors: Van-Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
+// Created: August 21, 2024
+// Updated : August 21, 2024
+// Contact : van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
+// james.goulet@polymtl.ca
+// License:  This code is released under the MIT
 #pragma once
 #include <vector>
 
@@ -17,7 +16,7 @@
 
 class SLSTM : public LSTM {
    public:
-    SmoothingSLSTM smoothing_states;
+    SmoothSLSTM smooth_states;
     int time_step = 0;
     SLSTM(size_t input_size, size_t output_size, int seq_len = 1,
           bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,

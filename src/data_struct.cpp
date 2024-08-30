@@ -367,8 +367,8 @@ void BaseLSTMStates::reset_zeros()
 ////////////////////////////////////////////////////////////////////////////////
 // Smoother for Slinear layer
 ////////////////////////////////////////////////////////////////////////////////
-SmoothingSLinear::SmoothingSLinear() {}
-SmoothingSLinear::SmoothingSLinear(size_t num_timesteps)
+SmoothSLinear::SmoothSLinear() {}
+SmoothSLinear::SmoothSLinear(size_t num_timesteps)
     : num_timesteps(num_timesteps)
 /*
  */
@@ -376,7 +376,7 @@ SmoothingSLinear::SmoothingSLinear(size_t num_timesteps)
     this->reset_zeros();
 }
 
-void SmoothingSLinear::set_num_states(size_t num_timesteps)
+void SmoothSLinear::set_num_states(size_t num_timesteps)
 /*
  */
 {
@@ -384,7 +384,7 @@ void SmoothingSLinear::set_num_states(size_t num_timesteps)
     this->reset_zeros();
 }
 
-void SmoothingSLinear::reset_zeros()
+void SmoothSLinear::reset_zeros()
 /**/
 {
     // Resize and reset cov_zo
@@ -424,8 +424,8 @@ void SmoothingSLinear::reset_zeros()
 ////////////////////////////////////////////////////////////////////////////////
 // Smoother for SLSTM layer
 ////////////////////////////////////////////////////////////////////////////////
-SmoothingSLSTM::SmoothingSLSTM() {}
-SmoothingSLSTM::SmoothingSLSTM(size_t num_states, size_t num_timesteps)
+SmoothSLSTM::SmoothSLSTM() {}
+SmoothSLSTM::SmoothSLSTM(size_t num_states, size_t num_timesteps)
     : num_states(num_states),
       num_timesteps(num_timesteps)
 /*
@@ -434,7 +434,7 @@ SmoothingSLSTM::SmoothingSLSTM(size_t num_states, size_t num_timesteps)
     this->reset_zeros();
 }
 
-void SmoothingSLSTM::set_num_states(size_t num_states, size_t num_timesteps)
+void SmoothSLSTM::set_num_states(size_t num_states, size_t num_timesteps)
 /*
  */
 {
@@ -443,7 +443,7 @@ void SmoothingSLSTM::set_num_states(size_t num_states, size_t num_timesteps)
     this->reset_zeros();
 }
 
-void SmoothingSLSTM::reset_zeros()
+void SmoothSLSTM::reset_zeros()
 /**/
 {
     // Resize and reset mu_h_priors

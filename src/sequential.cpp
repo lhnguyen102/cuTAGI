@@ -378,7 +378,7 @@ std::vector<float> Sequential::smoother()
         } else if (current_layer->get_layer_type() == LayerType::SLinear) {
             auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
             slinear_layer->smoother();
-            mu_zo_smooths = slinear_layer->smoothing_states.mu_zo_smooths;
+            mu_zo_smooths = slinear_layer->smooth_states.mu_zo_smooths;
         }
     }
     return mu_zo_smooths;
@@ -758,12 +758,12 @@ Sequential::get_outputs_smoother()
 {
     auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
     auto py_mu_zo_smooths = pybind11::array_t<float>(
-        last_layer->smoothing_states.mu_zo_smooths.size(),
-        last_layer->smoothing_states.mu_zo_smooths.data());
+        last_layer->smooth_states.mu_zo_smooths.size(),
+        last_layer->smooth_states.mu_zo_smooths.data());
 
     auto py_var_zo_smooths = pybind11::array_t<float>(
-        last_layer->smoothing_states.var_zo_smooths.size(),
-        last_layer->smoothing_states.var_zo_smooths.data());
+        last_layer->smooth_states.var_zo_smooths.size(),
+        last_layer->smooth_states.var_zo_smooths.data());
 
     return {py_mu_zo_smooths, py_var_zo_smooths};
 }

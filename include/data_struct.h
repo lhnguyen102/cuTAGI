@@ -257,22 +257,22 @@ class BaseLSTMStates {
 };
 
 // Smoother for linear layer
-class SmoothingSLinear {
+class SmoothSLinear {
    public:
     size_t num_timesteps = 0;
     std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
         var_zo_posts, mu_zo_smooths, var_zo_smooths;
 
-    SmoothingSLinear(size_t num_timesteps);
-    SmoothingSLinear();
-    ~SmoothingSLinear() = default;
+    SmoothSLinear(size_t num_timesteps);
+    SmoothSLinear();
+    ~SmoothSLinear() = default;
     virtual void set_num_states(size_t num_timesteps);
-    virtual std::string get_name() const { return "SmoothingSLinear"; };
+    virtual std::string get_name() const { return "SmoothSLinear"; };
     void reset_zeros();
 };
 
 // Smoother for LSTM layer
-class SmoothingSLSTM {
+class SmoothSLSTM {
    public:
     size_t num_states;
     size_t num_timesteps = 0;
@@ -280,11 +280,11 @@ class SmoothingSLSTM {
         mu_h_posts, var_h_posts, mu_c_posts, var_c_posts, mu_h_smooths,
         var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc, cov_cc;
 
-    SmoothingSLSTM(size_t num_states, size_t num_timesteps);
-    SmoothingSLSTM();
-    ~SmoothingSLSTM() = default;
+    SmoothSLSTM(size_t num_states, size_t num_timesteps);
+    SmoothSLSTM();
+    ~SmoothSLSTM() = default;
     virtual void set_num_states(size_t num_states, size_t num_timesteps);
-    virtual std::string get_name() const { return "SmoothingSLSTM"; };
+    virtual std::string get_name() const { return "SmoothSLSTM"; };
     void reset_zeros();
 };
 

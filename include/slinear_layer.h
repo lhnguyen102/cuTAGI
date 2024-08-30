@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         slinear_layer.h
-// Description:  Header file for Forward pass for Linear layer which has
+// Description:  Header file for Linear layer which has
 // smoother function. It is used only as the last layer of stacked LSTM networks
 // (SLSTM).
 // Authors:     Van -Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
@@ -25,7 +25,7 @@
 
 class SLinear : public Linear {
    public:
-    SmoothingSLinear smoothing_states;
+    SmoothSLinear smooth_states;
     int time_step = 0;
 
     SLinear(size_t ip_size, size_t op_size, bool bias = true,

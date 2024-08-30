@@ -1,13 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:         slstm_layer.cpp
-// Description:  Forward pass of Long-Short Term Memory (LSTM)
-// which has smoother function in TAGI
-// Authors:      Van-Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 21, 2024
-// Updated:      August 21, 2024
-// Contact:      van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
-// james.goulet@polymtl.ca License:      This code is released under the MIT
-// License.
+// Description:  Long-Short Term Memory (LSTM) which has smoother function in
+// TAGI Authors: Van-Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
+// Created: August 21, 2024
+// Updated : August 21, 2024
+// Contact : van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
+// james.goulet@polymtl.ca
+// License:  This code is released under the MIT
 ////////////////////////////////////////////////////////////////////////////////
 #include "slstm_layer.h"
 
@@ -177,32 +176,32 @@ void smooth_hidden_states(
 
 void save_priors_smoother(int time_step, int num_states,
                           BaseLSTMStates &lstm_states,
-                          SmoothingSLSTM &smoothing_states) {
+                          SmoothSLSTM &smooth_states) {
     // Save priors for smoothing
     for (int i = 0; i < num_states; i++) {
-        smoothing_states.mu_h_priors[time_step * num_states + i] =
+        smooth_states.mu_h_priors[time_step * num_states + i] =
             lstm_states.mu_h_prior[i];
-        smoothing_states.var_h_priors[time_step * num_states + i] =
+        smooth_states.var_h_priors[time_step * num_states + i] =
             lstm_states.var_h_prior[i];
-        smoothing_states.mu_c_priors[time_step * num_states + i] =
+        smooth_states.mu_c_priors[time_step * num_states + i] =
             lstm_states.mu_c_prior[i];
-        smoothing_states.var_c_priors[time_step * num_states + i] =
+        smooth_states.var_c_priors[time_step * num_states + i] =
             lstm_states.var_c_prior[i];
     }
 }
 
 void save_posteriors_smoother(int time_step, int num_states,
                               BaseLSTMStates &lstm_states,
-                              SmoothingSLSTM &smoothing_states) {
+                              SmoothSLSTM &smooth_states) {
     // Save priors for smoothing
     for (int i = 0; i < num_states; i++) {
-        smoothing_states.mu_h_posts[time_step * num_states + i] =
+        smooth_states.mu_h_posts[time_step * num_states + i] =
             lstm_states.mu_h_prior[i];
-        smoothing_states.var_h_posts[time_step * num_states + i] =
+        smooth_states.var_h_posts[time_step * num_states + i] =
             lstm_states.var_h_prior[i];
-        smoothing_states.mu_c_posts[time_step * num_states + i] =
+        smooth_states.mu_c_posts[time_step * num_states + i] =
             lstm_states.mu_c_prior[i];
-        smoothing_states.var_c_posts[time_step * num_states + i] =
+        smooth_states.var_c_posts[time_step * num_states + i] =
             lstm_states.var_c_prior[i];
     }
 }
@@ -254,10 +253,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
     }
 
     // Initialize smoothing hidden states for SLSTM layer
-    if (this->smoothing_states.num_timesteps !=
+    if (this->smooth_states.num_timesteps !=
         smooth_input_states->num_timesteps) {
-        this->smoothing_states.set_num_states(
-            this->output_size, smooth_input_states->num_timesteps);
+        this->smooth_states.set_num_states(this->output_size,
+                                           smooth_input_states->num_timesteps);
     }
 
     // Update number of actual states.
@@ -378,16 +377,16 @@ void SLSTM::forward(BaseHiddenStates &input_states,
 
     // Save for smoothing
     save_priors_smoother(this->time_step, this->output_size, this->lstm_states,
-                         this->smoothing_states);
+                         this->smooth_states);
 
     save_cov_cell_states_smoother(
         this->time_step, this->output_size, this->lstm_states.var_c_prev,
-        this->lstm_states.mu_f_ga, this->smoothing_states.cov_cc);
+        this->lstm_states.mu_f_ga, this->smooth_states.cov_cc);
 
     save_cov_hidden_cell_states_smoother(
         this->time_step, this->output_size, this->lstm_states.var_c_prior,
         this->lstm_states.mu_o_ga, this->lstm_states.jcb_ca,
-        this->smoothing_states.cov_hc);
+        this->smooth_states.cov_hc);
 
     int end_chunk_ = batch_size * this->seq_len * this->output_size;
     save_cov_hidden_states_smoother(
@@ -515,7 +514,7 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
 
     // Save for smoothing
     save_posteriors_smoother(this->time_step, this->output_size,
-                             this->lstm_states, this->smoothing_states);
+                             this->lstm_states, this->smooth_states);
     // // Increase index for next time step
     ++this->time_step;
 }
@@ -525,33 +524,32 @@ void SLSTM::smoother()
  */
 {
     // Initialize the last time step for smoothing
-    this->smoothing_states.mu_c_smooths.back() =
-        this->smoothing_states.mu_c_posts.back();
-    this->smoothing_states.var_c_smooths.back() =
-        this->smoothing_states.var_c_posts.back();
-    this->smoothing_states.mu_h_smooths.back() =
-        this->smoothing_states.mu_h_posts.back();
-    this->smoothing_states.var_h_smooths.back() =
-        this->smoothing_states.var_h_posts.back();
+    this->smooth_states.mu_c_smooths.back() =
+        this->smooth_states.mu_c_posts.back();
+    this->smooth_states.var_c_smooths.back() =
+        this->smooth_states.var_c_posts.back();
+    this->smooth_states.mu_h_smooths.back() =
+        this->smooth_states.mu_h_posts.back();
+    this->smooth_states.var_h_smooths.back() =
+        this->smooth_states.var_h_posts.back();
 
     smooth_cell_states(
-        this->smoothing_states.num_timesteps, this->smoothing_states.num_states,
-        this->smoothing_states.cov_cc, this->smoothing_states.mu_c_priors,
-        this->smoothing_states.var_c_priors, this->smoothing_states.mu_c_posts,
-        this->smoothing_states.var_c_posts, this->smoothing_states.mu_c_smooths,
-        this->smoothing_states.var_c_smooths);
+        this->smooth_states.num_timesteps, this->smooth_states.num_states,
+        this->smooth_states.cov_cc, this->smooth_states.mu_c_priors,
+        this->smooth_states.var_c_priors, this->smooth_states.mu_c_posts,
+        this->smooth_states.var_c_posts, this->smooth_states.mu_c_smooths,
+        this->smooth_states.var_c_smooths);
 
     smooth_hidden_states(
-        this->smoothing_states.num_timesteps, this->smoothing_states.num_states,
-        this->smoothing_states.cov_hc, this->smoothing_states.mu_c_priors,
-        this->smoothing_states.var_c_priors,
-        this->smoothing_states.mu_c_smooths,
-        this->smoothing_states.var_c_smooths, this->smoothing_states.mu_h_posts,
-        this->smoothing_states.var_h_posts, this->smoothing_states.mu_h_smooths,
-        this->smoothing_states.var_h_smooths);
+        this->smooth_states.num_timesteps, this->smooth_states.num_states,
+        this->smooth_states.cov_hc, this->smooth_states.mu_c_priors,
+        this->smooth_states.var_c_priors, this->smooth_states.mu_c_smooths,
+        this->smooth_states.var_c_smooths, this->smooth_states.mu_h_posts,
+        this->smooth_states.var_h_posts, this->smooth_states.mu_h_smooths,
+        this->smooth_states.var_h_smooths);
 
     // Clear variables for next epoch
     this->time_step = 0;
-    this->smoothing_states.reset_zeros();
+    this->smooth_states.reset_zeros();
     this->lstm_states.reset_zeros();
 }

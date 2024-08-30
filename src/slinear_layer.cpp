@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         slstm_layer.cpp
-// Description:  Header file for Forward pass of Long-Short Term Memory (LSTM)
-// which has smoother function in TAGI
-// Authors:      Van-Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 21, 2024
-// Updated:      August 21, 2024
-// Contact:      van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
-// james.goulet@polymtl.ca License:      This code is released under the MIT
-// License.
+// File:         slinear_layer.h
+// Description:  Linear layer which has smoother function. It is used only as
+// the last layer of stacked LSTM networks (SLSTM).
+// Authors:     Van -Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
+// Created:     August 21, 2024
+// Updated:     August 21, 2024
+// Contact:     van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
+// james.goulet@polymtl.ca
+// License:      This code is released under the MIT
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/slinear_layer.h"
 
@@ -117,10 +117,9 @@ void SLinear::forward(BaseHiddenStates &input_states,
     this->set_cap_factor_udapte(batch_size);
 
     // Initialize smoothing hidden states for SLinear layer
-    if (this->smoothing_states.num_timesteps !=
+    if (this->smooth_states.num_timesteps !=
         smooth_input_states->num_timesteps) {
-        this->smoothing_states.set_num_states(
-            smooth_input_states->num_timesteps);
+        this->smooth_states.set_num_states(smooth_input_states->num_timesteps);
     }
 
     // Forward pass
@@ -149,16 +148,16 @@ void SLinear::forward(BaseHiddenStates &input_states,
     smooth_output_states->actual_size = this->output_size;
 
     // save z_output prior for smoothing
-    this->smoothing_states.mu_zo_priors[this->time_step] =
+    this->smooth_states.mu_zo_priors[this->time_step] =
         smooth_output_states->mu_a[0];
-    this->smoothing_states.var_zo_priors[this->time_step] =
+    this->smooth_states.var_zo_priors[this->time_step] =
         smooth_output_states->var_a[0];
 
     // save cov_zo for smoother
     save_cov_zo_smoother(
         this->input_size, this->time_step, this->mu_w, this->var_w, this->var_b,
         smooth_input_states->mu_h_prev, smooth_input_states->mu_a,
-        smooth_input_states->cov_hh, this->smoothing_states.cov_zo);
+        smooth_input_states->cov_hh, this->smooth_states.cov_zo);
 
     if (this->training) {
         this->storing_states_for_training(*smooth_input_states,
@@ -194,10 +193,10 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
         }
 
         linear_update_hidden_states(
-            this->time_step, this->smoothing_states.mu_zo_priors,
-            this->smoothing_states.var_zo_priors, input_delta_states.delta_mu,
-            input_delta_states.delta_var, this->smoothing_states.mu_zo_posts,
-            this->smoothing_states.var_zo_posts);
+            this->time_step, this->smooth_states.mu_zo_priors,
+            this->smooth_states.var_zo_priors, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->smooth_states.mu_zo_posts,
+            this->smooth_states.var_zo_posts);
     }
 
     // Update values for weights & biases
@@ -242,20 +241,17 @@ void SLinear::smoother()
  */
 {
     // Initialize the last time step for smoothing
-    this->smoothing_states.mu_zo_smooths.back() =
-        this->smoothing_states.mu_zo_posts.back();
-    this->smoothing_states.var_zo_smooths.back() =
-        this->smoothing_states.var_zo_posts.back();
+    this->smooth_states.mu_zo_smooths.back() =
+        this->smooth_states.mu_zo_posts.back();
+    this->smooth_states.var_zo_smooths.back() =
+        this->smooth_states.var_zo_posts.back();
 
     smooth_zo(
-        this->smoothing_states.num_timesteps, this->smoothing_states.cov_zo,
-        this->smoothing_states.mu_zo_priors,
-        this->smoothing_states.var_zo_priors,
-        this->smoothing_states.mu_zo_posts, this->smoothing_states.var_zo_posts,
-        this->smoothing_states.mu_zo_smooths,
-        this->smoothing_states.var_zo_smooths);
+        this->smooth_states.num_timesteps, this->smooth_states.cov_zo,
+        this->smooth_states.mu_zo_priors, this->smooth_states.var_zo_priors,
+        this->smooth_states.mu_zo_posts, this->smooth_states.var_zo_posts,
+        this->smooth_states.mu_zo_smooths, this->smooth_states.var_zo_smooths);
 
     // Clear variables for next epoch
     this->time_step = 0;
-    // this->smoothing_states.reset_zeros();
 }
