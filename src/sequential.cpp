@@ -363,10 +363,11 @@ void Sequential::backward()
                               this->input_state_update);
 }
 
-void Sequential::smoother()
+std::vector<float> Sequential::smoother()
 /*
  */
 {
+    std::vector<float> mu_zo_smooths;
     // Hidden layers
     for (auto layer = this->layers.begin(); layer != this->layers.end();
          layer++) {
@@ -377,8 +378,10 @@ void Sequential::smoother()
         } else if (current_layer->get_layer_type() == LayerType::SLinear) {
             auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
             slinear_layer->smoother();
+            mu_zo_smooths = slinear_layer->smoothing_states.mu_zo_smooths;
         }
     }
+    return mu_zo_smooths;
 }
 
 void Sequential::step()

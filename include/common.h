@@ -45,6 +45,22 @@ void print_matrix(std::vector<T> &M, int w, int h)
 }
 
 template <typename T>
+void print_matrix_1Dvec(std::vector<T> &M)
+/*
+ * Print a matrix.
+ *
+ * Args:
+ *    M: Matrix to be printed
+ */
+{
+    for (int i = 0; i < M.size(); i++) {
+        std::cout << M[i] << "  ";
+    }
+    std::cout << std::endl;
+    std::cout << "---------" << std::endl;
+}
+
+template <typename T>
 std::vector<T> cumsum(std::vector<T> &v)
 /*
  * Cummulative sumation of a vector.

@@ -109,7 +109,7 @@ class Sequential {
 
     void backward();
 
-    void smoother();
+    std::vector<float> smoother();
 
     void step();
 

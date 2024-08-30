@@ -93,6 +93,28 @@ Returns:
     return db;
 }
 
+void replace_with_prediction(std::vector<float> &mu_sequence,
+                             std::vector<float> &x) {
+    // Replace nan in input x by the lstm_prediction
+    for (size_t i = 0; i < x.size(); ++i) {
+        if (x[i] == 0) {
+            x[i] = mu_sequence[i];
+        }
+    }
+}
+
+void add_prediction_to_sequence(size_t input_seq_len, float m_pred,
+                                std::vector<float> &mu_sequence) {
+    // Add new prediction to mu_sequence
+    mu_sequence.push_back(m_pred);
+
+    // Ensure mu_sequence has only the last `input_seq_len` elements
+    if (mu_sequence.size() > input_seq_len) {
+        mu_sequence.erase(mu_sequence.begin(),
+                          mu_sequence.end() - input_seq_len);
+    }
+}
+
 void smoother_v1()
 /**/
 {
@@ -102,7 +124,7 @@ void smoother_v1()
     std::vector<int> output_col{0};
     int num_features = 1;
     std::vector<std::string> x_train_path{
-        "data/toy_time_series_smoother/x_train_sin_smoother.csv"};
+        "data/toy_time_series_smoother/x_train_sin_smoother_zero.csv"};
     std::vector<std::string> x_test_path{
         "data/toy_time_series_smoother/x_test_sin_smoother.csv"};
 
@@ -121,8 +143,8 @@ void smoother_v1()
         train_db.sigma_x);
 
     // Model
-    Sequential model(SLSTM(1, 5, input_seq_len), SLSTM(5, 5, input_seq_len),
-                     SLinear(5 * input_seq_len, 1));
+    Sequential model(SLSTM(num_features + input_seq_len - 1, 40, 1),
+                     SLSTM(40, 40, 1), SLinear(40 * 1, 1));
     model.input_state_update = true;
     model.num_samples = train_db.num_data;
 
@@ -136,7 +158,7 @@ void smoother_v1()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = 0;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 50;
     int batch_size = 1;
     float sigma_obs = 1.0;
 
@@ -151,11 +173,16 @@ void smoother_v1()
     auto data_idx = create_range(train_db.num_data);
     float decay_factor = 0.95f;
     float min_sigma_obs = 0.3f;
+    // for smoother
+    std::vector<float> mu_zo_smooths(0.0f, input_seq_len);
+    std::vector<float> mu_sequence(input_seq_len, 1.0f);
+    float mu_zo = 0;
+    // Number of observations before training time to be inferred. These
+    // obervations are nan in training data.
+    int infer_window_len = 48;
 
     for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
-            // Shuffle data
-            // std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
             // Decay observation noise
             decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
             std::vector<float> var_obs(batch_size * train_db.ny,
@@ -171,6 +198,11 @@ void smoother_v1()
             get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
             get_batch_data(train_db.y, batch_idx, train_db.ny, y_batch);
 
+            //  replace nan in input x by the lstm_prediction
+            if (i < input_seq_len + infer_window_len) {
+                replace_with_prediction(mu_sequence, x_batch);
+            }
+
             // Forward
             model.forward(x_batch);
             output_updater.update(*model.output_z_buffer, y_batch, var_obs,
@@ -179,9 +211,17 @@ void smoother_v1()
             // Backward pass
             model.backward();
             model.step();
+
+            // Output the prediction
+            mu_zo = model.output_z_buffer->mu_a[0];
+            // Add new prediction to mu_sequence
+            add_prediction_to_sequence(input_seq_len, mu_zo, mu_sequence);
         }
 
-        model.smoother();
+        // Smoother
+        mu_zo_smooths = model.smoother();
+        mu_sequence.assign(mu_zo_smooths.begin(),
+                           mu_zo_smooths.begin() + input_seq_len);
 
         // Report running time
         std::cout << std::endl;
@@ -264,10 +304,10 @@ void smoother_v1()
 
     // Display results
     std::cout << "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-    std::cout << "RMSE           : ";
+    std::cout << "MSE           : ";
     std::cout << std::fixed;
     std::cout << std::setprecision(3);
-    std::cout << pow(mse, 0.5) << "\n";
+    std::cout << mse << "\n";
     std::cout << "Log likelihood: ";
     std::cout << std::fixed;
     std::cout << std::setprecision(3);

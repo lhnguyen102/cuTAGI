@@ -18,11 +18,13 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 1
+    num_features = 3
     input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
-    infer_seq_len_smoother = 48
+    # Number of observations before training time to be inferred. These
+    # obervations are nan in training data.
+    infer_window_len = 48
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
@@ -31,9 +33,9 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         input_seq_len=input_seq_len,
         output_seq_len=output_seq_len,
         num_features=num_features,
-        stride=seq_stride
-        # time_covariates=["hour_of_day", "day_of_week"],
-        # keep_last_time_cov = True
+        stride=seq_stride,
+        time_covariates=["hour_of_day", "day_of_week"],
+        keep_last_time_cov = True
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -44,9 +46,9 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         num_features=num_features,
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
-        x_std=train_dtl.x_std
-        # time_covariates=["hour_of_day", "day_of_week"],
-        # keep_last_time_cov = True
+        x_std=train_dtl.x_std,
+        time_covariates=["hour_of_day", "day_of_week"],
+        keep_last_time_cov = True
     )
 
     # Viz
@@ -69,7 +71,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
     # Training
     mses = []
     # Initialize the sequence length
-    mu_sq = np.ones(input_seq_len,dtype=np.float32)
+    mu_sequence = np.ones(input_seq_len,dtype=np.float32)
     pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in pbar:
@@ -86,9 +88,9 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
-            if idx_sample < input_seq_len + infer_seq_len_smoother:
+            if idx_sample < input_seq_len + infer_window_len:
                 nan_indices = np.where(np.isnan(x))[0]
-                x[nan_indices] = mu_sq[nan_indices]
+                x[nan_indices] = mu_sequence[nan_indices]
 
             # Feed forward
             m_pred, _ = net(x)
@@ -115,16 +117,15 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
             mse = metric.mse(pred, obs)
             mses.append(mse)
 
-
-            # Update mu_sq
-            mu_sq = np.append(mu_sq,m_pred)
-            mu_sq = mu_sq[-input_seq_len:]
+            # Add new prediction to mu_sequence
+            mu_sequence = np.append(mu_sequence,m_pred)
+            mu_sequence = mu_sequence[-input_seq_len:]
 
 
         # Smoother
         mu_zo_smooth, var_zo_smooth = net.smoother()
         zo_smooth_std = np.array(var_zo_smooth) ** 0.5
-        mu_sq = mu_zo_smooth[:input_seq_len]
+        mu_sequence = mu_zo_smooth[:input_seq_len]
 
         # # Figures for each epoch
         t = np.arange(len(mu_zo_smooth))
