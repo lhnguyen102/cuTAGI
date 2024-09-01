@@ -8,6 +8,8 @@ from examples.time_series_forecasting import PredictionViz
 from pytagi import Normalizer
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential, EvenExp
 
+np.random.seed(0)
+
 
 def main(num_epochs: int = 50, batch_size: int = 10):
     """Run training for the regression"""
@@ -30,25 +32,21 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     # Viz
     viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
 
-    cuda = False
+    cuda = True
 
     if cuda:
         net = Sequential(
-            Linear(1, 150),
-            ReLU(),
-            Linear(150, 150),
-            ReLU(),
-            Linear(150, 2),
+            Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
         )
         net.to_device("cuda")
     else:
         # Network
         net = Sequential(
-            Linear(1, 150),
+            Linear(1, 128),
             ReLU(),
-            Linear(150, 150),
+            Linear(128, 128),
             ReLU(),
-            Linear(150, 2),
+            Linear(128, 2),
             EvenExp(),
         )
         net.set_threads(8)
@@ -105,15 +103,8 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         # Predicion
         m_pred, v_pred = net(x)
 
-        if cuda:
-            # CUDA TAGI-V current network does not work with the EvenExp activation
-            # function so we need to apply it here. This will be fixed in the
-            # following versions.
-            aux = np.exp(m_pred[1::2] + 0.5 * v_pred[1::2])
-            var_preds.extend(v_pred[::2] + aux)
-        else:
-            # Even positions correspond to Z_out and odd positions to V
-            var_preds.extend(v_pred[::2] + m_pred[1::2])
+        # Even positions correspond to Z_out and odd positions to V
+        var_preds.extend(v_pred[::2] + m_pred[1::2])
 
         mu_preds.extend(m_pred[::2])
 

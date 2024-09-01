@@ -57,59 +57,80 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
                                             float const *jcb, float const *obs,
                                             int size, float *delta_mu,
                                             float *delta_var) {
+    /*
+    Compute delta hidden states for output layer with learned heteroscedastic
+    noise. This function receives a vector of observations and the twice
+    output hidden states. Using AGVI, we can infere the posterior for
+    observation noise v and use it to update the hidden states Z_out.
+
+    Terminology:
+    - V: Gaussian random variable describing the error variance sigma^2. N(0,
+    sqrt(V))
+    - V2: Square of the error (V^2)
+    - V2_bar: Gaussian random variable describing the expected value of V2
+    (mu_V2)
+    - V2_bar_tilde: Gaussian random variable describing V2 after passing through
+    an exponential activation function to restrict values to the positive domain
+
+    */
     const float zero_pad = 0.0f;
-
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // Output layer will have twice the size of the common one because one is
+    // representing the mean and the other the variance
+    int obs_col = col * 2;
 
-    if (col % 2 == 0) {
-        // Need to pass through exponential activantion function in the update
-        // class in CUDA. To do: just use the exponential activation function
-        // from the activation class.
-        float mu_V2_bar_tilde = expf(mu_a[col + 1] + 0.5f * var_a[col + 1]);
-        float var_V2_bar_tilde = expf(2.0f * mu_a[col + 1] + var_a[col + 1]) *
-                                 (expf(var_a[col + 1]) - 1.0f);
-        float cov_V2_bar_tilde = var_a[col + 1] * mu_V2_bar_tilde;
+    if (col < size) {
+        // mean of the Gaussian distribution for the output
+        float var_a_col = var_a[obs_col];
+        float mu_a_col = mu_a[obs_col];
+        float jcb_col = jcb[obs_col];
 
-        // float mu_V2_bar_tilde = mu_a[col + 1];
-        // float var_V2_bar_tilde = var_a[col + 1];
-        // float cov_V2_bar_tilde = jcb[col + 1];
+        // V2_bar_tilde
+        float mu_v2_bar_tilde = mu_a[obs_col + 1];
+        float var_v2_bar_tilde = var_a[obs_col + 1];
+        float cov_v2_bar_tilde = jcb[obs_col + 1];
 
-        float cov_y_V2 = mu_V2_bar_tilde;
-        float mu_V2 = mu_V2_bar_tilde;
-        float var_V2 =
-            3.0f * var_V2_bar_tilde + 2.0f * mu_V2_bar_tilde * mu_V2_bar_tilde;
+        // Compute the prior predictive PDF for v2
+        float mu_v2 = mu_v2_bar_tilde;
+        float var_v2 =
+            3.0f * var_v2_bar_tilde + 2.0f * mu_v2_bar_tilde * mu_v2_bar_tilde;
+        float cov_y_v = mu_v2;
 
-        float var_a_col = var_a[col];
-        float mu_a_col = mu_a[col];
-        float jcb_col = jcb[col];
-        float var_sum = var_a_col + mu_V2;
+        // Variance of the output
+        float var_sum = var_a_col + mu_v2;
 
+        // Compute updating quantities for the mean of the output
         float tmp = jcb_col / var_sum;
         if (std::isinf(tmp) || std::isnan(tmp)) {
-            delta_mu[col] = zero_pad;
-            delta_var[col] = zero_pad;
+            delta_mu[obs_col] = zero_pad;
+            delta_var[obs_col] = zero_pad;
         } else {
-            float obs_diff = obs[col / 2] - mu_a_col;
-            delta_mu[col] = tmp * obs_diff;
-            delta_var[col] = -tmp * jcb_col;
+            float obs_diff = obs[col] - mu_a_col;
+            delta_mu[obs_col] = tmp * obs_diff;
+            delta_var[obs_col] = -tmp * jcb_col;
         }
 
-        float mu_V_pos = 0 + cov_y_V2 / var_sum * (obs[col / 2] - mu_a_col);
-        float var_V_pos = mu_V2 - cov_y_V2 / var_sum * cov_y_V2;
+        // Compute the posterior mean and variance for V
+        float mu_v_post = cov_y_v / var_sum * (obs[col] - mu_a_col);
+        float var_v_post = mu_v2 - cov_y_v / var_sum * cov_y_v;
 
-        float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
-        float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
-                           4.0f * var_V_pos * mu_V_pos * mu_V_pos;
+        // Compute the posterior mean and variance for V2
+        float mu_v2_post = mu_v_post * mu_v_post + var_v_post;
+        float var_v2_post = 2.0f * var_v_post * var_v_post +
+                            4.0f * var_v_post * mu_v_post * mu_v_post;
 
-        float k = var_V2_bar_tilde / var_V2;
-        float mu_V2_bar_tilde_pos = mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
-        float var_V2_bar_tilde_pos =
-            var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
+        // Compute the posterior mean and variance for V2_bar_tilde
+        float tmp_ratio = var_v2_bar_tilde / var_v2;
+        float mu_v2_bar_tilde_post =
+            mu_v2_bar_tilde + tmp_ratio * (mu_v2_post - mu_v2);
+        float var_v2_bar_tilde_post =
+            var_v2_bar_tilde + tmp_ratio * tmp_ratio * (var_v2_post - var_v2);
 
-        float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
-        delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
-        delta_var[col + 1] =
-            Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
+        // Compute update for V2_bar
+        float jv = cov_v2_bar_tilde / var_v2_bar_tilde;
+        delta_mu[obs_col + 1] = jv * (mu_v2_bar_tilde_post - mu_v2_bar_tilde);
+        delta_var[obs_col + 1] =
+            jv * jv * (var_v2_bar_tilde_post - var_v2_bar_tilde);
     }
 }
 
