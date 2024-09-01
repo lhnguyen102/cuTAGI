@@ -518,6 +518,74 @@ void Sequential::load_csv(const std::string &filename)
     }
 }
 
+std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
+                                 std::vector<float>, std::vector<float>>>
+Sequential::get_state_dict() const
+/*
+ */
+{
+    std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
+                                     std::vector<float>, std::vector<float>>>
+        state_dict;
+    for (size_t i = 0; i < this->layers.size(); ++i) {
+        const auto &layer = this->layers[i];
+        if (layer->get_layer_type() != LayerType::Activation ||
+            layer->get_layer_type() != LayerType::Pool2d) {
+            std::string layer_name =
+                layer->get_layer_name() + std::to_string(i);
+            state_dict[layer_name] = std::make_tuple(layer->mu_w, layer->var_w,
+                                                     layer->mu_b, layer->var_b);
+        }
+    }
+    return state_dict;
+}
+
+void Sequential::load_state_dict(
+    const std::map<std::string,
+                   std::tuple<std::vector<float>, std::vector<float>,
+                              std::vector<float>, std::vector<float>>>
+        &state_dict)
+/*
+ */
+{
+    for (size_t i = 0; i < layers.size(); ++i) {
+        const auto &layer = this->layers[i];
+
+        if (layer->get_layer_type() != LayerType::Activation ||
+            layer->get_layer_type() != LayerType::Pool2d) {
+            std::string layer_name =
+                layer->get_layer_name() + std::to_string(i);
+
+            auto it = state_dict.find(layer_name);
+            if (it == state_dict.end()) {
+                throw std::runtime_error(
+                    "Error in file: " + std::string(__FILE__) +
+                    " at line: " + std::to_string(__LINE__) +
+                    "Missing parameters for " + layer_name);
+            }
+
+            const auto &layer_params = it->second;
+
+            // Check if the sizes match
+            if (layer->mu_w.size() == std::get<0>(layer_params).size() &&
+                layer->var_w.size() == std::get<1>(layer_params).size() &&
+                layer->mu_b.size() == std::get<2>(layer_params).size() &&
+                layer->var_b.size() == std::get<3>(layer_params).size()) {
+                // Update layer parameters
+                layer->mu_w = std::get<0>(layer_params);
+                layer->var_w = std::get<1>(layer_params);
+                layer->mu_b = std::get<2>(layer_params);
+                layer->var_b = std::get<3>(layer_params);
+            } else {
+                throw std::runtime_error(
+                    "Error in file: " + std::string(__FILE__) +
+                    " at line: " + std::to_string(__LINE__) +
+                    "Mismatch in layer sizes for " + layer_name);
+            }
+        }
+    }
+}
+
 void Sequential::params_from(const Sequential &model_ref) {
     if (this->layers.size() != model_ref.layers.size()) {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +

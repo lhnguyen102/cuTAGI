@@ -27,6 +27,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <map>
+
 class Sequential {
    public:
     std::shared_ptr<BaseHiddenStates> output_z_buffer;
@@ -115,6 +117,16 @@ class Sequential {
     void save_csv(const std::string& filename);
 
     void load_csv(const std::string& filename);
+
+    std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
+                                     std::vector<float>, std::vector<float>>>
+    get_state_dict() const;
+
+    void load_state_dict(
+        const std::map<std::string,
+                       std::tuple<std::vector<float>, std::vector<float>,
+                                  std::vector<float>, std::vector<float>>>&
+            state_dict);
 
     // Copy model params
     void params_from(const Sequential& ref_model);
