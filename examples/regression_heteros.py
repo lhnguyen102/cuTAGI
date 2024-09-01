@@ -33,24 +33,13 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
 
     cuda = True
-
+    net = Sequential(
+        Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
+    )
     if cuda:
-        net = Sequential(
-            Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
-        )
         net.to_device("cuda")
     else:
-        # Network
-        net = Sequential(
-            Linear(1, 128),
-            ReLU(),
-            Linear(128, 128),
-            ReLU(),
-            Linear(128, 2),
-            EvenExp(),
-        )
         net.set_threads(8)
-
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#
