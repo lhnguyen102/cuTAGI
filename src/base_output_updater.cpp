@@ -142,56 +142,57 @@ void compute_delta_z_heteros(std::vector<float> &mu_a,
                              int end_chunk, std::vector<float> &delta_mu,
                              std::vector<float> &delta_var)
 /*
- * Compute delta hidden states for output layer with learned heteroscedastic
- * noise. This function receives a vector of observations and the twice output
- * hidden states. Using AGVI, we can infere the posterior for observation noise
- * v and use it to update the hidden states Z_out. In the code,
- * - V: refers to the Gaussian random variable describing the error variance
- * sigma^2.
- * - V2: square of the error (V^2).
- * - V2_bar: refers to the Gaussian random variable describing the expected
- * value of V2 (mu_V2).
- * - V2_bar_tilde: refers to the Gaussian random variable describing V2 after
- * passing through an exponential activation function to restrict the values to
- * the positive domain.
- *
- * For more detail see https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf
- *
- * Args:
- *    mu_a: mean of the hidden states, i.e., Z_out and V2_bar_tilde
- *    var_a: variance of the hidden states
- *    jcb: Jacobian of the hidden states
- *    obs: observed data
- *    start_chunk: start index of the hidden states
- *    end_chunk: end index of the hidden states
- *    delta_mu: delta mean of the hidden states
- *    delta_var: delta variance of the hidden states
- */
+Compute delta hidden states for output layer with learned heteroscedastic
+noise. This function receives a vector of observations and the twice output
+hidden states. Using AGVI, we can infere the posterior for observation noise
+v and use it to update the hidden states Z_out.
+
+Terminology:
+- V: Gaussian random variable describing the error variance sigma^2. N(0,
+sqrt(V))
+- V2: Square of the error (V^2)
+- V2_bar: Gaussian random variable describing the expected value of V2
+(mu_V2)
+- V2_bar_tilde: Gaussian random variable describing V2 after passing through
+an exponential activation function to restrict values to the positive domain
+
+
+For more detail see https://www.jmlr.org/papers/volume22/20-1009/20-1009.pdf
+
+Args:
+    mu_a: mean of the hidden states, i.e., Z_out and V2_bar_tilde
+    var_a: variance of the hidden states
+    jcb: Jacobian of the hidden states
+    obs: observed data
+    start_chunk: start index of the hidden states
+    end_chunk: end index of the hidden states
+    delta_mu: delta mean of the hidden states
+    delta_var: delta variance of the hidden states
+*/
 {
     const float zero_pad = 0.0f;
 
     for (int col = start_chunk; col < end_chunk; col += 2) {
-        // Even positions of activation units correspond to the Z_out
+        // mean of the Gaussian distribution for the output
         float var_a_col = var_a[col];
         float mu_a_col = mu_a[col];
         float jcb_col = jcb[col];
 
-        // Odd positions of activation units correspond to the V2_bar_tilde,
-        // which is V2 after passing through an exponential activation function
+        // V2_bar_tilde
         float mu_V2_bar_tilde = mu_a[col + 1];
         float var_V2_bar_tilde = var_a[col + 1];
         float cov_V2_bar_tilde = jcb[col + 1];
 
-        // Compute the prior predictive PDF for V2
+        // Compute the prior predictive PDF for v2
         float mu_V2 = mu_V2_bar_tilde;
         float var_V2 =
             3.0f * var_V2_bar_tilde + 2.0f * mu_V2_bar_tilde * mu_V2_bar_tilde;
         float cov_y_V = mu_V2;
 
-        // Calculate predictive variance for y
+        // Variance of the output
         float var_sum = var_a_col + mu_V2;
 
-        // Compute deltas for Z_out
+        // Compute updating quantities for the mean of the output
         float tmp = jcb_col / var_sum;
         if (std::isinf(tmp) || std::isnan(tmp)) {
             delta_mu[col] = zero_pad;

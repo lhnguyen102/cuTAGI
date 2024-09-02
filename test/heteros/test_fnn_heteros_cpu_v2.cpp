@@ -49,13 +49,14 @@ void fnn_heteros_v2()
                                   train_db.sigma_y, 51, n_x, n_y, true);
 
     Sequential model(Linear(13, 50), ReLU(), Linear(50, 2), EvenExp());
-    model.set_threads(8);
+    model.set_threads(1);
+    // model.to_device("cuda");
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
 
-    int batch_size = 10;
+    int batch_size = 2;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> y_batch(batch_size * n_y, 0.0f);
@@ -84,6 +85,12 @@ void fnn_heteros_v2()
             // Backward pass
             model.backward();
             model.step();
+
+            // Extract output
+            if (model.device == "cuda") {
+                model.output_to_host();
+            }
+            int check = 1;
         }
     }
 
