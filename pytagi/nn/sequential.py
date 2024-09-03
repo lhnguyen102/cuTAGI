@@ -138,6 +138,10 @@ class Sequential:
         """Get information about the layer stack."""
         return self._cpp_backend.get_layer_stack_info()
 
+    def preinit_layer(self):
+        """Preinitialize the layer."""
+        self._cpp_backend.preinit_layer()
+
     def save(self, filename: str):
         """Save the model to a file."""
         self._cpp_backend.save(filename)
@@ -153,6 +157,21 @@ class Sequential:
     def load_csv(self, filename: str):
         """Load the model parameters from a CSV file."""
         self._cpp_backend.load_csv(filename)
+
+    def parameters(self) -> List[np.ndarray]:
+        """Get the model parameters. Stored mu_w, var_w, mu_b, var_b in list of
+        numpy arrays. Example: A model of 5 layers leads to a params size of
+        5 * 4 = 20
+        """
+        return self._cpp_backend.parameters()
+
+    def load_state_dict(self, state_dict: dict):
+        """Load the model parameters from a state dict."""
+        self._cpp_backend.load_state_dict(state_dict)
+
+    def get_state_dict(self) -> dict:
+        """Get the model parameters as a state dict."""
+        return self._cpp_backend.get_state_dict()
 
     def params_from(self, other: "Sequential"):
         """Copy parameters from another model."""

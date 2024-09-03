@@ -19,7 +19,7 @@
 #include <memory>
 
 // Sequential::Sequential() {}
-Sequential::~Sequential() {}
+Sequential::~Sequential() { this->valid_ = false; }
 
 void Sequential::switch_to_cuda() {
     for (size_t i = 0; i < this->layers.size(); ++i) {
@@ -37,6 +37,24 @@ void Sequential::to_device(const std::string &new_device) {
     // TODO: We should not run this again when switching device
     this->compute_input_output_size();
     this->set_buffer_size();
+}
+
+void Sequential::params_to_host() {
+    for (auto &layer : this->layers) {
+        auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
+        if (cuda_layer) {
+            cuda_layer->params_to_host();
+        }
+    }
+}
+
+void Sequential::params_to_device() {
+    for (auto &layer : this->layers) {
+        auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
+        if (cuda_layer) {
+            cuda_layer->params_to_device();
+        }
+    }
 }
 
 void Sequential::add_layers()
@@ -518,21 +536,50 @@ void Sequential::load_csv(const std::string &filename)
     }
 }
 
+std::vector<std::reference_wrapper<std::vector<float>>> Sequential::parameters()
+/*Stored mu_w, var_w, mu_b, var_b in a vector of reference_wrapper
+Example: A model of 5 layers leads to a params size of 5 * 4 = 20
+ */
+{
+    if (!this->valid_) {
+        throw std::runtime_error("Sequential object is no longer valid");
+    }
+    std::vector<std::reference_wrapper<std::vector<float>>> params;
+    for (auto &layer : layers) {
+        if (layer->get_layer_type() != LayerType::Activation &&
+            layer->get_layer_type() != LayerType::Pool2d) {
+            params.push_back(layer->mu_w);
+            params.push_back(layer->var_w);
+            params.push_back(layer->mu_b);
+            params.push_back(layer->var_b);
+        }
+    }
+    return params;
+}
+
 std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
                                  std::vector<float>, std::vector<float>>>
-Sequential::get_state_dict() const
+Sequential::get_state_dict()
 /*
  */
 {
+    // Send the parameters to the host. TODO: for further speedup, we must to
+    // avoid this step. One could use the copy data in gpu memory directly or
+    // unified memory
+    if (this->device.compare("cuda") == 0) {
+        this->params_to_host();
+    }
+
     std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
                                      std::vector<float>, std::vector<float>>>
         state_dict;
+
     for (size_t i = 0; i < this->layers.size(); ++i) {
         const auto &layer = this->layers[i];
-        if (layer->get_layer_type() != LayerType::Activation ||
+        if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
             std::string layer_name =
-                layer->get_layer_name() + std::to_string(i);
+                layer->get_layer_info() + "_" + std::to_string(i);
             state_dict[layer_name] = std::make_tuple(layer->mu_w, layer->var_w,
                                                      layer->mu_b, layer->var_b);
         }
@@ -551,10 +598,10 @@ void Sequential::load_state_dict(
     for (size_t i = 0; i < layers.size(); ++i) {
         const auto &layer = this->layers[i];
 
-        if (layer->get_layer_type() != LayerType::Activation ||
+        if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
             std::string layer_name =
-                layer->get_layer_name() + std::to_string(i);
+                layer->get_layer_info() + "_" + std::to_string(i);
 
             auto it = state_dict.find(layer_name);
             if (it == state_dict.end()) {
@@ -583,6 +630,13 @@ void Sequential::load_state_dict(
                     "Mismatch in layer sizes for " + layer_name);
             }
         }
+    }
+
+    // Send the parameters to the device. TODO: for further speedup, we must to
+    // avoid this step. One could use the copy data in gpu memory directly or
+    // unified memory
+    if (this->device.compare("cuda") == 0) {
+        this->params_to_device();
     }
 }
 
