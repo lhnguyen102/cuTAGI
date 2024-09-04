@@ -14,7 +14,7 @@
 #include "test/autoencoder/test_autoencoder_v2.h"
 #include "test/fnn/test_fnn_mnist_cpu.h"
 #include "test/heteros/test_fnn_heteros_cpu_v2.h"
-#include "test/load_state_dict/load_state_dict.h"
+#include "test/load_state_dict/test_load_state_dict.h"
 #include "test/lstm/test_lstm_v2.h"
 #include "test/resnet/test_resnet_1d_toy.h"
 #include "test/resnet/test_resnet_cifar10.h"
