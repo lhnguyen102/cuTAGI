@@ -25,6 +25,11 @@ class Sequential:
         return self.forward(mu_x, var_x)
 
     @property
+    def layers(self) -> List[BaseLayer]:
+        """Get the layers of the model."""
+        return self._cpp_backend.layers
+
+    @property
     def output_z_buffer(self) -> BaseHiddenStates:
         """Get the output hidden states"""
         return self._cpp_backend.output_z_buffer
@@ -97,6 +102,14 @@ class Sequential:
     def to_device(self, device: str):
         """Move the model to a specific device."""
         self._cpp_backend.to_device(device)
+
+    def params_to_device(self):
+        """Move the model parameters to a specific cuda device."""
+        self._cpp_backend.params_to_device()
+
+    def params_to_host(self):
+        """Move the model parameters from cuda device to the host."""
+        self._cpp_backend.params_to_host()
 
     def set_threads(self, num_threads: int):
         """Set the number of threads to use."""

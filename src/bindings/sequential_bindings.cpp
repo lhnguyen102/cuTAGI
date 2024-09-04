@@ -51,6 +51,8 @@ void bind_sequential(pybind11::module_& m) {
         .def_readwrite("num_threads", &Sequential::num_threads)
         .def_readwrite("device", &Sequential::device)
         .def("to_device", &Sequential::to_device)
+        .def("params_to_host", &Sequential::params_to_host)
+        .def("params_to_device", &Sequential::params_to_device)
         .def("set_threads", &Sequential::set_threads)
         .def("train", &Sequential::train)
         .def("eval", &Sequential::eval)
@@ -83,6 +85,18 @@ void bind_sequential(pybind11::module_& m) {
         .def("save_csv", &Sequential::save_csv)
         .def("load_csv", &Sequential::load_csv)
         .def("params_from", &Sequential::params_from)
+        .def("parameters",
+             [](Sequential& self) {
+                 auto params = self.parameters();
+                 pybind11::list py_params;
+                 for (auto& param_ref : params) {
+                     auto& param = param_ref.get();
+                     py_params.append(pybind11::array_t<float>(
+                         {static_cast<long>(param.size())}, {sizeof(float)},
+                         param.data()));
+                 }
+                 return py_params;
+             })
         .def("get_state_dict",
              [](Sequential& self) {
                  auto cpp_state_dict = self.get_state_dict();
@@ -98,18 +112,6 @@ void bind_sequential(pybind11::module_& m) {
                  return py_state_dict;
              })
 
-        .def("parameters",
-             [](Sequential& self) {
-                 auto params = self.parameters();
-                 pybind11::list py_params;
-                 for (auto& param_ref : params) {
-                     auto& param = param_ref.get();
-                     py_params.append(pybind11::array_t<float>(
-                         {static_cast<long>(param.size())}, {sizeof(float)},
-                         param.data()));
-                 }
-                 return py_params;
-             })
         .def("load_state_dict",
              [](Sequential& self, const pybind11::dict& py_state_dict) {
                  std::map<std::string,
