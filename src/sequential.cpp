@@ -38,7 +38,7 @@ void Sequential::to_device(const std::string &new_device) {
     this->compute_input_output_size();
     this->set_buffer_size();
 }
-
+#ifdef USE_CUDA
 void Sequential::params_to_host() {
     for (auto &layer : this->layers) {
         auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
@@ -56,6 +56,15 @@ void Sequential::params_to_device() {
         }
     }
 }
+#else
+void Sequential::params_to_host() {
+    // No CUDA support, do nothing
+}
+
+void Sequential::params_to_device() {
+    // No CUDA support, do nothing
+}
+#endif
 
 void Sequential::add_layers()
 /*
