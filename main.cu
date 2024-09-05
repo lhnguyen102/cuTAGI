@@ -21,6 +21,7 @@
 #include "test/lstm/test_lstm_v2.h"
 #include "test/resnet/test_resnet_1d_toy.h"
 #include "test/resnet/test_resnet_cifar10.h"
+#include "test/smoother/test_smoother.h"
 
 int main(int argc, char* argv[]) {
     // User input file
@@ -47,6 +48,8 @@ int main(int argc, char* argv[]) {
         auto is_passed = test_autoecoder_v2();
     } else if (user_input_file.compare("lstm_toy") == 0) {
         auto is_passed = test_lstm_v2();
+    } else if (user_input_file.compare("smoother_toy") == 0) {
+        auto is_passed = test_smoother();
     } else if (user_input_file.compare("resnet_toy") == 0) {
         auto is_passed = test_resnet_1d_toy();
     } else if (user_input_file.compare("resnet_cifar10") == 0) {
