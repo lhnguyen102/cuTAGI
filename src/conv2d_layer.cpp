@@ -39,10 +39,6 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
     this->in_channels = in_channels;
     this->out_channels = out_channels;
     this->bias = bias;
-
-    if (this->training) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
-    }
 }
 
 Conv2d::~Conv2d() {}

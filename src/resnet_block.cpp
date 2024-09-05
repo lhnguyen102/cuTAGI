@@ -17,6 +17,19 @@ void add_shortcut_mean_var(const std::vector<float> &mu_s,
     }
 }
 
+void add_shortcut_delta(const std::vector<float> &mu_s,
+                        const std::vector<float> &var_s,
+                        const std::vector<float> &jcb_s, int num_states,
+                        std::vector<float> &mu_a, std::vector<float> &var_a)
+/*
+ */
+{
+    for (int i = 0; i < num_states; i++) {
+        mu_a[i] += mu_s[i] * jcb_s[i];
+        var_a[i] += var_s[i] * jcb_s[i] * jcb_s[i];
+    }
+}
+
 ResNetBlock::~ResNetBlock() {}
 
 std::string ResNetBlock::get_layer_info() const
@@ -183,6 +196,14 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
             }
         }
     }
+    // Store jacobian matrix for backward pass
+    if (this->training) {
+        int act_size = input_states.actual_size * input_states.block_size;
+        if (this->bwd_states->size != act_size) {
+            this->allocate_bwd_vector(act_size);
+        }
+        this->fill_bwd_vector(input_states);
+    }
 
     // Make a copy of input states for residual connection
     this->input_z->copy_from(input_states, this->input_size * batch_size);
@@ -210,6 +231,11 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
+
+    // Fill jacobian matrix for output with ones
+    if (this->training) {
+        this->fill_output_states(output_states);
+    }
 }
 
 void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
@@ -219,7 +245,7 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
 {
     // Make a copy of delta input used later for residual connection
     this->input_delta_z->copy_from(
-        input_delta_states, this->input_size * input_delta_states.block_size);
+        input_delta_states, this->output_size * input_delta_states.block_size);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
@@ -236,10 +262,10 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
                               output_delta_states.delta_var);
 
     } else {
-        add_shortcut_mean_var(this->input_delta_z->delta_mu,
-                              this->input_delta_z->delta_var, num_states,
-                              output_delta_states.delta_mu,
-                              output_delta_states.delta_var);
+        add_shortcut_delta(
+            this->input_delta_z->delta_mu, this->input_delta_z->delta_var,
+            this->bwd_states->jcb, num_states, output_delta_states.delta_mu,
+            output_delta_states.delta_var);
     }
 }
 

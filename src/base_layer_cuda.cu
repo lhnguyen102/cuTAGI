@@ -380,7 +380,6 @@ void BaseLayerCuda::store_states_for_training_cuda(
     BackwardStateCuda *cu_bwd_states =
         dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
     int batch_size = input_states.block_size;
-    // int threads = this->num_cuda_threads;
     int act_size = input_states.actual_size * batch_size;
     if (cu_bwd_states->size != act_size) {
         cu_bwd_states->size = act_size;

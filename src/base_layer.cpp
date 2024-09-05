@@ -15,7 +15,11 @@
 InitArgs::InitArgs(size_t width, size_t height, size_t depth, int batch_size)
     : width(width), height(height), depth(depth), batch_size(batch_size) {}
 
-BaseLayer::BaseLayer() {}
+BaseLayer::BaseLayer() {
+    if (this->training) {
+        this->bwd_states = std::make_unique<BaseBackwardStates>();
+    }
+}
 
 const char *BaseLayer::get_layer_type_name() const {
     return typeid(*this).name();
@@ -219,7 +223,6 @@ void BaseLayer::storing_states_for_training(BaseHiddenStates &input_states,
 
     // Send a copy of activation's mean and variance to the output buffer
     // for the current layer.
-    // TODO: consider to have only mu_a and var_a in struct HiddenStates
     this->fill_output_states(output_states);
 }
 

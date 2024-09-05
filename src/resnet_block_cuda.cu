@@ -229,6 +229,23 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
             }
         }
     }
+    // Store jacobian matrix for backward pass
+    if (this->training) {
+        HiddenStateCuda *cu_input_states =
+            dynamic_cast<HiddenStateCuda *>(&input_states);
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        int act_size = cu_input_states->actual_size * batch_size;
+        if (cu_bwd_states->size != act_size) {
+            cu_bwd_states->size = act_size;
+            cu_bwd_states->allocate_memory();
+        }
+        cudaMemcpy(cu_bwd_states->d_mu_a, cu_input_states->d_mu_a,
+                   act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(cu_bwd_states->d_jcb, cu_input_states->d_jcb,
+                   act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
 
     // Make a copy of input states for residual connection
     this->input_z->copy_from(input_states, this->input_size * batch_size);
@@ -270,16 +287,15 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
 
-    // NOTE: it is NOT correct to use this->input_z in the case
-    // where shortcut is not nullptr. This is because the input_z is swapped
-    // with this->shortcut_output_z during its .forward(). However, it is
-    // valid if shortcut is not nullptr which is required for the backward
-    // pass.
+    // Fill jacobian matrix for output with ones
     if (this->training) {
         HiddenStateCuda *cu_input_states =
             dynamic_cast<HiddenStateCuda *>(this->input_z.get());
-        this->store_states_for_training_cuda(*cu_input_states,
-                                             *cu_output_states);
+
+        int out_size = this->output_size * batch_size;
+        unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
+        fill_output_states_on_device<<<out_blocks, THREADS>>>(
+            out_size, cu_output_states->d_jcb);
     }
 }
 
@@ -299,7 +315,6 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
     DeltaStateCuda *cu_output_delta_states =
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
 
-    int num_states = output_delta_states.block_size * this->input_size;
     int num_states = batch_size * this->input_size;
     constexpr unsigned int THREADS = 256;
     unsigned int grid_size = (num_states + THREADS - 1) / THREADS;

@@ -1446,9 +1446,6 @@ LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
             " at line: " + std::to_string(__LINE__) +
             ". Normalized shape provided are not supported.");
     }
-    if (this->training) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
-    }
 }
 
 LayerNorm::~LayerNorm()
@@ -1827,7 +1824,6 @@ BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias)
     this->init_weight_bias();
     this->allocate_running_mean_var();
     if (this->training) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
     }
 }
