@@ -132,5 +132,6 @@ void bind_sequential(pybind11::module_& m) {
                  }
                  self.load_state_dict(cpp_state_dict);
              })
+        .def("get_outputs", &Sequential::get_outputs)
         .def("get_outputs_smoother", &Sequential::get_outputs_smoother);
 }
