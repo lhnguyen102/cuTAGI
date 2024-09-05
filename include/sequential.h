@@ -27,8 +27,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <map>
+
 class Sequential {
    public:
+    bool valid_ = true;
     std::shared_ptr<BaseHiddenStates> output_z_buffer;
     std::shared_ptr<BaseHiddenStates> input_z_buffer;
     std::shared_ptr<BaseDeltaStates> output_delta_z_buffer;
@@ -77,6 +80,10 @@ class Sequential {
 
     void to_device(const std::string& new_device);
 
+    void params_to_host();
+
+    void params_to_device();
+
     void set_buffer_size();
 
     void init_output_state_buffer();
@@ -115,6 +122,18 @@ class Sequential {
     void save_csv(const std::string& filename);
 
     void load_csv(const std::string& filename);
+
+    std::vector<std::reference_wrapper<std::vector<float>>> parameters();
+
+    std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
+                                     std::vector<float>, std::vector<float>>>
+    get_state_dict();
+
+    void load_state_dict(
+        const std::map<std::string,
+                       std::tuple<std::vector<float>, std::vector<float>,
+                                  std::vector<float>, std::vector<float>>>&
+            state_dict);
 
     // Copy model params
     void params_from(const Sequential& ref_model);

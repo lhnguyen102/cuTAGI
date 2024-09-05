@@ -25,6 +25,11 @@ class Sequential:
         return self.forward(mu_x, var_x)
 
     @property
+    def layers(self) -> List[BaseLayer]:
+        """Get the layers of the model."""
+        return self._cpp_backend.layers
+
+    @property
     def output_z_buffer(self) -> BaseHiddenStates:
         """Get the output hidden states"""
         return self._cpp_backend.output_z_buffer
@@ -98,6 +103,14 @@ class Sequential:
         """Move the model to a specific device."""
         self._cpp_backend.to_device(device)
 
+    def params_to_device(self):
+        """Move the model parameters to a specific cuda device."""
+        self._cpp_backend.params_to_device()
+
+    def params_to_host(self):
+        """Move the model parameters from cuda device to the host."""
+        self._cpp_backend.params_to_host()
+
     def set_threads(self, num_threads: int):
         """Set the number of threads to use."""
         self._cpp_backend.set_threads(num_threads)
@@ -138,6 +151,10 @@ class Sequential:
         """Get information about the layer stack."""
         return self._cpp_backend.get_layer_stack_info()
 
+    def preinit_layer(self):
+        """Preinitialize the layer."""
+        self._cpp_backend.preinit_layer()
+
     def save(self, filename: str):
         """Save the model to a file."""
         self._cpp_backend.save(filename)
@@ -153,6 +170,21 @@ class Sequential:
     def load_csv(self, filename: str):
         """Load the model parameters from a CSV file."""
         self._cpp_backend.load_csv(filename)
+
+    def parameters(self) -> List[np.ndarray]:
+        """Get the model parameters. Stored mu_w, var_w, mu_b, var_b in list of
+        numpy arrays. Example: A model of 5 layers leads to a params size of
+        5 * 4 = 20
+        """
+        return self._cpp_backend.parameters()
+
+    def load_state_dict(self, state_dict: dict):
+        """Load the model parameters from a state dict."""
+        self._cpp_backend.load_state_dict(state_dict)
+
+    def get_state_dict(self) -> dict:
+        """Get the model parameters as a state dict."""
+        return self._cpp_backend.get_state_dict()
 
     def params_from(self, other: "Sequential"):
         """Copy parameters from another model."""
