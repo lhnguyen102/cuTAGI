@@ -254,6 +254,60 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
     return {er, P};
 }
 
+std::tuple<std::vector<int>, std::vector<float>, std::vector<int>> get_error_v2(
+    std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
+    int n_classes, int B)
+/*
+ * Compute error given an input image
+ *
+ * Args:
+ *    mz: Mean of hidden states of the output layer
+ *    Sz: Variance of hidden states of the output layer
+ *    labels: Real label
+ *    hs: Hierarchical softmax output
+ *    n_classes: Number of classes
+ *
+ * Returns:
+ *    er: error 1: wrong prediciton and 0: right one
+ *    P: Probability for each class
+ * */
+{
+    // Initialization
+    auto hs = class_to_obs(n_classes);
+    std::vector<int> er(B, 0);
+    std::vector<int> preds(B);
+    std::vector<float> P(B * n_classes);
+    std::vector<float> mz_tmp(hs.len);
+    std::vector<float> Sz_tmp(hs.len);
+
+    // Compute probability for each class
+    for (int r = 0; r < B; r++) {
+        // Get sample
+        for (int i = 0; i < hs.len; i++) {
+            mz_tmp[i] = mz[r * hs.len + i];
+            Sz_tmp[i] = Sz[r * hs.len + i];
+        }
+
+        // Compute probability
+        auto tmp = obs_to_class(mz_tmp, Sz_tmp, hs, n_classes);
+
+        // Store in P matrix
+        for (int c = 0; c < n_classes; c++) {
+            P[r * n_classes + c] = tmp[c];
+        }
+
+        // Prediction
+        preds[r] = std::distance(tmp.begin(),
+                                 std::max_element(tmp.begin(), tmp.end()));
+        // Get error
+        if (preds[r] != labels[r]) {
+            er[r] = 1;
+        }
+    }
+
+    return {er, P, preds};
+}
+
 std::vector<int> get_class_error(std::vector<float> &ma,
                                  std::vector<int> &labels, int n_classes,
                                  int B) {

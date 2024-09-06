@@ -29,6 +29,10 @@ std::tuple<std::vector<int>, std::vector<float>> get_error(
     std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
     int n_classes, int B);
 
+std::tuple<std::vector<int>, std::vector<float>, std::vector<int>> get_error_v2(
+    std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,
+    int n_classes, int B);
+
 std::vector<int> get_class_error(std::vector<float> &ma,
                                  std::vector<int> &labels, int n_classes,
                                  int B);

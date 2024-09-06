@@ -177,10 +177,10 @@ Returns:
 */
 {
     // TODO: Heuristic values!!
-    if (batch_size >= 100 && batch_size < 500) {
+    if (batch_size >= 128 && batch_size < 512) {
         this->cap_factor_update = 10.0f;
     }
-    if (batch_size >= 500) {
+    if (batch_size >= 512) {
         this->cap_factor_update = 20.0f;
     }
 }

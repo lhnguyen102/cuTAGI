@@ -157,12 +157,8 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
     """Load and transform CIFAR10 training and test datasets."""
     transform_train = transforms.Compose(
         [
-            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
+            transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(p=0.5),
-            # transforms.AugMix(severity=3, mixture_width=3, chain_depth=1, alpha=1.0),
-            # transforms.RandomRotation(degrees=15),
-            # transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-            # transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
             transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
