@@ -71,7 +71,7 @@ def load_datasets(batch_size: int):
     transform_train = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+            transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(NORMALIZATION_MEAN, NORMALIZATION_STD),
         ]

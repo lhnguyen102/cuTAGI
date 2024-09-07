@@ -487,7 +487,6 @@ Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
 
     // Allocate the update quantities for parameters
     if (this->training && this->device.compare("cpu") == 0) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
     }
 }

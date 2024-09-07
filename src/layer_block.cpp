@@ -204,11 +204,13 @@ void LayerBlock::backward(BaseDeltaStates &input_delta_states,
     }
 
     // State update for input layer
-    this->layers[0]->backward(input_delta_states, output_delta_states,
-                              temp_states, state_update);
+    if (state_update && this->layers.size() > 1) {
+        this->layers[0]->backward(input_delta_states, output_delta_states,
+                                  temp_states, state_update);
+    }
 
     if (this->layers[0]->get_layer_type() == LayerType::Activation ||
-        !state_update) {
+        !state_update || this->layers.size() == 1) {
         output_delta_states.swap(input_delta_states);
     }
 }

@@ -16,6 +16,19 @@ __global__ void add_shortcut_mean_var_cuda(float const *mu_s,
     }
 }
 
+__global__ void add_shortcut_delta_cuda(float const *mu_s, float const *var_s,
+                                        float const *jcb_s, int num_states,
+                                        float *mu_a, float *var_a)
+/**/
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (col < num_states) {
+        mu_a[col] += mu_s[col] * jcb_s[col];
+        var_a[col] += var_s[col] * jcb_s[col] * jcb_s[col];
+    }
+}
+
 ResNetBlockCuda::~ResNetBlockCuda() {}
 
 std::string ResNetBlockCuda::get_layer_info() const
@@ -216,6 +229,23 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
             }
         }
     }
+    // Store jacobian matrix for backward pass
+    if (this->training) {
+        HiddenStateCuda *cu_input_states =
+            dynamic_cast<HiddenStateCuda *>(&input_states);
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        int act_size = cu_input_states->actual_size * batch_size;
+        if (cu_bwd_states->size != act_size) {
+            cu_bwd_states->size = act_size;
+            cu_bwd_states->allocate_memory();
+        }
+        cudaMemcpy(cu_bwd_states->d_mu_a, cu_input_states->d_mu_a,
+                   act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(cu_bwd_states->d_jcb, cu_input_states->d_jcb,
+                   act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
 
     // Make a copy of input states for residual connection
     this->input_z->copy_from(input_states, this->input_size * batch_size);
@@ -225,17 +255,18 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     int num_states = output_states.block_size * this->output_size;
     constexpr unsigned int THREADS = 256;
     unsigned int grid_size = (num_states + THREADS - 1) / THREADS;
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
 
     // Shortcut
-    if (this->shortcut != nullptr) {
+    if (this->shortcut != nullptr)  // use a transformation function to match
+                                    // the output size of the main block
+    {
         this->shortcut->forward(*this->input_z, *this->shortcut_output_z,
                                 temp_states);
 
         HiddenStateCuda *cu_shortcut_output_z =
             dynamic_cast<HiddenStateCuda *>(this->shortcut_output_z.get());
-
-        HiddenStateCuda *cu_output_states =
-            dynamic_cast<HiddenStateCuda *>(&output_states);
 
         add_shortcut_mean_var_cuda<<<grid_size, THREADS>>>(
             cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
@@ -244,9 +275,6 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     } else {
         HiddenStateCuda *cu_shortcut_output_z =
             dynamic_cast<HiddenStateCuda *>(this->input_z.get());
-
-        HiddenStateCuda *cu_output_states =
-            dynamic_cast<HiddenStateCuda *>(&output_states);
 
         add_shortcut_mean_var_cuda<<<grid_size, THREADS>>>(
             cu_shortcut_output_z->d_mu_a, cu_shortcut_output_z->d_var_a,
@@ -258,6 +286,17 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
     output_states.actual_size = this->output_size;
+
+    // Fill jacobian matrix for output with ones
+    if (this->training) {
+        HiddenStateCuda *cu_input_states =
+            dynamic_cast<HiddenStateCuda *>(this->input_z.get());
+
+        int out_size = this->output_size * batch_size;
+        unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
+        fill_output_states_on_device<<<out_blocks, THREADS>>>(
+            out_size, cu_output_states->d_jcb);
+    }
 }
 
 void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
@@ -265,9 +304,10 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
                                BaseTempStates &temp_states, bool state_update)
 /**/
 {
+    int batch_size = input_delta_states.block_size;
     // Make a copy of delta input used later for residual connection
-    this->input_delta_z->copy_from(
-        input_delta_states, this->input_size * input_delta_states.block_size);
+    this->input_delta_z->copy_from(input_delta_states,
+                                   this->output_size * batch_size);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
@@ -275,9 +315,9 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
     DeltaStateCuda *cu_output_delta_states =
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
 
-    int num_states = output_delta_states.block_size * this->input_size;
-    unsigned int grid_size =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    int num_states = batch_size * this->input_size;
+    constexpr unsigned int THREADS = 256;
+    unsigned int grid_size = (num_states + THREADS - 1) / THREADS;
 
     if (this->shortcut != nullptr) {
         this->shortcut->backward(*this->input_delta_z,
@@ -287,7 +327,7 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
         DeltaStateCuda *cu_shortcut_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->shortcut_output_delta_z.get());
 
-        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+        add_shortcut_mean_var_cuda<<<grid_size, THREADS>>>(
             cu_shortcut_delta_z->d_delta_mu, cu_shortcut_delta_z->d_delta_var,
             num_states, cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
@@ -296,9 +336,13 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
         DeltaStateCuda *cu_input_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->input_delta_z.get());
 
-        add_shortcut_mean_var_cuda<<<grid_size, this->num_cuda_threads>>>(
+        BackwardStateCuda *cu_bwd_states =
+            dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+
+        add_shortcut_delta_cuda<<<grid_size, THREADS>>>(
             cu_input_delta_z->d_delta_mu, cu_input_delta_z->d_delta_var,
-            num_states, cu_output_delta_states->d_delta_mu,
+            cu_bwd_states->d_jcb, num_states,
+            cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
     }
 }

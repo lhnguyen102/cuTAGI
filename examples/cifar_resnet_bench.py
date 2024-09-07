@@ -157,12 +157,8 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
     """Load and transform CIFAR10 training and test datasets."""
     transform_train = transforms.Compose(
         [
-            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
+            transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(p=0.5),
-            # transforms.AugMix(severity=3, mixture_width=3, chain_depth=1, alpha=1.0),
-            # transforms.RandomRotation(degrees=15),
-            # transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-            # transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
             transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
@@ -229,8 +225,8 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    net = TAGI_CNN_NET
-    # net = resnet18_cifar10()
+    # net = TAGI_CNN_NET
+    net = resnet18_cifar10()
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -245,7 +241,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.2, decaying_factor=0.95, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.2, decaying_factor=0.99, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),

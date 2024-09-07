@@ -117,18 +117,17 @@ void resnet_cifar10()
         block_7, LayerBlock(Conv2d(256, 512, 2, false, 2), BatchNorm2d(512)));
     ResNetBlock resnet_block_8(block_8);
 
-    // Sequential model(
-    //     // Input block
-    //     Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
+    Sequential model(
+        // Input block
+        Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), BatchNorm2d(64), ReLU(),
 
-    //     // Residual blocks
-    //     resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3,
-    //     ReLU(), resnet_block_4, ReLU(), resnet_block_5, ReLU(),
-    //     resnet_block_6, ReLU(), resnet_block_7, ReLU(), resnet_block_8,
-    //     ReLU(),
+        // Residual blocks
+        resnet_block_1, ReLU(), resnet_block_2, ReLU(), resnet_block_3, ReLU(),
+        resnet_block_4, ReLU(), resnet_block_5, ReLU(), resnet_block_6, ReLU(),
+        resnet_block_7, ReLU(), resnet_block_8, ReLU(),
 
-    //     // Output block
-    //     AvgPool2d(4), Linear(512, 11));
+        // Output block
+        AvgPool2d(4), Linear(512, 11));
 
     // auto block_1 = create_layer_block(8, 8);
     // auto block_2 = create_layer_block(8, 8);
@@ -167,19 +166,26 @@ void resnet_cifar10()
     //     // Output block
     //     AvgPool2d(4), Linear(64, 11));
 
-    Sequential model(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), MixtureReLU(),
-                     AvgPool2d(3, 2, 1, 2), Conv2d(32, 32, 5, true, 1, 2, 1),
-                     MixtureReLU(), AvgPool2d(3, 2, 1, 2),
-                     Conv2d(32, 64, 5, true, 1, 2, 1), MixtureReLU(),
-                     AvgPool2d(3, 2, 1, 2), Linear(64 * 4 * 4, 100),
-                     MixtureReLU(), Linear(100, 11));
+    // Sequential model(Conv2d(3, 32, 5, false, 1, 2, 1, 32, 32),
+    // BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2),
+    //                  Conv2d(32, 32, 5, false, 1, 2, 1), BatchNorm2d(32),
+    //                  ReLU(), AvgPool2d(3, 2, 1, 2), Conv2d(32, 64, 5, false,
+    //                  1, 2, 1), BatchNorm2d(64), ReLU(), AvgPool2d(3, 2, 1,
+    //                  2), Linear(64 * 4 * 4, 100), ReLU(), Linear(100, 11));
+
+    // Sequential model(
+    //     Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), ReLU(), AvgPool2d(3, 2, 1,
+    //     2), Conv2d(32, 32, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
+    //     Conv2d(32, 64, 5, true, 1, 2, 1), ReLU(), AvgPool2d(3, 2, 1, 2),
+    //     Linear(64 * 4 * 4, 128), ReLU(), Linear(128, 11));
 
     // model.set_threads(1);
     // model.preinit_layer();
     // model.save("test_model/resnet.bin");
     model.to_device("cuda");
 
-    model.load("test_model/resnet.bin");
+    // model.load("test_model/resnet.bin");
 
     OutputUpdater output_updater(model.device);
 
@@ -188,7 +194,7 @@ void resnet_cifar10()
     //////////////////////////////////////////////////////////////////////
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
+    int n_epochs = 20;
     int batch_size = 128;
     float sigma_obs = 1;
     int iters = train_db.num_data / batch_size;
@@ -210,7 +216,7 @@ void resnet_cifar10()
     std::vector<int> error_rate_batch;
     std::vector<float> prob_class_batch;
     for (int e = 0; e < n_epochs; e++) {
-        if (e > 0) {
+        if (e >= 0) {
             // Shuffle data
             std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
         }
@@ -219,43 +225,43 @@ void resnet_cifar10()
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < iters; i++) {
+            mt_idx = i * batch_size;
             // Load data
-            get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
-                                    y_batch, idx_ud_batch, label_batch);
+            get_batch_images_labels(train_db, data_idx, batch_size, mt_idx,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
             // // Forward pass
             model.forward(x_batch);
 
+            // Extract output
+            if (model.device == "cuda") {
+                model.output_to_host();
+            }
+            // model.delta_z_to_host();
+
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[j] = model.output_z_buffer->mu_a[j];
+                var_a_output[j] = model.output_z_buffer->var_a[j];
+            }
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(mu_a_output, var_a_output, label_batch, num_classes,
+                          batch_size);
+
+            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+
+            // // Backward pass
             // Output layer
             output_updater.update_using_indices(*model.output_z_buffer, y_batch,
                                                 var_obs, idx_ud_batch,
                                                 *model.input_delta_z_buffer);
-            // // // Backward pass
-            // model.backward();
-            // model.step();
-
-            // // Extract output
-            // if (model.device == "cuda") {
-            //     model.output_to_host();
-            // }
-            // // model.delta_z_to_host();
-
-            // for (int j = 0; j < batch_size * n_y; j++) {
-            //     mu_a_output[j] = model.output_z_buffer->mu_a[j];
-            //     var_a_output[j] = model.output_z_buffer->var_a[j];
-            // }
-            // std::tie(error_rate_batch, prob_class_batch) =
-            //     get_error(mu_a_output, var_a_output, label_batch,
-            //     num_classes,
-            //               batch_size);
-
-            // mt_idx = i * batch_size;
-            // update_vector(error_rate, error_rate_batch, mt_idx, 1);
+            model.backward();
+            model.step();
 
             if (i % 100 == 0 && i != 0) {
                 int curr_idx = mt_idx + batch_size;
                 auto avg_error =
-                    compute_average_error_rate(error_rate, curr_idx, 100);
+                    compute_average_error_rate(error_rate, curr_idx, mt_idx);
 
                 std::cout << "\tError rate for last 100 observation: ";
                 std::cout << std::fixed;
@@ -275,6 +281,58 @@ void resnet_cifar10()
         std::cout << std::setprecision(3);
         std::cout << (run_time * 1e-9) * (n_epochs - e - 1) / 60 << " mins\n";
     }
+    ////////////////////////////////////////////////////////////////////////
+    // Testing
+    ////////////////////////////////////////////////////////////////////////
+    model.eval();
+    std::cout << "Testing...\n";
+    int test_batch_size = 128;
+    int test_iters = test_db.num_data / test_batch_size;
+    std::vector<float> test_x_batch(test_batch_size * n_x, 0.0f);
+    std::vector<float> test_y_batch(test_batch_size * test_db.output_len, 0.0f);
+    std::vector<int> test_batch_idx(test_batch_size);
+    std::vector<int> test_idx_ud_batch(test_db.output_len * test_batch_size, 0);
+    std::vector<int> test_label_batch(test_batch_size, 0);
+    std::vector<float> test_mu_a_output(test_batch_size * n_y, 0);
+    std::vector<float> test_var_a_output(test_batch_size * n_y, 0);
+    std::vector<int> test_error_rate(test_db.num_data, 0);
+    std::vector<int> test_error_rate_batch, test_pred_label_batch;
+    std::vector<float> test_prob_class_batch;
+    auto test_data_idx = create_range(test_db.num_data);
+
+    for (int i = 0; i < test_iters; i++) {
+        int mt_idx = i * test_batch_size;
+        // Load test data
+        get_batch_images_labels(test_db, test_data_idx, test_batch_size, mt_idx,
+                                test_x_batch, test_y_batch, test_idx_ud_batch,
+                                test_label_batch);
+
+        // Forward pass
+        model.forward(test_x_batch);
+
+        // Extract output
+        if (model.device == "cuda") {
+            model.output_to_host();
+        }
+
+        for (int j = 0; j < test_batch_size * n_y; j++) {
+            test_mu_a_output[j] = model.output_z_buffer->mu_a[j];
+            test_var_a_output[j] = model.output_z_buffer->var_a[j];
+        }
+
+        std::tie(test_error_rate_batch, test_prob_class_batch,
+                 test_pred_label_batch) =
+            get_error_v2(test_mu_a_output, test_var_a_output, test_label_batch,
+                         num_classes, test_batch_size);
+
+        update_vector(test_error_rate, test_error_rate_batch, mt_idx, 1);
+    }
+
+    // Compute average error rate
+    auto avg_error = compute_average_error_rate(
+        test_error_rate, test_db.num_data, test_iters * test_batch_size);
+    std::cout << "Average error rate on test set: " << std::fixed
+              << std::setprecision(3) << avg_error << "\n";
 }
 
 int test_resnet_cifar10()

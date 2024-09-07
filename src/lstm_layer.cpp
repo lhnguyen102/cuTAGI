@@ -1028,7 +1028,6 @@ LSTM::LSTM(size_t input_size, size_t output_size, int seq_len, bool bias,
     this->get_number_param();
     this->init_weight_bias();
     if (this->training) {
-        this->bwd_states = std::make_unique<BaseBackwardStates>();
         this->allocate_param_delta();
     }
 }
