@@ -112,16 +112,6 @@ void save_cov_hidden_states_smoother(
     }
 }
 
-void flatten2DVector(const std::vector<std::vector<float>> &vec2D,
-                     std::vector<float> &vec1D) {
-    // Reserve space in vec1D for efficiency
-    vec1D.reserve(vec2D.size() * vec2D[0].size());
-
-    for (const auto &row : vec2D) {
-        vec1D.insert(vec1D.end(), row.begin(), row.end());
-    }
-}
-
 void smooth_cell_states(
     int num_timestep, int num_states, std::vector<float> &cov_cc,
     std::vector<float> &mu_c_priors, std::vector<float> &var_c_priors,
@@ -133,8 +123,8 @@ void smooth_cell_states(
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
-            current = i * num_timestep + j;
-            next = (i + 1) * num_timestep + j;
+            current = i * num_states + j;
+            next = (i + 1) * num_states + j;
             float tmp = cov_cc[next] / var_c_priors[next];
 
             mu_c_smooths[current] =
@@ -144,7 +134,6 @@ void smooth_cell_states(
             var_c_smooths[current] =
                 var_c_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
-            // std::cout << var_c_smooths[current] << ". ";
         }
     }
 }

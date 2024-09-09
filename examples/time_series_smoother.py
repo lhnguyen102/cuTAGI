@@ -89,8 +89,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
 
             # replace nan in input x by the lstm_prediction:
             if idx_sample < input_seq_len + infer_window_len:
-                nan_indices = np.where(np.isnan(x))[0]
-                x[nan_indices] = mu_sequence[nan_indices]
+                x = replace_with_prediction(x,mu_sequence)
 
             # Feed forward
             m_pred, _ = net(x)
@@ -141,7 +140,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
 
         # Progress bar
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs}| mse: {sum(mses)/len(mses):>7.2f}",
+            f"Epoch {epoch + 1}/{num_epochs}| mse: {np.nansum(mses)/np.sum(~np.isnan(mses)):>7.2f}",
             refresh=True,
         )
 
@@ -377,6 +376,10 @@ class PredictionViz:
             plt.savefig(saving_path, bbox_inches="tight")
             plt.close()
 
+def replace_with_prediction(x, mu_sequence):
+    nan_indices = np.where(np.isnan(x))[0]
+    x[nan_indices] = mu_sequence[nan_indices]
+    return x
 
 if __name__ == "__main__":
     fire.Fire(main)
