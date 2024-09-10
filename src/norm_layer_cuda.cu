@@ -227,11 +227,19 @@ __global__ void layernorm_fwd_mean_var_cuda(
 
         mu_z[idx] =
             inv_sqrt_var_ra * (mu_a_term - mu_ra_term) * mu_w_term + mu_b[col];
-        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+        /*var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                          (var_a[idx] * mu_w_term * mu_w_term +
                           var_w[col] * (mu_a_term * mu_a_term -
                                         mu_ra_term * mu_ra_term + var_a[idx])) +
-                     var_b[col];
+                     var_b[col];*/
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                        (var_a[idx] * (mu_w_term * mu_w_term + var_w[col])
+                        + var_w[col] * (mu_a_term * mu_a_term
+                                        + mu_ra_term * mu_ra_term
+                                        - 2.0f *  mu_a_term * mu_ra_term
+                                       )
+                        )
+                          + var_b[col];
     }
 }
 
@@ -256,12 +264,20 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
 
         mu_z[idx] = inv_sqrt_var_ra * (mu_a_term - mu_ra_term) * mu_w_term +
                     mu_b[div_idx];
-        var_z[idx] =
+        /*var_z[idx] =
             inv_sqrt_var_ra * inv_sqrt_var_ra *
                 (var_a[idx] * mu_w_term * mu_w_term +
                  var_w[div_idx] * (mu_a_term * mu_a_term -
                                    mu_ra_term * mu_a_term + var_a[idx])) +
-            var_b[div_idx];
+            var_b[div_idx];*/
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                (var_a[idx] * (mu_w_term * mu_w_term + var_w[div_idx])
+                + var_w[div_idx] * (mu_a_term * mu_a_term
+                                + mu_ra_term * mu_ra_term
+                                - 2.0f *  mu_a_term * mu_ra_term
+                                )
+                )
+                + var_b[col];
     }
 }
 
@@ -470,11 +486,20 @@ __global__ void batchnorm_fwd_mean_var_cuda(
         mu_z[idx] =
             inv_sqrt_var_ra * (mu_a[idx] - mu_ra[col]) * mu_w[col] + mu_b[col];
 
-        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+        /*var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                          (var_a[idx] * mu_w[col] * mu_w[col] +
                           var_w[col] * (mu_a[idx] * mu_a[idx] -
                                         mu_ra[col] * mu_ra[col] + var_a[idx])) +
-                     var_b[col];
+                     var_b[col];*/
+        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col])
+                + var_w[col] * (mu_a[idx] * mu_a[idx]
+                                + mu_ra[col] * mu_ra[col]
+                                - 2.0f *  mu_a[idx] * mu_ra[col]
+                                )
+                )
+                + var_b[col];
+
     }
 }
 
@@ -793,14 +818,22 @@ layer is a convolutional layer.
         float tmp_mu_w = mu_w[div_idx];
         float tmp_mu_w_2 = tmp_mu_w * tmp_mu_w;
         float tmp_mu_ra = mu_ra[div_idx];
-        float tmp_mu_ra_2 = tmp_mu_ra * tmp_mu_a;
+        float tmp_mu_ra_2 = tmp_mu_ra * tmp_mu_a;//!!! * tmp_mu_"r"a !!!
         mu_z[idx] =
             inv_var_ra_sqrt * (tmp_mu_a - tmp_mu_ra) * tmp_mu_w + mu_b[div_idx];
 
-        var_z[idx] = inv_var_ra * (tmp_var_a * tmp_mu_w_2 +
+        /*var_z[idx] = inv_var_ra * (tmp_var_a * tmp_mu_w_2 +
                                    var_w[div_idx] *
                                        (tmp_mu_a_2 - tmp_mu_ra_2 + tmp_var_a)) +
-                     var_b[div_idx];
+                     var_b[div_idx];*/
+        var_z[idx] = inv_var_ra *
+                (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx])
+                + var_w[div_idx] * (tmp_mu_a_2
+                                + tmp_mu_ra * tmp_mu_ra
+                                - 2.0f *  tmp_mu_ra_2
+                                )
+                )
+                + var_b[div_idx];
     }
 }
 
