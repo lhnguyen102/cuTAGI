@@ -277,7 +277,7 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
                                 - 2.0f *  mu_a_term * mu_ra_term
                                 )
                 )
-                + var_b[col];
+                + var_b[div_idx];
     }
 }
 
@@ -495,7 +495,7 @@ __global__ void batchnorm_fwd_mean_var_cuda(
                 (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col])
                 + var_w[col] * (mu_a[idx] * mu_a[idx]
                                 + mu_ra[col] * mu_ra[col]
-                                - 2.0f *  mu_a[idx] * mu_ra[col]
+                                - 2.0f * mu_a[idx] * mu_ra[col]
                                 )
                 )
                 + var_b[col];
@@ -830,7 +830,7 @@ layer is a convolutional layer.
                 (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx])
                 + var_w[div_idx] * (tmp_mu_a_2
                                 + tmp_mu_ra * tmp_mu_ra
-                                - 2.0f *  tmp_mu_ra_2
+                                - 2.0f * tmp_mu_ra_2
                                 )
                 )
                 + var_b[div_idx];
