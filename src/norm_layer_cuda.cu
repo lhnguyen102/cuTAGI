@@ -188,7 +188,9 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        //var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        var_sample[col] = sum / (ni - 1);
+
     }
 }
 
@@ -446,7 +448,8 @@ layer for each batch.
             sum += (mu_a[col + i * ni] - mu_s[col]) *
                    (mu_a[col + i * ni] - mu_s[col]);
         }
-        var[col] = (sum + var_s[col]) / (batch_size - 1);
+        //var[col] = (sum + var_s[col]) / (batch_size - 1);
+        var[col] = sum / (batch_size - 1);
     }
 }
 
@@ -734,7 +737,8 @@ batch-normalization layer.
                    (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
                     mu_s[col]);
         }
-        var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+        //var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+        var[col] = sum / (wihi * batch_size - 1);
     }
 }
 

@@ -362,7 +362,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 100,
+    epochs: int = 3,
     device: str = "cuda",
     sigma_v: float = 1.0,
 ):
