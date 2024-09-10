@@ -236,10 +236,10 @@ __global__ void layernorm_fwd_mean_var_cuda(
                         (var_a[idx] * (mu_w_term * mu_w_term + var_w[col])
                         + var_w[col] * (mu_a_term * mu_a_term
                                         + mu_ra_term * mu_ra_term
-                                        - 2.0f *  mu_a_term * mu_ra_term
+                                        - 2.0f * mu_a_term * mu_ra_term
                                        )
                         )
-                          + var_b[col];
+                        + var_b[col];
     }
 }
 
@@ -274,7 +274,7 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
                 (var_a[idx] * (mu_w_term * mu_w_term + var_w[div_idx])
                 + var_w[div_idx] * (mu_a_term * mu_a_term
                                 + mu_ra_term * mu_ra_term
-                                - 2.0f *  mu_a_term * mu_ra_term
+                                - 2.0f * mu_a_term * mu_ra_term
                                 )
                 )
                 + var_b[div_idx];
