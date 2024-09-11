@@ -156,17 +156,10 @@ void Sequential::init_output_state_buffer()
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
-        if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
-            throw std::invalid_argument(
-                "Error in file: " + std::string(__FILE__) +
-                " at line: " + std::to_string(__LINE__) +
-                ". Smoothing feature does not support CUDA");
-        } else {
-            this->output_z_buffer = std::make_shared<HiddenStateCuda>(
-                this->z_buffer_size, this->z_buffer_block_size);
-            this->input_z_buffer = std::make_shared<HiddenStateCuda>(
-                this->z_buffer_size, this->z_buffer_block_size);
-        }
+        this->output_z_buffer = std::make_shared<HiddenStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
+        this->input_z_buffer = std::make_shared<HiddenStateCuda>(
+            this->z_buffer_size, this->z_buffer_block_size);
         this->temp_states = std::make_shared<TempStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
