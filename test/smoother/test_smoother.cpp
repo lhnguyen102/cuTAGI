@@ -220,7 +220,7 @@ void smoother_v1()
         }
 
         // Smoother
-        auto [mu_zo_smooths, var_zo_smooths] = model.smoother();
+        std::tie(mu_zo_smooths, var_zo_smooths) = model.smoother();
         mu_sequence.assign(mu_zo_smooths.begin(),
                            mu_zo_smooths.begin() + input_seq_len);
 

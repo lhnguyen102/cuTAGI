@@ -370,7 +370,7 @@ void Sequential::backward()
                               this->input_state_update);
 }
 
-std::pair<std::vector<float>, std::vector<float>> Sequential::smoother()
+std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
 /*
  */
 {
@@ -389,7 +389,7 @@ std::pair<std::vector<float>, std::vector<float>> Sequential::smoother()
             var_zo_smooths = slinear_layer->smooth_states.var_zo_smooths;
         }
     }
-    return std::make_pair(mu_zo_smooths, var_zo_smooths);
+    return std::make_tuple(mu_zo_smooths, var_zo_smooths);
 }
 
 void Sequential::step()
