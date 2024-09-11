@@ -232,7 +232,7 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
             }
         }
     }
-    // // Increase index for next time step
+    // TODO: Increase index for next time step
     ++this->time_step;
 }
 
@@ -252,6 +252,6 @@ void SLinear::smoother()
         this->smooth_states.mu_zo_posts, this->smooth_states.var_zo_posts,
         this->smooth_states.mu_zo_smooths, this->smooth_states.var_zo_smooths);
 
-    // Clear variables for next epoch
+    // // TODO: Clear variables for next epoch
     this->time_step = 0;
 }

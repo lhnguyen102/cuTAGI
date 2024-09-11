@@ -174,11 +174,12 @@ void smoother_v1()
     float decay_factor = 0.95f;
     float min_sigma_obs = 0.3f;
     // for smoother
-    std::vector<float> mu_zo_smooths(0.0f, input_seq_len);
+    std::vector<float> mu_zo_smooths(0.0f, input_seq_len),
+        var_zo_smooths(0.0f, input_seq_len);
     std::vector<float> mu_sequence(input_seq_len, 1.0f);
     float mu_zo = 0;
     // Number of observations before training time to be inferred. These
-    // obervations are nan in training data.
+    // obervations are 0 in training data.
     int infer_window_len = 48;
 
     for (int e = 0; e < n_epochs; e++) {
@@ -219,7 +220,7 @@ void smoother_v1()
         }
 
         // Smoother
-        mu_zo_smooths = model.smoother();
+        auto [mu_zo_smooths, var_zo_smooths] = model.smoother();
         mu_sequence.assign(mu_zo_smooths.begin(),
                            mu_zo_smooths.begin() + input_seq_len);
 

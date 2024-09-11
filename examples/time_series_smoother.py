@@ -134,7 +134,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         plt.plot(t_train, y_train, color='r')
         plt.plot(t, mu_zo_smooth, color='b')
         plt.fill_between(t, mu_zo_smooth - zo_smooth_std, mu_zo_smooth + zo_smooth_std, alpha=0.2, label='1 Std Dev')
-        filename = f'saved_results/smoother#{epoch}.png'
+        filename = f'saved_results/smoother/smoother#{epoch}.png'
         plt.savefig(filename)
         plt.close()
 

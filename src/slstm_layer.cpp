@@ -504,7 +504,8 @@ void SLSTM::backward(BaseDeltaStates &input_delta_states,
     // Save for smoothing
     save_posteriors_smoother(this->time_step, this->output_size,
                              this->lstm_states, this->smooth_states);
-    // // Increase index for next time step
+
+    // TODO: Increase index for next time step
     ++this->time_step;
 }
 
@@ -537,7 +538,7 @@ void SLSTM::smoother()
         this->smooth_states.var_h_posts, this->smooth_states.mu_h_smooths,
         this->smooth_states.var_h_smooths);
 
-    // Clear variables for next epoch
+    // // TODO: Clear variables for next epoch
     this->time_step = 0;
     this->smooth_states.reset_zeros();
     this->lstm_states.reset_zeros();
