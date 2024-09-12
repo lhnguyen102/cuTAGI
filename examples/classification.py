@@ -108,9 +108,9 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
-    net.to_device("cuda")
-    net.set_threads(16)
+    net = CNN_LAYERNORM
+    net.to_device("cpu")
+    net.set_threads(48)
     out_updater = OutputUpdater(net.device)
 
     # Training

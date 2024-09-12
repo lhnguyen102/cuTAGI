@@ -56,7 +56,8 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        //var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        var_sample[col] = sum / (ni - 1);
     }
 }
 
@@ -383,8 +384,8 @@ void batchnorm_fwd_mean_var(
                                        + mu_ra[col] * mu_ra[col]
                                         - 2.0f * mu_a[idx] * mu_ra[col]
                                        )
-                )
-                + var_b[col];
+                        )
+                        + var_b[col];
         }
     }
 }
