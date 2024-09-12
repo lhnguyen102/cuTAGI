@@ -109,7 +109,7 @@ class Sequential {
 
     void backward();
 
-    std::pair<std::vector<float>, std::vector<float>> smoother();
+    std::tuple<std::vector<float>, std::vector<float>> smoother();
 
     void step();
 
