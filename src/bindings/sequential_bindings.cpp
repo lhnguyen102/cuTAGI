@@ -44,6 +44,7 @@ void bind_sequential(pybind11::module_& m) {
         .def_readwrite("z_buffer_size", &Sequential::z_buffer_size)
         .def_readwrite("z_buffer_block_size", &Sequential::z_buffer_block_size)
         .def_readwrite("input_size", &Sequential::input_size)
+        .def_readwrite("num_samples", &Sequential::num_samples)
         .def_readwrite("training", &Sequential::training)
         .def_readwrite("param_update", &Sequential::param_update)
         .def_readwrite("device", &Sequential::device)
@@ -75,6 +76,7 @@ void bind_sequential(pybind11::module_& m) {
                  }
              })
         .def("backward", &Sequential::backward)
+        .def("smoother", &Sequential::smoother)
         .def("step", &Sequential::step)
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
@@ -130,5 +132,6 @@ void bind_sequential(pybind11::module_& m) {
                  }
                  self.load_state_dict(cpp_state_dict);
              })
-        .def("get_outputs", &Sequential::get_outputs);
+        .def("get_outputs", &Sequential::get_outputs)
+        .def("get_outputs_smoother", &Sequential::get_outputs_smoother);
 }

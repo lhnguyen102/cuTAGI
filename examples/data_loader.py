@@ -301,6 +301,7 @@ class TimeSeriesDataloader:
         x_std: Optional[np.ndarray] = None,
         ts_idx: Optional[int] = None,
         time_covariates: Optional[str] = None,
+        keep_last_time_cov: Optional[bool] = False,
     ) -> None:
         self.x_file = x_file
         self.date_time_file = date_time_file
@@ -313,6 +314,7 @@ class TimeSeriesDataloader:
         self.x_std = x_std
         self.ts_idx = ts_idx  # add time series index when data having multiple ts
         self.time_covariates = time_covariates  # for adding time covariates
+        self.keep_last_time_cov = keep_last_time_cov
         self.dataset = self.process_data()
 
     def load_data_from_csv(self, data_file: str) -> pd.DataFrame:
@@ -397,6 +399,10 @@ class TimeSeriesDataloader:
             stride=self.stride,
         )
 
+        # remove time covariates, only keep the time cov at the last time step
+        if self.keep_last_time_cov:
+            x_rolled = self.remove_time_cov(x_rolled)
+
         # Dataloader
         dataset = {}
         dataset["value"] = (x_rolled, y_rolled)
@@ -405,6 +411,14 @@ class TimeSeriesDataloader:
         dataset["date_time"] = [np.datetime64(date) for date in np.squeeze(date_time)]
 
         return dataset
+
+    def remove_time_cov(self, x):
+        x_new = np.zeros((len(x), self.input_seq_len + self.num_features - 1), dtype=np.float32)
+        for i in range(0,len(x)):
+            x_ = x[i]
+            keep_idx = np.arange(0, len(x_), self.num_features)
+            x_new[i] = np.concatenate((x_[keep_idx],x_[-self.num_features+1:]))
+        return x_new
 
     def create_data_loader(self, batch_size: int, shuffle: bool = True):
         return self.batch_generator(*self.dataset["value"], batch_size, shuffle)

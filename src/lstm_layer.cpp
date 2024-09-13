@@ -338,7 +338,10 @@ void lstm_cat_activations_and_prev_states(std::vector<float> &a,
 void lstm_cov_input_cell_states_worker(
     std::vector<float> &Sha, std::vector<float> &mw, std::vector<float> &Ji_ga,
     std::vector<float> &Jc_ga, int w_pos_i, int w_pos_c, int ni, int no,
-    int seq_len, int B, int start_idx, int end_idx, std::vector<float> &Ci_c) {
+    int seq_len, int B, int start_idx, int end_idx, std::vector<float> &Ci_c)
+/*
+ */
+{
     float sum;
     int k, i, m, x, y, z;
     for (int t = start_idx; t < end_idx; t++) {
@@ -708,7 +711,7 @@ void lstm_update_prev_hidden_states_worker(
 {
     for (size_t i = start_idx; i < end_idx; i++) {
         mu_h_prev[i] = mu_h_prior[i] + delta_mu[i] * var_h_prior[i];
-        var_h_prev[i] = (1.0f + delta_mu[i] * var_h_prior[i]) * var_h_prior[i];
+        var_h_prev[i] = (1.0f + delta_var[i] * var_h_prior[i]) * var_h_prior[i];
     }
 }
 
@@ -1283,10 +1286,10 @@ void LSTM::forward(BaseHiddenStates &input_states,
                             this->lstm_states.var_h_prior.size(),
                             this->lstm_states.var_h_prev);
         lstm_to_prev_states(this->lstm_states.mu_c_prior,
-                            this->lstm_states.mu_c_prev.size(),
+                            this->lstm_states.mu_c_prior.size(),
                             this->lstm_states.mu_c_prev);
         lstm_to_prev_states(this->lstm_states.var_c_prior,
-                            this->lstm_states.var_c_prev.size(),
+                            this->lstm_states.var_c_prior.size(),
                             this->lstm_states.var_c_prev);
     }
 

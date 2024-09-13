@@ -2,8 +2,7 @@ import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
 
-
-class Linear(BaseLayer):
+class SLinear(BaseLayer):
     """Fully-connected layer"""
 
     def __init__(
@@ -23,7 +22,7 @@ class Linear(BaseLayer):
         self.gain_bias = gain_bias
         self.init_method = init_method
 
-        self._cpp_backend = cutagi.Linear(
+        self._cpp_backend = cutagi.SLinear(
             input_size, output_size, bias, gain_weight, gain_bias, init_method
         )
 
@@ -35,4 +34,3 @@ class Linear(BaseLayer):
 
     def init_weight_bias(self):
         self._cpp_backend.init_weight_bias()
-

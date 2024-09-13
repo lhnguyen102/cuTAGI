@@ -30,12 +30,14 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_softmax(modo);
     bind_even_exp(modo);
     bind_linear_layer(modo);
+    bind_slinear_layer(modo);
     bind_conv2d_layer(modo);
     bind_convtranspose2d_layer(modo);
     bind_avgpool2d_layer(modo);
     bind_layernorm_layer(modo);
     bind_batchnorm_layer(modo);
     bind_lstm_layer(modo);
+    bind_slstm_layer(modo);
     bind_layer_block(modo);
     bind_resnet_block(modo);
     bind_sequential(modo);

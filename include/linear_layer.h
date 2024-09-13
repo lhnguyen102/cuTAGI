@@ -125,21 +125,22 @@ class Linear : public BaseLayer {
     Linear(Linear &&) = default;
     Linear &operator=(Linear &&) = default;
 
-    std::string get_layer_info() const override;
+    virtual std::string get_layer_info() const override;
 
-    std::string get_layer_name() const override;
+    virtual std::string get_layer_name() const override;
 
-    LayerType get_layer_type() const override;
+    virtual LayerType get_layer_type() const override;
 
     void init_weight_bias() override;
 
-    void forward(BaseHiddenStates &input_states,
-                 BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override;
+    virtual void forward(BaseHiddenStates &input_states,
+                         BaseHiddenStates &output_states,
+                         BaseTempStates &temp_states) override;
 
-    void backward(BaseDeltaStates &input_delta_states,
-                  BaseDeltaStates &output_delta_states,
-                  BaseTempStates &temp_states, bool state_udapte) override;
+    virtual void backward(BaseDeltaStates &input_delta_states,
+                          BaseDeltaStates &output_delta_states,
+                          BaseTempStates &temp_states,
+                          bool state_udapte) override;
 
     using BaseLayer::to_cuda;
 

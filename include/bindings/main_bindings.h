@@ -3,7 +3,7 @@
 // Description:  ...
 // Authors:      Luong-Ha Nguyen & James-A. Goulet
 // Created:      December 30, 2023
-// Updated:      March 31, 2024
+// Updated:      August 21, 2024
 // Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,4 +26,6 @@
 #include "pooling_layer_bindings.h"
 #include "resnet_block_bindings.h"
 #include "sequential_bindings.h"
+#include "slinear_layer_bindings.h"
+#include "slstm_layer_bindings.h"
 #include "utils_bindings.h"

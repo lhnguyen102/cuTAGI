@@ -13,6 +13,7 @@
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/pooling_layer.h"
+// #include "slinear_layer.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #endif
@@ -137,21 +138,37 @@ void Sequential::init_output_state_buffer()
  */
 {
     if (this->device.compare("cpu") == 0) {
-        this->output_z_buffer = std::make_shared<BaseHiddenStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
-        this->input_z_buffer = std::make_shared<BaseHiddenStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
+        if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
+            this->output_z_buffer = std::make_shared<SmoothingHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->num_samples);
+            this->input_z_buffer = std::make_shared<SmoothingHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->num_samples);
+        } else {
+            this->output_z_buffer = std::make_shared<BaseHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+            this->input_z_buffer = std::make_shared<BaseHiddenStates>(
+                this->z_buffer_size, this->z_buffer_block_size);
+        }
         this->temp_states = std::make_shared<BaseTempStates>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
-        this->output_z_buffer = std::make_shared<HiddenStateCuda>(
-            this->z_buffer_size, this->z_buffer_block_size);
-        this->input_z_buffer = std::make_shared<HiddenStateCuda>(
-            this->z_buffer_size, this->z_buffer_block_size);
-        this->temp_states = std::make_shared<TempStateCuda>(
-            this->z_buffer_size, this->z_buffer_block_size);
+        if (this->layers[0]->get_layer_type() != LayerType::SLSTM) {
+            this->output_z_buffer = std::make_shared<HiddenStateCuda>(
+                this->z_buffer_size, this->z_buffer_block_size);
+            this->input_z_buffer = std::make_shared<HiddenStateCuda>(
+                this->z_buffer_size, this->z_buffer_block_size);
+            this->temp_states = std::make_shared<TempStateCuda>(
+                this->z_buffer_size, this->z_buffer_block_size);
+        } else {
+            throw std::invalid_argument(
+                "Error in file: " + std::string(__FILE__) +
+                " at line: " + std::to_string(__LINE__) +
+                ". Smoothing feature does not support CUDA");
+        }
     }
 #endif
     else {
@@ -351,6 +368,28 @@ void Sequential::backward()
     this->layers[0]->backward(*this->input_delta_z_buffer,
                               *this->output_delta_z_buffer, *this->temp_states,
                               this->input_state_update);
+}
+
+std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
+/*
+ */
+{
+    std::vector<float> mu_zo_smooths, var_zo_smooths;
+    // Hidden layers
+    for (auto layer = this->layers.begin(); layer != this->layers.end();
+         layer++) {
+        auto *current_layer = layer->get();
+        if (current_layer->get_layer_type() == LayerType::SLSTM) {
+            auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer);
+            slstm_layer->smoother();
+        } else if (current_layer->get_layer_type() == LayerType::SLinear) {
+            auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
+            slinear_layer->smoother();
+            mu_zo_smooths = slinear_layer->smooth_states.mu_zo_smooths;
+            var_zo_smooths = slinear_layer->smooth_states.var_zo_smooths;
+        }
+    }
+    return std::make_tuple(mu_zo_smooths, var_zo_smooths);
 }
 
 void Sequential::step()
@@ -718,4 +757,21 @@ Sequential::get_outputs()
         pybind11::array_t<float>(var_a_output.size(), var_a_output.data());
 
     return {py_m_pred, py_v_pred};
+}
+
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+Sequential::get_outputs_smoother()
+/*
+ */
+{
+    auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
+    auto py_mu_zo_smooths = pybind11::array_t<float>(
+        last_layer->smooth_states.mu_zo_smooths.size(),
+        last_layer->smooth_states.mu_zo_smooths.data());
+
+    auto py_var_zo_smooths = pybind11::array_t<float>(
+        last_layer->smooth_states.var_zo_smooths.size(),
+        last_layer->smooth_states.var_zo_smooths.data());
+
+    return {py_mu_zo_smooths, py_var_zo_smooths};
 }

@@ -18,7 +18,11 @@
 #include "base_layer.h"
 #include "common.h"
 #include "data_struct.h"
+#include "linear_layer.h"
+#include "lstm_layer.h"
 #include "output_layer_update_cpu.h"
+#include "slinear_layer.h"
+#include "slstm_layer.h"
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
 #endif
@@ -40,6 +44,7 @@ class Sequential {
 
     int z_buffer_size = 0;        // e.g., batch size x input size
     int z_buffer_block_size = 0;  // e.g., batch size
+    int num_samples = 0;          // number of training samples
 
     int input_size = 0;
     bool training = true;
@@ -104,6 +109,8 @@ class Sequential {
 
     void backward();
 
+    std::tuple<std::vector<float>, std::vector<float>> smoother();
+
     void step();
 
     // DEBUG
@@ -145,6 +152,9 @@ class Sequential {
 
     std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
     get_outputs();
+
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+    get_outputs_smoother();
 
    private:
     void compute_input_output_size();

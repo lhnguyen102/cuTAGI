@@ -222,6 +222,8 @@
         "spanstream": "cpp",
         "stacktrace": "cpp",
         "__string": "cpp",
-        "filesystem": "cpp"
-    }
+        "filesystem": "cpp",
+        "execution": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

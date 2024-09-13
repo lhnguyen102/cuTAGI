@@ -99,6 +99,16 @@ class Sequential:
         """Set the sevice"""
         self._cpp_backend.input_state_update = value
 
+    @property
+    def num_samples(self) -> int:
+        """Get the num_samples."""
+        return self._cpp_backend.num_samples
+
+    @num_samples.setter
+    def num_samples(self, value: int):
+        """Set the num_samples."""
+        self._cpp_backend.num_samples = value
+
     def to_device(self, device: str):
         """Move the model to a specific device."""
         self._cpp_backend.to_device(device)
@@ -134,6 +144,12 @@ class Sequential:
     def backward(self):
         """Perform a backward pass."""
         self._cpp_backend.backward()
+
+    def smoother(self):
+        """Perform a smoother pass."""
+        self._cpp_backend.smoother()
+
+        return self.get_outputs_smoother()
 
     def step(self):
         """Perform a step of inference."""
@@ -192,3 +208,8 @@ class Sequential:
 
     def get_outputs(self) -> Tuple[np.ndarray, np.ndarray]:
         return self._cpp_backend.get_outputs()
+
+    def get_outputs_smoother(self) -> Tuple[np.ndarray, np.ndarray]:
+        return self._cpp_backend.get_outputs_smoother()
+
+

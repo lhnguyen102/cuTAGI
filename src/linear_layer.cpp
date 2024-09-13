@@ -8,6 +8,9 @@
 // License:      This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../include/linear_layer.h"
+
+#include "../include/common.h"
+
 #ifdef USE_CUDA
 #include "../include/linear_layer_cuda.cuh"
 #endif

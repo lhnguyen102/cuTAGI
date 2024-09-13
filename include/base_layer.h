@@ -19,10 +19,12 @@
 enum class LayerType {
     Base,
     Linear,
+    SLinear,
     Conv2d,
     ConvTranspose2d,
     Pool2d,
     LSTM,
+    SLSTM,
     Activation,
     Norm,
     LayerBlock,
