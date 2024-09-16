@@ -16,31 +16,31 @@ from pytagi.nn import (
 )
 
 FNN = Sequential(
-    Linear(784, 128),
+    Linear(784, 32),
     ReLU(),
-    Linear(128, 128),
+    Linear(32, 32),
     ReLU(),
-    Linear(128, 11),
+    Linear(32, 11),
 )
 
 FNN_BATCHNORM = Sequential(
-    Linear(784, 100),
+    Linear(784, 16),
     ReLU(),
-    BatchNorm2d(100),
-    Linear(100, 100),
+    BatchNorm2d(16),
+    Linear(16, 16),
     ReLU(),
-    BatchNorm2d(100),
-    Linear(100, 11),
+    BatchNorm2d(16),
+    Linear(16, 11),
 )
 
 FNN_LAYERNORM = Sequential(
-    Linear(784, 100, bias=False),
+    Linear(784, 128, bias=False),
     ReLU(),
-    LayerNorm((100,)),
-    Linear(100, 100, bias=False),
+    LayerNorm((128,)),
+    Linear(128, 128, bias=False),
     ReLU(),
-    LayerNorm((100,)),
-    Linear(100, 11),
+    LayerNorm((128,)),
+    Linear(128, 11),
 )
 
 CNN = Sequential(
@@ -108,7 +108,7 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_LAYERNORM
+    net = FNN_BATCHNORM
     net.to_device("cpu")
     net.set_threads(48)
     out_updater = OutputUpdater(net.device)
@@ -157,8 +157,8 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
-            refresh=True,
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%\n",
+            refresh=False,
         )
     print("Training complete.")
 

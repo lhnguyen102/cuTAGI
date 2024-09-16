@@ -39,18 +39,18 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 TAGI_CNN_NET = Sequential(
     # 32x32
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    MixtureReLU(),
     BatchNorm2d(32),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 16x16
     Conv2d(32, 32, 5, bias=False, padding=2),
-    MixtureReLU(),
     BatchNorm2d(32),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 8x8
     Conv2d(32, 64, 5, bias=False, padding=2),
-    MixtureReLU(),
     BatchNorm2d(64),
+    MixtureReLU(),
     AvgPool2d(2, 2),
     # 4x4
     Linear(64 * 4 * 4, 256),
@@ -241,7 +241,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.2, decaying_factor=0.99, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.01, decaying_factor=0.8, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -355,16 +355,17 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         test_loss /= len(test_loader.dataset)
         test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
         pbar.set_description(
-            f"Epoch# {epoch +1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}% | Test sample count: {sample_count}",
+            f"Epoch# {epoch +1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%\n",
+            refresh=False,
         )
 
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 128,
+    batch_size: int = 1,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 1.0,
+    sigma_v: float = 0.1,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
