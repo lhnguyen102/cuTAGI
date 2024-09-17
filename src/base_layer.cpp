@@ -179,8 +179,11 @@ Returns:
 */
 {
     // TODO: Heuristic values!!
-    if (batch_size >= 16) {
-        this->cap_factor_update = 1;  // batch_size ;
+    if (batch_size >= 128 && batch_size < 512) {
+        this->cap_factor_update = 10.0f;
+    }
+    if (batch_size >= 512) {
+        this->cap_factor_update = 20.0f;
     }
 }
 
