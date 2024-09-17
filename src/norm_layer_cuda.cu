@@ -459,8 +459,8 @@ __global__ void batchnorm_fwd_mean_var_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
         float inv_sqrt_var_ra = 1.0f / sqrtf(var_ra[col] + epsilon);
-        float mu_a_tilde = mu_a[idx] - mu_ra[col];
         int idx = col + row * ni;
+        float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
         mu_z[idx] =
             inv_sqrt_var_ra * mu_a_tilde * mu_w[col] + mu_b[col];
