@@ -24,23 +24,23 @@ FNN = Sequential(
 )
 
 FNN_BATCHNORM = Sequential(
-    Linear(784, 16),
+    Linear(784, 32),
     ReLU(),
-    BatchNorm2d(16),
-    Linear(16, 16),
+    BatchNorm2d(32),
+    Linear(32,32),
     ReLU(),
-    BatchNorm2d(16),
-    Linear(16, 11),
+    BatchNorm2d(32),
+    Linear(32, 11),
 )
 
 FNN_LAYERNORM = Sequential(
-    Linear(784, 128, bias=False),
+    Linear(784, 32, bias=False),
     ReLU(),
-    LayerNorm((128,)),
-    Linear(128, 128, bias=False),
+    LayerNorm((32,)),
+    Linear(32, 32, bias=False),
     ReLU(),
-    LayerNorm((128,)),
-    Linear(128, 11),
+    LayerNorm((32,)),
+    Linear(32, 11),
 )
 
 CNN = Sequential(
@@ -84,7 +84,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 2.0):
+def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
