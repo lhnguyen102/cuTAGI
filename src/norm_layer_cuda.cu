@@ -794,7 +794,7 @@ layer is a convolutional layer.
 
         var_z[idx] = inv_var_ra *
                 (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx])
-                + var_w[div_idx] * tmp_mu_a_tilde
+                + var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde
                 )
                 + var_b[div_idx];
     }
