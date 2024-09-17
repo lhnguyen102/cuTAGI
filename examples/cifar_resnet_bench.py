@@ -241,7 +241,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.01, decaying_factor=0.8, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.2, decaying_factor=0.99, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -362,10 +362,10 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 1,
+    batch_size: int = 256,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 1,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
