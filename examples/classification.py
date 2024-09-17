@@ -16,11 +16,11 @@ from pytagi.nn import (
 )
 
 FNN = Sequential(
-    Linear(784, 32),
+    Linear(784, 128),
     ReLU(),
-    Linear(32, 32),
+    Linear(128, 128),
     ReLU(),
-    Linear(32, 11),
+    Linear(128, 11),
 )
 
 FNN_BATCHNORM = Sequential(

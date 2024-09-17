@@ -92,10 +92,7 @@ void layernorm_fwd_mean_var(
             mu_z[index] = inv_sqrt_var_ra * mu_term + mu_b[col];
             var_z[index] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                         (var_a[index] * (mu_w[col] * mu_w[col] + var_w[col])
-                        + var_w[col] * (mu_a[index] * mu_a[index]
-                                        + mu_ra_term * mu_ra_term
-                                        - 2.0f * mu_a[index] * mu_ra_term
-                                       )
+                        + var_w[col] * adjusted_mu_a * adjusted_mu_a
                         )
                         + var_b[col];
         }
@@ -119,17 +116,13 @@ void layernorm2d_fwd_mean_var(
             int idx = col + row * k;
             int idx_div = col / wihi;
             float mu_w_term = mu_w[idx_div];
-            float adjusted_mu_a =
-                mu_a[idx] * mu_a[idx] - mu_ra_term * mu_ra_term + var_a[idx];
+            float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra_term) * mu_w_term +
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term +
                         mu_b[idx_div];
             var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                         (var_a[idx] * (mu_w_term * mu_w_term + var_w[idx_div])
-                        + var_w[idx_div] * (mu_a[idx] * mu_a[idx]
-                                        + mu_ra_term * mu_ra_term
-                                        - 2.0f * mu_a[idx] * mu_ra_term
-                                       )
+                        + var_w[idx_div] * mu_a_tilde * mu_a_tilde
                         )
                         + var_b[idx_div];
         }
@@ -353,17 +346,13 @@ void batchnorm_fwd_mean_var(
         for (int col = 0; col < ni; col++) {
             int idx = col + row * ni;
             float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[col] + epsilon);
-            float adjusted_mu_a =
-                (mu_a[idx] * mu_a[idx] - mu_ra[col] * mu_ra[col] + var_a[idx]);
+            float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra[col]) * mu_w[col] +
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col] +
                         mu_b[col];
             var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                         (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col])
-                        + var_w[col] * (mu_a[idx] * mu_a[idx]
-                                       + mu_ra[col] * mu_ra[col]
-                                        - 2.0f * mu_a[idx] * mu_ra[col]
-                                       )
+                        + var_w[col] * mu_a_tilde *mu_a_tilde
                         )
                         + var_b[col];
         }
@@ -428,20 +417,18 @@ layer is a convolutional layer.
         float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row % fi] + epsilon);
         float mu_ra_term = mu_ra[row % fi];
         float mu_w_term = mu_w[row % fi];
+        float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
         for (int col = 0; col < k; col++)  // k = wihi, m = fi*B
         {
             int idx = col + row * k;
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra_term) * mu_w_term +
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term +
                         mu_b[row % fi];
 
             var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
                 (var_a[idx] * (mu_w_term * mu_w_term + var_w[row % fi])
-                + var_w[row % fi] * (mu_a[idx] * mu_a[idx]
-                                + mu_ra_term * mu_ra_term
-                                - 2.0f * mu_a[idx] * mu_ra_term
-                                )
+                + var_w[row % fi] * mu_a_tilde * mu_a_tilde
                 )
                 + var_b[row % fi];
         }
