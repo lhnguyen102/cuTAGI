@@ -417,11 +417,11 @@ layer is a convolutional layer.
         float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[row % fi] + epsilon);
         float mu_ra_term = mu_ra[row % fi];
         float mu_w_term = mu_w[row % fi];
-        float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
         for (int col = 0; col < k; col++)  // k = wihi, m = fi*B
         {
-            int idx = col + row * k;
+            int idx = col + row * k
+            float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
             mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term +
                         mu_b[row % fi];
