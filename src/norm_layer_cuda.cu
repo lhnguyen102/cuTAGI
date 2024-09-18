@@ -783,11 +783,9 @@ layer is a convolutional layer.
 
         float tmp_mu_a = mu_a[idx];
         float tmp_var_a = var_a[idx];
-        float tmp_mu_a_2 = tmp_mu_a * tmp_mu_a;
         float tmp_mu_w = mu_w[div_idx];
         float tmp_mu_w_2 = tmp_mu_w * tmp_mu_w;
         float tmp_mu_ra = mu_ra[div_idx];
-        float tmp_mu_ra_2 = tmp_mu_ra * tmp_mu_ra;
         float tmp_mu_a_tilde = tmp_mu_a - tmp_mu_ra;
         mu_z[idx] =
             inv_var_ra_sqrt * tmp_mu_a_tilde * tmp_mu_w + mu_b[div_idx];
@@ -1086,7 +1084,7 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&input_states);
     HiddenStateCuda *cu_output_states =
         dynamic_cast<HiddenStateCuda *>(&output_states);
-    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
+    //TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     int batch_size = input_states.block_size;
 
