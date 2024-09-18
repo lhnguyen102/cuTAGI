@@ -420,7 +420,7 @@ layer is a convolutional layer.
 
         for (int col = 0; col < k; col++)  // k = wihi, m = fi*B
         {
-            int idx = col + row * k
+            int idx = col + row * k;
             float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
             mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term +
