@@ -85,6 +85,16 @@ else()
   set(CUDA_TOOLKIT_ROOT_DIR /opt/cuda/targets/x86_64-linux)
 endif()
 
+# Enables Link Time Optimization.
+if(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GL")
+  set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /LTCG")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LTCG")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto")
+endif()
+
 # NOTE: This might need to change for higher CUDA version
 list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
 list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
