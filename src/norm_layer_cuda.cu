@@ -1080,7 +1080,7 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
 
     if (this->_batch_size < batch_size) {
         this->_batch_size = batch_size;
-        this->set_cap_factor_udapte(batch_size);
+        // this->set_cap_factor_udapte(batch_size);
         this->deallocate_running_mean_var();
         this->allocate_running_mean_var();
     }
@@ -1493,7 +1493,7 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     int batch_size = input_states.block_size;
-    this->set_cap_factor_udapte(batch_size);
+    // this->set_cap_factor_udapte(batch_size);
     int num_threads = this->num_cuda_threads;
     dim3 block_dim(num_threads, num_threads);
 
