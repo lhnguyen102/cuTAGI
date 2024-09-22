@@ -749,8 +749,8 @@ __global__ void batchnorm2d_sample_var_post_processing(float const *data_in,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < fi) {
-        // data_out[col] = (data_in[col] + bias[col]) / scale;
-        data_out[col] = data_in[col] / scale;
+        data_out[col] = (data_in[col] + bias[col]) / scale;
+        // data_out[col] = data_in[col] / scale;
     }
 }
 
