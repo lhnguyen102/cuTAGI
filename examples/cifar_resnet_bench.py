@@ -225,8 +225,8 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    # net = TAGI_CNN_NET
-    net = resnet18_cifar10()
+    net = TAGI_CNN_NET
+    # net = resnet18_cifar10()
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -241,7 +241,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.2, decaying_factor=0.99, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.2, decaying_factor=0.95, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -286,7 +286,7 @@ def tagi_trainer(
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}\n%",
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
             refresh=False,
         )
     print("Training complete.")

@@ -1,3 +1,11 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 from tqdm import tqdm
@@ -27,7 +35,7 @@ FNN_BATCHNORM = Sequential(
     Linear(784, 32),
     ReLU(),
     BatchNorm2d(32),
-    Linear(32,32),
+    Linear(32, 32),
     ReLU(),
     BatchNorm2d(32),
     Linear(32, 11),
@@ -108,9 +116,9 @@ def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN_BATCHNORM
-    net.to_device("cpu")
-    net.set_threads(48)
+    net = CNN_BATCHNORM
+    net.to_device("cuda")
+    # netFNN_BATCHNORM.set_threads(48)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -157,7 +165,7 @@ def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%\n",
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
             refresh=False,
         )
     print("Training complete.")

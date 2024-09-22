@@ -1576,9 +1576,9 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
         // Statistical sample variance
         scale = scale - 1.0f;
-        batchnorm2d_sample_mu_post_processing<<<grid_size_ra, num_threads>>>(
-            cu_temp_states->d_tmp_2, this->in_channels, scale,
-            this->d_var_norm_batch);
+        batchnorm2d_sample_var_post_processing<<<grid_size_ra, num_threads>>>(
+            this->d_var_norm_batch, cu_temp_states->d_tmp_2, this->in_channels,
+            scale, this->d_var_norm_batch);
 
         // running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
         //     this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
