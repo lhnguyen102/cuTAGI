@@ -84,10 +84,10 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    Sequential model(Conv2d(1, 32, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(16),
+    Sequential model(Conv2d(1, 32, 4, false, 1, 1, 1, 28, 28), BatchNorm2d(32),
                      ReLU(), AvgPool2d(3, 2), Conv2d(32, 64, 5, false),
                      BatchNorm2d(64), ReLU(), AvgPool2d(3, 2),
-                     Linear(64 * 4 * 4, 100), ReLU(), Linear(256, 11));
+                     Linear(64 * 4 * 4, 128), ReLU(), Linear(128, 11));
 
     // Sequential model(Conv2d(1, 16, 4, false, 1, 1, 1, 28, 28),
     //                  LayerNorm(std::vector<int>({16, 27, 27})), ReLU(),
@@ -96,7 +96,7 @@ void fnn_mnist() {
     //                  AvgPool2d(3, 2), Linear(32 * 4 * 4, 100), ReLU(),
     //                  Linear(100, 11));
 
-    // model.set_threads(8);
+    // model.set_threads(1);
     model.to_device("cuda");
     // model.preinit_layer();
     // model.load("test_model/test_model.bin");
@@ -143,7 +143,7 @@ void fnn_mnist() {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 256;
+    int batch_size = 16;
     float sigma_obs = 2.0;
     int iters = train_db.num_data / batch_size;
     std::cout << "num_iter: " << iters << "\n";

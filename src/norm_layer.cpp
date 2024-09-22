@@ -21,8 +21,7 @@
 void layernorm_stat_mean_var(const std::vector<float> &mu_a,
                              const std::vector<float> &var_a, int ni,
                              int start_chunk, int end_chunk,
-                             std::vector<float> &mu_s,
-                             std::vector<float> &var_s)
+                             std::vector<float> &mu_s)
 /*
  */
 {
@@ -35,13 +34,11 @@ void layernorm_stat_mean_var(const std::vector<float> &mu_a,
             sum_var += var_a[col * ni + i];
         }
         mu_s[col] = sum_mu / ni;
-        var_s[col] = sum_var;
     }
 }
 
 void layernorm_sample_var(const std::vector<float> &mu_a,
-                          const std::vector<float> &mu_s,
-                          const std::vector<float> &var_s, int ni,
+                          const std::vector<float> &mu_s, int ni,
                           int start_chunk, int end_chunk,
                           std::vector<float> &var_sample)
 /*
@@ -56,7 +53,7 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = (sum + var_s[col]) / (ni - 1);
+        var_sample[col] = sum / (ni - 1);
     }
 }
 
@@ -94,9 +91,8 @@ void layernorm_fwd_mean_var(
             mu_z[index] = inv_sqrt_var_ra * mu_term + mu_b[col];
             var_z[index] =
                 inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[index] * mu_w[col] * mu_w[col] +
-                     var_w[col] * (mu_a[index] * mu_a[index] -
-                                   mu_ra_term * mu_ra_term + var_a[index])) +
+                    (var_a[index] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                     var_w[col] * adjusted_mu_a * adjusted_mu_a) +
                 var_b[col];
         }
     }
@@ -119,15 +115,15 @@ void layernorm2d_fwd_mean_var(
             int idx = col + row * k;
             int idx_div = col / wihi;
             float mu_w_term = mu_w[idx_div];
-            float adjusted_mu_a =
-                mu_a[idx] * mu_a[idx] - mu_ra_term * mu_ra_term + var_a[idx];
+            float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra_term) * mu_w_term +
-                        mu_b[idx_div];
-            var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                             (var_a[idx] * mu_w_term * mu_w_term +
-                              var_w[idx_div] * adjusted_mu_a) +
-                         var_b[idx_div];
+            mu_z[idx] =
+                inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[idx_div];
+            var_z[idx] =
+                inv_sqrt_var_ra * inv_sqrt_var_ra *
+                    (var_a[idx] * (mu_w_term * mu_w_term + var_w[idx_div]) +
+                     var_w[idx_div] * mu_a_tilde * mu_a_tilde) +
+                var_b[idx_div];
         }
     }
 }
@@ -299,8 +295,7 @@ void delta_param_sum(const std::vector<float> &delta_mu_e,
 void batchnorm_stat_mean_var(const std::vector<float> &mu_a,
                              const std::vector<float> &var_a, int ni,
                              int batch_size, int start_chunk, int end_chunk,
-                             std::vector<float> &mu_s,
-                             std::vector<float> &var_s)
+                             std::vector<float> &mu_s)
 /*Compute sample mean and variance of activation units of full-connected layer
 for each batch.
 */
@@ -314,13 +309,11 @@ for each batch.
             sum_var += var_a[col + i * ni];
         }
         mu_s[col] = sum_mu / batch_size;
-        var_s[col] = sum_var;
     }
 }
 
 void batchnorm_sample_var(const std::vector<float> &mu_a,
-                          const std::vector<float> &mu_s,
-                          const std::vector<float> &var_s, int ni,
+                          const std::vector<float> &mu_s, int ni,
                           int batch_size, int start_chunk, int end_chunk,
                           std::vector<float> &var)
 /*Compute statistical mean and variance of activation units for full-connected
@@ -333,7 +326,7 @@ layer for each batch.
             sum += (mu_a[col + i * ni] - mu_s[col]) *
                    (mu_a[col + i * ni] - mu_s[col]);
         }
-        var[col] = (sum + var_s[col]) / (batch_size - 1);
+        var[col] = sum / (batch_size - 1);
     }
 }
 
@@ -351,15 +344,14 @@ void batchnorm_fwd_mean_var(
         for (int col = 0; col < ni; col++) {
             int idx = col + row * ni;
             float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[col] + epsilon);
-            float adjusted_mu_a =
-                (mu_a[idx] * mu_a[idx] - mu_ra[col] * mu_ra[col] + var_a[idx]);
+            float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra[col]) * mu_w[col] +
-                        mu_b[col];
-            var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                             (var_a[idx] * mu_w[col] * mu_w[col] +
-                              var_w[col] * adjusted_mu_a) +
-                         var_b[col];
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col] + mu_b[col];
+            var_z[idx] =
+                inv_sqrt_var_ra * inv_sqrt_var_ra *
+                    (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                     var_w[col] * mu_a_tilde * mu_a_tilde) +
+                var_b[col];
         }
     }
 }
@@ -367,8 +359,7 @@ void batchnorm_fwd_mean_var(
 void batchnorm2d_stat_mean_var(const std::vector<float> &mu_a,
                                const std::vector<float> &var_a, int wihi,
                                int fi, int batch_size, int start_chunk,
-                               int end_chunk, std::vector<float> &mu_s,
-                               std::vector<float> &var_s)
+                               int end_chunk, std::vector<float> &mu_s)
 /*Compute sample mean and variance of activation units for batch-normalization
 layer.
 */
@@ -382,13 +373,11 @@ layer.
             sum_var += var_a[(i / wihi) * wihi * fi + i % wihi + col * wihi];
         }
         mu_s[col] = sum_mu / (wihi * batch_size);
-        var_s[col] = sum_var;
     }
 }
 
 void batchnorm2d_sample_var(const std::vector<float> &mu_a,
-                            const std::vector<float> &mu_s,
-                            const std::vector<float> &var_s, int wihi, int fi,
+                            const std::vector<float> &mu_s, int wihi, int fi,
                             int batch_size, int start_chunk, int end_chunk,
                             std::vector<float> &var)
 /*Compute statistical mean and variance of activation units for
@@ -403,7 +392,7 @@ batch-normalization layer.
                    (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
                     mu_s[col]);
         }
-        var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+        var[col] = sum / (wihi * batch_size - 1);
     }
 }
 
@@ -428,15 +417,15 @@ layer is a convolutional layer.
         for (int col = 0; col < k; col++)  // k = wihi, m = fi*B
         {
             int idx = col + row * k;
+            float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
-            mu_z[idx] = inv_sqrt_var_ra * (mu_a[idx] - mu_ra_term) * mu_w_term +
-                        mu_b[row % fi];
+            mu_z[idx] =
+                inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[row % fi];
 
             var_z[idx] =
                 inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[idx] * mu_w_term * mu_w_term +
-                     var_w[row % fi] * (mu_a[idx] * mu_a[idx] -
-                                        mu_ra_term * mu_ra_term + var_a[idx])) +
+                    (var_a[idx] * (mu_w_term * mu_w_term + var_w[row % fi]) +
+                     var_w[row % fi] * mu_a_tilde * mu_a_tilde) +
                 var_b[row % fi];
         }
     }
@@ -613,7 +602,7 @@ void layernorm_stat_mean_var_mp(const std::vector<float> &mu_a,
 
         threads.emplace_back([=, &mu_a, &var_a, &mu_s, &var_s] {
             layernorm_stat_mean_var(mu_a, var_a, ni, start_chunk, end_chunk,
-                                    mu_s, var_s);
+                                    mu_s);
         });
     }
 
@@ -625,8 +614,7 @@ void layernorm_stat_mean_var_mp(const std::vector<float> &mu_a,
 }
 
 void layernorm_sample_var_mp(const std::vector<float> &mu_a,
-                             const std::vector<float> &mu_s,
-                             const std::vector<float> &var_s, int ni,
+                             const std::vector<float> &mu_s, int ni,
                              int batch_size, const int num_threads,
                              std::vector<float> &var_sample)
 /*
@@ -642,8 +630,8 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var_sample] {
-            layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk, end_chunk,
+        threads.emplace_back([=, &mu_a, &mu_s, &var_sample] {
+            layernorm_sample_var(mu_a, mu_s, ni, start_chunk, end_chunk,
                                  var_sample);
         });
     }
@@ -977,8 +965,7 @@ void delta_param_sum_mp(const std::vector<float> delta_mu_e,
 void batchnorm_stat_mean_var_mp(const std::vector<float> &mu_a,
                                 const std::vector<float> &var_a, int ni,
                                 int batch_size, const int num_threads,
-                                std::vector<float> &mu_s,
-                                std::vector<float> &var_s)
+                                std::vector<float> &mu_s)
 /*Compute sample mean and variance of activation units of full-connected layer
 for each batch.
 */
@@ -993,9 +980,9 @@ for each batch.
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &var_a, &mu_s, &var_s] {
+        threads.emplace_back([=, &mu_a, &var_a, &mu_s] {
             batchnorm_stat_mean_var(mu_a, var_a, ni, batch_size, start_chunk,
-                                    end_chunk, mu_s, var_s);
+                                    end_chunk, mu_s);
         });
     }
 
@@ -1007,8 +994,7 @@ for each batch.
 }
 
 void batchnorm_sample_var_mp(const std::vector<float> &mu_a,
-                             const std::vector<float> &mu_s,
-                             const std::vector<float> &var_s, int ni,
+                             const std::vector<float> &mu_s, int ni,
                              int batch_size, const int num_threads,
                              std::vector<float> &var)
 /*
@@ -1024,8 +1010,8 @@ void batchnorm_sample_var_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var] {
-            batchnorm_sample_var(mu_a, mu_s, var_s, ni, batch_size, start_chunk,
+        threads.emplace_back([=, &mu_a, &mu_s, &var] {
+            batchnorm_sample_var(mu_a, mu_s, ni, batch_size, start_chunk,
                                  end_chunk, var);
         });
     }
@@ -1075,8 +1061,7 @@ void batchnorm_fwd_mean_var_mp(
 void batchnorm2d_stat_mean_var_mp(const std::vector<float> &mu_a,
                                   const std::vector<float> &var_a, int wihi,
                                   int fi, int batch_size, const int num_threads,
-                                  std::vector<float> &mu_s,
-                                  std::vector<float> &var_s)
+                                  std::vector<float> &mu_s)
 /*Compute sample mean and variance of activation units for batch-normalization
 layer.
 */
@@ -1091,9 +1076,9 @@ layer.
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &var_a, &mu_s, &var_s] {
+        threads.emplace_back([=, &mu_a, &var_a, &mu_s] {
             batchnorm2d_stat_mean_var(mu_a, var_a, wihi, fi, batch_size,
-                                      start_chunk, end_chunk, mu_s, var_s);
+                                      start_chunk, end_chunk, mu_s);
         });
     }
 
@@ -1105,9 +1090,8 @@ layer.
 }
 
 void batchnorm2d_sample_var_mp(const std::vector<float> &mu_a,
-                               const std::vector<float> &mu_s,
-                               const std::vector<float> &var_s, int wihi,
-                               int fi, int batch_size, const int num_threads,
+                               const std::vector<float> &mu_s, int wihi, int fi,
+                               int batch_size, const int num_threads,
                                std::vector<float> &var)
 /*Compute statistical mean and variance of activation units for
 batch-normalization layer.
@@ -1123,8 +1107,8 @@ batch-normalization layer.
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var] {
-            batchnorm2d_sample_var(mu_a, mu_s, var_s, wihi, fi, batch_size,
+        threads.emplace_back([=, &mu_a, &mu_s, &var] {
+            batchnorm2d_sample_var(mu_a, mu_s, wihi, fi, batch_size,
                                    start_chunk, end_chunk, var);
         });
     }
@@ -1517,11 +1501,10 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 
     if (this->num_threads <= 1) {
         layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
-                                this->input_size, 0, batch_size, this->mu_ra,
-                                temp_states.tmp_2);
+                                this->input_size, 0, batch_size, this->mu_ra);
 
-        layernorm_sample_var(input_states.mu_a, this->mu_ra, temp_states.tmp_2,
-                             this->input_size, 0, batch_size, this->var_ra);
+        layernorm_sample_var(input_states.mu_a, this->mu_ra, this->input_size,
+                             0, batch_size, this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var(
@@ -1543,8 +1526,8 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
             this->num_threads, this->mu_ra, temp_states.tmp_2);
 
         layernorm_sample_var_mp(input_states.mu_a, this->mu_ra,
-                                temp_states.tmp_2, this->input_size, batch_size,
-                                this->num_threads, this->var_ra);
+                                this->input_size, batch_size, this->num_threads,
+                                this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var_mp(
@@ -1925,13 +1908,11 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             if (this->training) {
                 batchnorm_stat_mean_var(input_states.mu_a, input_states.var_a,
                                         this->input_size, batch_size, 0,
-                                        this->input_size, this->mu_norm_batch,
-                                        temp_states.tmp_2);
+                                        this->input_size, this->mu_norm_batch);
 
                 batchnorm_sample_var(input_states.mu_a, this->mu_norm_batch,
-                                     temp_states.tmp_2, this->input_size,
-                                     batch_size, 0, this->input_size,
-                                     this->var_norm_batch);
+                                     this->input_size, batch_size, 0,
+                                     this->input_size, this->var_norm_batch);
 
                 running_mean_var(this->mu_norm_batch, this->var_norm_batch,
                                  _momentum, 0, this->input_size, this->mu_ra,
@@ -1946,14 +1927,13 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
         } else {
             int wihi = this->in_height * this->in_width;
             if (this->training) {
-                batchnorm2d_stat_mean_var(
-                    input_states.mu_a, input_states.var_a, wihi,
-                    this->in_channels, batch_size, 0, this->in_channels,
-                    this->mu_norm_batch, temp_states.tmp_2);
+                batchnorm2d_stat_mean_var(input_states.mu_a, input_states.var_a,
+                                          wihi, this->in_channels, batch_size,
+                                          0, this->in_channels,
+                                          this->mu_norm_batch);
 
                 batchnorm2d_sample_var(input_states.mu_a, this->mu_norm_batch,
-                                       temp_states.tmp_2, wihi,
-                                       this->in_channels, batch_size, 0,
+                                       wihi, this->in_channels, batch_size, 0,
                                        this->in_channels, this->var_norm_batch);
 
                 running_mean_var(this->mu_norm_batch, this->var_norm_batch,
@@ -1973,13 +1953,11 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             if (this->training) {
                 batchnorm_stat_mean_var_mp(
                     input_states.mu_a, input_states.var_a, this->input_size,
-                    batch_size, this->num_threads, this->mu_norm_batch,
-                    temp_states.tmp_2);
+                    batch_size, this->num_threads, this->mu_norm_batch);
 
-                batchnorm_sample_var_mp(input_states.mu_a, this->mu_norm_batch,
-                                        temp_states.tmp_2, this->input_size,
-                                        batch_size, this->num_threads,
-                                        this->var_norm_batch);
+                batchnorm_sample_var_mp(
+                    input_states.mu_a, this->mu_norm_batch, this->input_size,
+                    batch_size, this->num_threads, this->var_norm_batch);
 
                 running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
                                     momentum, this->input_size,
@@ -1999,11 +1977,11 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                 batchnorm2d_stat_mean_var_mp(
                     input_states.mu_a, input_states.var_a, wihi,
                     this->in_channels, batch_size, this->num_threads,
-                    this->mu_norm_batch, temp_states.tmp_2);
+                    this->mu_norm_batch);
 
                 batchnorm2d_sample_var_mp(
-                    input_states.mu_a, this->mu_norm_batch, temp_states.tmp_2,
-                    wihi, this->in_channels, batch_size, this->num_threads,
+                    input_states.mu_a, this->mu_norm_batch, wihi,
+                    this->in_channels, batch_size, this->num_threads,
                     this->var_norm_batch);
 
                 running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,

@@ -139,7 +139,7 @@ void BaseLayer::update_weights()
         this->mu_w[i] +=
             delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
         this->var_w[i] +=
-            delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
+           delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
     }
 }
 
@@ -159,8 +159,8 @@ void BaseLayer::update_biases()
             this->mu_b[i] += delta_mu_sign *
                              std::min(std::abs(this->delta_mu_b[i]), delta_bar);
             this->var_b[i] +=
-                delta_var_sign *
-                std::min(std::abs(this->delta_var_b[i]), delta_bar);
+                            delta_var_sign *
+                            std::min(std::abs(this->delta_var_b[i]), delta_bar);
         }
     }
 }
