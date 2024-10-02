@@ -156,6 +156,9 @@ class Sequential {
     std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
     get_outputs_smoother();
 
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+    get_input_states();
+
    private:
     void compute_input_output_size();
 };
