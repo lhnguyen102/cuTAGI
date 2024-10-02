@@ -775,3 +775,32 @@ Sequential::get_outputs_smoother()
 
     return {py_mu_zo_smooths, py_var_zo_smooths};
 }
+
+std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+Sequential::get_input_states()
+{
+    // Define the slice start and size (replace with actual logic to compute input size)
+    const size_t input_size = this->layers.front()->get_input_size() * this->input_z_buffer->block_size;
+    const size_t end_index = std::min(input_size, this->output_delta_z_buffer->delta_mu.size());
+
+    // Slice delta_mu and delta_var
+    std::vector<float> delta_mu_slice(
+        this->output_delta_z_buffer->delta_mu.begin(),
+        this->output_delta_z_buffer->delta_mu.begin() + end_index
+    );
+
+    std::vector<float> delta_var_slice(
+        this->output_delta_z_buffer->delta_var.begin(),
+        this->output_delta_z_buffer->delta_var.begin() + end_index
+    );
+
+    // Return the slices as pybind11::array_t
+    auto py_delta_mu = pybind11::array_t<float>(
+        delta_mu_slice.size(),
+        delta_mu_slice.data());
+    auto py_delta_var = pybind11::array_t<float>(
+        delta_var_slice.size(),
+        delta_var_slice.data());
+
+    return {py_delta_mu, py_delta_var};
+}

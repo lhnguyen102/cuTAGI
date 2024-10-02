@@ -212,4 +212,6 @@ class Sequential:
     def get_outputs_smoother(self) -> Tuple[np.ndarray, np.ndarray]:
         return self._cpp_backend.get_outputs_smoother()
 
-
+    def get_input_states(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get the input states."""
+        return self._cpp_backend.get_input_states()
