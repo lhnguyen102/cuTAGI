@@ -779,9 +779,9 @@ Sequential::get_outputs_smoother()
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
 Sequential::get_input_states()
 {
-    // Define the slice start and size (replace with actual logic to compute input size)
+    // Define the slice input states size
     const size_t input_size = this->layers.front()->get_input_size() * this->input_z_buffer->block_size;
-    const size_t end_index = std::min(input_size, this->output_delta_z_buffer->delta_mu.size());
+    const size_t end_index = std::min(input_size, this->output_delta_z_buffer->delta_mu.size()); // Avoid out of bound
 
     // Slice delta_mu and delta_var
     std::vector<float> delta_mu_slice(
