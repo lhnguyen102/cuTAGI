@@ -21,7 +21,8 @@ def main():
     net = Sequential(
         Linear(1, 1),
     )
-    net.input_state_update = True
+    # net.to_device("cuda")
+    net.input_state_update = True  # enables the input state update
     out_updater = OutputUpdater(net.device)
 
     # Initialize the network with w=1, b=0, var_w=0, var_b=0
