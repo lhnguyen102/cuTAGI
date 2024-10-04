@@ -781,12 +781,9 @@ Sequential::get_input_states()
 {
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
-        std::ostringstream error_message;
-        error_message << "input_state_update is set to False. "
-                            "Set input_state_update to True before calling "
-                            "get_input_states().";
-
-        throw std::runtime_error(error_message.str());
+        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
+                                    " at line: " + std::to_string(__LINE__) +
+                                    ". input_state_update is set to False");
     }
 
     // Define the slice input states size
@@ -814,3 +811,4 @@ Sequential::get_input_states()
 
     return {py_delta_mu, py_delta_var};
 }
+
