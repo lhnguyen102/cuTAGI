@@ -9,6 +9,7 @@ sys.path.append(
 import fire
 import numpy as np
 from tqdm import tqdm
+np.random.seed(1)
 
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
@@ -20,6 +21,7 @@ from pytagi.nn import (
     Linear,
     OutputUpdater,
     ReLU,
+    MixtureReLU,
     Sequential,
 )
 
@@ -33,11 +35,11 @@ FNN = Sequential(
 
 FNN_BATCHNORM = Sequential(
     Linear(784, 32),
-    ReLU(),
     BatchNorm2d(32),
+    ReLU(),
     Linear(32, 32),
-    ReLU(),
     BatchNorm2d(32),
+    ReLU(),
     Linear(32, 11),
 )
 
@@ -65,12 +67,18 @@ CNN = Sequential(
 
 CNN_BATCHNORM = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-    ReLU(),
+    #ReLU(),
+    MixtureReLU(),
     BatchNorm2d(16),
+    #LayerNorm((16, 27, 27)),
+    #MixtureReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5, bias=False),
-    ReLU(),
+    #ReLU(),
+    MixtureReLU(),
     BatchNorm2d(32),
+    #LayerNorm((32, 9, 9)),
+    #MixtureReLU(),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     ReLU(),
@@ -92,7 +100,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
+def main(num_epochs: int = 20, batch_size: int = 127, sigma_v: float = 0.01):
     """
     Run classification training on the MNIST dataset using a custom neural model.
 
@@ -118,7 +126,7 @@ def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
     # Network configuration
     net = CNN_BATCHNORM
     net.to_device("cuda")
-    # netFNN_BATCHNORM.set_threads(48)
+    net.set_threads(48)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -145,13 +153,16 @@ def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
             # Update parameters
             net.backward()
             net.step()
+            if any(v_pred<=0):
+                print(m_pred)
+                print(v_pred)
 
             # Training metric
             error_rate = metric.error_rate(m_pred, v_pred, label)
             error_rates.append(error_rate)
 
         # Averaged error
-        avg_error_rate = sum(error_rates[-100:])
+        avg_error_rate = sum(error_rates[-1000:]) / 1000
 
         # Testing
         test_error_rates = []
@@ -165,9 +176,10 @@ def main(num_epochs: int = 10, batch_size: int = 48, sigma_v: float = 2.0):
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate * 100:.2f}% | test error: {test_error_rate * 100:.2f}%",
             refresh=False,
         )
+        print("\n")
     print("Training complete.")
 
 

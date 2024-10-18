@@ -20,6 +20,7 @@ from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
+    LayerNorm,
     Conv2d,
     Linear,
     OutputUpdater,
@@ -39,33 +40,75 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 TAGI_CNN_NET = Sequential(
     # 32x32
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    BatchNorm2d(32),
+    #ReLU(),
     MixtureReLU(),
+    ###BatchNorm2d(32),
+    #LayerNorm((32, 28, 28)),
+    #MixtureReLU(),
     AvgPool2d(2, 2),
     # 16x16
     Conv2d(32, 32, 5, bias=False, padding=2),
-    BatchNorm2d(32),
+    #ReLU(),
     MixtureReLU(),
+    ###BatchNorm2d(32),
+    #LayerNorm((32, 16, 16)),
+    #MixtureReLU(),
     AvgPool2d(2, 2),
     # 8x8
     Conv2d(32, 64, 5, bias=False, padding=2),
-    BatchNorm2d(64),
+    #ReLU(),
     MixtureReLU(),
+    ###BatchNorm2d(64),
+    #LayerNorm((64, 8, 8)),
+    #MixtureReLU(),
     AvgPool2d(2, 2),
     # 4x4
     Linear(64 * 4 * 4, 256),
+    #ReLU(),
     MixtureReLU(),
     Linear(256, 128),
+    #ReLU(),
     MixtureReLU(),
     Linear(128, 11),
 )
 
 TAGI_FNN = Sequential(
-    Linear(32 * 32 * 3, 4096),
-    ReLU(),
-    Linear(4096, 4096),
-    ReLU(),
-    Linear(4096, 11),
+    Linear(32 * 32 * 3, 128),
+    MixtureReLU(),
+    #BatchNorm2d(128),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 128),
+    MixtureReLU(),
+    Linear(128, 11),
 )
 
 
@@ -87,18 +130,21 @@ class TorchCNN(nn.Module):
         self.model = nn.Sequential(
             # 32x32
             nn.Conv2d(3, 32, kernel_size=5, padding=2, bias=False),
-            # nn.BatchNorm2d(32),
             nn.ReLU(),
+            ###nn.BatchNorm2d(32),
+            #nn.ReLU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
             # 16x16
             nn.Conv2d(32, 32, kernel_size=5, bias=False, padding=2),
-            # nn.BatchNorm2d(32),
             nn.ReLU(),
+            ###nn.BatchNorm2d(32),
+            #nn.ReLU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
             # 8x8
             nn.Conv2d(32, 64, kernel_size=5, bias=False, padding=2),
-            # nn.BatchNorm2d(64),
             nn.ReLU(),
+            ###nn.BatchNorm2d(64),
+            #nn.ReLU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
             # 4x4
             nn.Flatten(),
@@ -225,10 +271,11 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Resnet18
-    net = TAGI_CNN_NET
-    # net = resnet18_cifar10()
+    #net = TAGI_CNN_NET
+    #net = TAGI_FNN
+    net = resnet18_cifar10()
     net.to_device(device)
-    # net.set_threads(10)
+    #net.set_threads(48)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -238,10 +285,11 @@ def tagi_trainer(
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
     for epoch in pbar:
+        print_var = True
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.2, decaying_factor=0.95, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.0, decaying_factor=1, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -252,6 +300,9 @@ def tagi_trainer(
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            if print_var:
+                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print_var = False
 
             # Update output layers based on targets
             y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
@@ -287,14 +338,15 @@ def tagi_trainer(
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
             f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
-            refresh=True,
+            refresh=False,
         )
+        print("\n")
     print("Training complete.")
 
 
 def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
     # Hyperparameters
-    learning_rate = 0.001
+    learning_rate = 0.0025
 
     # torch.set_float32_matmul_precision("high")
     train_loader, test_loader = load_datasets(batch_size, "torch")
@@ -306,7 +358,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
             "CUDA is not available. Please check your CUDA installation."
         )
     model = ResNet18()
-    # model = TorchCNN()
+    #model = TorchCNN()
     # model = torch.compile(model)
     model.to(torch_device)
 
@@ -355,9 +407,10 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         test_loss /= len(test_loader.dataset)
         test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
         pbar.set_description(
-            f"Epoch# {epoch +1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%\n",
+            f"Epoch# {epoch +1}/{num_epochs}| training error: {avg_error_rate:.2f}% | Test error: {test_error_rate: .2f}%",
             refresh=False,
         )
+        print("\n")
 
 
 def main(
@@ -365,7 +418,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 1,
+    sigma_v: float = 0.05,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

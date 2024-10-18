@@ -373,6 +373,7 @@ layer.
             sum_var += var_a[(i / wihi) * wihi * fi + i % wihi + col * wihi];
         }
         mu_s[col] = sum_mu / (wihi * batch_size);
+        //std::cout << mu_s[col] << std::endl;
     }
 }
 
@@ -393,6 +394,7 @@ batch-normalization layer.
                     mu_s[col]);
         }
         var[col] = sum / (wihi * batch_size - 1);
+        //std::cout << var[col] << std::endl;
     }
 }
 
@@ -1488,7 +1490,7 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
     if (this->_batch_size != batch_size) {
         this->_batch_size = batch_size;
-        // this->set_cap_factor_udapte(batch_size);
+        this->set_cap_factor_udapte(batch_size);
         this->allocate_running_mean_var();
     }
 

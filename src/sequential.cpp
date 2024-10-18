@@ -18,6 +18,7 @@
 #include "../include/base_layer_cuda.cuh"
 #endif
 #include <memory>
+//#include <iostream>
 
 // Sequential::Sequential() {}
 Sequential::~Sequential() { this->valid_ = false; }
@@ -288,10 +289,14 @@ void Sequential::forward(const std::vector<float> &mu_x,
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
 
+        //std::cout << this->output_z_buffer->var_a[0] << "    " << this->output_z_buffer->var_a[1] << "    " << this->output_z_buffer->var_a[2] << "    " << this->output_z_buffer->var_a[3] << std::endl;
+        //std::cout << this->output_z_buffer->var_a[1] << std::endl;
+        //std::cout << this->output_z_buffer->var_a[2] << std::endl;
+        //std::cout << this->output_z_buffer->var_a[3] << std::endl;
         // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);
     }
-
+    //std::cout << " " << std::endl;
     // Output buffer is considered as the final output of network
     std::swap(this->output_z_buffer, this->input_z_buffer);
 }

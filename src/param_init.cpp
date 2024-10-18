@@ -69,16 +69,17 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    std::mt19937 gen(1);
+    //std::mt19937 gen(rd());
 
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
-
+    //scale *= 0.05;
     // Weights
     for (int i = 0; i < N; i++) {
         // Variance
-        S[i] = gain * pow(scale, 2);
+        S[i] = gain * pow(scale *0.2f, 2); //0.21
 
         // Get normal distribution
         std::normal_distribution<float> d(0.0f, scale);
@@ -110,7 +111,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    std::mt19937 gen(1);
 
     // Initialize pointers
     std::vector<float> S(N);
