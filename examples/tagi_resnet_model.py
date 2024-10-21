@@ -10,7 +10,7 @@ from pytagi.nn import (
 )
 
 
-def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int = 1):
+def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int = 1, gain: float = 1):
     """Create a layer block for resnet 18"""
 
     return LayerBlock(
@@ -22,16 +22,19 @@ def make_layer_block(in_c: int, out_c: int, stride: int = 1, padding_type: int =
             stride=stride,
             padding=1,
             padding_type=padding_type,
+            gain_weight = gain,
+            gain_bias = gain,
         ),
-        BatchNorm2d(out_c),
         MixtureReLU(),
+        BatchNorm2d(out_c),
         Conv2d(out_c,
                out_c, 3,
                bias=False,
                padding=1,
-        ),
-        BatchNorm2d(out_c),
+               gain_weight = gain,
+               gain_bias = gain),
         MixtureReLU(),
+        BatchNorm2d(out_c),
     )
 
 
@@ -43,40 +46,44 @@ def resnet18_cifar10(gain: float = 1) -> Sequential:
                bias=False,
                padding=1,
                in_width=32, in_height=32,
-        ),
-        BatchNorm2d(64),
+               gain_weight = gain,
+               gain_bias = gain),
         MixtureReLU(),
+        BatchNorm2d(64),
     ]
 
     resnet_layers = [
         # 32x32
-        ResNetBlock(make_layer_block(64, 64)),
-        ResNetBlock(make_layer_block(64, 64)),
+        ResNetBlock(make_layer_block(64, 64, gain=gain)),
+        ResNetBlock(make_layer_block(64, 64, gain=gain)),
         # 16x16
         ResNetBlock(
-            make_layer_block(64, 128, 2, 2),
-            LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2),
-                        BatchNorm2d(128)),
+            make_layer_block(64, 128, 2, 2, gain),
+            LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2,
+            gain_weight = gain,
+            gain_bias = gain), BatchNorm2d(128))
         ),
-        ResNetBlock(make_layer_block(128, 128)),
+        ResNetBlock(make_layer_block(128, 128, gain=gain)),
         # 8x8
         ResNetBlock(
-            make_layer_block(128, 256, 2, 2),
-            LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2),
-                        BatchNorm2d(256)),
+            make_layer_block(128, 256, 2, 2, gain=gain),
+            LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2,
+            gain_weight = gain,
+            gain_bias = gain), BatchNorm2d(256))
         ),
-        ResNetBlock(make_layer_block(256, 256)),
+        ResNetBlock(make_layer_block(256, 256, gain=gain)),
         # 4x4
         ResNetBlock(
-            make_layer_block(256, 512, 2, 2),
-            LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2),
-                        BatchNorm2d(512)),
+            make_layer_block(256, 512, 2, 2, gain=gain),
+            LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2,
+            gain_weight = gain,
+            gain_bias = gain,), BatchNorm2d(512))
         ),
-        ResNetBlock(make_layer_block(512, 512)),
+        ResNetBlock(make_layer_block(512, 512, gain=gain)),
     ]
 
     final_layers = [AvgPool2d(4),
-                    Linear(512, 11)
+                    Linear(512, 11, gain_weight = gain, gain_bias = gain)
     ]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)

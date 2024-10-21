@@ -226,7 +226,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain=1)
+    net = resnet18_cifar10(gain=0.2)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -366,10 +366,10 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 48,
+    batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.2,
+    sigma_v: float = 0.1,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
