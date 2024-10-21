@@ -81,6 +81,10 @@ __global__ void device_weight_update(float const *delta_mu_w,
 
         mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
         var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
+        if (var_w[col] <= 0.0f) {
+            var_w[col] = 1E-5f;
+            printf("w"); //Constrain printout for debugging
+        }
     }
 }
 
@@ -100,6 +104,10 @@ __global__ void device_bias_update(float const *delta_mu_b,
 
         mu_b[col] += delta_mu_sign * min(fabsf(delta_mu_b[col]), delta_bar);
         var_b[col] += delta_var_sign * min(fabsf(delta_var_b[col]), delta_bar);
+        if (var_b[col] <= 0.0f) {
+            var_b[col] = 1E-5f;
+            printf("b"); //Constrain printout for debugging
+        }
     }
 }
 
