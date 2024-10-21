@@ -237,6 +237,7 @@ def tagi_trainer(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
+    print_var = False
     for epoch in pbar:
         error_rates = []
         if epoch > 0:
@@ -252,6 +253,9 @@ def tagi_trainer(
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            if print_var: # Print prior predictive variance
+                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print_var = False
 
             # Update output layers based on targets
             y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
