@@ -45,22 +45,26 @@ FNN_LAYERNORM = Sequential(
 gain = 1.6
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28,
-            gain_weight = gain,
-            gain_bias = gain),
+    #        gain_weight = gain,
+    #        gain_bias = gain
+    ),
     MixtureReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5,
-            gain_weight = gain,
-            gain_bias = gain),
+    #        gain_weight = gain,
+    #        gain_bias = gain
+    ),
     MixtureReLU(),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100,
-            gain_weight = gain,
-            gain_bias = gain),
+    #        gain_weight = gain,
+    #        gain_bias = gain
+    ),
     MixtureReLU(),
     Linear(100, 11,
-            gain_weight = gain,
-            gain_bias = gain),
+    #        gain_weight = gain,
+    #        gain_bias = gain
+    ),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -114,7 +118,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_BATCHNORM
+    net = CNN
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
