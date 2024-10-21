@@ -42,29 +42,17 @@ FNN_LAYERNORM = Sequential(
     LayerNorm((100,)),
     Linear(100, 11),
 )
-gain = 1.6
+
 CNN = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28,
-    #        gain_weight = gain,
-    #        gain_bias = gain
-    ),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5,
-    #        gain_weight = gain,
-    #        gain_bias = gain
-    ),
+    Conv2d(16, 32, 5),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100,
-    #        gain_weight = gain,
-    #        gain_bias = gain
-    ),
+    Linear(32 * 4 * 4, 100),
     MixtureReLU(),
-    Linear(100, 11,
-    #        gain_weight = gain,
-    #        gain_bias = gain
-    ),
+    Linear(100, 11),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -96,7 +84,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -118,7 +106,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
+    net = CNN_LAYERNORM
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -129,7 +117,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
-    print_var = True
+    print_var = False
     for epoch in pbar:
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
