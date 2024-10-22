@@ -28,16 +28,16 @@ from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
 from pytagi import Utils, HRCSoftmaxMetric
 from examples.data_loader import MnistDataloader
 
-batch_size = 20
+batch_size = 32
 dtl = MnistDataLoader()
 metric = HRCSoftmaxMetric(num_classes=10)
 
 net = Sequential(
-    Linear(784, 100),
+    Linear(784, 128),
     ReLU(),
-    Linear(100, 100),
+    Linear(128, 128),
     ReLU(),
-    Linear(100, 11),
+    Linear(128, 11),
 )
 #net.to_device("cuda")
 

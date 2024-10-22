@@ -3,12 +3,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "../include/conv2d_cuda_kernel.cuh"
 #include "config.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// CUDA Kernels
-////////////////////////////////////////////////////////////////////////////////
 __global__ void conv2d_fwd_mean_var_cuda(float const *mu_w, float const *var_w,
                                          float const *mu_b, float const *var_b,
                                          float const *mu_a, float const *var_a,
@@ -493,13 +489,13 @@ __global__ void conv2d_fwd_mean_var_cuda_v2(
 
 template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
           size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
-          size_t WARP_TILE_Y, size_t PACK_SIZE, size_t SMEM_PADDING>
-__global__ void conv2d_fwd_mean_var_cuda_v3(
-    const T *__restrict__ mu_w, const T *__restrict__ var_w,
-    const T *__restrict__ mu_b, const T *__restrict__ var_b,
-    const T *__restrict__ mu_a, const T *__restrict__ var_a,
-    const int *__restrict__ aidx, int woho, int fo, int wihi, int fi, int ki,
-    int B, bool bias, T *__restrict__ mu_z, T *__restrict__ var_z)
+          size_t WARP_TILE_Y, size_t PACK_SIZE_T, size_t SMEM_PADDING>
+__global__ void conv2d_fwd_mean_var_cuda_v3(const T *mu_w, const T *var_w,
+                                            const T *mu_b, const T *var_b,
+                                            const T *mu_a, const T *var_a,
+                                            const int *aidx, int woho, int fo,
+                                            int wihi, int fi, int ki, int B,
+                                            bool bias, T *mu_z, T *var_z)
 /*
  */
 {
@@ -515,8 +511,8 @@ __global__ void conv2d_fwd_mean_var_cuda_v3(
     // Thread block
     const size_t thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
     unsigned int num_tiles = (n + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
-    constexpr unsigned int XY_PACKS = BLOCK_TILE / PACK_SIZE;
-    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE;
+    constexpr unsigned int XY_PACKS = BLOCK_TILE / PACK_SIZE_T;
+    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE_T;
     constexpr unsigned int NUM_LOADS =
         (BLOCK_TILE * BLOCK_TILE_K + THREADS - 1) / THREADS;
     constexpr unsigned int NUM_LOADS_2 =
@@ -570,7 +566,7 @@ __global__ void conv2d_fwd_mean_var_cuda_v3(
 #pragma unroll
         for (int l_i = 0; l_i < NUM_LOADS_2; l_i++) {
             const size_t thread_load_idx = (thread_linear_idx + l_i * THREADS);
-            const size_t w_ty = (thread_load_idx / BLOCK_TILE) * PACK_SIZE;
+            const size_t w_ty = (thread_load_idx / BLOCK_TILE) * PACK_SIZE_T;
             const size_t w_tx = thread_load_idx % BLOCK_TILE;
             const size_t w_row = blockIdx.y * BLOCK_TILE + w_tx;
             const size_t w_col = phase * BLOCK_TILE_K + w_ty;
@@ -584,7 +580,7 @@ __global__ void conv2d_fwd_mean_var_cuda_v3(
                     &var_w[w_row * n + w_col]);
             }
 #pragma unroll
-            for (size_t p = 0; p < PACK_SIZE; p++) {
+            for (size_t p = 0; p < PACK_SIZE_T; p++) {
                 s_mu_w[w_ty + p][w_tx] =
                     reinterpret_cast<const T *>(&mu_w_row_val)[p];
                 s_var_w[w_ty + p][w_tx] =
@@ -602,18 +598,18 @@ __global__ void conv2d_fwd_mean_var_cuda_v3(
 
 #pragma unroll
             for (size_t j = 0; j < THREAD_PACKS; j++) {
-                *reinterpret_cast<float4 *>(&mu_w_val[j * PACK_SIZE]) =
+                *reinterpret_cast<float4 *>(&mu_w_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_mu_w[i][warp_row_coord + j * PACK_SIZE]);
-                *reinterpret_cast<float4 *>(&var_w_val[j * PACK_SIZE]) =
+                        &s_mu_w[i][warp_row_coord + j * PACK_SIZE_T]);
+                *reinterpret_cast<float4 *>(&var_w_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_var_w[i][warp_row_coord + j * PACK_SIZE]);
-                *reinterpret_cast<float4 *>(&mu_a_val[j * PACK_SIZE]) =
+                        &s_var_w[i][warp_row_coord + j * PACK_SIZE_T]);
+                *reinterpret_cast<float4 *>(&mu_a_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_mu_a[i][warp_col_coord + j * PACK_SIZE]);
-                *reinterpret_cast<float4 *>(&var_a_val[j * PACK_SIZE]) =
+                        &s_mu_a[i][warp_col_coord + j * PACK_SIZE_T]);
+                *reinterpret_cast<float4 *>(&var_a_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_var_a[i][warp_col_coord + j * PACK_SIZE]);
+                        &s_var_a[i][warp_col_coord + j * PACK_SIZE_T]);
             }
 
 #pragma unroll
@@ -1219,7 +1215,7 @@ __global__ void conv2d_bwd_delta_w_cuda_v2(
 
 template <typename T, size_t BLOCK_TILE, size_t BLOCK_TILE_K,
           size_t THREAD_TILE, size_t THREADS, size_t WARP_TILE_X,
-          size_t WARP_TILE_Y, size_t PACK_SIZE, size_t SMEM_PADDING>
+          size_t WARP_TILE_Y, size_t PACK_SIZE_T, size_t SMEM_PADDING>
 __global__ void conv2d_bwd_delta_w_cuda_v3(
     const T *__restrict__ var_w, const T *__restrict__ mu_a,
     const T *__restrict__ delta_mu_out, const T *__restrict__ delta_var_out,
@@ -1240,9 +1236,9 @@ __global__ void conv2d_bwd_delta_w_cuda_v3(
     const unsigned int thread_linear_idx =
         threadIdx.y * blockDim.x + threadIdx.x;
     unsigned int num_tiles = (n + BLOCK_TILE_K - 1) / BLOCK_TILE_K;
-    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE;
-    constexpr unsigned int XY_PACKS = BLOCK_TILE / PACK_SIZE;
-    constexpr unsigned int K_PACKS = BLOCK_TILE_K / PACK_SIZE;
+    constexpr unsigned int THREAD_PACKS = THREAD_TILE / PACK_SIZE_T;
+    constexpr unsigned int XY_PACKS = BLOCK_TILE / PACK_SIZE_T;
+    constexpr unsigned int K_PACKS = BLOCK_TILE_K / PACK_SIZE_T;
     constexpr unsigned int NUM_LOADS =
         (XY_PACKS * BLOCK_TILE_K + THREADS - 1) / THREADS;
     constexpr unsigned int NUM_LOADS_A =
@@ -1295,7 +1291,7 @@ __global__ void conv2d_bwd_delta_w_cuda_v3(
             // Weights
             const int thread_load_idx = thread_linear_idx + l_i * THREADS;
             const int d_ty = thread_load_idx / K_PACKS;
-            const int d_tx = (thread_load_idx % K_PACKS) * PACK_SIZE;
+            const int d_tx = (thread_load_idx % K_PACKS) * PACK_SIZE_T;
             const int d_row = blockIdx.y * BLOCK_TILE + d_ty;
             const int d_col = phase * BLOCK_TILE_K + d_tx;
 
@@ -1308,7 +1304,7 @@ __global__ void conv2d_bwd_delta_w_cuda_v3(
                     &delta_var_out[d_row * n + d_col]);
             }
 #pragma unroll
-            for (size_t p = 0; p < PACK_SIZE; p++) {
+            for (size_t p = 0; p < PACK_SIZE_T; p++) {
                 s_delta_mu_out[d_tx + p][d_ty] =
                     reinterpret_cast<const T *>(&delta_mu_out_row_val)[p];
                 s_delta_var_out[d_tx + p][d_ty] =
@@ -1325,15 +1321,15 @@ __global__ void conv2d_bwd_delta_w_cuda_v3(
 
 #pragma unroll
             for (size_t j = 0; j < THREAD_PACKS; j++) {
-                *reinterpret_cast<float4 *>(&mu_a_val[j * PACK_SIZE]) =
+                *reinterpret_cast<float4 *>(&mu_a_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_mu_a[i][warp_col_coord + j * PACK_SIZE]);
-                *reinterpret_cast<float4 *>(&delta_mu_val[j * PACK_SIZE]) =
+                        &s_mu_a[i][warp_col_coord + j * PACK_SIZE_T]);
+                *reinterpret_cast<float4 *>(&delta_mu_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_delta_mu_out[i][warp_row_coord + j * PACK_SIZE]);
-                *reinterpret_cast<float4 *>(&delta_var_val[j * PACK_SIZE]) =
+                        &s_delta_mu_out[i][warp_row_coord + j * PACK_SIZE_T]);
+                *reinterpret_cast<float4 *>(&delta_var_val[j * PACK_SIZE_T]) =
                     *reinterpret_cast<const float4 *>(
-                        &s_delta_var_out[i][warp_row_coord + j * PACK_SIZE]);
+                        &s_delta_var_out[i][warp_row_coord + j * PACK_SIZE_T]);
             }
 
 #pragma unroll
@@ -1358,14 +1354,14 @@ __global__ void conv2d_bwd_delta_w_cuda_v3(
         const size_t row = row_base + t;
 #pragma unroll
         for (size_t j = 0; j < THREAD_PACKS; j++) {
-            const size_t col = col_base + j * PACK_SIZE;
+            const size_t col = col_base + j * PACK_SIZE_T;
             if (row < k && col < m) {
                 const float4 var_w_tmp =
                     *reinterpret_cast<const float4 *>(&var_w[row * m + col]);
                 float4 tmp_mu_row_val = *reinterpret_cast<const float4 *>(
-                    &tmp_mu[t][j * PACK_SIZE]);
+                    &tmp_mu[t][j * PACK_SIZE_T]);
                 float4 tmp_var_row_val = *reinterpret_cast<const float4 *>(
-                    &tmp_var[t][j * PACK_SIZE]);
+                    &tmp_var[t][j * PACK_SIZE_T]);
 
                 reinterpret_cast<float4 *>(&delta_mu_w[row * m + col])[0] =
                     make_float4(__fmul_rn(tmp_mu_row_val.x, var_w_tmp.x),
