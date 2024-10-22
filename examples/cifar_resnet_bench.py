@@ -39,18 +39,18 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 TAGI_CNN_NET = Sequential(
     # 32x32
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    BatchNorm2d(32),
     MixtureReLU(),
+    BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 16x16
     Conv2d(32, 32, 5, bias=False, padding=2),
-    BatchNorm2d(32),
     MixtureReLU(),
+    BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 8x8
     Conv2d(32, 64, 5, bias=False, padding=2),
-    BatchNorm2d(64),
     MixtureReLU(),
+    BatchNorm2d(64),
     AvgPool2d(2, 2),
     # 4x4
     Linear(64 * 4 * 4, 256),
@@ -226,7 +226,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain=0.2)
+    net = resnet18_cifar10(gain_w=0.15, gain_b=0.15)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
