@@ -187,8 +187,6 @@ set(GPU_SOURCES
   src/activation_cuda.cu
   src/output_updater_cuda.cu
   src/resnet_block_cuda.cu
-  src/convtranspose2d_cuda_kernel.cu
-  src/common_cuda_kernel.cu
 
 )
 
