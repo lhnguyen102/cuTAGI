@@ -39,18 +39,18 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 TAGI_CNN_NET = Sequential(
     # 32x32
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    BatchNorm2d(32),
     MixtureReLU(),
+    BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 16x16
     Conv2d(32, 32, 5, bias=False, padding=2),
-    BatchNorm2d(32),
     MixtureReLU(),
+    BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 8x8
     Conv2d(32, 64, 5, bias=False, padding=2),
-    BatchNorm2d(64),
     MixtureReLU(),
+    BatchNorm2d(64),
     AvgPool2d(2, 2),
     # 4x4
     Linear(64 * 4 * 4, 256),
@@ -226,7 +226,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10()
+    net = resnet18_cifar10(gain_w=0.15, gain_b=0.15)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -237,11 +237,12 @@ def tagi_trainer(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
+    print_var = True
     for epoch in pbar:
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.2, decaying_factor=0.99, curr_iter=epoch
+                curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -252,6 +253,9 @@ def tagi_trainer(
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            if print_var: # Print prior predictive variance
+                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print_var = False
 
             # Update output layers based on targets
             y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
@@ -365,7 +369,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 1,
+    sigma_v: float = 0.1,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

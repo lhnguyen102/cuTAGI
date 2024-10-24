@@ -749,7 +749,7 @@ __global__ void batchnorm2d_sample_var_post_processing(float const *data_in,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < fi) {
-        data_out[col] = (data_in[col] + bias[col]) / scale;
+        data_out[col] = bias[col] / scale;
     }
 }
 
@@ -799,7 +799,7 @@ BATCH-NORMALIZATION layer whose the previous layer is full-connected layer.
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < ni && row < batch_size) {
-        float inv_var_hat = 1.0f / (var_hat[row] + epsilon);
+        float inv_var_hat = 1.0f / (var_hat[col] + epsilon);
         float inv_var_hat_sqrt = sqrtf(inv_var_hat);
         float tmp = mu_w[col] * jcb[col + row * ni];
 

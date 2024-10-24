@@ -140,6 +140,9 @@ void BaseLayer::update_weights()
             delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
         this->var_w[i] +=
            delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
+        if (var_w[i] <= 0.0f) {
+            var_w[i] = 1E-5f; //TODO: replace by a parameter
+        }
     }
 }
 
@@ -161,6 +164,9 @@ void BaseLayer::update_biases()
             this->var_b[i] +=
                             delta_var_sign *
                             std::min(std::abs(this->delta_var_b[i]), delta_bar);
+            if (var_b[i] <= 0.0f) {
+            var_b[i] = 1E-5f; //TODO: replace by a parameter
+        }
         }
     }
 }
@@ -179,11 +185,14 @@ Returns:
 */
 {
     // TODO: Heuristic values!!
-    if (batch_size >= 128 && batch_size < 512) {
-        this->cap_factor_update = 10.0f;
+    if (batch_size == 1) {
+        this->cap_factor_update = 0.1f;
     }
-    if (batch_size >= 512) {
-        this->cap_factor_update = 20.0f;
+    if (batch_size >1 && batch_size < 256) {
+        this->cap_factor_update = 1.0f;
+    }
+    if (batch_size >= 256) {
+        this->cap_factor_update = 2.0f;
     }
 }
 
