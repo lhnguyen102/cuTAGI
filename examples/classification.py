@@ -12,9 +12,14 @@ from pytagi.nn import (
     Linear,
     OutputUpdater,
     MixtureReLU,
+    ReLU,
     Sequential,
 )
-
+FNN_1 = Sequential(
+    #Linear(784, 128, gain_weight=1, gain_bias=0.1),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=1, gain_bias=0.1),
+    #ReLU(),
+)
 FNN = Sequential(
     Linear(784, 128),
     MixtureReLU(),
@@ -44,15 +49,15 @@ FNN_LAYERNORM = Sequential(
 )
 
 CNN = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=1, gain_bias=0.05),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5),
+    Conv2d(16, 32, 5, gain_weight=1, gain_bias=0.05),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100),
+    Linear(32 * 4 * 4, 100, gain_weight=1, gain_bias=0.05),
     MixtureReLU(),
-    Linear(100, 11),
+    Linear(100, 11, gain_weight=1, gain_bias=0.05),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -106,8 +111,8 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
-    net.to_device("cuda")
+    net = FNN_1
+    net.to_device("cpu")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
@@ -117,12 +122,15 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
-    print_var = False
+    print_var = True
     for epoch in pbar:
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
-            m_pred, v_pred = net(x)
+            m = np.maximum(0,np.float32(np.random.normal(loc = 0.0, scale = 1.0, size = (784)).flatten()))
+            m_x = x * 0 + m
+            v_x = np.float32(m_x>0)*(x * 0 + 1)
+            m_pred, v_pred = net(m_x, v_x)
             if print_var: # Print prior predictive variance
                 print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
                 print_var = False
