@@ -167,3 +167,19 @@ NOTE: This PyPI distributed version does not require the codebase in this reposi
 * Visual Studio Code
 * C++ extension for VS Code
 * CMake Tools extension for VS Code
+
+## Code Formatter in VS code
+To format C++ and Python code in VS Code, add the following settings to your `.vscode/settings.json` file:
+
+```json
+{
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
+    "editor.rulers": [80],
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": ["--line-length", "80"],
+    "editor.trimAutoWhitespace": true,
+    "files.trimTrailingWhitespace": true,
+    "C_Cpp.errorSquiggles": "disabled"
+}
+```
