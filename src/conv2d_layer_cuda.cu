@@ -472,6 +472,31 @@ void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
     int row_zw_fo = this->row_zw * this->out_channels;
     int pad_param_idx = this->num_weights + 1;
 
+    if (param_update) {
+        conv2d_param_backward_cuda(
+            cu_input_delta_states, cu_temp_states, cu_next_bwd_states,
+            this->d_var_w, this->d_idx_mwa_2, this->out_channels, woho,
+            this->in_channels, wihi, this->kernel_size, batch_size,
+            this->d_delta_mu_w, this->d_delta_var_w);
+
+        if (this->bias) {
+            // Local pointer for swapping. Leverage the existing and
+            // not-yet-used memory blocks defined in GPU device to reduce the
+            // memory allocation
+            float *buf_mu_out = cu_output_delta_states->d_delta_mu;
+            float *buf_var_out = cu_output_delta_states->d_delta_var;
+            float *buf_mu_in = cu_temp_states->d_tmp_1;
+            float *buf_var_in = cu_temp_states->d_tmp_2;
+
+            conv2d_bwd_delta_b_dual_sum_reduction<float>(
+                this->d_var_b, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, batch_size, woho,
+                this->out_channels, buf_mu_in, buf_var_in, buf_mu_out,
+                buf_var_out, this->d_delta_mu_b, this->d_delta_var_b);
+        }
+    }
+
+    // NOTE: state need to be updated after parameter update
     if (state_udapte) {
         unsigned int grid_row_p = (batch_size + threads - 1) / threads;
         unsigned int grid_col_p =
@@ -488,24 +513,6 @@ void Conv2dCuda::backward(BaseDeltaStates &input_delta_states,
             this->out_channels, woho, this->in_channels, wihi,
             this->kernel_size, this->row_zw, row_zw_fo, batch_size,
             pad_param_idx, cu_output_delta_states);
-    }
-    if (param_update) {
-        int woho_batch = woho * batch_size;
-        conv2d_param_backward_cuda(
-            cu_input_delta_states, cu_temp_states, cu_next_bwd_states,
-            this->d_var_w, this->d_idx_mwa_2, this->out_channels, woho,
-            this->in_channels, wihi, this->kernel_size, batch_size,
-            this->d_delta_mu_w, this->d_delta_var_w);
-
-        if (this->bias) {
-            unsigned int grid_col_bias =
-                (this->out_channels + threads - 1) / threads;
-
-            conv2d_bwd_delta_b_cuda<<<grid_col_bias, threads>>>(
-                this->d_var_b, cu_temp_states->d_tmp_1, cu_temp_states->d_tmp_2,
-                woho_batch, this->out_channels, this->d_delta_mu_b,
-                this->d_delta_var_b);
-        }
     }
 }
 

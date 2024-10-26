@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "common_cuda_kernel.cuh"
 #include "config.h"
 
 __global__ void conv2d_fwd_mean_var_cuda(float const *mu_w, float const *var_w,
@@ -740,6 +741,122 @@ __global__ void conv2d_bwd_delta_w_cuda_tiled(
         delta_mu_w[col * m + row] = sum_mu * var_w_tmp;
         delta_var_w[col * m + row] = sum_var * var_w_tmp * var_w_tmp;
     }
+}
+
+template <typename T, size_t BLOCK_TILE_X, size_t BLOCK_TILE_Y>
+__global__ void conv2d_bwd_delta_b_cuda_v1(const T *var_b,
+                                           const T *delta_mu_out,
+                                           const T *delta_var_out, int woho,
+                                           int fo, int batch_size,
+                                           T *delta_mu_b, T *delta_var_b)
+/*
+ */
+{
+    __shared__ T smem_mu[BLOCK_TILE_Y][BLOCK_TILE_X];
+    __shared__ T smem_var[BLOCK_TILE_Y][BLOCK_TILE_X];
+
+    const size_t tx = threadIdx.x;
+    const size_t ty = threadIdx.y;
+    const size_t col = blockIdx.x * BLOCK_TILE_X + tx;
+    const size_t row = blockIdx.y * BLOCK_TILE_Y + ty;
+
+    const size_t idx = row * woho * batch_size + col;
+
+    if (col < woho * batch_size && row < fo) {
+        smem_mu[ty][tx] = delta_mu_out[idx];
+        smem_var[ty][tx] = delta_var_out[idx];
+    } else {
+        smem_mu[ty][tx] = static_cast<T>(0);
+        smem_var[ty][tx] = static_cast<T>(0);
+    }
+
+    __syncthreads();
+    for (size_t i = BLOCK_TILE_Y / 2; i > WARP_SIZE; i >>= 1) {
+        if (tx < i) {
+            smem_mu[ty][tx] += smem_mu[ty][tx + i];
+            smem_var[ty][tx] += smem_var[ty][tx + i];
+        }
+        __syncthreads();
+    }
+
+    if (tx < WARP_SIZE) {
+        T mu_x = smem_mu[ty][tx];
+        T var_x = smem_var[ty][tx];
+
+        if (blockDim.x >= WARP_SIZE * 2) {
+            mu_x += smem_mu[ty][tx + WARP_SIZE];
+            var_x += smem_var[ty][tx + WARP_SIZE];
+            __syncwarp();
+            smem_mu[ty][tx] = mu_x;
+            smem_var[ty][tx] = var_x;
+            __syncwarp();
+        }
+
+        for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1) {
+            mu_x += smem_mu[ty][tx + offset];
+            var_x += smem_var[ty][tx + offset];
+            __syncwarp();
+            smem_mu[ty][tx] = mu_x;
+            smem_var[ty][tx] = var_x;
+            __syncwarp();
+        }
+    }
+
+    if (tx == 0 && row < fo) {
+        delta_mu_b[row * gridDim.x + blockIdx.x] = smem_mu[ty][tx] * var_b[row];
+        delta_var_b[row * gridDim.x + blockIdx.x] =
+            var_b[row] * smem_var[ty][tx] * var_b[row];
+    }
+}
+
+template <typename T>
+void conv2d_bwd_delta_b_dual_sum_reduction(T *&var_b, T *&delta_mu_out,
+                                           T *&delta_var_out, int batch_size,
+                                           int woho, int fo, T *&buf_mu_in,
+                                           T *&buf_var_in, T *&buf_mu_out,
+                                           T *&buf_var_out, T *&delta_mu,
+                                           T *&delta_var)
+/*
+ */
+{
+    // Kernel config TODO: remove this hard code
+    constexpr unsigned int BLOCK_SIZE_X = 64U;
+    constexpr unsigned int BLOCK_SIZE_Y = 16U;
+    const dim3 block_dim_rd(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1U);
+    unsigned int grid_size_y = (fo + BLOCK_SIZE_Y - 1) / BLOCK_SIZE_Y;
+    unsigned int grid_size_x =
+        (batch_size * woho + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+    dim3 grid_dim_rd(grid_size_x, grid_size_y, 1U);
+    size_t reduced_size = grid_size_x;
+
+    // Stage 1: Perform 1st custom sum reduction
+    conv2d_bwd_delta_b_cuda_v1<T, BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_rd, block_dim_rd>>>(var_b, delta_mu_out, delta_var_out,
+                                        woho, fo, batch_size, buf_mu_out,
+                                        buf_var_out);
+
+    // Stage 2: Perform recursive reduction sum
+    while (grid_size_x > BLOCK_SIZE_X) {
+        grid_size_x = (grid_size_x + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
+        grid_dim_rd.x = grid_size_x;
+
+        dual_sum_reduction_v2<T, BLOCK_SIZE_X, BLOCK_SIZE_Y>
+            <<<grid_dim_rd, block_dim_rd>>>(buf_mu_out, buf_var_out,
+                                            reduced_size, fo, buf_mu_in,
+                                            buf_var_in);
+
+        // Swap buffers
+        std::swap(buf_mu_in, buf_mu_out);
+        std::swap(buf_var_in, buf_var_out);
+
+        reduced_size = grid_size_x;
+    }
+
+    // Stage 3: Perform final reduction sum
+    dim3 grid_dim_1b(1, grid_size_y);
+    dual_sum_reduction_v2<T, BLOCK_SIZE_X, BLOCK_SIZE_Y>
+        <<<grid_dim_1b, block_dim_rd>>>(buf_mu_out, buf_var_out, reduced_size,
+                                        fo, delta_mu, delta_var);
 }
 ////////////////////////////////////////////////////////////////////////////////
 // STATE BACKWARD KERNELS

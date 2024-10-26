@@ -69,9 +69,9 @@ void cnn_autoencoder()
     ////////////////////////////////////////////////////////////////////////////
     // Model
     ////////////////////////////////////////////////////////////////////////////
-    Sequential encoder(Conv2d(1, 16, 3, false, 1, 1, 1, 28, 28),
-                       BatchNorm2d(16), ReLU(), AvgPool2d(3, 2, 1, 2),
-                       Conv2d(16, 32, 3, false, 1, 1, 1), BatchNorm2d(32),
+    Sequential encoder(Conv2d(1, 16, 3, true, 1, 1, 1, 28, 28), BatchNorm2d(16),
+                       ReLU(), AvgPool2d(3, 2, 1, 2),
+                       Conv2d(16, 32, 3, true, 1, 1, 1), BatchNorm2d(32),
                        ReLU(), AvgPool2d(3, 2, 1, 2), Linear(32 * 7 * 7, 100),
                        ReLU(), Linear(100, 10));
 
