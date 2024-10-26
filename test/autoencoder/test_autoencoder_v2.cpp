@@ -115,7 +115,7 @@ void cnn_autoencoder()
         std::cout << "Epoch #" << e + 1 << "/" << n_epochs << "\n";
         std::cout << "Training...\n";
         auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 1; i++) {
             // Load input data for encoder and output data for decoder
             get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
             get_batch_data(train_db.images, batch_idx, n_x, x_batch);
