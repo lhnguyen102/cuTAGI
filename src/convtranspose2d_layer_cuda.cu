@@ -234,13 +234,6 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
     dim3 dim_grid(grid_col, grid_row);
     dim3 dim_block(THREADS, THREADS);
 
-    // convtranspose2d_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
-    //     this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-    //     cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_1,
-    //     this->d_idx_mwa_2, woho, this->out_channels, wihi, this->in_channels,
-    //     this->kernel_size, this->col_cov_mwa_1, batch_size, this->bias,
-    //     cu_output_states->d_mu_a, cu_output_states->d_var_a);
-
     convtranspose2d_fwd_mean_var_cuda_v1<float, THREADS, SMEM_PADDING>
         <<<dim_grid, dim_block>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
@@ -277,50 +270,17 @@ void ConvTranspose2dCuda::backward(BaseDeltaStates &input_delta_states,
     // Lauch kernel
     constexpr unsigned int THREADS = 16;
     constexpr size_t SMEM_PADDING = 0;
+    dim3 dim_block(THREADS, THREADS);
     int wihi = this->in_height * this->in_width;
     int woho = this->out_width * this->out_height;
-    unsigned int grid_row = (batch_size + THREADS - 1) / THREADS;
-    unsigned int grid_col = (wihi * this->in_channels + THREADS - 1) / THREADS;
 
-    dim3 dim_grid(grid_col, grid_row);
-    dim3 dim_block(THREADS, THREADS);
-
-    // convtranspose2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
-    //     this->d_mu_w, cu_next_bwd_states->d_jcb,
-    //     cu_input_delta_states->d_delta_mu,
-    //     cu_input_delta_states->d_delta_var, this->d_idx_cov_z_wa_1,
-    //     this->d_idx_var_z_ud, woho, this->out_channels, wihi,
-    //     this->in_channels, this->kernel_size, this->row_zw, batch_size,
-    //     cu_output_delta_states->d_delta_mu,
-    //     cu_output_delta_states->d_delta_var);
-
-    convtranspose2d_bwd_delta_z_cuda_v1<float, THREADS, SMEM_PADDING>
-        <<<dim_grid, dim_block>>>(
-            this->d_mu_w, cu_next_bwd_states->d_jcb,
-            cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, this->d_idx_cov_z_wa_1,
-            this->d_idx_var_z_ud, woho, this->out_channels, wihi,
-            this->in_channels, this->kernel_size, this->row_zw, batch_size,
-            cu_output_delta_states->d_delta_mu,
-            cu_output_delta_states->d_delta_var);
-
-    // Parameter
-
-    // Launch kernel
+    // Parameters
     int ki2 = this->kernel_size * this->kernel_size;
     unsigned int grid_row_w = (this->in_channels + THREADS - 1) / THREADS;
     unsigned int grid_col_w =
         (ki2 * this->out_channels + THREADS - 1) / THREADS;
 
     dim3 dim_grid_w(grid_col_w, grid_row_w);
-
-    // convtranspose2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
-    //     this->d_var_w, cu_next_bwd_states->d_mu_a,
-    //     cu_input_delta_states->d_delta_mu,
-    //     cu_input_delta_states->d_delta_var, this->d_idx_cov_wz_2,
-    //     this->d_idx_var_wz_ud, woho, this->out_channels, wihi,
-    //     this->in_channels, this->kernel_size, batch_size, this->d_delta_mu_w,
-    //     this->d_delta_var_w);
     convtranspose2d_bwd_delta_w_cuda_v1<float, THREADS, SMEM_PADDING>
         <<<dim_grid_w, dim_block>>>(
             this->d_var_w, cu_next_bwd_states->d_mu_a,
@@ -331,13 +291,38 @@ void ConvTranspose2dCuda::backward(BaseDeltaStates &input_delta_states,
             this->d_delta_mu_w, this->d_delta_var_w);
 
     if (this->bias) {
-        unsigned int grid_size = (this->out_channels + THREADS - 1) / THREADS;
+        TempStateCuda *cu_temp_states =
+            dynamic_cast<TempStateCuda *>(&temp_states);
 
-        convtranspose2d_bwd_delta_b_cuda<<<grid_size, THREADS>>>(
+        // Local pointer for swapping. Leverage the existing and
+        // not-yet-used memory blocks defined in GPU device to reduce the
+        // memory allocation
+        float *buf_mu_out = cu_output_delta_states->d_delta_mu;
+        float *buf_var_out = cu_output_delta_states->d_delta_var;
+        float *buf_mu_in = cu_temp_states->d_tmp_1;
+        float *buf_var_in = cu_temp_states->d_tmp_2;
+
+        convtranspose2d_bwd_delta_b_dual_sum_reduction<float>(
             this->d_var_b, cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, woho, this->out_channels,
-            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+            cu_input_delta_states->d_delta_var, batch_size, woho,
+            this->out_channels, buf_mu_in, buf_var_in, buf_mu_out, buf_var_out,
+            this->d_delta_mu_b, this->d_delta_var_b);
     }
+
+    // State update
+    unsigned int grid_row = (batch_size + THREADS - 1) / THREADS;
+    unsigned int grid_col = (wihi * this->in_channels + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+
+    convtranspose2d_bwd_delta_z_cuda_v1<float, THREADS, SMEM_PADDING>
+        <<<dim_grid, dim_block>>>(
+            this->d_mu_w, cu_next_bwd_states->d_jcb,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->d_idx_cov_z_wa_1,
+            this->d_idx_var_z_ud, woho, this->out_channels, wihi,
+            this->in_channels, this->kernel_size, this->row_zw, batch_size,
+            cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
 }
 
 std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()

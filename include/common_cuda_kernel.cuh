@@ -5,6 +5,7 @@
 
 #include "config.h"
 
+// TODO: Update dual sum reduction for batch normalization
 template <typename T, size_t BLOCK_TILE_X, size_t BLOCK_TILE_Y>
 __global__ void dual_sum_reduction_v2(const T *delta_mu_in,
                                       const T *delta_var_in, size_t len_x,

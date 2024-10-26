@@ -89,21 +89,23 @@ __global__ void convtranspose2d_fwd_mean_var_cuda_v1(
 #pragma unroll
     for (size_t phase = 0; phase < num_tiles; phase++) {
         const size_t tile_index_y = phase * BLOCK_TILE + ty;
+        const bool valid_tile = (tile_index_y < rf * fi) && (col < woho * fo);
+        const size_t idx_pos = idx_pos_base + tile_index_y % rf;
+        int widx_tmp = valid_tile ? widx[idx_pos] : -1;
+        const bool valid_widx = widx_tmp > -1;
 
-        if (tile_index_y < rf * fi && col < woho * fo) {
-            const size_t idx_pos = idx_pos_base + tile_index_y % rf;
-            int widx_tmp = widx[idx_pos];
-            bool valid_widx = (widx_tmp > -1);
+        const size_t rf_factor = tile_index_y / rf;
+        const size_t widx_tmp_offset =
+            valid_widx ? widx_tmp + col_div_woho_ki2 + rf_factor * ki2_fo - 1
+                       : 0;
 
-            widx_tmp += col_div_woho_ki2 + (tile_index_y / rf) * ki2_fo - 1;
+        s_mu_w[ty][tx] = valid_widx ? mu_w[widx_tmp_offset] : static_cast<T>(0);
+        s_var_w[ty][tx] =
+            valid_widx ? var_w[widx_tmp_offset] : static_cast<T>(0);
 
-            s_mu_w[ty][tx] = valid_widx ? mu_w[widx_tmp] : static_cast<T>(0);
-            s_var_w[ty][tx] = valid_widx ? var_w[widx_tmp] : static_cast<T>(0);
+        const int aidx_tmp = valid_tile ? aidx[idx_pos] : -1;
+        s_aidx[ty][tx] = (aidx_tmp > -1) ? aidx_tmp + rf_factor * wihi : 0;
 
-            int aidx_tmp = aidx[idx_pos];
-            s_aidx[ty][tx] =
-                (aidx_tmp > -1) ? aidx_tmp + (tile_index_y / rf) * wihi : 0;
-        }
         __syncthreads();
 #pragma unroll
         for (size_t i = 0; i < BLOCK_TILE; i++) {
@@ -350,22 +352,22 @@ __global__ void convtranspose2d_bwd_delta_z_cuda_v1(
 
     for (size_t phase = 0; phase < num_tiles; phase++) {
         const size_t tile_idx_y = phase * BLOCK_TILE + ty;
+        const bool valid_tile_idx_y = (tile_idx_y < rf * fo) && (col < wihi_fi);
+        const size_t idx_pos = col_mod_wihi * ki2 + tile_idx_y % rf;
 
-        if (tile_idx_y < rf * fo && col < woho * fo) {
-            const size_t idx_pos = col_mod_wihi * ki2 + tile_idx_y % rf;
-            const int widx_tmp = widx[idx_pos];
-            const int zidx_tmp = zidx[idx_pos];
-            const bool valid_zidx = zidx_tmp > -1;
-            const bool valid_widx = widx_tmp > -1;
+        const int widx_tmp = valid_tile_idx_y ? widx[idx_pos] : -1;
+        const int zidx_tmp = valid_tile_idx_y ? zidx[idx_pos] : -1;
+        const bool valid_zidx = zidx_tmp > -1;
+        const bool valid_widx = widx_tmp > -1;
 
-            const size_t widx_tmp_offset = widx_tmp + (tile_idx_y / rf) * ki2 +
-                                           col_div_wihi * ki2 * fo - 1;
+        const size_t rf_factor = tile_idx_y / rf;
+        const size_t widx_tmp_offset =
+            valid_widx
+                ? widx_tmp + rf_factor * ki2 + col_div_wihi * ki2 * fo - 1
+                : 0;
 
-            s_mu_w[ty][tx] =
-                valid_widx ? mu_w[widx_tmp_offset] : static_cast<T>(0);
-            s_zidx[ty][tx] =
-                valid_zidx ? zidx_tmp + (tile_idx_y / rf) * woho : 0;
-        }
+        s_mu_w[ty][tx] = valid_widx ? mu_w[widx_tmp_offset] : static_cast<T>(0);
+        s_zidx[ty][tx] = valid_zidx ? zidx_tmp + rf_factor * woho : 0;
 
         __syncthreads();
 
@@ -466,24 +468,26 @@ __global__ void convtranspose2d_bwd_delta_w_cuda_v1(
 
     for (size_t phase = 0; phase < num_tiles; phase++) {
         const size_t tile_idx_y = phase * BLOCK_TILE + ty;
+        const bool valid_tile =
+            (tile_idx_y < wihi * batch_size) && (col < ki2_fo);
+        const size_t idx_pos = col_mod_ki2 * wihi + tile_idx_y % wihi;
+        const int zidx_tmp = valid_tile ? zidx[idx_pos] : -1;
+        const int aidx_tmp = valid_tile ? aidx[idx_pos] : -1;
+        const bool valid_zidx = zidx_tmp > -1;
+        const bool valid_aidx = aidx_tmp > -1;
 
-        if (tile_idx_y < wihi * batch_size && col < ki2_fo) {
-            const size_t idx_pos = col_mod_ki2 * wihi + tile_idx_y % wihi;
-            const int zidx_tmp = zidx[idx_pos];
-            const int aidx_tmp = aidx[idx_pos];
-            const bool valid_zidx = zidx_tmp > -1;
-            const bool valid_aidx = aidx_tmp > -1;
-            const size_t zidx_tmp_offset = zidx_tmp + col_div_ki2 * woho +
-                                           (tile_idx_y / wihi) * woho * fo - 1;
+        const size_t wihi_factor = tile_idx_y / wihi;
+        const size_t zidx_tmp_offset =
+            valid_zidx
+                ? zidx_tmp + col_div_ki2 * woho + wihi_factor * woho * fo - 1
+                : 0;
 
-            s_aidx[ty][tx] =
-                valid_aidx ? aidx_tmp + (tile_idx_y / wihi) * wihi * fi : 0;
+        s_aidx[ty][tx] = valid_aidx ? aidx_tmp + wihi_factor * wihi * fi : 0;
+        s_delta_mu_out[ty][tx] =
+            valid_zidx ? delta_mu_out[zidx_tmp_offset] : static_cast<T>(0);
+        s_delta_var_out[ty][tx] =
+            valid_zidx ? delta_var_out[zidx_tmp_offset] : static_cast<T>(0);
 
-            s_delta_mu_out[ty][tx] =
-                valid_zidx ? delta_mu_out[zidx_tmp_offset] : static_cast<T>(0);
-            s_delta_var_out[ty][tx] =
-                valid_zidx ? delta_var_out[zidx_tmp_offset] : static_cast<T>(0);
-        }
         __syncthreads();
 
         for (size_t i = 0; i < BLOCK_TILE; i++) {
