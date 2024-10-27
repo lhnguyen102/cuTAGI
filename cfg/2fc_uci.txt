@@ -1,5 +1,0 @@
-layers: 	[1,     1,       1,       1]
-nodes:		[13,    50,      50,      1]
-activations:[0,     4,       4,       0]
-batch_size: 10
-sigma_v: 	0.3

@@ -1,181 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         convtranspose2d_layer_cuda.cuh
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 10, 2024
-// Updated:      March 14, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
+// This code is released under the MIT License.
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/common.h"
 #include "../include/config.h"
+#include "../include/convtranspose2d_cuda_kernel.cuh"
 #include "../include/convtranspose2d_layer.h"
 #include "../include/convtranspose2d_layer_cuda.cuh"
 #include "../include/param_init.h"
-
-__global__ void convtranspose2d_fwd_mean_var_cuda(
-    float const *mu_w, float const *var_w, float const *mu_b,
-    float const *var_b, float const *mu_a, float const *var_a, int const *widx,
-    int const *aidx, int woho, int fo, int wihi, int fi, int ki, int rf,
-    int batch_size, bool bias, float *mu_z, float *var_z)
-/*
- */
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (col < woho * fo && row < batch_size)  // k = woho * fo
-    {
-        float sum_mu = 0;
-        float sum_var = 0;
-        int aidx_tmp = 0;
-        int widx_tmp = 0;
-        int div_idx = col / woho;
-        int mod_idx = col % woho;
-
-        for (int i = 0; i < rf * fi; i++)  // n = ? * fi
-        {
-            int i_div_rf = i / rf;
-
-            // minus 1 due to the index starting at 1
-            int tmp_idx = mod_idx * rf + i % rf;
-            widx_tmp = widx[tmp_idx];
-            aidx_tmp = aidx[tmp_idx];
-
-            if (aidx_tmp > -1 && widx_tmp > -1) {
-                widx_tmp += div_idx * ki * ki + i_div_rf * ki * ki * fo - 1;
-                aidx_tmp += row * wihi * fi + i_div_rf * wihi - 1;
-
-                sum_mu += mu_w[widx_tmp] * mu_a[aidx_tmp];
-
-                sum_var += (mu_w[widx_tmp] * mu_w[widx_tmp] + var_w[widx_tmp]) *
-                               var_a[aidx_tmp] +
-                           var_w[widx_tmp] * mu_a[aidx_tmp] * mu_a[aidx_tmp];
-            }
-        }
-
-        mu_z[col + row * woho * fo] = sum_mu;
-        var_z[col + row * woho * fo] = sum_var;
-        if (bias) {
-            mu_z[col + row * woho * fo] += mu_b[div_idx];
-            var_z[col + row * woho * fo] += var_b[div_idx];
-        }
-    }
-}
-
-__global__ void convtranspose2d_bwd_delta_z_cuda(
-    float const *mu_w, float const *jcb, float const *delta_mu_out,
-    float const *delta_var_out, int const *widx, int const *zidx, int woho,
-    int fo, int wihi, int fi, int ki, int rf, int batch_size, float *delta_mu,
-    float *delta_var)
-/*
- */
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int K = wihi * fi;
-
-    if (col < K && row < batch_size)  // k = wihi * fi, m = B
-    {
-        float sum_mu = 0.0f;
-        float sum_var = 0.0f;
-        int widx_tmp;
-        int zidx_tmp;                      // updated index (idxSzzUd)
-        for (int i = 0; i < rf * fo; i++)  // n = ki2 * fo
-        {
-            // minus 1 due to the index starting at 1
-            int tmp_idx = (col % wihi) * ki * ki + i % rf;
-            widx_tmp = widx[tmp_idx];
-            zidx_tmp = zidx[tmp_idx];
-
-            if (zidx_tmp > -1 && widx_tmp > -1) {
-                widx_tmp +=
-                    (i / rf) * ki * ki + (col / wihi) * ki * ki * fo - 1;
-                zidx_tmp += (i / rf) * woho + row * woho * fo - 1;
-
-                sum_mu += delta_mu_out[zidx_tmp] * mu_w[widx_tmp];
-                sum_var +=
-                    mu_w[widx_tmp] * delta_var_out[zidx_tmp] * mu_w[widx_tmp];
-            }
-        }
-        // TODO: Double check the definition zposIn
-        delta_mu[col + row * K] = sum_mu * jcb[col + row * K];
-        delta_var[col + row * K] =
-            sum_var * jcb[col + row * K] * jcb[col + row * K];
-    }
-}
-
-__global__ void convtranspose2d_bwd_delta_w_cuda(
-    float const *var_w, float const *mu_a, float const *delta_mu_out,
-    float const *delta_var_out, int const *aidx, int const *zidx, int woho,
-    int fo, int wihi, int fi, int ki, int batch_size, float *delta_mu_w,
-    float *delta_var_w)
-/**/
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    int K = ki * ki * fo;
-    int ki2 = ki * ki;
-    if (col < K && row < fi)  // m = fi, k = ki2 * fo
-    {
-        float sum_mu = 0.0f;
-        float sum_var = 0.0f;
-        int zidx_tmp;  // updated index
-        int aidx_tmp;
-        int col_div_ki2 = col / ki2;
-        int col_mod_ki2 = col % ki2;
-        for (int i = 0; i < wihi * batch_size; i++)  // n = wihi * B
-        {
-            int i_div_wihi = i / wihi;
-            int i_mod_wihi = i % wihi;
-
-            // minus 1 due to the index starting at 1
-            aidx_tmp = aidx[col_mod_ki2 * wihi + i_mod_wihi];
-
-            if (aidx_tmp > -1) {
-                // minus 1 due to the index starting at 1
-                zidx_tmp = zidx[col_mod_ki2 * wihi + i_mod_wihi] +
-                           col_div_ki2 * woho + i_div_wihi * woho * fo - 1;
-                aidx_tmp += row * wihi + i_div_wihi * wihi * fi - 1;
-
-                sum_mu += mu_a[aidx_tmp] * delta_mu_out[zidx_tmp];
-                sum_var +=
-                    mu_a[aidx_tmp] * mu_a[aidx_tmp] * delta_var_out[zidx_tmp];
-            }
-        }
-
-        delta_mu_w[col + row * K] = sum_mu * var_w[col + row * K];
-        delta_var_w[col + row * K] =
-            sum_var * var_w[col + row * K] * var_w[col + row * K];
-    }
-}
-
-__global__ void convtranspose2d_bwd_delta_b_cuda(
-    float const *var_b, float const *delta_mu_out, float const *delta_var_out,
-    int woho, int fo, int batch_size, float *delta_mu_b, float *delta_var_b)
-/*
- */
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (col < fo)  // k = fo, m = 1
-    {
-        float sum_mu = 0.0f;
-        float sum_var = 0.0f;
-        for (int i = 0; i < woho * batch_size; i++)  // n = woho * B
-        {
-            int idx = col * woho + (i % woho) + (i / woho) * woho * fo;
-
-            sum_mu += delta_mu_out[idx];
-            sum_var += delta_var_out[idx];
-        }
-
-        delta_mu_b[col] = sum_mu * var_b[col];
-        delta_var_b[col] = var_b[col] * sum_var * var_b[col];
-    }
-}
 
 ConvTranspose2dCuda::ConvTranspose2dCuda(
     size_t in_channels, size_t out_channels, size_t kernel_size, bool bias,
@@ -373,7 +205,6 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
 
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
-    int threads = this->num_cuda_threads;
 
     if (this->num_weights == 0) {
         this->get_number_param();
@@ -393,20 +224,24 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = this->output_size;
 
     // Launch kernel
+    constexpr unsigned int THREADS = 16;
+    constexpr size_t SMEM_PADDING = 0;
     int woho = this->out_width * this->out_height;
     int wihi = this->in_width * this->in_height;
-    unsigned int grid_row = (batch_size + threads - 1) / threads;
-    unsigned int grid_col = (woho * this->out_channels + threads - 1) / threads;
+    unsigned int grid_row = (batch_size + THREADS - 1) / THREADS;
+    unsigned int grid_col = (woho * this->out_channels + THREADS - 1) / THREADS;
 
     dim3 dim_grid(grid_col, grid_row);
-    dim3 dim_block(threads, threads);
+    dim3 dim_block(THREADS, THREADS);
 
-    convtranspose2d_fwd_mean_var_cuda<<<dim_grid, dim_block>>>(
-        this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_idx_mwa_1,
-        this->d_idx_mwa_2, woho, this->out_channels, wihi, this->in_channels,
-        this->kernel_size, this->col_cov_mwa_1, batch_size, this->bias,
-        cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    convtranspose2d_fwd_mean_var_cuda_v1<float, THREADS, SMEM_PADDING>
+        <<<dim_grid, dim_block>>>(
+            this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
+            cu_input_states->d_mu_a, cu_input_states->d_var_a,
+            this->d_idx_mwa_1, this->d_idx_mwa_2, woho, this->out_channels,
+            wihi, this->in_channels, this->kernel_size, this->col_cov_mwa_1,
+            batch_size, this->bias, cu_output_states->d_mu_a,
+            cu_output_states->d_var_a);
 
     // Update backward state for inferring parameters
     if (this->training) {
@@ -431,50 +266,63 @@ void ConvTranspose2dCuda::backward(BaseDeltaStates &input_delta_states,
         dynamic_cast<DeltaStateCuda *>(&output_delta_states);
 
     int batch_size = input_delta_states.block_size;
-    int threads = this->num_cuda_threads;
 
     // Lauch kernel
+    constexpr unsigned int THREADS = 16;
+    constexpr size_t SMEM_PADDING = 0;
+    dim3 dim_block(THREADS, THREADS);
     int wihi = this->in_height * this->in_width;
     int woho = this->out_width * this->out_height;
-    unsigned int grid_row = (batch_size + threads - 1) / threads;
-    unsigned int grid_col = (wihi * this->in_channels + threads - 1) / threads;
 
-    dim3 dim_grid(grid_col, grid_row);
-    dim3 dim_block(threads, threads);
-
-    convtranspose2d_bwd_delta_z_cuda<<<dim_grid, dim_block>>>(
-        this->d_mu_w, cu_next_bwd_states->d_jcb,
-        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
-        this->d_idx_cov_z_wa_1, this->d_idx_var_z_ud, woho, this->out_channels,
-        wihi, this->in_channels, this->kernel_size, this->row_zw, batch_size,
-        cu_output_delta_states->d_delta_mu,
-        cu_output_delta_states->d_delta_var);
-
-    // Parameter
-
-    // Launch kernel
+    // Parameters
     int ki2 = this->kernel_size * this->kernel_size;
-    unsigned int grid_row_w = (this->in_channels + threads - 1) / threads;
+    unsigned int grid_row_w = (this->in_channels + THREADS - 1) / THREADS;
     unsigned int grid_col_w =
-        (ki2 * this->out_channels + threads - 1) / threads;
+        (ki2 * this->out_channels + THREADS - 1) / THREADS;
 
     dim3 dim_grid_w(grid_col_w, grid_row_w);
-
-    convtranspose2d_bwd_delta_w_cuda<<<dim_grid_w, dim_block>>>(
-        this->d_var_w, cu_next_bwd_states->d_mu_a,
-        cu_input_delta_states->d_delta_mu, cu_input_delta_states->d_delta_var,
-        this->d_idx_cov_wz_2, this->d_idx_var_wz_ud, woho, this->out_channels,
-        wihi, this->in_channels, this->kernel_size, batch_size,
-        this->d_delta_mu_w, this->d_delta_var_w);
+    convtranspose2d_bwd_delta_w_cuda_v1<float, THREADS, SMEM_PADDING>
+        <<<dim_grid_w, dim_block>>>(
+            this->d_var_w, cu_next_bwd_states->d_mu_a,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->d_idx_cov_wz_2,
+            this->d_idx_var_wz_ud, woho, this->out_channels, wihi,
+            this->in_channels, this->kernel_size, batch_size,
+            this->d_delta_mu_w, this->d_delta_var_w);
 
     if (this->bias) {
-        unsigned int grid_size = (this->out_channels + threads - 1) / threads;
+        TempStateCuda *cu_temp_states =
+            dynamic_cast<TempStateCuda *>(&temp_states);
 
-        convtranspose2d_bwd_delta_b_cuda<<<grid_size, threads>>>(
+        // Local pointer for swapping. Leverage the existing and
+        // not-yet-used memory blocks defined in GPU device to reduce the
+        // memory allocation
+        float *buf_mu_out = cu_output_delta_states->d_delta_mu;
+        float *buf_var_out = cu_output_delta_states->d_delta_var;
+        float *buf_mu_in = cu_temp_states->d_tmp_1;
+        float *buf_var_in = cu_temp_states->d_tmp_2;
+
+        convtranspose2d_bwd_delta_b_dual_sum_reduction<float>(
             this->d_var_b, cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, woho, this->out_channels,
-            batch_size, this->d_delta_mu_b, this->d_delta_var_b);
+            cu_input_delta_states->d_delta_var, batch_size, woho,
+            this->out_channels, buf_mu_in, buf_var_in, buf_mu_out, buf_var_out,
+            this->d_delta_mu_b, this->d_delta_var_b);
     }
+
+    // State update
+    unsigned int grid_row = (batch_size + THREADS - 1) / THREADS;
+    unsigned int grid_col = (wihi * this->in_channels + THREADS - 1) / THREADS;
+    dim3 dim_grid(grid_col, grid_row);
+
+    convtranspose2d_bwd_delta_z_cuda_v1<float, THREADS, SMEM_PADDING>
+        <<<dim_grid, dim_block>>>(
+            this->d_mu_w, cu_next_bwd_states->d_jcb,
+            cu_input_delta_states->d_delta_mu,
+            cu_input_delta_states->d_delta_var, this->d_idx_cov_z_wa_1,
+            this->d_idx_var_z_ud, woho, this->out_channels, wihi,
+            this->in_channels, this->kernel_size, this->row_zw, batch_size,
+            cu_output_delta_states->d_delta_mu,
+            cu_output_delta_states->d_delta_var);
 }
 
 std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()

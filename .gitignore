@@ -1,3 +1,4 @@
+# Build file
 *build
 *.vscode
 *.json
@@ -10,13 +11,21 @@ __pycache__/
 *.pyc
 pytagi.egg-info
 dist
+
+# folders
 data/cifar
 data/mnist/MNIST
 data/traffic
 test_model/
+
+# VSCode
+.vscode
+
+# Cuda profiler
 *ncu-rep
 *sys-rep
 *sqlite
+
 
 !test/data/*.csv
 !test/act_func/data/*.csv

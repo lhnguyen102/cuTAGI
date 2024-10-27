@@ -25,6 +25,7 @@ from pytagi.nn import (
     Linear,
     OutputUpdater,
     ReLU,
+    MixtureReLU,
     Sequential,
 )
 
@@ -82,21 +83,21 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
             in_width=IMAGE_WIDTH,
             in_height=IMAGE_HEIGHT,
         ),
+        MixtureReLU(),
         BatchNorm2d(16),
-        ReLU(),
         AvgPool2d(3, 2, 1, 2),
         Conv2d(16, 32, 3, bias=False, padding=1),
+        MixtureReLU(),
         BatchNorm2d(32),
-        ReLU(),
         AvgPool2d(3, 2, 1, 2),
-        Linear(32 * 7 * 7, 100),
-        ReLU(),
-        Linear(100, 10),
+        Linear(32 * 7 * 7, 128),
+        MixtureReLU(),
+        Linear(128, 16),
     )
 
     decoder = Sequential(
-        Linear(10, 32 * 7 * 7),
-        ReLU(),
+        Linear(16, 32 * 7 * 7),
+        MixtureReLU(),
         ConvTranspose2d(
             32,
             32,
@@ -108,9 +109,9 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
             in_width=7,
             in_height=7,
         ),
-        ReLU(),
+        MixtureReLU(),
         ConvTranspose2d(32, 16, 3, bias=True, stride=2, padding=1, padding_type=2),
-        ReLU(),
+        MixtureReLU(),
         ConvTranspose2d(16, 1, 3, bias=True, padding=1),
     )
     encoder.to_device("cuda")
