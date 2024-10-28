@@ -79,10 +79,14 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     for (int i = 0; i < N; i++) {
         // Variance
         S[i] = pow(gain * scale, 2);
+        //if (i == 0) {
+        //    std::cout << "gain = " << gain << " | scale = " << scale << std::endl;
+        //}
 
         // Get normal distribution
-        std::normal_distribution<float> d(0.0f, gain * scale);
-
+        //std::normal_distribution<float> d(0.0f, gain * scale);
+        std::normal_distribution<float> d(0.0f, 2.0f * scale);
+        //std::uniform_real_distribution<float> d(-3.0f * scale, 3.0f * scale);
         // Get sample for weights
         m[i] = d(gen);
     }
@@ -197,7 +201,7 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
-
+    //std::cout << "mu_w = " << mu_w[0] << " | var_w = " << var_w[0] << std::endl;
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
     }

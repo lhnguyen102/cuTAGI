@@ -61,7 +61,9 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             make_layer_block(64, 128, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
             LayerBlock(Conv2d(64, 128, 2, bias=False, stride=2,
             gain_weight = gain_w,
-            gain_bias = gain_b), BatchNorm2d(128))
+            gain_bias = gain_b),
+            BatchNorm2d(128)
+            )
         ),
         ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w, gain_bias=gain_b)),
         # 8x8
@@ -69,7 +71,8 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             make_layer_block(128, 256, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
             LayerBlock(Conv2d(128, 256, 2, bias=False, stride=2,
             gain_weight = gain_w,
-            gain_bias = gain_b), BatchNorm2d(256))
+            gain_bias = gain_b), BatchNorm2d(256)
+            )
         ),
         ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w, gain_bias=gain_b)),
         # 4x4
@@ -77,7 +80,8 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             make_layer_block(256, 512, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
             LayerBlock(Conv2d(256, 512, 2, bias=False, stride=2,
             gain_weight = gain_w,
-            gain_bias = gain_b), BatchNorm2d(512))
+            gain_bias = gain_b), BatchNorm2d(512)
+            )
         ),
         ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w, gain_bias=gain_b))
     ]

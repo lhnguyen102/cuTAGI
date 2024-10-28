@@ -227,3 +227,13 @@
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
+{
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
+    "editor.rulers": [80],
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": ["--line-length", "80"],
+    "editor.trimAutoWhitespace": true,
+    "files.trimTrailingWhitespace": true,
+    "C_Cpp.errorSquiggles": "disabled"
+}
