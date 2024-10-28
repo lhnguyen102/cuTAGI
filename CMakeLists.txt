@@ -97,13 +97,16 @@ else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
 
-# ###########################################################################################
-# # PYTHON SETUP
-# ###########################################################################################
 # find_package(Python COMPONENTS Interpreter Development)
 find_package(PythonInterp)
 
-# Header files for source code
+# ###############################################################################
+# # ADD SUBMODULES AS SUBDIRECTORIES
+# ###############################################################################
+
+# Add googletest
+add_subdirectory(extern/googletest)
+
 add_subdirectory(extern/pybind11)
 include_directories(${pybind11_INCLUDE_DIRS})
 
@@ -229,4 +232,33 @@ target_link_libraries(cutagi_lib PRIVATE pybind11::module)
 target_link_libraries(main PUBLIC cutagi_lib)
 
 target_link_libraries(cutagi PRIVATE cutagi_lib)
+
+# ###############################################################################
+# # TESTS
+# ###############################################################################
+enable_testing()
+
+# Glob the test sources
+file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
+
+# Create an executable for the tests
+add_executable(run_tests ${TEST_SOURCES})
+
+# Set include directories for the test executable
+target_include_directories(run_tests PRIVATE
+  ${pybind11_INCLUDE_DIRS}
+)
+
+# Link the test executable with the required libraries and cutagi_lib
+target_link_libraries(run_tests PRIVATE
+  pybind11::embed
+  gtest # GoogleTest
+  gtest_main # GoogleTest main function
+  cutagi_lib
+)
+
+# Discover GoogleTest tests
+include(GoogleTest)
+gtest_discover_tests(run_tests)
+
 
