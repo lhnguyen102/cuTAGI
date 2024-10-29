@@ -40,7 +40,7 @@ void fnn_v2()
                                   train_db.sigma_y, 100, n_x, n_y, true);
 
     Sequential model(Linear(1, 50), ReLU(), Linear(50, 1));
-    model.load("test_model/test.bin");
+    // model.load("test_model/test.bin");
     model.set_threads(1);
 
     //////////////////////////////////////////////////////////////////////

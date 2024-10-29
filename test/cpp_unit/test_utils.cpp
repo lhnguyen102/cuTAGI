@@ -1,28 +1,4 @@
-
-#include <gtest/gtest.h>
-
-#include <chrono>
-#include <cstdlib>
-#include <ctime>
-#include <memory>
-#include <random>
-#include <stdexcept>
-#include <string>
-#include <thread>
-#include <vector>
-
-#include "../../include/activation.h"
-#include "../../include/base_output_updater.h"
-#include "../../include/conv2d_layer.h"
-#include "../../include/data_struct.h"
-#include "../../include/dataloader.h"
-#include "../../include/linear_layer.h"
-#include "../../include/norm_layer.h"
-#include "../../include/pooling_layer.h"
-#include "../../include/sequential.h"
-
-// Include necessary headers for your Sequential, Linear, ReLU, and other
-// dependencies #include "path/to/your/model/definitions"
+#include "test_utils.h"
 
 void fnn_mnist_test(Sequential& model, float threshold,
                     float& avg_error_output) {
@@ -88,7 +64,7 @@ void fnn_mnist_test(Sequential& model, float threshold,
     std::vector<float> prob_class_batch;
 
     std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 100; i++) {
         get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
                                 y_batch, idx_ud_batch, label_batch);
 
@@ -116,29 +92,4 @@ void fnn_mnist_test(Sequential& model, float threshold,
 
     int curr_idx = mt_idx + batch_size;
     avg_error_output = compute_average_error_rate(error_rate, curr_idx, 100);
-}
-
-class MnistTest : public ::testing::Test {
-   protected:
-    void SetUp() override {}
-
-    void TearDown() override {}
-};
-
-TEST_F(MnistTest, FNNModelTest) {
-    Sequential model(Linear(784, 16), ReLU(), Linear(16, 16), ReLU(),
-                     Linear(16, 11));
-    float avg_error;
-    float threshold = 0.5;  // Set desired threshold for average error
-    fnn_mnist_test(model, threshold, avg_error);
-    EXPECT_LT(avg_error, threshold);
-}
-
-TEST_F(MnistTest, MixtureReLUModelTest) {
-    Sequential model(Linear(784, 16), MixtureReLU(), Linear(16, 16),
-                     MixtureReLU(), Linear(16, 11));
-    float avg_error;
-    float threshold = 0.5;  // Set desired threshold for average error
-    fnn_mnist_test(model, threshold, avg_error);
-    EXPECT_LT(avg_error, threshold);
 }
