@@ -85,7 +85,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
         // Get normal distribution
         //std::normal_distribution<float> d(0.0f, gain * scale);
-        std::normal_distribution<float> d(0.0f, 2.0f * scale);
+        std::normal_distribution<float> d(0.0f, 1.0f * scale);
         //std::uniform_real_distribution<float> d(-3.0f * scale, 3.0f * scale);
         // Get sample for weights
         m[i] = d(gen);

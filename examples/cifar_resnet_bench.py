@@ -226,7 +226,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.1, gain_b=0.1)
+    net = resnet18_cifar10(gain_w=0.05, gain_b=0.05)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -254,7 +254,8 @@ def tagi_trainer(
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
             if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print("Prior predictive -> E[m_pred] = ", np.average(m_pred), "+-", np.std(m_pred))
+                print("                    E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
                 print_var = False
 
             # Update output layers based on targets
@@ -369,7 +370,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.01,
+    sigma_v: float = 0.005,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
