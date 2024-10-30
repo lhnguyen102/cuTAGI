@@ -287,6 +287,29 @@ void Sequential::forward(const std::vector<float> &mu_x,
 
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
+        float mean_var_a = 0;
+        float var_var_a = 0;
+        float mean_mu_a = 0;
+        float var_mu_a = 0;
+        float output_size = batch_size * this->output_z_buffer->actual_size;
+        for (int i = 0; i < output_size ; i++) {
+            mean_var_a += this->output_z_buffer->var_a[i];
+            mean_mu_a += this->output_z_buffer->mu_a[i];
+        }
+        mean_var_a /= output_size;
+        mean_mu_a /= output_size;
+        for (int i = 0; i < output_size; i++) {
+            var_var_a += powf(this->output_z_buffer->var_a[i]-mean_var_a,2);
+            var_mu_a += powf(this->output_z_buffer->mu_a[i]-mean_mu_a,2);
+        }
+        var_var_a /= output_size;
+        var_mu_a /= output_size;
+        std::cout << "E[var_a]: " << mean_var_a << std::endl;
+        std::cout << "std[var_a]: " << powf(var_var_a,0.5) << std::endl;
+        std::cout << "E[mu_a]: " << mean_mu_a << std::endl;
+        std::cout << "std[mu_a]: " << powf(var_mu_a,0.5) << std::endl;
+        std::cout << " " << std::endl;
+
         //std::cout << "  mu_z: " << this->output_z_buffer->var_a[0] << "    " << this->output_z_buffer->var_a[1] << "    " << this->output_z_buffer->var_a[2] << "    " << this->output_z_buffer->var_a[3] << std::endl;
         //std::cout << " var_z: " << this->output_z_buffer->mu_a[0] << "    " << this->output_z_buffer->mu_a[1] << "    " << this->output_z_buffer->mu_a[2] << "    " << this->output_z_buffer->mu_a[3] << std::endl;
         //std::cout << " " << std::endl;

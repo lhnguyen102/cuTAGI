@@ -189,7 +189,7 @@ Returns:
         this->cap_factor_update = 0.1f;
     }
     if (batch_size >1 && batch_size < 32) {
-        this->cap_factor_update = 0.125f;
+        this->cap_factor_update = 0.5f;
     }
     if (batch_size >32 && batch_size < 256) {
         this->cap_factor_update = 1.0f;

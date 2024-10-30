@@ -89,7 +89,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.01):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -111,8 +111,8 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN_1
-    net.to_device("cpu")
+    net = CNN
+    net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
@@ -127,10 +127,12 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
-            m = np.maximum(0,np.float32(np.random.normal(loc = 0.0, scale = 1.0, size = (784)).flatten()))
-            m_x = x * 0 + m
-            v_x = np.float32(m_x>0)*(x * 0 + 1)
-            m_pred, v_pred = net(m_x, v_x)
+            #m = np.maximum(0,np.float32(np.random.normal(loc = 0.0, scale = 1.0, size = (784)).flatten()))
+            #m_x = x * 0 + m
+            #v_x = np.float32(m_x>0)*(x * 0 + 1)
+            #m_pred, v_pred = net(m_x, v_x)
+            m_pred, v_pred = net(x)
+
             if print_var: # Print prior predictive variance
                 print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
                 print_var = False

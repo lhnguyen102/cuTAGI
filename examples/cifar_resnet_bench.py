@@ -250,6 +250,11 @@ def tagi_trainer(
                 dtype=np.float32,
             )
         net.train()
+        #if epoch > 0:
+        #    state_dict = net.get_state_dict()
+        #    net.load_state_dict(state_dict)
+
+
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -369,8 +374,8 @@ def main(
     framework: str = "tagi",
     batch_size: int = 128,
     epochs: int = 50,
-    device: str = "cuda",
-    sigma_v: float = 0.005,
+    device: str = "cpu",
+    sigma_v: float = 0.005
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

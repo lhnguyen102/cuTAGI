@@ -173,7 +173,8 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
     std::vector<float> P(n_classes);
     std::vector<float> P_z(hs.len);
     std::vector<float> P_obs(hs.n_obs * n_classes);
-    float alpha = 0.01;
+    //float alpha = 0.01; // 59/36 | ref
+    float alpha = 3; // /
 
     // Compute probability for each observation
     for (int i = 0; i < hs.len; i++) {

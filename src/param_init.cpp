@@ -84,9 +84,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
         //}
 
         // Get normal distribution
-        //std::normal_distribution<float> d(0.0f, gain * scale);
-        std::normal_distribution<float> d(0.0f, 1.0f * scale);
-        //std::uniform_real_distribution<float> d(-3.0f * scale, 3.0f * scale);
+        std::normal_distribution<float> d(0.0f, scale);
         // Get sample for weights
         m[i] = d(gen);
     }
@@ -166,7 +164,8 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::vector<float> mu_w, var_w, mu_b, var_b;
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
+        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
