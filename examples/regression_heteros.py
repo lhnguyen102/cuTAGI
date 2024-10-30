@@ -34,6 +34,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
 
     cuda = True
     net = Sequential(
+        # Adding seed to every layer to make the results reproducible
         Linear(1, 128, seed=1),
         ReLU(),
         Linear(128, 128, seed=1),
