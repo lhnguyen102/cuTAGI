@@ -571,11 +571,12 @@ NOTE: All LSTM states are from the next layer e.g., mi_ga(l+1)
 ////////////////////////////////////////////////////////////////////////////////
 LSTMCuda::LSTMCuda(size_t input_size, size_t output_size, int seq_len,
                    bool bias, float gain_w, float gain_b,
-                   std::string init_method)
+                   std::string init_method, int seed)
     : seq_len(seq_len),
       gain_w(gain_w),
       gain_b(gain_b),
-      init_method(init_method)
+      init_method(init_method),
+      seed(seed)
 /**/
 {
     this->input_size = input_size;
@@ -660,7 +661,7 @@ void LSTMCuda::init_weight_bias()
 {
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_lstm(this->init_method, this->gain_w, this->gain_b,
-                              this->input_size, this->output_size,
+                              this->seed, this->input_size, this->output_size,
                               this->num_weights, this->num_biases);
 
     this->allocate_param_memory();
@@ -1034,7 +1035,7 @@ std::unique_ptr<BaseLayer> LSTMCuda::to_host()
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<LSTM>(
         this->input_size, this->output_size, this->seq_len, this->bias,
-        this->gain_w, this->gain_b, this->init_method);
+        this->gain_w, this->gain_b, this->init_method, this->seed);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;

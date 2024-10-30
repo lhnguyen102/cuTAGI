@@ -12,14 +12,16 @@
 ConvTranspose2dCuda::ConvTranspose2dCuda(
     size_t in_channels, size_t out_channels, size_t kernel_size, bool bias,
     int stride, int padding, int padding_type, size_t in_width,
-    size_t in_height, float gain_w, float gain_b, std::string init_method)
+    size_t in_height, float gain_w, float gain_b, std::string init_method,
+    int seed)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
       padding_type(padding_type),
       gain_w(gain_w),
       gain_b(gain_b),
-      init_method(init_method)
+      init_method(init_method),
+      seed(seed)
 /*
  */
 {
@@ -89,8 +91,8 @@ void ConvTranspose2dCuda::init_weight_bias()
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_conv2d(this->kernel_size, this->in_channels,
                                 this->out_channels, this->init_method,
-                                this->gain_w, this->gain_b, this->num_weights,
-                                this->num_biases);
+                                this->gain_w, this->gain_b, this->seed,
+                                this->num_weights, this->num_biases);
     this->allocate_param_memory();
     this->params_to_device();
 }
@@ -332,7 +334,8 @@ std::unique_ptr<BaseLayer> ConvTranspose2dCuda::to_host()
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<ConvTranspose2d>(
         this->in_channels, this->out_channels, this->kernel_size, this->bias,
         this->stride, this->padding, this->padding_type, this->in_width,
-        this->in_height, this->gain_w, this->gain_b, this->init_method);
+        this->in_height, this->gain_w, this->gain_b, this->init_method,
+        this->seed);
 
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;

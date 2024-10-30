@@ -65,10 +65,11 @@ class LinearCuda : public BaseLayerCuda {
     float gain_w;
     float gain_b;
     std::string init_method;
+    int seed = -1;
 
     LinearCuda(size_t ip_size, size_t op_size, bool bias = true,
                float gain_weight = 1.0f, float gain_bias = 1.0f,
-               std::string method = "He");
+               std::string method = "He", int seed = -1);
 
     ~LinearCuda();
 

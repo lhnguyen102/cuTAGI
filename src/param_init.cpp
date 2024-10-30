@@ -51,7 +51,7 @@ float xavier_init(float fan_in, float fan_out)
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
-    float scale, float gain, int N)
+    float scale, float gain, int N, int seed)
 /* Parmeter initialization of TAGI neural networks.
  *
  * Args:
@@ -69,7 +69,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    std::mt19937 gen(seed >= 0 ? seed : rd());
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -91,7 +91,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
-    float scale, float gain, float noise_gain, int N)
+    float scale, float gain, float noise_gain, int N, int seed)
 /* Parmeter initialization of TAGI neural network including the noise's hidden
  * states
  *
@@ -110,7 +110,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    std::mt19937 gen(seed >= 0 ? seed : rd());
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -140,8 +140,9 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
 init_weight_bias_linear(const std::string &init_method, const float gain_w,
-                        const float gain_b, const int input_size,
-                        const int output_size, int num_weights, int num_biases)
+                        const float gain_b, const int seed,
+                        const int input_size, const int output_size,
+                        int num_weights, int num_biases)
 /**/
 {
     float scale;
@@ -160,9 +161,11 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    std::tie(mu_w, var_w) =
+        gaussian_param_init(scale, gain_w, num_weights, seed);
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        std::tie(mu_b, var_b) =
+            gaussian_param_init(scale, gain_b, num_biases, seed);
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -173,7 +176,8 @@ std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
 init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
                         const size_t out_channels,
                         const std::string &init_method, const float gain_w,
-                        const float gain_b, int num_weights, int num_biases)
+                        const float gain_b, const int seed, int num_weights,
+                        int num_biases)
 /*
  */
 {
@@ -196,10 +200,12 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    std::tie(mu_w, var_w) =
+        gaussian_param_init(scale, gain_w, num_weights, seed);
 
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        std::tie(mu_b, var_b) =
+            gaussian_param_init(scale, gain_b, num_biases, seed);
     }
     return {mu_w, var_w, mu_b, var_b};
 }
@@ -207,7 +213,7 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
 init_weight_bias_lstm(const std::string &init_method, const float gain_w,
-                      const float gain_b, const int input_size,
+                      const float gain_b, const int seed, const int input_size,
                       const int output_size, int num_weights, int num_biases)
 /**/
 {
@@ -234,13 +240,13 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
     int num_weight_gate = output_size * (input_size + output_size);
 
     std::tie(mu_w_f, var_w_f) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, num_weight_gate, seed);
     std::tie(mu_w_i, var_w_i) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, num_weight_gate, seed);
     std::tie(mu_w_c, var_w_c) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, num_weight_gate, seed);
     std::tie(mu_w_o, var_w_o) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, num_weight_gate, seed);
 
     mu_w.insert(mu_w.end(), mu_w_f.begin(), mu_w_f.end());
     mu_w.insert(mu_w.end(), mu_w_i.begin(), mu_w_i.end());
@@ -254,13 +260,13 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
 
     if (num_biases > 0) {
         std::tie(mu_b_f, var_b_f) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, gain_b, output_size, seed);
         std::tie(mu_b_i, var_b_i) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, gain_b, output_size, seed);
         std::tie(mu_b_c, var_b_c) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, gain_b, output_size, seed);
         std::tie(mu_b_o, var_b_o) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, gain_b, output_size, seed);
 
         mu_b.insert(mu_b.end(), mu_b_f.begin(), mu_b_f.end());
         mu_b.insert(mu_b.end(), mu_b_i.begin(), mu_b_i.end());

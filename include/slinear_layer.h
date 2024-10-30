@@ -30,8 +30,8 @@ class SLinear : public Linear {
 
     SLinear(size_t ip_size, size_t op_size, bool bias = true,
             float gain_weight = 1.0f, float gain_bias = 1.0f,
-            std::string method = "He", int time_step = 0)
-        : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method),
+            std::string method = "He", int seed = -1, int time_step = 0)
+        : Linear(ip_size, op_size, bias, gain_weight, gain_bias, method, seed),
           time_step(time_step) {}
 
     std::string get_layer_info() const override;

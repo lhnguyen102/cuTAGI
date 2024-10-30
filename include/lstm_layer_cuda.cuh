@@ -25,13 +25,14 @@ class LSTMCuda : public BaseLayerCuda {
     float gain_w;
     float gain_b;
     std::string init_method;
+    int seed = -1;
     int w_pos_f, b_pos_f, w_pos_i, b_pos_i, w_pos_c, b_pos_c, w_pos_o, b_pos_o;
 
     LSTMStateCuda lstm_state;
 
     LSTMCuda(size_t input_size, size_t output_size, int seq_len,
              bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-             std::string init_method = "Xavier");
+             std::string init_method = "Xavier", int seed = -1);
 
     ~LSTMCuda();
 

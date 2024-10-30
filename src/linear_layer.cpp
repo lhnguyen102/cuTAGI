@@ -467,10 +467,11 @@ void linear_bwd_fc_delta_b_mp(std::vector<float> &var_b,
 }
 
 Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
-               float gain_bias, std::string method)
+               float gain_bias, std::string method, int seed)
     : gain_w(gain_weight),
       gain_b(gain_bias),
-      init_method(method)
+      init_method(method),
+      seed(seed)
 /*
  */
 {
@@ -524,7 +525,7 @@ void Linear::init_weight_bias()
 {
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                this->input_size, this->output_size,
+                                this->seed, this->input_size, this->output_size,
                                 this->num_weights, this->num_biases);
 }
 
@@ -634,6 +635,6 @@ std::unique_ptr<BaseLayer> Linear::to_cuda() {
     this->device = "cuda";
     return std::make_unique<LinearCuda>(this->input_size, this->output_size,
                                         this->bias, this->gain_w, this->gain_b,
-                                        this->init_method);
+                                        this->init_method, this->seed);
 }
 #endif
