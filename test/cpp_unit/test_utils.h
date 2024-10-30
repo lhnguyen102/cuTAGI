@@ -5,5 +5,13 @@
 #include "../../include/dataloader.h"
 #include "../../include/sequential.h"
 
-void fnn_mnist_test(Sequential& model, float threshold,
-                    float& avg_error_output);
+void mnist_test_runner(Sequential &model, float &avg_error_output);
+
+void sin_signal_lstm_test_runner(Sequential &model, int input_seq_len,
+                                 float &mse, float &log_lik);
+
+void sin_signal_smoother_test_runner(Sequential &model, int input_seq_len,
+                                     int num_features, float &mse,
+                                     float &log_lik);
+
+void heteros_test_runner(Sequential &model, float &mse, float &log_lik);

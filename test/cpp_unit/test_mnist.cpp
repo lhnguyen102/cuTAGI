@@ -22,10 +22,6 @@
 #include "../../include/sequential.h"
 #include "test_utils.h"
 
-#ifdef USE_CUDA
-#include <cuda_runtime.h>
-#endif
-
 class MnistTest : public ::testing::Test {
    protected:
     void SetUp() override {}
@@ -38,7 +34,7 @@ TEST_F(MnistTest, FNNModelTest_CPU) {
                      Linear(32, 11));
     float avg_error;
     float threshold = 0.5;  // Heuristic threshold
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -47,7 +43,7 @@ TEST_F(MnistTest, MixtureReLUModelTest_CPU) {
                      MixtureReLU(), Linear(32, 11));
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -56,7 +52,7 @@ TEST_F(MnistTest, BatchNormFNNTest_CPU) {
                      BatchNorm2d(1024), ReLU(), Linear(32, 11));
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -66,7 +62,7 @@ TEST_F(MnistTest, LayerNormFNNTest_CPU) {
                      Linear(32, 11));
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -77,7 +73,7 @@ TEST_F(MnistTest, CNNTest_CPU) {
     model.set_threads(2);
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -89,7 +85,7 @@ TEST_F(MnistTest, BatchNormCNNTest_CPU) {
     model.set_threads(2);
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
 }
 
@@ -102,7 +98,7 @@ TEST_F(MnistTest, LayerNormCNNTest_CPU) {
     model.set_threads(2);
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
 }
 
@@ -114,7 +110,7 @@ TEST_F(MnistTest, FNNModelTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -125,7 +121,7 @@ TEST_F(MnistTest, MixtureReLUModelTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -136,7 +132,7 @@ TEST_F(MnistTest, BatchNormFNNTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -148,7 +144,7 @@ TEST_F(MnistTest, LayerNormFNNTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -160,7 +156,7 @@ TEST_F(MnistTest, CNNTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
@@ -173,7 +169,7 @@ TEST_F(MnistTest, BatchNormCNNTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
 }
 
@@ -187,7 +183,7 @@ TEST_F(MnistTest, LayerNormCNNTest_CUDA) {
 
     float avg_error;
     float threshold = 0.5;
-    fnn_mnist_test(model, threshold, avg_error);
+    mnist_test_runner(model, avg_error);
     EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
 }
 #endif
