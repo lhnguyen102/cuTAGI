@@ -75,7 +75,7 @@ class BaseDeltaStates:
     def delta_var(self) -> List[float]:
         return self._cpp_backend.delta_var
 
-    @delta_mu.setter
+    @delta_var.setter
     def delta_var(self, value: List[float]):
         self._cpp_backend.delta_var = value
 
