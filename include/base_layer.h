@@ -119,6 +119,8 @@ class BaseLayer {
 
     virtual void set_threads(int num);
 
+    virtual void set_seed(int seed);
+
     virtual void compute_input_output_size(const InitArgs &args);
 
     virtual void train();

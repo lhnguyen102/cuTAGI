@@ -35,18 +35,23 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     cuda = True
     net = Sequential(
         # Adding seed to every layer to make the results reproducible
-        Linear(1, 128, seed=1),
+        Linear(1, 128),
         ReLU(),
-        Linear(128, 128, seed=1),
+        Linear(128, 128),
         ReLU(),
-        Linear(128, 2, seed=1),
+        Linear(128, 2),
         EvenExp()
     )
+
+    net.set_seed(0)
+
     if cuda:
         net.to_device("cuda")
     else:
         net.set_threads(8)
     out_updater = OutputUpdater(net.device)
+
+
 
     # -------------------------------------------------------------------------#
     # Training

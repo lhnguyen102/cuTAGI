@@ -171,6 +171,10 @@ class Sequential:
         """Preinitialize the layer."""
         self._cpp_backend.preinit_layer()
 
+    def set_seed(self, seed: int):
+        """Set the seed for the parameters initialization."""
+        self._cpp_backend.set_seed(seed)
+
     def save(self, filename: str):
         """Save the model to a file."""
         self._cpp_backend.save(filename)

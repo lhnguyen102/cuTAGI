@@ -1054,3 +1054,5 @@ void LSTMCuda::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+void LSTMCuda::set_seed(int seed) { this->seed = seed; }

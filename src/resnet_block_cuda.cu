@@ -403,3 +403,5 @@ void ResNetBlockCuda::preinit_layer() {
         this->shortcut->preinit_layer();
     }
 }
+
+void ResNetBlockCuda::set_seed(int seed) { this->main_block->set_seed(seed); }

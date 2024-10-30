@@ -353,3 +353,5 @@ void ConvTranspose2dCuda::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+void ConvTranspose2dCuda::set_seed(int seed) { this->seed = seed; }

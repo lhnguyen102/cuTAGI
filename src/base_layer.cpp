@@ -139,9 +139,9 @@ void BaseLayer::update_weights()
         this->mu_w[i] +=
             delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
         this->var_w[i] +=
-           delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
+            delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
         if (var_w[i] <= 0.0f) {
-            var_w[i] = 1E-5f; //TODO: replace by a parameter
+            var_w[i] = 1E-5f;  // TODO: replace by a parameter
         }
     }
 }
@@ -162,11 +162,11 @@ void BaseLayer::update_biases()
             this->mu_b[i] += delta_mu_sign *
                              std::min(std::abs(this->delta_mu_b[i]), delta_bar);
             this->var_b[i] +=
-                            delta_var_sign *
-                            std::min(std::abs(this->delta_var_b[i]), delta_bar);
+                delta_var_sign *
+                std::min(std::abs(this->delta_var_b[i]), delta_bar);
             if (var_b[i] <= 0.0f) {
-            var_b[i] = 1E-5f; //TODO: replace by a parameter
-        }
+                var_b[i] = 1E-5f;  // TODO: replace by a parameter
+            }
         }
     }
 }
@@ -188,7 +188,7 @@ Returns:
     if (batch_size == 1) {
         this->cap_factor_update = 0.1f;
     }
-    if (batch_size >1 && batch_size < 256) {
+    if (batch_size > 1 && batch_size < 256) {
         this->cap_factor_update = 1.0f;
     }
     if (batch_size >= 256) {
@@ -201,6 +201,8 @@ void BaseLayer::set_threads(int num)
 {
     this->num_threads = num;
 }
+
+void BaseLayer::set_seed(int seed) {}
 
 void BaseLayer::compute_input_output_size(const InitArgs &args)
 /*

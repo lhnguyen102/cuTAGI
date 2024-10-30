@@ -82,6 +82,7 @@ void bind_sequential(pybind11::module_& m) {
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
         .def("get_layer_stack_info", &Sequential::get_layer_stack_info)
         .def("preinit_layer", &Sequential::preinit_layer)
+        .def("set_seed", &Sequential::set_seed)
         .def("save", &Sequential::save)
         .def("load", &Sequential::load)
         .def("save_csv", &Sequential::save_csv)

@@ -117,6 +117,7 @@ class Sequential {
     void output_to_host();
     void delta_z_to_host();
     void preinit_layer();
+    void set_seed(int seed);
 
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;

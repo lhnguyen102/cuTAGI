@@ -87,6 +87,8 @@ class ConvTranspose2d : public BaseLayer {
 
     void preinit_layer() override;
 
+    void set_seed(int seed) override;
+
    protected:
     void lazy_index_init();
 };

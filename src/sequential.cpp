@@ -445,6 +445,14 @@ void Sequential::preinit_layer() {
     }
 }
 
+void Sequential::set_seed(int seed) {
+    int count = 0;
+    for (const auto &layer : this->layers) {
+        layer->set_seed(seed + count);
+        count++;
+    }
+}
+
 void Sequential::save(const std::string &filename)
 /**/
 {
