@@ -25,11 +25,7 @@ class SeedManager {
         return instance;
     }
 
-    void manual_seed(int seed) {
-        std::cout << "Setting seed: " << seed << std::endl;
-        unsigned int seed_val = 0;
-        global_random_engine.seed(seed_val);
-    }
+    void manual_seed(int seed) { global_random_engine.seed(seed); }
 
     std::mt19937& get_engine() { return global_random_engine; }
 
