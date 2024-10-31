@@ -9,6 +9,8 @@
 #include "../../include/slstm_layer.h"
 #include "test_utils.h"
 
+extern bool g_gpu_enabled;
+
 class SinSignaTest : public ::testing::Test {
    protected:
     void SetUp() override {}
@@ -50,6 +52,7 @@ TEST_F(SinSignaTest, SmootherTest_CPU) {
 
 #ifdef USE_CUDA
 TEST_F(SinSignaTest, LSTMTest_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     int input_seq_len = 5;
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));

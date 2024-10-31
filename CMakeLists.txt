@@ -196,8 +196,11 @@ enable_testing()
 # Glob the test sources
 file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
 
+# Add main.cpp separately to specify the entry point
+set(TEST_MAIN "test/cpp_unit/main.cpp")
+
 # Create an executable for the tests
-add_executable(run_tests ${TEST_SOURCES})
+add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
 
 # Set include directories for the test executable
 target_include_directories(run_tests PRIVATE
