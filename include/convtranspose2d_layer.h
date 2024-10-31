@@ -31,7 +31,6 @@ class ConvTranspose2d : public BaseLayer {
     int padding = 0;
     float gain_w;
     float gain_b;
-    int seed = -1;
     std::vector<int> idx_mwa_1;
     std::vector<int> idx_mwa_2;
     std::vector<int> idx_cov_wz_2;
@@ -45,8 +44,7 @@ class ConvTranspose2d : public BaseLayer {
                     bool bias = true, int stride = 1, int padding = 0,
                     int padding_type = 1, size_t in_width = 0,
                     size_t in_height = 0, float gain_w = 1.0f,
-                    float gain_b = 1.0f, std::string init_method = "He",
-                    int seed = -1);
+                    float gain_b = 1.0f, std::string init_method = "He");
     ~ConvTranspose2d();
 
     // Delete copy constructor and copy assignment

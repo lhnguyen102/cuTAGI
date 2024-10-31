@@ -20,7 +20,6 @@ class ConvTranspose2d(BaseLayer):
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
         init_method: str = "He",
-        seed: int = -1,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -35,7 +34,6 @@ class ConvTranspose2d(BaseLayer):
         self.gain_weight = gain_weight
         self.gain_bias = gain_bias
         self.init_method = init_method
-        self.seed = seed
 
         self._cpp_backend = cutagi.ConvTranspose2d(
             in_channels,
@@ -50,7 +48,6 @@ class ConvTranspose2d(BaseLayer):
             gain_weight,
             gain_bias,
             init_method,
-            seed,
         )
 
     def get_layer_info(self) -> str:

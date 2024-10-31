@@ -19,7 +19,6 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
     int padding_type = 1;
     float gain_w;
     float gain_b;
-    int seed = -1;
 
     int *d_idx_mwa_1 = nullptr;
     int *d_idx_mwa_2 = nullptr;
@@ -42,7 +41,7 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
                         int padding = 0, int padding_type = 0,
                         size_t in_width = 0, size_t in_height = 0,
                         float gain_w = 1.0f, float gain_b = 1.0f,
-                        std::string init_method = "He", int seed = -1);
+                        std::string init_method = "He");
 
     ~ConvTranspose2dCuda();
 

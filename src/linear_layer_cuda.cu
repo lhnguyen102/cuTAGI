@@ -1688,12 +1688,10 @@ void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
 }
 
 LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
-                       float gain_weight, float gain_bias, std::string method,
-                       int seed)
+                       float gain_weight, float gain_bias, std::string method)
     : gain_w(gain_weight),
       gain_b(gain_bias),
-      init_method(method),
-      seed(seed)
+      init_method(method)
 /*
  */
 {
@@ -1745,7 +1743,7 @@ void LinearCuda::init_weight_bias()
 {
     std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                this->seed, this->input_size, this->output_size,
+                                this->input_size, this->output_size,
                                 this->num_weights, this->num_biases);
 
     this->allocate_param_memory();
@@ -1844,7 +1842,7 @@ std::unique_ptr<BaseLayer> LinearCuda::to_host()
 {
     std::unique_ptr<BaseLayer> host_linear = std::make_unique<Linear>(
         this->input_size, this->output_size, this->bias, this->gain_w,
-        this->gain_b, this->init_method, this->seed);
+        this->gain_b, this->init_method);
     host_linear->mu_w = this->mu_w;
     host_linear->var_w = this->var_w;
     host_linear->mu_b = this->mu_b;

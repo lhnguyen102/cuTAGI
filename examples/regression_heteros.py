@@ -36,12 +36,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     SeedManager.manual_seed(0)
 
     net = Sequential(
-        Linear(1, 128, seed=1),
-        ReLU(),
-        Linear(128, 128, seed=1),
-        ReLU(),
-        Linear(128, 2, seed=1),
-        EvenExp()
+        Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
     )
     if cuda:
         net.to_device("cuda")
