@@ -547,5 +547,3 @@ void Conv2dCuda::preinit_layer() {
         this->lazy_index_init();
     }
 }
-
-void Conv2dCuda::set_seed(int seed) { this->seed = seed; }

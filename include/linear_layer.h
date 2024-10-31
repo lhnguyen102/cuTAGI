@@ -134,8 +134,6 @@ class Linear : public BaseLayer {
 
     void init_weight_bias() override;
 
-    void set_seed(int seed) override;
-
     virtual void forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states) override;

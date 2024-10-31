@@ -290,11 +290,3 @@ void LayerBlock::preinit_layer() {
         layer->preinit_layer();
     }
 }
-
-void LayerBlock::set_seed(int seed) {
-    int count = seed;
-    for (const auto &layer : this->layers) {
-        layer->set_seed(seed + count);
-        count++;
-    }
-}

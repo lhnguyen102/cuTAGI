@@ -272,8 +272,6 @@ class LSTM : public BaseLayer {
 
     void init_weight_bias() override;
 
-    void set_seed(int seed) override;
-
     void prepare_input(BaseHiddenStates &input_state);
 
     void forget_gate(int batch_size);

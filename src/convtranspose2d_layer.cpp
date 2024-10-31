@@ -772,5 +772,3 @@ void ConvTranspose2d::preinit_layer() {
         this->allocate_param_delta();
     }
 }
-
-void ConvTranspose2d::set_seed(int seed) { this->seed = seed; }

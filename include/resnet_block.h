@@ -128,6 +128,4 @@ class ResNetBlock : public BaseLayer {
 #endif
 
     void preinit_layer() override;
-
-    void set_seed(int seed) override;
 };

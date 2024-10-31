@@ -90,8 +90,6 @@ class LinearCuda : public BaseLayerCuda {
 
     void init_weight_bias() override;
 
-    void set_seed(int seed) override;
-
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

@@ -323,5 +323,3 @@ void ResNetBlock::preinit_layer() {
         this->shortcut->preinit_layer();
     }
 }
-
-void ResNetBlock::set_seed(int seed) { this->main_block->set_seed(seed); }

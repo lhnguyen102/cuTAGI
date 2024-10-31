@@ -1752,8 +1752,6 @@ void LinearCuda::init_weight_bias()
     this->params_to_device();
 }
 
-void LinearCuda::set_seed(int seed) { this->seed = seed; }
-
 void LinearCuda::forward(BaseHiddenStates &input_states,
                          BaseHiddenStates &output_states,
                          BaseTempStates &temp_states)

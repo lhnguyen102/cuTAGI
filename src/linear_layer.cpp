@@ -529,8 +529,6 @@ void Linear::init_weight_bias()
                                 this->num_weights, this->num_biases);
 }
 
-void Linear::set_seed(int seed) { this->seed = seed; }
-
 void Linear::forward(BaseHiddenStates &input_states,
                      BaseHiddenStates &output_states,
                      BaseTempStates &temp_states)
