@@ -65,11 +65,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
  *
  *  */
 {
-    // Initialize device
-    std::random_device rd;
-
-    // Mersenne twister PRNG - seed
-    std::mt19937 gen(seed >= 0 ? seed : rd());
+    // Get generator
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -106,11 +103,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
  *
  *  */
 {
-    // Initialize device
-    std::random_device rd;
-
-    // Mersenne twister PRNG - seed
-    std::mt19937 gen(seed >= 0 ? seed : rd());
+    // Get generator
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);

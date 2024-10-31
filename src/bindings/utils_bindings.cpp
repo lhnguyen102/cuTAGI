@@ -170,3 +170,10 @@ void bind_utils(pybind11::module_ &m) {
         .def("get_name", &Utils::get_name)
         .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }
+
+void bind_seed_manager(pybind11::module_ &m) {
+    pybind11::class_<SeedManager>(m, "SeedManager")
+        .def_static("get_instance", &SeedManager::get_instance,
+                    pybind11::return_value_policy::reference)
+        .def("manual_seed", &SeedManager::manual_seed);
+}

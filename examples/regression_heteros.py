@@ -5,11 +5,10 @@ from tqdm import tqdm
 import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
-from pytagi import Normalizer
+from pytagi import Normalizer, SeedManager
 from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential, EvenExp
 
 np.random.seed(0)
-
 
 def main(num_epochs: int = 50, batch_size: int = 10):
     """Run training for the regression"""
@@ -33,6 +32,9 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
 
     cuda = True
+
+    SeedManager.manual_seed(0)
+
     net = Sequential(
         # Adding seed to every layer to make the results reproducible
         Linear(1, 128),

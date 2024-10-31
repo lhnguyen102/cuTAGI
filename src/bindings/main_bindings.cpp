@@ -43,4 +43,5 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_sequential(modo);
     bind_output_updater(modo);
     bind_utils(modo);
+    bind_seed_manager(modo);
 }

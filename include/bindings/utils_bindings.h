@@ -19,12 +19,13 @@
 #include "cost.h"
 #include "data_struct.h"
 #include "dataloader.h"
+#include "param_init.h"
 
 class Utils {
    public:
     Utils();
     ~Utils();
-    std::string get_name() { return "fuck"; }
+    std::string get_name() { return "Utils"; }
     std::tuple<std::vector<float>, std::vector<int>, int> label_to_obs_wrapper(
         std::vector<int> &labels, int num_classes);
 
@@ -63,3 +64,4 @@ class Utils {
 };
 
 void bind_utils(pybind11::module_ &modo);
+void bind_seed_manager(pybind11::module_ &modo);

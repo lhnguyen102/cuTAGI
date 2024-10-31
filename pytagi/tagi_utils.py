@@ -299,3 +299,17 @@ class Normalizer:
         """Compute max min values"""
 
         return (np.nanmax(data, axis=0), np.nanmin(data, axis=0))
+
+class SeedManager:
+    def __init__(self) -> None:
+        self._cpp_backend = cutagi.SeedManager.get_instance()
+
+    @staticmethod
+    def manual_seed(seed: int) -> None:
+        """Set the random seed for reproducibility.
+
+        Args:
+            seed: Random seed value
+        """
+        instance = SeedManager()
+        instance._cpp_backend.manual_seed(seed)
