@@ -82,13 +82,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
         // Get sample for weights
         m[i] = d(gen);
-
-        if (i < 5) {
-            std::cout << "m[" << i << "]: " << m[i] << std::endl;
-        }
     }
-
-    std::cout << "---" << std::endl;
 
     return {m, S};
 }
