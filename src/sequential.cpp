@@ -23,6 +23,7 @@
 Sequential::~Sequential() { this->valid_ = false; }
 
 void Sequential::switch_to_cuda() {
+    reset_seed();
     for (size_t i = 0; i < this->layers.size(); ++i) {
         auto cuda_layer = layers[i]->to_cuda();
         layers[i] = std::move(cuda_layer);

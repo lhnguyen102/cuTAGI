@@ -119,12 +119,15 @@ void lstm_v2()
         input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
         train_db.sigma_x);
 
+    // Fix seed
+    manual_seed(0);
+
     // Model
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
 
-    // model.to_device("cuda");
-    model.set_threads(1);
+    model.to_device("cuda");
+    // model.set_threads(1);
 
     OutputUpdater output_updater(model.device);
 

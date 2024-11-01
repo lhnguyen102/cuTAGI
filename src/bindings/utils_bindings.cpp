@@ -171,9 +171,10 @@ void bind_utils(pybind11::module_ &m) {
         .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }
 
-void bind_seed_manager(pybind11::module_ &m) {
-    pybind11::class_<SeedManager>(m, "SeedManager")
-        .def_static("get_instance", &SeedManager::get_instance,
-                    pybind11::return_value_policy::reference)
-        .def("manual_seed", &SeedManager::manual_seed);
+void bind_manual_seed(pybind11::module_ &m) {
+    m.def("manual_seed", &manual_seed);
+}
+
+void bind_is_cuda_available(pybind11::module_ &m) {
+    m.def("is_cuda_available", &is_cuda_available);
 }

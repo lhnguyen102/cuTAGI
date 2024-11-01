@@ -2,7 +2,7 @@ import fire
 import numpy as np
 from tqdm import tqdm
 
-import pytagi
+import cutagi
 import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
@@ -34,7 +34,9 @@ def main(num_epochs: int = 50, batch_size: int = 10):
 
     cuda = True
 
-    pytagi.manual_seed(0)
+    cutagi.manual_seed(0)
+
+    print(cutagi.is_cuda_available())
 
     net = Sequential(
         Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()

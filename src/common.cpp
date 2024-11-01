@@ -347,3 +347,21 @@ int get_sub_layer_idx(std::vector<int> &layer, int curr_layer,
     }
     return sub_idx;
 }
+
+///////////////////////////////////////////////////////
+// SEED MANAGER
+///////////////////////////////////////////////////////
+void manual_seed(int seed) { SeedManager::get_instance().set_seed(seed); }
+
+void reset_seed() { SeedManager::get_instance().reset_seed(); }
+
+///////////////////////////////////////////////////////
+// CHECK CUDA
+///////////////////////////////////////////////////////
+bool is_cuda_available() {
+#ifdef USE_CUDA
+    return true;
+#else
+    return false;
+#endif
+}

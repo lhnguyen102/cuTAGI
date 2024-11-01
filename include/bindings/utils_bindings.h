@@ -19,7 +19,6 @@
 #include "cost.h"
 #include "data_struct.h"
 #include "dataloader.h"
-#include "param_init.h"
 
 class Utils {
    public:
@@ -64,4 +63,5 @@ class Utils {
 };
 
 void bind_utils(pybind11::module_ &modo);
-void bind_seed_manager(pybind11::module_ &modo);
+void bind_manual_seed(pybind11::module_ &modo);
+void bind_is_cuda_available(pybind11::module_ &modo);
