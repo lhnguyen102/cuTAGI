@@ -51,7 +51,7 @@ float xavier_init(float fan_in, float fan_out)
 }
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
-    float scale, float gain, int N)
+    float scale, float gain_s, float gain_m, int N)
 /* Parmeter initialization of TAGI neural networks.
  *
  * Args:
@@ -78,13 +78,13 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     // Weights
     for (int i = 0; i < N; i++) {
         // Variance
-        S[i] = pow(gain * scale, 2);
+        S[i] = pow(gain_s * scale, 2);
         //if (i == 0) {
         //    std::cout << "gain = " << gain << " | scale = " << scale << std::endl;
         //}
 
         // Get normal distribution
-        std::normal_distribution<float> d(0.0f, scale);
+        std::normal_distribution<float> d(0.0f, gain_m * scale);
         // Get sample for weights
         m[i] = d(gen);
     }
@@ -162,10 +162,10 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
     if (num_biases > 0) {
         //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -199,10 +199,11 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
     //std::cout << "mu_w = " << mu_w[0] << " | var_w = " << var_w[0] << std::endl;
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
+        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
     }
     return {mu_w, var_w, mu_b, var_b};
 }
@@ -237,13 +238,13 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
     int num_weight_gate = output_size * (input_size + output_size);
 
     std::tie(mu_w_f, var_w_f) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, gain_b, num_weight_gate);
     std::tie(mu_w_i, var_w_i) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, gain_b, num_weight_gate);
     std::tie(mu_w_c, var_w_c) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, gain_b, num_weight_gate);
     std::tie(mu_w_o, var_w_o) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+        gaussian_param_init(scale, gain_w, gain_b, num_weight_gate);
 
     mu_w.insert(mu_w.end(), mu_w_f.begin(), mu_w_f.end());
     mu_w.insert(mu_w.end(), mu_w_i.begin(), mu_w_i.end());
@@ -257,13 +258,13 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
 
     if (num_biases > 0) {
         std::tie(mu_b_f, var_b_f) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, 1.0f, 1.0f, output_size);
         std::tie(mu_b_i, var_b_i) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, 1.0f, 1.0f, output_size);
         std::tie(mu_b_c, var_b_c) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, 1.0f, 1.0f, output_size);
         std::tie(mu_b_o, var_b_o) =
-            gaussian_param_init(scale, gain_b, output_size);
+            gaussian_param_init(scale, 1.0f, 1.0f, output_size);
 
         mu_b.insert(mu_b.end(), mu_b_f.begin(), mu_b_f.end());
         mu_b.insert(mu_b.end(), mu_b_i.begin(), mu_b_i.end());

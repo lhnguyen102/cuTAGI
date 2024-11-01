@@ -263,7 +263,7 @@ def tagi_trainer(
                 print("Prior predictive -> E[m_pred] = ", np.average(m_pred), "+-", np.std(m_pred))
                 print("                    E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
                 print_var = False
-            exit()
+            #exit()
             # Update output layers based on targets
             y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
             out_updater.update_using_indices(
@@ -373,9 +373,9 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 16,
+    batch_size: int = 128,
     epochs: int = 50,
-    device: str = "cpu",
+    device: str = "cuda",
     sigma_v: float = 0.005
 ):
     if framework == "torch":

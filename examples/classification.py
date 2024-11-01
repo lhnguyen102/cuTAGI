@@ -1,6 +1,7 @@
 import fire
 import numpy as np
 from tqdm import tqdm
+import sys
 
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
@@ -49,15 +50,39 @@ FNN_LAYERNORM = Sequential(
 )
 
 CNN = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=1, gain_bias=0.05),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=1, gain_bias=1),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, gain_weight=1, gain_bias=0.05),
+    Conv2d(16, 32, 5, gain_weight=1, gain_bias=1),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100, gain_weight=1, gain_bias=0.05),
+    Linear(32 * 4 * 4, 100, gain_weight=1, gain_bias=1),
     MixtureReLU(),
-    Linear(100, 11, gain_weight=1, gain_bias=0.05),
+    Linear(100, 11, gain_weight=1, gain_bias=1),
+)
+
+CNN_VSCALED = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=3.2, gain_bias=1),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, gain_weight=1.6, gain_bias=1),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=1.5, gain_bias=1),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=1, gain_bias=1),
+)
+
+CNN_SCALED = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=3.2, gain_bias=3),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, gain_weight=1.1, gain_bias=1.1),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=1.5, gain_bias=1.5),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=0.5, gain_bias=1.1),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -74,22 +99,78 @@ CNN_BATCHNORM = Sequential(
     Linear(100, 11),
 )
 
+CNN_BATCHNORM_SCALED = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=3),
+    MixtureReLU(),
+    BatchNorm2d(16),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False, gain_weight=0.6, gain_bias=1),
+    MixtureReLU(),
+    BatchNorm2d(32),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=0.8, gain_bias=1.5),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=0.8, gain_bias=1.25),
+)
+
 CNN_LAYERNORM = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=1, gain_bias=1),
     MixtureReLU(),
     LayerNorm((16, 27, 27)),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False),
+    Conv2d(16, 32, 5, bias=False, gain_weight=1, gain_bias=1),
     MixtureReLU(),
     LayerNorm((32, 9, 9)),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100),
+    Linear(32 * 4 * 4, 100, gain_weight=1, gain_bias=1),
     MixtureReLU(),
-    Linear(100, 11),
+    Linear(100, 11, gain_weight=1, gain_bias=1),
+)
+
+CNN_LAYERNORM_SCALED = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=3),
+    MixtureReLU(),
+    LayerNorm((16, 27, 27)),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False, gain_weight=0.8, gain_bias=1),
+    MixtureReLU(),
+    LayerNorm((32, 9, 9)),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=1.0, gain_bias=1.25),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=0.8, gain_bias=1.25),
+)
+
+CNN_LAYERNORM_INV = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=1),
+    LayerNorm((16, 27, 27)),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False, gain_weight=0.35, gain_bias=1),
+    LayerNorm((32, 9, 9)),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=1.25, gain_bias=1),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=1, gain_bias=1),
+)
+
+CNN_LAYERNORM_INV_SCALED = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=3),
+    LayerNorm((16, 27, 27)),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False, gain_weight=0.9, gain_bias=0.95),
+    LayerNorm((32, 9, 9)),
+    MixtureReLU(),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100, gain_weight=1.25, gain_bias=1.25),
+    MixtureReLU(),
+    Linear(100, 11, gain_weight=0.8, gain_bias=1.5),
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.01):
+def main(num_epochs: int = 10, batch_size: int = 32, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -111,7 +192,7 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.01):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
+    net = CNN_LAYERNORM
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -132,9 +213,12 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.01):
             #v_x = np.float32(m_x>0)*(x * 0 + 1)
             #m_pred, v_pred = net(m_x, v_x)
             m_pred, v_pred = net(x)
+            #exit()
+
 
             if print_var: # Print prior predictive variance
                 print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print("                 -> E[m_pred] = ", np.average(m_pred), "+-", np.std(m_pred))
                 print_var = False
 
             # Update output layers based on targets

@@ -281,7 +281,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
     // Merge input data to the input buffer
     this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
 
-    int idx_layer = 0; //-> -1 to skip printing
+    int idx_layer = -1;  //-> -1 to skip printing
     // Forward pass for all layers
     for (auto &layer : this->layers) {
         auto *current_layer = layer.get();
@@ -322,7 +322,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
                       << std::endl;
             std::cout << "       E[mu_a]: " << mean_mu_a
                       << " -> ~0 ...excepted for ReLU()" << std::endl;
-            std::cout << " " << std::endl;
+            // std::cout << " " << std::endl;
             idx_layer += 1;
         }
 
