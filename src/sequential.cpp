@@ -281,38 +281,50 @@ void Sequential::forward(const std::vector<float> &mu_x,
     // Merge input data to the input buffer
     this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
 
+    int idx_layer = 0; //-> -1 to skip printing
     // Forward pass for all layers
     for (auto &layer : this->layers) {
         auto *current_layer = layer.get();
 
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
-        float mean_var_a = 0;
-        float var_var_a = 0;
-        float mean_mu_a = 0;
-        float var_mu_a = 0;
-        float output_size = batch_size * this->output_z_buffer->actual_size;
-        for (int i = 0; i < output_size ; i++) {
-            mean_var_a += this->output_z_buffer->var_a[i];
-            mean_mu_a += this->output_z_buffer->mu_a[i];
-        }
-        mean_var_a /= output_size;
-        mean_mu_a /= output_size;
-        for (int i = 0; i < output_size; i++) {
-            var_var_a += powf(this->output_z_buffer->var_a[i]-mean_var_a,2);
-            var_mu_a += powf(this->output_z_buffer->mu_a[i]-mean_mu_a,2);
-        }
-        var_var_a /= output_size;
-        var_mu_a /= output_size;
-        std::cout << "E[var_a]: " << mean_var_a << std::endl;
-        std::cout << "std[var_a]: " << powf(var_var_a,0.5) << std::endl;
-        std::cout << "E[mu_a]: " << mean_mu_a << std::endl;
-        std::cout << "std[mu_a]: " << powf(var_mu_a,0.5) << std::endl;
-        std::cout << " " << std::endl;
 
-        //std::cout << "  mu_z: " << this->output_z_buffer->var_a[0] << "    " << this->output_z_buffer->var_a[1] << "    " << this->output_z_buffer->var_a[2] << "    " << this->output_z_buffer->var_a[3] << std::endl;
-        //std::cout << " var_z: " << this->output_z_buffer->mu_a[0] << "    " << this->output_z_buffer->mu_a[1] << "    " << this->output_z_buffer->mu_a[2] << "    " << this->output_z_buffer->mu_a[3] << std::endl;
-        //std::cout << " " << std::endl;
+        // Compute normalization statistics for hidden layers
+        if (idx_layer >= 0) {
+            float mean_var_a = 0;
+            float var_var_a = 0;
+            float mean_mu_a = 0;
+            float var_mu_a = 0;
+            float output_size = batch_size * this->output_z_buffer->actual_size;
+            for (int i = 0; i < output_size; i++) {
+                mean_var_a += this->output_z_buffer->var_a[i];
+                mean_mu_a += this->output_z_buffer->mu_a[i];
+            }
+            mean_var_a /= output_size;
+            mean_mu_a /= output_size;
+            for (int i = 0; i < output_size; i++) {
+                var_var_a +=
+                    powf(this->output_z_buffer->var_a[i] - mean_var_a, 2);
+                var_mu_a += powf(this->output_z_buffer->mu_a[i] - mean_mu_a, 2);
+            }
+            var_var_a /= output_size;
+            var_mu_a /= output_size;
+            std::cout
+                << "----------------------------------------------------------"
+                << std::endl;
+            std::cout << "Layer #" << idx_layer << " - "
+                      << current_layer->get_layer_name() << std::endl;
+            std::cout << "      E[var_a]: " << mean_var_a << " <- 1"
+                      << std::endl;
+            std::cout << "     std[mu_a]: " << powf(var_mu_a, 0.5) << " <- 1"
+                      << std::endl;
+            std::cout << "    std[var_a]: " << powf(var_var_a, 0.5)
+                      << std::endl;
+            std::cout << "       E[mu_a]: " << mean_mu_a
+                      << " -> ~0 ...excepted for ReLU()" << std::endl;
+            std::cout << " " << std::endl;
+            idx_layer += 1;
+        }
 
         // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);
@@ -803,8 +815,7 @@ Sequential::get_outputs_smoother()
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_input_states()
-{
+Sequential::get_input_states() {
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
         throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
@@ -813,27 +824,23 @@ Sequential::get_input_states()
     }
 
     // Define the slice input states size
-    const size_t end_index = this->layers.front()->get_input_size() * this->input_z_buffer->block_size;
+    const size_t end_index = this->layers.front()->get_input_size() *
+                             this->input_z_buffer->block_size;
 
     // Slice delta_mu and delta_var
     std::vector<float> delta_mu_slice(
         this->output_delta_z_buffer->delta_mu.begin(),
-        this->output_delta_z_buffer->delta_mu.begin() + end_index
-    );
+        this->output_delta_z_buffer->delta_mu.begin() + end_index);
 
     std::vector<float> delta_var_slice(
         this->output_delta_z_buffer->delta_var.begin(),
-        this->output_delta_z_buffer->delta_var.begin() + end_index
-    );
+        this->output_delta_z_buffer->delta_var.begin() + end_index);
 
     // Return the slices as pybind11::array_t
-    auto py_delta_mu = pybind11::array_t<float>(
-        delta_mu_slice.size(),
-        delta_mu_slice.data());
-    auto py_delta_var = pybind11::array_t<float>(
-        delta_var_slice.size(),
-        delta_var_slice.data());
+    auto py_delta_mu =
+        pybind11::array_t<float>(delta_mu_slice.size(), delta_mu_slice.data());
+    auto py_delta_var = pybind11::array_t<float>(delta_var_slice.size(),
+                                                 delta_var_slice.data());
 
     return {py_delta_mu, py_delta_var};
 }
-

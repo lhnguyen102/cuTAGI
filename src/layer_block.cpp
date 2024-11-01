@@ -166,6 +166,36 @@ void LayerBlock::forward(BaseHiddenStates &input_states,
 
         current_layer->forward(*casted_input_states, *casted_output_states,
                                temp_states);
+        // Print layerblock values
+        float mean_var_a = 0;
+        float var_var_a = 0;
+        float mean_mu_a = 0;
+        float var_mu_a = 0;
+        float output_size = batch_size * casted_output_states->actual_size;
+        for (int i = 0; i < output_size; i++) {
+            mean_var_a += casted_output_states->var_a[i];
+            mean_mu_a += casted_output_states->mu_a[i];
+        }
+        mean_var_a /= output_size;
+        mean_mu_a /= output_size;
+        for (int i = 0; i < output_size; i++) {
+            var_var_a += (casted_output_states->var_a[i] - mean_var_a) *
+                         (casted_output_states->var_a[i] - mean_var_a);
+            var_mu_a += (casted_output_states->mu_a[i] - mean_mu_a) *
+                        (casted_output_states->mu_a[i] - mean_mu_a);
+        }
+        var_var_a /= output_size;
+        var_mu_a /= output_size;
+        std::cout
+            << "      ----------------------------------------------------------"
+            << std::endl;
+        std::cout << "      >> Layer block:" << current_layer->get_layer_name() << std::endl;
+        std::cout << "         E[var_a]: " << mean_var_a << " <- 1" << std::endl;
+        std::cout << "        var[mu_a]: " << var_mu_a << " <- 1" << std::endl;
+        std::cout << "       var[var_a]: " << var_var_a << std::endl;
+        std::cout << "          E[mu_a]: " << mean_mu_a
+                  << " -> ~0 ...excepted for ReLU()" << std::endl;
+        std::cout << " " << std::endl;
 
         std::swap(casted_input_states, casted_output_states);
     }
