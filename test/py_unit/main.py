@@ -9,7 +9,7 @@ def set_cpu_only_flag():
     args, unknown = parser.parse_known_args()
 
     # Set an environment variable to indicate if only CPU tests should run
-    os.environ["CPU_ONLY"] = "1" if args.cpu else "0"
+    os.environ["TEST_CPU_ONLY"] = "1" if args.cpu else "0"
 
     # Pass any remaining args to unittest
     return unknown
@@ -18,6 +18,8 @@ def set_cpu_only_flag():
 if __name__ == "__main__":
     remaining_args = set_cpu_only_flag()
 
+    # Load test files start with `test_` and run them
     test_suite = unittest.defaultTestLoader.discover(start_dir=".", pattern="test_*.py")
-    runner = unittest.TextTestRunner()
+
+    runner = unittest.TextTestRunner(verbosity=2)
     runner.run(test_suite)

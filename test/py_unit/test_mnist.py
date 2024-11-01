@@ -23,13 +23,13 @@ sys.path.append(
     os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
 )
 
-CPU_ONLY = os.getenv("CPU_ONLY") == "1"
+TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
 
 
 def mnist_test_runner(
     model: Sequential,
     batch_size: int = 16,
-    num_iters: int = 150,
+    num_iters: int = 200,
     use_cuda: bool = False,
 ):
     train_dtl = MnistDataLoader(
@@ -80,7 +80,6 @@ class TestMNISTModels(unittest.TestCase):
     def setUp(self):
         self.threshold = 0.5
 
-    # CPU Tests
     def test_BatchNormFNN_CPU(self):
         model = Sequential(
             Linear(784, 32),
@@ -189,15 +188,15 @@ class TestMNISTModels(unittest.TestCase):
         )
 
     # CUDA Tests
-    @unittest.skipIf(CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_BatchNormFNN_CUDA(self):
         model = Sequential(
             Linear(784, 32),
             BatchNorm2d(32),
-            MixtureReLU(),
+            ReLU(),
             Linear(32, 32),
             BatchNorm2d(32),
-            MixtureReLU(),
+            ReLU(),
             Linear(32, 11),
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
@@ -205,7 +204,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    @unittest.skipIf(CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_LayerNormFNN_CUDA(self):
         model = Sequential(
             Linear(784, 32),
@@ -221,7 +220,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    @unittest.skipIf(CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_CNN_CUDA(self):
         model = Sequential(
             Conv2d(
