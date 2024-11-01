@@ -224,8 +224,10 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     mean_var_a /= output_size;
     mean_mu_a /= output_size;
     for (int i = 0; i < output_size; i++) {
-        var_var_a += (output_states.var_a[i] - mean_var_a) * (output_states.var_a[i] - mean_var_a);
-        var_mu_a += (output_states.mu_a[i] - mean_mu_a) * (output_states.mu_a[i] - mean_mu_a);
+        var_var_a += (output_states.var_a[i] - mean_var_a) *
+                     (output_states.var_a[i] - mean_var_a);
+        var_mu_a += (output_states.mu_a[i] - mean_mu_a) *
+                    (output_states.mu_a[i] - mean_mu_a);
     }
     var_var_a /= output_size;
     var_mu_a /= output_size;
@@ -233,8 +235,35 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
               << std::endl;
     std::cout << "   -> ResNet main block" << std::endl;
     std::cout << "      E[var_a]: " << mean_var_a << " <- 1" << std::endl;
-    std::cout << "     var[mu_a]: " << var_mu_a << " <- 1"
+    std::cout << "     var[mu_a]: " << var_mu_a << " <- 1" << std::endl;
+    std::cout << "    var[var_a]: " << var_var_a << std::endl;
+    std::cout << "       E[mu_a]: " << mean_mu_a
+              << " -> ~0 ...excepted for ReLU()" << std::endl;
+    std::cout << " " << std::endl;
+    // Print skip connection values
+    mean_var_a = 0;
+    var_var_a = 0;
+    mean_mu_a = 0;
+    var_mu_a = 0;
+    for (int i = 0; i < output_size; i++) {
+        mean_var_a += this->input_z->var_a[i];
+        mean_mu_a += this->input_z->mu_a[i];
+    }
+    mean_var_a /= output_size;
+    mean_mu_a /= output_size;
+    for (int i = 0; i < output_size; i++) {
+        var_var_a += (this->input_z->var_a[i] - mean_var_a) *
+                     (this->input_z->var_a[i] - mean_var_a);
+        var_mu_a += (this->input_z->mu_a[i] - mean_mu_a) *
+                    (this->input_z->mu_a[i] - mean_mu_a);
+    }
+    var_var_a /= output_size;
+    var_mu_a /= output_size;
+    std::cout << "   ----------------------------------------------------------"
               << std::endl;
+    std::cout << "   -> ResNet skip connection" << std::endl;
+    std::cout << "      E[var_a]: " << mean_var_a << " <- 1" << std::endl;
+    std::cout << "     var[mu_a]: " << var_mu_a << " <- 1" << std::endl;
     std::cout << "    var[var_a]: " << var_var_a << std::endl;
     std::cout << "       E[mu_a]: " << mean_mu_a
               << " -> ~0 ...excepted for ReLU()" << std::endl;
@@ -254,6 +283,34 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
                               num_states, output_states.mu_a,
                               output_states.var_a);
     }
+    // Print output values
+    mean_var_a = 0;
+    var_var_a = 0;
+    mean_mu_a = 0;
+    var_mu_a = 0;
+    for (int i = 0; i < output_size; i++) {
+        mean_var_a += output_states.var_a[i];
+        mean_mu_a += output_states.mu_a[i];
+    }
+    mean_var_a /= output_size;
+    mean_mu_a /= output_size;
+    for (int i = 0; i < output_size; i++) {
+        var_var_a += (output_states.var_a[i] - mean_var_a) *
+                     (output_states.var_a[i] - mean_var_a);
+        var_mu_a += (output_states.mu_a[i] - mean_mu_a) *
+                    (output_states.mu_a[i] - mean_mu_a);
+    }
+    var_var_a /= output_size;
+    var_mu_a /= output_size;
+    std::cout << "   ----------------------------------------------------------"
+              << std::endl;
+    std::cout << "   -> ResNet output" << std::endl;
+    std::cout << "      E[var_a]: " << mean_var_a << " <- 1" << std::endl;
+    std::cout << "     var[mu_a]: " << var_mu_a << " <- 1" << std::endl;
+    std::cout << "    var[var_a]: " << var_var_a << std::endl;
+    std::cout << "       E[mu_a]: " << mean_mu_a
+              << " -> ~0 ...excepted for ReLU()" << std::endl;
+    std::cout << " " << std::endl;
 
     output_states.width = this->out_width;
     output_states.height = this->out_height;
