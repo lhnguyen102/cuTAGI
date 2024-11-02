@@ -2,7 +2,7 @@ import fire
 import numpy as np
 from tqdm import tqdm
 
-import cutagi
+import pytagi
 import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
@@ -32,11 +32,11 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     # Viz
     viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
 
-    cuda = True
+    cuda = False
 
-    cutagi.manual_seed(0)
+    pytagi.manual_seed(0)
 
-    print(cutagi.is_cuda_available())
+    print(pytagi.is_cuda_available())
 
     net = Sequential(
         Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
