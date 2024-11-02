@@ -11,14 +11,14 @@
 
 extern bool g_gpu_enabled;
 
-class SinSignaTest : public ::testing::Test {
+class SineSignalTest : public ::testing::Test {
    protected:
     void SetUp() override {}
 
     void TearDown() override {}
 };
 
-TEST_F(SinSignaTest, LSTMTest_CPU) {
+TEST_F(SineSignalTest, LSTMTest_CPU) {
     int input_seq_len = 4;
     Sequential model(LSTM(1, 8, input_seq_len), LSTM(8, 8, input_seq_len),
                      Linear(8 * input_seq_len, 1));
@@ -33,7 +33,7 @@ TEST_F(SinSignaTest, LSTMTest_CPU) {
         << "Log likelihood is lower than threshold";
 }
 
-TEST_F(SinSignaTest, SmootherTest_CPU) {
+TEST_F(SineSignalTest, SmootherTest_CPU) {
     int input_seq_len = 24;
     int num_features = 1;
     Sequential model(SLSTM(num_features + input_seq_len - 1, 8, 1),
@@ -51,7 +51,7 @@ TEST_F(SinSignaTest, SmootherTest_CPU) {
 }
 
 #ifdef USE_CUDA
-TEST_F(SinSignaTest, LSTMTest_CUDA) {
+TEST_F(SineSignalTest, LSTMTest_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     int input_seq_len = 5;
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),

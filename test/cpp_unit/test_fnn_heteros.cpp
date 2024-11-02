@@ -138,14 +138,14 @@ void heteros_test_runner(Sequential &model, float &mse, float &log_lik)
     log_lik = avg_univar_log_lik(my, y_test, sy);
 }
 
-class SinSignaTest : public ::testing::Test {
+class SineSignalHeterosTest : public ::testing::Test {
    protected:
     void SetUp() override {}
 
     void TearDown() override {}
 };
 
-TEST_F(SinSignaTest, HeterosNoiseTest_CPU) {
+TEST_F(SineSignalHeterosTest, HeterosNoiseTest_CPU) {
     Sequential model(Linear(13, 16), ReLU(), Linear(16, 2), EvenExp());
     model.set_threads(2);
 
@@ -160,7 +160,7 @@ TEST_F(SinSignaTest, HeterosNoiseTest_CPU) {
 }
 
 #ifdef USE_CUDA
-TEST_F(SinSignaTest, HeterosNoiseTest_CUDA) {
+TEST_F(SineSignalHeterosTest, HeterosNoiseTest_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     Sequential model(Linear(13, 16), ReLU(), Linear(16, 2), EvenExp());
     model.to_device("cuda");

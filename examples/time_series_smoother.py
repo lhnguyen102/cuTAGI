@@ -14,7 +14,7 @@ from pytagi.nn import SLSTM, SLinear, OutputUpdater, Sequential
 from examples.data_loader import TimeSeriesDataloader
 
 
-def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
+def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
@@ -35,7 +35,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         num_features=num_features,
         stride=seq_stride,
         time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov = True
+        keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -48,7 +48,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
         time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov = True
+        keep_last_time_cov=True,
     )
 
     # Viz
@@ -71,7 +71,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
     # Training
     mses = []
     # Initialize the sequence length
-    mu_sequence = np.ones(input_seq_len,dtype=np.float32)
+    mu_sequence = np.ones(input_seq_len, dtype=np.float32)
     pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in pbar:
@@ -89,7 +89,7 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
 
             # replace nan in input x by the lstm_prediction:
             if idx_sample < input_seq_len + infer_window_len:
-                x = replace_with_prediction(x,mu_sequence)
+                x = replace_with_prediction(x, mu_sequence)
 
             # Feed forward
             m_pred, _ = net(x)
@@ -113,13 +113,13 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
             obs = normalizer.unstandardize(
                 y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
             )
+
             mse = metric.mse(pred, obs)
             mses.append(mse)
 
             # Add new prediction to mu_sequence
-            mu_sequence = np.append(mu_sequence,m_pred)
+            mu_sequence = np.append(mu_sequence, m_pred)
             mu_sequence = mu_sequence[-input_seq_len:]
-
 
         # Smoother
         mu_zo_smooth, var_zo_smooth = net.smoother()
@@ -129,12 +129,18 @@ def main(num_epochs: int =  50, batch_size: int = 1, sigma_v: float = 1):
         # # Figures for each epoch
         t = np.arange(len(mu_zo_smooth))
         t_train = np.arange(len(y_train))
-        plt.switch_backend('Agg')
+        plt.switch_backend("Agg")
         plt.figure()
-        plt.plot(t_train, y_train, color='r')
-        plt.plot(t, mu_zo_smooth, color='b')
-        plt.fill_between(t, mu_zo_smooth - zo_smooth_std, mu_zo_smooth + zo_smooth_std, alpha=0.2, label='1 Std Dev')
-        filename = f'saved_results/smoother/smoother#{epoch}.png'
+        plt.plot(t_train, y_train, color="r")
+        plt.plot(t, mu_zo_smooth, color="b")
+        plt.fill_between(
+            t,
+            mu_zo_smooth - zo_smooth_std,
+            mu_zo_smooth + zo_smooth_std,
+            alpha=0.2,
+            label="1 Std Dev",
+        )
+        filename = f"saved_results/smoother/smoother#{epoch}.png"
         plt.savefig(filename)
         plt.close()
 
@@ -376,10 +382,12 @@ class PredictionViz:
             plt.savefig(saving_path, bbox_inches="tight")
             plt.close()
 
+
 def replace_with_prediction(x, mu_sequence):
     nan_indices = np.where(np.isnan(x))[0]
     x[nan_indices] = mu_sequence[nan_indices]
     return x
+
 
 if __name__ == "__main__":
     fire.Fire(main)

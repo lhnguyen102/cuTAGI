@@ -75,12 +75,12 @@ def mnist_test_runner(
     return avg_error_rate
 
 
-class TestMNISTModels(unittest.TestCase):
+class MnistTest(unittest.TestCase):
 
     def setUp(self):
         self.threshold = 0.5
 
-    def test_BatchNormFNN_CPU(self):
+    def test_batchnorm_fnn_CPU(self):
         model = Sequential(
             Linear(784, 32),
             BatchNorm2d(32),
@@ -95,7 +95,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    def test_LayerNormFNN_CPU(self):
+    def test_layernorm_fnn_CPU(self):
         model = Sequential(
             Linear(784, 32),
             MixtureReLU(),
@@ -110,7 +110,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    def test_CNN_CPU(self):
+    def test_cnn_CPU(self):
         model = Sequential(
             Conv2d(
                 1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
@@ -129,7 +129,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    def test_BatchNormCNN_CPU(self):
+    def test_batchnorm_cnn_CPU(self):
         model = Sequential(
             Conv2d(
                 1,
@@ -158,7 +158,7 @@ class TestMNISTModels(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
-    def test_LayerNormCNN_CPU(self):
+    def test_layernorm_cnn_CPU(self):
         model = Sequential(
             Conv2d(
                 1,
@@ -189,7 +189,7 @@ class TestMNISTModels(unittest.TestCase):
 
     # CUDA Tests
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
-    def test_BatchNormFNN_CUDA(self):
+    def test_batchnorm_fnn_CUDA(self):
         model = Sequential(
             Linear(784, 32),
             BatchNorm2d(32),
@@ -205,7 +205,7 @@ class TestMNISTModels(unittest.TestCase):
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
-    def test_LayerNormFNN_CUDA(self):
+    def test_layernorm_fnn_CUDA(self):
         model = Sequential(
             Linear(784, 32),
             MixtureReLU(),
@@ -221,7 +221,7 @@ class TestMNISTModels(unittest.TestCase):
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
-    def test_CNN_CUDA(self):
+    def test_cnn_CUDA(self):
         model = Sequential(
             Conv2d(
                 1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
