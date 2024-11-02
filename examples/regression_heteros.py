@@ -32,7 +32,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     # Viz
     viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
 
-    cuda = False
+    cuda = True
 
     pytagi.manual_seed(0)
 
