@@ -39,11 +39,10 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install CUDA
-        run: |
-          apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-          sh -c 'echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/cuda.list'
-          apt-get update
-          apt-get -y install cuda
+        uses: Jimver/cuda-toolkit@v0.2.18
+        id: cuda-toolkit
+        with:
+          cuda: '12.2.2'
 
       - name: Verify CUDA
         run: |
