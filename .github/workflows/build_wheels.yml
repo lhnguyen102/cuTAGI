@@ -205,7 +205,7 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: |
-          twine upload --repository-url https://test.pypi.org/simple/ dist/*
+          twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
   # upload_pypi:
   #   name: PyPI Upload
