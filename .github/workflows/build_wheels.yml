@@ -92,12 +92,13 @@ jobs:
 
       - name: Build wheels
         run: |
-          export Python3_ROOT_DIR=${CIBW_PYTHON}'
           python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
+          CIBW_ENVIRONMENT: |
+            Python3_ROOT_DIR=${CIBW_PYTHON}
 
       - uses: actions/upload-artifact@v4
         with:
