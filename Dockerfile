@@ -1,4 +1,3 @@
-# Define the shared ARG before any FROM statements
 ARG PYTHON_VERSION=3.11
 
 #####################################################
@@ -55,15 +54,12 @@ COPY scripts/ ${WDC}/scripts
 COPY CMakeLists.txt ${WDC}/CMakeLists.txt
 COPY Dockerfile ${WDC}/Dockerfile
 COPY main.cpp ${WDC}/main.cpp
-COPY main.cu ${WDC}/main.cu
 COPY requirements.txt ${WDC}/requirements.txt
 COPY README.md ${WDC}/README.md
 COPY data/toy_example ${WDC}/data/toy_example
 COPY data/toy_time_series ${WDC}/data/toy_time_series
 COPY data/toy_time_series_smoother ${WDC}/data/toy_time_series_smoother
 COPY data/UCI ${WDC}/data/UCI
-COPY data/traffic ${WDC}/data/traffic
-
 
 # Work directory for the Docker image
 WORKDIR ${WDC}/

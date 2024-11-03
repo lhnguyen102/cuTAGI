@@ -47,6 +47,19 @@ DEVICE="${DEVICE:-cpu}"
 echo "Building Docker image with version: $VERSION"
 echo "Device selected for build: $DEVICE"
 
+# Check if running on macOS or Linux
+OS_TYPE="$(uname -s)"
+if [ "$OS_TYPE" == "Darwin" ]; then
+    echo "Detected macOS. Ensuring Docker Buildx for cross-platform builds..."
+    
+    # Ensure Buildx is set up for cross-platform (Linux) builds on macOS
+    docker buildx create --use || echo "Buildx is already set up"
+    PLATFORM_FLAG="--platform linux/amd64"
+else
+    echo "Detected Linux. No need for cross-platform adjustments."
+    PLATFORM_FLAG=""
+fi
+
 # Select Dockerfile and build command based on device
 if [ "$DEVICE" == "cpu" ]; then
     echo "Building Docker image with CPU support..."

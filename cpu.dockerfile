@@ -1,18 +1,14 @@
-# Define the shared ARG before any FROM statements
 ARG PYTHON_VERSION=3.11
 
 #####################################################
 ## BUILD STAGE
 #####################################################
 FROM ubuntu:22.04 AS builder
-
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install essential packages
+# Install essential packages. For vu
 ARG PYTHON_VERSION
 ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -64,14 +60,12 @@ COPY scripts/ ${WDC}/scripts
 COPY CMakeLists.txt ${WDC}/CMakeLists.txt
 COPY Dockerfile ${WDC}/Dockerfile
 COPY main.cpp ${WDC}/main.cpp
-COPY main.cu ${WDC}/main.cu
 COPY requirements.txt ${WDC}/requirements.txt
 COPY README.md ${WDC}/README.md
 COPY data/toy_example/ ${WDC}/data/toy_example
 COPY data/toy_time_series/ ${WDC}/data/toy_time_series
 COPY data/toy_time_series_smoother/ ${WDC}/data/toy_time_series_smoother
 COPY data/UCI/ ${WDC}/data/UCI
-COPY data/traffic/ ${WDC}/data/traffic
 
 # Work directory for the Docker image
 WORKDIR ${WDC}/
@@ -84,8 +78,8 @@ RUN chmod +x scripts/compile.sh && \
 ## RUNTIME STAGE
 #####################################################
 FROM ubuntu:22.04
-
 ARG DEBIAN_FRONTEND=noninteractive
+
 ARG PYTHON_VERSION
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 RUN apt-get update -y && \
@@ -94,14 +88,19 @@ RUN apt-get update -y && \
     file \
     gzip \
     apt-transport-https ca-certificates software-properties-common && \
+    apt-get install --reinstall -y ca-certificates gnupg && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy Python binary and libraries from builder to runtime
-COPY --from=builder /usr/bin/python${PYTHON_VERSION} /usr/bin/
-COPY --from=builder /usr/lib/python${PYTHON_VERSION} /usr/lib/python${PYTHON_VERSION}
-COPY --from=builder /usr/include/python${PYTHON_VERSION} /usr/include/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libpython${PYTHON_VERSION}* /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /usr/local/lib/libpython${PYTHON_VERSION}* /usr/local/lib/
+RUN add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-dev \
+    python${PYTHON_VERSION}-venv \
+    python${PYTHON_VERSION}-distutils && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
 
 # Update symbolic links
 RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
