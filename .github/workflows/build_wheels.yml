@@ -39,10 +39,16 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install CUDA
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./extern/action_scripts/install_cuda_ubuntu.sh
-        shell: bash
+        run: |
+          apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+          sh -c 'echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/cuda.list'
+          apt-get update
+          apt-get -y install cuda
+
+      - name: Verify CUDA
+        run: |
+          nvcc --version
+          nvidia-smi
 
       - name: Install build dependencies (setuptools, wheel)
         run: |

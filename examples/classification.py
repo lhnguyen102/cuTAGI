@@ -84,7 +84,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -108,7 +108,7 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
     # Network configuration
     net = CNN
     net.to_device("cuda")
-    #net.set_threads(16)
+    # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -123,8 +123,13 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-            if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+            if print_var:  # Print prior predictive variance
+                print(
+                    "Prior predictive -> E[v_pred] = ",
+                    np.average(v_pred),
+                    "+-",
+                    np.std(v_pred),
+                )
                 print_var = False
 
             # Update output layers based on targets
