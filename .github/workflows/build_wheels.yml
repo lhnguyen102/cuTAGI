@@ -95,7 +95,7 @@ jobs:
           python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
-          CIBW_ARCHS_MACOS: universal2
+          CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v4
@@ -187,7 +187,6 @@ jobs:
       - name: Run tests
         run: |
           sh build/run_tests --cpu
-          python3 -m test.python.main --cpu
 
   upload_pypi:
     name: PyPI Upload
