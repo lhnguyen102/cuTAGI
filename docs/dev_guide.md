@@ -114,7 +114,6 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    build/run_tests
    ```
 
----
 
 ## Installing `cuTAGI`
 
@@ -163,7 +162,6 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
 
    **Note**: Ensure Docker is running during the build and run processes.
 
----
 
 ### Ubuntu 22.04 Installation (Without Docker)
 
@@ -200,7 +198,7 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    - `ReleaseWithInfo`: For release build with debug information
    - `Debug`: For debug build using GDB Debugger
 
----
+
 
 ### macOS (CPU Version)
 
@@ -220,7 +218,6 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    scripts/compile.sh [option]
    ```
 
----
 
 ### Running Unit Tests
 
@@ -236,7 +233,6 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    python -m test.py_unit.main
    ```
 
----
 
 ## Installation Guide: CMake on macOS
 
@@ -292,7 +288,6 @@ sudo rm -rf /Applications/CMake.app
    rm -rf ~/Downloads/CMake
    ```
 
----
 
 ## Tips and Tools
 
