@@ -16,25 +16,25 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        cuda: ["11.3"]
-        python_version: ["3.9", "3.10", "3.11"]
-    if: ${{ github.event.pull_request.draft == false }}
+        os: [ubuntu-22.04]
+        cuda: ["12.2"]
+        python_version: ["3.10", "3.11", "3.12"]
+    # if: ${{ github.event.pull_request.draft == false }}
     steps:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.13
         with:
-          cmake-version: "3.23.x"
+          cmake-version: "3.22.x"
 
       - name: Use cmake
         run: cmake --version
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
@@ -50,7 +50,7 @@ jobs:
       - name: Build wheels
         run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.whl
 
@@ -61,30 +61,31 @@ jobs:
       matrix:
         include:
           - os: macos-13
-            python_version: "3.9"
-            cibuildwheel_python: "cp39-*"
-
-          - os: macos-13
             python_version: "3.10"
             cibuildwheel_python: "cp310-*"
 
           - os: macos-13
             python_version: "3.11"
             cibuildwheel_python: "cp311-*"
-    if: ${{ github.event.pull_request.draft == false }}
+
+          - os: macos-13
+            python_version: "3.12"
+            cibuildwheel_python: "cp312-*"
+
+    # if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       # Used to host cibuildwheel
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
       - name: Install cibuildwheel
-        run: python3 -m pip install cibuildwheel==2.11.2
+        run: python3 -m pip install cibuildwheel==2.21.3
 
       - name: Build wheels
         run: python3 -m cibuildwheel --output-dir wheelhouse
@@ -93,7 +94,7 @@ jobs:
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD_VERBOSITY: 1
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -102,16 +103,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        python_version: ["3.9", "3.10", "3.11"]
+        os: [ubuntu-22.04]
+        python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
@@ -124,21 +125,21 @@ jobs:
           python -m pip install setuptools wheel twine
           python setup.py sdist
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
 
   test:
     name: Test
     needs: [build_linux, build_macos, build_sdist]
-    runs-on: ubuntu-20.04
-    if: ${{ github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    # if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -148,14 +149,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
           name: artifact
           path: dist
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
+      - uses: pypa/gh-action-pypi-publish@v1.9.0
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
