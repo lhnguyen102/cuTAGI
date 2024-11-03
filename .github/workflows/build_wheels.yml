@@ -52,6 +52,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: linux-wheels-${{ matrix.python_version }}
           path: dist/*.whl
 
   build_macos:
@@ -96,6 +97,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: macos-wheels-${{ matrix.python_version }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -127,6 +129,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: sdist-${{ matrix.python_version }}
           path: dist/*.tar.gz
 
   test:
@@ -156,6 +159,24 @@ jobs:
       - name: cmake version
         run: cmake --version
 
+      - name: Download Linux wheels artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-wheels-3.10
+          path: dist/linux
+
+      - name: Download macOS wheels artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-wheels-3.10
+          path: dist/macos
+
+      - name: Download SDist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist-3.10
+          path: dist/sdist
+
       - name: Build binary
         run: |
           sh scripts/compile.sh Release
@@ -163,25 +184,31 @@ jobs:
       - name: Run tests
         run: |
           sh build/run_tests --cpu
-          python3 -m test/python/main.py --cpu
+          python3 -m test.python.main --cpu
 
   upload_pypi:
     name: PyPI Upload
     needs: [test]
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python_version: ["3.10", "3.11", "3.12"]
+        os: ["linux", "macos", "sdist"]
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download Linux/macOS/SDist artifacts
+        uses: actions/download-artifact@v4
         with:
-          # unpacks default artifact into dist/
-          # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
-          path: dist
+          name: ${{ matrix.os }}-wheels-${{ matrix.python_version }}
+          path: dist/${{ matrix.os }}-${{ matrix.python_version }}
 
-      - uses: pypa/gh-action-pypi-publish@v1.9.0
+      # Upload to PyPI
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.9.0
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
-          # repository_url: https://test.pypi.org/legacy/
           skip_existing: true
           verbose: true
+          package_directory: dist/${{ matrix.os }}-${{ matrix.python_version }}
+
