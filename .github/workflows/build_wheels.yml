@@ -92,6 +92,7 @@ jobs:
 
       - name: Build wheels
         run: |
+          export Python3_ROOT_DIR=${CIBW_PYTHON}'
           python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
