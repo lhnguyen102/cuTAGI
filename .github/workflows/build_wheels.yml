@@ -54,7 +54,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-wheels-${{ matrix.python_version }}
           path: dist/*.whl
 
   build_macos:
@@ -100,7 +99,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-wheels-${{ matrix.python_version }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -132,7 +130,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sdist-${{ matrix.python_version }}
           path: dist/*.tar.gz
 
   test:
@@ -186,7 +183,8 @@ jobs:
 
       - name: Run tests
         run: |
-          sh build/run_tests --cpu
+          build/run_tests --cpu
+          python3 -m test.py_unit.main --cpu
 
   upload_pypi:
     name: PyPI Upload
@@ -198,20 +196,19 @@ jobs:
         os: ["linux", "macos", "sdist"]
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - name: Download Linux/macOS/SDist artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.os }}-wheels-${{ matrix.python_version }}
-          path: dist/${{ matrix.os }}-${{ matrix.python_version }}
+          # unpacks default artifact into dist/
+          # if `name: artifact` is omitted, the action will create extra parent dir
+          name: artifact
+          path: dist
 
-      # Upload to PyPI
-      - name: Upload to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.9.0
+      - uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
-          repository_url: https://test.pypi.org/legacy/
+          # repository_url: https://test.pypi.org/legacy/
           skip_existing: true
           verbose: true
-          package_directory: dist/${{ matrix.os }}-${{ matrix.python_version }}
+
 
