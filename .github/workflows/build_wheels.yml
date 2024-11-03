@@ -91,7 +91,9 @@ jobs:
         run: python3 -m pip install cibuildwheel==2.21.3
 
       - name: Build wheels
-        run: python3 -m cibuildwheel --output-dir wheelhouse
+        run: |
+          export CIBW_ENVIRONMENT='CMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS} Python3_ROOT_DIR=${CIBW_PYTHON}'
+          python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: x86_64 arm64
