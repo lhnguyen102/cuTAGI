@@ -11,51 +11,51 @@ on:
     types: [published]
 
 jobs:
-  build_linux:
-    name: Linux Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]
-        cuda: ["12.2"]
-        python_version: ["3.10", "3.11", "3.12"]
-    if: ${{ github.event.pull_request.draft == false }}
-    steps:
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2.0.2
-        with:
-          cmake-version: "3.22.x"
+  # build_linux:
+  #   name: Linux Build
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-22.04]
+  #       cuda: ["12.2"]
+  #       python_version: ["3.10", "3.11", "3.12"]
+  #   if: ${{ github.event.pull_request.draft == false }}
+  #   steps:
+  #     - name: Setup cmake
+  #       uses: jwlawson/actions-setup-cmake@v2.0.2
+  #       with:
+  #         cmake-version: "3.22.x"
 
-      - name: Use cmake
-        run: cmake --version
+  #     - name: Use cmake
+  #       run: cmake --version
 
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
 
-      - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python_version }}
+  #     - name: Set up Python ${{ matrix.python_version }}
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python_version }}
 
-      - name: Install CUDA
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./extern/action_scripts/install_cuda_ubuntu.sh
-        shell: bash
+  #     - name: Install CUDA
+  #       env:
+  #         cuda: ${{ matrix.cuda }}
+  #       run: ./extern/action_scripts/install_cuda_ubuntu.sh
+  #       shell: bash
 
-      - name: Install build dependencies (setuptools, wheel)
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install setuptools wheel
+  #     - name: Install build dependencies (setuptools, wheel)
+  #       run: |
+  #         python3 -m pip install --upgrade pip
+  #         python3 -m pip install setuptools wheel
 
-      - name: Build wheels
-        run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
+  #     - name: Build wheels
+  #       run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-wheels-${{ matrix.python_version }}
-          path: dist/*.whl
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: linux-wheels-${{ matrix.python_version }}
+  #         path: dist/*.whl
 
   build_macos:
     name: MACOS Build
@@ -88,7 +88,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: build dependencies (setuptools, wheel)
-        run: python3 -m pip install cibuildwheel==2.21.3
+        run: python3 -m pip install cibuildwheel==2.11.2
 
       - name: Build wheels
         run: python3 -m cibuildwheel --output-dir wheelhouse
@@ -210,6 +210,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
+          repository_url: https://test.pypi.org/legacy/
           skip_existing: true
           verbose: true
           package_directory: dist/${{ matrix.os }}-${{ matrix.python_version }}

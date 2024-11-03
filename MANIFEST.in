@@ -4,8 +4,6 @@ global-exclude *.py[cod]
 exclude saved_param/*
 exclude examples/*
 exclude saved_results/*
-prune debug_data/*
-exclude cfg/*
 graft extern/pybind11/include
 graft extern/pybind11/tools
 include LICENSE README.md pyproject.toml setup.py setup.cfg
