@@ -133,14 +133,18 @@ We recommend using Miniconda to manage your Python environment, although `pytagi
 
 2. **Ensure CUDA Compatibility**:
 
-   > **Important**: Make sure that the CUDA version on your host machine is compatible with the CUDA version (12.2.2) used in the Docker image. This ensures proper GPU acceleration within the Docker container.
+   - Make sure that the CUDA version on your host machine is compatible with the CUDA version (>=12.2) used in the Docker image. This ensures proper GPU acceleration within the Docker container.
+   - NVIDIA Container Toolkit is required to enable Docker to use the NVIDIA GPU. Verify if it’s installed with:
+      ```sh
+      dpkg -l | grep nvidia-container-toolkit
+      ```
 
 3. **Build the Docker Image**:
 
    - **CPU Build**:
 
      ```sh
-     scripts/docker_build.sh device=cpu version=latest
+     scripts/docker_build.sh
      ```
 
    - **CUDA Build**:
@@ -154,7 +158,7 @@ We recommend using Miniconda to manage your Python environment, although `pytagi
    - **For CPU**:
 
      ```sh
-     scripts/docker_run.sh device=cpu version=latest cfg=--cpu
+     scripts/docker_run.sh
      ```
 
    - **For CUDA (GPU)**:
@@ -163,7 +167,8 @@ We recommend using Miniconda to manage your Python environment, although `pytagi
      scripts/docker_run.sh device=cuda version=latest
      ```
 
-   **Note**: Ensure that the Docker application is running during the build and run processes. Commands for running tasks such as classification and regression can be found [here](#docker-run).
+   **Note**: Ensure that the Docker application is running during the build and run processes. For the version, it recommends to use specific value e.g., 0.1.x.
+
 
 ### Ubuntu 22.04 Installation
 
