@@ -1,5 +1,5 @@
 # CMAKE VERSION
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.22)
 
 # ##############################################################################
 # # PPROJECT
@@ -165,7 +165,7 @@ if(CMAKE_CUDA_COMPILER)
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
   # Executablecode i.e. application
-  add_executable(main main.cu)
+  add_executable(main main.cpp)
 
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")

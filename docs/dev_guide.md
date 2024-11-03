@@ -30,150 +30,280 @@
 * CMake>=3.23
 * CUDA toolkit (optional)
 
-## `pytagi` Installation
-`pytagi` is a Python wrapper of C++/CUDA backend for TAGI method. The developers can install either  [distributed](#pypi-installation) or [local](#local-installation) versions of `pytagi`. Currently `pytagi` only supports Python version >=3.9 on both MacOS and Ubuntu.
+## Introduction
 
-### Create Miniconda Environment
-We recommend installing miniconda for managing Python environment, yet `pytagi` works well with other alternatives.
-1. Install miniconda by following these [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements)
-2. Create a conda environment
-    ```
-    conda create --name your_env_name python=3.10
-    ```
-3. Activate conda environment
-    ```
-    conda activate your_env_name
-    ```
+`cuTAGI` is a high-performance C++/CUDA implementation of the TAGI (Tractable Approximate Gaussian Inference) method. For Python users, `pytagi` serves as a Python wrapper around the `cuTAGI` backend, allowing for seamless integration within Python environments.
+
+This guide provides detailed instructions for installing both `pytagi` and `cuTAGI` on various platforms.
+
+## Prerequisites
+
+- **Python Version**: Python >= 3.9 (We recommend Python 3.10)
+- **CUDA Toolkit**: For GPU support, ensure that the CUDA toolkit is installed and that the host machine's CUDA version is compatible with the build image's CUDA version (12.2.2).
+
+---
+
+## Installing `pytagi`
+
+`pytagi` is the Python interface for the `cuTAGI` backend. You can install it either via PyPI or from the source code locally.
+
+### Setting Up a Conda Environment
+
+We recommend using Miniconda to manage your Python environment, although `pytagi` works with other environment managers as well.
+
+1. **Install Miniconda**: Follow the [official instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#system-requirements).
+
+2. **Create a New Conda Environment**:
+
+   ```sh
+   conda create --name your_env_name python=3.10
+   ```
+
+3. **Activate the Environment**:
+
+   ```sh
+   conda activate your_env_name
+   ```
 
 ### PyPI Installation
-1. [Create conda environment](#create-conda-environment)
-2. Install requirements
-    ```
-    pip install -r requirements.txt
-    ```
-3. Install `pytagi`
-    ```
-    pip install pytagi
-    ```
-4. Test `pytagi` package
-    ```sh
-    python -m examples.classification
-    ```
-NOTE: This PyPI distributed version does not require the codebase in this repository. The developers can create their own applications (see [python_examples](python_examples)).
+
+1. **Ensure Conda Environment is Activated**: Make sure you've activated the environment created in the previous step.
+
+2. **Install Required Packages**:
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+3. **Install `pytagi` from PyPI**:
+
+   ```sh
+   pip install pytagi
+   ```
+
+4. **Test the Installation**:
+
+   ```sh
+   python -m examples.classification
+   ```
+
+   **Note**: This PyPI version does not require the codebase from this repository. You can develop your own applications (see [python_examples](python_examples)).
 
 ### Local Installation
-1. Clone this repository. Note that `git submodule` command allows cloning [pybind11](https://github.com/pybind/pybind11) which is the binding python package of C++/CUDA.
-    ```
-    git clone https://github.com/lhnguyen102/cuTAGI.git
-    cd cuTAGI
-    git submodule update --init --recursive
-    ```
-2. [Create conda environment](#create-conda-environment)
-4. Install requirements
-    ```
-    pip install -r requirements.txt
-    ```
-5. Install `pytagi` package
-    ```sh
-    pip install .
-    ```
-6. Test `pytagi` package
-    ```sh
-    python -m examples.classification
-    ```
 
-## `cutagi` Installation
-`cutagi` is the native version implemented in C++/CUDA for TAGI method. We highly recommend installing cuTAGI using Docker method to facilitate the installation.
+1. **Clone the Repository**:
 
+   ```sh
+   git clone https://github.com/lhnguyen102/cuTAGI.git
+   cd cuTAGI
+   git submodule update --init --recursive
+   ```
+
+   **Note**: The `git submodule` command clones the [pybind11](https://github.com/pybind/pybind11) repository, which is essential for binding Python with C++/CUDA.
+
+2. **Ensure Conda Environment is Activated**: Make sure you've activated the environment created earlier.
+
+3. **Install Required Packages**:
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. **Install `pytagi` Locally**:
+
+   ```sh
+   pip install .
+   ```
+
+5. **Test the Installation**:
+
+   ```sh
+   python -m examples.classification
+   ```
+
+---
+
+## Installing `cuTAGI`
+
+`cuTAGI` is the native C++/CUDA implementation of the TAGI method. We highly recommend using Docker for installation to simplify the setup process.
 
 ### Docker Build
-1. Install Docker by following these [instructions](https://docs.docker.com/get-docker/)
-2. Build docker image
-  * CPU build
-      ```sh
-      bash bin/build.sh
-      ```
-  * CUDA build
-      ```sh
-      bash bin/build.sh -d cuda
-      ```
-*NOTE: During the build and run, make sure that Docker desktop application is opened. The commands for runing tasks such as classification and regression can be found [here](#docker-run)
 
-### Ubuntu 20.04
-1. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 in `/usr/local/` and add the CUDA location to PATH. For example, adding the following to your `~/.bashrc`
-    ```sh
-    export PATH="/usr/local/cuda-10.1/bin:$PATH"
-    export LD_LIBRARY_PATH="/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH"
-    ```
-2. Install GCC compiler by entering this line in `Terminal`
-    ```sh
-    sudo apt install g++
-    ```
-3. Install CMake by following [these instructions](https://cmake.org/install/)
+1. **Install Docker**: Follow the [official instructions](https://docs.docker.com/get-docker/).
 
-4. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
-    ```sh
-    cmake . -B build
-    cmake --build build --config RelWithDebInfo -j 16
-    ```
+2. **Ensure CUDA Compatibility**:
 
-### Windows
-1. Download and install MS Visual Studio 2019 community and C/C++ by following [these instructions](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170)
+   > **Important**: Make sure that the CUDA version on your host machine is compatible with the CUDA version (12.2.2) used in the Docker image. This ensures proper GPU acceleration within the Docker container.
 
-2. Install [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) >=10.1 and add CUDA location to Environment variables [(see Step 5.3)](https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781)
+3. **Build the Docker Image**:
 
-3. Copy all extenstion files from CUDA to MS Visual Studio. See this [link](https://github.com/mitsuba-renderer/mitsuba2/issues/103#issuecomment-618378963) for further details.
-    ```sh
-    COPY FROM C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\visual_studio_integration\MSBuildExtensions
-    TO        C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\BuildCustomizations
-    ```
-4. Download and install CMake [Windows x64 Installer](https://cmake.org/download/) and add the install directory (e.g., `C:\Program Files\CMake\bin`) to PATH in [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14))
+   - **CPU Build**:
 
-5. Add CMake CUDA compiler to [Environment variables](https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14)).
-    ```sh
-    variable = CMAKE_CUDA_COMPILER
-    value = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc.exe
-    ```
-6. Build the project using CMake by navigating to the folder `cuTAGI` and  entering these lines in `Command Prompt`
-    ```sh
-    cmake . -B build
-    cmake --build build --config RelWithDebInfo -j 16
-    ```
+     ```sh
+     scripts/docker_build.sh device=cpu version=latest
+     ```
 
-*NOTE: Users must enter the CUDA version installed on their machine. Here, we illustrate the installation with CUDA version v10.1 (see Step 1 for Ubuntu and 3 & 5 for Windows).
+   - **CUDA Build**:
 
-### Mac OS (CPU Version)
-1. [Install gcc and g++](https://formulae.brew.sh/formula/gcc) via `Terminal`
-    ```sh
-    brew install gcc
-    ```
-2. Install CMake by following [these instructions](https://cmake.org/install/)
+     ```sh
+     scripts/docker_build.sh device=cuda version=latest
+     ```
 
-3. [Add CMake to PATH](https://code2care.org/pages/permanently-set-path-variable-in-mac-zsh-shell). Add the following line to your `.zshrc` file
-    ```sh
-    export PATH="/Applications/CMake.app/Contents/bin/:$PATH"
-    ```
+4. **Run Unit Tests**:
 
-4. Build the project using CMake by the folder `cuTAGI` and  entering these lines in `Terminal`
-    ```sh
-    cmake . -B build
-    cmake --build build --config RelWithDebInfo -j 16
-    ```
+   - **For CPU**:
 
-### VS Code
-1. Install gcc and g++ w.r.t operating system such as Ubuntu, Window, and Mac OS
-2. Install CMake
-3. Install [the following prerequites](https://code.visualstudio.com/docs/cpp/cmake-linux)
-* Visual Studio Code
-* C++ extension for VS Code
-* CMake Tools extension for VS Code
+     ```sh
+     scripts/docker_run.sh device=cpu version=latest cfg=--cpu
+     ```
 
-## Code Formatter in VS code
-To format C++ and Python code in VS Code, add the following settings to your `.vscode/settings.json` file:
+   - **For CUDA (GPU)**:
+
+     ```sh
+     scripts/docker_run.sh device=cuda version=latest
+     ```
+
+   **Note**: Ensure that the Docker application is running during the build and run processes. Commands for running tasks such as classification and regression can be found [here](#docker-run).
+
+### Ubuntu 22.04 Installation
+
+If you prefer to install `cuTAGI` directly on Ubuntu 20.04 without Docker, follow these steps:
+
+1. **Install CUDA Toolkit**:
+
+   - Download and install the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) (version >= 12.2).
+   - Install it in `/usr/local/`.
+   - Add the CUDA location to your PATH by adding the following lines to your `~/.bashrc` file:
+
+     ```sh
+     export PATH="/usr/local/cuda-12.2/bin:$PATH"
+     export LD_LIBRARY_PATH="/usr/local/cuda-12.2/lib64:$LD_LIBRARY_PATH"
+     ```
+
+     **Note**: Replace `cuda-12.2` with your installed CUDA version.
+
+2. **Install GCC Compiler**:
+
+   ```sh
+   sudo apt install g++
+   ```
+
+3. **Install CMake**:
+
+   Follow the [official instructions](https://cmake.org/install/) to install CMake.
+
+4. **Build the Project**:
+
+   Navigate to the `cuTAGI` folder and run:
+
+   ```sh
+   scripts/compile.sh [option]
+   ```
+
+   Replace `[option]` with one of the following:
+
+   - `Release`: For an optimized release build.
+   - `ReleaseWithInfo`: For a release build with debug information.
+   - `Debug`: For a debug build using GDB Debugger.
+
+### macOS (CPU Version)
+
+`cuTAGI` supports CPU-only builds on macOS.
+
+1. **Install Xcode for MACOS**
+
+2. **Install CMake**:
+
+   For detailed instructions on installing CMake on macOS, refer to the [Installation Guide: CMake on macOS](#installation-guide-cmake-on-macos) section below.
+
+3. **Build the Project**:
+
+   Navigate to the `cuTAGI` folder and run:
+
+   ```sh
+   scripts/compile.sh [option]
+   ```
+
+   Replace `[option]` with one of the following:
+
+   - `Release`: For an optimized release build.
+   - `ReleaseWithInfo`: For a release build with debug information.
+   - `Debug`: For a debug build using GDB Debugger.
+
+---
+
+## Installation Guide: CMake on macOS
+This guide covers the steps to install  `CMake` on macOS.
+
+
+## Install CMake
+The original instructions on installing CMake tool for MacOS are from this [source](https://gist.github.com/fscm/29fd23093221cf4d96ccfaac5a1a5c90)
+
+### Step 1: Uninstall CMake (Optional)
+Unsinstall any previous CMake installation
+```bash
+sudo find /usr/local/bin -type l -lname '/Applications/CMake.app/*' -delete
+sudo rm -rf /Applications/CMake.app
+```
+
+### Step 2: Install CMake
+
+1. Download installer. Available version could be found [here](https://cmake.org/download/), defaulting to version v3.30.5.
+   ```bash
+   mkdir ~/Downloads/CMake
+   curl --silent --location --retry 3 "https://github.com/Kitware/CMake/releases/download/v3.30.5/cmake-3.30.5-macos-universal.dmg" --output ~/Downloads/CMake/cmake-macos.dmg
+   ```
+2. Mount image
+   ```bash
+   yes | PAGER=cat hdiutil attach -quiet -mountpoint /Volumes/cmake-macos ~/Downloads/CMake/cmake-macos.dmg
+   ```
+3. Copy CMake app to application folder
+   ```bash
+   cp -R /Volumes/cmake-macos/CMake.app /Applications/
+   ```
+4. Unmount the image
+   ```
+   hdiutil detach /Volumes/cmake-macos
+   ```
+5. Add CMake tool to the PATH
+   ```bash
+   sudo "/Applications/CMake.app/Contents/bin/cmake-gui" --install=/usr/local/bin
+   ```
+6. Verify the installation:
+   ```bash
+   cmake --version
+   ```
+7. Clean up
+   ```bash
+   rm -rf ~/Downloads/CMake
+   ```
+
+## Enable Git Autocomplete
+1. Add the following command to `~/.zshrc`
+   ```bash
+   autoload -Uz compinit && compinit
+   ```
+2. Activate new changes
+   ```
+   source ~/.zshrc
+   ```
+
+## Run Memory Check
+Run the following command to ensure no memory leak
+```bash
+leaks --atExit -- bin/run_tests
+```
+
+
+## Code Formatting in VS Code
+
+To maintain code consistency, you can set up code formatters in Visual Studio Code for both C++ and Python.
+
+Add the following settings to your `.vscode/settings.json` file:
 
 ```json
 {
-    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}",
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80 }",
     "editor.rulers": [80],
     "editor.formatOnSave": true,
     "python.formatting.provider": "black",
@@ -183,3 +313,4 @@ To format C++ and Python code in VS Code, add the following settings to your `.v
     "C_Cpp.errorSquiggles": "disabled"
 }
 ```
+
