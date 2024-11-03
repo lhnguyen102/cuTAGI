@@ -168,11 +168,12 @@ jobs:
 
       - name: Run tests
         run: |
-          sh build/run_tests --cpu
+          build/run_tests --cpu
+          python -m test.py_unit.main --cpu
 
   upload_pypi:
     name: Upload to Test PyPI
-    needs: [build_linux, build_macos, build_sdist]
+    needs: [test]
     runs-on: ubuntu-22.04
     if: ${{ github.event.pull_request.draft == false }}
     steps:
@@ -188,17 +189,14 @@ jobs:
         with:
           path: ./dist
 
-      - name: Install twine
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install twine
-
-      - name: Upload to Test PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        run: |
-          twine upload --repository-url https://test.pypi.org/legacy/ dist/**/*
+      - uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_PASSWORD }}
+          repository_url: https://test.pypi.org/legacy/
+          skip_existing: true
+          verbose: true
+          packages-dir: ./dist
 
   # upload_pypi:
   #   name: PyPI Upload
