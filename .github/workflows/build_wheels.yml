@@ -41,6 +41,7 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.18
         id: cuda-toolkit
         with:
+          use-github-cache: false
           linux-local-args: '["--toolkit"]'
           log-file-suffix: '${{matrix.os}}.txt'
           cuda: '12.6.1'
