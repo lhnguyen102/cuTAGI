@@ -1,3 +1,11 @@
+import os
+import sys
+
+# path to binding code
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+)
+
 import unittest
 from pytagi.nn import (
     AvgPool2d,

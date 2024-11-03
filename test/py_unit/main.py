@@ -1,6 +1,12 @@
 import argparse
 import os
+import sys
 import unittest
+
+# path to binding code
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+)
 
 
 def set_cpu_only_flag():
@@ -21,5 +27,5 @@ if __name__ == "__main__":
     # Load test files start with `test_` and run them
     test_suite = unittest.defaultTestLoader.discover(start_dir=".", pattern="test_*.py")
 
-    runner = unittest.TextTestRunner(verbosity=2)
+    runner = unittest.TextTestRunner(verbosity=2, failfast=True)
     runner.run(test_suite)

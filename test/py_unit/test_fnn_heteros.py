@@ -11,7 +11,7 @@ from pytagi.nn import EvenExp, Linear, OutputUpdater, ReLU, Sequential
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
 )
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"

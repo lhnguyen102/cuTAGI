@@ -187,16 +187,25 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./dist
+          path: ./artifacts
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
-        with:
-          user: __token__
-          password: ${{ secrets.TEST_PYPI_PASSWORD }}
-          repository_url: https://test.pypi.org/legacy/
-          skip_existing: true
-          verbose: true
-          packages-dir: ./dist
+      - name: Collect all build files
+        run: |
+          mkdir dist_all
+          find ./artifacts -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
+
+
+      - name: Install twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine
+
+      - name: Upload to Test PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
+        run: |
+          twine upload --repository-url https://test.pypi.org/simple/ dist/*
 
   # upload_pypi:
   #   name: PyPI Upload
