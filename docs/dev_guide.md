@@ -273,7 +273,8 @@ sudo rm -rf /Applications/CMake.app
    rm -rf ~/Downloads/CMake
    ```
 
-## Enable Git Autocomplete
+## Tips and Tools
+### Enable Git Autocomplete on MACOS
 1. Add the following command to `~/.zshrc`
    ```bash
    autoload -Uz compinit && compinit
@@ -283,14 +284,14 @@ sudo rm -rf /Applications/CMake.app
    source ~/.zshrc
    ```
 
-## Run Memory Check
+### Run Memory Check on MACOS
 Run the following command to ensure no memory leak
 ```bash
 leaks --atExit -- bin/run_tests
 ```
 
 
-## Code Formatting in VS Code
+### Code Formatting in VS Code
 
 To maintain code consistency, you can set up code formatters in Visual Studio Code for both C++ and Python.
 
