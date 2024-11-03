@@ -211,7 +211,6 @@ target_include_directories(run_tests PRIVATE
 # Link the test executable with the required libraries and cutagi_lib
 target_link_libraries(run_tests PRIVATE
   pybind11::embed
-  gtest
   gtest_main
   cutagi_lib
 )
