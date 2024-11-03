@@ -343,7 +343,7 @@ TEST_F(MnistTest, BatchNormCNNTest_CPU) {
     float avg_error;
     float threshold = 0.5;
     mnist_test_runner(model, avg_error);
-    EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
 TEST_F(MnistTest, LayerNormCNNTest_CPU) {
@@ -356,7 +356,7 @@ TEST_F(MnistTest, LayerNormCNNTest_CPU) {
     float avg_error;
     float threshold = 0.5;
     mnist_test_runner(model, avg_error);
-    EXPECT_LT(avg_error, threshold), "Error rate is higher than threshold";
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
 #ifdef USE_CUDA
