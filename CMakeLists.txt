@@ -25,7 +25,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "${CMAKE_SYSTEM_PROCESSOR}")
+    if(NOT CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
+    endif()
 endif()
 
 if(MSVC)
@@ -99,7 +101,7 @@ endif()
 
 # find_package(Python COMPONENTS Interpreter Development)
 # find_package(PythonInterp)
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 ################################################################################
 # ADD SUBMODULES AS SUBDIRECTORIES

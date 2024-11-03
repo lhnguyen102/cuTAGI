@@ -97,9 +97,6 @@ jobs:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
           CIBW_ARCHS_MACOS: arm64
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_ENVIRONMENT: |
-            CMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS}
-            Python3_ROOT_DIR=${CIBW_PYTHON}
 
       - uses: actions/upload-artifact@v4
         with:
