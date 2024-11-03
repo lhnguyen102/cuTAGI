@@ -31,6 +31,11 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
 endif()
 
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+
 find_package(Threads REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
@@ -94,7 +99,8 @@ else()
 endif()
 
 # find_package(Python COMPONENTS Interpreter Development)
-find_package(PythonInterp)
+# find_package(PythonInterp)
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
 
 ################################################################################
 # ADD SUBMODULES AS SUBDIRECTORIES
@@ -210,6 +216,7 @@ target_include_directories(run_tests PRIVATE
 
 # Link the test executable with the required libraries and cutagi_lib
 target_link_libraries(run_tests PRIVATE
+  ${Python_INCLUDE_DIRS}
   pybind11::embed
   gtest_main
   cutagi_lib
