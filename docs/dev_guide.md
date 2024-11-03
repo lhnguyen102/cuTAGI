@@ -230,14 +230,9 @@ If you prefer to install `cuTAGI` directly on Ubuntu 20.04 without Docker, follo
    - `ReleaseWithInfo`: For a release build with debug information.
    - `Debug`: For a debug build using GDB Debugger.
 
----
 
 ## Installation Guide: CMake on macOS
-This guide covers the steps to install  `CMake` on macOS.
-
-
-## Install CMake
-The original instructions on installing CMake tool for MacOS are from this [source](https://gist.github.com/fscm/29fd23093221cf4d96ccfaac5a1a5c90)
+This guide covers the steps to install  `CMake` on macOS. The original instructions on installing CMake tool for MacOS are from this [source](https://gist.github.com/fscm/29fd23093221cf4d96ccfaac5a1a5c90)
 
 ### Step 1: Uninstall CMake (Optional)
 Unsinstall any previous CMake installation
