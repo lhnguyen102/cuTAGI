@@ -44,10 +44,8 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python_version }}
           channels: conda-forge,defaults
-          activate-environment: test-env
-
-      - name: Activate Conda Environment
-        run: conda activate test-env
+          auto-activate-base: true
+          activate-environment: ""
 
       - name: Install CUDA Toolkit
         run: conda install cuda -c nvidia/label/cuda-${{ matrix.cuda }}
