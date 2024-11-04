@@ -168,10 +168,11 @@ jobs:
         run: |
           sh scripts/compile.sh Release
 
-      - name: Run tests
-        run: |
-          build/run_tests --cpu
-          python -m test.py_unit.main --cpu
+      - name: Run CPP Test Init
+        run: build/run_tests --cpu
+
+      - name : Run Python Test
+        run: python -m test.py_unit.main --cpu
 
   upload_pypi:
     name: Upload to Test PyPI

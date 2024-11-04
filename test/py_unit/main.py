@@ -28,4 +28,7 @@ if __name__ == "__main__":
     test_suite = unittest.defaultTestLoader.discover(start_dir=".", pattern="test_*.py")
 
     runner = unittest.TextTestRunner(verbosity=2, failfast=True)
-    runner.run(test_suite)
+    result = runner.run(test_suite)
+
+    # Exit with a non-zero code if there were any test failures
+    sys.exit(not result.wasSuccessful())
