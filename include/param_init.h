@@ -25,17 +25,7 @@ class SeedManager {
         return instance;
     }
 
-    void set_seed(int seed) {
-        current_seed = seed;
-        seed_set = true;
-        global_random_engine.seed(seed);
-    }
-
-    void reset_seed() {
-        if (seed_set) {
-            global_random_engine.seed(current_seed);
-        }
-    }
+    void set_seed(int seed) { global_random_engine.seed(seed); }
 
     std::mt19937& get_engine() { return global_random_engine; }
 
@@ -45,8 +35,6 @@ class SeedManager {
     SeedManager(const SeedManager&) = delete;
     SeedManager& operator=(const SeedManager&) = delete;
     std::mt19937 global_random_engine;
-    int current_seed;
-    bool seed_set = false;
 };
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,

@@ -353,8 +353,6 @@ int get_sub_layer_idx(std::vector<int> &layer, int curr_layer,
 ///////////////////////////////////////////////////////
 void manual_seed(int seed) { SeedManager::get_instance().set_seed(seed); }
 
-void reset_seed() { SeedManager::get_instance().reset_seed(); }
-
 ///////////////////////////////////////////////////////
 // CHECK CUDA
 ///////////////////////////////////////////////////////
