@@ -106,8 +106,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
-    net.to_device("cuda")
+    net = FNN
+    # net.to_device("cuda")
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
@@ -164,8 +164,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%\n",
-            refresh=False,
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            refresh=True,
         )
     print("Training complete.")
 

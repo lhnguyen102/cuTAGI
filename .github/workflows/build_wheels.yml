@@ -177,7 +177,7 @@ jobs:
     name: Upload to Test PyPI
     needs: [test]
     runs-on: ubuntu-22.04
-    if: ${{ github.event.pull_request.draft == false }}
+    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/checkout@v4
 
@@ -200,39 +200,12 @@ jobs:
       - name: Install twine
         run: |
           python -m pip install --upgrade pip
-          python -m pip install twine
+          python -m pip install twine==5.1.1
 
       - name: Upload to Test PyPI
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
-
-  # upload_pypi:
-  #   name: PyPI Upload
-  #   needs: [test]
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       python_version: ["3.10", "3.11", "3.12"]
-  #       os: ["linux", "macos", "sdist"]
-  #   if: github.event_name == 'release' && github.event.action == 'published'
-  #   steps:
-  #     - name: Download Linux/macOS/SDist artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: ${{ matrix.os }}-wheels-${{ matrix.python_version }}
-  #         path: dist/${{ matrix.os }}-${{ matrix.python_version }}
-
-  #     # Upload to PyPI
-  #     - name: Upload to PyPI
-  #       uses: pypa/gh-action-pypi-publish@v1.9.0
-  #       with:
-  #         user: __token__
-  #         password: ${{ secrets.PYPI_PASSWORD }}
-  #         repository_url: https://test.pypi.org/legacy/
-  #         skip_existing: true
-  #         verbose: true
-  #         package_directory: dist/${{ matrix.os }}-${{ matrix.python_version }}
-
+          twine upload --skip-existing dist/*
+# twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
