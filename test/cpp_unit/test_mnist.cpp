@@ -160,7 +160,7 @@ std::vector<float> autoencoder_test_runner(Sequential &encoder,
     unsigned seed = 42;
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 8;
+    int batch_size = 16;
     float sigma_obs = 20.0;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -304,7 +304,7 @@ TEST_F(MnistTest, MixtureReLUModelTest_CPU) {
 
 TEST_F(MnistTest, BatchNormFNNTest_CPU) {
     Sequential model(Linear(784, 32), BatchNorm2d(32), ReLU(), Linear(32, 32),
-                     BatchNorm2d(1024), ReLU(), Linear(32, 11));
+                     BatchNorm2d(32), ReLU(), Linear(32, 11));
     float avg_error;
     float threshold = 0.5;
     mnist_test_runner(model, avg_error);

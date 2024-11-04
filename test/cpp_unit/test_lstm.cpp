@@ -25,7 +25,7 @@ TEST_F(SineSignalTest, LSTMTest_CPU) {
     model.set_threads(2);
     float avg_error;
     float log_lik;
-    float mse_threshold = 0.8f;
+    float mse_threshold = 0.5f;
     float log_lik_threshold = -3.0f;
     sin_signal_lstm_test_runner(model, input_seq_len, avg_error, log_lik);
     EXPECT_LT(avg_error, mse_threshold) << "MSE is higher than threshold";
@@ -41,7 +41,7 @@ TEST_F(SineSignalTest, SmootherTest_CPU) {
     model.set_threads(2);
     float avg_error;
     float log_lik;
-    float mse_threshold = 0.8f;
+    float mse_threshold = 0.5f;
     float log_lik_threshold = -3.0f;
     sin_signal_smoother_test_runner(model, input_seq_len, num_features,
                                     avg_error, log_lik);
@@ -53,14 +53,14 @@ TEST_F(SineSignalTest, SmootherTest_CPU) {
 #ifdef USE_CUDA
 TEST_F(SineSignalTest, LSTMTest_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
-    int input_seq_len = 5;
-    Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
-                     Linear(5 * input_seq_len, 1));
+    int input_seq_len = 4;
+    Sequential model(LSTM(1, 8, input_seq_len), LSTM(8, 8, input_seq_len),
+                     Linear(8 * input_seq_len, 1));
     model.to_device("cuda");
 
     float avg_error;
     float log_lik;
-    float mse_threshold = 0.8f;
+    float mse_threshold = 0.5f;
     float log_lik_threshold = -3.0f;
     sin_signal_lstm_test_runner(model, input_seq_len, avg_error, log_lik);
     EXPECT_LT(avg_error, mse_threshold) << "MSE is higher than threshold";

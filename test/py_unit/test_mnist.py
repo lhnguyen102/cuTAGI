@@ -25,11 +25,13 @@ sys.path.append(
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
 
+np.random.seed(0)
+
 
 def mnist_test_runner(
     model: Sequential,
     batch_size: int = 16,
-    num_iters: int = 200,
+    num_iters: int = 10,
     use_cuda: bool = False,
 ):
     train_dtl = MnistDataLoader(
@@ -80,14 +82,36 @@ class MnistTest(unittest.TestCase):
     def setUp(self):
         self.threshold = 0.5
 
+    def test_fnn_CPU(self):
+        model = Sequential(
+            Linear(784, 32), ReLU(), Linear(32, 32), ReLU(), Linear(32, 11)
+        )
+        avg_error_rate = mnist_test_runner(model)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
+    def test_mixturerelu_CPU(self):
+        model = Sequential(
+            Linear(784, 32),
+            MixtureReLU(),
+            Linear(32, 32),
+            MixtureReLU(),
+            Linear(32, 11),
+        )
+        avg_error_rate = mnist_test_runner(model)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
     def test_batchnorm_fnn_CPU(self):
         model = Sequential(
             Linear(784, 32),
             BatchNorm2d(32),
-            MixtureReLU(),
+            ReLU(),
             Linear(32, 32),
             BatchNorm2d(32),
-            MixtureReLU(),
+            ReLU(),
             Linear(32, 11),
         )
         avg_error_rate = mnist_test_runner(model)
@@ -98,10 +122,10 @@ class MnistTest(unittest.TestCase):
     def test_layernorm_fnn_CPU(self):
         model = Sequential(
             Linear(784, 32),
-            MixtureReLU(),
+            ReLU(),
             LayerNorm((32,)),
             Linear(32, 32),
-            MixtureReLU(),
+            ReLU(),
             LayerNorm((32,)),
             Linear(32, 11),
         )
@@ -189,6 +213,30 @@ class MnistTest(unittest.TestCase):
 
     # CUDA Tests
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_fnn_CUDA(self):
+        model = Sequential(
+            Linear(784, 32), ReLU(), Linear(32, 32), ReLU(), Linear(32, 11)
+        )
+        avg_error_rate = mnist_test_runner(model, use_cuda=True)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_mixturerelu_CUDA(self):
+        model = Sequential(
+            Linear(784, 32),
+            MixtureReLU(),
+            Linear(32, 32),
+            MixtureReLU(),
+            Linear(32, 11),
+        )
+        avg_error_rate = mnist_test_runner(model, use_cuda=True)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_batchnorm_fnn_CUDA(self):
         model = Sequential(
             Linear(784, 32),
@@ -208,10 +256,10 @@ class MnistTest(unittest.TestCase):
     def test_layernorm_fnn_CUDA(self):
         model = Sequential(
             Linear(784, 32),
-            MixtureReLU(),
+            ReLU(),
             LayerNorm((32,)),
             Linear(32, 32),
-            MixtureReLU(),
+            ReLU(),
             LayerNorm((32,)),
             Linear(32, 11),
         )

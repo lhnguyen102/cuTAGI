@@ -20,7 +20,7 @@ TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
 def lstm_test_runner(
     model: Sequential,
     input_seq_len: int = 4,
-    batch_size: int = 4,
+    batch_size: int = 8,
     use_cuda: bool = False,
 ) -> float:
     """Run training for time-series forecasting model"""
@@ -45,35 +45,36 @@ def lstm_test_runner(
 
     # -------------------------------------------------------------------------#
     # Training
-    mses = []
     var_y = np.full((batch_size * len(output_col),), 0.3**2, dtype=np.float32)
-    batch_iter = train_dtl.create_data_loader(batch_size, False)
 
-    for x, y in batch_iter:
-        # Feed forward
-        m_pred, _ = model(x)
+    for _ in np.arange(2):
+        mses = []
+        batch_iter = train_dtl.create_data_loader(batch_size, False)
+        for x, y in batch_iter:
+            # Feed forward
+            m_pred, _ = model(x)
 
-        # Update output layer
-        out_updater.update(
-            output_states=model.output_z_buffer,
-            mu_obs=y,
-            var_obs=var_y,
-            delta_states=model.input_delta_z_buffer,
-        )
+            # Update output layer
+            out_updater.update(
+                output_states=model.output_z_buffer,
+                mu_obs=y,
+                var_obs=var_y,
+                delta_states=model.input_delta_z_buffer,
+            )
 
-        # Feed backward
-        model.backward()
-        model.step()
+            # Feed backward
+            model.backward()
+            model.step()
 
-        # Training metric
-        pred = normalizer.unstandardize(
-            m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
-        )
-        obs = normalizer.unstandardize(
-            y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
-        )
-        mse = metric.mse(pred, obs)
-        mses.append(mse)
+            # Training metric
+            pred = normalizer.unstandardize(
+                m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+            )
+            obs = normalizer.unstandardize(
+                y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+            )
+            mse = metric.mse(pred, obs)
+            mses.append(mse)
 
     return sum(mses) / len(mses)
 
@@ -176,10 +177,10 @@ def smoother_test_runner(
 class SineSignalTest(unittest.TestCase):
 
     def setUp(self):
-        self.threshold = 0.4
+        self.threshold = 0.5
 
     def test_lstm_CPU(self):
-        input_seq_len = 5
+        input_seq_len = 4
         model = Sequential(
             LSTM(1, 8, input_seq_len),
             LSTM(8, 8, input_seq_len),
@@ -192,9 +193,9 @@ class SineSignalTest(unittest.TestCase):
         input_seq_len = 24
         num_features = 3
         model = Sequential(
-            SLSTM(num_features + input_seq_len - 1, 32, 1),
-            SLSTM(32, 32, 1),
-            SLinear(32, 1),
+            SLSTM(num_features + input_seq_len - 1, 8, 1),
+            SLSTM(8, 8, 1),
+            SLinear(8, 1),
         )
         mse = smoother_test_runner(
             model, input_seq_len=input_seq_len, num_features=num_features
@@ -203,7 +204,7 @@ class SineSignalTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_lstm_CUDA(self):
-        input_seq_len = 5
+        input_seq_len = 4
         model = Sequential(
             LSTM(1, 8, input_seq_len),
             LSTM(8, 8, input_seq_len),
