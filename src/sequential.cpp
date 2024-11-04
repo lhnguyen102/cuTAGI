@@ -25,9 +25,6 @@ Sequential::~Sequential() { this->valid_ = false; }
 void Sequential::switch_to_cuda() {
     for (size_t i = 0; i < this->layers.size(); ++i) {
         auto cuda_layer = layers[i]->to_cuda();
-        // Move params from layers[i] to cuda_layer
-        auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
-        base_cuda->copy_params_from(*layers[i]);
         layers[i] = std::move(cuda_layer);
     }
 }
