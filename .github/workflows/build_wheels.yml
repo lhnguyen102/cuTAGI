@@ -47,8 +47,8 @@ jobs:
           activate-environment: test-env
 
       - name: Install CUDA Toolkit
-        run: conda install -c conda-forge cudatoolkit=${{ matrix.cuda }}
-
+        run: |
+          conda install cuda -c nvidia
 
       - name: Verify CUDA
         run: |
