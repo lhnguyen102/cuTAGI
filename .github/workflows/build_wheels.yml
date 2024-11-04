@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        cuda: ["11.8"]
+        cuda: ["12.2.2"]
         python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
@@ -213,7 +213,7 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: |
-          twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+          twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
 
   # upload_pypi:
   #   name: PyPI Upload
