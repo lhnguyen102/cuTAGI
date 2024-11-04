@@ -50,6 +50,18 @@ jobs:
         run: |
           conda install cuda -c nvidia
 
+      - name: Install CUDA Toolkit
+        run: conda install cuda -c nvidia/label/cuda-${{ matrix.cuda }}
+
+      - name: Activate Conda Environment
+        run: conda activate test-env
+
+      - name: Set CUDA Environment Variables
+        run: |
+          export PATH=$CONDA_PREFIX/bin:$PATH
+          export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+
       - name: Verify CUDA
         run: |
           nvcc --version
