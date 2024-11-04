@@ -414,7 +414,7 @@ void BaseLayerCuda::store_states_for_training_cuda(
 }
 
 void BaseLayerCuda::copy_params_from(const BaseLayer &source) {
-    this->params_to_host();
+    this->allocate_param_memory();
 
     this->mu_w = source.mu_w;
     this->var_w = source.var_w;
