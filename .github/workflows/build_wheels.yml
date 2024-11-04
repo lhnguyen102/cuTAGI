@@ -43,15 +43,14 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python_version }}
-          channels: conda-forge,defaults
-          activate-environment: test-env
+          auto-activate-base: true
+          activate-environment: ""
 
-      - name: Initialize Conda
-        shell: bash -l {0}
-        run: conda init bash
-
-      - name: Activate Conda Environment
-        run: conda activate test-env
+      - name: Conda info
+        shell: bash -el {0}
+        run: |
+          conda info
+          cond list
 
       - name: Install CUDA Toolkit
         run: conda install cuda -c nvidia/label/cuda-${{ matrix.cuda }}
