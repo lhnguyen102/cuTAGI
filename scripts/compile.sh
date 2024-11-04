@@ -25,11 +25,7 @@ esac
 # fi
 mkdir -p build
 # Link Time Optimization (LTO) is enabled by default
-cmake -B build -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-        -DCMAKE_CXX_FLAGS="-flto=auto" \
-        -DCMAKE_C_FLAGS="-flto=auto" \
-        -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
-        -DBUILD_SHARED_LIBS=ON
+cmake -B build -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
 cmake --build build -j $(nproc)
 

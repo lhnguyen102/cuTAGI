@@ -40,12 +40,6 @@ jobs:
           python-version: ${{ matrix.python_version }}
           activate-environment: cuda-install
 
-      - name: Conda info
-        shell: bash -l {0}
-        run: |
-          conda info
-          conda list
-
       - name: Install CUDA Toolkit
         shell: bash -l {0}
         run: conda install -y cuda -c nvidia/label/cuda-${{ matrix.cuda }}
@@ -54,7 +48,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install --upgrade pip
-          pip install setuptools wheel
+          pip install setuptools==75.3.0 wheel==0.44.0 ninja==1.11.1.1
 
       - name: Build wheels
         shell: bash -l {0}
