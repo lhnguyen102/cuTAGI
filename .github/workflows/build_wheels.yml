@@ -36,6 +36,7 @@ jobs:
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
+          channels: nvidia,conda-forge,defaults
           auto-update-conda: true
           python-version: ${{ matrix.python_version }}
           activate-environment: cuda-install
