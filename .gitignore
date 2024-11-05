@@ -14,7 +14,7 @@ dist
 
 # folders
 data/cifar
-data/mnist/MNIST
+data/mnist/
 data/traffic
 test_model/
 

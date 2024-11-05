@@ -413,11 +413,13 @@ class TimeSeriesDataloader:
         return dataset
 
     def remove_time_cov(self, x):
-        x_new = np.zeros((len(x), self.input_seq_len + self.num_features - 1), dtype=np.float32)
-        for i in range(0,len(x)):
+        x_new = np.zeros(
+            (len(x), self.input_seq_len + self.num_features - 1), dtype=np.float32
+        )
+        for i in range(0, len(x)):
             x_ = x[i]
             keep_idx = np.arange(0, len(x_), self.num_features)
-            x_new[i] = np.concatenate((x_[keep_idx],x_[-self.num_features+1:]))
+            x_new[i] = np.concatenate((x_[keep_idx], x_[-self.num_features + 1 :]))
         return x_new
 
     def create_data_loader(self, batch_size: int, shuffle: bool = True):

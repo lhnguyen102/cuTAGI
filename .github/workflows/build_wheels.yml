@@ -16,42 +16,48 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        cuda: ["11.3"]
-        python_version: ["3.9", "3.10", "3.11"]
+        os: [ubuntu-22.04]
+        cuda: ["12.2.2"]
+        python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@v2.0.2
         with:
-          cmake-version: "3.23.x"
+          cmake-version: "3.22.x"
 
       - name: Use cmake
         run: cmake --version
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          channels: nvidia,conda-forge,defaults
+          auto-update-conda: true
           python-version: ${{ matrix.python_version }}
+          activate-environment: cuda-install
 
-      - name: Install CUDA
-        env:
-          cuda: ${{ matrix.cuda }}
-        run: ./extern/action_scripts/install_cuda_ubuntu.sh
-        shell: bash
+      - name: Install CUDA Toolkit
+        shell: bash -l {0}
+        run: conda install -y cuda -c nvidia/label/cuda-${{ matrix.cuda }}
 
-      - name: Install dependencies
-        run: pip install wheel
+      - name: Install build dependencies (setuptools, wheel)
+        shell: bash -l {0}
+        run: |
+          pip install --upgrade pip
+          pip install setuptools==75.3.0 wheel==0.44.0 ninja==1.11.1.1
 
       - name: Build wheels
+        shell: bash -l {0}
         run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: linux-wheels-${{ matrix.python_version }}
           path: dist/*.whl
 
   build_macos:
@@ -61,40 +67,43 @@ jobs:
       matrix:
         include:
           - os: macos-13
-            python_version: "3.9"
-            cibuildwheel_python: "cp39-*"
-
-          - os: macos-13
             python_version: "3.10"
             cibuildwheel_python: "cp310-*"
 
           - os: macos-13
             python_version: "3.11"
             cibuildwheel_python: "cp311-*"
+
+          - os: macos-13
+            python_version: "3.12"
+            cibuildwheel_python: "cp312-*"
+
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       # Used to host cibuildwheel
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Install cibuildwheel
-        run: python3 -m pip install cibuildwheel==2.11.2
+      - name: build dependencies (setuptools, wheel)
+        run: python3 -m pip install cibuildwheel==2.21.3
 
       - name: Build wheels
-        run: python3 -m cibuildwheel --output-dir wheelhouse
+        run: |
+          python3 -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
-          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_MACOS: universal2
           CIBW_BUILD_VERBOSITY: 1
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: macos-wheels-${{ matrix.python_version }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -102,16 +111,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        python_version: ["3.9", "3.10", "3.11"]
+        os: [ubuntu-22.04]
+        python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
@@ -124,41 +133,81 @@ jobs:
           python -m pip install setuptools wheel twine
           python setup.py sdist
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: sdist-${{ matrix.python_version }}
           path: dist/*.tar.gz
 
   test:
     name: Test
     needs: [build_linux, build_macos, build_sdist]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: ${{ github.event.pull_request.draft == false }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2.0.2
+        with:
+          cmake-version: "3.22.x"
+
+      - name: cmake version
+        run: cmake --version
+
+      - name: Build binary
+        run: |
+          sh scripts/compile.sh Release
+
+      - name: Run CPP Test Init
+        run: build/run_tests --cpu
+
+      - name : Run Python Test
+        run: python -m test.py_unit.main --cpu
+
   upload_pypi:
-    name: PyPI Upload
+    name: Upload to Test PyPI
     needs: [test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          # unpacks default artifact into dist/
-          # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
-          path: dist
+      - uses: actions/checkout@v4
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
-          # repository_url: https://test.pypi.org/legacy/
-          skip_existing: true
-          verbose: true
+          python-version: '3.x'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Collect all build files
+        run: |
+          mkdir dist
+          find ./artifacts -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
+
+
+      - name: Install twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine==5.1.1
+
+      - name: Upload to Test PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          twine upload --skip-existing dist/*
+# twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*

@@ -84,7 +84,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -106,9 +106,9 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
-    net.to_device("cuda")
-    #net.set_threads(16)
+    net = FNN
+    # net.to_device("cuda")
+    # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -123,8 +123,13 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-            if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+            if print_var:  # Print prior predictive variance
+                print(
+                    "Prior predictive -> E[v_pred] = ",
+                    np.average(v_pred),
+                    "+-",
+                    np.std(v_pred),
+                )
                 print_var = False
 
             # Update output layers based on targets
@@ -159,8 +164,8 @@ def main(num_epochs: int = 10, batch_size: int = 1, sigma_v: float = 0.1):
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%\n",
-            refresh=False,
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            refresh=True,
         )
     print("Training complete.")
 

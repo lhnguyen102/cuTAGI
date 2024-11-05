@@ -1,17 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// File:         main.cpp
-// Description:  API for c++
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 23, 2022
-// Updated:      April 24, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
+// This code is released under the MIT License.
 ///////////////////////////////////////////////////////////////////////////////
+
+#include <stdio.h>
 
 #include <iostream>
 #include <string>
 
 #include "test/autoencoder/test_autoencoder_v2.h"
+#include "test/fnn/test_fnn_cpu_v2.h"
 #include "test/fnn/test_fnn_mnist_cpu.h"
 #include "test/heteros/test_fnn_heteros_cpu_v2.h"
 #include "test/load_state_dict/test_load_state_dict.h"
@@ -20,7 +17,7 @@
 #include "test/resnet/test_resnet_cifar10.h"
 #include "test/smoother/test_smoother.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // User input file
     std::string user_input_file;
     std::vector<std::string> user_input_options;
@@ -35,10 +32,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Run task
-    if (user_input_file.compare("test_fc_mnist") == 0) {
-        auto is_passed = test_fnn_mnist();
+    if (user_input_file.compare("test_fc_v2") == 0) {
+        auto is_passed = test_fnn_cpu_v2();
     } else if (user_input_file.compare("test_fc_heteros") == 0) {
         auto is_passed = test_fnn_heteros_cpu_v2();
+    } else if (user_input_file.compare("test_fc_mnist") == 0) {
+        auto is_passed = test_fnn_mnist();
     } else if (user_input_file.compare("autoencoder_mnist") == 0) {
         auto is_passed = test_autoecoder_v2();
     } else if (user_input_file.compare("lstm_toy") == 0) {

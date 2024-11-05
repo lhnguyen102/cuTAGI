@@ -1,9 +1,9 @@
 # CMAKE VERSION
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.22)
 
-# ###########################################################################################
+# ##############################################################################
 # # PPROJECT
-# ###########################################################################################
+# ##############################################################################
 file(READ "pytagi/version.txt" ver)
 PROJECT(
   cuTAGI
@@ -11,12 +11,11 @@ PROJECT(
   DESCRIPTION "C++/CUDA library for Tractable Approximate Gaussian Inference"
   LANGUAGES CXX
 )
-
 set(CUTAGI_VERSION "${CMAKE_PROJECT_VERSION}")
 
-# ###########################################################################################
+# ##############################################################################
 # # C++ COMPILER SETUP
-# ###########################################################################################
+# ##############################################################################
 # Configuration
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Build type is set to 'Release'.")
@@ -24,10 +23,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 endif()
 
-# if(APPLE)
-# set(CMAKE_MACOSX_RPATH ON)
-# set(CMAKE_OSX_ARCHITECTURES arm64)
-# endif()
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
@@ -41,9 +36,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 set(CMAKE_CXX_STANDARD 14) # C++ version
 set(CMAKE_CXX_EXTENSIONS OFF) # Disable GNU extenstions
 
-# ###########################################################################################
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(BUILD_SHARED_LIBS ON)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto=auto")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto=auto")
+endif()
+
+# ##############################################################################
 # # CUDA COMPILER SETUP
-# ###########################################################################################
+# ##############################################################################
 # Check CUDA availability
 include(CheckLanguage)
 check_language(CUDA)
@@ -51,7 +53,7 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   message(STATUS "DEVICE -> CUDA")
-  add_definitions(-DUSE_CUDA)
+  add_definitions(-DUSE_CUDA) # Add CUDA flag to pass to source code
 else()
   message(STATUS "DEVICE -> CPU")
 endif()
@@ -97,97 +99,60 @@ else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
 
-# ###########################################################################################
-# # PYTHON SETUP
-# ###########################################################################################
 # find_package(Python COMPONENTS Interpreter Development)
-find_package(PythonInterp)
+# find_package(PythonInterp)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
-# Header files for source code
+################################################################################
+# ADD SUBMODULES AS SUBDIRECTORIES
+################################################################################
+
+# Add googletest
+add_subdirectory(extern/googletest)
+
 add_subdirectory(extern/pybind11)
 include_directories(${pybind11_INCLUDE_DIRS})
 
 include_directories("include")
 include_directories("test")
 
-# Source codes for only CPU
-set(CPU_SOURCES
-  src/common.cpp
-  src/cost.cpp
-  src/dataloader.cpp
-  src/indices.cpp
-  src/utils.cpp
-  # src/derivative_calcul_cpu.cpp
-  # src/self_attention_cpu.cpp
-  # src/embedding_cpu.cpp
-  src/linear_layer.cpp
-  src/slinear_layer.cpp
-  src/conv2d_layer.cpp
-  src/pooling_layer.cpp
-  src/norm_layer.cpp
-  src/convtranspose2d_layer.cpp
-  src/lstm_layer.cpp
-  src/slstm_layer.cpp
-  src/activation.cpp
-  src/sequential.cpp
-  src/output_layer_update_cpu.cpp
-  src/base_layer.cpp
-  src/data_struct.cpp
-  src/param_init.cpp
-  src/base_output_updater.cpp
-  # src/debugger.cpp
-  src/resnet_block.cpp
-  src/layer_block.cpp
-
-  src/bindings/data_struct_bindings.cpp
-  src/bindings/base_layer_bindings.cpp
-  src/bindings/linear_layer_bindings.cpp
-  src/bindings/slinear_layer_bindings.cpp
-  src/bindings/conv2d_layer_bindings.cpp
-  src/bindings/convtranspose2d_layer_bindings.cpp
-  src/bindings/pooling_layer_bindings.cpp
-  src/bindings/norm_layer_bindings.cpp
-  src/bindings/lstm_layer_bindings.cpp
-  src/bindings/slstm_layer_bindings.cpp
-  src/bindings/activation_bindings.cpp
-  src/bindings/sequential_bindings.cpp
-  src/bindings/layer_block_bindings.cpp
-  src/bindings/resnet_block_bindings.cpp
-  src/bindings/base_output_updater_bindings.cpp
-  src/bindings/utils_bindings.cpp
-  src/bindings/main_bindings.cpp
-
-  # test/mha/test_mha_cpu.cpp
-  # test/embedding/test_emb_cpu.cpp
-  test/fnn/test_fnn_cpu_v2.cpp
-  test/heteros/test_fnn_heteros_cpu_v2.cpp
-  test/fnn/test_fnn_mnist_cpu.cpp
-  # test/cross_val/cross_val.cpp
-  test/autoencoder/test_autoencoder_v2.cpp
-  test/lstm/test_lstm_v2.cpp
-  test/smoother/test_smoother.cpp
-  test/resnet/test_resnet_1d_toy.cpp
-  test/resnet/test_resnet_cifar10.cpp
-  test/load_state_dict/test_load_state_dict.cpp
+################################################################################
+# SOURCE FILE
+################################################################################
+file(GLOB_RECURSE CPU_SOURCES
+    src/*.cpp
+    test/mha/*.cpp
+    test/embedding/*.cpp
+    test/fnn/*.cpp
+    test/autoencoder/*.cpp
+    test/lstm/*.cpp
+    test/smoother/*.cpp
+    test/resnet/*.cpp
+    test/load_state_dict/*.cpp
+    test/heteros/*.cpp
 )
 
-# Sources code for CUDA
-set(GPU_SOURCES
-  ${CPU_SOURCES}
-  # src/derivative_calcul.cu
-  # src/gpu_debug_utils.cpp
-  src/data_struct_cuda.cu
-  src/linear_layer_cuda.cu
-  src/conv2d_layer_cuda.cu
-  src/pooling_layer_cuda.cu
-  src/norm_layer_cuda.cu
-  src/convtranspose2d_layer_cuda.cu
-  src/lstm_layer_cuda.cu
-  src/base_layer_cuda.cu
-  src/activation_cuda.cu
-  src/output_updater_cuda.cu
-  src/resnet_block_cuda.cu
+# List of files to exclude (those that were commented out)
+list(REMOVE_ITEM CPU_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/derivative_calcul_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/self_attention_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/embedding_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/debugger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/debugger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gated_residual_layer_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/mha/test_mha_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/embedding/test_emb_cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/cross_val/cross_val.cpp
+)
 
+# GPU source file
+file(GLOB GPU_SOURCES_TMP
+    src/*.cu
+)
+set(GPU_SOURCES ${CPU_SOURCES} ${GPU_SOURCES_TMP})
+list(REMOVE_ITEM GPU_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/derivative_calcul.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu_debug_utils.cpp
 )
 
 # Output binary folder der for different mode
@@ -207,7 +172,7 @@ if(CMAKE_CUDA_COMPILER)
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
   # Executablecode i.e. application
-  add_executable(main main.cu)
+  add_executable(main main.cpp)
 
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
@@ -229,4 +194,37 @@ target_link_libraries(cutagi_lib PRIVATE pybind11::module)
 target_link_libraries(main PUBLIC cutagi_lib)
 
 target_link_libraries(cutagi PRIVATE cutagi_lib)
+
+################################################################################
+# TESTS
+################################################################################
+enable_testing()
+
+# Glob the test sources
+file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
+
+# Add main.cpp separately to specify the entry point
+set(TEST_MAIN "test/cpp_unit/main.cpp")
+
+# Create an executable for the tests
+add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
+
+# Set include directories for the test executable
+target_include_directories(run_tests PRIVATE
+  ${pybind11_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
+)
+
+# Link the test executable with the required libraries and cutagi_lib
+target_link_libraries(run_tests PRIVATE
+  ${Python_INCLUDE_DIRS}
+  pybind11::embed
+  gtest_main
+  cutagi_lib
+)
+
+# Discover GoogleTest tests
+include(GoogleTest)
+gtest_discover_tests(run_tests)
+
 
