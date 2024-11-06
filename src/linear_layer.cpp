@@ -10,6 +10,7 @@
 #include "../include/linear_layer.h"
 
 #include "../include/common.h"
+#include "../include/custom_logger.h"
 
 #ifdef USE_CUDA
 #include "../include/linear_layer_cuda.cuh"
@@ -537,6 +538,14 @@ void Linear::forward(BaseHiddenStates &input_states,
     // Initialization
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
+
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
 
     // Forward pass
     if (this->num_threads > 1) {
