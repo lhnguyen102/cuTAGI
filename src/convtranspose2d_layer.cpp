@@ -1,25 +1,15 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         convtranspose2d_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 10, 2024
-// Updated:      August 06, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/convtranspose2d_layer.h"
-#ifdef USE_CUDA
-#include <cuda.h>
-#include <cuda_runtime.h>
-#endif
 
 #include "../include/base_layer.h"
 #include "../include/common.h"
+#include "../include/custom_logger.h"
 #include "../include/indices.h"
 #include "../include/param_init.h"
 
 #ifdef USE_CUDA
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 #include "../include/convtranspose2d_layer_cuda.cuh"
 #endif
 #include <thread>
@@ -572,6 +562,14 @@ void ConvTranspose2d::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
 

@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         slstm_layer.cpp
-// Description:  Long-Short Term Memory (LSTM) which has smoother function in
-// TAGI Authors: Van-Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
-// Created: August 21, 2024
-// Updated : August 21, 2024
-// Contact : van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
-// james.goulet@polymtl.ca
-// License:  This code is released under the MIT
-////////////////////////////////////////////////////////////////////////////////
 #include "slstm_layer.h"
 
 #include <cmath>
@@ -15,6 +5,7 @@
 
 #include "../include/activation.h"
 #include "../include/common.h"
+#include "../include/custom_logger.h"
 #include "../include/lstm_layer.h"
 #include "../include/param_init.h"
 
@@ -225,6 +216,14 @@ void SLSTM::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size * this->seq_len != input_states.actual_size) {
+        std::string message = "Input size mismatch: " +
+                              std::to_string(this->input_size * this->seq_len) +
+                              " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     // New poitner will point to the same memory location when casting
     SmoothingHiddenStates *smooth_input_states =
         dynamic_cast<SmoothingHiddenStates *>(&input_states);

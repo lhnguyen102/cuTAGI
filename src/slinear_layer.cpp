@@ -1,17 +1,7 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         slinear_layer.h
-// Description:  Linear layer which has smoother function. It is used only as
-// the last layer of stacked LSTM networks (SLSTM).
-// Authors:     Van -Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
-// Created:     August 21, 2024
-// Updated:     August 21, 2024
-// Contact:     van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
-// james.goulet@polymtl.ca
-// License:      This code is released under the MIT
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/slinear_layer.h"
 
 #include "../include/common.h"
+#include "../include/custom_logger.h"
 #include "../include/linear_layer.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,6 +96,14 @@ void SLinear::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     // New poitner will point to the same memory location when casting
     SmoothingHiddenStates *smooth_input_states =
         dynamic_cast<SmoothingHiddenStates *>(&input_states);

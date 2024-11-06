@@ -1,12 +1,9 @@
-///////////////////////////////////////////////////////////////////////////////
-// This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/common.h"
 #include "../include/config.h"
 #include "../include/convtranspose2d_cuda_kernel.cuh"
 #include "../include/convtranspose2d_layer.h"
 #include "../include/convtranspose2d_layer_cuda.cuh"
+#include "../include/custom_logger.h"
 #include "../include/param_init.h"
 
 ConvTranspose2dCuda::ConvTranspose2dCuda(
@@ -197,6 +194,14 @@ void ConvTranspose2dCuda::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     // New poitner will point to the same memory location when casting
     HiddenStateCuda *cu_input_states =
         dynamic_cast<HiddenStateCuda *>(&input_states);

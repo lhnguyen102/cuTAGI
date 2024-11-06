@@ -1,19 +1,10 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         sequential.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 09, 2023
-// Updated:      July 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/sequential.h"
 
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
+#include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
-// #include "slinear_layer.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #endif
@@ -249,8 +240,15 @@ void Sequential::forward(const std::vector<float> &mu_x,
 /*
  */
 {
-    // Batch size
-    int batch_size = mu_x.size() / this->layers.front()->get_input_size();
+    // Batch size: TODO: this is only correct if input size is correctly set
+    int input_size = this->layers.front()->get_input_size();
+    if (mu_x.size() % input_size != 0) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(input_size) + " vs " +
+            std::to_string(mu_x.size());
+        LOG(LogLevel::ERROR, message);
+    }
+    int batch_size = mu_x.size() / input_size;
 
     // Lazy initialization
     if (this->z_buffer_block_size == 0) {

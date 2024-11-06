@@ -1,13 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         norm_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 24, 2024
-// Updated:      August 6th, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/norm_layer.h"
+
+#include "../include/custom_logger.h"
 
 #ifdef USE_CUDA
 #include "../include/norm_layer_cuda.cuh"
@@ -1485,6 +1478,14 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
                         BaseTempStates &temp_states)
 /**/
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     int batch_size = input_states.block_size;
     if (this->_batch_size != batch_size) {
         this->_batch_size = batch_size;

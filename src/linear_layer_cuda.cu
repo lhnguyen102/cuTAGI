@@ -1,15 +1,7 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         linear_layer_cuda.cu
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 03, 2023
-// Updated:      March 09, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include <cstdint>
 
 #include "../include/config.h"
+#include "../include/custom_logger.h"
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
 
@@ -1761,6 +1753,14 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&output_states);
     // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
     // *>(&temp_states);
+
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
 
     int batch_size = input_states.block_size;
 

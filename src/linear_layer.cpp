@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         linear_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      September 20, 2023
-// Updated:      August 06, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/linear_layer.h"
 
 #include "../include/common.h"
