@@ -134,8 +134,6 @@ void lstm_v2()
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
-    unsigned seed = 0;
-    std::default_random_engine seed_e(seed);
     int n_epochs = 50;
     int batch_size = 1;
     float sigma_obs = 1.0;
@@ -155,7 +153,7 @@ void lstm_v2()
     for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
             // Shuffle data
-            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            std::shuffle(data_idx.begin(), data_idx.end(), get_random_engine());
             // Decay observation noise
             decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
             std::vector<float> var_obs(batch_size * train_db.ny,
