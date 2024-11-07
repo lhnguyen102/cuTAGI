@@ -437,10 +437,7 @@ std::tuple<int, int> compute_upsample_img_size_v2(int kernel, int stride,
     }
 
     if (nom_w % stride != 0 || nom_h % stride != 0) {
-        throw std::invalid_argument(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            ". Invalid hyperparameters for ConvTranspose2d layer");
+        LOG(LogLevel::ERROR, "Invalid hyperparameters for conv2d layer");
     }
 
     return {wo, ho};

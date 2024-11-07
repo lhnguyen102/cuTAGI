@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "include/custom_logger.h"
 #include "test/autoencoder/test_autoencoder_v2.h"
 #include "test/fnn/test_fnn_cpu_v2.h"
 #include "test/fnn/test_fnn_mnist_cpu.h"
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
     std::string user_input_file;
     std::vector<std::string> user_input_options;
     if (argc == 0) {
-        throw std::invalid_argument(
+        LOG(LogLevel::ERROR,
             "User need to provide user input file -> see README");
     } else {
         user_input_file = argv[1];

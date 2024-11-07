@@ -1,16 +1,8 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         base_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 11, 2023
-// Updated:      April 18, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/base_layer.h"
 
 #include <cmath>
+
+#include "../include/custom_logger.h"
 
 InitArgs::InitArgs(size_t width, size_t height, size_t depth, int batch_size)
     : width(width), height(height), depth(depth), batch_size(batch_size) {}
@@ -74,10 +66,7 @@ void BaseLayer::allocate_bwd_vector(int new_size)
  */
 {
     if (new_size <= 0) {
-        throw std::invalid_argument(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            " - Invalid size: " + std::to_string(new_size));
+        LOG(LogLevel::ERROR, "Invalid size: " + std::to_string(new_size));
     }
     this->bwd_states->set_size(new_size);
 }
@@ -139,9 +128,9 @@ void BaseLayer::update_weights()
         this->mu_w[i] +=
             delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
         this->var_w[i] +=
-           delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
+            delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
         if (var_w[i] <= 0.0f) {
-            var_w[i] = 1E-5f; //TODO: replace by a parameter
+            var_w[i] = 1E-5f;  // TODO: replace by a parameter
         }
     }
 }
@@ -162,11 +151,11 @@ void BaseLayer::update_biases()
             this->mu_b[i] += delta_mu_sign *
                              std::min(std::abs(this->delta_mu_b[i]), delta_bar);
             this->var_b[i] +=
-                            delta_var_sign *
-                            std::min(std::abs(this->delta_var_b[i]), delta_bar);
+                delta_var_sign *
+                std::min(std::abs(this->delta_var_b[i]), delta_bar);
             if (var_b[i] <= 0.0f) {
-            var_b[i] = 1E-5f; //TODO: replace by a parameter
-        }
+                var_b[i] = 1E-5f;  // TODO: replace by a parameter
+            }
         }
     }
 }
@@ -188,7 +177,7 @@ Returns:
     if (batch_size == 1) {
         this->cap_factor_update = 0.1f;
     }
-    if (batch_size >1 && batch_size < 256) {
+    if (batch_size > 1 && batch_size < 256) {
         this->cap_factor_update = 1.0f;
     }
     if (batch_size >= 256) {
@@ -242,9 +231,7 @@ void BaseLayer::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
 
     // Save the name length and name
@@ -273,9 +260,7 @@ void BaseLayer::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        LOG(LogLevel::ERROR, "Failed to open file for loading");
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -287,9 +272,7 @@ void BaseLayer::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
+        LOG(LogLevel::ERROR, "Layer name are not match. Expected: " +
                                  layer_name + ", Found: " + loaded_name);
     }
 

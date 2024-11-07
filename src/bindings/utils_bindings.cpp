@@ -1,14 +1,3 @@
-
-///////////////////////////////////////////////////////////////////////////////
-// File:         utils_bindings.cpp
-// Description:  API for Python bindings of C++/CUDA
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 31, 2024
-// Updated:      April 04, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/utils_bindings.h"
 
 Utils::Utils() {};

@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         embedding_cpu.h
-// Description:  Header file for embeddings layer
-//               (CPU version)
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 22, 2023
-// Updated:      September 10, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <algorithm>
 #include <iostream>

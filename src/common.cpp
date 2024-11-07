@@ -1,13 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         common.cpp
-// Description:  Common function used for computing indices for TAGI
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 15, 2022
-// Updated:      April 12, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #include "../include/common.h"
+
+#include "../include/custom_logger.h"
 
 std::string get_current_dir() {
     char buff[FILENAME_MAX];  // create string buffer to hold path
@@ -325,7 +318,7 @@ float normpdf_cpu(float x, float mu, float sigma)
 /*Probability density function of Normal distribution*/
 {
     if (sigma < 0.0f) {
-        throw std::invalid_argument("Sigma value is negative");
+        LOG(LogLevel::ERROR, "Sigma value is negative");
     }
     const float PI = 3.14159265358979323846f;
     float prob_pdf = (1 / (sigma * pow(2 * PI, 0.5))) *

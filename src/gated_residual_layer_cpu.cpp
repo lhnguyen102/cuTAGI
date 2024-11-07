@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         gated_residual_layer_cpu.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      September 17, 2023
-// Updated:      September 17, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/gated_residual_layer_cpu.h"
 
 int get_number_of_params(GatedResidualProp &prop)

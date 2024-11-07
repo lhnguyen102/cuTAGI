@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         linear_layer_cuda.cuh
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      November 28, 2023
-// Updated:      April 18, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <cuda.h>
 #include <cuda_runtime.h>

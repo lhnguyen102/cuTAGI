@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         conv2d_layer_bindings.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 20, 2024
-// Updated:      January 20, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/conv2d_layer_bindings.h"
 
 #include "../include/conv2d_layer.h"

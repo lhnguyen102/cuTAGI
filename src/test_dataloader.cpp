@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         test_dataloader.cpp
-// Description:  Testing unit for dataloader
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 21, 2022
-// Updated:      August 21, 2022
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #include "../include/test_unit.h"
 int main() {
     // Data

@@ -153,9 +153,7 @@ void ConvTranspose2dCuda::allocate_convtranspose_index()
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Device memory allocation.");
+        LOG(LogLevel::ERROR, "Device memory allocation.");
     }
 }
 
@@ -181,10 +179,8 @@ void ConvTranspose2dCuda::convtranspose_index_to_device()
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(error));
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Host to device.");
+        LOG(LogLevel::ERROR,
+            std::string("Host to device. ") + cudaGetErrorString(error));
     }
 }
 

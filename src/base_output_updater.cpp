@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         base_output_updater.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 27, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/base_output_updater.h"
 
 #ifdef USE_CUDA

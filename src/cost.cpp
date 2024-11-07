@@ -1,13 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         cost.cpp
-// Description:  Cost functions for TAGI
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 01, 2022
-// Updated:      April 02, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/cost.h"
+
+#include "../include/custom_logger.h"
 
 void fliplr(std::vector<int> &v)
 /* Flip an array from left to right
@@ -337,9 +330,8 @@ Returns:
 */
 {
     if (pred.size() != obs.size()) {
-        throw std::invalid_argument(
-            "Prediciton and observation does not have the same lenght - "
-            "cost.cpp");
+        LOG(LogLevel::ERROR,
+            "Prediciton and observation does not have the same.");
     }
     float sum = 0;
     for (int i = 0; i < pred.size(); i++) {
@@ -365,8 +357,7 @@ Returns:
 */
 {
     if (x.size() == 0 || mu.size() == 0 || sigma.size() == 0) {
-        throw std::invalid_argument(
-            "Invalid inputs for normal density - cost.cpp");
+        LOG(LogLevel::ERROR, "Invalid inputs for normal density");
     }
     float sum = 0;
     float PI_C = 3.141592653f;

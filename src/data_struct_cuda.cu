@@ -1,15 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         data_struct_cuda.cu
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 10, 2023
-// Updated:      July 12, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
+#include "../include/custom_logger.h"
 #include "../include/data_struct_cuda.cuh"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -158,9 +149,7 @@ void HiddenStateCuda::swap(BaseHiddenStates &other) {
         std::swap(this->d_var_a, cu_other->d_var_a);
         std::swap(this->d_jcb, cu_other->d_jcb);
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Swap input invalid.");
+        LOG(LogLevel::ERROR, "Swap input invalid.");
     }
 }
 
@@ -176,9 +165,7 @@ void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
         dynamic_cast<const HiddenStateCuda *>(&source);
 
     if (!cu_source) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid source.");
+        LOG(LogLevel::ERROR, "Invalid source.");
     }
 
     cudaMemcpy(this->d_mu_a, cu_source->d_mu_a, num_data * sizeof(float),
@@ -279,9 +266,7 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
         dynamic_cast<const DeltaStateCuda *>(&source);
 
     if (!cu_source) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid source.");
+        LOG(LogLevel::ERROR, "Invalid source.");
     }
 
     cudaMemcpy(this->d_delta_mu, cu_source->d_delta_mu,
@@ -317,9 +302,7 @@ void DeltaStateCuda::swap(BaseDeltaStates &other) {
         std::swap(this->d_delta_mu, cu_other->d_delta_mu);
         std::swap(this->d_delta_var, cu_other->d_delta_var);
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Swap input invalid.");
+        LOG(LogLevel::ERROR, "Swap input invalid.");
     }
 }
 

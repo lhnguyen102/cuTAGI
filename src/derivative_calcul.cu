@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         derivative_calcul.cu
-// Description:  Calculate derivatives of neural networks
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      July 17, 2022
-// Updated:      July 30, 2022
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/derivative_calcul.cuh"
 
 __global__ void compute_node_derv_mean_var_fc(float const *mw, float const *Sw,

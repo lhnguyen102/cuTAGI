@@ -1,16 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         slinear_layer.h
-// Description:  Header file for Linear layer which has
-// smoother function. It is used only as the last layer of stacked LSTM networks
-// (SLSTM).
-// Authors:     Van -Dai Vuong, Luong-Ha Nguyen & James-A. Goulet
-// Created:     August 21, 2024
-// Updated:     August 21, 2024
-// Contact:     van-dai.vuong@polymtl.ca, luongha.nguyen@gmail.com &
-// james.goulet@polymtl.ca
-// License:      This code is released under the MIT
-// License.
-////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iostream>
 #include <memory>

@@ -1,13 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         param_init.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 15, 2023
-// Updated:      March 23, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/param_init.h"
+
+#include "../include/custom_logger.h"
 
 float he_init(float fan_in)
 
@@ -146,10 +139,8 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
                init_method.compare("he") == 0) {
         scale = he_init(input_size);
     } else {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Initial parameter method [" +
-                                    init_method + "] is not supported.");
+        LOG(LogLevel::ERROR,
+            "Initial parameter method [" + init_method + "] is not supported.");
     }
 
     // Initalize weights & biases
@@ -182,10 +173,8 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
                init_method.compare("he") == 0) {
         scale = he_init(fan_in);
     } else {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Initial parameter method [" +
-                                    init_method + "] is not supported.");
+        LOG(LogLevel::ERROR,
+            "Initial parameter method [" + init_method + "] is not supported.");
     }
 
     // Initalize weights & biases
@@ -213,10 +202,8 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
                init_method.compare("he") == 0) {
         scale = he_init(input_size + output_size);
     } else {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Initial parameter method [" +
-                                    init_method + "] is not supported.");
+        LOG(LogLevel::ERROR,
+            "Initial parameter method [" + init_method + "] is not supported.");
     }
 
     // Initalize weights & biases for 4 gates

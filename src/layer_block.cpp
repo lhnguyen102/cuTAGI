@@ -1,5 +1,7 @@
 #include "../include/layer_block.h"
 
+#include "../include/custom_logger.h"
+
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #endif
@@ -37,9 +39,7 @@ it will be corrected at the first run in the forward pass.
     } else if (this->device.compare("cuda") == 0) {
         this->layers.push_back(std::move(layer->to_cuda()));
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 

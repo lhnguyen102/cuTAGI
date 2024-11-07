@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         utils_bindings.h
-// Description:  API for Python bindings of C++/CUDA
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 31, 2024
-// Updated:      April 04, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

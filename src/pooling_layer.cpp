@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         pooling_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 08, 2024
-// Updated:      January 23, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/pooling_layer.h"
 
 #include "../include/conv2d_layer.h"

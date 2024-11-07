@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         output_updater_cuda.cu
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 27, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/output_updater_cuda.cuh"
 
 __global__ void update_delta_z_using_indices_cuda(

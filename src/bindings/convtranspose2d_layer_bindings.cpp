@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         convtranspose2d_layer_bindings.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 19, 2024
-// Updated:      March 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/convtranspose2d_layer_bindings.h"
 
 #include "../include/base_layer.h"

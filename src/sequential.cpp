@@ -82,9 +82,7 @@ it will be corrected at the first run in the forward pass.
     } else if (this->device.compare("cuda") == 0) {
         this->layers.push_back(layer->to_cuda());
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -155,17 +153,12 @@ void Sequential::init_output_state_buffer()
             this->temp_states = std::make_shared<TempStateCuda>(
                 this->z_buffer_size, this->z_buffer_block_size);
         } else {
-            throw std::invalid_argument(
-                "Error in file: " + std::string(__FILE__) +
-                " at line: " + std::to_string(__LINE__) +
-                ". Smoothing feature does not support CUDA");
+            LOG(LogLevel::ERROR, "Smoothing feature does not support CUDA");
         }
     }
 #endif
     else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -188,9 +181,7 @@ void Sequential::init_delta_state_buffer()
     }
 #endif
     else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -688,9 +679,7 @@ void Sequential::load_state_dict(
 
 void Sequential::params_from(const Sequential &model_ref) {
     if (this->layers.size() != model_ref.layers.size()) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Model architecture is different");
+        LOG(LogLevel::ERROR, "Model architecture is different.");
     }
 
     // TODO: need to add more checks before copying
@@ -778,9 +767,7 @@ std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
 Sequential::get_input_states() {
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". input_state_update is set to False");
+        LOG(LogLevel::ERROR, "input_state_update is set to False.");
     }
 
 #ifdef USE_CUDA
