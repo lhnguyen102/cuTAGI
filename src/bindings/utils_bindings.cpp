@@ -170,3 +170,11 @@ void bind_utils(pybind11::module_ &m) {
         .def("get_name", &Utils::get_name)
         .def("get_upper_triu_cov_wrapper", &Utils::get_upper_triu_cov_wrapper);
 }
+
+void bind_manual_seed(pybind11::module_ &m) {
+    m.def("manual_seed", &manual_seed);
+}
+
+void bind_is_cuda_available(pybind11::module_ &m) {
+    m.def("is_cuda_available", &is_cuda_available);
+}

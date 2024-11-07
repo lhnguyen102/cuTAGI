@@ -1704,8 +1704,6 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
         this->num_biases = this->output_size;
     }
 
-    // Initalize weights and bias
-    this->init_weight_bias();
     if (this->training) {
         // TODO: to be removed
         this->bwd_states = std::make_unique<BackwardStateCuda>();

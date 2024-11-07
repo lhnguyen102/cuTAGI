@@ -65,11 +65,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
  *
  *  */
 {
-    // Initialize device
-    std::random_device rd;
-
-    // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    // Get generator
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -92,8 +89,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
 std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     float scale, float gain, float noise_gain, int N)
-/* Parmeter initialization of TAGI neural network including the noise's hidden
- * states
+/* Parmeter initialization of TAGI neural network including the noise's
+ * hidden states
  *
  * Args:
  *    scale: Standard deviation for weight distribution
@@ -106,11 +103,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
  *
  *  */
 {
-    // Initialize device
-    std::random_device rd;
-
-    // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    // Get generator
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);

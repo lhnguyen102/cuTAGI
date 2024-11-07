@@ -119,20 +119,21 @@ void lstm_v2()
         input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
         train_db.sigma_x);
 
+    // Fix seed
+    manual_seed(0);
+
     // Model
     Sequential model(LSTM(1, 5, input_seq_len), LSTM(5, 5, input_seq_len),
                      Linear(5 * input_seq_len, 1));
 
-    // model.to_device("cuda");
-    model.set_threads(1);
+    model.to_device("cuda");
+    // model.set_threads(1);
 
     OutputUpdater output_updater(model.device);
 
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
-    unsigned seed = 0;
-    std::default_random_engine seed_e(seed);
     int n_epochs = 50;
     int batch_size = 1;
     float sigma_obs = 1.0;
@@ -152,7 +153,7 @@ void lstm_v2()
     for (int e = 0; e < n_epochs; e++) {
         if (e > 0) {
             // Shuffle data
-            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            std::shuffle(data_idx.begin(), data_idx.end(), get_random_engine());
             // Decay observation noise
             decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
             std::vector<float> var_obs(batch_size * train_db.ny,

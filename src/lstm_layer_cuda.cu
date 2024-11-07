@@ -583,7 +583,6 @@ LSTMCuda::LSTMCuda(size_t input_size, size_t output_size, int seq_len,
     this->bias = bias;
 
     this->get_number_param();
-    this->init_weight_bias();
     if (this->training) {
         this->allocate_param_delta();
     }

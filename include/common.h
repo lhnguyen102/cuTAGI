@@ -26,6 +26,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "param_init.h"
+
 template <typename T>
 void print_matrix(std::vector<T> &M, int w, int h)
 /*
@@ -285,3 +287,15 @@ float normpdf_cpu(float x, float mu, float sigma);
 // INDEX
 ///////////////////////////////////////////////////////
 int get_sub_layer_idx(std::vector<int> &layer, int curr_layer, int layer_label);
+
+///////////////////////////////////////////////////////
+// SEED MANAGER
+///////////////////////////////////////////////////////
+void manual_seed(int seed);
+
+std::mt19937 &get_random_engine();
+
+///////////////////////////////////////////////////////
+// CHECK CUDA
+///////////////////////////////////////////////////////
+bool is_cuda_available();

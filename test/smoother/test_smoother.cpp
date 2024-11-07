@@ -142,6 +142,9 @@ void smoother_v1()
         input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
         train_db.sigma_x);
 
+    // Set seed
+    manual_seed(0);
+
     // Model
     Sequential model(SLSTM(num_features + input_seq_len - 1, 40, 1),
                      SLSTM(40, 40, 1), SLinear(40 * 1, 1));
@@ -156,8 +159,6 @@ void smoother_v1()
     //////////////////////////////////////////////////////////////////////
     // Training
     //////////////////////////////////////////////////////////////////////
-    unsigned seed = 0;
-    std::default_random_engine seed_e(seed);
     int n_epochs = 50;
     int batch_size = 1;
     float sigma_obs = 1.0;
