@@ -1399,7 +1399,7 @@ void BatchNorm2dCuda::init_weight_bias()
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale);
+        this->var_b.resize(this->num_weights, 1E-6 * scale);
 
     } else {
         this->num_biases = 0;

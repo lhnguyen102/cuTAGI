@@ -1849,7 +1849,7 @@ void BatchNorm2d::init_weight_bias()
     this->var_w.resize(this->num_weights, scale);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale);
+        this->var_b.resize(this->num_weights, 1E-6f * scale);
 
     } else {
         this->num_biases = 0;
@@ -1960,7 +1960,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                     batch_size, this->num_threads, this->var_norm_batch);
 
                 running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
-                                    momentum, this->input_size,
+                                    _momentum, this->input_size,
                                     this->num_threads, this->mu_ra,
                                     this->var_ra);
             }
@@ -1985,7 +1985,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
                     this->var_norm_batch);
 
                 running_mean_var_mp(this->mu_norm_batch, this->var_norm_batch,
-                                    momentum, this->in_channels,
+                                    _momentum, this->in_channels,
                                     this->num_threads, this->mu_ra,
                                     this->var_ra);
             }

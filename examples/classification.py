@@ -73,16 +73,18 @@ CNN_VSCALED = Sequential(
     Linear(100, 11, gain_weight=1, gain_bias=1),
 )
 
+mu_scale = 1.005
+var_scale = 0.10
 CNN_SCALED = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=3.2, gain_bias=3),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, gain_weight=1.1, gain_bias=1.1),
+    Conv2d(16, 32, 5, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100, gain_weight=1.5, gain_bias=1.5),
+    Linear(32 * 4 * 4, 100, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
-    Linear(100, 11, gain_weight=0.5, gain_bias=1.1),
+    Linear(100, 11, gain_weight=var_scale, gain_bias=mu_scale),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -94,23 +96,26 @@ CNN_BATCHNORM = Sequential(
     MixtureReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100),
+    Linear(32 * 4 * 4, 100, bias=False),
     MixtureReLU(),
-    Linear(100, 11),
+    Linear(100, 11, bias=False),
 )
 
 CNN_BATCHNORM_SCALED = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=3),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
+    #ReLU(),
     BatchNorm2d(16),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False, gain_weight=0.6, gain_bias=1),
+    Conv2d(16, 32, 5, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
+    #ReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100, gain_weight=0.8, gain_bias=1.5),
+    Linear(32 * 4 * 4, 100, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
-    Linear(100, 11, gain_weight=0.8, gain_bias=1.25),
+    #ReLU(),
+    Linear(100, 11, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
 )
 
 CNN_LAYERNORM = Sequential(
@@ -128,17 +133,18 @@ CNN_LAYERNORM = Sequential(
 )
 
 CNN_LAYERNORM_SCALED = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=3.2, gain_bias=3),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    #LayerNorm((16, 27, 27)),
     MixtureReLU(),
     LayerNorm((16, 27, 27)),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False, gain_weight=0.8, gain_bias=1),
+    Conv2d(16, 32, 5, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     LayerNorm((32, 9, 9)),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100, gain_weight=1.0, gain_bias=1.25),
+    Linear(32 * 4 * 4, 100, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
-    Linear(100, 11, gain_weight=0.8, gain_bias=1.25),
+    Linear(100, 11, gain_weight=var_scale, gain_bias=mu_scale),
 )
 
 CNN_LAYERNORM_INV = Sequential(
@@ -170,7 +176,7 @@ CNN_LAYERNORM_INV_SCALED = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 32, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -192,7 +198,7 @@ def main(num_epochs: int = 10, batch_size: int = 32, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_LAYERNORM
+    net = CNN_BATCHNORM_SCALED
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -208,18 +214,13 @@ def main(num_epochs: int = 10, batch_size: int = 32, sigma_v: float = 0.1):
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
-            #m = np.maximum(0,np.float32(np.random.normal(loc = 0.0, scale = 1.0, size = (784)).flatten()))
-            #m_x = x * 0 + m
-            #v_x = np.float32(m_x>0)*(x * 0 + 1)
-            #m_pred, v_pred = net(m_x, v_x)
             m_pred, v_pred = net(x)
-            #exit()
-
 
             if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
-                print("                 -> E[m_pred] = ", np.average(m_pred), "+-", np.std(m_pred))
+                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), " | E[s_pred]", np.average(np.sqrt(v_pred)))
+                print("                 -> V[m_pred] = ", np.var(m_pred), " | s[m_pred]", np.std(m_pred))
                 print_var = False
+            #exit()
 
             # Update output layers based on targets
             out_updater.update_using_indices(

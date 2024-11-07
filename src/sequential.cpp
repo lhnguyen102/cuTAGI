@@ -316,7 +316,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
                       << current_layer->get_layer_name() << std::endl;
             std::cout << "      E[var_a]: " << mean_var_a << " <- 1"
                       << std::endl;
-            std::cout << "     std[mu_a]: " << powf(var_mu_a, 0.5) << " <- 1"
+            std::cout << "       v[mu_a]: " << var_mu_a << " <- 1"
                       << std::endl;
             std::cout << "    std[var_a]: " << powf(var_var_a, 0.5)
                       << std::endl;

@@ -69,7 +69,9 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    //std::mt19937 gen(rd());
+    std::mt19937 gen(1);
+
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -112,7 +114,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    std::mt19937 gen(rd());
+    //std::mt19937 gen(rd());
+    std::mt19937 gen(1);
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -165,7 +168,8 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
     if (num_biases > 0) {
         //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1e-6f, 1e-6f, num_biases);
+        //std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};

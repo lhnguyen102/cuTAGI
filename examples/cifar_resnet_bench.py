@@ -37,28 +37,30 @@ torch.manual_seed(17)
 NORMALIZATION_MEAN = [0.4914, 0.4822, 0.4465]
 NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 
+gain_m = 0.45
+gain_s = 0.01 * gain_m
 TAGI_CNN_NET = Sequential(
     # 32x32
-    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
+    Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32, gain_weight=gain_s, gain_bias=gain_m),
     MixtureReLU(),
     BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 16x16
-    Conv2d(32, 32, 5, bias=False, padding=2),
+    Conv2d(32, 32, 5, bias=False, padding=2, gain_weight=gain_s, gain_bias=gain_m),
     MixtureReLU(),
     BatchNorm2d(32),
     AvgPool2d(2, 2),
     # 8x8
-    Conv2d(32, 64, 5, bias=False, padding=2),
+    Conv2d(32, 64, 5, bias=False, padding=2, gain_weight=gain_s, gain_bias=gain_m),
     MixtureReLU(),
     BatchNorm2d(64),
     AvgPool2d(2, 2),
     # 4x4
-    Linear(64 * 4 * 4, 256),
+    Linear(64 * 4 * 4, 256, gain_weight=gain_s, gain_bias=gain_m),
     MixtureReLU(),
     Linear(256, 128),
     MixtureReLU(),
-    Linear(128, 11),
+    Linear(128, 11, gain_weight=gain_s, gain_bias=gain_m),
 )
 
 TAGI_FNN = Sequential(
@@ -227,7 +229,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.05, gain_b=0.05)
+    net = resnet18_cifar10(gain_w=0.05, gain_b=1)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -243,7 +245,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
+                curr_v=sigma_v, min_v=0, decaying_factor=0.8, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),
@@ -260,8 +262,8 @@ def tagi_trainer(
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
             if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[m_pred] = ", np.average(m_pred), "+-", np.std(m_pred))
-                print("                    E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), " | E[s_pred]", np.average(np.sqrt(v_pred)))
+                print("                 -> V[m_pred] = ", np.var(m_pred), " | s[m_pred]", np.std(m_pred))
                 print_var = False
             #exit()
             # Update output layers based on targets
@@ -376,7 +378,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.005
+    sigma_v: float = 0.01
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

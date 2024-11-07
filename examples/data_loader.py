@@ -81,6 +81,7 @@ class DataloaderBase(ABC):
         indices = np.arange(num_data)
         reminder_start = int(num_data - np.mod(num_data, chunk_size))
         num_samples = chunk_size - (num_data - reminder_start)
+        np.random.seed(1)
         random_idx = np.random.choice(indices, size=num_samples, replace=False)
         reminder_idx = indices[reminder_start:]
 
@@ -129,6 +130,7 @@ class RegressionDataLoader:
         num_data = input_data.shape[0]
         indices = np.arange(num_data)
         if shuffle:
+            np.random.seed(1)
             np.random.shuffle(indices)
 
         for start_idx in range(0, num_data, batch_size):
@@ -203,6 +205,7 @@ class MnistDataLoader:
         num_data = input_data.shape[0]
         indices = np.arange(num_data)
         if shuffle:
+            np.random.seed(1)
             np.random.shuffle(indices)
 
         for start_idx in range(0, num_data, batch_size):
@@ -337,6 +340,7 @@ class TimeSeriesDataloader:
         num_data = input_data.shape[0]
         indices = np.arange(num_data)
         if shuffle:
+            np.random.seed(1)
             np.random.shuffle(indices)
 
         for start_idx in range(0, num_data, batch_size):

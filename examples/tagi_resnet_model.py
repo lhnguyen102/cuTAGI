@@ -5,6 +5,7 @@ from pytagi.nn import (
     LayerBlock,
     Linear,
     MixtureReLU,
+    ReLU,
     ResNetBlock,
     Sequential,
 )
