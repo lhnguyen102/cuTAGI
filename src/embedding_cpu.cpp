@@ -1,14 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         embedding_cpu.cpp
-// Description:  embeddings layer
-//               (CPU version)
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 23, 2023
-// Updated:      September 06, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/embedding_cpu.h"
 
 std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(

@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         output_layer_update_cpu.cpu
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 22, 2023
-// Updated:      November 17, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/output_layer_update_cpu.h"
 
 void update_output_delta_z(BaseHiddenStates &last_layer_states,

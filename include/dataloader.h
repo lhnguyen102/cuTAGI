@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         dataloader.h
-// Description:  Header file for dataloader
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      February 06, 2022
-// Updated:      April 02, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <assert.h>
 

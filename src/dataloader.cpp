@@ -1,14 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         dataloader.cpp
-// Description:  Load different batches of data to network
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      February 06, 2022
-// Updated:      April 04, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/dataloader.h"
+
+#include "../include/custom_logger.h"
 
 std::vector<int> create_range(int N)
 /*
@@ -105,9 +97,7 @@ std::vector<float> load_mnist_images(std::string image_file, int num)
     std::ifstream data_file(image_file.c_str(),
                             std::ios::in | std::ios::binary);
     if (data_file.fail()) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Image files do not exist.");
+        LOG(LogLevel::ERROR, "Image files do not exist.");
     }
 
     // Check the magic number (see http://yann.lecun.com/exdb/mnist/)
@@ -169,9 +159,7 @@ std::vector<int> load_mnist_labels(std::string label_file, int num)
                             std::ios::in | std::ios::binary);
 
     if (data_file.fail()) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Label files do not exist.");
+        LOG(LogLevel::ERROR, "Label files do not exist.");
     }
 
     // Check the magic number
@@ -229,9 +217,7 @@ std::tuple<std::vector<float>, std::vector<int>> load_cifar_images(
     std::ifstream data_file(image_file.c_str(),
                             std::ios::in | std::ios::binary);
     if (data_file.fail()) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Image files do not exist.");
+        LOG(LogLevel::ERROR, "Image files do not exist.");
     }
 
     int n_size = 10000;
@@ -318,9 +304,7 @@ Returns:
         image_data.image_len = 32 * 32 * 3;
 
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Dataset does not exist.");
+        LOG(LogLevel::ERROR, "Dataset does not exist.");
     }
 
     // Convert label to hierarchical softmax
@@ -603,7 +587,7 @@ void create_rolling_windows(std::vector<float> &data,
         (data.size() / num_features - num_input_ts - num_output_ts) / stride +
         1;
     if (num_samples < 0) {
-        throw std::invalid_argument("Could not window time series data");
+        LOG(LogLevel::ERROR, "Could not window time series data");
     }
     int num_outputs = output_col.size();
 

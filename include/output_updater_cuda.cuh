@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         output_updater_cuda.cuh
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 27, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <cuda.h>
 #include <cuda_runtime.h>

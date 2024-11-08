@@ -1,6 +1,7 @@
 #pragma once
 #include <cuda_runtime.h>
 
+#include <chrono>
 #include <iostream>
 
 // Macro to check the last CUDA error

@@ -1,14 +1,3 @@
-
-///////////////////////////////////////////////////////////////////////////////
-// File:         main_bindings.h
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 30, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/main_bindings.h"
 
 PYBIND11_MODULE(cutagi, modo) {

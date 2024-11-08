@@ -1,5 +1,6 @@
 #include <cuda.h>
 
+#include "../include/custom_logger.h"
 #include "../include/resnet_block.h"
 #include "../include/resnet_block_cuda.cuh"
 
@@ -191,9 +192,7 @@ void ResNetBlockCuda::set_cuda_threads(int num)
         if (layer_block) {
             layer_block->set_cuda_threads(num);
         } else {
-            throw std::invalid_argument(
-                "Error in file: " + std::string(__FILE__) + " at line: " +
-                std::to_string(__LINE__) + ". Set cuda threads.");
+            LOG(LogLevel::ERROR, "Set cuda threads.");
         }
     }
 
@@ -203,9 +202,7 @@ void ResNetBlockCuda::set_cuda_threads(int num)
         if (cu_shortcut) {
             cu_shortcut->set_cuda_threads(num);
         } else {
-            throw std::invalid_argument(
-                "Error in file: " + std::string(__FILE__) + " at line: " +
-                std::to_string(__LINE__) + ". Set cuda threads.");
+            LOG(LogLevel::ERROR, "Set cuda threads.");
         }
     }
 }

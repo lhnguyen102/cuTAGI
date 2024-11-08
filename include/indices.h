@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         indices.h
-// Description:  Header file for indices for TAGI. Note that this is a header
-// file for indices.cpp where the detailed code are written.
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 23, 2022
-// Updated:      April 20, 2022
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "common.h"
 

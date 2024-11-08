@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         utils.cpp
-// Description:  utils for TAGI package such saving and loading parameters
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      April 10, 2022
-// Updated:      July 20, 2022
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/utils.h"
 
 void save_error_rate(std::string &res_path, std::vector<float> &error_rate,

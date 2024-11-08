@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         base_layer_cuda.cuh
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 13, 2023
-// Updated:      April 08, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/base_layer_cuda.cuh"
 #include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"

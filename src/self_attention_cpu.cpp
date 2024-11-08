@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         self_attention_cpu.cpp
-// Description:  CPU version for self attention
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 13, 2023
-// Updated:      June 09, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/self_attention_cpu.h"
 std::vector<float> transpose(std::vector<float> input,
                              std::vector<int> input_shape,

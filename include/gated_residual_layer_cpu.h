@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         gated_residual_layer_cpu.h
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      September 17, 2023
-// Updated:      September 18, 2023
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 

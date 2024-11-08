@@ -66,17 +66,17 @@ void fnn_mnist() {
     //////////////////////////////////////////////////////////////////////
     // TAGI network
     //////////////////////////////////////////////////////////////////////
-    Sequential model(Linear(784, 16), ReLU(), Linear(16, 16), ReLU(),
-                     Linear(16, 11));
+    // Sequential model(Linear(784, 16), ReLU(), Linear(32, 16), ReLU(),
+    //                  Linear(16, 11));
 
     // Sequential model(Linear(784, 1024), BatchNorm2d(1024), ReLU(),
     //                  Linear(1024, 1024), BatchNorm2d(1024), ReLU(),
     //                  Linear(1024, 11));
 
-    // Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
-    //                  ReLU(), Linear(100, 100),
-    //                  LayerNorm(std::vector<int>({100})), ReLU(),
-    //                  Linear(100, 11));
+    Sequential model(Linear(784, 100), LayerNorm(std::vector<int>({100})),
+                     ReLU(), Linear(100, 100),
+                     LayerNorm(std::vector<int>({100})), ReLU(),
+                     Linear(100, 11));
 
     // Sequential model(Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(),
     //                  AvgPool2d(3, 2), Conv2d(16, 32, 5), ReLU(),

@@ -1,13 +1,4 @@
 
-///////////////////////////////////////////////////////////////////////////////
-// File:         param_init.h
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 15, 2023
-// Updated:      March 23, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <iomanip>
 #include <iostream>

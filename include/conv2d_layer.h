@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         conv2d_layer.h
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 03, 2024
-// Updated:      April 18, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 #include "base_layer.h"

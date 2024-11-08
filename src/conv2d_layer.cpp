@@ -1,15 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         conv2d_layer.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 04, 2024
-// Updated:      August 06, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/conv2d_layer.h"
 
+#include "../include/custom_logger.h"
 #include "../include/indices.h"
 #include "../include/param_init.h"
 #ifdef USE_CUDA
@@ -128,6 +119,14 @@ void Conv2d::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
 
@@ -615,10 +614,7 @@ std::tuple<int, int> compute_downsample_img_size_v2(int kernel, int stride,
         wo = nom_w / stride + 1;
         ho = nom_h / stride + 1;
     } else {
-        throw std::invalid_argument(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            ". Invalid hyperparameters for conv2d layer");
+        LOG(LogLevel::ERROR, "Invalid hyperparameters for conv2d layer");
     }
 
     return {wo, ho};

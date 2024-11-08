@@ -1,14 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         norm_layer_cuda.cu
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      January 24, 2024
-// Updated:      July 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
+#include "../include/custom_logger.h"
 #include "../include/norm_layer.h"
 #include "../include/norm_layer_cuda.cuh"
 
@@ -1069,6 +1061,14 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     // New poitner will point to the same memory location when casting
     HiddenStateCuda *cu_input_states =
         dynamic_cast<HiddenStateCuda *>(&input_states);

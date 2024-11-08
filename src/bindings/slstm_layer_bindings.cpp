@@ -1,14 +1,3 @@
-
-///////////////////////////////////////////////////////////////////////////////
-// File:         slstm_layer_binding.h
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      August 21, 2024
-// Updated:      August 21, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "../include/bindings/slstm_layer_bindings.h"
 
 #include <pybind11/numpy.h>

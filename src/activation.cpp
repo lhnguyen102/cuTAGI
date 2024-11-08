@@ -1,13 +1,5 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         activation_layer_cpu.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 09, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/activation.h"
+
 #ifdef USE_CUDA
 #include "activation_cuda.cuh"
 #endif
@@ -558,13 +550,6 @@ void ReLU::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << ". Reason: Invalid input state size (size is 0).\n";
-        throw std::invalid_argument("Error: Invalid input state size");
-    }
-
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
@@ -626,13 +611,6 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -689,13 +667,6 @@ void Tanh::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -752,13 +723,6 @@ void MixtureReLU::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -816,13 +780,6 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -880,13 +837,6 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -943,13 +893,6 @@ void Softplus::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -1007,13 +950,6 @@ void LeakyReLU::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
@@ -1070,13 +1006,6 @@ void Softmax::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Error: Input state size is zero.");
-    }
-
     // TODO: replace this function by the multiprocessing one
     int batch_size = input_states.size / input_states.block_size;
     softmax_mean_var(input_states.mu_a, input_states.var_a,
@@ -1232,13 +1161,6 @@ void EvenExp::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Validate input. TODO: to be removed
-    if (input_states.size == 0) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << ". Reason: Invalid input state size (size is 0).\n";
-        throw std::invalid_argument("Error: Invalid input state size");
-    }
-
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {

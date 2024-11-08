@@ -1,15 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         lstm_layer_cuda.cu
-// Description:  Header file for Long-Short Term Memory (LSTM) forward pass
-//               in TAGI
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 22, 2024
-// Updated:      March 31, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/activation_cuda.cuh"
+#include "../include/custom_logger.h"
 #include "../include/lstm_layer.h"
 #include "../include/lstm_layer_cuda.cuh"
 #include "../include/param_init.h"
@@ -814,6 +805,14 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
 /*
  */
 {
+    // Checkout input size
+    if (this->input_size * this->seq_len != input_states.actual_size) {
+        std::string message = "Input size mismatch: " +
+                              std::to_string(this->input_size * this->seq_len) +
+                              " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
     // New poitner will point to the same memory location when casting
     HiddenStateCuda *cu_input_states =
         dynamic_cast<HiddenStateCuda *>(&input_states);

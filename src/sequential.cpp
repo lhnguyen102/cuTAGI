@@ -1,19 +1,10 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         sequential.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      October 09, 2023
-// Updated:      July 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 
 #include "../include/sequential.h"
 
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
+#include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
-// #include "slinear_layer.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #endif
@@ -91,9 +82,7 @@ it will be corrected at the first run in the forward pass.
     } else if (this->device.compare("cuda") == 0) {
         this->layers.push_back(layer->to_cuda());
     } else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -164,17 +153,12 @@ void Sequential::init_output_state_buffer()
             this->temp_states = std::make_shared<TempStateCuda>(
                 this->z_buffer_size, this->z_buffer_block_size);
         } else {
-            throw std::invalid_argument(
-                "Error in file: " + std::string(__FILE__) +
-                " at line: " + std::to_string(__LINE__) +
-                ". Smoothing feature does not support CUDA");
+            LOG(LogLevel::ERROR, "Smoothing feature does not support CUDA");
         }
     }
 #endif
     else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -197,9 +181,7 @@ void Sequential::init_delta_state_buffer()
     }
 #endif
     else {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Invalid device: [" + this->device + "]");
+        LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
 
@@ -249,8 +231,15 @@ void Sequential::forward(const std::vector<float> &mu_x,
 /*
  */
 {
-    // Batch size
-    int batch_size = mu_x.size() / this->layers.front()->get_input_size();
+    // Batch size: TODO: this is only correct if input size is correctly set
+    int input_size = this->layers.front()->get_input_size();
+    if (mu_x.size() % input_size != 0) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(input_size) + " vs " +
+            std::to_string(mu_x.size());
+        LOG(LogLevel::ERROR, message);
+    }
+    int batch_size = mu_x.size() / input_size;
 
     // Lazy initialization
     if (this->z_buffer_block_size == 0) {
@@ -690,9 +679,7 @@ void Sequential::load_state_dict(
 
 void Sequential::params_from(const Sequential &model_ref) {
     if (this->layers.size() != model_ref.layers.size()) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". Model architecture is different");
+        LOG(LogLevel::ERROR, "Model architecture is different.");
     }
 
     // TODO: need to add more checks before copying
@@ -780,9 +767,7 @@ std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
 Sequential::get_input_states() {
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
-        throw std::invalid_argument("Error in file: " + std::string(__FILE__) +
-                                    " at line: " + std::to_string(__LINE__) +
-                                    ". input_state_update is set to False");
+        LOG(LogLevel::ERROR, "input_state_update is set to False.");
     }
 
 #ifdef USE_CUDA

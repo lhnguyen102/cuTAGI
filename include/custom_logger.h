@@ -18,4 +18,4 @@ class Logger {
 
 // Macro to simplify logging with automatic file and line number
 #define LOG(level, message) \
-    Logger::logMessage(level, __FILE__, __LINE__, message)
+    Logger::log_message(level, __FILE__, __LINE__, message)

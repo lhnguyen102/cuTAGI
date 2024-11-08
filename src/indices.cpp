@@ -1,16 +1,8 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         indices.cpp
-// Description:  Indices for TAGI
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 12, 2021
-// Updated:      May 07, 2022
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-///////////////////////////////////////////////////////////////////////////////
-
 #include "../include/indices.h"
 
 #include <algorithm>
+
+#include "../include/custom_logger.h"
 
 ////////////////////////////
 // IMAGE CONSTRUCTION
@@ -253,7 +245,7 @@ std::vector<int> get_receptive_field(std::vector<int> &img,
     // Check validity for recetive field
 
     if ((hi - kernel) / stride + 1 != wo && kernel != 1) {
-        throw std::invalid_argument("Kernel size is invalid");
+        LOG(LogLevel::ERROR, "Invalid receptive field");
     }
     // Get reference kernel
     std::vector<int> ref_kernel = get_ref_kernel(img, kernel, wi);
@@ -658,7 +650,7 @@ std::vector<int> get_FCzwa_2_idx(std::vector<int> &Fmwa_2_idx, int pad,
 
     // Reorganize indices as reference indices
     if (idx_ref.size() != tmp.size()) {
-        throw std::invalid_argument(
+        LOG(LogLevel::ERROR,
             "Size of reference indices is not equal to size of FCzwa 2");
     }
 
