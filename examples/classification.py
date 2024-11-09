@@ -73,8 +73,8 @@ CNN_VSCALED = Sequential(
     Linear(100, 11, gain_weight=1, gain_bias=1),
 )
 
-mu_scale = 1.005
-var_scale = 0.10
+mu_scale = 1.00
+var_scale = 0.20
 CNN_SCALED = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
@@ -176,7 +176,7 @@ CNN_LAYERNORM_INV_SCALED = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -198,7 +198,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_BATCHNORM_SCALED
+    net = CNN_SCALED
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)

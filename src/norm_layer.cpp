@@ -1464,11 +1464,11 @@ void LayerNorm::init_weight_bias()
     this->num_weights = this->normalized_shape[0];
     float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
-    this->var_w.resize(this->num_weights, scale);
+    this->var_w.resize(this->num_weights, 0.01f);
     if (this->bias) {
         this->num_biases = normalized_shape[0];
         this->mu_b.resize(this->num_biases, 0.0f);
-        this->var_b.resize(this->num_biases, scale);
+        this->var_b.resize(this->num_biases, 0.01f);
     }
 }
 
@@ -1846,10 +1846,10 @@ void BatchNorm2d::init_weight_bias()
 
     float scale = 1.0f / this->num_weights;
     this->mu_w.resize(this->num_weights, 1.0f);
-    this->var_w.resize(this->num_weights, scale);
+    this->var_w.resize(this->num_weights, 0.01f);
     if (this->bias) {
         this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, 1E-6f * scale);
+        this->var_b.resize(this->num_weights, 0.01f);
 
     } else {
         this->num_biases = 0;

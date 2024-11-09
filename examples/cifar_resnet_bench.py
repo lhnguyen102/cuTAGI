@@ -245,7 +245,7 @@ def tagi_trainer(
         error_rates = []
         if epoch > 0:
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0, decaying_factor=0.8, curr_iter=epoch
+                curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
             )
             var_y = np.full(
                 (batch_size * metric.hrc_softmax.num_obs,),

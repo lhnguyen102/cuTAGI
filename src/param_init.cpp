@@ -167,9 +167,9 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::vector<float> mu_w, var_w, mu_b, var_b;
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
     if (num_biases > 0) {
-        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
+        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_w, gain_b, num_biases);
         std::tie(mu_b, var_b) = gaussian_param_init(scale, 1e-6f, 1e-6f, num_biases);
-        //std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
+        //std::tie(mu_b, var_b) = gaussian_param_init(0.01f, 1.0f, 1.0f, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
