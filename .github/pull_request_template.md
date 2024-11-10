@@ -8,7 +8,7 @@ Provide a detailed explanation of the changes you made in this PR. Include relev
 
 ## Related Issue(s)
 
-Cite any related GitHub issues or JIRA tickets that are addressed or resolved by this PR. Use the syntax `Resolves #123` or `Fixes #456`.
+Cite any related GitHub issues that are addressed or resolved by this PR. Use the syntax `Resolves #123` or `Fixes #456`.
 
 ## Checklist
 
