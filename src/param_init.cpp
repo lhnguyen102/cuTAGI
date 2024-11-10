@@ -69,9 +69,8 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    //std::mt19937 gen(rd());
-    std::mt19937 gen(1);
-
+    std::mt19937 gen(rd());
+    // std::mt19937 gen(1);
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -81,9 +80,10 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     for (int i = 0; i < N; i++) {
         // Variance
         S[i] = pow(gain_s * scale, 2);
-        //if (i == 0) {
-        //    std::cout << "gain = " << gain << " | scale = " << scale << std::endl;
-        //}
+        // if (i == 0) {
+        //     std::cout << "gain = " << gain << " | scale = " << scale <<
+        //     std::endl;
+        // }
 
         // Get normal distribution
         std::normal_distribution<float> d(0.0f, gain_m * scale);
@@ -114,7 +114,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     std::random_device rd;
 
     // Mersenne twister PRNG - seed
-    //std::mt19937 gen(rd());
+    // std::mt19937 gen(rd());
     std::mt19937 gen(1);
 
     // Initialize pointers
@@ -165,11 +165,14 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
+    std::tie(mu_w, var_w) =
+        gaussian_param_init(scale, gain_w, gain_b, num_weights);
     if (num_biases > 0) {
-        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_w, gain_b, num_biases);
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1e-6f, 1e-6f, num_biases);
-        //std::tie(mu_b, var_b) = gaussian_param_init(0.01f, 1.0f, 1.0f, num_biases);
+        // std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_w, gain_b,
+        // num_biases); std::tie(mu_b, var_b) = gaussian_param_init(scale,
+        // 1e-6f, 1e-6f, num_biases);
+        std::tie(mu_b, var_b) =
+            gaussian_param_init(0.01f, 1.0f, 1.0f, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -203,11 +206,15 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, gain_b, num_weights);
-    //std::cout << "mu_w = " << mu_w[0] << " | var_w = " << var_w[0] << std::endl;
+    std::tie(mu_w, var_w) =
+        gaussian_param_init(scale, gain_w, gain_b, num_weights);
+    // std::cout << "mu_w = " << mu_w[0] << " | var_w = " << var_w[0] <<
+    // std::endl;
     if (num_biases > 0) {
-        //std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b, num_biases);
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
+        // std::tie(mu_b, var_b) = gaussian_param_init(1.0f, gain_b,
+        // num_biases);
+        std::tie(mu_b, var_b) =
+            gaussian_param_init(scale, 1.0f, 1.0f, num_biases);
     }
     return {mu_w, var_w, mu_b, var_b};
 }

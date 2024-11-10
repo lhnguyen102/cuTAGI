@@ -31,7 +31,7 @@ from pytagi.nn import (
 from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
 
-torch.manual_seed(17)
+torch.manual_seed(22)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = [0.4914, 0.4822, 0.4465]

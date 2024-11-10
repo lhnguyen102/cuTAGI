@@ -74,7 +74,7 @@ CNN_VSCALED = Sequential(
 )
 
 mu_scale = 1.00
-var_scale = 0.20
+var_scale = 0.3
 CNN_SCALED = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
@@ -102,20 +102,20 @@ CNN_BATCHNORM = Sequential(
 )
 
 CNN_BATCHNORM_SCALED = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     #ReLU(),
     BatchNorm2d(16),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Conv2d(16, 32, 5, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     #ReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Linear(32 * 4 * 4, 100, gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     #ReLU(),
-    Linear(100, 11, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Linear(100, 11, gain_weight=var_scale, gain_bias=mu_scale),
 )
 
 CNN_LAYERNORM = Sequential(
@@ -133,12 +133,12 @@ CNN_LAYERNORM = Sequential(
 )
 
 CNN_LAYERNORM_SCALED = Sequential(
-    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, gain_weight=var_scale, gain_bias=mu_scale),
     #LayerNorm((16, 27, 27)),
     MixtureReLU(),
     LayerNorm((16, 27, 27)),
     AvgPool2d(3, 2),
-    Conv2d(16, 32, 5, bias=False, gain_weight=var_scale, gain_bias=mu_scale),
+    Conv2d(16, 32, 5,gain_weight=var_scale, gain_bias=mu_scale),
     MixtureReLU(),
     LayerNorm((32, 9, 9)),
     AvgPool2d(3, 2),
@@ -176,7 +176,7 @@ CNN_LAYERNORM_INV_SCALED = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
+def main(num_epochs: int = 5, batch_size: int = 1, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -198,7 +198,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_SCALED
+    net = CNN_LAYERNORM_SCALED
     net.to_device("cuda")
     #net.set_threads(16)
     out_updater = OutputUpdater(net.device)
@@ -219,6 +219,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
             if print_var: # Print prior predictive variance
                 print("Prior predictive -> E[v_pred] = ", np.average(v_pred), " | E[s_pred]", np.average(np.sqrt(v_pred)))
                 print("                 -> V[m_pred] = ", np.var(m_pred), " | s[m_pred]", np.std(m_pred))
+                print("                 -> E[s_pred]/s[m_pred] = ", np.average(np.sqrt(v_pred))/np.std(m_pred))
+
                 print_var = False
             #exit()
 
