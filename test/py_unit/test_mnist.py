@@ -119,6 +119,21 @@ class MnistTest(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
+    def test_batchnorm_without_bias_fnn_CPU(self):
+        model = Sequential(
+            Linear(784, 32),
+            BatchNorm2d(32, bias=False),
+            ReLU(),
+            Linear(32, 32),
+            BatchNorm2d(32, bias=False),
+            ReLU(),
+            Linear(32, 11),
+        )
+        avg_error_rate = mnist_test_runner(model)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
     def test_layernorm_fnn_CPU(self):
         model = Sequential(
             Linear(784, 32),

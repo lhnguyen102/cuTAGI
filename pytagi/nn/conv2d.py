@@ -4,7 +4,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class Conv2d(BaseLayer):
-    """Fully-connected layer"""
+    """Convolutional layer"""
 
     def __init__(
         self,

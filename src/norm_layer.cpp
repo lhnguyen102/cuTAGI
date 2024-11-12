@@ -68,7 +68,7 @@ void layernorm_fwd_mean_var(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int ni, int start_chunk, int end_chunk,
+    bool bias, float epsilon, int ni, int start_chunk, int end_chunk,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
@@ -81,12 +81,15 @@ void layernorm_fwd_mean_var(
             float adjusted_mu_a = mu_a[index] - mu_ra_term;
             float mu_term = adjusted_mu_a * mu_w[col];
 
-            mu_z[index] = inv_sqrt_var_ra * mu_term + mu_b[col];
+            mu_z[index] = inv_sqrt_var_ra * mu_term;
             var_z[index] =
                 inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[index] * (mu_w[col] * mu_w[col] + var_w[col]) +
-                     var_w[col] * adjusted_mu_a * adjusted_mu_a) +
-                var_b[col];
+                (var_a[index] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                 var_w[col] * adjusted_mu_a * adjusted_mu_a);
+            if (bias) {
+                mu_z[index] += mu_b[col];
+                var_z[index] += var_b[col];
+            }
         }
     }
 }
@@ -96,7 +99,7 @@ void layernorm2d_fwd_mean_var(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int wihi, int k, int start_chunk, int end_chunk,
+    bool bias, float epsilon, int wihi, int k, int start_chunk, int end_chunk,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
@@ -110,13 +113,16 @@ void layernorm2d_fwd_mean_var(
             float mu_w_term = mu_w[idx_div];
             float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
-            mu_z[idx] =
-                inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[idx_div];
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term;
             var_z[idx] =
                 inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[idx] * (mu_w_term * mu_w_term + var_w[idx_div]) +
-                     var_w[idx_div] * mu_a_tilde * mu_a_tilde) +
-                var_b[idx_div];
+                (var_a[idx] * (mu_w_term * mu_w_term + var_w[idx_div]) +
+                 var_w[idx_div] * mu_a_tilde * mu_a_tilde);
+
+            if (bias) {
+                mu_z[idx] += mu_b[idx_div];
+                var_z[idx] += var_b[idx_div];
+            }
         }
     }
 }
@@ -676,7 +682,7 @@ void layernorm_fwd_mean_var_mp(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int ni, int batch_size, const int num_threads,
+    bool bias, float epsilon, int ni, int batch_size, const int num_threads,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
@@ -694,8 +700,8 @@ void layernorm_fwd_mean_var_mp(
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
                               &mu_ra, &var_ra, &mu_z, &var_z] {
             layernorm_fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a, mu_ra,
-                                   var_ra, epsilon, ni, start_chunk, end_chunk,
-                                   mu_z, var_z);
+                                   var_ra, bias, epsilon, ni, start_chunk,
+                                   end_chunk, mu_z, var_z);
         });
     }
 
@@ -711,8 +717,8 @@ void layernorm2d_fwd_mean_var_mp(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int wihi, int batch_size, int k, const int num_threads,
-    std::vector<float> &mu_z, std::vector<float> &var_z)
+    bool bias, float epsilon, int wihi, int batch_size, int k,
+    const int num_threads, std::vector<float> &mu_z, std::vector<float> &var_z)
 /*
  */
 {
@@ -729,7 +735,7 @@ void layernorm2d_fwd_mean_var_mp(
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
                               &mu_ra, &var_ra, &mu_z, &var_z] {
             layernorm2d_fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
-                                     mu_ra, var_ra, epsilon, wihi, k,
+                                     mu_ra, var_ra, bias, epsilon, wihi, k,
                                      start_chunk, end_chunk, mu_z, var_z);
         });
     }
@@ -1517,15 +1523,15 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
             layernorm_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, 0, batch_size,
-                output_states.mu_a, output_states.var_a);
+                this->var_ra, this->bias, this->epsilon, this->input_size, 0,
+                batch_size, output_states.mu_a, output_states.var_a);
         } else {
             int wihi = this->in_height * this->in_width;
             layernorm2d_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, this->input_size, 0,
-                batch_size, output_states.mu_a, output_states.var_a);
+                this->var_ra, this->bias, this->epsilon, wihi, this->input_size,
+                0, batch_size, output_states.mu_a, output_states.var_a);
         }
     } else {
         layernorm_stat_mean_var_mp(
@@ -1540,15 +1546,17 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
             layernorm_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, this->input_size, batch_size,
-                this->num_threads, output_states.mu_a, output_states.var_a);
+                this->var_ra, this->bias, this->epsilon, this->input_size,
+                batch_size, this->num_threads, output_states.mu_a,
+                output_states.var_a);
         } else {
             int wihi = this->in_height * this->in_width;
             layernorm2d_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, this->mu_ra,
-                this->var_ra, this->epsilon, wihi, batch_size, this->input_size,
-                this->num_threads, output_states.mu_a, output_states.var_a);
+                this->var_ra, this->bias, this->epsilon, wihi, batch_size,
+                this->input_size, this->num_threads, output_states.mu_a,
+                output_states.var_a);
         }
     }
 

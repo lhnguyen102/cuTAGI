@@ -198,8 +198,8 @@ __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
 __global__ void layernorm_fwd_mean_var_cuda(
     float const *mu_w, float const *var_w, float const *mu_b,
     float const *var_b, float const *mu_a, float const *var_a,
-    float const *mu_ra, float const *var_ra, float epsilon, int ni, int B,
-    float *mu_z, float *var_z)
+    float const *mu_ra, float const *var_ra, bool bias, float epsilon, int ni,
+    int B, float *mu_z, float *var_z)
 /*
  */
 {
@@ -214,19 +214,21 @@ __global__ void layernorm_fwd_mean_var_cuda(
         float mu_ra_term = mu_ra[row];
         float mu_a_tilde = mu_a_term - mu_ra_term;
 
-        mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[col];
-        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                         (var_a[idx] * (mu_w_term * mu_w_term + var_w[col]) +
-                          var_w[col] * mu_a_tilde * mu_a_tilde) +
-                     var_b[col];
+        float tmp_mu = inv_sqrt_var_ra * mu_a_tilde * mu_w_term;
+        float tmp_var = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                        (var_a[idx] * (mu_w_term * mu_w_term + var_w[col]) +
+                         var_w[col] * mu_a_tilde * mu_a_tilde);
+
+        mu_z[idx] = bias ? tmp_mu + mu_b[col] : tmp_mu;
+        var_z[idx] = bias ? tmp_var + var_b[col] : tmp_var;
     }
 }
 
 __global__ void layernorm2d_fwd_mean_var_cuda(
     float const *mu_w, float const *var_w, float const *mu_b,
     float const *var_b, float const *mu_a, float const *var_a,
-    float const *mu_ra, float const *var_ra, float epsilon, int wihi, int m,
-    int k, float *mu_z, float *var_z)
+    float const *mu_ra, float const *var_ra, bool bias, float epsilon, int wihi,
+    int m, int k, float *mu_z, float *var_z)
 /*
  */
 {
@@ -242,12 +244,13 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
         float mu_a_term = mu_a[idx];
         float mu_a_tilde = mu_a_term - mu_ra_term;
 
-        mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[div_idx];
-        var_z[idx] =
+        float tmp_mu_z = inv_sqrt_var_ra * mu_a_tilde * mu_w_term;
+        float tmp_var_z =
             inv_sqrt_var_ra * inv_sqrt_var_ra *
-                (var_a[idx] * (mu_w_term * mu_w_term + var_w[div_idx]) +
-                 var_w[div_idx] * mu_a_tilde * mu_a_tilde) +
-            var_b[div_idx];
+            (var_a[idx] * (mu_w_term * mu_w_term + var_w[div_idx]) +
+             var_w[div_idx] * mu_a_tilde * mu_a_tilde);
+        mu_z[idx] = bias ? tmp_mu_z + mu_b[div_idx] : tmp_mu_z;
+        var_z[idx] = bias ? tmp_var_z + var_b[div_idx] : tmp_var_z;
     }
 }
 
@@ -450,14 +453,13 @@ __global__ void batchnorm_fwd_mean_var_cuda(
         int idx = col + row * ni;
         float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
-        mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col];
-        var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                     (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
-                      var_w[col] * mu_a_tilde * mu_a_tilde);
-        if (bias) {
-            mu_z[idx] += mu_b[col];
-            var_z[idx] += var_b[col];
-        }
+        float tmp_mu_z = inv_sqrt_var_ra * mu_a_tilde * mu_w[col];
+        float tmp_var_z = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                          (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                           var_w[col] * mu_a_tilde * mu_a_tilde);
+
+        mu_z[idx] = bias ? tmp_mu_z + mu_b[col] : tmp_mu_z;
+        var_z[idx] = bias ? tmp_var_z + var_b[col] : tmp_var_z;
     }
 }
 
@@ -773,15 +775,15 @@ layer is a convolutional layer.
         float tmp_mu_w_2 = tmp_mu_w * tmp_mu_w;
         float tmp_mu_ra = mu_ra[div_idx];
         float tmp_mu_a_tilde = tmp_mu_a - tmp_mu_ra;
-        mu_z[idx] = inv_var_ra_sqrt * tmp_mu_a_tilde * tmp_mu_w;
 
-        var_z[idx] =
+        float tmp_mu_z = inv_var_ra_sqrt * tmp_mu_a_tilde * tmp_mu_w;
+
+        float tmp_var_z =
             inv_var_ra * (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx]) +
                           var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde);
-        if (bias) {
-            mu_z[idx] += mu_b[div_idx];
-            var_z[idx] += var_b[div_idx];
-        }
+
+        mu_z[idx] = bias ? tmp_mu_z + mu_b[div_idx] : tmp_mu_z;
+        var_z[idx] = bias ? tmp_var_z + var_b[div_idx] : tmp_var_z;
     }
 }
 
@@ -1116,15 +1118,16 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
         layernorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
             cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, this->input_size, batch_size,
-            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+            this->d_var_ra, this->bias, this->epsilon, this->input_size,
+            batch_size, cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         int wihi = this->in_height * this->in_width;
         layernorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
             cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_ra,
-            this->d_var_ra, this->epsilon, wihi, batch_size, this->input_size,
-            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+            this->d_var_ra, this->bias, this->epsilon, wihi, batch_size,
+            this->input_size, cu_output_states->d_mu_a,
+            cu_output_states->d_var_a);
     }
 
     // Update backward state for inferring parameters

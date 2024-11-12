@@ -291,7 +291,7 @@ TEST_F(MnistTest, BatchnormWithoutBiases_CPU) {
                      Conv2d(8, 8, 5, false), BatchNorm2d(8, 1e-5, 0, false),
                      ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
                      Linear(32, 11));
-    model.set_threads(2);
+    model.set_threads(4);
 
     float avg_error;
     float threshold = 0.5;
@@ -340,7 +340,7 @@ TEST_F(MnistTest, CNNTest_CPU) {
     Sequential model(Conv2d(1, 8, 4, true, 1, 1, 1, 28, 28), ReLU(),
                      AvgPool2d(3, 2), Conv2d(8, 8, 5), ReLU(), AvgPool2d(3, 2),
                      Linear(8 * 4 * 4, 32), ReLU(), Linear(32, 11));
-    model.set_threads(2);
+    model.set_threads(4);
 
     float avg_error;
     float threshold = 0.5;
@@ -353,7 +353,7 @@ TEST_F(MnistTest, BatchNormCNNTest_CPU) {
                      ReLU(), AvgPool2d(3, 2), Conv2d(8, 8, 5, false),
                      BatchNorm2d(8), ReLU(), AvgPool2d(3, 2),
                      Linear(8 * 4 * 4, 32), ReLU(), Linear(32, 11));
-    model.set_threads(2);
+    model.set_threads(4);
 
     float avg_error;
     float threshold = 0.5;
@@ -388,6 +388,22 @@ TEST_F(MnistTest, BatchnormWithoutBiases_CUDA) {
     Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),
                      BatchNorm2d(8, 1e-5, 0, false), ReLU(), AvgPool2d(3, 2),
                      Conv2d(8, 8, 5, false), BatchNorm2d(8, 1e-5, 0, false),
+                     ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
+                     Linear(32, 11));
+    model.to_device("cuda");
+
+    float avg_error;
+    float threshold = 0.5;
+    mnist_test_runner(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
+
+TEST_F(MnistTest, LayernormWithoutBiases_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),
+                     LayerNorm(std::vector<int>({8, 27, 27}), 1e-5, false),
+                     ReLU(), AvgPool2d(3, 2), Conv2d(8, 8, 5, false),
+                     LayerNorm(std::vector<int>({8, 9, 9}), 1e-5, false),
                      ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
                      Linear(32, 11));
     model.to_device("cuda");
