@@ -284,6 +284,21 @@ class MnistTest : public ::testing::Test {
         return true;
     }
 };
+
+TEST_F(MnistTest, BatchnormWithoutBiases_CPU) {
+    Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),
+                     BatchNorm2d(8, 1e-5, 0, false), ReLU(), AvgPool2d(3, 2),
+                     Conv2d(8, 8, 5, false), BatchNorm2d(8, 1e-5, 0, false),
+                     ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
+                     Linear(32, 11));
+    model.set_threads(2);
+
+    float avg_error;
+    float threshold = 0.5;
+    mnist_test_runner(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
+
 TEST_F(MnistTest, FNNModelTest_CPU) {
     Sequential model(Linear(784, 32), ReLU(), Linear(32, 32), ReLU(),
                      Linear(32, 11));
@@ -368,6 +383,21 @@ TEST_F(MnistTest, MismatchSizeDetection) {
 }
 
 #ifdef USE_CUDA
+TEST_F(MnistTest, BatchnormWithoutBiases_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),
+                     BatchNorm2d(8, 1e-5, 0, false), ReLU(), AvgPool2d(3, 2),
+                     Conv2d(8, 8, 5, false), BatchNorm2d(8, 1e-5, 0, false),
+                     ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
+                     Linear(32, 11));
+    model.to_device("cuda");
+
+    float avg_error;
+    float threshold = 0.5;
+    mnist_test_runner(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
+
 TEST_F(MnistTest, FNNModelTest_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     Sequential model(Linear(784, 32), ReLU(), Linear(32, 32), ReLU(),

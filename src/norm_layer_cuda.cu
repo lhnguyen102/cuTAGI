@@ -438,7 +438,7 @@ layer for each batch.
 __global__ void batchnorm_fwd_mean_var_cuda(
     float const *mu_w, float const *var_w, float const *mu_b,
     float const *var_b, float const *mu_a, float const *var_a,
-    float const *mu_ra, float const *var_ra, float epsilon, int ni,
+    float const *mu_ra, float const *var_ra, bool bias, float epsilon, int ni,
     int batch_size, float *mu_z, float *var_z)
 /*Compute pmean of product WA of batch-normalization layer.
  */
@@ -450,12 +450,14 @@ __global__ void batchnorm_fwd_mean_var_cuda(
         int idx = col + row * ni;
         float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
-        mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col] + mu_b[col];
-
+        mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col];
         var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
-                         (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
-                          var_w[col] * mu_a_tilde * mu_a_tilde) +
-                     var_b[col];
+                     (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                      var_w[col] * mu_a_tilde * mu_a_tilde);
+        if (bias) {
+            mu_z[idx] += mu_b[col];
+            var_z[idx] += var_b[col];
+        }
     }
 }
 
@@ -748,8 +750,8 @@ __global__ void batchnorm2d_sample_var_post_processing(float const *data_in,
 __global__ void batchnorm2d_fwd_mean_var_cuda(
     float const *mu_w, float const *var_w, float const *mu_b,
     float const *var_b, float const *mu_a, float const *var_a,
-    float const *mu_ra, float const *var_ra, float epsilon, int wihi, int fi,
-    int m, float *mu_z, float *var_z)
+    float const *mu_ra, float const *var_ra, bool bias, float epsilon, int wihi,
+    int fi, int m, float *mu_z, float *var_z)
 /*Compute mean of product WA of batch-normalization. Note that the previous
 layer is a convolutional layer.
 */
@@ -771,12 +773,15 @@ layer is a convolutional layer.
         float tmp_mu_w_2 = tmp_mu_w * tmp_mu_w;
         float tmp_mu_ra = mu_ra[div_idx];
         float tmp_mu_a_tilde = tmp_mu_a - tmp_mu_ra;
-        mu_z[idx] = inv_var_ra_sqrt * tmp_mu_a_tilde * tmp_mu_w + mu_b[div_idx];
+        mu_z[idx] = inv_var_ra_sqrt * tmp_mu_a_tilde * tmp_mu_w;
 
         var_z[idx] =
             inv_var_ra * (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx]) +
-                          var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde) +
-            var_b[div_idx];
+                          var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde);
+        if (bias) {
+            mu_z[idx] += mu_b[div_idx];
+            var_z[idx] += var_b[div_idx];
+        }
     }
 }
 
@@ -1544,8 +1549,8 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         batchnorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
             cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
-            d_var_target, this->epsilon, this->input_size, batch_size,
-            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+            d_var_target, this->bias, this->epsilon, this->input_size,
+            batch_size, cu_output_states->d_mu_a, cu_output_states->d_var_a);
     } else {
         int wihi = this->in_height * this->in_width;
         unsigned int grid_size_ra =
@@ -1591,9 +1596,9 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         batchnorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
             cu_input_states->d_mu_a, cu_input_states->d_var_a,
-            this->d_mu_norm_batch, this->d_var_norm_batch, this->epsilon, wihi,
-            this->in_channels, fi_batch, cu_output_states->d_mu_a,
-            cu_output_states->d_var_a);
+            this->d_mu_norm_batch, this->d_var_norm_batch, this->bias,
+            this->epsilon, wihi, this->in_channels, fi_batch,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
 
     // Update backward state for inferring parameters
@@ -1637,7 +1642,7 @@ void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
                 this->input_size, batch_size, this->d_delta_mu_w,
                 this->d_delta_var_w);
 
-            if (this->num_biases > 0) {
+            if (this->bias) {
                 batchnorm_bwd_delta_b_cuda<<<grid_size_p, num_threads>>>(
                     this->d_var_b, cu_input_delta_states->d_delta_mu,
                     cu_input_delta_states->d_delta_var, this->epsilon,
@@ -1675,7 +1680,7 @@ void BatchNorm2dCuda::backward(BaseDeltaStates &input_delta_states,
                 buf_mu_out, buf_var_out, this->d_delta_mu_w,
                 this->d_delta_var_w);
 
-            if (this->num_biases > 0) {
+            if (this->bias) {
                 batchnorm2d_bwd_delta_b_cuda<<<dim_grid_p, block_dim>>>(
                     this->d_var_b, cu_input_delta_states->d_delta_mu,
                     cu_input_delta_states->d_delta_var, this->epsilon, wihi,

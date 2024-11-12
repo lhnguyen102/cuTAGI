@@ -328,7 +328,7 @@ void batchnorm_fwd_mean_var(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int ni, int start_chunk, int end_chunk,
+    bool bias, float epsilon, int ni, int start_chunk, int end_chunk,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA of batch-normalization layer.
  */
@@ -339,12 +339,14 @@ void batchnorm_fwd_mean_var(
             float inv_sqrt_var_ra = 1.0f / std::sqrt(var_ra[col] + epsilon);
             float mu_a_tilde = mu_a[idx] - mu_ra[col];
 
-            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col] + mu_b[col];
-            var_z[idx] =
-                inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
-                     var_w[col] * mu_a_tilde * mu_a_tilde) +
-                var_b[col];
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w[col];
+            var_z[idx] = inv_sqrt_var_ra * inv_sqrt_var_ra *
+                         (var_a[idx] * (mu_w[col] * mu_w[col] + var_w[col]) +
+                          var_w[col] * mu_a_tilde * mu_a_tilde);
+            if (bias) {
+                mu_z[idx] += mu_b[col];
+                var_z[idx] += var_b[col];
+            }
         }
     }
 }
@@ -394,7 +396,7 @@ void batchnorm2d_fwd_mean_var(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int wihi, int fi, int batch_size, int start_chunk,
+    bool bias, float epsilon, int wihi, int fi, int batch_size, int start_chunk,
     int end_chunk, std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA of batch-normalization. Note that the previous
 layer is a convolutional layer.
@@ -412,14 +414,17 @@ layer is a convolutional layer.
             int idx = col + row * k;
             float mu_a_tilde = mu_a[idx] - mu_ra_term;
 
-            mu_z[idx] =
-                inv_sqrt_var_ra * mu_a_tilde * mu_w_term + mu_b[row % fi];
+            mu_z[idx] = inv_sqrt_var_ra * mu_a_tilde * mu_w_term;
 
             var_z[idx] =
                 inv_sqrt_var_ra * inv_sqrt_var_ra *
-                    (var_a[idx] * (mu_w_term * mu_w_term + var_w[row % fi]) +
-                     var_w[row % fi] * mu_a_tilde * mu_a_tilde) +
-                var_b[row % fi];
+                (var_a[idx] * (mu_w_term * mu_w_term + var_w[row % fi]) +
+                 var_w[row % fi] * mu_a_tilde * mu_a_tilde);
+
+            if (bias) {
+                mu_z[idx] += mu_b[row % fi];
+                var_z[idx] += var_b[row % fi];
+            }
         }
     }
 }
@@ -1021,7 +1026,7 @@ void batchnorm_fwd_mean_var_mp(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int ni, int batch_size, const int num_threads,
+    bool bias, float epsilon, int ni, int batch_size, const int num_threads,
     std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA of batch-normalization layer.
  */
@@ -1039,8 +1044,8 @@ void batchnorm_fwd_mean_var_mp(
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
                               &mu_ra, &var_ra, &mu_z, &var_z] {
             batchnorm_fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a, mu_ra,
-                                   var_ra, epsilon, ni, start_chunk, end_chunk,
-                                   mu_z, var_z);
+                                   var_ra, bias, epsilon, ni, start_chunk,
+                                   end_chunk, mu_z, var_z);
         });
     }
 
@@ -1118,8 +1123,8 @@ void batchnorm2d_fwd_mean_var_mp(
     const std::vector<float> &mu_b, const std::vector<float> &var_b,
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &mu_ra, const std::vector<float> &var_ra,
-    float epsilon, int wihi, int fi, int batch_size, const int num_threads,
-    std::vector<float> &mu_z, std::vector<float> &var_z)
+    bool bias, float epsilon, int wihi, int fi, int batch_size,
+    const int num_threads, std::vector<float> &mu_z, std::vector<float> &var_z)
 /*Compute mean of product WA of batch-normalization. Note that the previous
 layer is a convolutional layer.
 */
@@ -1136,9 +1141,10 @@ layer is a convolutional layer.
 
         threads.emplace_back([=, &mu_w, &var_w, &mu_b, &var_b, &mu_a, &var_a,
                               &mu_ra, &var_ra, &mu_z, &var_z] {
-            batchnorm2d_fwd_mean_var(
-                mu_w, var_w, mu_b, var_b, mu_a, var_a, mu_ra, var_ra, epsilon,
-                wihi, fi, batch_size, start_chunk, end_chunk, mu_z, var_z);
+            batchnorm2d_fwd_mean_var(mu_w, var_w, mu_b, var_b, mu_a, var_a,
+                                     mu_ra, var_ra, bias, epsilon, wihi, fi,
+                                     batch_size, start_chunk, end_chunk, mu_z,
+                                     var_z);
         });
     }
 
@@ -1922,7 +1928,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             batchnorm_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, mu_target, var_target,
-                this->epsilon, this->input_size, 0, batch_size,
+                this->bias, this->epsilon, this->input_size, 0, batch_size,
                 output_states.mu_a, output_states.var_a);
 
         } else {
@@ -1946,8 +1952,8 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             batchnorm2d_fwd_mean_var(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, mu_target, var_target,
-                this->epsilon, wihi, this->in_channels, batch_size, 0,
-                end_chunk, output_states.mu_a, output_states.var_a);
+                this->bias, this->epsilon, wihi, this->in_channels, batch_size,
+                0, end_chunk, output_states.mu_a, output_states.var_a);
         }
     } else {
         if (this->num_features != this->in_channels) {
@@ -1969,8 +1975,8 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             batchnorm_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, mu_target, var_target,
-                this->epsilon, this->input_size, batch_size, this->num_threads,
-                output_states.mu_a, output_states.var_a);
+                this->bias, this->epsilon, this->input_size, batch_size,
+                this->num_threads, output_states.mu_a, output_states.var_a);
 
         } else {
             int wihi = this->in_height * this->in_width;
@@ -1995,7 +2001,7 @@ void BatchNorm2d::forward(BaseHiddenStates &input_states,
             batchnorm2d_fwd_mean_var_mp(
                 this->mu_w, this->var_w, this->mu_b, this->var_b,
                 input_states.mu_a, input_states.var_a, mu_target, var_target,
-                this->epsilon, wihi, this->in_channels, batch_size,
+                this->bias, this->epsilon, wihi, this->in_channels, batch_size,
                 this->num_threads, output_states.mu_a, output_states.var_a);
         }
     }
@@ -2087,7 +2093,7 @@ void BatchNorm2d::backward(BaseDeltaStates &input_delta_states,
                                 this->in_channels, batch_size, this->delta_mu_w,
                                 this->delta_var_w);
 
-                if (this->num_biases > 0) {
+                if (this->bias) {
                     batchnorm2d_bwd_delta_b(
                         this->var_b, input_delta_states.delta_mu,
                         input_delta_states.delta_var, this->epsilon, wihi,
@@ -2131,7 +2137,7 @@ void BatchNorm2d::backward(BaseDeltaStates &input_delta_states,
                                 this->in_channels, batch_size, this->delta_mu_w,
                                 this->delta_var_w);
 
-                if (this->num_biases > 0) {
+                if (this->bias) {
                     batchnorm2d_bwd_delta_b_mp(
                         this->var_b, input_delta_states.delta_mu,
                         input_delta_states.delta_var, this->epsilon, wihi,
