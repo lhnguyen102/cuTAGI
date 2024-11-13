@@ -4,7 +4,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class AvgPool2d(BaseLayer):
-    """Fully-connected layer"""
+    """Average Pooling layer"""
 
     def __init__(
         self,

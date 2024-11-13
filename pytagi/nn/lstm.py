@@ -4,7 +4,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class LSTM(BaseLayer):
-    """Fully-connected layer"""
+    """LSTM layer"""
 
     def __init__(
         self,

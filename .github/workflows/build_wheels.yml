@@ -169,10 +169,10 @@ jobs:
         run: |
           sh scripts/compile.sh Release
 
-      - name: Run CPP Test Init
+      - name: Run CPP Test Unit
         run: build/run_tests --cpu
 
-      - name : Run Python Test
+      - name : Run Python Test Unit
         run: python -m test.py_unit.main --cpu
 
   upload_pypi:

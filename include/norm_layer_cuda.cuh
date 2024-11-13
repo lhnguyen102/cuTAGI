@@ -9,7 +9,6 @@ class LayerNormCuda : public BaseLayerCuda {
     float *d_mu_ra = nullptr, *d_var_ra = nullptr;
 
     float epsilon;
-    bool bias;
     int _batch_size = 0;
 
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
@@ -66,7 +65,6 @@ class BatchNorm2dCuda : public BaseLayerCuda {
     float *d_mu_ra, *d_var_ra, *d_mu_norm_batch, *d_var_norm_batch;
     float epsilon;
     float momentum;
-    bool bias;
 
     // momentum of running average of first batch is set to zero
     bool first_batch = true;

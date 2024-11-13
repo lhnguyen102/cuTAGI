@@ -2,8 +2,9 @@ import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
 
+
 class SLinear(BaseLayer):
-    """Fully-connected layer"""
+    """Smoothering Linear layer"""
 
     def __init__(
         self,

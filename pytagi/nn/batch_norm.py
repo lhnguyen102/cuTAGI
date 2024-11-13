@@ -6,7 +6,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class BatchNorm2d(BaseLayer):
-    """Layer normalization"""
+    """Batch normalization"""
 
     def __init__(
         self,
