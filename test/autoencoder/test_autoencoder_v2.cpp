@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         test_autoencoder_v2.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      March 15, 2024
-// Updated:      March 15, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "test_autoencoder_v2.h"
 
 #include <chrono>
@@ -20,12 +10,13 @@
 
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
+#include "../../include/batchnorm_layer.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/convtranspose2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
+#include "../../include/layernorm_layer.h"
 #include "../../include/linear_layer.h"
-#include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 

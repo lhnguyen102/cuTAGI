@@ -13,12 +13,13 @@
 
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
+#include "../../include/batchnorm_layer.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/convtranspose2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
+#include "../../include/layernorm_layer.h"
 #include "../../include/linear_layer.h"
-#include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 
