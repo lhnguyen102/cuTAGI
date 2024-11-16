@@ -2,6 +2,10 @@
 
 #include "../include/custom_logger.h"
 
+#ifdef USE_CUDA
+#include <cuda_runtime.h>
+#endif
+
 std::string get_current_dir() {
     char buff[FILENAME_MAX];  // create string buffer to hold path
     GetCurrentDir(buff, FILENAME_MAX);
@@ -355,7 +359,15 @@ std::mt19937 &get_random_engine() {
 ///////////////////////////////////////////////////////
 bool is_cuda_available() {
 #ifdef USE_CUDA
-    return true;
+    int deviceCount = 0;
+    cudaError_t error = cudaGetDeviceCount(&deviceCount);
+
+    if (error != cudaSuccess) {
+        std::cerr << "CUDA runtime error: " << cudaGetErrorString(error)
+                  << std::endl;
+        return false;
+    }
+    return deviceCount > 0;
 #else
     return false;
 #endif

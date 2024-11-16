@@ -1,9 +1,18 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
 import fire
 import numpy as np
 from tqdm import tqdm
 
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
+import pytagi
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -107,7 +116,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
 
     # Network configuration
     net = FNN
-    # net.to_device("cuda")
+    if pytagi.cuda.is_available():
+        net.to_device("cuda")
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
