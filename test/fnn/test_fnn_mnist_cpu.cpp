@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         test_fnn_mnist_cpu.cpp
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      November 25, 2023
-// Updated:      February 18, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
-
 #include "test_fnn_mnist_cpu.h"
 
 #include <chrono>
@@ -20,12 +10,12 @@
 
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
+#include "../../include/batchnorm_layer.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
-// #include "../../include/debugger.h"
+#include "../../include/layernorm_layer.h"
 #include "../../include/linear_layer.h"
-#include "../../include/norm_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
 

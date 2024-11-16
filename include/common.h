@@ -290,3 +290,11 @@ std::mt19937 &get_random_engine();
 // CHECK CUDA
 ///////////////////////////////////////////////////////
 bool is_cuda_available();
+
+///////////////////////////////////////////////////////
+// NORM LAYER
+///////////////////////////////////////////////////////
+void delta_param_sum(const std::vector<float> &delta_mu_e,
+                     const std::vector<float> &delta_var_e, int wihi, int fi,
+                     int batch_size, std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var);

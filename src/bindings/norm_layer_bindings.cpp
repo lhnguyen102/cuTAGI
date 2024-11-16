@@ -3,7 +3,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include "../include/norm_layer.h"
+#include "../include/batchnorm_layer.h"
+#include "../include/layernorm_layer.h"
 
 void bind_layernorm_layer(pybind11::module_& modo)
 /*

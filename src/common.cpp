@@ -360,3 +360,24 @@ bool is_cuda_available() {
     return false;
 #endif
 }
+
+///////////////////////////////////////////////////////
+// NORM LAYER
+///////////////////////////////////////////////////////
+void delta_param_sum(const std::vector<float> &delta_mu_e,
+                     const std::vector<float> &delta_var_e, int wihi, int fi,
+                     int batch_size, std::vector<float> &delta_mu,
+                     std::vector<float> &delta_var) {
+    for (int col = 0; col < fi; col++) {
+        float sum_delta_mu = 0.0f;
+        float sum_delta_var = 0.0f;
+        for (int i = 0; i < wihi * batch_size; i++)  // n = wihi * fi
+        {
+            int idx = (i / wihi) * wihi * fi + i % wihi + col * wihi;
+            sum_delta_mu += delta_mu_e[idx];
+            sum_delta_var += delta_var_e[idx];
+        }
+        delta_mu[col] = sum_delta_mu;
+        delta_var[col] = sum_delta_var;
+    }
+}
