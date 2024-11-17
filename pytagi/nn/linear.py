@@ -35,4 +35,3 @@ class Linear(BaseLayer):
 
     def init_weight_bias(self):
         self._cpp_backend.init_weight_bias()
-

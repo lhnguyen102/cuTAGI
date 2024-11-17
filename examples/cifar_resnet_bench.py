@@ -253,8 +253,13 @@ def tagi_trainer(
         for x, labels in train_loader:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-            if print_var: # Print prior predictive variance
-                print("Prior predictive -> E[v_pred] = ", np.average(v_pred), "+-", np.std(v_pred))
+            if print_var:  # Print prior predictive variance
+                print(
+                    "Prior predictive -> E[v_pred] = ",
+                    np.average(v_pred),
+                    "+-",
+                    np.std(v_pred),
+                )
                 print_var = False
 
             # Update output layers based on targets
