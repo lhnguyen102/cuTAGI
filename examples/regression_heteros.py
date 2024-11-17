@@ -11,6 +11,7 @@ from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential, EvenExp
 
 np.random.seed(0)
 
+
 def main(num_epochs: int = 50, batch_size: int = 10):
     """Run training for the regression"""
     # Dataset
@@ -30,7 +31,9 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     )
 
     # Viz
-    viz = PredictionViz(task_name="heteros regression", data_name="1d_toy_noise")
+    viz = PredictionViz(
+        task_name="heteros regression", data_name="1d_toy_noise"
+    )
 
     cuda = True
 
@@ -39,7 +42,12 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     print(pytagi.is_cuda_available())
 
     net = Sequential(
-        Linear(1, 128), ReLU(), Linear(128, 128), ReLU(), Linear(128, 2), EvenExp()
+        Linear(1, 128),
+        ReLU(),
+        Linear(128, 128),
+        ReLU(),
+        Linear(128, 2),
+        EvenExp(),
     )
     if cuda:
         net.to_device("cuda")
@@ -70,7 +78,9 @@ def main(num_epochs: int = 50, batch_size: int = 10):
             net.step()
 
             # Training metric
-            pred = Normalizer.unstandardize(m_pred, train_dtl.y_mean, train_dtl.y_std)
+            pred = Normalizer.unstandardize(
+                m_pred, train_dtl.y_mean, train_dtl.y_std
+            )
             obs = Normalizer.unstandardize(y, train_dtl.y_mean, train_dtl.y_std)
 
             # Even positions correspond to Z_out
@@ -110,7 +120,9 @@ def main(num_epochs: int = 50, batch_size: int = 10):
     y_test = np.array(y_test)
     x_test = np.array(x_test)
 
-    mu_preds = Normalizer.unstandardize(mu_preds, train_dtl.y_mean, train_dtl.y_std)
+    mu_preds = Normalizer.unstandardize(
+        mu_preds, train_dtl.y_mean, train_dtl.y_std
+    )
     std_preds = Normalizer.unstandardize_std(std_preds, train_dtl.y_std)
 
     x_test = Normalizer.unstandardize(x_test, train_dtl.x_mean, train_dtl.x_std)

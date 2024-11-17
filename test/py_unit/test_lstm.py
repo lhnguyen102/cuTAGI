@@ -4,6 +4,7 @@ import unittest
 
 import numpy as np
 
+import pytagi
 import pytagi.metric as metric
 from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
@@ -204,6 +205,8 @@ class SineSignalTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_lstm_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         input_seq_len = 4
         model = Sequential(
             LSTM(1, 8, input_seq_len),

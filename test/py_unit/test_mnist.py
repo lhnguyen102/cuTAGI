@@ -4,6 +4,7 @@ import unittest
 
 import numpy as np
 
+import pytagi
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
 from pytagi.nn import (
@@ -229,6 +230,8 @@ class MnistTest(unittest.TestCase):
     # CUDA Tests
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_fnn_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Linear(784, 32), ReLU(), Linear(32, 32), ReLU(), Linear(32, 11)
         )
@@ -239,6 +242,8 @@ class MnistTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_mixturerelu_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Linear(784, 32),
             MixtureReLU(),
@@ -253,6 +258,8 @@ class MnistTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_batchnorm_fnn_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Linear(784, 32),
             BatchNorm2d(32),
@@ -269,6 +276,8 @@ class MnistTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_layernorm_fnn_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Linear(784, 32),
             ReLU(),
@@ -285,6 +294,8 @@ class MnistTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_cnn_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Conv2d(
                 1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
