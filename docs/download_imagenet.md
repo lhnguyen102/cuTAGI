@@ -10,7 +10,7 @@ Before running the downloading script, ensure the following tools are installed
    - Go to your [Kaggle Account Settings](https://www.kaggle.com/account).
    - Create and download an API token (`kaggle.json`).
 
-   ### If Running Locally:
+   #### If Running Locally:
    - Save the `kaggle.json` file to the directory `~/.kaggle/`:
      ```bash
      mkdir -p ~/.kaggle
@@ -18,7 +18,7 @@ Before running the downloading script, ensure the following tools are installed
      chmod 600 ~/.kaggle/kaggle.json
      ```
 
-   ### If Running on a Server:
+   #### If Running on a Server:
    Follow these steps to transfer your `kaggle.json` file to the server:
    1. **Locate `kaggle.json` File**:
       - `kaggle.json` file is typically downloaded to your local `Downloads` folder after generating an API token.
