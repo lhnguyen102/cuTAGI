@@ -22,10 +22,10 @@ Before running the downloading script, ensure the following tools are installed
 
    ### If Running on a Server:
    Follow these steps to transfer your `kaggle.json` file to the server:
-   1. **Locate the `kaggle.json` File**:
+   1. **Locate `kaggle.json` File**:
       - The `kaggle.json` file is typically downloaded to your local `Downloads` folder after generating an API token.
 
-   2. **Transfer the File to the Server**:
+   2. **Transfer File to Server**:
       - Use the `scp` command:
         ```bash
         scp ~/Downloads/kaggle.json <username>@<server-ip>:~
@@ -35,7 +35,7 @@ Before running the downloading script, ensure the following tools are installed
         - `<username>` with your server's username.
         - `<server-ip>` with the server's IP address.
 
-   3. **Move the File to the Correct Directory**:
+   3. **Move File to Correct Directory**:
       - Log in to your server:
         ```bash
         ssh <username>@<server-ip>
@@ -50,12 +50,13 @@ Before running the downloading script, ensure the following tools are installed
         chmod 600 ~/.kaggle/kaggle.json
         ```
 
-   4. **Verify the Setup**:
+   4. **Verify Setup**:
       - Test the Kaggle CLI on the server:
         ```bash
         kaggle competitions list
         ```
       - If successful, you should see a list of Kaggle competitions.
+
 
 ## Instructions
 
