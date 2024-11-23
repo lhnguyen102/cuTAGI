@@ -21,7 +21,7 @@ Before running the downloading script, ensure the following tools are installed
    ### If Running on a Server:
    Follow these steps to transfer your `kaggle.json` file to the server:
    1. **Locate `kaggle.json` File**:
-      - The `kaggle.json` file is typically downloaded to your local `Downloads` folder after generating an API token.
+      - `kaggle.json` file is typically downloaded to your local `Downloads` folder after generating an API token.
 
    2. **Transfer File to Server**:
       - Use the `scp` command:
@@ -73,7 +73,7 @@ Follow these steps to download the ImageNet dataset:
    ```
 
 4. **Data Location**:
-   - The ImageNet dataset will be downloaded and extracted into the `imagenet_data` directory.
+   - ImageNet dataset will be downloaded and extracted into the `imagenet_data` directory.
 
 5. **Convert Validation Dataset for PyTorch**:
    - Navigate to the validation data directory:
