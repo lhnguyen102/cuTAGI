@@ -4,11 +4,9 @@
 
 Before running the downloading script, ensure the following tools are installed
 
-1. **Navigate to `cuTAGI` folder**
+1. **Kaggle CLI** (activate Python environment and install using `pip install kaggle`)
 
-2. **Kaggle CLI** (activate Python environment and install using `pip install kaggle`)
-
-3. **Kaggle API Key**:
+2. **Kaggle API Key**:
    - Go to your [Kaggle Account Settings](https://www.kaggle.com/account).
    - Create and download an API token (`kaggle.json`).
 
@@ -62,20 +60,22 @@ Before running the downloading script, ensure the following tools are installed
 
 Follow these steps to download the ImageNet dataset:
 
-1. **Make Script Executable**:
+1. **Navigate to `cuTAGI` folder**
+
+2. **Make Script Executable**:
    ```bash
    chmod +x scripts/download_imagenet.sh
    ```
 
-2. **Run Script**:
+4. **Run Script**:
    ```bash
    scripts/download_imagenet.sh
    ```
 
-3. **Data Location**:
+4. **Data Location**:
    - The ImageNet dataset will be downloaded and extracted into the `imagenet_data` directory.
 
-4. **Convert Validation Dataset for PyTorch**:
+5. **Convert Validation Dataset for PyTorch**:
    - Navigate to the validation data directory:
      ```bash
      cd ILSVRC/Data/CLS-LOC/val
