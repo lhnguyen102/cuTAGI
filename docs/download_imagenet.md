@@ -62,12 +62,12 @@ Before running the downloading script, ensure the following tools are installed
 
 Follow these steps to download the ImageNet dataset:
 
-1. **Make the script executable**:
+1. **Make Script Executable**:
    ```bash
    chmod +x scripts/download_imagenet.sh
    ```
 
-2. **Run the script**:
+2. **Run Script**:
    ```bash
    scripts/download_imagenet.sh
    ```
