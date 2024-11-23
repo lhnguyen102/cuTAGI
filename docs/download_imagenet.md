@@ -4,9 +4,11 @@
 
 Before running the downloading script, ensure the following tools are installed
 
-1. **Kaggle CLI** (install using `pip install kaggle`)
+1. **Navigate to `cuTAGI` folder**
 
-2. **Kaggle API Key**:
+2. **Kaggle CLI** (activate Python environment and install using `pip install kaggle`)
+
+3. **Kaggle API Key**:
    - Go to your [Kaggle Account Settings](https://www.kaggle.com/account).
    - Create and download an API token (`kaggle.json`).
 

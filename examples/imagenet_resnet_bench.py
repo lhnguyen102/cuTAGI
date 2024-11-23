@@ -33,7 +33,7 @@ from pytagi.nn import (
 torch.manual_seed(42)
 
 
-def load_datasets(batch_size: int, data_dir: str = "data/imagenet"):
+def load_datasets(batch_size: int, data_dir: str):
     """Load the ImageNet dataset."""
     # Data Transforms
     train_transforms = transforms.Compose(
