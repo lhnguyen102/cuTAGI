@@ -16,6 +16,7 @@ dist
 data/cifar
 data/mnist/
 data/traffic
+data/imagenet
 test_model/
 
 # VSCode
