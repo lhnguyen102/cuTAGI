@@ -104,6 +104,12 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
 
 4. **Install `pytagi` Locally**:
 
+   Remove cache
+   ```sh
+   pip cache purge
+   ```
+
+   Install package
    ```sh
    pip install .
    ```
