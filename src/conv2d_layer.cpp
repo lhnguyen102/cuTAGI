@@ -614,7 +614,12 @@ std::tuple<int, int> compute_downsample_img_size_v2(int kernel, int stride,
         wo = nom_w / stride + 1;
         ho = nom_h / stride + 1;
     } else {
-        LOG(LogLevel::ERROR, "Invalid hyperparameters for conv2d layer");
+        LOG(LogLevel::ERROR,
+            "Invalid hyperparameters for conv2d layer: "
+            "wi=" +
+                std::to_string(wi) + ", hi=" + std::to_string(hi) +
+                ", kernel=" + std::to_string(kernel) +
+                ", stride=" + std::to_string(stride));
     }
 
     return {wo, ho};

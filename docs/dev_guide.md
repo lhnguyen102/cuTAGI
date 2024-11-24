@@ -194,7 +194,7 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    ```
 
    Replace `[option]` with one of the following:
-   - `Release`: For optimized release build
+   - `Release`: For optimized release build (Default)
    - `ReleaseWithInfo`: For release build with debug information
    - `Debug`: For debug build using GDB Debugger
 

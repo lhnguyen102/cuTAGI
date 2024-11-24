@@ -140,6 +140,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             6,
             bias=False,
             padding=2,
+            stride=2,
             in_width=224,
             in_height=224,
             gain_weight=gain_w,

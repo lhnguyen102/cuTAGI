@@ -84,3 +84,9 @@ Follow these steps to download the ImageNet dataset:
      ```bash
      wget -qO- https://raw.githubusercontent.com/soumith/imagenetloader.torch/master/valprep.sh | bash
      ```
+6. **Clean Up Kaggle API Key If Running on Server**:
+
+   For security, remove the `kaggle.json` file from the server after downloading:
+    ```bash
+    rm -rf ~/.kaggle
+    ```
