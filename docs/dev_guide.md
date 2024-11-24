@@ -104,6 +104,12 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
 
 4. **Install `pytagi` Locally**:
 
+   Remove cache
+   ```sh
+   pip cache purge
+   ```
+
+   Install package
    ```sh
    pip install .
    ```
@@ -194,7 +200,7 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    ```
 
    Replace `[option]` with one of the following:
-   - `Release`: For optimized release build
+   - `Release`: For optimized release build (Default)
    - `ReleaseWithInfo`: For release build with debug information
    - `Debug`: For debug build using GDB Debugger
 

@@ -132,7 +132,7 @@ HRCSoftmax class_to_obs(int n_classes)
         }
     }
 
-    // Compute the lenght of the observation vector
+    // Compute the length of the observation vector
     int len = *std::max_element(idx.begin(), idx.end());
 
     return {obs, idx, L, len};
