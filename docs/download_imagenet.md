@@ -7,7 +7,7 @@ Before running the downloading script, ensure the following tools are installed
 1. **Kaggle CLI** (activate Python environment and install using `pip install kaggle`)
 
 2. **Kaggle API Key**:
-   - Go to your [Kaggle Account Settings](https://www.kaggle.com/account).
+   - Go to your Kaggle Account Settings
    - Create and download an API token (`kaggle.json`).
 
    #### If Running Locally:
