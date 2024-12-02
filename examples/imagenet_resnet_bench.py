@@ -24,7 +24,7 @@ import pytagi
 
 
 torch.manual_seed(42)
-pytagi.manual_seed(42)
+#pytagi.manual_seed(42)
 
 
 def custom_collate_fn(batch):
@@ -45,10 +45,10 @@ def custom_collate_fn(batch):
     return batch_images, batch_labels
 
 
-def load_datasets(batch_size: int, framework: str = "torch", nb_classes=1000):
+def load_datasets(batch_size: int, framework: str = "torch", nb_classes = 1000):
     """Load the ImageNet dataset."""
     # Data Transforms
-    data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
+    data_dir = "/usr/local/share/imagenet/ILSVRC/Data/CLS-LOC"
     norm_mean = [0.485, 0.456, 0.406]
     norm_std = [0.229, 0.224, 0.225]
     train_transforms = transforms.Compose(
@@ -138,7 +138,7 @@ def tagi_trainer(
         (batch_size * metric.hrc_softmax.num_obs), sigma_v**2, dtype=np.float32
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
-        print_var = False
+        print_var = True
         for epoch in epoch_pbar:
             error_rates = []
             net.train()
@@ -147,25 +147,13 @@ def tagi_trainer(
             ) as batch_pbar:
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
-                    if print_var:  # Print prior predictive variance
-                        print(
-                            "Prior predictive -> E[v_pred] = ",
-                            np.average(v_pred),
-                            " | E[s_pred]",
-                            np.average(np.sqrt(v_pred)),
-                        )
-                        print(
-                            "                 -> V[m_pred] = ",
-                            np.var(m_pred),
-                            " | s[m_pred]",
-                            np.std(m_pred),
-                        )
+                    if print_var: # Print prior predictive variance
+                        print("Prior predictive -> E[v_pred] = ", np.average(v_pred), " | E[s_pred]", np.average(np.sqrt(v_pred)))
+                        print("                 -> V[m_pred] = ", np.var(m_pred), " | s[m_pred]", np.std(m_pred))
                         print_var = False
-
+                    #exit()
                     # Update output layers based on targets
-                    y, y_idx, _ = utils.label_to_obs(
-                        labels=labels, num_classes=nb_classes
-                    )
+                    y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=nb_classes)
                     out_updater.update_using_indices(
                         output_states=net.output_z_buffer,
                         mu_obs=y / 1,
@@ -287,7 +275,7 @@ def torch_trainer(
             val_loss /= len(val_loader.dataset)
             val_error_rate = (1.0 - correct / len(val_loader.dataset)) * 100
             epoch_pbar.set_description(
-                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}%",
+                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}\n%",
                 refresh=True,
             )
 

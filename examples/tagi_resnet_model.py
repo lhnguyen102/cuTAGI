@@ -11,7 +11,6 @@ from pytagi.nn import (
 )
 import numpy as np
 
-
 def make_layer_block(
     in_c: int,
     out_c: int,
@@ -32,7 +31,6 @@ def make_layer_block(
             padding=1,
             padding_type=padding_type,
             gain_weight=gain_weight,
-            gain_bias=gain_bias,
         ),
         ReLU(),
         BatchNorm2d(out_c),
@@ -43,7 +41,6 @@ def make_layer_block(
             bias=False,
             padding=1,
             gain_weight=gain_weight,
-            gain_bias=gain_bias,
         ),
         ReLU(),
         BatchNorm2d(out_c),
@@ -143,7 +140,6 @@ def resnet18_imagenet(
             in_width=224,
             in_height=224,
             gain_weight=gain_w,
-            gain_bias=gain_b,
         ),
         ReLU(),
         BatchNorm2d(
@@ -154,8 +150,8 @@ def resnet18_imagenet(
 
     resnet_layers = [
         # 56x56
-        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
-        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w)),
+        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w)),
         # 28x28
         ResNetBlock(
             make_layer_block(64, 128, 2, 2, gain_weight=gain_w),
@@ -167,15 +163,14 @@ def resnet18_imagenet(
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(128, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
-        ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w)),
         # 14x14
         ResNetBlock(
-            make_layer_block(128, 256, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(128, 256, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     128,
@@ -184,15 +179,14 @@ def resnet18_imagenet(
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(256, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
-        ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w)),
         # 7x7
         ResNetBlock(
-            make_layer_block(256, 512, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(256, 512, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     256,
@@ -201,12 +195,11 @@ def resnet18_imagenet(
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(512, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
-        ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w)),
     ]
 
     final_layers = [
