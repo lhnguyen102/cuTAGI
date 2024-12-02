@@ -1,13 +1,3 @@
-test/data/*.csv -binary
-test/act_func/data/*.csv -binary
-test/autoencoder/data/*.csv -binary
-test/cnn/data/*.csv -binary
-test/cnn_batch_norm/data/*.csv -binary
-test/fnn/data/*.csv -binary
-test/fnn_derivatives/data/*.csv -binary
-test/fnn_full_cov/data/*.csv -binary
-test/fnn_heteros/data/*.csv -binary
-test/lstm/data/*.csv -binary
 data/mnist/*.ubyte -binary
 data/toy_example/*.csv -binary
 data/toy_time_series/*.csv -binary
