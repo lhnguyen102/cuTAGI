@@ -270,12 +270,50 @@ void Sequential::forward(const std::vector<float> &mu_x,
     // Merge input data to the input buffer
     this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
 
+    int idx_layer = -1;  //-> -1 to skip printing
     // Forward pass for all layers
     for (auto &layer : this->layers) {
         auto *current_layer = layer.get();
 
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
+
+        // Compute normalization statistics for hidden layers
+        if (idx_layer >= 0) {
+            float mean_var_a = 0;
+            float var_var_a = 0;
+            float mean_mu_a = 0;
+            float var_mu_a = 0;
+            float output_size = batch_size * this->output_z_buffer->actual_size;
+            for (int i = 0; i < output_size; i++) {
+                mean_var_a += this->output_z_buffer->var_a[i];
+                mean_mu_a += this->output_z_buffer->mu_a[i];
+            }
+            mean_var_a /= output_size;
+            mean_mu_a /= output_size;
+            for (int i = 0; i < output_size; i++) {
+                var_var_a +=
+                    powf(this->output_z_buffer->var_a[i] - mean_var_a, 2);
+                var_mu_a += powf(this->output_z_buffer->mu_a[i] - mean_mu_a, 2);
+            }
+            var_var_a /= output_size;
+            var_mu_a /= output_size;
+            std::cout
+                << "----------------------------------------------------------"
+                << std::endl;
+            std::cout << "Layer #" << idx_layer << " - "
+                      << current_layer->get_layer_name() << std::endl;
+            std::cout << "      E[var_a]: " << mean_var_a << " <- 1"
+                      << std::endl;
+            std::cout << "       v[mu_a]: " << var_mu_a << " <- 1"
+                      << std::endl;
+            std::cout << "    std[var_a]: " << powf(var_var_a, 0.5)
+                      << std::endl;
+            std::cout << "       E[mu_a]: " << mean_mu_a
+                      << " -> ~0 ...excepted for ReLU()" << std::endl;
+            // std::cout << " " << std::endl;
+            idx_layer += 1;
+        }
 
         // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);

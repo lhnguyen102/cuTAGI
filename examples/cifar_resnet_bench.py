@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
+import pytagi
 
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import (
@@ -31,6 +32,7 @@ from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
 
 torch.manual_seed(17)
+pytagi.manual_seed(17)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = [0.4914, 0.4822, 0.4465]
@@ -180,6 +182,18 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
         root="./data/cifar", train=False, download=True, transform=transform_test
     )
 
+    ## Select classes
+    nb_classes = 8
+    exclude = np.array(range(nb_classes,9)).reshape(1, -1)
+    labels = np.array(train_set.targets)
+    mask = ~(labels.reshape(-1, 1) == exclude).any(axis=1)
+    train_set.data = train_set.data[mask]
+    train_set.targets = labels[mask].tolist()
+    labels = np.array(test_set.targets)
+    mask = ~(labels.reshape(-1, 1) == exclude).any(axis=1)
+    test_set.data = test_set.data[mask]
+    test_set.targets = labels[mask].tolist()
+
     if framework == "torch":
         train_loader = DataLoader(
             train_set, batch_size=batch_size, shuffle=True, num_workers=1
@@ -222,11 +236,11 @@ def tagi_trainer(
     train_loader, test_loader = load_datasets(batch_size, "tagi")
 
     # Hierachical Softmax
-    metric = HRCSoftmaxMetric(num_classes=10)
+    metric = HRCSoftmaxMetric(num_classes=8)
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.15, gain_b=0.15)
+    net = resnet18_cifar10(gain_w=0.05,gain_b=0.05)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -254,6 +268,8 @@ def tagi_trainer(
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
             if print_var:  # Print prior predictive variance
+                #state_dict = net.get_state_dict()
+
                 print(
                     "Prior predictive -> E[v_pred] = ",
                     np.average(v_pred),
@@ -263,7 +279,7 @@ def tagi_trainer(
                 print_var = False
 
             # Update output layers based on targets
-            y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
+            y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=8)
             out_updater.update_using_indices(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
@@ -314,7 +330,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = ResNet18()
+    model = ResNet18(weights=None)
     # model = TorchCNN()
     # model = torch.compile(model)
     model.to(torch_device)
@@ -374,7 +390,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0.01,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

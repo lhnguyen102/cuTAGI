@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Subset
 from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
@@ -23,7 +24,7 @@ import pytagi
 
 
 torch.manual_seed(42)
-pytagi.manual_seed(42)
+#pytagi.manual_seed(42)
 
 
 def custom_collate_fn(batch):
@@ -44,10 +45,10 @@ def custom_collate_fn(batch):
     return batch_images, batch_labels
 
 
-def load_datasets(batch_size: int, framework: str = "torch"):
+def load_datasets(batch_size: int, framework: str = "torch", nb_classes = 1000):
     """Load the ImageNet dataset."""
     # Data Transforms
-    data_dir = "data/imagenet/ILSVRC/Data/CLS-LOC"
+    data_dir = "/usr/local/share/imagenet/ILSVRC/Data/CLS-LOC"
     norm_mean = [0.485, 0.456, 0.406]
     norm_std = [0.229, 0.224, 0.225]
     train_transforms = transforms.Compose(
@@ -71,6 +72,13 @@ def load_datasets(batch_size: int, framework: str = "torch"):
     # Load datasets
     train_set = datasets.ImageFolder(f"{data_dir}/train", transform=train_transforms)
     val_set = datasets.ImageFolder(f"{data_dir}/val", transform=val_transforms)
+
+    ## Select a subset of classes
+    targets = range(nb_classes-1)
+    indices = [i for i, label in enumerate(train_set.targets) if label in targets]
+    train_set = Subset(train_set, indices)
+    indices = [i for i, label in enumerate(val_set.targets) if label in targets]
+    val_set = Subset(val_set, indices)
 
     if framework == "torch":
         train_loader = DataLoader(
@@ -111,14 +119,16 @@ def tagi_trainer(
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
+    nb_classes = 512
+
     utils = Utils()
-    train_loader, test_loader = load_datasets(batch_size, "tagi")
+    train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes = nb_classes)
 
     # Hierachical Softmax
-    metric = HRCSoftmaxMetric(num_classes=1000)
+    metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.15, gain_b=0.15)
+    net = resnet18_imagenet(gain_w=0.05,gain_b=0.0)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -128,6 +138,7 @@ def tagi_trainer(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
+        print_var = True
         for epoch in epoch_pbar:
             error_rates = []
             net.train()
@@ -136,9 +147,13 @@ def tagi_trainer(
             ) as batch_pbar:
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
-
+                    if print_var: # Print prior predictive variance
+                        print("Prior predictive -> E[v_pred] = ", np.average(v_pred), " | E[s_pred]", np.average(np.sqrt(v_pred)))
+                        print("                 -> V[m_pred] = ", np.var(m_pred), " | s[m_pred]", np.std(m_pred))
+                        print_var = False
+                    #exit()
                     # Update output layers based on targets
-                    y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=1000)
+                    y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=nb_classes)
                     out_updater.update_using_indices(
                         output_states=net.output_z_buffer,
                         mu_obs=y,
@@ -189,7 +204,8 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
     learning_rate = 0.001
 
     # Load ImageNet datasets
-    train_loader, val_loader = load_datasets(batch_size, "torch")
+    nb_classes = 1000
+    train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes = nb_classes)
 
     # Initialize the model
     torch_device = torch.device(device)
@@ -197,9 +213,11 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = models.resnet18(pretrained=True)
+    #model = models.resnet18(pretrained=True)
+    model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    #model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    model.fc = nn.Linear(num_ftrs, nb_classes)
     model.to(torch_device)
 
     # Define loss function and optimizer
@@ -257,7 +275,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
             val_loss /= len(val_loader.dataset)
             val_error_rate = (1.0 - correct / len(val_loader.dataset)) * 100
             epoch_pbar.set_description(
-                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}%",
+                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}\n%",
                 refresh=True,
             )
 
@@ -266,10 +284,10 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 64,
-    epochs: int = 1,
+    batch_size: int = 128,
+    epochs: int = 20,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0.01,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
