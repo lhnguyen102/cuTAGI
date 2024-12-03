@@ -84,14 +84,14 @@ def load_datasets(batch_size: int, framework: str = "torch"):
             train_set,
             batch_size=batch_size,
             shuffle=True,
-            num_workers=1,
+            num_workers=4,
             collate_fn=custom_collate_fn,
         )
         val_loader = DataLoader(
             val_set,
             batch_size=batch_size,
             shuffle=False,
-            num_workers=1,
+            num_workers=4,
             collate_fn=custom_collate_fn,
         )
 
@@ -112,7 +112,7 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     utils = Utils()
-    train_loader, test_loader = load_datasets(batch_size, "tagi")
+    train_loader, val_loader = load_datasets(batch_size, "tagi")
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=1000)
@@ -166,7 +166,7 @@ def tagi_trainer(
             # Testing
             test_error_rates = []
             net.eval()
-            for x, labels in test_loader:
+            for x, labels in val_loader:
                 m_pred, v_pred = net(x)
 
                 # Training metric
