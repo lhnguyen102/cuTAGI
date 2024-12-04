@@ -177,10 +177,10 @@ Returns:
     if (batch_size == 1) {
         this->cap_factor_update = 0.1f;
     }
-    if (batch_size > 1 && batch_size < 256) {
+    if (batch_size > 1 && batch_size < 128) {
         this->cap_factor_update = 1.0f;
     }
-    if (batch_size >= 256) {
+    if (batch_size >= 128) {
         this->cap_factor_update = 2.0f;
     }
 }

@@ -24,7 +24,7 @@ import pytagi
 
 
 torch.manual_seed(42)
-#pytagi.manual_seed(42)
+pytagi.manual_seed(42)
 
 
 def custom_collate_fn(batch):
@@ -111,7 +111,7 @@ def tagi_trainer(
     batch_size: int,
     device: str,
     sigma_v: float,
-    nb_classes: int = 1000,
+    nb_classes: int = 1000
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -120,7 +120,6 @@ def tagi_trainer(
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
-    nb_classes = 8
 
     utils = Utils()
     train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
@@ -157,7 +156,7 @@ def tagi_trainer(
                     y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=nb_classes)
                     out_updater.update_using_indices(
                         output_states=net.output_z_buffer,
-                        mu_obs=y / 1,
+                        mu_obs=y/1,
                         var_obs=var_y,
                         selected_idx=y_idx,
                         delta_states=net.input_delta_z_buffer,
