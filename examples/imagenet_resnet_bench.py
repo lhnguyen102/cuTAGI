@@ -17,7 +17,7 @@ from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
 from examples.tagi_resnet_model import resnet18_imagenet
-from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
+from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import OutputUpdater
 import pytagi
 
@@ -159,6 +159,8 @@ def tagi_trainer(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
+                    if i > 0 and i % 1000 == 0:
+                        break
 
             # Averaged training error
             avg_error_rate = sum(error_rates[-100:])
@@ -169,13 +171,23 @@ def tagi_trainer(
             for x, labels in val_loader:
                 m_pred, v_pred = net(x)
 
+                # Check if any m_pred and v_pred is nan
+                if np.isnan(m_pred).any() or np.isnan(v_pred).any():
+                    print("m_pred or v_pred is nan")
+                    break
+
                 # Training metric
                 error_rate = metric.error_rate(m_pred, v_pred, labels)
+
+                # check if error rate is nan
+                if np.isnan(error_rate):
+                    print("Error rate is nan")
+                    break
                 test_error_rates.append(error_rate)
 
             test_error_rate = sum(test_error_rates) / len(test_error_rates)
             epoch_pbar.set_description(
-                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}\n%",
+                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
                 refresh=True,
             )
     print("Training complete.")
@@ -197,7 +209,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = models.resnet18(pretrained=True)
+    model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
     model.to(torch_device)

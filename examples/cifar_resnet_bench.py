@@ -232,12 +232,11 @@ def tagi_trainer(
     out_updater = OutputUpdater(net.device)
 
     # Training
-
     var_y = np.full(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
     pbar = tqdm(range(num_epochs), desc="Training Progress")
-    print_var = True
+    print_var = False
     for epoch in pbar:
         error_rates = []
         if epoch > 0:
@@ -295,8 +294,8 @@ def tagi_trainer(
 
         test_error_rate = sum(test_error_rates) / len(test_error_rates)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}\n%",
-            refresh=False,
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            refresh=True,
         )
     print("Training complete.")
 
