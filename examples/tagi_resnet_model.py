@@ -124,7 +124,7 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
 
 
-def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
+def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1,nb_outputs = 1001) -> Sequential:
     """Resnet18 architecture for imagenet"""
     # 224x224
     initial_layers = [
@@ -200,7 +200,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
 
     final_layers = [
         AvgPool2d(7),
-        Linear(512, 1001, gain_weight=gain_w,gain_bias=gain_b),
+        Linear(512, nb_outputs, gain_weight=gain_w,gain_bias=gain_b),
     ]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
