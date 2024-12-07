@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Subset
 from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
@@ -44,10 +45,10 @@ def custom_collate_fn(batch):
     return batch_images, batch_labels
 
 
-def load_datasets(batch_size: int, framework: str = "torch"):
+def load_datasets(batch_size: int, framework: str = "torch", nb_classes=1000):
     """Load the ImageNet dataset."""
     # Data Transforms
-    data_dir = "data/imagenet/ILSVRC/Data/CLS-LOC"
+    data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
     norm_mean = [0.485, 0.456, 0.406]
     norm_std = [0.229, 0.224, 0.225]
     train_transforms = transforms.Compose(
@@ -72,6 +73,13 @@ def load_datasets(batch_size: int, framework: str = "torch"):
     train_set = datasets.ImageFolder(f"{data_dir}/train", transform=train_transforms)
     val_set = datasets.ImageFolder(f"{data_dir}/val", transform=val_transforms)
 
+    ## Select a subset of classes
+    targets = range(nb_classes - 1)
+    indices = [i for i, label in enumerate(train_set.targets) if label in targets]
+    train_set = Subset(train_set, indices)
+    indices = [i for i, label in enumerate(val_set.targets) if label in targets]
+    val_set = Subset(val_set, indices)
+
     if framework == "torch":
         train_loader = DataLoader(
             train_set, batch_size=batch_size, shuffle=True, num_workers=4
@@ -84,14 +92,14 @@ def load_datasets(batch_size: int, framework: str = "torch"):
             train_set,
             batch_size=batch_size,
             shuffle=True,
-            num_workers=4,
+            num_workers=1,
             collate_fn=custom_collate_fn,
         )
         val_loader = DataLoader(
             val_set,
             batch_size=batch_size,
             shuffle=False,
-            num_workers=4,
+            num_workers=1,
             collate_fn=custom_collate_fn,
         )
 
@@ -103,6 +111,7 @@ def tagi_trainer(
     batch_size: int,
     device: str,
     sigma_v: float,
+    nb_classes: int = 1000,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -111,23 +120,25 @@ def tagi_trainer(
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
+
     utils = Utils()
-    train_loader, val_loader = load_datasets(batch_size, "tagi")
+    train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
 
     # Hierachical Softmax
-    metric = HRCSoftmaxMetric(num_classes=1000)
+    metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.15, gain_b=0.15)
+    net = resnet18_imagenet(gain_w=0.05, gain_b=0.05, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
     # Training
     out_updater = OutputUpdater(net.device)
     var_y = np.full(
-        (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
+        (batch_size * metric.hrc_softmax.num_obs), sigma_v**2, dtype=np.float32
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
+        print_var = False
         for epoch in epoch_pbar:
             error_rates = []
             net.train()
@@ -136,12 +147,28 @@ def tagi_trainer(
             ) as batch_pbar:
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
+                    if print_var:  # Print prior predictive variance
+                        print(
+                            "Prior predictive -> E[v_pred] = ",
+                            np.average(v_pred),
+                            " | E[s_pred]",
+                            np.average(np.sqrt(v_pred)),
+                        )
+                        print(
+                            "                 -> V[m_pred] = ",
+                            np.var(m_pred),
+                            " | s[m_pred]",
+                            np.std(m_pred),
+                        )
+                        print_var = False
 
                     # Update output layers based on targets
-                    y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=1000)
+                    y, y_idx, _ = utils.label_to_obs(
+                        labels=labels, num_classes=nb_classes
+                    )
                     out_updater.update_using_indices(
                         output_states=net.output_z_buffer,
-                        mu_obs=y,
+                        mu_obs=y / 1,
                         var_obs=var_y,
                         selected_idx=y_idx,
                         delta_states=net.input_delta_z_buffer,
@@ -153,14 +180,12 @@ def tagi_trainer(
                     error_rate = metric.error_rate(m_pred, v_pred, labels)
                     error_rates.append(error_rate)
 
-                    if i > 0 and i % 100 == 0:
+                    if i > 0 and i % 50 == 0:
                         avg_error_rate = sum(error_rates[-100:])
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
-                    if i > 0 and i % 1000 == 0:
-                        break
 
             # Averaged training error
             avg_error_rate = sum(error_rates[-100:])
@@ -168,21 +193,11 @@ def tagi_trainer(
             # Testing
             test_error_rates = []
             net.eval()
-            for x, labels in val_loader:
+            for x, labels in test_loader:
                 m_pred, v_pred = net(x)
-
-                # Check if any m_pred and v_pred is nan
-                if np.isnan(m_pred).any() or np.isnan(v_pred).any():
-                    print("m_pred or v_pred is nan")
-                    break
 
                 # Training metric
                 error_rate = metric.error_rate(m_pred, v_pred, labels)
-
-                # check if error rate is nan
-                if np.isnan(error_rate):
-                    print("Error rate is nan")
-                    break
                 test_error_rates.append(error_rate)
 
             test_error_rate = sum(test_error_rates) / len(test_error_rates)
@@ -193,7 +208,9 @@ def tagi_trainer(
     print("Training complete.")
 
 
-def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
+def torch_trainer(
+    batch_size: int, num_epochs: int, device: str = "cuda", nb_classes: int = 1000
+):
     """Train ResNet-18 on the ImageNet dataset."""
     # torch.set_float32_matmul_precision("high")
 
@@ -201,7 +218,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
     learning_rate = 0.001
 
     # Load ImageNet datasets
-    train_loader, val_loader = load_datasets(batch_size, "torch")
+    train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes=nb_classes)
 
     # Initialize the model
     torch_device = torch.device(device)
@@ -211,7 +228,8 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         )
     model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    # model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    model.fc = nn.Linear(num_ftrs, nb_classes)
     model.to(torch_device)
 
     # Define loss function and optimizer
@@ -278,16 +296,26 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 64,
-    epochs: int = 1,
+    batch_size: int = 128,
+    epochs: int = 5,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0,
+    nb_classes: int = 8,
 ):
     if framework == "torch":
-        torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
+        torch_trainer(
+            batch_size=batch_size,
+            num_epochs=epochs,
+            device=device,
+            nb_classes=nb_classes,
+        )
     elif framework == "tagi":
         tagi_trainer(
-            batch_size=batch_size, num_epochs=epochs, device=device, sigma_v=sigma_v
+            batch_size=batch_size,
+            num_epochs=epochs,
+            device=device,
+            sigma_v=sigma_v,
+            nb_classes=nb_classes,
         )
     else:
         raise RuntimeError(f"Invalid Framework: {framework}")

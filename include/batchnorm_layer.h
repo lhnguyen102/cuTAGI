@@ -9,13 +9,14 @@ class BatchNorm2d : public BaseLayer {
     std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
     float epsilon;
     float momentum;
-    bool bias;
+    float gain_w, gain_b;
 
     // momentum of running average of first batch is set to zero
     bool first_batch = true;
 
     BatchNorm2d(int num_features, float eps = 1e-5, float mometum = 0.9,
-                bool bias = true);
+                bool bias = true, float gain_weight = 1.0f,
+                float gain_bias = 1.0f);
     ~BatchNorm2d();
 
     // Delete copy constructor and copy assignment

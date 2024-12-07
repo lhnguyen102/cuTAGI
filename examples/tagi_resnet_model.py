@@ -4,11 +4,12 @@ from pytagi.nn import (
     Conv2d,
     LayerBlock,
     Linear,
-    MixtureReLU,
+    ReLU,
     ResNetBlock,
     Sequential,
     ReLU,
 )
+import numpy as np
 
 
 def make_layer_block(
@@ -33,7 +34,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        MixtureReLU(),
+        ReLU(),
         BatchNorm2d(out_c),
         Conv2d(
             out_c,
@@ -44,7 +45,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        MixtureReLU(),
+        ReLU(),
         BatchNorm2d(out_c),
     )
 
@@ -62,19 +63,18 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             in_width=32,
             in_height=32,
             gain_weight=gain_w,
-            gain_bias=gain_b,
         ),
-        MixtureReLU(),
+        ReLU(),
         BatchNorm2d(64),
     ]
 
     resnet_layers = [
         # 32x32
-        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
-        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w)),
+        ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w)),
         # 16x16
         ResNetBlock(
-            make_layer_block(64, 128, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(64, 128, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     64,
@@ -83,15 +83,14 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(128),
             ),
         ),
-        ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w)),
         # 8x8
         ResNetBlock(
-            make_layer_block(128, 256, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(128, 256, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     128,
@@ -100,15 +99,14 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(256),
             ),
         ),
-        ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w)),
         # 4x4
         ResNetBlock(
-            make_layer_block(256, 512, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(256, 512, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     256,
@@ -117,20 +115,21 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     bias=False,
                     stride=2,
                     gain_weight=gain_w,
-                    gain_bias=gain_b,
                 ),
                 BatchNorm2d(512),
             ),
         ),
-        ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w, gain_bias=gain_b)),
+        ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w)),
     ]
 
-    final_layers = [AvgPool2d(4), Linear(512, 11, gain_weight=gain_b, gain_bias=gain_b)]
+    final_layers = [AvgPool2d(4), Linear(512, 7, gain_weight=gain_w, gain_bias=gain_b)]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
 
 
-def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
+def resnet18_imagenet(
+    gain_w: float = 1, gain_b: float = 1, nb_outputs=1001
+) -> Sequential:
     """Resnet18 architecture for imagenet"""
     # 224x224
     initial_layers = [
@@ -146,8 +145,10 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             gain_weight=gain_w,
             gain_bias=gain_b,
         ),
-        MixtureReLU(),
-        BatchNorm2d(64),
+        ReLU(),
+        BatchNorm2d(
+            64,
+        ),
         AvgPool2d(3, stride=2, padding=1, padding_type=2),
     ]
 
@@ -157,7 +158,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
         ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
         # 28x28
         ResNetBlock(
-            make_layer_block(64, 128, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
+            make_layer_block(64, 128, 2, 2, gain_weight=gain_w),
             LayerBlock(
                 Conv2d(
                     64,
@@ -168,7 +169,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                BatchNorm2d(128),
+                BatchNorm2d(128, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
         ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w, gain_bias=gain_b)),
@@ -185,7 +186,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                BatchNorm2d(256),
+                BatchNorm2d(256, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
         ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w, gain_bias=gain_b)),
@@ -202,7 +203,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                BatchNorm2d(512),
+                BatchNorm2d(512, gain_weight=0.0, gain_bias=0.0),
             ),
         ),
         ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w, gain_bias=gain_b)),
@@ -210,7 +211,7 @@ def resnet18_imagenet(gain_w: float = 1, gain_b: float = 1) -> Sequential:
 
     final_layers = [
         AvgPool2d(7),
-        Linear(512, 1001, gain_weight=gain_b, gain_bias=gain_b),
+        Linear(512, nb_outputs, gain_weight=gain_w, gain_bias=gain_b, bias=True),
     ]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
