@@ -835,7 +835,7 @@ void BatchNorm2d::allocate_running_mean_var()
     // For inference, we use the running average during the training
     if (this->mu_ra.size() == 0) {
         this->mu_ra.resize(this->num_features, 0.0f);
-        this->var_ra.resize(this->num_features, 0.0f);
+        this->var_ra.resize(this->num_features, 1.0f);
     }
 
     this->mu_norm_batch.resize(this->num_features, 0.0f);
@@ -1216,4 +1216,9 @@ void BatchNorm2d::load(std::ifstream &file)
     if (this->training) {
         this->allocate_param_delta();
     }
+}
+
+std::tuple<std::vector<float>, std::vector<float>>
+BatchNorm2d::get_running_mean_var() {
+    return std::make_tuple(this->mu_ra, this->var_ra);
 }
