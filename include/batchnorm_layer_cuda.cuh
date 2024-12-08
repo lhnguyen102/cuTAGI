@@ -53,6 +53,8 @@ class BatchNorm2dCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
 
+    std::tuple<std::vector<float>, std::vector<float>> get_running_mean_var();
+
    protected:
     void allocate_running_mean_var();
     void deallocate_running_mean_var();

@@ -11,7 +11,7 @@ class BatchNorm2d(BaseLayer):
     def __init__(
         self,
         num_features: int,
-        eps: float = 1e-5,
+        eps: float = 1e-4,
         momentum: float = 0.9,
         bias: bool = True,
         gain_weight: float = 1.0,

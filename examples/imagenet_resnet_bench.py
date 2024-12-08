@@ -128,7 +128,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.05, gain_b=0.05, nb_outputs=metric.hrc_softmax.len)
+    net = resnet18_imagenet(gain_w=0.5, gain_b=0.5, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -180,7 +180,7 @@ def tagi_trainer(
                     error_rate = metric.error_rate(m_pred, v_pred, labels)
                     error_rates.append(error_rate)
 
-                    if i > 0 and i % 50 == 0:
+                    if i > 0 and i % 100 == 0:
                         avg_error_rate = sum(error_rates[-100:])
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
@@ -193,6 +193,7 @@ def tagi_trainer(
             # Testing
             test_error_rates = []
             net.eval()
+
             for x, labels in test_loader:
                 m_pred, v_pred = net(x)
 
@@ -299,7 +300,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 5,
     device: str = "cuda",
-    sigma_v: float = 0,
+    sigma_v: float = 0.1,
     nb_classes: int = 8,
 ):
     if framework == "torch":

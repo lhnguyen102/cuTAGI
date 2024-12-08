@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple>
+
 #include "base_layer.h"
 #include "common.h"
 
@@ -45,6 +47,8 @@ class BatchNorm2d : public BaseLayer {
                   bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
+
+    std::tuple<std::vector<float>, std::vector<float>> get_running_mean_var();
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
