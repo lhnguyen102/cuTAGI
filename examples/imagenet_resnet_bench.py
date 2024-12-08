@@ -128,7 +128,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.05,gain_b=0.05, nb_outputs = nb_classes-1)
+    net = resnet18_imagenet(gain_w=1,gain_b=1, nb_outputs = nb_classes-1)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -190,7 +190,7 @@ def tagi_trainer(
 
             test_error_rate = sum(test_error_rates) / len(test_error_rates)
             epoch_pbar.set_description(
-                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}\n%",
+                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
                 refresh=True,
             )
     print("Training complete.")
@@ -274,7 +274,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda", nb_cla
             val_loss /= len(val_loader.dataset)
             val_error_rate = (1.0 - correct / len(val_loader.dataset)) * 100
             epoch_pbar.set_description(
-                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}\n%",
+                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}%",
                 refresh=True,
             )
 
@@ -284,10 +284,10 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda", nb_cla
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 5,
+    epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0,
-    nb_classes = 8
+    sigma_v: float = 0.0,
+    nb_classes = 4
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device, nb_classes = nb_classes)
