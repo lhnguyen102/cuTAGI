@@ -128,7 +128,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.05,gain_b=0.05, nb_outputs = nb_classes-1)
+    net = resnet18_imagenet(gain_w=1,gain_b=1, nb_outputs = nb_classes-1)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -275,7 +275,7 @@ def torch_trainer(
             val_loss /= len(val_loader.dataset)
             val_error_rate = (1.0 - correct / len(val_loader.dataset)) * 100
             epoch_pbar.set_description(
-                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}\n%",
+                f"Epoch# {epoch + 1}/{num_epochs} | Training Error: {avg_error_rate:.2f}% | Validation Error: {val_error_rate:.2f}%",
                 refresh=True,
             )
 
@@ -285,7 +285,7 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 5,
+    epochs: int = 50,
     device: str = "cuda",
     sigma_v: float = 0,
     nb_classes: int = 8,

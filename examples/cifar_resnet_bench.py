@@ -183,7 +183,7 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
     )
 
     ## Select classes
-    nb_classes = 8
+    '''nb_classes = 8
     exclude = np.array(range(nb_classes,9)).reshape(1, -1)
     labels = np.array(train_set.targets)
     mask = ~(labels.reshape(-1, 1) == exclude).any(axis=1)
@@ -192,7 +192,7 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
     labels = np.array(test_set.targets)
     mask = ~(labels.reshape(-1, 1) == exclude).any(axis=1)
     test_set.data = test_set.data[mask]
-    test_set.targets = labels[mask].tolist()
+    test_set.targets = labels[mask].tolist()'''
 
     if framework == "torch":
         train_loader = DataLoader(
@@ -240,7 +240,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.05,gain_b=0.05)
+    net = resnet18_cifar10(gain_w=0.1,gain_b=0.1)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -278,7 +278,7 @@ def tagi_trainer(
                 print_var = False
 
             # Update output layers based on targets
-            y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=8)
+            y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
             out_updater.update_using_indices(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
@@ -329,7 +329,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = ResNet18(weights=None)
+    model = ResNet18()
     # model = TorchCNN()
     # model = torch.compile(model)
     model.to(torch_device)
