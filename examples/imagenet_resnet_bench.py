@@ -18,7 +18,7 @@ from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
 from examples.tagi_resnet_model import resnet18_imagenet
-from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
+from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import OutputUpdater
 import pytagi
 
@@ -122,7 +122,7 @@ def tagi_trainer(
     """
 
     utils = Utils()
-    train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes = nb_classes)
+    train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
@@ -168,7 +168,7 @@ def tagi_trainer(
                     error_rate = metric.error_rate(m_pred, v_pred, labels)
                     error_rates.append(error_rate)
 
-                    if i > 0 and i % 100 == 0:
+                    if i > 0 and i % 50 == 0:
                         avg_error_rate = sum(error_rates[-100:])
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
@@ -204,7 +204,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda", nb_cla
     learning_rate = 0.001
 
     # Load ImageNet datasets
-    train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes = nb_classes)
+    train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes=nb_classes)
 
     # Initialize the model
     torch_device = torch.device(device)
@@ -212,10 +212,9 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda", nb_cla
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    #model = models.resnet18(pretrained=True)
     model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
-    #model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    # model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
     model.fc = nn.Linear(num_ftrs, nb_classes)
     model.to(torch_device)
 
@@ -286,14 +285,23 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.0,
-    nb_classes = 4
+    sigma_v: float = 0,
+    nb_classes: int = 8,
 ):
     if framework == "torch":
-        torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device, nb_classes = nb_classes)
+        torch_trainer(
+            batch_size=batch_size,
+            num_epochs=epochs,
+            device=device,
+            nb_classes=nb_classes,
+        )
     elif framework == "tagi":
         tagi_trainer(
-            batch_size=batch_size, num_epochs=epochs, device=device, sigma_v=sigma_v, nb_classes = nb_classes
+            batch_size=batch_size,
+            num_epochs=epochs,
+            device=device,
+            sigma_v=sigma_v,
+            nb_classes=nb_classes,
         )
     else:
         raise RuntimeError(f"Invalid Framework: {framework}")
