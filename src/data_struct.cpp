@@ -329,13 +329,13 @@ void BaseLSTMStates::reset_zeros()
     if (var_c_prev.size() != num_states) var_c_prev.resize(num_states);
     for (auto& val : mu_c) val = 0;
     for (auto& val : var_c) val = 0;
-    for (auto& val : mu_c_prev) val = 1;
+    for (auto& val : mu_c_prev) val = 0;
     for (auto& val : var_c_prev) val = 1;
 
     // Resize and reset mu_h_prev and var_h_prev
     if (mu_h_prev.size() != num_states) mu_h_prev.resize(num_states);
     if (var_h_prev.size() != num_states) var_h_prev.resize(num_states);
-    for (auto& val : mu_h_prev) val = 1;
+    for (auto& val : mu_h_prev) val = 0;
     for (auto& val : var_h_prev) val = 1;
 
     // Resize and reset cov_i_c and cov_o_tanh_c
