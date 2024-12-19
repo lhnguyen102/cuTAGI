@@ -93,4 +93,9 @@ class LayerBlock : public BaseLayer {
 #endif
 
     void preinit_layer() override;
+
+    // DEBUG
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
 };

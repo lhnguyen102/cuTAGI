@@ -303,6 +303,17 @@ BaseLayer::get_running_mean_var()
     return {std::vector<float>(), std::vector<float>()};
 }
 
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+BaseLayer::get_norm_mean_var()
+/*
+ */
+{
+    return {
+        std::vector<std::vector<float>>(), std::vector<std::vector<float>>(),
+        std::vector<std::vector<float>>(), std::vector<std::vector<float>>()};
+}
+
 void BaseLayer::preinit_layer()
 /* Pre-initialize the layer property e.g., number of weights & biases
  */

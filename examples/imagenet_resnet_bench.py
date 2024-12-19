@@ -298,10 +298,10 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 5,
+    epochs: int = 8,
     device: str = "cuda",
     sigma_v: float = 0.1,
-    nb_classes: int = 8,
+    nb_classes: int = 16,
 ):
     if framework == "torch":
         torch_trainer(

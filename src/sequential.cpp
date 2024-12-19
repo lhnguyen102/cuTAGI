@@ -1,12 +1,16 @@
 
 #include "../include/sequential.h"
 
+#include "../include/batchnorm_layer.h"
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
+#include "../include/resnet_block.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
+#include "../include/batchnorm_layer_cuda.cuh"
+#include "../include/resnet_block_cuda.cuh"
 #endif
 #include <memory>
 
@@ -415,6 +419,37 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
+std::unordered_map<std::string, std::tuple<std::vector<std::vector<float>>,
+                                           std::vector<std::vector<float>>,
+                                           std::vector<std::vector<float>>,
+                                           std::vector<std::vector<float>>>>
+Sequential::get_norm_mean_var()
+/*
+ */
+{
+    // Define dictionary to store the mean and variance of each layer
+    std::unordered_map<std::string, std::tuple<std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>>>
+        norm_mean_var;
+    for (int i = 0; i < this->layers.size(); i++) {
+        auto layer = this->layers[i];
+        std::string layer_name =
+            layer->get_layer_info() + "_" + std::to_string(i);
+
+        std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
+        std::tie(mu_ra, var_ra, mu_norm, var_norm) = layer->get_norm_mean_var();
+        // check if the mu_ra is empty
+        if (mu_ra.empty()) {
+            continue;
+        }
+        norm_mean_var[layer_name] =
+            std::make_tuple(mu_ra, var_ra, mu_norm, var_norm);
+    }
+    return norm_mean_var;
+}
+
 // Utility function to get layer stack info
 std::string Sequential::get_layer_stack_info() const {
     std::stringstream ss;
@@ -443,9 +478,8 @@ void Sequential::save(const std::string &filename)
 
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
+        return;
     }
 
     for (const auto &layer : layers) {
@@ -463,9 +497,8 @@ void Sequential::load(const std::string &filename)
 
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        LOG(LogLevel::ERROR, "Failed to open file for loading");
+        return;
     }
 
     for (auto &layer : layers) {

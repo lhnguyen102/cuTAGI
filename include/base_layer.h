@@ -133,6 +133,11 @@ class BaseLayer {
     virtual std::tuple<std::vector<float>, std::vector<float>>
     get_running_mean_var();
 
+    virtual std::tuple<
+        std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+        std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var();
+
     virtual void preinit_layer();
 
    protected:

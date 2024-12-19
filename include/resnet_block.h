@@ -123,6 +123,11 @@ class ResNetBlock : public BaseLayer {
 
     using BaseLayer::to_cuda;
 
+    // DEBUG
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
+
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
 #endif
