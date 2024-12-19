@@ -43,6 +43,10 @@ class LayerNorm : public BaseLayer {
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
 
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

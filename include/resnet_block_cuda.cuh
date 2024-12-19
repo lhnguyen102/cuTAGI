@@ -124,6 +124,11 @@ class ResNetBlockCuda : public BaseLayerCuda {
 
     using BaseLayer::to_cuda;
 
+    // DEBUG
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
+
     std::unique_ptr<BaseLayer> to_host() override;
     void preinit_layer() override;
 };

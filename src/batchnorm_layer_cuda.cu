@@ -1190,8 +1190,14 @@ void BatchNorm2dCuda::load(std::ifstream &file)
     this->running_mean_var_to_device();
 }
 
-std::tuple<std::vector<float>, std::vector<float>>
-BatchNorm2dCuda::get_running_mean_var() {
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+BatchNorm2dCuda::get_norm_mean_var() {
     this->running_mean_var_to_host();
-    return std::make_tuple(this->mu_ra, this->var_ra);
+    std::vector<std::vector<float>> mu_ras = {this->mu_ra};
+    std::vector<std::vector<float>> var_ras = {this->var_ra};
+    std::vector<std::vector<float>> mu_norms = {this->mu_norm_batch};
+    std::vector<std::vector<float>> var_norms = {this->var_norm_batch};
+
+    return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
 }

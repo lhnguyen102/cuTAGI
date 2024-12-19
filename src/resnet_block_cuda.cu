@@ -400,3 +400,26 @@ void ResNetBlockCuda::preinit_layer() {
         this->shortcut->preinit_layer();
     }
 }
+
+// DEBUG
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+ResNetBlockCuda::get_norm_mean_var() {
+    std::vector<std::vector<float>> mu_ras, var_ras, mu_norms, var_norms;
+    std::tie(mu_ras, var_ras, mu_norms, var_norms) =
+        this->main_block->get_norm_mean_var();
+
+    if (this->shortcut != nullptr) {
+        std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
+        std::tie(mu_ra, var_ra, mu_norm, var_norm) =
+            this->shortcut->get_norm_mean_var();
+        for (size_t i = 0; i < mu_ra.size(); i++) {
+            mu_ras.push_back(mu_ra[i]);
+            var_ras.push_back(var_ra[i]);
+            mu_norms.push_back(mu_norm[i]);
+            var_norms.push_back(var_norm[i]);
+        }
+    }
+
+    return {mu_ras, var_ras, mu_norms, var_norms};
+}

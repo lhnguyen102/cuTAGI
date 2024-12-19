@@ -577,7 +577,19 @@ LayerNormCuda::get_running_mean_var()
 /*
  */
 {
+    this->running_mean_var_to_host();
     return {this->mu_ra, this->var_ra};
+}
+
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+LayerNormCuda::get_norm_mean_var() {
+    this->running_mean_var_to_host();
+    std::vector<std::vector<float>> mu_ras = {this->mu_ra};
+    std::vector<std::vector<float>> var_ras = {this->var_ra};
+    std::vector<std::vector<float>> mu_norms;
+    std::vector<std::vector<float>> var_norms;
+    return {mu_ras, var_ras, mu_norms, var_norms};
 }
 
 void LayerNormCuda::save(std::ofstream &file)

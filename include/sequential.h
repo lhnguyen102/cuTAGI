@@ -154,6 +154,16 @@ class Sequential {
     std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
     get_input_states();
 
+    // DEBUG
+    void output_to_host();
+    void delta_z_to_host();
+    void preinit_layer();
+    std::unordered_map<std::string, std::tuple<std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>,
+                                               std::vector<std::vector<float>>>>
+    get_norm_mean_var();
+
    private:
     void compute_input_output_size();
 };

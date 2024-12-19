@@ -223,3 +223,7 @@ class Sequential:
     def get_input_states(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get the input states."""
         return self._cpp_backend.get_input_states()
+
+    def get_norm_mean_var(self) -> dict:
+        """Get the mean and variance of the normalization layer"""
+        return self._cpp_backend.get_norm_mean_var()

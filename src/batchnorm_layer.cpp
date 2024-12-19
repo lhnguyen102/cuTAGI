@@ -1218,7 +1218,13 @@ void BatchNorm2d::load(std::ifstream &file)
     }
 }
 
-std::tuple<std::vector<float>, std::vector<float>>
-BatchNorm2d::get_running_mean_var() {
-    return std::make_tuple(this->mu_ra, this->var_ra);
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+BatchNorm2d::get_norm_mean_var() {
+    std::vector<std::vector<float>> mu_ras = {this->mu_ra};
+    std::vector<std::vector<float>> var_ras = {this->var_ra};
+    std::vector<std::vector<float>> mu_norms = {this->mu_norm_batch};
+    std::vector<std::vector<float>> var_norms = {this->var_norm_batch};
+
+    return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
 }

@@ -290,3 +290,20 @@ void LayerBlock::preinit_layer() {
         layer->preinit_layer();
     }
 }
+
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+LayerBlock::get_norm_mean_var() {
+    std::vector<std::vector<float>> mu_ras, var_ras, mu_norms, var_norms;
+    for (const auto &layer : this->layers) {
+        std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
+        std::tie(mu_ra, var_ra, mu_norm, var_norm) = layer->get_norm_mean_var();
+        for (size_t i = 0; i < mu_ra.size(); i++) {
+            mu_ras.push_back(mu_ra[i]);
+            var_ras.push_back(var_ra[i]);
+            mu_norms.push_back(mu_norm[i]);
+            var_norms.push_back(var_norm[i]);
+        }
+    }
+    return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
+}
