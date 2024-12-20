@@ -128,7 +128,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.5, gain_b=0.5, nb_outputs=metric.hrc_softmax.len)
+    net = resnet18_imagenet(gain_w=0.25, gain_b=0.25, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -301,7 +301,7 @@ def main(
     epochs: int = 8,
     device: str = "cuda",
     sigma_v: float = 0.1,
-    nb_classes: int = 16,
+    nb_classes: int = 8,
 ):
     if framework == "torch":
         torch_trainer(
