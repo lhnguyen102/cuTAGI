@@ -143,6 +143,7 @@ def tagi_trainer(
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
         print_var = False
+        viz_norm_stats = True
         for epoch in epoch_pbar:
             error_rates = []
             net.train()
@@ -196,9 +197,9 @@ def tagi_trainer(
             avg_error_rate = sum(error_rates[-100:])
 
             # Get batchnorm statistics
-            train_norm_stats = net.get_norm_mean_var()
-            batch_norm_viz.update(train_norm_stats, "train")
-            viz_norm_stats = True
+            if viz_norm_stats:
+                train_norm_stats = net.get_norm_mean_var()
+                batch_norm_viz.update(train_norm_stats, "train")
 
             # Testing
             test_error_rates = []
