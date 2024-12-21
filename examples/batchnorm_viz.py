@@ -128,7 +128,7 @@ class BatchNormViz:
                 var_diff_mean,
                 yerr=var_diff_std,
                 label=f"{mode} variance delta",
-                fmt="x",
+                fmt="o",
                 capsize=3,
                 alpha=0.7,
             )

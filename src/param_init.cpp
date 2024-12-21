@@ -75,6 +75,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
         // Get sample for weights
         m[i] = d(gen);
+        // S[i] = pow(scale, 2);
     }
 
     return {m, S};

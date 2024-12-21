@@ -132,7 +132,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.25, gain_b=0.25, nb_outputs=metric.hrc_softmax.len)
+    net = resnet18_imagenet(gain_w=1.0, gain_b=1.0, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -145,7 +145,7 @@ def tagi_trainer(
         print_var = False
         viz_norm_stats = True
         for epoch in epoch_pbar:
-            error_rates = []
+            train_correct = 0
             net.train()
             with tqdm(
                 train_loader, desc=f"Epoch {epoch + 1}/{num_epochs} - Batch Progress"
@@ -182,18 +182,20 @@ def tagi_trainer(
                     net.step()
 
                     # Training metric
-                    error_rate = metric.error_rate(m_pred, v_pred, labels)
-                    error_rates.append(error_rate)
+                    pred = metric.get_predicted_labels(m_pred, v_pred)
+                    train_correct += np.sum(pred == labels)
 
                     if i > 0 and i % 100 == 0:
-                        avg_error_rate = sum(error_rates[-100:])
+                        avg_error_rate = (
+                            1.0 - (train_correct / (i + 1) * batch_size) * 100
+                        )
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
 
             # Averaged training error
-            avg_error_rate = sum(error_rates[-100:])
+            avg_error_rate = (1.0 - train_correct / len(train_loader.dataset)) * 100
 
             # Get batchnorm statistics
             if viz_norm_stats:
@@ -201,24 +203,26 @@ def tagi_trainer(
                 batch_norm_viz.update(train_norm_stats, "train")
 
             # Testing
-            test_error_rates = []
+            correct = 0
             net.eval()
 
             for x, labels in test_loader:
                 m_pred, v_pred = net(x)
+
                 # Training metric
-                error_rate = metric.error_rate(m_pred, v_pred, labels)
-                test_error_rates.append(error_rate)
-                if viz_norm_stats:
+                pred = metric.get_predicted_labels(m_pred, v_pred)
+                correct += np.sum(pred == labels)
+
+                if viz_norm_stats and epoch == num_epochs - 1:
                     test_norm_stats = net.get_norm_mean_var()
                     batch_norm_viz.update(test_norm_stats, "test")
                     batch_norm_viz.plot_all_layers(
                         folder_name="saved_results/batchnorm"
                     )
 
-            test_error_rate = sum(test_error_rates) / len(test_error_rates)
+            test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
             epoch_pbar.set_description(
-                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+                f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate:.2f}%",
                 refresh=True,
             )
     print("Training complete.")
@@ -231,7 +235,7 @@ def torch_trainer(
     # torch.set_float32_matmul_precision("high")
 
     # Hyperparameters
-    learning_rate = 0.001
+    learning_rate = 0.0003
 
     # Load ImageNet datasets
     train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes=nb_classes)
@@ -256,7 +260,7 @@ def torch_trainer(
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
         for epoch in epoch_pbar:
             model.train()
-            error_rates = []
+            train_correct = 0
 
             with tqdm(
                 train_loader, desc=f"Epoch {epoch + 1}/{num_epochs} - Batch Progress"
@@ -273,18 +277,19 @@ def torch_trainer(
                     optimizer.step()
 
                     pred = output.argmax(dim=1, keepdim=True)
-                    train_correct = pred.eq(target.view_as(pred)).sum().item()
-                    error_rates.append((1.0 - (train_correct / data.shape[0])))
+                    train_correct += pred.eq(target.view_as(pred)).sum().item()
 
                     if i > 0 and i % 100 == 0:
-                        avg_error_rate = sum(error_rates[-100:])
+                        avg_error_rate = (
+                            1.0 - (train_correct / (i + 1) * batch_size) * 100
+                        )
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
 
             # Averaged training error
-            avg_error_rate = sum(error_rates[-100:])
+            avg_error_rate = (1.0 - train_correct / len(train_loader.dataset)) * 100
 
             # Evaluation phase
             model.eval()
@@ -313,7 +318,7 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 3,
+    epochs: int = 8,
     device: str = "cuda",
     sigma_v: float = 0.1,
     nb_classes: int = 8,
