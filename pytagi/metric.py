@@ -23,6 +23,16 @@ class HRCSoftmaxMetric:
         )
         return classification_error(pred, label)
 
+    def get_predicted_labels(
+        self, m_pred: np.ndarray, v_pred: np.ndarray
+    ) -> np.ndarray:
+        """Get the prediction"""
+        batch_size = m_pred.shape[0] // self.hrc_softmax.len
+        pred, _ = self.utils.get_labels(
+            m_pred, v_pred, self.hrc_softmax, self.num_classes, batch_size
+        )
+        return pred
+
 
 def mse(prediction: np.ndarray, observation: np.ndarray) -> float:
     """Mean squared error"""

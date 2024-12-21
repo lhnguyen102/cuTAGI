@@ -23,6 +23,7 @@ from pytagi.nn import (
     OutputUpdater,
     MixtureReLU,
     Sequential,
+    ReLU,
 )
 
 FNN = Sequential(
@@ -67,15 +68,15 @@ CNN = Sequential(
 
 CNN_BATCHNORM = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
-    MixtureReLU(),
+    ReLU(),
     BatchNorm2d(16),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5, bias=False),
-    MixtureReLU(),
+    ReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
-    MixtureReLU(),
+    ReLU(),
     Linear(100, 11),
 )
 
@@ -94,7 +95,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -116,9 +117,9 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
-    # if pytagi.cuda.is_available():
-    #     net.to_device("cuda")
+    net = CNN_BATCHNORM
+    if pytagi.cuda.is_available():
+        net.to_device("cuda")
     # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
@@ -164,18 +165,21 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
         avg_error_rate = sum(error_rates[-100:])
 
         # Testing
-        test_error_rates = []
+        correct = 0
+        num_samples = 0
         test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
+        # net.eval()
         for x, _, _, label in test_batch_iter:
             m_pred, v_pred = net(x)
 
             # Training metric
-            error_rate = metric.error_rate(m_pred, v_pred, label)
-            test_error_rates.append(error_rate)
+            pred = metric.get_predicted_labels(m_pred, v_pred)
+            correct += np.sum(pred == label)
+            num_samples += len(label)
 
-        test_error_rate = sum(test_error_rates) / len(test_error_rates)
+        test_error_rate = (1.0 - correct / num_samples) * 100
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate * 100:.2f}%",
+            f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate:.2f}%",
             refresh=True,
         )
     print("Training complete.")
