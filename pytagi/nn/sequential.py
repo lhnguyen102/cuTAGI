@@ -225,5 +225,14 @@ class Sequential:
         return self._cpp_backend.get_input_states()
 
     def get_norm_mean_var(self) -> dict:
-        """Get the mean and variance of the normalization layer"""
+        """Get the mean and variance of the normalization layer.
+        Returns:
+            A dictionary containing the mean and variance of the normalization layer.
+            each key is the layer name and the value is a tuple of 4 arrays:
+            mu_batch: mean of the batch
+            var_batch: variance of the batch
+            mu_ema_batch: mean of the eponech moving average (ema) of the batch
+            var_ema_batch: variance of the ema of the batch
+
+        """
         return self._cpp_backend.get_norm_mean_var()
