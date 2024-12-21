@@ -191,7 +191,6 @@ def tagi_trainer(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
-                    break
 
             # Averaged training error
             avg_error_rate = sum(error_rates[-100:])
