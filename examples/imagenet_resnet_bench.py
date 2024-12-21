@@ -21,6 +21,7 @@ from examples.tagi_resnet_model import resnet18_imagenet
 from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import OutputUpdater
 import pytagi
+from examples.batchnorm_viz import BatchNormViz
 
 
 torch.manual_seed(42)
@@ -120,9 +121,12 @@ def tagi_trainer(
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
-
+    # Load datasets
     utils = Utils()
     train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
+
+    # Viz tools
+    batch_norm_viz = BatchNormViz()
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
@@ -186,9 +190,15 @@ def tagi_trainer(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
                         )
+                    break
 
             # Averaged training error
             avg_error_rate = sum(error_rates[-100:])
+
+            # Get batchnorm statistics
+            train_norm_stats = net.get_norm_mean_var()
+            batch_norm_viz.update(train_norm_stats, "train")
+            viz_norm_stats = True
 
             # Testing
             test_error_rates = []
@@ -196,10 +206,15 @@ def tagi_trainer(
 
             for x, labels in test_loader:
                 m_pred, v_pred = net(x)
-
                 # Training metric
                 error_rate = metric.error_rate(m_pred, v_pred, labels)
                 test_error_rates.append(error_rate)
+                if viz_norm_stats:
+                    test_norm_stats = net.get_norm_mean_var()
+                    batch_norm_viz.update(test_norm_stats, "test")
+                    batch_norm_viz.plot_all_layers(
+                        folder_name="saved_results/batchnorm"
+                    )
 
             test_error_rate = sum(test_error_rates) / len(test_error_rates)
             epoch_pbar.set_description(
@@ -298,7 +313,7 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 8,
+    epochs: int = 3,
     device: str = "cuda",
     sigma_v: float = 0.1,
     nb_classes: int = 8,
