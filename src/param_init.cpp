@@ -75,7 +75,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
         // Get sample for weights
         m[i] = d(gen);
-        S[i] = pow(0.01 * scale, 2);
+        S[i] = pow(0.05 * scale, 2);
     }
 
     return {m, S};
@@ -198,10 +198,10 @@ init_weight_bias_norm(const std::string &init_method, const float gain_w,
     float scale = 2.0f / (input_size + output_size);
 
     mu_w.resize(num_weights, 1.0f * gain_w);
-    var_w.resize(num_weights, 0.01 * scale * gain_w * gain_w);
+    var_w.resize(num_weights, 0.05 * scale * gain_w * gain_w);
     if (num_biases > 0) {
         mu_b.resize(num_weights, 0.0f);
-        var_b.resize(num_weights, 0.01 * scale * gain_b * gain_b);
+        var_b.resize(num_weights, 0.05 * scale * gain_b * gain_b);
     }
 
     return {mu_w, var_w, mu_b, var_b};
