@@ -14,7 +14,8 @@
 void layernorm_stat_mean_var(const std::vector<float> &mu_a,
                              const std::vector<float> &var_a, int ni,
                              int start_chunk, int end_chunk,
-                             std::vector<float> &mu_s)
+                             std::vector<float> &mu_s,
+                             std::vector<float> &var_s)
 /*
  */
 {
@@ -27,11 +28,13 @@ void layernorm_stat_mean_var(const std::vector<float> &mu_a,
             sum_var += var_a[col * ni + i];
         }
         mu_s[col] = sum_mu / ni;
+        var_s[col] = sum_var;
     }
 }
 
 void layernorm_sample_var(const std::vector<float> &mu_a,
-                          const std::vector<float> &mu_s, int ni,
+                          const std::vector<float> &mu_s,
+                          const std::vector<float> &var_s, int ni,
                           int start_chunk, int end_chunk,
                           std::vector<float> &var_sample)
 /*
@@ -46,7 +49,7 @@ void layernorm_sample_var(const std::vector<float> &mu_a,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = sum / (ni - 1);
+        var_sample[col] = (sum + var_s[col]) / (ni - 1);
     }
 }
 
@@ -280,7 +283,7 @@ void layernorm_stat_mean_var_mp(const std::vector<float> &mu_a,
 
         threads.emplace_back([=, &mu_a, &var_a, &mu_s, &var_s] {
             layernorm_stat_mean_var(mu_a, var_a, ni, start_chunk, end_chunk,
-                                    mu_s);
+                                    mu_s, var_s);
         });
     }
 
@@ -292,7 +295,8 @@ void layernorm_stat_mean_var_mp(const std::vector<float> &mu_a,
 }
 
 void layernorm_sample_var_mp(const std::vector<float> &mu_a,
-                             const std::vector<float> &mu_s, int ni,
+                             const std::vector<float> &mu_s,
+                             const std::vector<float> &var_s, int ni,
                              int batch_size, const int num_threads,
                              std::vector<float> &var_sample)
 /*
@@ -308,8 +312,8 @@ void layernorm_sample_var_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &mu_s, &var_sample] {
-            layernorm_sample_var(mu_a, mu_s, ni, start_chunk, end_chunk,
+        threads.emplace_back([=, &mu_a, &mu_s, &var_s, &var_sample] {
+            layernorm_sample_var(mu_a, mu_s, var_s, ni, start_chunk, end_chunk,
                                  var_sample);
         });
     }
@@ -747,10 +751,11 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
 
     if (this->num_threads <= 1) {
         layernorm_stat_mean_var(input_states.mu_a, input_states.var_a,
-                                this->input_size, 0, batch_size, this->mu_ra);
+                                this->input_size, 0, batch_size, this->mu_ra,
+                                temp_states.tmp_2);
 
-        layernorm_sample_var(input_states.mu_a, this->mu_ra, this->input_size,
-                             0, batch_size, this->var_ra);
+        layernorm_sample_var(input_states.mu_a, this->mu_ra, temp_states.tmp_2,
+                             this->input_size, 0, batch_size, this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var(
@@ -772,8 +777,8 @@ void LayerNorm::forward(BaseHiddenStates &input_states,
             this->num_threads, this->mu_ra, temp_states.tmp_2);
 
         layernorm_sample_var_mp(input_states.mu_a, this->mu_ra,
-                                this->input_size, batch_size, this->num_threads,
-                                this->var_ra);
+                                temp_states.tmp_2, this->input_size, batch_size,
+                                this->num_threads, this->var_ra);
 
         if (this->normalized_shape.size() == 1) {
             layernorm_fwd_mean_var_mp(

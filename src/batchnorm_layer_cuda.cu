@@ -1,4 +1,5 @@
 #include "../include/batchnorm_layer_cuda.cuh"
+#include "../include/param_init.h"
 
 // Sum reduction kernels
 __device__ void warp_smem_reduction(volatile float *smem_mu, int tx, int ty,
@@ -748,20 +749,12 @@ void BatchNorm2dCuda::init_weight_bias()
  */
 {
     this->num_weights = this->num_features;
-    this->num_biases = this->num_features;
+    this->num_biases = this->bias ? this->num_features : 0;
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_norm("", this->gain_w, this->gain_b,
+                              this->num_features, this->num_features,
+                              this->num_weights, this->num_biases);
 
-    float scale = 1.0f / this->num_weights;
-
-    this->mu_w.resize(this->num_weights, 1.0f * this->gain_w);
-    this->var_w.resize(this->num_weights, scale * this->gain_w * this->gain_w);
-    if (this->bias) {
-        this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights,
-                           scale * this->gain_b * this->gain_b);
-
-    } else {
-        this->num_biases = 0;
-    }
     this->allocate_param_memory();
     this->params_to_device();
 }
