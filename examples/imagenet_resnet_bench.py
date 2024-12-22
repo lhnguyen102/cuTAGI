@@ -317,9 +317,9 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 8,
+    epochs: int = 10,
     device: str = "cuda",
-    sigma_v: float = 0.05,
+    sigma_v: float = 0.2,
     nb_classes: int = 8,
 ):
     if framework == "torch":

@@ -13,7 +13,7 @@ class Linear(BaseLayer):
         bias: bool = True,
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
-        init_method: str = "He",
+        init_method: str = "Xavier",
     ):
         super().__init__()
         self.input_size = input_size
