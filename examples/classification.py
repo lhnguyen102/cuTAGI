@@ -95,7 +95,7 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 0.1):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
@@ -118,9 +118,9 @@ def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 0.1):
 
     # Network configuration
     net = CNN_BATCHNORM
-    if pytagi.cuda.is_available():
-        net.to_device("cuda")
-    # net.set_threads(16)
+    # if pytagi.cuda.is_available():
+    #     net.to_device("cuda")
+    net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -132,6 +132,7 @@ def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 0.1):
     print_var = False
     for epoch in pbar:
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
+        net.train()
         for x, y, y_idx, label in batch_iter:
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
@@ -168,7 +169,7 @@ def main(num_epochs: int = 10, batch_size: int = 100, sigma_v: float = 0.1):
         correct = 0
         num_samples = 0
         test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
-        # net.eval()
+        net.eval()
         for x, _, _, label in test_batch_iter:
             m_pred, v_pred = net(x)
 

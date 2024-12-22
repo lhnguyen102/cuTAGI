@@ -75,7 +75,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
 
         // Get sample for weights
         m[i] = d(gen);
-        // S[i] = pow(scale, 2);
+        S[i] = pow(0.01 * scale, 2);
     }
 
     return {m, S};
@@ -185,6 +185,25 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
     }
+    return {mu_w, var_w, mu_b, var_b};
+}
+
+std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+           std::vector<float>>
+init_weight_bias_norm(const std::string &init_method, const float gain_w,
+                      const float gain_b, const int input_size,
+                      const int output_size, int num_weights, int num_biases) {
+    std::vector<float> mu_w, var_w, mu_b, var_b;
+
+    float scale = 2.0f / (input_size + output_size);
+
+    mu_w.resize(num_weights, 1.0f * gain_w);
+    var_w.resize(num_weights, 0.01 * scale * gain_w * gain_w);
+    if (num_biases > 0) {
+        mu_b.resize(num_weights, 0.0f);
+        var_b.resize(num_weights, 0.01 * scale * gain_b * gain_b);
+    }
+
     return {mu_w, var_w, mu_b, var_b};
 }
 

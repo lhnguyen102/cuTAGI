@@ -2,7 +2,8 @@
 
 __global__ void layernorm_stat_mean_var_cuda(float const *mu_a,
                                              float const *var_a, int ni,
-                                             int batch_size, float *mu_s)
+                                             int batch_size, float *mu_s,
+                                             float *var_s)
 /*
  */
 {
@@ -17,12 +18,13 @@ __global__ void layernorm_stat_mean_var_cuda(float const *mu_a,
             sum_var += var_a[col * ni + i];
         }
         mu_s[col] = sum_mu / ni;
+        var_s[col] = sum_var;
     }
 }
 
 __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
-                                          int ni, int batch_size,
-                                          float *var_sample)
+                                          float const *var_s, int ni,
+                                          int batch_size, float *var_sample)
 /*
  */
 {
@@ -35,7 +37,7 @@ __global__ void layernorm_sample_var_cuda(float const *mu_a, float const *mu_s,
             sum += (mu_a[col * ni + i] - mu_s[col]) *
                    (mu_a[col * ni + i] - mu_s[col]);
         }
-        var_sample[col] = sum / (ni - 1);
+        var_sample[col] = (sum + var_s[col]) / (ni - 1);
     }
 }
 
@@ -93,6 +95,7 @@ __global__ void layernorm2d_fwd_mean_var_cuda(
             inv_sqrt_var_ra * inv_sqrt_var_ra *
             (var_a[idx] * (mu_w_term * mu_w_term + var_w[div_idx]) +
              var_w[div_idx] * mu_a_tilde * mu_a_tilde);
+
         mu_z[idx] = bias ? tmp_mu_z + mu_b[div_idx] : tmp_mu_z;
         var_z[idx] = bias ? tmp_var_z + var_b[div_idx] : tmp_var_z;
     }
@@ -394,6 +397,7 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&input_states);
     HiddenStateCuda *cu_output_states =
         dynamic_cast<HiddenStateCuda *>(&output_states);
+    TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda *>(&temp_states);
 
     int batch_size = input_states.block_size;
 
@@ -421,11 +425,11 @@ void LayerNormCuda::forward(BaseHiddenStates &input_states,
 
     layernorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->input_size,
-        batch_size, this->d_mu_ra);
+        batch_size, this->d_mu_ra, cu_temp_states->d_tmp_2);
 
     layernorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-        cu_input_states->d_mu_a, this->d_mu_ra, this->input_size, batch_size,
-        this->d_var_ra);
+        cu_input_states->d_mu_a, this->d_mu_ra, cu_temp_states->d_tmp_2,
+        this->input_size, batch_size, this->d_var_ra);
 
     if (this->normalized_shape.size() == 1) {
         layernorm_fwd_mean_var_cuda<<<grid_size, block_dim>>>(

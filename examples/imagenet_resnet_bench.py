@@ -205,7 +205,6 @@ def tagi_trainer(
             # Testing
             correct = 0
             net.eval()
-
             for x, labels in test_loader:
                 m_pred, v_pred = net(x)
 
@@ -320,7 +319,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 8,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0.05,
     nb_classes: int = 8,
 ):
     if framework == "torch":
