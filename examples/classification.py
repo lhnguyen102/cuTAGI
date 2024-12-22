@@ -118,9 +118,9 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
 
     # Network configuration
     net = CNN_BATCHNORM
-    # if pytagi.cuda.is_available():
-    #     net.to_device("cuda")
-    net.set_threads(16)
+    if pytagi.cuda.is_available():
+        net.to_device("cuda")
+    # net.set_threads(16)
     out_updater = OutputUpdater(net.device)
 
     # Training

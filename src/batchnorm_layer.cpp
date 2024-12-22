@@ -1,6 +1,7 @@
 #include "../include/batchnorm_layer.h"
 
 #include "../include/custom_logger.h"
+#include "../include/param_init.h"
 
 #ifdef USE_CUDA
 #include "../include/batchnorm_layer_cuda.cuh"
@@ -823,19 +824,11 @@ void BatchNorm2d::init_weight_bias()
  */
 {
     this->num_weights = this->num_features;
-    this->num_biases = this->num_features;
-
-    float scale = 1.0f / this->num_weights;
-    this->mu_w.resize(this->num_weights, 1.0f * this->gain_w);
-    this->var_w.resize(this->num_weights, scale * this->gain_w * this->gain_w);
-    if (this->bias) {
-        this->mu_b.resize(this->num_weights, 0.0f * this->gain_b);
-        this->var_b.resize(this->num_weights,
-                           scale * this->gain_b * this->gain_b);
-
-    } else {
-        this->num_biases = 0;
-    }
+    this->num_biases = this->bias ? this->num_features : 0;
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_norm("", this->gain_w, this->gain_b,
+                              this->num_features, this->num_features,
+                              this->num_weights, this->num_biases);
 }
 
 void BatchNorm2d::allocate_running_mean_var()
