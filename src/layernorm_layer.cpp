@@ -1,6 +1,7 @@
 #include "../include/layernorm_layer.h"
 
 #include "../include/custom_logger.h"
+#include "../include/param_init.h"
 
 #ifdef USE_CUDA
 #include "../include/layernorm_layer_cuda.cuh"
@@ -703,15 +704,12 @@ void LayerNorm::init_weight_bias()
 /*
  */
 {
+    int num_features = this->normalized_shape[0];
     this->num_weights = this->normalized_shape[0];
-    float scale = 1.0f / this->num_weights;
-    this->mu_w.resize(this->num_weights, 1.0f);
-    this->var_w.resize(this->num_weights, scale);
-    if (this->bias) {
-        this->num_biases = normalized_shape[0];
-        this->mu_b.resize(this->num_biases, 0.0f);
-        this->var_b.resize(this->num_biases, scale);
-    }
+    this->num_biases = this->bias ? this->normalized_shape[0] : 0;
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_norm("", 1.0f, 1.0f, num_features, num_features,
+                              this->num_weights, this->num_biases);
 }
 
 void LayerNorm::allocate_running_mean_var()
