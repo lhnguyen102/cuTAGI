@@ -187,8 +187,8 @@ def tagi_trainer(
 
                     if i > 0 and i % 100 == 0:
                         avg_error_rate = (
-                            1.0 - (train_correct / (i + 1) * batch_size) * 100
-                        )
+                            1.0 - (train_correct / ((i + 1) * batch_size))
+                        ) * 100
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
@@ -280,8 +280,8 @@ def torch_trainer(
 
                     if i > 0 and i % 100 == 0:
                         avg_error_rate = (
-                            1.0 - (train_correct / (i + 1) * batch_size) * 100
-                        )
+                            1.0 - (train_correct / ((i + 1) * batch_size))
+                        ) * 100
                         batch_pbar.set_description(
                             f"Training error: {avg_error_rate:.2f}%",
                             refresh=True,
@@ -316,11 +316,11 @@ def torch_trainer(
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 128,
-    epochs: int = 10,
+    batch_size: int = 64,
+    epochs: int = 12,
     device: str = "cuda",
-    sigma_v: float = 0.2,
-    nb_classes: int = 8,
+    sigma_v: float = 0.1,
+    nb_classes: int = 16,
 ):
     if framework == "torch":
         torch_trainer(
