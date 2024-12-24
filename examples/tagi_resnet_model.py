@@ -34,8 +34,8 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        BatchNorm2d(out_c),
         ReLU(),
+        BatchNorm2d(out_c),
         Conv2d(
             out_c,
             out_c,
@@ -45,6 +45,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
+        ReLU(),
         BatchNorm2d(out_c),
     )
 
@@ -144,17 +145,15 @@ def resnet18_imagenet(
             gain_weight=gain_w,
             gain_bias=gain_b,
         ),
-        BatchNorm2d(64),
         ReLU(),
+        BatchNorm2d(64),
         AvgPool2d(3, stride=2, padding=1, padding_type=2),
     ]
 
     resnet_layers = [
         # 56x56
         ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
-        ReLU(),
         ResNetBlock(make_layer_block(64, 64, gain_weight=gain_w, gain_bias=gain_b)),
-        ReLU(),
         # 28x28
         ResNetBlock(
             make_layer_block(64, 128, 2, 2, gain_weight=gain_w),
@@ -168,12 +167,11 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
+                ReLU(),
                 BatchNorm2d(128),
             ),
         ),
-        ReLU(),
         ResNetBlock(make_layer_block(128, 128, gain_weight=gain_w, gain_bias=gain_b)),
-        ReLU(),
         # 14x14
         ResNetBlock(
             make_layer_block(128, 256, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
@@ -187,12 +185,11 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
+                ReLU(),
                 BatchNorm2d(256),
             ),
         ),
-        ReLU(),
         ResNetBlock(make_layer_block(256, 256, gain_weight=gain_w, gain_bias=gain_b)),
-        ReLU(),
         # 7x7
         ResNetBlock(
             make_layer_block(256, 512, 2, 2, gain_weight=gain_w, gain_bias=gain_b),
@@ -206,12 +203,11 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
+                ReLU(),
                 BatchNorm2d(512),
             ),
         ),
-        ReLU(),
         ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w, gain_bias=gain_b)),
-        ReLU(),
     ]
 
     final_layers = [
