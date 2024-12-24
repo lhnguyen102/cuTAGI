@@ -775,7 +775,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
  */
 {
     this->mu_ra.resize(this->num_features, 0.0f);
-    this->var_ra.resize(this->num_features, 0.0f);
+    this->var_ra.resize(this->num_features, 1.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 0.0f);
 
@@ -853,12 +853,12 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
     }
     float _momentum = this->momentum;
 
-    if (this->first_batch) {
-        if (this->training) {
-            _momentum = 0.0f;
-        }
-        this->first_batch = false;
-    }
+    // if (this->first_batch) {
+    //     if (this->training) {
+    //         _momentum = 0.0f;
+    //     }
+    //     this->first_batch = false;
+    // }
 
     // Assign output dimensions
     output_states.width = this->out_width;

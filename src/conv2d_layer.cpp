@@ -609,7 +609,6 @@ std::tuple<int, int> compute_downsample_img_size_v2(int kernel, int stride,
 
     // Check validity of the conv. hyper-parameters such as wi, hi, kernel,
     // stride
-
     if (nom_w % stride == 0 && nom_h % stride == 0) {
         wo = nom_w / stride + 1;
         ho = nom_h / stride + 1;
