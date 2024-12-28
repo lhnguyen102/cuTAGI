@@ -295,6 +295,46 @@ void BaseLayer::load(std::ifstream &file)
     }
 }
 
+ParameterMap BaseLayer::get_parameters_as_map(std::string suffix) {
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    ParameterTuple parameters =
+        std::make_tuple(this->mu_w, this->var_w, this->mu_b, this->var_b);
+
+    return {{key, parameters}};
+}
+
+void BaseLayer::load_parameters_from_map(const ParameterMap &param_map,
+                                         const std::string &suffix) {
+    // Generate the key for this layer
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    // Find the key in the provided map
+    auto it = param_map.find(key);
+    if (it == param_map.end()) {
+        LOG(LogLevel::ERROR, "Key " + key + " not found in parameter map.");
+    }
+
+    // Extract the parameters from the map
+    // print key
+    const auto &params = it->second;
+    if (!std::is_same<std::decay_t<decltype(params)>, ParameterTuple>::value) {
+        LOG(LogLevel::ERROR, "Parameter tuple for key " + key +
+                                 " must contain exactly 4 vectors.");
+    }
+
+    this->mu_w = std::get<0>(params);
+    this->var_w = std::get<1>(params);
+    this->mu_b = std::get<2>(params);
+    this->var_b = std::get<3>(params);
+}
+
 std::tuple<std::vector<float>, std::vector<float>>
 BaseLayer::get_running_mean_var()
 /*

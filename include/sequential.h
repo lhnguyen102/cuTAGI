@@ -129,6 +129,9 @@ class Sequential {
                                   std::vector<float>, std::vector<float>>>&
             state_dict);
 
+    ParameterMap state_dict();
+    void load_state_dict_v2(const ParameterMap& state_dict);
+
     // Copy model params
     void params_from(const Sequential& ref_model);
 

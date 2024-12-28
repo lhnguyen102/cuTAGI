@@ -710,6 +710,29 @@ void Sequential::load_state_dict(
     }
 }
 
+ParameterMap Sequential::state_dict() {
+    ParameterMap state_dict;
+    for (size_t i = 0; i < layers.size(); ++i) {
+        const auto &layer = this->layers[i];
+        if (layer->get_layer_type() != LayerType::Activation &&
+            layer->get_layer_type() != LayerType::Pool2d) {
+            auto params = layer->get_parameters_as_map(std::to_string(i));
+            state_dict.insert(params.begin(), params.end());
+        }
+    }
+    return state_dict;
+}
+
+void Sequential::load_state_dict_v2(const ParameterMap &state_dict) {
+    for (size_t i = 0; i < layers.size(); ++i) {
+        const auto &layer = this->layers[i];
+        if (layer->get_layer_type() != LayerType::Activation &&
+            layer->get_layer_type() != LayerType::Pool2d) {
+            layer->load_parameters_from_map(state_dict, std::to_string(i));
+        }
+    }
+}
+
 void Sequential::params_from(const Sequential &model_ref) {
     if (this->layers.size() != model_ref.layers.size()) {
         LOG(LogLevel::ERROR, "Model architecture is different.");

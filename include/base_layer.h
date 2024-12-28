@@ -129,6 +129,11 @@ class BaseLayer {
                                  ". Cuda device is not available");
     };
 
+    // Get/load Parameters
+    virtual ParameterMap get_parameters_as_map(std::string suffix = "");
+    virtual void load_parameters_from_map(const ParameterMap &param_map,
+                                          const std::string &suffix = "");
+
     // DEBUG
     virtual std::tuple<std::vector<float>, std::vector<float>>
     get_running_mean_var();
