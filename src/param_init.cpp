@@ -64,18 +64,51 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
+    std::uniform_real_distribution<float> dist_std(0.01f * gain * scale,
+                                                   0.05f * gain * scale);
+    std::normal_distribution<float> dist_mean(0.0f, gain * scale);
 
     // Weights
     for (int i = 0; i < N; i++) {
-        // Variance
-        S[i] = pow(gain * scale, 2);
+        m[i] = dist_mean(gen);
+        float stdev = dist_std(gen);
+        S[i] = stdev * stdev;
+    }
 
-        // Get normal distribution
-        std::normal_distribution<float> d(0.0f, scale);
+    return {m, S};
+}
 
-        // Get sample for weights
-        m[i] = d(gen);
-        S[i] = pow(0.05 * scale, 2);
+std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
+    float scale, float gain, int N)
+/* Parameter initialization of TAGI neural networks using uniform distribution.
+ *
+ * Args:
+ *    scale: Range for uniform distribution [-scale, scale]
+ *    gain: Multiplication factor
+ *    N: Number of parameters
+ *
+ * Returns:
+ *    m: Mean
+ *    S: Variance
+ *
+ */
+{
+    // Get generator
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
+
+    // Initialize pointers
+    std::vector<float> S(N);
+    std::vector<float> m(N);
+
+    // Uniform distribution bounds
+    float lower_bound = -gain * scale;
+    float upper_bound = gain * scale;
+    std::uniform_real_distribution<float> d(lower_bound, upper_bound);
+
+    // Weights
+    for (int i = 0; i < N; i++) {
+        m[i] = std::max(-5.0f, std::min(5.0f, d(gen)));
+        S[i] = pow(0.05 * gain * scale, 2);
     }
 
     return {m, S};
@@ -112,7 +145,6 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
         } else {
             S[i] = noise_gain * pow(scale, 2);
             scale = pow(S[i], 0.5);
-            int a = 0;
         }
 
         // Get normal distribution
@@ -148,7 +180,9 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::vector<float> mu_w, var_w, mu_b, var_b;
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        // std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b,
+        // num_biases);
+        std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -183,7 +217,9 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
 
     if (num_biases > 0) {
-        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        // std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b,
+        // num_biases);
+        std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
     }
     return {mu_w, var_w, mu_b, var_b};
 }

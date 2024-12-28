@@ -320,7 +320,7 @@ def main(
     epochs: int = 12,
     device: str = "cuda",
     sigma_v: float = 0.1,
-    nb_classes: int = 8,
+    nb_classes: int = 64,
 ):
     if framework == "torch":
         torch_trainer(

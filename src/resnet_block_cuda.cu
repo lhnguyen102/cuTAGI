@@ -384,6 +384,28 @@ void ResNetBlockCuda::load(std::ifstream &file)
     }
 }
 
+ParameterMap ResNetBlockCuda::get_parameters_as_map(std::string suffix) {
+    std::string main_suffix = "main." + suffix;
+    ParameterMap params = this->main_block->get_parameters_as_map(main_suffix);
+    if (this->shortcut != nullptr) {
+        std::string shortcut_suffix = "shortcut." + suffix;
+        auto shortcut_params =
+            this->shortcut->get_parameters_as_map(shortcut_suffix);
+        params.insert(shortcut_params.begin(), shortcut_params.end());
+    }
+    return params;
+}
+
+void ResNetBlockCuda::load_parameters_from_map(const ParameterMap &param_map,
+                                               const std::string &suffix) {
+    std::string main_suffix = "main." + suffix;
+    this->main_block->load_parameters_from_map(param_map, main_suffix);
+    if (this->shortcut != nullptr) {
+        std::string shortcut_suffix = "shortcut." + suffix;
+        this->shortcut->load_parameters_from_map(param_map, shortcut_suffix);
+    }
+}
+
 std::unique_ptr<BaseLayer> ResNetBlockCuda::to_host()
 /* Transfer to cpu version
  */

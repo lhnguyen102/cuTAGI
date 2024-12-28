@@ -86,6 +86,11 @@ class LayerBlock : public BaseLayer {
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
 
+    // Get/load parameters
+    ParameterMap get_parameters_as_map(std::string suffix = "") override;
+    void load_parameters_from_map(const ParameterMap &param_map,
+                                  const std::string &suffix = "") override;
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

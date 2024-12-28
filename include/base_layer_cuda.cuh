@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "base_layer.h"
+#include "custom_logger.h"
 #include "data_struct_cuda.cuh"
 
 __global__ void fill_bwd_states_on_device(float const *mu_a_in,
@@ -58,6 +59,11 @@ class BaseLayerCuda : public BaseLayer {
 
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
+
+    // Get Parameters
+    ParameterMap get_parameters_as_map(std::string suffix = "") override;
+    void load_parameters_from_map(const ParameterMap &param_map,
+                                  const std::string &suffix = "") override;
 
     void copy_params_from(const BaseLayer &source);
 

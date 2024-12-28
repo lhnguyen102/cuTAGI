@@ -277,6 +277,25 @@ void LayerBlock::load(std::ifstream &file)
     }
 }
 
+ParameterMap LayerBlock::get_parameters_as_map(std::string suffix) {
+    ParameterMap params;
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        std::string layer_id_suffix = suffix + "." + std::to_string(i);
+        auto layer_params =
+            this->layers[i]->get_parameters_as_map(layer_id_suffix);
+        params.insert(layer_params.begin(), layer_params.end());
+    }
+    return params;
+}
+
+void LayerBlock::load_parameters_from_map(const ParameterMap &param_map,
+                                          const std::string &suffix) {
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        std::string layer_id_suffix = suffix + "." + std::to_string(i);
+        this->layers[i]->load_parameters_from_map(param_map, layer_id_suffix);
+    }
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LayerBlock::to_cuda() {
     this->device = "cuda";
