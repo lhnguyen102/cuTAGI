@@ -107,7 +107,7 @@ std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
 
     // Weights
     for (int i = 0; i < N; i++) {
-        m[i] = std::max(-5.0f, std::min(5.0f, d(gen)));
+        m[i] = d(gen);
         S[i] = pow(0.05 * gain * scale, 2);
     }
 
@@ -136,22 +136,22 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
+    std::uniform_real_distribution<float> dist_std(0.01f * gain * scale,
+                                                   0.1f * gain * scale);
+    std::normal_distribution<float> dist_mean(0.0f, gain * scale);
+    std::normal_distribution<float> dist_mean_noise(0.0f, noise_gain * scale);
 
     // Weights
     for (int i = 0; i < N; i++) {
-        // Variance for output and noise's hidden states
         if (i < N / 2) {
-            S[i] = gain * pow(scale, 2);
+            m[i] = dist_mean(gen);
+            float stdev = dist_std(gen);
+            S[i] = stdev * stdev;
         } else {
-            S[i] = noise_gain * pow(scale, 2);
-            scale = pow(S[i], 0.5);
+            m[i] = dist_mean_noise(gen);
+            float stdev = dist_std(gen) * noise_gain;
+            S[i] = stdev * stdev;
         }
-
-        // Get normal distribution
-        std::normal_distribution<float> d(0.0f, scale);
-
-        // Get sample for weights
-        m[i] = d(gen);
     }
 
     return {m, S};

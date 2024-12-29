@@ -606,108 +606,17 @@ void Sequential::load_csv(const std::string &filename)
     }
 }
 
-std::vector<std::reference_wrapper<std::vector<float>>> Sequential::parameters()
-/*Stored mu_w, var_w, mu_b, var_b in a vector of reference_wrapper
-Example: A model of 5 layers leads to a params size of 5 * 4 = 20
- */
-{
-    if (!this->valid_) {
-        throw std::runtime_error("Sequential object is no longer valid");
-    }
-    std::vector<std::reference_wrapper<std::vector<float>>> params;
+std::vector<ParameterTuple> Sequential::parameters() {
+    std::vector<ParameterTuple> params;
     for (auto &layer : layers) {
         if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
-            params.push_back(layer->mu_w);
-            params.push_back(layer->var_w);
-            params.push_back(layer->mu_b);
-            params.push_back(layer->var_b);
+            auto layer_params = layer->parameters();
+            params.insert(params.end(), layer_params.begin(),
+                          layer_params.end());
         }
     }
     return params;
-}
-
-std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
-                                 std::vector<float>, std::vector<float>>>
-Sequential::get_state_dict()
-/*
- */
-{
-    // Send the parameters to the host. TODO: for further speedup, we must to
-    // avoid this step. One could use the copy data in gpu memory directly or
-    // unified memory
-    if (this->device.compare("cuda") == 0) {
-        this->params_to_host();
-    }
-
-    std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
-                                     std::vector<float>, std::vector<float>>>
-        state_dict;
-
-    for (size_t i = 0; i < this->layers.size(); ++i) {
-        const auto &layer = this->layers[i];
-        if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
-            std::string layer_name =
-                layer->get_layer_info() + "_" + std::to_string(i);
-            state_dict[layer_name] = std::make_tuple(layer->mu_w, layer->var_w,
-                                                     layer->mu_b, layer->var_b);
-        }
-    }
-    return state_dict;
-}
-
-void Sequential::load_state_dict(
-    const std::map<std::string,
-                   std::tuple<std::vector<float>, std::vector<float>,
-                              std::vector<float>, std::vector<float>>>
-        &state_dict)
-/*
- */
-{
-    for (size_t i = 0; i < layers.size(); ++i) {
-        const auto &layer = this->layers[i];
-
-        if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
-            std::string layer_name =
-                layer->get_layer_info() + "_" + std::to_string(i);
-
-            auto it = state_dict.find(layer_name);
-            if (it == state_dict.end()) {
-                throw std::runtime_error(
-                    "Error in file: " + std::string(__FILE__) +
-                    " at line: " + std::to_string(__LINE__) +
-                    "Missing parameters for " + layer_name);
-            }
-
-            const auto &layer_params = it->second;
-
-            // Check if the sizes match
-            if (layer->mu_w.size() == std::get<0>(layer_params).size() &&
-                layer->var_w.size() == std::get<1>(layer_params).size() &&
-                layer->mu_b.size() == std::get<2>(layer_params).size() &&
-                layer->var_b.size() == std::get<3>(layer_params).size()) {
-                // Update layer parameters
-                layer->mu_w = std::get<0>(layer_params);
-                layer->var_w = std::get<1>(layer_params);
-                layer->mu_b = std::get<2>(layer_params);
-                layer->var_b = std::get<3>(layer_params);
-            } else {
-                throw std::runtime_error(
-                    "Error in file: " + std::string(__FILE__) +
-                    " at line: " + std::to_string(__LINE__) +
-                    "Mismatch in layer sizes for " + layer_name);
-            }
-        }
-    }
-
-    // Send the parameters to the device. TODO: for further speedup, we must to
-    // avoid this step. One could use the copy data in gpu memory directly or
-    // unified memory
-    if (this->device.compare("cuda") == 0) {
-        this->params_to_device();
-    }
 }
 
 ParameterMap Sequential::state_dict() {
@@ -723,7 +632,7 @@ ParameterMap Sequential::state_dict() {
     return state_dict;
 }
 
-void Sequential::load_state_dict_v2(const ParameterMap &state_dict) {
+void Sequential::load_state_dict(const ParameterMap &state_dict) {
     for (size_t i = 0; i < layers.size(); ++i) {
         const auto &layer = this->layers[i];
         if (layer->get_layer_type() != LayerType::Activation &&

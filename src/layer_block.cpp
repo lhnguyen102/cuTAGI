@@ -296,6 +296,15 @@ void LayerBlock::load_parameters_from_map(const ParameterMap &param_map,
     }
 }
 
+std::vector<ParameterTuple> LayerBlock::parameters() {
+    std::vector<ParameterTuple> params;
+    for (const auto &layer : this->layers) {
+        auto layer_params = layer->parameters();
+        params.insert(params.end(), layer_params.begin(), layer_params.end());
+    }
+    return params;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LayerBlock::to_cuda() {
     this->device = "cuda";

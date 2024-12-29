@@ -88,18 +88,25 @@ void load_dict_state() {
     model_2.preinit_layer();
 
     auto state_dict_2 = model_2.state_dict();
-    model_1.load_state_dict_v2(state_dict_2);
+    model_1.load_state_dict(state_dict_2);
 
-    for (size_t i = 0; i < model_1.layers.size(); ++i) {
-        const auto &layer = model_1.layers[i];
-        const auto &layer_2 = model_2.layers[i];
+    auto params_1 = model_1.parameters();
+    auto params_2 = model_2.parameters();
 
-        if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
-            ASSERT_EQ(layer->mu_w, layer_2->mu_w);
-            ASSERT_EQ(layer->var_w, layer_2->var_w);
-            ASSERT_EQ(layer->mu_b, layer_2->mu_b);
-            ASSERT_EQ(layer->var_b, layer_2->var_b);
+    for (size_t i = 0; i < params_1.size(); i++) {
+        auto &param_1 = params_1[i];
+        auto &param_2 = params_2[i];
+        auto mu_w = std::get<0>(param_1);
+
+        ASSERT_EQ(std::get<0>(param_1), std::get<0>(param_2));
+        ASSERT_EQ(std::get<1>(param_1), std::get<1>(param_2));
+
+        if (!std::get<2>(param_1).empty() && !std::get<2>(param_2).empty()) {
+            ASSERT_EQ(std::get<2>(param_1), std::get<2>(param_2));
+        }
+
+        if (!std::get<3>(param_1).empty() && !std::get<3>(param_2).empty()) {
+            ASSERT_EQ(std::get<3>(param_1), std::get<3>(param_2));
         }
     }
 }
@@ -112,63 +119,29 @@ void load_resnet_state_dict() {
     model_2->preinit_layer();
 
     auto state_dict_2 = model_2->state_dict();
-    model_1->load_state_dict_v2(state_dict_2);
+    model_1->load_state_dict(state_dict_2);
 
-    // for (size_t i = 0; i < model_1.layers.size(); ++i) {
-    //     const auto &layer = model_1.layers[i];
-    //     const auto &layer_2 = model_2.layers[i];
-
-    //     if (layer->get_layer_type() != LayerType::Activation &&
-    //         layer->get_layer_type() != LayerType::Pool2d) {
-    //         ASSERT_EQ(layer->mu_w, layer_2->mu_w);
-    //         ASSERT_EQ(layer->var_w, layer_2->var_w);
-    //         ASSERT_EQ(layer->mu_b, layer_2->mu_b);
-    //         ASSERT_EQ(layer->var_b, layer_2->var_b);
-    //     }
-    // }
-}
-
-void parameters() {
-    Sequential model_1(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), MixtureReLU(),
-                       AvgPool2d(3, 2, 1, 2), Conv2d(32, 32, 5, true, 1, 2, 1),
-                       MixtureReLU(), AvgPool2d(3, 2, 1, 2),
-                       Conv2d(32, 64, 5, true, 1, 2, 1), MixtureReLU(),
-                       AvgPool2d(3, 2, 1, 2), Linear(64 * 4 * 4, 100),
-                       MixtureReLU(), Linear(100, 11));
-    Sequential model_2(Conv2d(3, 32, 5, true, 1, 2, 1, 32, 32), MixtureReLU(),
-                       AvgPool2d(3, 2, 1, 2), Conv2d(32, 32, 5, true, 1, 2, 1),
-                       MixtureReLU(), AvgPool2d(3, 2, 1, 2),
-                       Conv2d(32, 64, 5, true, 1, 2, 1), MixtureReLU(),
-                       AvgPool2d(3, 2, 1, 2), Linear(64 * 4 * 4, 100),
-                       MixtureReLU(), Linear(100, 11));
-    model_1.preinit_layer();
-    model_2.preinit_layer();
-
-    auto params_1 = model_1.parameters();
-    auto params_2 = model_2.parameters();
+    auto params_1 = model_1->parameters();
+    auto params_2 = model_2->parameters();
 
     for (size_t i = 0; i < params_1.size(); ++i) {
-        auto &param_1 = params_1[i].get();
-        auto &param_2 = params_2[i].get();
-        for (size_t j = 0; j < param_1.size(); ++j) {
-            param_1[j] = param_2[j];
+        auto &param_1 = params_1[i];
+        auto &param_2 = params_2[i];
+        auto mu_w = std::get<0>(param_1);
+
+        ASSERT_EQ(std::get<0>(param_1), std::get<0>(param_2));
+        ASSERT_EQ(std::get<1>(param_1), std::get<1>(param_2));
+
+        if (!std::get<2>(param_1).empty() && !std::get<2>(param_2).empty()) {
+            ASSERT_EQ(std::get<2>(param_1), std::get<2>(param_2));
         }
-    }
 
-    for (size_t i = 0; i < model_1.layers.size(); ++i) {
-        const auto &layer = model_1.layers[i];
-        const auto &layer_2 = model_2.layers[i];
-
-        if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
-            ASSERT_EQ(layer->mu_w, layer_2->mu_w);
-            ASSERT_EQ(layer->var_w, layer_2->var_w);
-            ASSERT_EQ(layer->mu_b, layer_2->mu_b);
-            ASSERT_EQ(layer->var_b, layer_2->var_b);
+        if (!std::get<3>(param_1).empty() && !std::get<3>(param_2).empty()) {
+            ASSERT_EQ(std::get<3>(param_1), std::get<3>(param_2));
         }
     }
 }
 
 TEST(ModelStateTest, LoadDictState) { load_dict_state(); }
 
-TEST(ModelStateTest, Parameters) { parameters(); }
+TEST(ModelStateTest, LoadResnetStateDict) { load_resnet_state_dict(); }

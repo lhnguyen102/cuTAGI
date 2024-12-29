@@ -117,20 +117,10 @@ class Sequential {
 
     void load_csv(const std::string& filename);
 
-    std::vector<std::reference_wrapper<std::vector<float>>> parameters();
-
-    std::map<std::string, std::tuple<std::vector<float>, std::vector<float>,
-                                     std::vector<float>, std::vector<float>>>
-    get_state_dict();
-
-    void load_state_dict(
-        const std::map<std::string,
-                       std::tuple<std::vector<float>, std::vector<float>,
-                                  std::vector<float>, std::vector<float>>>&
-            state_dict);
+    std::vector<ParameterTuple> parameters();
 
     ParameterMap state_dict();
-    void load_state_dict_v2(const ParameterMap& state_dict);
+    void load_state_dict(const ParameterMap& state_dict);
 
     // Copy model params
     void params_from(const Sequential& ref_model);

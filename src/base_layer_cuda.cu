@@ -408,6 +408,11 @@ void BaseLayerCuda::load_parameters_from_map(const ParameterMap &param_map,
     this->params_to_device();
 }
 
+std::vector<ParameterTuple> BaseLayerCuda::parameters() {
+    this->params_to_host();
+    return {{this->mu_w, this->var_w, this->mu_b, this->var_b}};
+}
+
 std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
     throw std::runtime_error("Error in file: " + std::string(__FILE__) +
                              " at line: " + std::to_string(__LINE__) +
