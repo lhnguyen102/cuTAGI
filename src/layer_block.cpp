@@ -280,6 +280,10 @@ void LayerBlock::load(std::ifstream &file)
 ParameterMap LayerBlock::get_parameters_as_map(std::string suffix) {
     ParameterMap params;
     for (size_t i = 0; i < this->layers.size(); i++) {
+        if (layers[i]->get_layer_type() == LayerType::Activation ||
+            layers[i]->get_layer_type() == LayerType::Pool2d) {
+            continue;
+        }
         std::string layer_id_suffix = suffix + "." + std::to_string(i);
         auto layer_params =
             this->layers[i]->get_parameters_as_map(layer_id_suffix);
@@ -291,6 +295,10 @@ ParameterMap LayerBlock::get_parameters_as_map(std::string suffix) {
 void LayerBlock::load_parameters_from_map(const ParameterMap &param_map,
                                           const std::string &suffix) {
     for (size_t i = 0; i < this->layers.size(); i++) {
+        if (layers[i]->get_layer_type() == LayerType::Activation ||
+            layers[i]->get_layer_type() == LayerType::Pool2d) {
+            continue;
+        }
         std::string layer_id_suffix = suffix + "." + std::to_string(i);
         this->layers[i]->load_parameters_from_map(param_map, layer_id_suffix);
     }
