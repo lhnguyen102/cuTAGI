@@ -139,7 +139,6 @@ def tagi_trainer(
     # Access parameters
     # net.preinit_layer()
     # state_dict = net.state_dict()
-    breakpoint()
 
     # Training
     out_updater = OutputUpdater(net.device)
