@@ -139,6 +139,16 @@ def tagi_trainer(
     # Access parameters
     # net.preinit_layer()
     # state_dict = net.state_dict()
+    # for key, value in state_dict.items():
+    #     # check if last two values of tuple in dict are empty
+    #     if len(value[2]) == 0 and len(value[3]) == 0:
+    #         print(
+    #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10}"
+    #         )
+    #     else:
+    #         print(
+    #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
+    #         )
 
     # Training
     out_updater = OutputUpdater(net.device)
