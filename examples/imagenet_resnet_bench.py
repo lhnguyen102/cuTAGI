@@ -22,6 +22,7 @@ from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import OutputUpdater
 import pytagi
 from examples.batchnorm_viz import BatchNormViz
+from examples.param_viz import ParameterDistributionVisualizer
 
 
 torch.manual_seed(42)
@@ -121,12 +122,18 @@ def tagi_trainer(
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
+    # User data
+    print_var = False
+    viz_norm_stats = True
+    viz_param = True
+
     # Load datasets
     utils = Utils()
     train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
 
     # Viz tools
     batch_norm_viz = BatchNormViz()
+    param_viz = ParameterDistributionVisualizer()
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
@@ -137,18 +144,20 @@ def tagi_trainer(
     net.to_device(device)
 
     # Access parameters
-    # net.preinit_layer()
-    # state_dict = net.state_dict()
-    # for key, value in state_dict.items():
-    #     # check if last two values of tuple in dict are empty
-    #     if len(value[2]) == 0 and len(value[3]) == 0:
-    #         print(
-    #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10}"
-    #         )
-    #     else:
-    #         print(
-    #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
-    #         )
+    if viz_param:
+        net.preinit_layer()
+        state_dict = net.state_dict()
+        param_viz.record_params(state_dict)
+        # for key, value in state_dict.items():
+        #     # check if last two values of tuple in dict are empty
+        #     if len(value[2]) == 0 and len(value[3]) == 0:
+        #         print(
+        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10}"
+        #         )
+        #     else:
+        #         print(
+        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
+        #         )
 
     # Training
     out_updater = OutputUpdater(net.device)
@@ -156,8 +165,6 @@ def tagi_trainer(
         (batch_size * metric.hrc_softmax.num_obs), sigma_v**2, dtype=np.float32
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
-        print_var = False
-        viz_norm_stats = True
         for epoch in epoch_pbar:
             train_correct = 0
             net.train()
@@ -215,6 +222,15 @@ def tagi_trainer(
             if viz_norm_stats:
                 train_norm_stats = net.get_norm_mean_var()
                 batch_norm_viz.update(train_norm_stats, "train")
+
+            # Param viz
+            if viz_param:
+                state_dict = net.state_dict()
+                param_viz.record_params(state_dict)
+                param_viz.plot_distributions(output_dir="saved_results/param_viz")
+                param_viz.plot_initial_vs_final_differences(
+                    output_dir="saved_results/param_viz"
+                )
 
             # Testing
             correct = 0
