@@ -196,7 +196,8 @@ class Sequential:
         self._cpp_backend.load_state_dict(state_dict)
 
     def state_dict(self) -> dict:
-        """Get the model parameters as a state dict."""
+        """Get the model parameters as a state dict where key is the layer name
+        and value is a tuple of 4 arrays (mu_w, var_w, mu_b, var_b)"""
         return self._cpp_backend.state_dict()
 
     def params_from(self, other: "Sequential"):
