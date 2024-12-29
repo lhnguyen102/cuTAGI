@@ -64,6 +64,7 @@ class BaseLayerCuda : public BaseLayer {
     ParameterMap get_parameters_as_map(std::string suffix = "") override;
     void load_parameters_from_map(const ParameterMap &param_map,
                                   const std::string &suffix = "") override;
+    std::vector<ParameterTuple> parameters() override;
 
     void copy_params_from(const BaseLayer &source);
 

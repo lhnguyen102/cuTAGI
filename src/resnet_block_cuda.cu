@@ -406,6 +406,16 @@ void ResNetBlockCuda::load_parameters_from_map(const ParameterMap &param_map,
     }
 }
 
+std::vector<ParameterTuple> ResNetBlockCuda::parameters() {
+    std::vector<ParameterTuple> params = this->main_block->parameters();
+    if (this->shortcut != nullptr) {
+        auto shortcut_params = this->shortcut->parameters();
+        params.insert(params.end(), shortcut_params.begin(),
+                      shortcut_params.end());
+    }
+    return params;
+}
+
 std::unique_ptr<BaseLayer> ResNetBlockCuda::to_host()
 /* Transfer to cpu version
  */

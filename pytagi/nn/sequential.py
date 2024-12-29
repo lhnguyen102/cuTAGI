@@ -196,19 +196,16 @@ class Sequential:
         self._cpp_backend.load_csv(filename)
 
     def parameters(self) -> List[np.ndarray]:
-        """Get the model parameters. Stored mu_w, var_w, mu_b, var_b in list of
-        numpy arrays. Example: A model of 5 layers leads to a params size of
-        5 * 4 = 20
-        """
+        """Get the model parameters. Stored tuple (mu_w, var_w, mu_b, var_b) in a list"""
         return self._cpp_backend.parameters()
 
     def load_state_dict(self, state_dict: dict):
         """Load the model parameters from a state dict."""
         self._cpp_backend.load_state_dict(state_dict)
 
-    def get_state_dict(self) -> dict:
+    def state_dict(self) -> dict:
         """Get the model parameters as a state dict."""
-        return self._cpp_backend.get_state_dict()
+        return self._cpp_backend.state_dict()
 
     def params_from(self, other: "Sequential"):
         """Copy parameters from another model."""

@@ -125,6 +125,7 @@ class ResNetBlock : public BaseLayer {
     ParameterMap get_parameters_as_map(std::string suffix = "") override;
     void load_parameters_from_map(const ParameterMap &param_map,
                                   const std::string &suffix = "") override;
+    std::vector<ParameterTuple> parameters() override;
 
     using BaseLayer::to_cuda;
 

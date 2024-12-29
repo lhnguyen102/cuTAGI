@@ -136,6 +136,11 @@ def tagi_trainer(
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
+    # Access parameters
+    # net.preinit_layer()
+    # state_dict = net.state_dict()
+    breakpoint()
+
     # Training
     out_updater = OutputUpdater(net.device)
     var_y = np.full(
@@ -320,7 +325,7 @@ def main(
     epochs: int = 12,
     device: str = "cuda",
     sigma_v: float = 0.1,
-    nb_classes: int = 64,
+    nb_classes: int = 8,
 ):
     if framework == "torch":
         torch_trainer(

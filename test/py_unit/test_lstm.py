@@ -46,7 +46,7 @@ def lstm_test_runner(
 
     # -------------------------------------------------------------------------#
     # Training
-    var_y = np.full((batch_size * len(output_col),), 0.3**2, dtype=np.float32)
+    var_y = np.full((batch_size * len(output_col),), 0.02**2, dtype=np.float32)
 
     for _ in np.arange(2):
         mses = []

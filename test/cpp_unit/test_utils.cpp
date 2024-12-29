@@ -99,7 +99,7 @@ void sin_signal_lstm_test_runner(Sequential &model, int input_seq_len,
     std::default_random_engine seed_e(seed);
     int n_epochs = 2;
     int batch_size = 8;
-    float sigma_obs = 0.6;
+    float sigma_obs = 0.02;
 
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * train_db.nx, 0.0f);

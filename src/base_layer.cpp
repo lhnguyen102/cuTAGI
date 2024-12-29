@@ -336,6 +336,10 @@ void BaseLayer::load_parameters_from_map(const ParameterMap &param_map,
     this->var_b = std::get<3>(params);
 }
 
+std::vector<ParameterTuple> BaseLayer::parameters() {
+    return {{this->mu_w, this->var_w, this->mu_b, this->var_b}};
+}
+
 std::tuple<std::vector<float>, std::vector<float>>
 BaseLayer::get_running_mean_var()
 /*

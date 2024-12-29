@@ -331,6 +331,16 @@ void ResNetBlock::load_parameters_from_map(const ParameterMap &param_map,
     }
 }
 
+std::vector<ParameterTuple> ResNetBlock::parameters() {
+    std::vector<ParameterTuple> params = this->main_block->parameters();
+    if (this->shortcut != nullptr) {
+        auto shortcut_params = this->shortcut->parameters();
+        params.insert(params.end(), shortcut_params.begin(),
+                      shortcut_params.end());
+    }
+    return params;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
     this->device = "cuda";

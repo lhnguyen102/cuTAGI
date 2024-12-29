@@ -134,6 +134,7 @@ class BaseLayer {
     virtual ParameterMap get_parameters_as_map(std::string suffix = "");
     virtual void load_parameters_from_map(const ParameterMap &param_map,
                                           const std::string &suffix = "");
+    virtual std::vector<ParameterTuple> parameters();
 
     // DEBUG
     virtual std::tuple<std::vector<float>, std::vector<float>>
