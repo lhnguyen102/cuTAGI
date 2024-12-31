@@ -158,7 +158,7 @@ class ParamStatTable:
         rows = []
 
         for layer_name, snapshots in self.layer_updates_data.items():
-            row = self._gather_row(layer_name, snapshots, use_diff_metric=True)
+            row = self._gather_row(layer_name, snapshots, use_diff_metric=False)
             if row:
                 rows.append(row)
 
