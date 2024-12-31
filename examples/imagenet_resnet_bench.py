@@ -23,6 +23,7 @@ from pytagi.nn import OutputUpdater
 import pytagi
 from examples.batchnorm_viz import BatchNormViz
 from examples.param_viz import ParameterDistributionVisualizer
+from examples.param_stat_table import ParamStatTable, WandBLogger
 
 
 torch.manual_seed(42)
@@ -114,6 +115,7 @@ def tagi_trainer(
     device: str,
     sigma_v: float,
     nb_classes: int = 1000,
+    is_tracking: bool = True,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -124,8 +126,10 @@ def tagi_trainer(
     """
     # User data
     print_var = False
-    viz_norm_stats = True
-    viz_param = True
+    viz_norm_stats = False  # print norm stats at last epoch
+    viz_param = False  # visualize parameter distributions
+    print_param_stat = True  # print mean and std of parameters
+    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
 
     # Load datasets
     utils = Utils()
@@ -134,6 +138,20 @@ def tagi_trainer(
     # Viz tools
     batch_norm_viz = BatchNormViz()
     param_viz = ParameterDistributionVisualizer()
+    param_stat = ParamStatTable()
+
+    if is_tracking:
+        wandb_logger = WandBLogger(
+            project_name="resnet",
+            config={
+                "sigma_v": sigma_v,
+                "dataset": "imagenet",
+                "nb_classes": nb_classes,
+                "batch_size": batch_size,
+                "num_epochs": num_epochs,
+            },
+        )
+        wandb_logger.init()
 
     # Hierachical Softmax
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
@@ -148,16 +166,11 @@ def tagi_trainer(
         net.preinit_layer()
         state_dict = net.state_dict()
         param_viz.record_params(state_dict)
-        # for key, value in state_dict.items():
-        #     # check if last two values of tuple in dict are empty
-        #     if len(value[2]) == 0 and len(value[3]) == 0:
-        #         print(
-        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10}"
-        #         )
-        #     else:
-        #         print(
-        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
-        #         )
+
+    if print_param_stat:
+        net.preinit_layer()
+        state_dict = net.state_dict()
+        param_stat.record_params(state_dict)
 
     # Training
     out_updater = OutputUpdater(net.device)
@@ -223,6 +236,13 @@ def tagi_trainer(
                 train_norm_stats = net.get_norm_mean_var()
                 batch_norm_viz.update(train_norm_stats, "train")
 
+            if print_param_stat:
+                param_stat.record_params(net.state_dict())
+                param_stat.print_current_parameter_distributions(topN=10)
+                if is_tracking:
+                    log_data = param_stat.rows_to_dict()
+                    wandb_logger.log(log_data)
+
             # Param viz
             if viz_param:
                 state_dict = net.state_dict()
@@ -254,6 +274,8 @@ def tagi_trainer(
                 f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate:.2f}%",
                 refresh=True,
             )
+    if is_tracking:
+        wandb_logger.finish()
     print("Training complete.")
 
 
