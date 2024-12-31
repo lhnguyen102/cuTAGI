@@ -19,6 +19,7 @@ data/traffic
 data/imagenet
 test_model/
 wandb/
+saved_results/param_viz
 
 # VSCode
 .vscode
