@@ -226,7 +226,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.15, gain_b=0.15)
+    net = resnet18_cifar10(gain_w=0.10, gain_b=0.10)
     net.to_device(device)
     # net.set_threads(10)
     out_updater = OutputUpdater(net.device)
@@ -235,10 +235,18 @@ def tagi_trainer(
     var_y = np.full(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
+    net.preinit_layer()
+
     pbar = tqdm(range(num_epochs), desc="Training Progress")
-    print_var = False
+    print_var = True
     for epoch in pbar:
         error_rates = []
+        state_dict = net.state_dict()
+        print('\n')
+        for l in ['Conv2dCuda.0','LinearCuda.12']:
+            print(l, 'E[ mu_w]±std: ',np.average(np.abs(state_dict[l][0])),' ± ' , np.std(state_dict[l][0]))
+            print(l, 'E[std_w]±std: ',np.average(np.sqrt(state_dict[l][1])),' ± ' , np.std(np.sqrt(state_dict[l][1])))
+        print('\n')
         if epoch > 0:
             sigma_v = exponential_scheduler(
                 curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
@@ -253,13 +261,19 @@ def tagi_trainer(
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
             if print_var:  # Print prior predictive variance
-                print(
-                    "Prior predictive -> E[v_pred] = ",
-                    np.average(v_pred),
-                    "+-",
-                    np.std(v_pred),
-                )
-                print_var = False
+                        print(
+                            "Prior predictive -> E[v_pred] = ",
+                            np.average(v_pred),
+                            " | E[s_pred]",
+                            np.average(np.sqrt(v_pred)),
+                        )
+                        print(
+                            "                 -> V[m_pred] = ",
+                            np.var(m_pred),
+                            " | s[m_pred]",
+                            np.std(m_pred),
+                        )
+                        print_var = False
 
             # Update output layers based on targets
             y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=10)
@@ -373,7 +387,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 50,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0.01,
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

@@ -18,7 +18,7 @@ from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
 from examples.tagi_resnet_model import resnet18_imagenet
-from pytagi import HRCSoftmaxMetric, Utils
+from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import OutputUpdater
 import pytagi
 from examples.batchnorm_viz import BatchNormViz
@@ -50,7 +50,8 @@ def custom_collate_fn(batch):
 def load_datasets(batch_size: int, framework: str = "torch", nb_classes=1000):
     """Load the ImageNet dataset."""
     # Data Transforms
-    data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
+    #data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
+    data_dir = "/usr/local/share/imagenet/ILSVRC/Data/CLS-LOC"
     norm_mean = [0.485, 0.456, 0.406]
     norm_std = [0.229, 0.224, 0.225]
     train_transforms = transforms.Compose(
@@ -123,9 +124,9 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_var = False
-    viz_norm_stats = True
-    viz_param = True
+    print_var = True
+    viz_norm_stats = False
+    viz_param = False
 
     # Load datasets
     utils = Utils()
@@ -139,7 +140,7 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=1.0, gain_b=1.0, nb_outputs=metric.hrc_softmax.len)
+    net = resnet18_imagenet(gain_w=0.1, gain_b=0.1, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -147,7 +148,7 @@ def tagi_trainer(
     if viz_param:
         net.preinit_layer()
         state_dict = net.state_dict()
-        param_viz.record_params(state_dict)
+        #param_viz.record_params(state_dict)
         # for key, value in state_dict.items():
         #     # check if last two values of tuple in dict are empty
         #     if len(value[2]) == 0 and len(value[3]) == 0:
@@ -158,6 +159,7 @@ def tagi_trainer(
         #         print(
         #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
         #         )
+    net.preinit_layer()
 
     # Training
     out_updater = OutputUpdater(net.device)
@@ -166,6 +168,22 @@ def tagi_trainer(
     )
     with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
         for epoch in epoch_pbar:
+            state_dict = net.state_dict()
+            print('\n')
+            for l in ['Conv2dCuda.0','LinearCuda.13']:
+                print(l, 'E[ mu_w]±std: ',np.average(np.abs(state_dict[l][0])),' ± ' , np.std(state_dict[l][0]))
+                print(l, 'E[std_w]±std: ',np.average(np.sqrt(state_dict[l][1])),' ± ' , np.std(np.sqrt(state_dict[l][1])))
+            print('\n')
+            if epoch > 0:
+                sigma_v = exponential_scheduler(
+                    curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
+                )
+                var_y = np.full(
+                    (batch_size * metric.hrc_softmax.num_obs,),
+                    sigma_v**2,
+                    dtype=np.float32,
+                )
+
             train_correct = 0
             net.train()
             with tqdm(
@@ -201,6 +219,13 @@ def tagi_trainer(
                     )
                     net.backward()
                     net.step()
+                    if False:
+                        state_dict = net.state_dict()
+                        print('\n')
+                        for l in ['Conv2dCuda.0','LinearCuda.13']:
+                            print(l, 'E[ mu_w]±std: ',np.average(np.abs(state_dict[l][0])),' ± ' , np.std(state_dict[l][0]))
+                            print(l, 'E[std_w]±std: ',np.average(np.sqrt(state_dict[l][1])),' ± ' , np.std(np.sqrt(state_dict[l][1])))
+                        print('\n')
 
                     # Training metric
                     pred = metric.get_predicted_labels(m_pred, v_pred)
@@ -349,8 +374,8 @@ def main(
     batch_size: int = 128,
     epochs: int = 12,
     device: str = "cuda",
-    sigma_v: float = 0.1,
-    nb_classes: int = 8,
+    sigma_v: float = 0.05,
+    nb_classes: int = 1000,
 ):
     if framework == "torch":
         torch_trainer(
