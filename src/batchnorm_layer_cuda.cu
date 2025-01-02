@@ -475,7 +475,8 @@ batch-normalization layer.
                    (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
                     mu_s[col]);
         }
-        var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+        //var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
+        var[col] = (sum) / (wihi * batch_size - 1);
     }
 }
 

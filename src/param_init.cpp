@@ -64,15 +64,12 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
-    std::uniform_real_distribution<float> dist_std(0.01f * gain * scale,
-                                                   0.05f * gain * scale);
-    std::normal_distribution<float> dist_mean(0.0f, gain * scale);
+    std::normal_distribution<float> dist_mean(0.0f,scale);
 
     // Weights
     for (int i = 0; i < N; i++) {
         m[i] = dist_mean(gen);
-        float stdev = dist_std(gen);
-        S[i] = stdev * stdev;
+        S[i] = pow(gain * scale,2);
     }
 
     return {m, S};
@@ -180,9 +177,8 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     std::vector<float> mu_w, var_w, mu_b, var_b;
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
     if (num_biases > 0) {
-        // std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b,
-        // num_biases);
-        std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
+        //std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
     }
 
     return {mu_w, var_w, mu_b, var_b};
@@ -217,9 +213,9 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
     std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
 
     if (num_biases > 0) {
-        // std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b,
-        // num_biases);
-        std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
+        std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b,
+        num_biases);
+        //std::tie(mu_b, var_b) = uniform_param_init(scale, gain_b, num_biases);
     }
     return {mu_w, var_w, mu_b, var_b};
 }
@@ -233,11 +229,11 @@ init_weight_bias_norm(const std::string &init_method, const float gain_w,
 
     float scale = 2.0f / (input_size + output_size);
 
-    mu_w.resize(num_weights, 1.0f * gain_w);
-    var_w.resize(num_weights, 0.05 * scale * gain_w * gain_w);
+    mu_w.resize(num_weights, 1.0f);
+    var_w.resize(num_weights, scale * gain_w * gain_w);
     if (num_biases > 0) {
         mu_b.resize(num_weights, 0.0f);
-        var_b.resize(num_weights, 0.05 * scale * gain_b * gain_b);
+        var_b.resize(num_weights, scale * gain_b * gain_b);
     }
 
     return {mu_w, var_w, mu_b, var_b};

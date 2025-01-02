@@ -4,7 +4,7 @@ from pytagi.nn import (
     Conv2d,
     LayerBlock,
     Linear,
-    ReLU,
+    MixtureReLU,
     ResNetBlock,
     Sequential,
     ReLU,
@@ -34,7 +34,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(out_c),
         Conv2d(
             out_c,
@@ -45,7 +45,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(out_c),
     )
 
@@ -64,7 +64,7 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
             in_height=32,
             gain_weight=gain_w,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(64),
     ]
 
@@ -84,6 +84,7 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     stride=2,
                     gain_weight=gain_w,
                 ),
+                MixtureReLU(),
                 BatchNorm2d(128),
             ),
         ),
@@ -100,6 +101,7 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     stride=2,
                     gain_weight=gain_w,
                 ),
+                MixtureReLU(),
                 BatchNorm2d(256),
             ),
         ),
@@ -116,13 +118,14 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
                     stride=2,
                     gain_weight=gain_w,
                 ),
+                MixtureReLU(),
                 BatchNorm2d(512),
             ),
         ),
         ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w)),
     ]
 
-    final_layers = [AvgPool2d(4), Linear(512, 7, gain_weight=gain_w, gain_bias=gain_b)]
+    final_layers = [AvgPool2d(4), Linear(512, 11, gain_weight=gain_w, gain_bias=gain_b)]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
 
@@ -145,7 +148,7 @@ def resnet18_imagenet(
             gain_weight=gain_w,
             gain_bias=gain_b,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(64),
         AvgPool2d(3, stride=2, padding=1, padding_type=2),
     ]
@@ -167,7 +170,7 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(128),
             ),
         ),
@@ -185,7 +188,7 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(256),
             ),
         ),
@@ -203,7 +206,7 @@ def resnet18_imagenet(
                     gain_weight=gain_w,
                     gain_bias=gain_b,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(512),
             ),
         ),
