@@ -126,9 +126,12 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_var = False
-    viz_norm_stats = True
-    viz_param = True
+    print_var = True
+    viz_norm_stats = False  # print norm stats at last epoch
+    viz_param = False  # visualize parameter distributions
+    print_param_stat = False  # print mean and std of parameters
+    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+
 
     # Load datasets
     utils = Utils()
@@ -156,25 +159,19 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=0.1, gain_b=0.1, nb_outputs=metric.hrc_softmax.len)
+    net = resnet18_imagenet(gain_w=0.10, gain_b=0.10, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
     # Access parameters
+    net.preinit_layer()
     if viz_param:
-        net.preinit_layer()
         state_dict = net.state_dict()
         param_viz.record_params(state_dict)
-        # for key, value in state_dict.items():
-        #     # check if last two values of tuple in dict are empty
-        #     if len(value[2]) == 0 and len(value[3]) == 0:
-        #         print(
-        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10}"
-        #         )
-        #     else:
-        #         print(
-        #             f"Layer: {key:<30} | mu_w: {len(value[0]):<10} | var_w: {len(value[1]):<10} | mu_b: {len(value[2]):<10} | var_b: {len(value[3]):<10}"
-        #         )
+
+    if print_param_stat:
+        state_dict = net.state_dict()
+        param_stat.record_params(state_dict)
 
     # Training
     out_updater = OutputUpdater(net.device)
@@ -396,7 +393,7 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 12,
+    epochs: int = 20,
     device: str = "cuda",
     sigma_v: float = 0.05,
     nb_classes: int = 1000,
