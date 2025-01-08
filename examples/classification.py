@@ -29,6 +29,7 @@ from pytagi.nn import (
     ReLU,
 >>>>>>> caf828b (adding plot option)
 )
+from examples.param_stat_table import ParamStatTable, WandBLogger
 
 FNN = Sequential(
     Linear(784, 128),
@@ -99,13 +100,38 @@ CNN_LAYERNORM = Sequential(
 )
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
+def main(
+    num_epochs: int = 20,
+    batch_size: int = 128,
+    sigma_v: float = 0.05,
+    is_tracking: bool = True,
+):
     """
     Run classification training on the MNIST dataset using a custom neural model.
     Parameters:
     - num_epochs: int, number of epochs for training
     - batch_size: int, size of the batch for training
     """
+    # User data
+    print_param_stat = True  # print mean and std of parameters
+    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+
+    # Visual tool
+    param_stat = ParamStatTable()
+
+    if is_tracking:
+        wandb_logger = WandBLogger(
+            project_name="resnet",
+            config={
+                "sigma_v": sigma_v,
+                "dataset": "imagenet",
+                "nb_classes": 10,
+                "batch_size": batch_size,
+                "num_epochs": num_epochs,
+            },
+        )
+        wandb_logger.init()
+
     # Load dataset
     train_dtl = MnistDataLoader(
         x_file="data/mnist/train-images-idx3-ubyte",
@@ -126,6 +152,17 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
         net.to_device("cuda")
     else:
         net.set_threads(8)
+    # net.set_threads(16)
+
+    if print_param_stat:
+        net.preinit_layer()
+        state_dict = net.state_dict()
+        param_stat.record_params(state_dict)
+        param_stat.print_current_parameter_distributions(topN=10)
+        if is_tracking:
+            log_data = param_stat.rows_to_dict()
+            wandb_logger.log(log_data)
+
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -169,6 +206,13 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
 
         # Averaged error
         avg_error_rate = sum(error_rates[-100:])
+
+        if print_param_stat:
+            param_stat.record_params(net.state_dict())
+            param_stat.print_current_parameter_distributions(topN=10)
+            if is_tracking:
+                log_data = param_stat.rows_to_dict()
+                wandb_logger.log(log_data)
 
         # Testing
         correct = 0

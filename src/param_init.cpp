@@ -65,7 +65,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::vector<float> S(N);
     std::vector<float> m(N);
     std::uniform_real_distribution<float> dist_std(0.01f * gain * scale,
-                                                   0.05f * gain * scale);
+                                                   gain * scale);
     std::normal_distribution<float> dist_mean(0.0f, gain * scale);
 
     // Weights

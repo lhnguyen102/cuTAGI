@@ -18,6 +18,7 @@ from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
 from examples.tagi_resnet_model import resnet18_imagenet
+from examples.tagi_alexnet_model import create_alexnet
 from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import OutputUpdater
 import pytagi
@@ -115,7 +116,7 @@ def tagi_trainer(
     device: str,
     sigma_v: float,
     nb_classes: int = 1000,
-    is_tracking: bool = True,
+    is_tracking: bool = False,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -157,7 +158,8 @@ def tagi_trainer(
     metric = HRCSoftmaxMetric(num_classes=nb_classes)
 
     # Resnet18
-    net = resnet18_imagenet(gain_w=1.0, gain_b=1.0, nb_outputs=metric.hrc_softmax.len)
+    # net = resnet18_imagenet(gain_w=1.0, gain_b=1.0, nb_outputs=metric.hrc_softmax.len)
+    net = create_alexnet(gain_w=0.25, gain_b=0.25, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -171,6 +173,10 @@ def tagi_trainer(
         net.preinit_layer()
         state_dict = net.state_dict()
         param_stat.record_params(state_dict)
+        param_stat.print_current_parameter_distributions(topN=10)
+        if is_tracking:
+            log_data = param_stat.rows_to_dict()
+            wandb_logger.log(log_data)
 
     # Training
     out_updater = OutputUpdater(net.device)
@@ -297,10 +303,11 @@ def torch_trainer(
         raise RuntimeError(
             "CUDA is not available. Please check your CUDA installation."
         )
-    model = models.resnet18(weights=None)
-    num_ftrs = model.fc.in_features
-    # model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
-    model.fc = nn.Linear(num_ftrs, nb_classes)
+    # model = models.resnet18(weights=None)
+    # num_ftrs = model.fc.in_features
+    # # model.fc = nn.Linear(num_ftrs, len(train_loader.dataset.classes))
+    # model.fc = nn.Linear(num_ftrs, nb_classes)
+    model = models.AlexNet(num_classes=nb_classes)
     model.to(torch_device)
 
     # Define loss function and optimizer
@@ -369,9 +376,9 @@ def torch_trainer(
 def main(
     framework: str = "tagi",
     batch_size: int = 128,
-    epochs: int = 12,
+    epochs: int = 20,
     device: str = "cuda",
-    sigma_v: float = 0.1,
+    sigma_v: float = 0.05,
     nb_classes: int = 8,
 ):
     if framework == "torch":

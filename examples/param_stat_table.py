@@ -70,8 +70,13 @@ class ParamStatTable:
         if len(snapshots) == 0:
             return None
 
-        mu_w_init, var_w_init, mu_b_init, var_b_init = snapshots[0]
-        mu_w_current, var_w_current, mu_b_current, var_b_current = snapshots[-1]
+        # please handle the none case
+        if snapshots[0] is None:
+            mu_w_init, var_w_init, mu_b_init, var_b_init = 0, 0, 0, 0
+            mu_w_current, var_w_current, mu_b_current, var_b_current = snapshots[-1]
+        else:
+            mu_w_init, var_w_init, mu_b_init, var_b_init = snapshots[0]
+            mu_w_current, var_w_current, mu_b_current, var_b_current = snapshots[-1]
 
         # Compute std from variance
         var_w_init = np.sqrt(var_w_init)
