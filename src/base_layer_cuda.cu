@@ -69,6 +69,8 @@ __global__ void device_weight_update(float const *delta_mu_w,
         delta_var_sign = (tmp_var > 0) - (tmp_var < 0);
         delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
 
+        //mu_w[col] += delta_mu_w[col] / 100.0f;
+        //var_w[col] += delta_var_w[col] / 100.0f;
         mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
         var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar*delta_bar);
         if (var_w[col] <= 0.0f) {
@@ -92,6 +94,8 @@ __global__ void device_bias_update(float const *delta_mu_b,
         delta_var_sign = (delta_var_b[col] > 0) - (delta_var_b[col] < 0);
         delta_bar = powf(var_b[col], 0.5) / cap_factor_udapte;
 
+        //mu_b[col] += delta_mu_b[col] / 100.0f;
+        //var_b[col] += delta_var_b[col] / 100.0f;
         mu_b[col] += delta_mu_sign * min(fabsf(delta_mu_b[col]), delta_bar);
         var_b[col] += delta_var_sign * min(fabsf(delta_var_b[col]), delta_bar*delta_bar);
         if (var_b[col] <= 0.0f) {

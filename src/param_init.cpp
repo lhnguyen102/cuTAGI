@@ -70,6 +70,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     for (int i = 0; i < N; i++) {
         m[i] = dist_mean(gen);
         S[i] = pow(gain * scale,2);
+        //S[i] = pow(gain * m[i],2);
     }
 
     return {m, S};
