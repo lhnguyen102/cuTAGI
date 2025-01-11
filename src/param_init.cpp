@@ -65,12 +65,13 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     std::vector<float> S(N);
     std::vector<float> m(N);
     std::uniform_real_distribution<float> dist_std(0.01f * gain * scale,
-                                                   gain * scale);
-    std::normal_distribution<float> dist_mean(0.0f, gain * scale);
+                                                   1.0f * gain * scale);
+    std::normal_distribution<float> dist_mean(0, gain * scale);
 
     // Weights
     for (int i = 0; i < N; i++) {
         m[i] = dist_mean(gen);
+
         float stdev = dist_std(gen);
         S[i] = stdev * stdev;
     }
@@ -107,8 +108,8 @@ std::tuple<std::vector<float>, std::vector<float>> uniform_param_init(
 
     // Weights
     for (int i = 0; i < N; i++) {
-        m[i] = d(gen);
-        S[i] = pow(0.05 * gain * scale, 2);
+        m[i] = 0;
+        S[i] = pow(gain * scale, 2);
     }
 
     return {m, S};

@@ -22,24 +22,31 @@ def create_alexnet(gain_w: float = 1, gain_b: float = 1, nb_outputs: int = 1001)
             gain_bias=gain_b,
             in_width=224,
             in_height=224,
+            bias=False,
         ),
         ReLU(),
         # 55x55
         AvgPool2d(3, 2),
         # 27x27
-        Conv2d(64, 192, 5, padding=2, gain_weight=gain_w, gain_bias=gain_b),
+        Conv2d(64, 192, 5, bias=False, padding=2, gain_weight=gain_w, gain_bias=gain_b),
         ReLU(),
         # 27x27
         AvgPool2d(3, 2),
         # 13x13
-        Conv2d(192, 384, 3, padding=1, gain_weight=gain_w, gain_bias=gain_b),
+        Conv2d(
+            192, 384, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
+        ),
         # 13x13
         ReLU(),
         # 13x13
-        Conv2d(384, 256, 3, padding=1, gain_weight=gain_w, gain_bias=gain_b),
+        Conv2d(
+            384, 256, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
+        ),
         ReLU(),
         # 13x13
-        Conv2d(256, 256, 3, padding=1, gain_weight=gain_w, gain_bias=gain_b),
+        Conv2d(
+            256, 256, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
+        ),
         ReLU(),
         # 13x13
         AvgPool2d(3, 2),

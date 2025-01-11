@@ -116,7 +116,7 @@ def tagi_trainer(
     device: str,
     sigma_v: float,
     nb_classes: int = 1000,
-    is_tracking: bool = False,
+    is_tracking: bool = True,
 ):
     """
     Run classification training on the Cifar dataset using a custom neural model.
@@ -126,7 +126,7 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_var = False
+    print_var = True
     viz_norm_stats = False  # print norm stats at last epoch
     viz_param = False  # visualize parameter distributions
     print_param_stat = True  # print mean and std of parameters
@@ -159,7 +159,7 @@ def tagi_trainer(
 
     # Resnet18
     # net = resnet18_imagenet(gain_w=1.0, gain_b=1.0, nb_outputs=metric.hrc_softmax.len)
-    net = create_alexnet(gain_w=0.25, gain_b=0.25, nb_outputs=metric.hrc_softmax.len)
+    net = create_alexnet(gain_w=1.0, gain_b=0.5, nb_outputs=metric.hrc_softmax.len)
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -192,6 +192,9 @@ def tagi_trainer(
             ) as batch_pbar:
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
+                    if np.isnan(np.mean(m_pred)):
+                        print("m_pred is nan")
+                        break
                     if print_var:  # Print prior predictive variance
                         print(
                             "Prior predictive -> E[v_pred] = ",
@@ -242,13 +245,6 @@ def tagi_trainer(
                 train_norm_stats = net.get_norm_mean_var()
                 batch_norm_viz.update(train_norm_stats, "train")
 
-            if print_param_stat:
-                param_stat.record_params(net.state_dict())
-                param_stat.print_current_parameter_distributions(topN=10)
-                if is_tracking:
-                    log_data = param_stat.rows_to_dict()
-                    wandb_logger.log(log_data)
-
             # Param viz
             if viz_param:
                 state_dict = net.state_dict()
@@ -276,6 +272,16 @@ def tagi_trainer(
                     )
 
             test_error_rate = (1.0 - correct / len(test_loader.dataset)) * 100
+
+            if print_param_stat:
+                param_stat.record_params(net.state_dict())
+                param_stat.print_current_parameter_distributions(topN=10)
+                if is_tracking:
+                    log_data = param_stat.rows_to_dict()
+                    log_data["train_error"] = avg_error_rate
+                    log_data["test_error"] = test_error_rate
+                    wandb_logger.log(log_data)
+
             epoch_pbar.set_description(
                 f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate:.2f}%",
                 refresh=True,
@@ -378,7 +384,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 20,
     device: str = "cuda",
-    sigma_v: float = 0.05,
+    sigma_v: float = 0.01,
     nb_classes: int = 8,
 ):
     if framework == "torch":
