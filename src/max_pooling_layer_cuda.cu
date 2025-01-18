@@ -1,0 +1,1 @@
+#include "include/max_pooling_layer_cuda.cuh"
