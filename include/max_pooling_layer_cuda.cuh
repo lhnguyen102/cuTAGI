@@ -13,7 +13,7 @@ class MaxPool2dCuda : public BaseLayerCuda {
 
     int *d_pool_idx, *d_z_ud_idx;
 
-    MaxPool2dCuda(size_t kernel_size, int stride = -1, int padding = 0,
+    MaxPool2dCuda(size_t kernel_size, int stride = 1, int padding = 0,
                   int padding_type = 0);
 
     ~MaxPool2dCuda();
@@ -41,7 +41,7 @@ class MaxPool2dCuda : public BaseLayerCuda {
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
-                  bool state_udapte = true) override;
+                  bool state_update = true) override;
 
     void allocate_param_delta() override {};
 

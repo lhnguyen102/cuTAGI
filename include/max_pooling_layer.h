@@ -1,5 +1,5 @@
 #pragma once
-#include "include/base_layer.h"
+#include "../include/base_layer.h"
 
 class MaxPool2d : public BaseLayer {
    public:
@@ -9,7 +9,7 @@ class MaxPool2d : public BaseLayer {
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
-    std::vector<int> pool_idx, z_ud_idx;
+    std::vector<int> pool_idx, max_pool_idx;
     bool overlap = true;
 
     ~MaxPool2d();
@@ -37,7 +37,7 @@ class MaxPool2d : public BaseLayer {
     void backward(BaseDeltaStates &input_delta_states,
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
-                  bool state_udapte = true) override;
+                  bool state_update = true) override;
 
     void allocate_param_delta() override {};
 
@@ -57,3 +57,35 @@ class MaxPool2d : public BaseLayer {
    protected:
     void lazy_index_init();
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// CPU Kernels for MaxPool2d
+////////////////////////////////////////////////////////////////////////////////
+void max2dpool_overlapped_mean_var(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<int> &pool_idx, int woho, int wihi, int ki, int k,
+    int start_chunk, int end_chunk, std::vector<int> &max_pool_idx,
+    std::vector<float> &mu_z, std::vector<float> &var_z);
+
+void max2dpool_mean_var(const std::vector<float> &mu_a,
+                        const std::vector<float> &var_a,
+                        const std::vector<int> &pool_idx, int woho, int wihi,
+                        int ki, int k, int start_chunk, int end_chunk,
+                        std::vector<int> &max_pool_idx,
+                        std::vector<float> &mu_z, std::vector<float> &var_z);
+
+void max2dpool_bwd_overlapped_delta_z(const std::vector<int> &max_pool_idx,
+                                      const std::vector<float> &jcb,
+                                      const std::vector<float> &delta_mu_out,
+                                      const std::vector<float> &delta_var_out,
+                                      int start_chunk, int end_chunk,
+                                      std::vector<float> &delta_mu,
+                                      std::vector<float> &delta_var);
+
+void max2dpool_bwd_delta_z(const std::vector<int> &max_pool_idx,
+                           const std::vector<float> &jcb,
+                           const std::vector<float> &delta_mu_out,
+                           const std::vector<float> &delta_var_out,
+                           int start_chunk, int end_chunk,
+                           std::vector<float> &delta_mu,
+                           std::vector<float> &delta_var);
