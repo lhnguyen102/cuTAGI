@@ -187,11 +187,17 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    sudo apt install g++
    ```
 
-3. **Install CMake**:
+3. **Install Eigen library for SVD**
+
+   ```sh
+   sudo apt install libeigen3-dev
+   ```
+
+4. **Install CMake**:
 
    Follow the [official instructions](https://cmake.org/install/) to install CMake.
 
-4. **Build the Project**:
+5. **Build the Project**:
 
    Navigate to the `cuTAGI` folder and run:
 
@@ -212,11 +218,17 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
 
 1. **Install Xcode**
 
-2. **Install CMake**:
+2. **Install Eigen library for SVD**
+
+   ```sh
+   brew install eigen
+   ```
+
+3. **Install CMake**:
 
    Refer to the [Installation Guide: CMake on macOS](#installation-guide-cmake-on-macos) below.
 
-3. **Build the Project**:
+4. **Build the Project**:
 
    Navigate to the `cuTAGI` folder and run:
 

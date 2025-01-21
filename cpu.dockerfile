@@ -19,6 +19,7 @@ RUN apt-get update -y && \
     cmake gdb valgrind \
     locales locales-all \
     gnupg && \
+    libeigen3-dev && \
     apt-get install --reinstall -y ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
