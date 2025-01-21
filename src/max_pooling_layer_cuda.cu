@@ -12,7 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 __global__ void max2dpool_overlapped_mean_var_cuda(
     float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
-    int ki, int k, int pad_idx, int *max_pool_idx, float *mu_z, float *var_z) {
+    int ki, int k, int *max_pool_idx, float *mu_z, float *var_z) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float max_mu_z = 0;
     float max_var_z = 0;
@@ -135,11 +135,89 @@ void MaxPool2dCuda::compute_input_output_size(const InitArgs &args) {
 
 void MaxPool2dCuda::forward(BaseHiddenStates &input_states,
                             BaseHiddenStates &output_states,
-                            BaseTempStates &temp_states) {}
+                            BaseTempStates &temp_states) {
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    int batch_size = input_states.block_size;
+    if (this->_batch_size != batch_size) {
+        this->_batch_size = batch_size;
+        this->allocate_max_val_index(batch_size);
+    }
+    if (this->pool_idx.size() == 0) {
+        this->lazy_index_init();
+    }
+
+    // Assign output dimensions
+    cu_output_states->width = this->out_width;
+    cu_output_states->height = this->out_height;
+    cu_output_states->depth = this->out_channels;
+    cu_output_states->block_size = batch_size;
+    cu_output_states->actual_size = this->output_size;
+
+    // Launch kernels
+    int woho = this->out_width * this->out_height;
+    int wihi = this->in_width * this->in_height;
+    int num_states = woho * this->out_channels * batch_size;
+
+    int THREADS_PER_BLOCK = 256;
+    unsigned int grid_size =
+        (num_states + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+
+    if (this->overlap) {
+        max2dpool_overlapped_mean_var_cuda<<<grid_size, THREADS_PER_BLOCK>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
+            woho, wihi, this->kernel_size, num_states, this->d_max_pool_idx,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    } else {
+        max2dpool_mean_var_cuda<<<grid_size, THREADS_PER_BLOCK>>>(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_pool_idx,
+            woho, wihi, this->kernel_size, num_states, this->d_max_pool_idx,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    }
+}
 
 void MaxPool2dCuda::backward(BaseDeltaStates &input_delta_states,
                              BaseDeltaStates &output_delta_states,
-                             BaseTempStates &temp_states, bool state_updapte) {}
+                             BaseTempStates &temp_states, bool state_update) {
+    // New poitner will point to the same memory location when casting
+    BackwardStateCuda *cu_next_bwd_states =
+        dynamic_cast<BackwardStateCuda *>(this->bwd_states.get());
+    DeltaStateCuda *cu_input_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    DeltaStateCuda *cu_output_delta_states =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    // Initialization
+    int batch_size = input_delta_states.block_size;
+    int num_out_states = this->output_size * batch_size;
+    unsigned int THREADS_PER_BLOCK = 256;
+    unsigned int grid_size =
+        (num_out_states + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+
+    if (state_update) {
+        // TODO: need to reset the delta states to zero
+        if (this->overlap) {
+            max2dpool_bwd_overlapped_delta_z_cuda<<<grid_size,
+                                                    THREADS_PER_BLOCK>>>(
+                this->d_max_pool_idx, cu_next_bwd_states->d_jcb,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, num_out_states,
+                cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        } else {
+            max2dpool_bwd_delta_z_cuda<<<grid_size, THREADS_PER_BLOCK>>>(
+                this->d_max_pool_idx, cu_next_bwd_states->d_jcb,
+                cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var, num_out_states,
+                cu_output_delta_states->d_delta_mu,
+                cu_output_delta_states->d_delta_var);
+        }
+    }
+}
 
 void MaxPool2dCuda::lazy_index_init()
 /*
@@ -192,4 +270,33 @@ void MaxPool2dCuda::preinit_layer() {
     if (this->pool_idx.size() == 0) {
         this->lazy_index_init();
     }
+}
+
+void MaxPool2dCuda::allocate_max_val_index(int batch_size) {
+    // Memory aligment
+    unsigned int size_max_pool_idx =
+        ((this->output_size * batch_size + PACK_SIZE - 1) / PACK_SIZE) *
+        PACK_SIZE;
+
+    this->max_pool_idx.resize(size_max_pool_idx);
+
+    cudaMalloc(&this->d_max_pool_idx, size_max_pool_idx * sizeof(int));
+    CHECK_LAST_CUDA_ERROR();
+    this->max_val_index_to_device();
+}
+
+void MaxPool2dCuda::max_val_index_to_device() {
+    cudaMemcpy(this->d_max_pool_idx, this->max_pool_idx.data(),
+               this->max_pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+    cudaError_t error = cudaGetLastError();
+    CHECK_LAST_CUDA_ERROR();
+}
+
+void MaxPool2dCuda::max_val_index_to_host() {
+    cudaMemcpy(this->max_pool_idx.data(), this->d_max_pool_idx,
+               this->max_pool_idx.size() * sizeof(int), cudaMemcpyDeviceToHost);
+
+    cudaError_t error = cudaGetLastError();
+    CHECK_LAST_CUDA_ERROR();
 }

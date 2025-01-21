@@ -7,11 +7,12 @@ class MaxPool2dCuda : public BaseLayerCuda {
     int stride = 0;
     int padding_type = 1;
     int padding = 0;
-    std::vector<int> pool_idx, z_ud_idx;
+    std::vector<int> pool_idx, max_pool_idx;
     size_t row_zw = 0, col_z_ud = 0;
     bool overlap = true;
+    int _batch_size = 1;
 
-    int *d_pool_idx, *d_z_ud_idx;
+    int *d_pool_idx, *d_max_pool_idx;
 
     MaxPool2dCuda(size_t kernel_size, int stride = 1, int padding = 0,
                   int padding_type = 0);
@@ -55,4 +56,7 @@ class MaxPool2dCuda : public BaseLayerCuda {
     void lazy_index_init();
     void allocate_maxpool2d_index();
     void maxpool2d_index_to_device();
+    void allocate_max_val_index(int batch_size);
+    void max_val_index_to_device();
+    void max_val_index_to_host();
 };

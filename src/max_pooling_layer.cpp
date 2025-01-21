@@ -92,6 +92,7 @@ void MaxPool2d::backward(BaseDeltaStates &input_delta_states,
 
     if (state_update) {
         if (this->overlap) {
+            // TODO: need to reset delta_mu and delta_var to zero
             max2dpool_bwd_overlapped_delta_z(
                 this->max_pool_idx, this->bwd_states->jcb,
                 input_delta_states.delta_mu, input_delta_states.delta_var, 0,
