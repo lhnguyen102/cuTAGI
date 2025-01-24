@@ -155,6 +155,10 @@ class Sequential:
         """Perform a step of inference."""
         self._cpp_backend.step()
 
+    def reset_lstm_states(self):
+        """Reset lstm states"""
+        self._cpp_backend.reset_lstm_states()
+
     def output_to_host(self) -> List[float]:
         """Copy the output data to the host."""
         return self._cpp_backend.output_to_host()

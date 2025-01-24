@@ -68,6 +68,7 @@ void bind_sequential(pybind11::module_& m) {
         .def("backward", &Sequential::backward)
         .def("smoother", &Sequential::smoother)
         .def("step", &Sequential::step)
+        .def("reset_lstm_states", &Sequential::reset_lstm_states)
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
         .def("get_layer_stack_info", &Sequential::get_layer_stack_info)

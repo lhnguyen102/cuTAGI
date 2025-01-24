@@ -61,7 +61,7 @@ def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
         LSTM(8, 8, input_seq_len),
         Linear(8 * input_seq_len, 1),
     )
-    net.to_device("cuda")
+    # net.to_device("cuda")
     net.set_threads(1)  # multi-processing is slow on a small net
     # net.input_state_update = True
     out_updater = OutputUpdater(net.device)
@@ -105,6 +105,7 @@ def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
             mse = metric.mse(pred, obs)
             mses.append(mse)
 
+        net.reset_lstm_states()
         # Progress bar
         pbar.set_description(
             f"Epoch {epoch + 1}/{num_epochs}| mse: {sum(mses)/len(mses):>7.2f}",
