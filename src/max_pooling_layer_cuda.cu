@@ -4,9 +4,9 @@
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/cuda_error_checking.cuh"
+#include "../include/custom_logger.h"
 #include "../include/max_pooling_layer_cuda.cuh"
 #include "../include/pooling_layer.h"
-
 ////////////////////////////////////////////////////////////////////////////////
 // Kernels for MaxPool2dCuda
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,8 +14,8 @@ __global__ void max2dpool_overlapped_mean_var_cuda(
     float const *mu_a, float const *var_a, int const *a_idx, int woho, int wihi,
     int ki, int k, int *max_pool_idx, float *mu_z, float *var_z) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float max_mu_z = 0;
-    float max_var_z = 0;
+    float max_mu_z = -1e9;
+    float max_var_z = -1e9;
     int max_pool_idx_tmp = -1;
     int ki2 = ki * ki;
     if (col < k) {
@@ -42,8 +42,8 @@ __global__ void max2dpool_mean_var_cuda(float const *mu_a, float const *var_a,
                                         int ki, int k, int *max_pool_idx,
                                         float *mu_z, float *var_z) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float max_mu_z = 0;
-    float max_var_z = 0;
+    float max_mu_z = -1e9;
+    float max_var_z = -1e9;
     int max_pool_idx_tmp = -1;
     int ki2 = ki * ki;
 
@@ -178,6 +178,12 @@ void MaxPool2dCuda::forward(BaseHiddenStates &input_states,
             woho, wihi, this->kernel_size, num_states, this->d_max_pool_idx,
             cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
+
+    // Update backward state for inferring parameters
+    if (this->training) {
+        this->store_states_for_training_cuda(*cu_input_states,
+                                             *cu_output_states);
+    }
 }
 
 void MaxPool2dCuda::backward(BaseDeltaStates &input_delta_states,
@@ -193,13 +199,14 @@ void MaxPool2dCuda::backward(BaseDeltaStates &input_delta_states,
 
     // Initialization
     int batch_size = input_delta_states.block_size;
-    int num_out_states = this->output_size * batch_size;
+    int woho = this->out_width * this->out_height;
+    int num_out_states = woho * this->out_channels * batch_size;
     unsigned int THREADS_PER_BLOCK = 256;
     unsigned int grid_size =
         (num_out_states + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 
     if (state_update) {
-        // TODO: need to reset the delta states to zero
+        cu_output_delta_states->reset_zeros();
         if (this->overlap) {
             max2dpool_bwd_overlapped_delta_z_cuda<<<grid_size,
                                                     THREADS_PER_BLOCK>>>(
@@ -274,9 +281,9 @@ void MaxPool2dCuda::preinit_layer() {
 
 void MaxPool2dCuda::allocate_max_val_index(int batch_size) {
     // Memory aligment
+    int wohofo = this->out_width * this->out_height * this->out_channels;
     unsigned int size_max_pool_idx =
-        ((this->output_size * batch_size + PACK_SIZE - 1) / PACK_SIZE) *
-        PACK_SIZE;
+        ((wohofo * batch_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
 
     this->max_pool_idx.resize(size_max_pool_idx);
 

@@ -10,7 +10,7 @@ class MaxPool2dCuda : public BaseLayerCuda {
     std::vector<int> pool_idx, max_pool_idx;
     size_t row_zw = 0, col_z_ud = 0;
     bool overlap = true;
-    int _batch_size = 1;
+    int _batch_size = 0;
 
     int *d_pool_idx, *d_max_pool_idx;
 
