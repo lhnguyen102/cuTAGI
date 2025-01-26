@@ -4,7 +4,9 @@
 
 #include "../include/conv2d_layer.h"
 #include "../include/custom_logger.h"
+#ifdef USE_CUDA
 #include "../include/max_pooling_layer_cuda.cuh"
+#endif
 #include "../include/pooling_layer.h"
 
 MaxPool2d::MaxPool2d(size_t kernel_size, int stride, int padding,
