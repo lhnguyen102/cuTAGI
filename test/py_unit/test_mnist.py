@@ -17,6 +17,7 @@ from pytagi.nn import (
     OutputUpdater,
     ReLU,
     Sequential,
+    MaxPool2d,
 )
 
 # path to binding code
@@ -169,6 +170,25 @@ class MnistTest(unittest.TestCase):
             avg_error_rate, self.threshold, "Error rate is higher than threshold"
         )
 
+    def test_maxpooling_CPU(self):
+        model = Sequential(
+            Conv2d(
+                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+            ),
+            ReLU(),
+            MaxPool2d(3, 2),
+            Conv2d(8, 8, 5),
+            ReLU(),
+            MaxPool2d(3, 2),
+            Linear(8 * 4 * 4, 32),
+            ReLU(),
+            Linear(32, 11),
+        )
+        avg_error_rate = mnist_test_runner(model)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
     def test_batchnorm_cnn_CPU(self):
         model = Sequential(
             Conv2d(
@@ -305,6 +325,26 @@ class MnistTest(unittest.TestCase):
             Conv2d(8, 8, 5),
             ReLU(),
             AvgPool2d(3, 2),
+            Linear(8 * 4 * 4, 32),
+            ReLU(),
+            Linear(32, 11),
+        )
+        avg_error_rate = mnist_test_runner(model, use_cuda=True)
+        self.assertLess(
+            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+        )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_maxpooling_CUDA(self):
+        model = Sequential(
+            Conv2d(
+                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+            ),
+            ReLU(),
+            MaxPool2d(3, 2),
+            Conv2d(8, 8, 5),
+            ReLU(),
+            MaxPool2d(3, 2),
             Linear(8 * 4 * 4, 32),
             ReLU(),
             Linear(32, 11),

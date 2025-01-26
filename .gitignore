@@ -18,6 +18,7 @@ data/mnist/
 data/traffic
 data/imagenet
 test_model/
+wandb/
 
 # VSCode
 .vscode

@@ -22,6 +22,6 @@ from pytagi.nn.slinear import SLinear
 from pytagi.nn.lstm import LSTM
 from pytagi.nn.slstm import SLSTM
 from pytagi.nn.output_updater import OutputUpdater
-from pytagi.nn.pooling import AvgPool2d
+from pytagi.nn.pooling import AvgPool2d, MaxPool2d
 from pytagi.nn.resnet_block import ResNetBlock
 from pytagi.nn.sequential import Sequential

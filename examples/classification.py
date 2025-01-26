@@ -23,6 +23,7 @@ from pytagi.nn import (
     OutputUpdater,
     MixtureReLU,
     Sequential,
+    MaxPool2d,
 )
 
 FNN = Sequential(
@@ -56,10 +57,10 @@ FNN_LAYERNORM = Sequential(
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
     MixtureReLU(),
-    AvgPool2d(3, 2),
+    MaxPool2d(3, 2),
     Conv2d(16, 32, 5),
     MixtureReLU(),
-    AvgPool2d(3, 2),
+    MaxPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     MixtureReLU(),
     Linear(100, 11),
@@ -116,10 +117,11 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
-    # if pytagi.cuda.is_available():
-    #     net.to_device("cuda")
-    # net.set_threads(16)
+    net = CNN_BATCHNORM
+    if pytagi.cuda.is_available():
+        net.to_device("cuda")
+    else:
+        net.set_threads(8)
     out_updater = OutputUpdater(net.device)
 
     # Training
