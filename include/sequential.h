@@ -104,6 +104,8 @@ class Sequential {
 
     void step();
 
+    void reset_lstm_states();
+
     // DEBUG
     void output_to_host();
     void delta_z_to_host();
