@@ -56,7 +56,8 @@ __global__ void device_raw_bias_update(float const *delta_mu_b,
 __global__ void device_weight_update(float const *delta_mu_w,
                                      float const *delta_var_w,
                                      float cap_factor_udapte, size_t size,
-                                     float *mu_w, float *var_w)
+                                     float *mu_w, float *var_w,
+                                     int *negative_var_count)
 /*
  */
 {
@@ -73,7 +74,7 @@ __global__ void device_weight_update(float const *delta_mu_w,
         var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
         if (var_w[col] <= 0.0f) {
             var_w[col] = 1E-5f;
-            // printf("w"); //Constrain printout for debugging
+            atomicAdd(negative_var_count, 1);
         }
     }
 }
@@ -120,6 +121,7 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_delta_var_w);
     cudaFree(d_delta_mu_b);
     cudaFree(d_delta_var_b);
+    cudaFree(d_negative_var_count);
 }
 
 void BaseLayerCuda::allocate_param_delta()
@@ -184,14 +186,33 @@ void BaseLayerCuda::update_weights()
 /*
  */
 {
-    // TODO: replace with capped update version
     unsigned int num_add_threads = 256;
     unsigned int blocks =
         (this->num_weights + num_add_threads - 1) / num_add_threads;
 
+    // Reset counter - using synchronous copy since we need it complete before
+    // kernel launch
+    this->neg_var_w_counter = 0;
+    cudaError_t err =
+        cudaMemcpy(this->d_negative_var_count, &this->neg_var_w_counter,
+                   sizeof(int), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        throw std::runtime_error("Failed to copy negative var count to device");
+    }
+
     device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
-        this->num_weights, this->d_mu_w, this->d_var_w);
+        this->num_weights, this->d_mu_w, this->d_var_w,
+        this->d_negative_var_count);
+
+    // Get the count back - using synchronous copy since we need the value
+    // immediately
+    err = cudaMemcpy(&this->neg_var_w_counter, this->d_negative_var_count,
+                     sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        throw std::runtime_error(
+            "Failed to copy negative var count from device");
+    }
 }
 
 void BaseLayerCuda::update_biases()

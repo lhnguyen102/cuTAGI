@@ -103,7 +103,6 @@ void BaseLayer::raw_update_weights()
 
 void BaseLayer::raw_update_biases()
 /*
-
  */
 {
     if (this->bias) {
@@ -118,6 +117,7 @@ void BaseLayer::update_weights()
 /*
  */
 {
+    this->neg_var_w_counter = 0;
     for (int i = 0; i < this->mu_w.size(); i++) {
         float delta_mu_sign =
             (this->delta_mu_w[i] > 0) - (this->delta_mu_w[i] < 0);
@@ -131,6 +131,7 @@ void BaseLayer::update_weights()
             delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
         if (var_w[i] <= 0.0f) {
             var_w[i] = 1E-5f;  // TODO: replace by a parameter
+            this->neg_var_w_counter++;
         }
     }
 }
@@ -309,3 +310,5 @@ void BaseLayer::preinit_layer()
 {
     // We do nothing by default
 }
+
+int BaseLayer::get_neg_var_w_counter() { return this->neg_var_w_counter; }

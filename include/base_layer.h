@@ -42,6 +42,7 @@ class BaseLayer {
     bool bias = true;
     bool param_update = true;
     float cap_factor_update = 1.0f;
+    int neg_var_w_counter = 0;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;
@@ -132,8 +133,8 @@ class BaseLayer {
     // DEBUG
     virtual std::tuple<std::vector<float>, std::vector<float>>
     get_running_mean_var();
-
     virtual void preinit_layer();
+    int get_neg_var_w_counter();
 
    protected:
     void allocate_bwd_vector(int size);

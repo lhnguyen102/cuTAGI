@@ -430,6 +430,14 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
+int Sequential::get_neg_var_w_counter() {
+    int count = 0;
+    for (const auto &layer : this->layers) {
+        count += layer->get_neg_var_w_counter();
+    }
+    return count;
+}
+
 // Utility function to get layer stack info
 std::string Sequential::get_layer_stack_info() const {
     std::stringstream ss;
