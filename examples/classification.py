@@ -117,7 +117,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN_BATCHNORM
+    net = CNN
     if pytagi.cuda.is_available():
         net.to_device("cuda")
     else:

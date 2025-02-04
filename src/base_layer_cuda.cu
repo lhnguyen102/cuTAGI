@@ -121,7 +121,7 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_delta_var_w);
     cudaFree(d_delta_mu_b);
     cudaFree(d_delta_var_b);
-    cudaFree(d_negative_var_count);
+    cudaFree(d_neg_var_count);
 }
 
 void BaseLayerCuda::allocate_param_delta()
@@ -190,24 +190,19 @@ void BaseLayerCuda::update_weights()
     unsigned int blocks =
         (this->num_weights + num_add_threads - 1) / num_add_threads;
 
-    // Reset counter - using synchronous copy since we need it complete before
-    // kernel launch
     this->neg_var_w_counter = 0;
     cudaError_t err =
-        cudaMemcpy(this->d_negative_var_count, &this->neg_var_w_counter,
-                   sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_neg_var_count, &this->neg_var_w_counter, sizeof(int),
+                   cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         throw std::runtime_error("Failed to copy negative var count to device");
     }
 
     device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
-        this->num_weights, this->d_mu_w, this->d_var_w,
-        this->d_negative_var_count);
+        this->num_weights, this->d_mu_w, this->d_var_w, this->d_neg_var_count);
 
-    // Get the count back - using synchronous copy since we need the value
-    // immediately
-    err = cudaMemcpy(&this->neg_var_w_counter, this->d_negative_var_count,
+    err = cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count,
                      sizeof(int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
         throw std::runtime_error(
@@ -253,6 +248,8 @@ void BaseLayerCuda::allocate_param_memory()
         cudaMalloc((void **)&this->d_mu_b, num_b * sizeof(float));
         cudaMalloc((void **)&this->d_var_b, num_b * sizeof(float));
     }
+
+    cudaMalloc((void **)&this->d_neg_var_count, sizeof(int));
 
     CHECK_LAST_CUDA_ERROR();
 }
