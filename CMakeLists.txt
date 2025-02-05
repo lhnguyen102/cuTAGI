@@ -99,6 +99,12 @@ else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
 
+# Find Eigen3
+find_package(Eigen3 REQUIRED)
+
+# Include Eigen headers
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
 # find_package(Python COMPONENTS Interpreter Development)
 # find_package(PythonInterp)
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)

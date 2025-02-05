@@ -1,7 +1,12 @@
 
 #pragma once
+#include <Eigen/Dense>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <string>
 #include <tuple>

@@ -18,6 +18,7 @@ RUN apt-get update -y && \
     software-properties-common g++ git wget \
     cmake gdb valgrind \
     locales locales-all && \
+    libeigen3-dev && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update -y && \
     apt-get install -y --no-install-recommends \

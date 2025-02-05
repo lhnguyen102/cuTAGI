@@ -59,7 +59,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
  *  */
 {
     // Get generator
-    std::mt19937 &gen = SeedManager::get_instance().get_engine();
+    std::mt19937& gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -97,7 +97,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
  *  */
 {
     // Get generator
-    std::mt19937 &gen = SeedManager::get_instance().get_engine();
+    std::mt19937& gen = SeedManager::get_instance().get_engine();
 
     // Initialize pointers
     std::vector<float> S(N);
@@ -124,9 +124,52 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init_ni(
     return {m, S};
 }
 
+std::tuple<std::vector<float>, std::vector<float>> orthogonal_init(
+    int rows, int cols, int N, float scale, float gain)
+/* Orthogonal initialization for neural networks. Further details can be found
+ * in Exact solutions to the nonlinear dynamics of learning in deep linear
+ * neural networks. Saxe et al., 2013.
+ *
+ * Args:
+ *    rows: Number of rows
+ *    cols: Number of columns
+ *    N: Number of parameters
+ *    scale: Standard deviation for weight distribution
+ *    gain: Mutiplication factor
+ *
+ * Returns:
+ *    mu_w: Mean
+ *    var_w: Variance
+ *
+ *  */
+{
+    std::mt19937& gen = SeedManager::get_instance().get_engine();
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+
+    Eigen::MatrixXf A(rows, cols);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            A(i, j) = dist(gen);
+        }
+    }
+
+    Eigen::BDCSVD<Eigen::MatrixXf> svd(
+        A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // Obtain the orthogonal matrix Q from U or V
+    Eigen::MatrixXf Q = (rows >= cols) ? svd.matrixU().leftCols(cols)
+                                       : svd.matrixV().leftCols(rows);
+
+    // Convert Eigen matrix to std::vector
+    std::vector<float> mu_w(Q.data(), Q.data() + Q.size());
+    std::vector<float> var_w(N, pow(scale * gain, 2));
+
+    return {mu_w, var_w};
+}
+
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
-init_weight_bias_linear(const std::string &init_method, const float gain_w,
+init_weight_bias_linear(const std::string& init_method, const float gain_w,
                         const float gain_b, const int input_size,
                         const int output_size, int num_weights, int num_biases)
 /**/
@@ -138,6 +181,9 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
     } else if (init_method.compare("He") == 0 ||
                init_method.compare("he") == 0) {
         scale = he_init(input_size);
+    } else if (init_method.compare("Orthogonal") == 0 ||
+               init_method.compare("orthogonal") == 0) {
+        scale = he_init(input_size);
     } else {
         LOG(LogLevel::ERROR,
             "Initial parameter method [" + init_method + "] is not supported.");
@@ -145,7 +191,14 @@ init_weight_bias_linear(const std::string &init_method, const float gain_w,
 
     // Initalize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    if (init_method == "Orthogonal" || init_method == "orthogonal") {
+        std::tie(mu_w, var_w) = orthogonal_init(input_size, output_size,
+                                                num_weights, scale, gain_w);
+
+    } else {
+        std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    }
+
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
     }
@@ -157,7 +210,7 @@ std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
 init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
                         const size_t out_channels,
-                        const std::string &init_method, const float gain_w,
+                        const std::string& init_method, const float gain_w,
                         const float gain_b, int num_weights, int num_biases)
 /*
  */
@@ -172,24 +225,34 @@ init_weight_bias_conv2d(const size_t kernel_size, const size_t in_channels,
     } else if (init_method.compare("He") == 0 ||
                init_method.compare("he") == 0) {
         scale = he_init(fan_in);
+    } else if (init_method.compare("Orthogonal") == 0 ||
+               init_method.compare("orthogonal") == 0) {
+        scale = he_init(fan_in);
     } else {
         LOG(LogLevel::ERROR,
             "Initial parameter method [" + init_method + "] is not supported.");
     }
 
-    // Initalize weights & biases
+    // Initialize weights & biases
     std::vector<float> mu_w, var_w, mu_b, var_b;
-    std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    if (init_method == "Orthogonal" || init_method == "orthogonal") {
+        size_t kernel_elements = in_channels * kernel_size * kernel_size;
+        std::tie(mu_w, var_w) = orthogonal_init(out_channels, kernel_elements,
+                                                num_weights, scale, gain_w);
+    } else {
+        std::tie(mu_w, var_w) = gaussian_param_init(scale, gain_w, num_weights);
+    }
 
     if (num_biases > 0) {
         std::tie(mu_b, var_b) = gaussian_param_init(scale, gain_b, num_biases);
     }
+
     return {mu_w, var_w, mu_b, var_b};
 }
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
-init_weight_bias_lstm(const std::string &init_method, const float gain_w,
+init_weight_bias_lstm(const std::string& init_method, const float gain_w,
                       const float gain_b, const int input_size,
                       const int output_size, int num_weights, int num_biases)
 /**/
@@ -200,6 +263,9 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
         scale = xavier_init(input_size + output_size, output_size);
     } else if (init_method.compare("He") == 0 ||
                init_method.compare("he") == 0) {
+        scale = he_init(input_size + output_size);
+    } else if (init_method.compare("Orthogonal") == 0 ||
+               init_method.compare("orthogonal") == 0) {
         scale = he_init(input_size + output_size);
     } else {
         LOG(LogLevel::ERROR,
@@ -214,14 +280,30 @@ init_weight_bias_lstm(const std::string &init_method, const float gain_w,
     std::vector<float> mu_w, var_w, mu_b, var_b;
     int num_weight_gate = output_size * (input_size + output_size);
 
-    std::tie(mu_w_f, var_w_f) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
-    std::tie(mu_w_i, var_w_i) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
-    std::tie(mu_w_c, var_w_c) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
-    std::tie(mu_w_o, var_w_o) =
-        gaussian_param_init(scale, gain_w, num_weight_gate);
+    if (init_method.compare("Orthogonal") == 0 ||
+        init_method.compare("orthogonal") == 0) {
+        std::tie(mu_w_f, var_w_f) =
+            orthogonal_init(input_size + output_size, output_size,
+                            num_weight_gate, scale, gain_w);
+        std::tie(mu_w_i, var_w_i) =
+            orthogonal_init(input_size + output_size, output_size,
+                            num_weight_gate, scale, gain_w);
+        std::tie(mu_w_c, var_w_c) =
+            orthogonal_init(input_size + output_size, output_size,
+                            num_weight_gate, scale, gain_w);
+        std::tie(mu_w_o, var_w_o) =
+            orthogonal_init(input_size + output_size, output_size,
+                            num_weight_gate, scale, gain_w);
+    } else {
+        std::tie(mu_w_f, var_w_f) =
+            gaussian_param_init(scale, gain_w, num_weight_gate);
+        std::tie(mu_w_i, var_w_i) =
+            gaussian_param_init(scale, gain_w, num_weight_gate);
+        std::tie(mu_w_c, var_w_c) =
+            gaussian_param_init(scale, gain_w, num_weight_gate);
+        std::tie(mu_w_o, var_w_o) =
+            gaussian_param_init(scale, gain_w, num_weight_gate);
+    }
 
     mu_w.insert(mu_w.end(), mu_w_f.begin(), mu_w_f.end());
     mu_w.insert(mu_w.end(), mu_w_i.begin(), mu_w_i.end());
