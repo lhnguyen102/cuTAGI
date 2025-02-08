@@ -24,6 +24,7 @@ from pytagi.nn import (
     MixtureReLU,
     Sequential,
     MaxPool2d,
+    ReLU,
 )
 from examples.param_stat_table import ParamStatTable, WandBLogger
 
@@ -58,10 +59,10 @@ FNN_LAYERNORM = Sequential(
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
     MixtureReLU(),
-    MaxPool2d(3, 2),
+    AvgPool2d(3, 2),
     Conv2d(16, 32, 5),
     MixtureReLU(),
-    MaxPool2d(3, 2),
+    AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     MixtureReLU(),
     Linear(100, 11),
@@ -145,12 +146,11 @@ def main(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = CNN
+    net = FNN
     if pytagi.cuda.is_available():
         net.to_device("cuda")
     else:
         net.set_threads(8)
-    # net.set_threads(16)
 
     if print_param_stat:
         net.preinit_layer()

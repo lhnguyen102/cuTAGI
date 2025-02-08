@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
-
+import pytagi
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import (
     AvgPool2d,
@@ -161,7 +161,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -169,15 +171,23 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
         [
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
     train_set = torchvision.datasets.CIFAR10(
-        root="./data/cifar", train=True, download=True, transform=transform_train
+        root="./data/cifar",
+        train=True,
+        download=True,
+        transform=transform_train,
     )
     test_set = torchvision.datasets.CIFAR10(
-        root="./data/cifar", train=False, download=True, transform=transform_test
+        root="./data/cifar",
+        train=False,
+        download=True,
+        transform=transform_test,
     )
 
     if framework == "torch":
@@ -226,9 +236,11 @@ def tagi_trainer(
 
     # Resnet18
     # net = TAGI_CNN_NET
-    net = resnet18_cifar10(gain_w=0.15, gain_b=0.15)
-    net.to_device(device)
-    # net.set_threads(10)
+    net = resnet18_cifar10(gain_w=0.10, gain_b=0.10)
+    if pytagi.cuda.is_available() and device == "cuda":
+        net.to_device(device)
+    else:
+        net.set_threads(8)
     out_updater = OutputUpdater(net.device)
 
     # Training
@@ -379,7 +391,10 @@ def main(
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)
     elif framework == "tagi":
         tagi_trainer(
-            batch_size=batch_size, num_epochs=epochs, device=device, sigma_v=sigma_v
+            batch_size=batch_size,
+            num_epochs=epochs,
+            device=device,
+            sigma_v=sigma_v,
         )
     else:
         raise RuntimeError(f"Invalid Framework: {framework}")
