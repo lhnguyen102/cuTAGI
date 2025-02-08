@@ -23,11 +23,7 @@ from pytagi.nn import (
     OutputUpdater,
     MixtureReLU,
     Sequential,
-<<<<<<< HEAD
     MaxPool2d,
-=======
-    ReLU,
->>>>>>> caf828b (adding plot option)
 )
 from examples.param_stat_table import ParamStatTable, WandBLogger
 
@@ -114,7 +110,9 @@ def main(
     """
     # User data
     print_param_stat = True  # print mean and std of parameters
-    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+    is_tracking = (
+        is_tracking if print_param_stat else False
+    )  # track params with wandb
 
     # Visual tool
     param_stat = ParamStatTable()

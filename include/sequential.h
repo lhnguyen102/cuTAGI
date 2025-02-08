@@ -107,12 +107,6 @@ class Sequential {
 
     void reset_lstm_states();
 
-    // DEBUG
-    void output_to_host();
-    void delta_z_to_host();
-    void preinit_layer();
-    std::unordered_map<std::string, int> get_neg_var_w_counter();
-
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
 
@@ -156,6 +150,7 @@ class Sequential {
                                                std::vector<std::vector<float>>,
                                                std::vector<std::vector<float>>>>
     get_norm_mean_var();
+    std::unordered_map<std::string, int> get_neg_var_w_counter();
 
    private:
     void compute_input_output_size();
