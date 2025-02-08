@@ -175,6 +175,10 @@ class Sequential:
         """Preinitialize the layer."""
         self._cpp_backend.preinit_layer()
 
+    def get_neg_var_w_counter(self) -> dict:
+        """Get the number of negative variance weights."""
+        return self._cpp_backend.get_neg_var_w_counter()
+
     def save(self, filename: str):
         """Save the model to a file."""
         self._cpp_backend.save(filename)

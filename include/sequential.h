@@ -23,6 +23,7 @@
 #include <pybind11/stl.h>
 
 #include <map>
+#include <unordered_map>
 
 class Sequential {
    public:
@@ -110,6 +111,7 @@ class Sequential {
     void output_to_host();
     void delta_z_to_host();
     void preinit_layer();
+    std::unordered_map<std::string, int> get_neg_var_w_counter();
 
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;

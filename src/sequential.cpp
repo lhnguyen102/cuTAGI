@@ -430,6 +430,14 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
+std::unordered_map<std::string, int> Sequential::get_neg_var_w_counter() {
+    std::unordered_map<std::string, int> counter;
+    for (const auto &layer : this->layers) {
+        counter[layer->get_layer_info()] = layer->get_neg_var_w_counter();
+    }
+    return counter;
+}
+
 // Utility function to get layer stack info
 std::string Sequential::get_layer_stack_info() const {
     std::stringstream ss;
