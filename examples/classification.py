@@ -101,7 +101,7 @@ def main(
     num_epochs: int = 20,
     batch_size: int = 128,
     sigma_v: float = 0.05,
-    is_tracking: bool = True,
+    is_tracking: bool = False,
 ):
     """
     Run classification training on the MNIST dataset using a custom neural model.
@@ -111,9 +111,7 @@ def main(
     """
     # User data
     print_param_stat = True  # print mean and std of parameters
-    is_tracking = (
-        is_tracking if print_param_stat else False
-    )  # track params with wandb
+    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
 
     # Visual tool
     param_stat = ParamStatTable()

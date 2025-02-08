@@ -161,9 +161,7 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(
-                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
-            ),
+            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
         ]
     )
 
@@ -171,9 +169,7 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
         [
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(
-                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
-            ),
+            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
         ]
     )
 

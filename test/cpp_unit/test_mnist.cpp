@@ -67,7 +67,7 @@ void mnist_test_runner(Sequential &model, float &avg_error_output) {
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
     int batch_size = 16;
-    float sigma_obs = 0.01;
+    float sigma_obs = 1.0;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> var_obs(batch_size * train_db.output_len,
