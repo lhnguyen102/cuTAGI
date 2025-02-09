@@ -74,12 +74,16 @@ def load_datasets(batch_size: int, framework: str = "torch", nb_classes=1000):
     )
 
     # Load datasets
-    train_set = datasets.ImageFolder(f"{data_dir}/train", transform=train_transforms)
+    train_set = datasets.ImageFolder(
+        f"{data_dir}/train", transform=train_transforms
+    )
     val_set = datasets.ImageFolder(f"{data_dir}/val", transform=val_transforms)
 
     ## Select a subset of classes
     targets = range(nb_classes - 1)
-    indices = [i for i, label in enumerate(train_set.targets) if label in targets]
+    indices = [
+        i for i, label in enumerate(train_set.targets) if label in targets
+    ]
     train_set = Subset(train_set, indices)
     indices = [i for i, label in enumerate(val_set.targets) if label in targets]
     val_set = Subset(val_set, indices)
@@ -130,11 +134,15 @@ def tagi_trainer(
     viz_norm_stats = False  # print norm stats at last epoch
     viz_param = False  # visualize parameter distributions
     print_param_stat = True  # print mean and std of parameters
-    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+    is_tracking = (
+        is_tracking if print_param_stat else False
+    )  # track params with wandb
 
     # Load datasets
     utils = Utils()
-    train_loader, test_loader = load_datasets(batch_size, "tagi", nb_classes=nb_classes)
+    train_loader, test_loader = load_datasets(
+        batch_size, "tagi", nb_classes=nb_classes
+    )
 
     # Viz tools
     batch_norm_viz = BatchNormViz()
@@ -159,7 +167,9 @@ def tagi_trainer(
 
     # Resnet18
     # net = resnet18_imagenet(gain_w=0.1, gain_b=0.1, nb_outputs=metric.hrc_softmax.len)
-    net = create_alexnet(gain_w=0.1, gain_b=0.1, nb_outputs=metric.hrc_softmax.len)
+    net = create_alexnet(
+        gain_w=0.1, gain_b=0.1, nb_outputs=metric.hrc_softmax.len
+    )
     device = "cpu" if not pytagi.cuda.is_available() else device
     net.to_device(device)
 
@@ -239,7 +249,9 @@ def tagi_trainer(
                         )
 
             # Averaged training error
-            avg_error_rate = (1.0 - train_correct / len(train_loader.dataset)) * 100
+            avg_error_rate = (
+                1.0 - train_correct / len(train_loader.dataset)
+            ) * 100
 
             # Get batchnorm statistics
             if viz_norm_stats:
@@ -250,7 +262,9 @@ def tagi_trainer(
             if viz_param:
                 state_dict = net.state_dict()
                 param_viz.record_params(state_dict)
-                param_viz.plot_distributions(output_dir="saved_results/param_viz")
+                param_viz.plot_distributions(
+                    output_dir="saved_results/param_viz"
+                )
                 param_viz.plot_initial_vs_final_differences(
                     output_dir="saved_results/param_viz"
                 )
@@ -305,7 +319,9 @@ def torch_trainer(
     learning_rate = 0.0003
 
     # Load ImageNet datasets
-    train_loader, val_loader = load_datasets(batch_size, "torch", nb_classes=nb_classes)
+    train_loader, val_loader = load_datasets(
+        batch_size, "torch", nb_classes=nb_classes
+    )
 
     # Initialize the model
     torch_device = torch.device(device)
@@ -358,7 +374,9 @@ def torch_trainer(
                         )
 
             # Averaged training error
-            avg_error_rate = (1.0 - train_correct / len(train_loader.dataset)) * 100
+            avg_error_rate = (
+                1.0 - train_correct / len(train_loader.dataset)
+            ) * 100
 
             # Evaluation phase
             model.eval()
@@ -389,7 +407,7 @@ def main(
     batch_size: int = 128,
     epochs: int = 20,
     device: str = "cuda",
-    sigma_v: float = 0.01,
+    sigma_v: float = 0.1,
     nb_classes: int = 8,
 ):
     if framework == "torch":
