@@ -50,6 +50,10 @@ class LayerNormCuda : public BaseLayerCuda {
     std::tuple<std::vector<float>, std::vector<float>> get_running_mean_var()
         override;
 
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
+
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
 

@@ -277,6 +277,42 @@ void LayerBlock::load(std::ifstream &file)
     }
 }
 
+ParameterMap LayerBlock::get_parameters_as_map(std::string suffix) {
+    ParameterMap params;
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        if (layers[i]->get_layer_type() == LayerType::Activation ||
+            layers[i]->get_layer_type() == LayerType::Pool2d) {
+            continue;
+        }
+        std::string layer_id_suffix = suffix + "." + std::to_string(i);
+        auto layer_params =
+            this->layers[i]->get_parameters_as_map(layer_id_suffix);
+        params.insert(layer_params.begin(), layer_params.end());
+    }
+    return params;
+}
+
+void LayerBlock::load_parameters_from_map(const ParameterMap &param_map,
+                                          const std::string &suffix) {
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        if (layers[i]->get_layer_type() == LayerType::Activation ||
+            layers[i]->get_layer_type() == LayerType::Pool2d) {
+            continue;
+        }
+        std::string layer_id_suffix = suffix + "." + std::to_string(i);
+        this->layers[i]->load_parameters_from_map(param_map, layer_id_suffix);
+    }
+}
+
+std::vector<ParameterTuple> LayerBlock::parameters() {
+    std::vector<ParameterTuple> params;
+    for (const auto &layer : this->layers) {
+        auto layer_params = layer->parameters();
+        params.insert(params.end(), layer_params.begin(), layer_params.end());
+    }
+    return params;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> LayerBlock::to_cuda() {
     this->device = "cuda";
@@ -289,4 +325,21 @@ void LayerBlock::preinit_layer() {
     for (auto &layer : this->layers) {
         layer->preinit_layer();
     }
+}
+
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+LayerBlock::get_norm_mean_var() {
+    std::vector<std::vector<float>> mu_ras, var_ras, mu_norms, var_norms;
+    for (const auto &layer : this->layers) {
+        std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
+        std::tie(mu_ra, var_ra, mu_norm, var_norm) = layer->get_norm_mean_var();
+        for (size_t i = 0; i < mu_ra.size(); i++) {
+            mu_ras.push_back(mu_ra[i]);
+            var_ras.push_back(var_ra[i]);
+            mu_norms.push_back(mu_norm[i]);
+            var_norms.push_back(var_norm[i]);
+        }
+    }
+    return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
 }

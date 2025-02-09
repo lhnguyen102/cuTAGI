@@ -1,7 +1,15 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <vector>
+
+// Parameter Data Structure
+
+using ParameterTuple = std::tuple<std::vector<float>, std::vector<float>,
+                                  std::vector<float>, std::vector<float>>;
+using ParameterMap = std::unordered_map<std::string, ParameterTuple>;
 
 class BaseHiddenStates {
    public:

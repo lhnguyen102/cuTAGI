@@ -309,6 +309,38 @@ void ResNetBlock::load(std::ifstream &file)
     }
 }
 
+ParameterMap ResNetBlock::get_parameters_as_map(std::string suffix) {
+    std::string main_suffix = "main." + suffix;
+    ParameterMap params = this->main_block->get_parameters_as_map(main_suffix);
+    if (this->shortcut != nullptr) {
+        std::string shortcut_suffix = "shortcut." + suffix;
+        auto shortcut_params =
+            this->shortcut->get_parameters_as_map(shortcut_suffix);
+        params.insert(shortcut_params.begin(), shortcut_params.end());
+    }
+    return params;
+}
+
+void ResNetBlock::load_parameters_from_map(const ParameterMap &param_map,
+                                           const std::string &suffix) {
+    std::string main_suffix = "main." + suffix;
+    this->main_block->load_parameters_from_map(param_map, main_suffix);
+    if (this->shortcut != nullptr) {
+        std::string shortcut_suffix = "shortcut." + suffix;
+        this->shortcut->load_parameters_from_map(param_map, shortcut_suffix);
+    }
+}
+
+std::vector<ParameterTuple> ResNetBlock::parameters() {
+    std::vector<ParameterTuple> params = this->main_block->parameters();
+    if (this->shortcut != nullptr) {
+        auto shortcut_params = this->shortcut->parameters();
+        params.insert(params.end(), shortcut_params.begin(),
+                      shortcut_params.end());
+    }
+    return params;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
     this->device = "cuda";
@@ -322,4 +354,27 @@ void ResNetBlock::preinit_layer() {
     if (this->shortcut != nullptr) {
         this->shortcut->preinit_layer();
     }
+}
+
+// DEBUG
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+ResNetBlock::get_norm_mean_var() {
+    std::vector<std::vector<float>> mu_ras, var_ras, mu_norms, var_norms;
+    std::tie(mu_ras, var_ras, mu_norms, var_norms) =
+        this->main_block->get_norm_mean_var();
+
+    if (this->shortcut != nullptr) {
+        std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
+        std::tie(mu_ra, var_ra, mu_norm, var_norm) =
+            this->shortcut->get_norm_mean_var();
+        for (size_t i = 0; i < mu_ra.size(); i++) {
+            mu_ras.push_back(mu_ra[i]);
+            var_ras.push_back(var_ra[i]);
+            mu_norms.push_back(mu_norm[i]);
+            var_norms.push_back(var_norm[i]);
+        }
+    }
+
+    return {mu_ras, var_ras, mu_norms, var_norms};
 }

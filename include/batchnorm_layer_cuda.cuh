@@ -13,12 +13,14 @@ class BatchNorm2dCuda : public BaseLayerCuda {
     float *d_mu_ra, *d_var_ra, *d_mu_norm_batch, *d_var_norm_batch;
     float epsilon;
     float momentum;
+    float gain_w, gain_b;
 
     // momentum of running average of first batch is set to zero
     bool first_batch = true;
 
     BatchNorm2dCuda(int num_features, float eps = 1e-5, float mometum = 0.9,
-                    bool bias = true);
+                    bool bias = true, float gain_weight = 1.0,
+                    float gain_bias = 1.0);
     ~BatchNorm2dCuda();
 
     // Delete copy constructor and copy assignment
@@ -50,6 +52,10 @@ class BatchNorm2dCuda : public BaseLayerCuda {
 
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
+
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
 
    protected:
     void allocate_running_mean_var();

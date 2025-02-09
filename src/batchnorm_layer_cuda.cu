@@ -1,4 +1,5 @@
 #include "../include/batchnorm_layer_cuda.cuh"
+#include "../include/param_init.h"
 
 // Sum reduction kernels
 __device__ void warp_smem_reduction(volatile float *smem_mu, int tx, int ty,
@@ -152,7 +153,8 @@ __global__ void running_mean_var_cuda(float const *mu_s, float const *var_s,
 
 __global__ void batchnorm_stat_mean_var_cuda(float const *mu_a,
                                              float const *var_a, int ni,
-                                             int batch_size, float *mu_s)
+                                             int batch_size, float *mu_s,
+                                             float *var_s)
 /*Compute sample mean and variance of activation units of full-connected layer
 for each batch.
 */
@@ -167,11 +169,13 @@ for each batch.
             sum_var += var_a[col + i * ni];
         }
         mu_s[col] = sum_mu / batch_size;
+        var_s[col] = sum_var;
     }
 }
 
 __global__ void batchnorm_sample_var_cuda(float const *mu_a, float const *mu_s,
-                                          int ni, int batch_size, float *var)
+                                          float const *var_s, int ni,
+                                          int batch_size, float *var)
 /*Compute statistical mean and variance of activation units for full-connected
 layer for each batch.
 */
@@ -183,7 +187,7 @@ layer for each batch.
             sum += (mu_a[col + i * ni] - mu_s[col]) *
                    (mu_a[col + i * ni] - mu_s[col]);
         }
-        var[col] = sum / (batch_size - 1);
+        var[col] = (sum + var_s[col]) / (batch_size - 1);
     }
 }
 
@@ -435,7 +439,7 @@ void batchnorm2d_bwd_dual_sum_reduction(int batch_size, int wihi, int fi,
 __global__ void batchnorm2d_stat_mean_var_cuda(float const *mu_a,
                                                float const *var_a, int wihi,
                                                int fi, int batch_size,
-                                               float *mu_s)
+                                               float *mu_s, float *var_s)
 /*Compute sample mean and variance of activation units for batch-normalization
 layer.
 */
@@ -450,12 +454,14 @@ layer.
             sum_var += var_a[(i / wihi) * wihi * fi + i % wihi + col * wihi];
         }
         mu_s[col] = sum_mu / (wihi * batch_size);
+        var_s[col] = sum_var;
     }
 }
 
 __global__ void batchnorm2d_sample_var_cuda(float const *mu_a,
-                                            float const *mu_s, int wihi, int fi,
-                                            int batch_size, float *var)
+                                            float const *mu_s,
+                                            float const *var_s, int wihi,
+                                            int fi, int batch_size, float *var)
 /*Compute statistical mean and variance of activation units for
 batch-normalization layer.
 */
@@ -469,7 +475,7 @@ batch-normalization layer.
                    (mu_a[(i / wihi) * wihi * fi + i % wihi + col * wihi] -
                     mu_s[col]);
         }
-        var[col] = sum / (wihi * batch_size - 1);
+        var[col] = (sum + var_s[col]) / (wihi * batch_size - 1);
     }
 }
 
@@ -494,7 +500,7 @@ __global__ void batchnorm2d_sample_var_post_processing(float const *data_in,
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col < fi) {
-        data_out[col] = bias[col] / scale;
+        data_out[col] = (data_in[col] + bias[col]) / scale;
     }
 }
 
@@ -530,6 +536,13 @@ layer is a convolutional layer.
         float tmp_var_z =
             inv_var_ra * (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx]) +
                           var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde);
+
+        // OLD FORMULATION
+        // float tmp_var_z =
+        //     inv_var_ra * (tmp_var_a * tmp_mu_w_2 +
+        //                   var_w[div_idx] * (tmp_mu_a * tmp_mu_a -
+        //                                     tmp_mu_ra * tmp_mu_ra +
+        //                                     tmp_var_a));
 
         mu_z[idx] = bias ? tmp_mu_z + mu_b[div_idx] : tmp_mu_z;
         var_z[idx] = bias ? tmp_var_z + var_b[div_idx] : tmp_var_z;
@@ -685,10 +698,12 @@ batch-normalization layer applied to convolutional layer.
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
 BatchNorm2dCuda::BatchNorm2dCuda(int num_features, float eps, float momentum,
-                                 bool bias)
+                                 bool bias, float gain_weight, float gain_bias)
     : num_features(num_features),
       epsilon(eps),
-      momentum(momentum)
+      momentum(momentum),
+      gain_w(gain_weight),
+      gain_b(gain_bias)
 /*
  */
 {
@@ -734,18 +749,12 @@ void BatchNorm2dCuda::init_weight_bias()
  */
 {
     this->num_weights = this->num_features;
-    this->num_biases = this->num_features;
+    this->num_biases = this->bias ? this->num_features : 0;
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
+        init_weight_bias_norm("", this->gain_w, this->gain_b,
+                              this->num_features, this->num_features,
+                              this->num_weights, this->num_biases);
 
-    float scale = 1.0f / this->num_weights;
-    this->mu_w.resize(this->num_weights, 1.0f);
-    this->var_w.resize(this->num_weights, scale);
-    if (this->bias) {
-        this->mu_b.resize(this->num_weights, 0.0f);
-        this->var_b.resize(this->num_weights, scale);
-
-    } else {
-        this->num_biases = 0;
-    }
     this->allocate_param_memory();
     this->params_to_device();
 }
@@ -766,7 +775,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
  */
 {
     this->mu_ra.resize(this->num_features, 0.0f);
-    this->var_ra.resize(this->num_features, 0.0f);
+    this->var_ra.resize(this->num_features, 1.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
     this->var_norm_batch.resize(this->num_features, 0.0f);
 
@@ -843,12 +852,13 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         this->output_size = input_states.actual_size;
     }
     float _momentum = this->momentum;
-    if (this->first_batch) {
-        if (this->training) {
-            _momentum = 0.0f;
-        }
-        this->first_batch = false;
-    }
+
+    // if (this->first_batch) {
+    //     if (this->training) {
+    //         _momentum = 0.0f;
+    //     }
+    //     this->first_batch = false;
+    // }
 
     // Assign output dimensions
     output_states.width = this->out_width;
@@ -868,15 +878,19 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         if (this->training) {
             batchnorm_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
                 cu_input_states->d_mu_a, cu_input_states->d_var_a,
-                this->input_size, batch_size, this->d_mu_norm_batch);
+                this->input_size, batch_size, this->d_mu_norm_batch,
+                cu_temp_states->d_tmp_2);
 
             batchnorm_sample_var_cuda<<<grid_size_ra, num_threads>>>(
                 cu_input_states->d_mu_a, this->d_mu_norm_batch,
-                this->input_size, batch_size, this->d_var_norm_batch);
+                cu_temp_states->d_tmp_2, this->input_size, batch_size,
+                this->d_var_norm_batch);
 
-            running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-                this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
-                this->input_size, this->d_mu_ra, this->d_var_ra);
+            if (this->training) {
+                running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                    this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+                    this->input_size, this->d_mu_ra, this->d_var_ra);
+            }
         }
         unsigned int grid_col =
             (this->input_size + num_threads - 1) / num_threads;
@@ -900,30 +914,49 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         float *buf_var_out = cu_output_states->d_var_a;
         float *buf_mu_in = cu_temp_states->d_tmp_1;
         float *buf_var_in = cu_temp_states->d_tmp_2;
+        if (this->training) {
+            // OLD KERNELS
+            // batchnorm2d_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+            //     cu_input_states->d_mu_a, cu_input_states->d_var_a, wihi,
+            //     this->in_channels, batch_size, this->d_mu_norm_batch,
+            //     cu_temp_states->d_tmp_2);
 
-        batchnorm2d_fwd_dual_sum_reduction(
-            cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size, wihi,
-            this->in_channels, buf_mu_in, buf_var_in, buf_mu_out, buf_var_out,
-            this->d_mu_norm_batch, this->d_var_norm_batch);
+            // batchnorm2d_sample_var_cuda<<<grid_size_ra, num_threads>>>(
+            //     cu_input_states->d_mu_a, this->d_mu_norm_batch,
+            //     cu_temp_states->d_tmp_2, wihi, this->in_channels, batch_size,
+            //     this->d_var_norm_batch);
 
-        float scale = wihi * batch_size;
-        batchnorm2d_sample_mu_post_processing<<<grid_size_ra, num_threads>>>(
-            this->d_mu_norm_batch, this->in_channels, scale,
-            this->d_mu_norm_batch);
+            // Calculate  sum_val = \sum (samples)
+            batchnorm2d_fwd_dual_sum_reduction(
+                cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size,
+                wihi, this->in_channels, buf_mu_in, buf_var_in, buf_mu_out,
+                buf_var_out, this->d_mu_norm_batch, this->d_var_norm_batch);
 
-        batchnorm2d_fwd_sum_reduction(
-            cu_input_states->d_mu_a, this->d_mu_norm_batch, batch_size, wihi,
-            this->in_channels, buf_mu_in, buf_mu_out, cu_temp_states->d_tmp_2);
+            // Calculate mean, mu_val = sum_val / (wihi * batch_size)
+            float scale = wihi * batch_size;
+            batchnorm2d_sample_mu_post_processing<<<grid_size_ra,
+                                                    num_threads>>>(
+                this->d_mu_norm_batch, this->in_channels, scale,
+                this->d_mu_norm_batch);
 
-        // Statistical sample variance
-        scale = scale - 1.0f;
-        batchnorm2d_sample_var_post_processing<<<grid_size_ra, num_threads>>>(
-            this->d_var_norm_batch, cu_temp_states->d_tmp_2, this->in_channels,
-            scale, this->d_var_norm_batch);
+            // Calculate variance, stat_var = (sample - mu)^2
+            batchnorm2d_fwd_sum_reduction(cu_input_states->d_mu_a,
+                                          this->d_mu_norm_batch, batch_size,
+                                          wihi, this->in_channels, buf_mu_in,
+                                          buf_mu_out, cu_temp_states->d_tmp_2);
 
-        // running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-        //     this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
-        //     this->in_channels, this->d_mu_ra, this->d_var_ra);
+            // Statistical sample variance, var = (sum_val + stat var) / (wihi *
+            // batch_size)
+            // scale = scale - 1.0f;
+            batchnorm2d_sample_var_post_processing<<<grid_size_ra,
+                                                     num_threads>>>(
+                this->d_var_norm_batch, cu_temp_states->d_tmp_2,
+                this->in_channels, scale, this->d_var_norm_batch);
+
+            running_mean_var_cuda<<<grid_size_ra, num_threads>>>(
+                this->d_mu_norm_batch, this->d_var_norm_batch, _momentum,
+                this->in_channels, this->d_mu_ra, this->d_var_ra);
+        }
 
         int fi_batch = this->in_channels * batch_size;
         unsigned int grid_row = (fi_batch + num_threads - 1) / num_threads;
@@ -932,10 +965,9 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
 
         batchnorm2d_fwd_mean_var_cuda<<<grid_size, block_dim>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            cu_input_states->d_mu_a, cu_input_states->d_var_a,
-            this->d_mu_norm_batch, this->d_var_norm_batch, this->bias,
-            this->epsilon, wihi, this->in_channels, fi_batch,
-            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_target,
+            d_var_target, this->bias, this->epsilon, wihi, this->in_channels,
+            fi_batch, cu_output_states->d_mu_a, cu_output_states->d_var_a);
     }
 
     // Update backward state for inferring parameters
@@ -1069,7 +1101,8 @@ std::unique_ptr<BaseLayer> BatchNorm2dCuda::to_host()
  */
 {
     std::unique_ptr<BaseLayer> host_layer = std::make_unique<BatchNorm2d>(
-        this->num_features, this->epsilon, this->momentum, this->bias);
+        this->num_features, this->epsilon, this->momentum, this->bias,
+        this->gain_w, this->gain_b);
 
     host_layer->mu_w = this->mu_w;
     host_layer->var_w = this->var_w;
@@ -1178,4 +1211,16 @@ void BatchNorm2dCuda::load(std::ifstream &file)
     // Transfer data to device
     this->params_to_device();
     this->running_mean_var_to_device();
+}
+
+std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+           std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+BatchNorm2dCuda::get_norm_mean_var() {
+    this->running_mean_var_to_host();
+    std::vector<std::vector<float>> mu_ras = {this->mu_ra};
+    std::vector<std::vector<float>> var_ras = {this->var_ra};
+    std::vector<std::vector<float>> mu_norms = {this->mu_norm_batch};
+    std::vector<std::vector<float>> var_norms = {this->var_norm_batch};
+
+    return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
 }

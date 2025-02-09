@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple>
+
 #include "base_layer.h"
 #include "common.h"
 
@@ -9,13 +11,14 @@ class BatchNorm2d : public BaseLayer {
     std::vector<float> mu_ra, var_ra, mu_norm_batch, var_norm_batch;
     float epsilon;
     float momentum;
-    bool bias;
+    float gain_w, gain_b;
 
     // momentum of running average of first batch is set to zero
     bool first_batch = true;
 
     BatchNorm2d(int num_features, float eps = 1e-5, float mometum = 0.9,
-                bool bias = true);
+                bool bias = true, float gain_weight = 1.0f,
+                float gain_bias = 1.0f);
     ~BatchNorm2d();
 
     // Delete copy constructor and copy assignment
@@ -44,6 +47,10 @@ class BatchNorm2d : public BaseLayer {
                   bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
+
+    std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,
+               std::vector<std::vector<float>>, std::vector<std::vector<float>>>
+    get_norm_mean_var() override;
 
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda() override;
