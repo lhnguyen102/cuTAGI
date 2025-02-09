@@ -6,6 +6,7 @@ from pytagi.nn import (
     MixtureReLU,
     Sequential,
     ReLU,
+    MaxPool2d,
 )
 
 
