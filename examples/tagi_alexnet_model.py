@@ -23,39 +23,39 @@ def create_alexnet(gain_w: float = 1, gain_b: float = 1, nb_outputs: int = 1001)
             gain_bias=gain_b,
             in_width=224,
             in_height=224,
-            bias=False,
+            bias=True,
         ),
-        ReLU(),
+        MixtureReLU(),
         # 55x55
         AvgPool2d(3, 2),
         # 27x27
-        Conv2d(64, 192, 5, bias=False, padding=2, gain_weight=gain_w, gain_bias=gain_b),
-        ReLU(),
+        Conv2d(64, 192, 5, bias=True, padding=2, gain_weight=gain_w, gain_bias=gain_b),
+        MixtureReLU(),
         # 27x27
         AvgPool2d(3, 2),
         # 13x13
         Conv2d(
-            192, 384, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
+            192, 384, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
         ),
         # 13x13
-        ReLU(),
-        # 13x13
-        Conv2d(
-            384, 256, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
-        ),
-        ReLU(),
+        MixtureReLU(),
         # 13x13
         Conv2d(
-            256, 256, 3, bias=False, padding=1, gain_weight=gain_w, gain_bias=gain_b
+            384, 256, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
         ),
-        ReLU(),
+        MixtureReLU(),
+        # 13x13
+        Conv2d(
+            256, 256, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
+        ),
+        MixtureReLU(),
         # 13x13
         AvgPool2d(3, 2),
         # 6x6
         Linear(256 * 6 * 6, 4096, gain_weight=gain_w, gain_bias=gain_b),
-        ReLU(),
+        MixtureReLU(),
         Linear(4096, 4096, gain_weight=gain_w, gain_bias=gain_b),
-        ReLU(),
+        MixtureReLU(),
         Linear(4096, nb_outputs, gain_weight=gain_w, gain_bias=gain_b),
     )
 

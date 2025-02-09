@@ -52,7 +52,8 @@ def custom_collate_fn(batch):
 def load_datasets(batch_size: int, framework: str = "torch", nb_classes=1000):
     """Load the ImageNet dataset."""
     # Data Transforms
-    data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
+    #data_dir = "./data/imagenet/ILSVRC/Data/CLS-LOC"
+    data_dir = "/usr/local/share/imagenet/ILSVRC/Data/CLS-LOC"
     norm_mean = [0.485, 0.456, 0.406]
     norm_std = [0.229, 0.224, 0.225]
     train_transforms = transforms.Compose(
@@ -130,10 +131,10 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_var = True
+    print_var = False
     viz_norm_stats = False  # print norm stats at last epoch
     viz_param = False  # visualize parameter distributions
-    print_param_stat = True  # print mean and std of parameters
+    print_param_stat = False  # print mean and std of parameters
     is_tracking = (
         is_tracking if print_param_stat else False
     )  # track params with wandb
@@ -193,13 +194,14 @@ def tagi_trainer(
     var_y = np.full(
         (batch_size * metric.hrc_softmax.num_obs), sigma_v**2, dtype=np.float32
     )
-    with tqdm(range(num_epochs), desc="Epoch Progress") as epoch_pbar:
+    with tqdm(range(num_epochs), desc="Epoch Progress", disable=False) as epoch_pbar:
         for epoch in epoch_pbar:
             train_correct = 0
             net.train()
             with tqdm(
                 train_loader,
                 desc=f"Epoch {epoch + 1}/{num_epochs} - Batch Progress",
+                disable=True,
             ) as batch_pbar:
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
@@ -234,6 +236,7 @@ def tagi_trainer(
                     )
                     net.backward()
                     net.step()
+                    print(net.get_neg_var_w_counter())
 
                     # Training metric
                     pred = metric.get_predicted_labels(m_pred, v_pred)
@@ -404,11 +407,11 @@ def torch_trainer(
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 128,
-    epochs: int = 20,
+    batch_size: int = 8,
+    epochs: int = 100,
     device: str = "cuda",
-    sigma_v: float = 0.1,
-    nb_classes: int = 8,
+    sigma_v: float = 0.025,
+    nb_classes: int = 1000,
 ):
     if framework == "torch":
         torch_trainer(
