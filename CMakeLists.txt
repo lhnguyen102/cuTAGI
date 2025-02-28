@@ -23,6 +23,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 endif()
 
+# Add MPI support
+find_package(MPI)
+if(MPI_FOUND)
+  message(STATUS "MPI -> ENABLED")
+  add_definitions(-DUSE_MPI)
+  include_directories(${MPI_INCLUDE_PATH})
+else()
+  message(STATUS "MPI -> DISABLED")
+endif()
+
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP24")
@@ -171,6 +181,10 @@ if(CMAKE_CUDA_COMPILER)
 
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
+
+  if(MPI_FOUND)
+    target_link_libraries(cutagi_lib PUBLIC MPI::MPI_CXX)
+  endif()
 
   # Executablecode i.e. application
   add_executable(main main.cpp)
