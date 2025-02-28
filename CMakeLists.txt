@@ -223,18 +223,23 @@ set(TEST_MAIN "test/cpp_unit/main.cpp")
 # Create an executable for the tests
 add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
 
+if(CMAKE_CUDA_COMPILER)
+    set_target_properties(run_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    set_target_properties(run_tests PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+endif()
+
 # Set include directories for the test executable
 target_include_directories(run_tests PRIVATE
-  ${pybind11_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
+    ${pybind11_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
 )
 
 # Link the test executable with the required libraries and cutagi_lib
 target_link_libraries(run_tests PRIVATE
-  ${Python_INCLUDE_DIRS}
-  pybind11::embed
-  gtest_main
-  cutagi_lib
+    ${Python_INCLUDE_DIRS}
+    pybind11::embed
+    gtest_main
+    cutagi_lib
 )
 
 # Discover GoogleTest tests
