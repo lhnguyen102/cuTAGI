@@ -25,11 +25,16 @@ NCCLCommunicator::NCCLCommunicator(int rank,
 
     // Initialize NCCL
     ncclUniqueId id;
+#ifdef USE_MPI
     if (rank == 0) {
-        ncclGetUniqueId(&id);
+        ncclGetUniqueId(&id);  // Rank 0 creates the unique id.
     }
-    // Broadcast id to all processes using MPI
-    MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0,
+              MPI_COMM_WORLD);  // All processes get the id.
+#else
+#error \
+    "MPI is required to broadcast the NCCL unique id if USE_MPI is not defined."
+#endif
 
     // Initialize NCCL communicator
     ncclCommInitRank(&comm, world_size, id, rank);
@@ -51,13 +56,23 @@ void NCCLCommunicator::all_reduce(float* data, size_t count) {
 void NCCLCommunicator::barrier() { cudaStreamSynchronize(stream); }
 
 #ifdef USE_MPI
-MPICommunicator::MPICommunicator(int* argc, char*** argv) {
-    MPI_Init(argc, argv);
+MPICommunicator::MPICommunicator() {
+    // Check if MPI is already initialized
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        throw std::runtime_error(
+            "MPI must be initialized before creating MPICommunicator");
+    }
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 }
 
-MPICommunicator::~MPICommunicator() { MPI_Finalize(); }
+MPICommunicator::~MPICommunicator() {
+    // Don't call MPI_Finalize here since we didn't initialize
+    // Let the main program handle MPI cleanup
+}
 
 void MPICommunicator::all_reduce(float* data, size_t count) {
     MPI_Allreduce(MPI_IN_PLACE, data, count, MPI_FLOAT, MPI_SUM,
@@ -70,15 +85,15 @@ void MPICommunicator::barrier() { MPI_Barrier(MPI_COMM_WORLD); }
 DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
                                              const DistributedConfig& config)
     : model(model), config(config) {
-    // Create appropriate communicator based on backend
+    // Create appropriate communicator based on backend. The model that trained
+    // on different batches to communicate with each other.
     if (config.backend == "nccl") {
         communicator =
             std::make_unique<NCCLCommunicator>(config.rank, config.device_ids);
     }
 #ifdef USE_MPI
     else if (config.backend == "mpi") {
-        // Note: argc and argv need to be passed from main
-        communicator = std::make_unique<MPICommunicator>(&argc, &argv);
+        communicator = std::make_unique<MPICommunicator>();
     }
 #endif
     else {

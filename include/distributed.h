@@ -48,7 +48,7 @@ class MPICommunicator : public Communicator {
     int world_size;
 
    public:
-    MPICommunicator(int* argc, char*** argv);
+    MPICommunicator();
     ~MPICommunicator();
 
     void all_reduce(float* data, size_t count) override;
