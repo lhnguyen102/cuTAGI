@@ -70,6 +70,8 @@ class LSTMCuda : public BaseLayerCuda {
 
     void preinit_layer() override;
 
+    void to(int device_idx) override;
+
    protected:
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;

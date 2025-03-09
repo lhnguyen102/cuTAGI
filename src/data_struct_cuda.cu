@@ -396,7 +396,7 @@ BackwardStateCuda::~BackwardStateCuda()
     this->deallocate_memory();
 }
 
-void BackwardStateCuda::deallocate_memory()
+void BackwardStateCuda::deallocate_memory(int device_idx)
 /*
  */
 {
@@ -406,10 +406,12 @@ void BackwardStateCuda::deallocate_memory()
     this->d_jcb = nullptr;
 }
 
-void BackwardStateCuda::allocate_memory()
+void BackwardStateCuda::allocate_memory(int device_idx)
 /*
  */
 {
+    cudaSetDevice(device_idx);
+
     if (this->d_mu_a != nullptr || this->d_jcb != nullptr) {
         this->deallocate_memory();
     }
@@ -421,20 +423,22 @@ void BackwardStateCuda::allocate_memory()
     CHECK_LAST_CUDA_ERROR();
 }
 
-void BackwardStateCuda::to_device()
+void BackwardStateCuda::to_device(int device_idx)
 /*
  */
 {
+    cudaSetDevice(device_idx);
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 }
 
-void BackwardStateCuda::to_host()
+void BackwardStateCuda::to_host(int device_idx)
 /*
  */
 {
+    cudaSetDevice(device_idx);
     cudaMemcpy(this->mu_a.data(), this->d_mu_a, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->jcb.data(), this->d_jcb, this->size * sizeof(float),
@@ -443,10 +447,23 @@ void BackwardStateCuda::to_host()
     CHECK_LAST_CUDA_ERROR();
 }
 
-void BackwardStateCuda::set_size(size_t new_size)
+void BackwardStateCuda::copy_from(const HiddenStateCuda &source, int num_data,
+                                  int device_idx)
 /*
  */
 {
+    cudaSetDevice(device_idx);
+    cudaMemcpy(this->d_mu_a, source.d_mu_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->d_jcb, source.d_jcb, num_data * sizeof(float),
+               cudaMemcpyDeviceToDevice);
+}
+
+void BackwardStateCuda::set_size(size_t new_size, int device_idx)
+/*
+//  */
+{
+    cudaSetDevice(device_idx);
     if (new_size > this->size) {
         cudaDeviceSynchronize();
         this->size = new_size;

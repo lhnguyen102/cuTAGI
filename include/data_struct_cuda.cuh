@@ -110,11 +110,13 @@ class BackwardStateCuda : public BaseBackwardStates {
 
     std::string get_name() const override { return "BackwardStateCuda"; };
 
-    void allocate_memory();
-    void deallocate_memory();
-    void to_device();
-    void to_host();
-    void set_size(size_t size) override;
+    void allocate_memory(int device_idx = 0);
+    void deallocate_memory(int device_idx = 0);
+    void to_device(int device_idx = 0);
+    void to_host(int device_idx = 0);
+    void copy_from(const HiddenStateCuda &source, int num_data,
+                   int device_idx = 0);
+    void set_size(size_t size, int device_idx = 0) override;
 };
 
 class ObservationCuda : public BaseObservation {

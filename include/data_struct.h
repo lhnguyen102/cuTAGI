@@ -214,7 +214,7 @@ class BaseBackwardStates {
     BaseBackwardStates();
     ~BaseBackwardStates() = default;
     virtual std::string get_name() const { return "BaseBackwardStates"; };
-    virtual void set_size(size_t size);
+    virtual void set_size(size_t size, int device_idx = 0);
 };
 
 class BaseObservation {

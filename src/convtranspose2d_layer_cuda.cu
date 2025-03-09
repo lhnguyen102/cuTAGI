@@ -127,6 +127,7 @@ void ConvTranspose2dCuda::allocate_convtranspose_index()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Memory alignment
     unsigned int size_idx_mwa_1 =
         ((this->idx_mwa_1.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
@@ -161,6 +162,7 @@ void ConvTranspose2dCuda::convtranspose_index_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_idx_mwa_1, this->idx_mwa_1.data(),
                this->idx_mwa_1.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_idx_mwa_2, this->idx_mwa_2.data(),
@@ -351,3 +353,5 @@ void ConvTranspose2dCuda::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+void ConvTranspose2dCuda::to(int device_idx) { this->device_idx = device_idx; }

@@ -86,6 +86,12 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_EXTENSIONS OFF)
 set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
 
+# Set CUDA architectures
+set(CMAKE_CUDA_ARCHITECTURES 75 80 86)  # Target Turing (75), Ampere (80, 86)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  set(CMAKE_CUDA_ARCHITECTURES 75)  # Default to Turing if not specified
+endif()
+
 # Set compiler options
 if(MSVC)
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-bigobji")
@@ -223,23 +229,18 @@ set(TEST_MAIN "test/cpp_unit/main.cpp")
 # Create an executable for the tests
 add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
 
-if(CMAKE_CUDA_COMPILER)
-    set_target_properties(run_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-    set_target_properties(run_tests PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-endif()
-
 # Set include directories for the test executable
 target_include_directories(run_tests PRIVATE
-    ${pybind11_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
+  ${pybind11_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
 )
 
 # Link the test executable with the required libraries and cutagi_lib
 target_link_libraries(run_tests PRIVATE
-    ${Python_INCLUDE_DIRS}
-    pybind11::embed
-    gtest_main
-    cutagi_lib
+  ${Python_INCLUDE_DIRS}
+  pybind11::embed
+  gtest_main
+  cutagi_lib
 )
 
 # Discover GoogleTest tests

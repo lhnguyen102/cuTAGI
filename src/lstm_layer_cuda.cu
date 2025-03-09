@@ -1051,3 +1051,5 @@ void LSTMCuda::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+void LSTMCuda::to(int device_idx) { this->device_idx = device_idx; }

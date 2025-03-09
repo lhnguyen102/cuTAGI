@@ -298,6 +298,7 @@ void AvgPool2dCuda::allocate_avgpool2d_index()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Memory aligment
     unsigned int size_pool_idx =
         ((this->pool_idx.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
@@ -313,6 +314,7 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_pool_idx, this->pool_idx.data(),
                this->pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_z_ud_idx, this->z_ud_idx.data(),
@@ -327,3 +329,5 @@ void AvgPool2dCuda::preinit_layer() {
         this->lazy_index_init();
     }
 }
+
+void AvgPool2dCuda::to(int device_idx_) { this->device_idx = device_idx_; }

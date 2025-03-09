@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:         activation_cuda.cuh
-// Description:  ...
-// Authors:      Luong-Ha Nguyen & James-A. Goulet
-// Created:      December 04, 2023
-// Updated:      August 19, 2024
-// Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
-// License:      This code is released under the MIT License.
-////////////////////////////////////////////////////////////////////////////////
 #include "../include/activation.h"
 #include "../include/activation_cuda.cuh"
 

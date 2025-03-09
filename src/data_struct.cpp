@@ -204,7 +204,7 @@ void BaseTempStates::set_size(size_t new_size, size_t new_block_size)
 ////////////////////////////////////////////////////////////////////////////////
 BaseBackwardStates::BaseBackwardStates(int num) : size(num) {}
 BaseBackwardStates::BaseBackwardStates() {}
-void BaseBackwardStates::set_size(size_t new_size)
+void BaseBackwardStates::set_size(size_t new_size, int device_idx)
 /*
  */
 {

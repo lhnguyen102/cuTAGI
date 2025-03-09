@@ -57,6 +57,8 @@ class LayerNormCuda : public BaseLayerCuda {
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
 
+    void to(int device_idx) override;
+
    protected:
     void allocate_running_mean_var();
     void deallocate_running_mean_var();

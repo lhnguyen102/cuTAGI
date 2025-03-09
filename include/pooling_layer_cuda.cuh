@@ -51,6 +51,8 @@ class AvgPool2dCuda : public BaseLayerCuda {
 
     void preinit_layer() override;
 
+    void to(int device_idx_) override;
+
    protected:
     void lazy_index_init();
     void allocate_avgpool2d_index();

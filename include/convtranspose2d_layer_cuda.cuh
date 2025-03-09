@@ -69,6 +69,8 @@ class ConvTranspose2dCuda : public BaseLayerCuda {
 
     void preinit_layer() override;
 
+    void to(int device_idx) override;
+
    protected:
     void allocate_convtranspose_index();
     void convtranspose_index_to_device();
