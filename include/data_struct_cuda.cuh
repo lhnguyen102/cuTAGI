@@ -125,7 +125,7 @@ class ObservationCuda : public BaseObservation {
     float *d_var_obs = nullptr;
     int *d_selected_idx = nullptr;
 
-    ObservationCuda();
+    ObservationCuda(int device_idx = 0);
     ~ObservationCuda();
 
     std::string get_name() const override { return "ObservationCuda"; };

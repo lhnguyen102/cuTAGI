@@ -269,6 +269,7 @@ void DeltaStateCuda::to_host()
 }
 
 void DeltaStateCuda::reset_zeros() {
+    cudaSetDevice(this->device_idx);
     cudaMemset(d_delta_mu, 0, sizeof(float) * size);
     cudaMemset(d_delta_var, 0, sizeof(float) * size);
 }
@@ -513,7 +514,7 @@ void BackwardStateCuda::set_size(size_t new_size)
 ////////////////////////////////////////////////////////////////////////////////
 // Observation
 ////////////////////////////////////////////////////////////////////////////////
-ObservationCuda::ObservationCuda() { cudaSetDevice(this->device_idx); }
+ObservationCuda::ObservationCuda(int device_idx) { cudaSetDevice(device_idx); }
 ObservationCuda::~ObservationCuda()
 /*
  */
