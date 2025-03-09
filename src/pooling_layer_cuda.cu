@@ -121,11 +121,13 @@ __global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
 ////////////////////////////////////////////////////////////////////////////////
 
 AvgPool2dCuda::AvgPool2dCuda(size_t kernel_size, int stride, int padding,
-                             int padding_type)
+                             int padding_type, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
-      padding_type(padding_type) {}
+      padding_type(padding_type) {
+    this->device_idx = device_idx;
+}
 
 AvgPool2dCuda::~AvgPool2dCuda() {
     cudaFree(d_pool_idx);

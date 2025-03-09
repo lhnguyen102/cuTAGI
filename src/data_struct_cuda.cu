@@ -6,12 +6,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Hidden States
 ////////////////////////////////////////////////////////////////////////////////
-HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size)
-    : BaseHiddenStates(size, block_size)
+HiddenStateCuda::HiddenStateCuda(size_t size, size_t block_size, int device_idx)
+    : BaseHiddenStates(size, block_size, device_idx)
 /*
  */
 {
-    // Allocate data on gpu device
+    cudaSetDevice(this->device_idx);
     this->allocate_memory();
 }
 
@@ -25,6 +25,7 @@ Free GPU memory using cudaFree
     this->deallocate_memory();
 }
 void HiddenStateCuda::deallocate_memory() {
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_mu_a);
     cudaFree(this->d_var_a);
     cudaFree(this->d_jcb);
@@ -62,6 +63,7 @@ void HiddenStateCuda::set_input_x(const std::vector<float> &mu_x,
 }
 
 void HiddenStateCuda::allocate_memory() {
+    cudaSetDevice(this->device_idx);
     // Check if already allocated, and deallocate if necessary
     if (this->d_mu_a != nullptr || this->d_var_a != nullptr ||
         this->d_jcb != nullptr) {
@@ -81,6 +83,7 @@ void HiddenStateCuda::to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_a, this->var_a.data(), this->size * sizeof(float),
@@ -95,6 +98,7 @@ void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     assert(chunk_size <= this->size);
 
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), chunk_size * sizeof(float),
@@ -109,6 +113,7 @@ void HiddenStateCuda::to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_a.data(), this->d_mu_a,
                this->mu_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_a.data(), this->d_var_a,
@@ -143,6 +148,9 @@ void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
 
 void HiddenStateCuda::swap(BaseHiddenStates &other) {
     HiddenStateCuda *cu_other = dynamic_cast<HiddenStateCuda *>(&other);
+    if (this->device_idx != cu_other->device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
+    }
     if (cu_other) {
         BaseHiddenStates::swap(other);
         std::swap(this->d_mu_a, cu_other->d_mu_a);
@@ -157,6 +165,7 @@ void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     if (num_data == -1) {
         num_data = std::min(this->size, source.size);
     }
@@ -166,6 +175,10 @@ void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
 
     if (!cu_source) {
         LOG(LogLevel::ERROR, "Invalid source.");
+    }
+
+    if (this->device_idx != cu_source->device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
     }
 
     cudaMemcpy(this->d_mu_a, cu_source->d_mu_a, num_data * sizeof(float),
@@ -182,17 +195,19 @@ void HiddenStateCuda::copy_from(const BaseHiddenStates &source, int num_data)
     this->width = source.width;
     this->height = source.height;
     this->depth = source.depth;
+    this->device_idx = source.device_idx;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Delta Hidden States
 ////////////////////////////////////////////////////////////////////////////////
-DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size)
-    : BaseDeltaStates(size, block_size)
+DeltaStateCuda::DeltaStateCuda(size_t size, size_t block_size, int device_idx)
+    : BaseDeltaStates(size, block_size, device_idx)
 /*
  */
 {
     // Allocate data on gpu device
+    cudaSetDevice(this->device_idx);
     this->allocate_memory();
 }
 
@@ -206,6 +221,7 @@ DeltaStateCuda::~DeltaStateCuda()
 }
 
 void DeltaStateCuda::deallocate_memory() {
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_delta_mu);
     cudaFree(this->d_delta_var);
 
@@ -220,6 +236,7 @@ void DeltaStateCuda::allocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Allocate memory on the GPU using cudaMalloc
     cudaMalloc(&this->d_delta_mu, size * sizeof(float));
     cudaMalloc(&this->d_delta_var, size * sizeof(float));
@@ -231,6 +248,7 @@ void DeltaStateCuda::to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_delta_mu, this->delta_mu.data(),
                this->size * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_delta_var, this->delta_var.data(),
@@ -243,6 +261,7 @@ void DeltaStateCuda::to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->delta_mu.data(), this->d_delta_mu,
                this->size * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->delta_var.data(), this->d_delta_var,
@@ -268,6 +287,9 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
     if (!cu_source) {
         LOG(LogLevel::ERROR, "Invalid source.");
     }
+    if (this->device_idx != cu_source->device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
+    }
 
     cudaMemcpy(this->d_delta_mu, cu_source->d_delta_mu,
                num_data * sizeof(float), cudaMemcpyDeviceToDevice);
@@ -277,6 +299,7 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
     CHECK_LAST_CUDA_ERROR();
 
     this->block_size = source.block_size;
+    this->device_idx = source.device_idx;
 }
 
 void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
@@ -297,6 +320,10 @@ void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
 
 void DeltaStateCuda::swap(BaseDeltaStates &other) {
     DeltaStateCuda *cu_other = dynamic_cast<DeltaStateCuda *>(&other);
+    if (this->device_idx != cu_other->device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
+    }
+
     if (cu_other) {
         BaseDeltaStates::swap(other);
         std::swap(this->d_delta_mu, cu_other->d_delta_mu);
@@ -309,12 +336,13 @@ void DeltaStateCuda::swap(BaseDeltaStates &other) {
 ////////////////////////////////////////////////////////////////////////////////
 // Temporary Hidden States
 ////////////////////////////////////////////////////////////////////////////////
-TempStateCuda::TempStateCuda(size_t size, size_t block_size)
-    : BaseTempStates(size, block_size)
+TempStateCuda::TempStateCuda(size_t size, size_t block_size, int device_idx)
+    : BaseTempStates(size, block_size, device_idx)
 /*
  */
 {
     // Allocate memory on the GPU using cudaMalloc
+    cudaSetDevice(this->device_idx);
     this->allocate_memory();
 }
 
@@ -331,6 +359,7 @@ void TempStateCuda::deallocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_tmp_1);
     cudaFree(this->d_tmp_2);
 
@@ -344,6 +373,7 @@ void TempStateCuda::to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_tmp_1, this->tmp_1.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_tmp_2, this->tmp_2.data(), this->size * sizeof(float),
@@ -354,11 +384,13 @@ void TempStateCuda::allocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMalloc(&this->d_tmp_1, size * sizeof(float));
     cudaMalloc(&this->d_tmp_2, size * sizeof(float));
 }
 
 void TempStateCuda::to_host() {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->tmp_1.data(), this->d_tmp_1, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->tmp_2.data(), this->d_tmp_2, this->size * sizeof(float),
@@ -388,7 +420,7 @@ void TempStateCuda::set_size(size_t new_size, size_t new_block_size)
 // Backward States
 ////////////////////////////////////////////////////////////////////////////////
 
-BackwardStateCuda::BackwardStateCuda() {}
+BackwardStateCuda::BackwardStateCuda() { cudaSetDevice(this->device_idx); }
 BackwardStateCuda::~BackwardStateCuda()
 /*
  */
@@ -396,21 +428,22 @@ BackwardStateCuda::~BackwardStateCuda()
     this->deallocate_memory();
 }
 
-void BackwardStateCuda::deallocate_memory(int device_idx)
+void BackwardStateCuda::deallocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_mu_a);
     cudaFree(this->d_jcb);
     this->d_mu_a = nullptr;
     this->d_jcb = nullptr;
 }
 
-void BackwardStateCuda::allocate_memory(int device_idx)
+void BackwardStateCuda::allocate_memory()
 /*
  */
 {
-    cudaSetDevice(device_idx);
+    cudaSetDevice(this->device_idx);
 
     if (this->d_mu_a != nullptr || this->d_jcb != nullptr) {
         this->deallocate_memory();
@@ -423,22 +456,22 @@ void BackwardStateCuda::allocate_memory(int device_idx)
     CHECK_LAST_CUDA_ERROR();
 }
 
-void BackwardStateCuda::to_device(int device_idx)
+void BackwardStateCuda::to_device()
 /*
  */
 {
-    cudaSetDevice(device_idx);
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_a, this->mu_a.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_jcb, this->jcb.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
 }
 
-void BackwardStateCuda::to_host(int device_idx)
+void BackwardStateCuda::to_host()
 /*
  */
 {
-    cudaSetDevice(device_idx);
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_a.data(), this->d_mu_a, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->jcb.data(), this->d_jcb, this->size * sizeof(float),
@@ -447,23 +480,25 @@ void BackwardStateCuda::to_host(int device_idx)
     CHECK_LAST_CUDA_ERROR();
 }
 
-void BackwardStateCuda::copy_from(const HiddenStateCuda &source, int num_data,
-                                  int device_idx)
+void BackwardStateCuda::copy_from(const HiddenStateCuda &source, int num_data)
 /*
  */
 {
-    cudaSetDevice(device_idx);
+    cudaSetDevice(this->device_idx);
+    if (this->device_idx != source.device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
+    }
     cudaMemcpy(this->d_mu_a, source.d_mu_a, num_data * sizeof(float),
                cudaMemcpyDeviceToDevice);
     cudaMemcpy(this->d_jcb, source.d_jcb, num_data * sizeof(float),
                cudaMemcpyDeviceToDevice);
 }
 
-void BackwardStateCuda::set_size(size_t new_size, int device_idx)
+void BackwardStateCuda::set_size(size_t new_size)
 /*
 //  */
 {
-    cudaSetDevice(device_idx);
+    cudaSetDevice(this->device_idx);
     if (new_size > this->size) {
         cudaDeviceSynchronize();
         this->size = new_size;
@@ -478,7 +513,7 @@ void BackwardStateCuda::set_size(size_t new_size, int device_idx)
 ////////////////////////////////////////////////////////////////////////////////
 // Observation
 ////////////////////////////////////////////////////////////////////////////////
-ObservationCuda::ObservationCuda() {}
+ObservationCuda::ObservationCuda() { cudaSetDevice(this->device_idx); }
 ObservationCuda::~ObservationCuda()
 /*
  */
@@ -490,6 +525,7 @@ void ObservationCuda::deallocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaFree(d_mu_obs);
     cudaFree(d_var_obs);
     cudaFree(d_selected_idx);
@@ -502,6 +538,7 @@ void ObservationCuda::deallocate_memory()
 }
 
 void ObservationCuda::allocate_memory() {
+    cudaSetDevice(this->device_idx);
     cudaMalloc(&this->d_mu_obs, this->size * sizeof(float));
     cudaMalloc(&this->d_var_obs, this->size * sizeof(float));
 
@@ -513,6 +550,7 @@ void ObservationCuda::allocate_memory() {
 }
 
 void ObservationCuda::to_device() {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_obs, this->mu_obs.data(), this->size * sizeof(float),
                cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_obs, this->var_obs.data(),
@@ -526,6 +564,7 @@ void ObservationCuda::to_device() {
 }
 
 void ObservationCuda::to_host() {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_obs.data(), this->d_mu_obs, this->size * sizeof(float),
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_obs.data(), this->d_var_obs,
@@ -554,11 +593,13 @@ void ObservationCuda::set_size(size_t new_size, size_t new_block_size)
 // LSTM states
 ////////////////////////////////////////////////////////////////////////////////
 LSTMStateCuda::LSTMStateCuda() {}
-LSTMStateCuda::LSTMStateCuda(size_t num_states, size_t num_inputs)
-    : BaseLSTMStates(num_states, num_inputs)
+LSTMStateCuda::LSTMStateCuda(size_t num_states, size_t num_inputs,
+                             int device_idx)
+    : BaseLSTMStates(num_states, num_inputs, device_idx)
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     this->allocate_memory();
 }
 
@@ -573,6 +614,7 @@ void LSTMStateCuda::deallocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaFree(d_mu_ha);
     d_mu_ha = nullptr;
     cudaFree(d_var_ha);
@@ -641,6 +683,7 @@ void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     this->num_states = num_states;
     this->num_inputs = num_inputs;
     this->reset_zeros();
@@ -653,6 +696,7 @@ void LSTMStateCuda::allocate_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     size_t size =
         ((num_states + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE * sizeof(float);
     size_t size_ha = ((num_states + num_inputs + PACK_SIZE - 1) / PACK_SIZE) *
@@ -704,6 +748,7 @@ void LSTMStateCuda::allocate_memory()
 }
 
 void LSTMStateCuda::to_device() {
+    cudaSetDevice(this->device_idx);
     // Copy mu_ha and var_ha
     cudaMemcpy(d_mu_ha, this->mu_ha.data(),
                (this->num_states + this->num_inputs) * sizeof(float),
@@ -793,6 +838,7 @@ void LSTMStateCuda::to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Copy back mu_ha and var_ha
     cudaMemcpy(this->mu_ha.data(), d_mu_ha,
                (this->num_states + this->num_inputs) * sizeof(float),

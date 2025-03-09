@@ -36,7 +36,7 @@ std::string BaseLayer::get_device()
 /*
  */
 {
-    return this->device;
+    return this->device + ":" + std::to_string(this->device_idx);
 }
 
 void BaseLayer::init_weight_bias() {}

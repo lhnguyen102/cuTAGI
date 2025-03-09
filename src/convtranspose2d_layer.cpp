@@ -447,7 +447,7 @@ ConvTranspose2d::ConvTranspose2d(size_t in_channels, size_t out_channels,
                                  size_t kernel_size, bool bias, int stride,
                                  int padding, int padding_type, size_t in_width,
                                  size_t in_height, float gain_w, float gain_b,
-                                 std::string init_method)
+                                 std::string init_method, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
@@ -462,7 +462,7 @@ ConvTranspose2d::ConvTranspose2d(size_t in_channels, size_t out_channels,
     this->in_channels = in_channels;
     this->out_channels = out_channels;
     this->bias = bias;
-
+    this->device_idx = device_idx;
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
     }
@@ -674,86 +674,15 @@ void ConvTranspose2d::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
-// void ConvTranspose2d::state_backward(BaseBackwardStates &next_bwd_states,
-//                                      BaseDeltaStates &input_delta_states,
-//                                      BaseDeltaStates &output_delta_states,
-//                                      BaseTempStates &temp_states)
-// /*
-//  */
-// {
-//     // Initialization
-//     int batch_size = input_delta_states.block_size;
-
-//     int wihi = this->in_height * this->in_width;
-//     int woho = this->out_width * this->out_height;
-
-//     if (this->num_threads > 1) {
-//         convtranspose2d_bwd_delta_z_mp(
-//             this->mu_w, next_bwd_states.jcb, input_delta_states.delta_mu,
-//             input_delta_states.delta_var, this->idx_cov_z_wa_1,
-//             this->idx_var_z_ud, woho, this->out_channels, wihi,
-//             this->in_channels, this->kernel_size, this->row_zw, batch_size,
-//             this->num_threads, output_delta_states.delta_mu,
-//             output_delta_states.delta_var);
-//     } else {
-//         convtranspose2d_bwd_delta_z(
-//             this->mu_w, next_bwd_states.jcb, input_delta_states.delta_mu,
-//             input_delta_states.delta_var, this->idx_cov_z_wa_1,
-//             this->idx_var_z_ud, woho, this->out_channels, wihi,
-//             this->in_channels, this->kernel_size, this->row_zw, 0,
-//             batch_size, output_delta_states.delta_mu,
-//             output_delta_states.delta_var);
-//     }
-// }
-
-// void ConvTranspose2d::param_backward(BaseBackwardStates &next_bwd_states,
-//                                      BaseDeltaStates &delta_states,
-//                                      BaseTempStates &temp_states)
-// /*
-//  */
-// {
-//     int batch_size = delta_states.block_size;
-
-//     int ki2 = this->kernel_size * this->kernel_size;
-//     int wihi = this->in_height * this->in_width;
-//     int woho = this->out_width * this->out_height;
-
-//     if (this->num_threads > 1) {
-//         convtranspose2d_bwd_delta_w_mp(
-//             this->var_w, next_bwd_states.mu_a, delta_states.delta_mu,
-//             delta_states.delta_var, this->idx_cov_wz_2, this->idx_var_wz_ud,
-//             woho, this->out_channels, wihi, this->in_channels,
-//             this->kernel_size, batch_size, this->num_threads,
-//             this->delta_mu_w, this->delta_var_w);
-//         if (this->bias) {
-//             convtranspose2d_bwd_delta_b_mp(
-//                 this->var_b, delta_states.delta_mu, delta_states.delta_var,
-//                 woho, this->out_channels, batch_size, this->num_threads,
-//                 this->delta_mu_b, this->delta_var_b);
-//         }
-//     } else {
-//         convtranspose2d_bwd_delta_w(
-//             this->var_w, next_bwd_states.mu_a, delta_states.delta_mu,
-//             delta_states.delta_var, this->idx_cov_wz_2, this->idx_var_wz_ud,
-//             woho, this->out_channels, wihi, this->in_channels,
-//             this->kernel_size, batch_size, 0, ki2 * this->out_channels,
-//             this->delta_mu_w, this->delta_var_w);
-//         if (this->bias) {
-//             convtranspose2d_bwd_delta_b(
-//                 this->var_b, delta_states.delta_mu, delta_states.delta_var,
-//                 woho, this->out_channels, batch_size, 0, this->out_channels,
-//                 this->delta_mu_b, this->delta_var_b);
-//         }
-//     }
-// }
-
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> ConvTranspose2d::to_cuda() {
+std::unique_ptr<BaseLayer> ConvTranspose2d::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     return std::make_unique<ConvTranspose2dCuda>(
         this->in_channels, this->out_channels, this->kernel_size, this->bias,
         this->stride, this->padding, this->padding_type, this->in_width,
-        this->in_height, this->gain_w, this->gain_b, this->init_method);
+        this->in_height, this->gain_w, this->gain_b, this->init_method,
+        this->device_idx);
 }
 #endif
 

@@ -12,9 +12,9 @@ void bind_layernorm_layer(pybind11::module_& modo)
 {
     pybind11::class_<LayerNorm, std::shared_ptr<LayerNorm>, BaseLayer>(
         modo, "LayerNorm")
-        .def(pybind11::init<const std::vector<int>, float, bool>(),
+        .def(pybind11::init<const std::vector<int>, float, bool, int>(),
              pybind11::arg("normalized_shape"), pybind11::arg("eps") = 1e-4,
-             pybind11::arg("bias") = true)
+             pybind11::arg("bias") = true, pybind11::arg("device_idx") = 0)
         .def("get_layer_info", &LayerNorm::get_layer_info)
         .def("get_layer_name", &LayerNorm::get_layer_name)
         .def("forward", &LayerNorm::forward)

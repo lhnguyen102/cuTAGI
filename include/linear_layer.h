@@ -104,7 +104,7 @@ class Linear : public BaseLayer {
 
     Linear(size_t ip_size, size_t op_size, bool bias = true,
            float gain_weight = 1.0f, float gain_bias = 1.0f,
-           std::string method = "He");
+           std::string method = "He", int device_idx = 0);
 
     ~Linear();
 
@@ -136,6 +136,6 @@ class Linear : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };

@@ -233,7 +233,7 @@ class LSTM : public BaseLayer {
 
     LSTM(size_t input_size, size_t output_size, int seq_len = 1,
          bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-         std::string init_method = "Xavier");
+         std::string init_method = "Xavier", int device_idx = 0);
 
     ~LSTM();
 
@@ -283,7 +283,7 @@ class LSTM : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
     void preinit_layer() override;
 

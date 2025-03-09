@@ -20,7 +20,7 @@ class LSTMCuda : public BaseLayerCuda {
 
     LSTMCuda(size_t input_size, size_t output_size, int seq_len,
              bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-             std::string init_method = "Xavier");
+             std::string init_method = "Xavier", int device_idx = 0);
 
     ~LSTMCuda();
 

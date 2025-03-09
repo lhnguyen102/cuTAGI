@@ -775,7 +775,7 @@ batch-normalization layer applied to convolutional layer.
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
 BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias,
-                         float gain_weight, float gain_bias)
+                         float gain_weight, float gain_bias, int device_idx)
     : num_features(num_features),
       epsilon(eps),
       momentum(momentum),
@@ -786,6 +786,7 @@ BatchNorm2d::BatchNorm2d(int num_features, float eps, float momentum, bool bias,
  */
 {
     this->bias = bias;
+    this->device_idx = device_idx;
     this->init_weight_bias();
     this->allocate_running_mean_var();
     if (this->training) {
@@ -1127,11 +1128,12 @@ void BatchNorm2d::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda() {
+std::unique_ptr<BaseLayer> BatchNorm2d::to_cuda(int device_idx) {
     this->device = "cuda";
-    return std::make_unique<BatchNorm2dCuda>(this->num_features, this->epsilon,
-                                             this->momentum, this->bias,
-                                             this->gain_w, this->gain_b);
+    this->device_idx = device_idx;
+    return std::make_unique<BatchNorm2dCuda>(
+        this->num_features, this->epsilon, this->momentum, this->bias,
+        this->gain_w, this->gain_b, this->device_idx);
 }
 #endif
 

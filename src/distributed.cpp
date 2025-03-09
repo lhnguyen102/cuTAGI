@@ -31,11 +31,10 @@ NCCLCommunicator::NCCLCommunicator(int rank,
     if (rank == 0) {
         ncclGetUniqueId(&id);  // Rank 0 creates the unique id.
     }
-    MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0,
-              MPI_COMM_WORLD);  // All processes get the id.
+    // All processes get the id, i.e., secret key to communicate with each other
+    MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
 #else
-#error \
-    "MPI is required to broadcast the NCCL unique id if USE_MPI is not defined."
+    LOG(LogLevel::ERROR, "MPI is required to broadcast the NCCL unique id");
 #endif
 
     // Initialize NCCL communicator
@@ -103,8 +102,9 @@ DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
 
     // Move model to appropriate device
     if (config.backend == "nccl") {
-        model->to_device("cuda");
-        cudaSetDevice(config.device_ids[config.rank]);
+        std::string device =
+            "cuda:" + std::to_string(config.device_ids[config.rank]);
+        model->to_device(device);
     }
 }
 

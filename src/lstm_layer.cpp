@@ -1008,7 +1008,7 @@ void lstm_delta_mean_var_b_mp(
 ////////////////////////////////////////////////////////////////////////////////
 
 LSTM::LSTM(size_t input_size, size_t output_size, int seq_len, bool bias,
-           float gain_w, float gain_b, std::string init_method)
+           float gain_w, float gain_b, std::string init_method, int device_idx)
     : seq_len(seq_len),
       gain_w(gain_w),
       gain_b(gain_b),
@@ -1018,6 +1018,7 @@ LSTM::LSTM(size_t input_size, size_t output_size, int seq_len, bool bias,
     this->input_size = input_size;
     this->output_size = output_size;
     this->bias = bias;
+    this->device_idx = device_idx;
 
     this->get_number_param();
     this->init_weight_bias();
@@ -1499,11 +1500,12 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LSTM::to_cuda() {
+std::unique_ptr<BaseLayer> LSTM::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     auto cuda_layer = std::make_unique<LSTMCuda>(
         this->input_size, this->output_size, this->seq_len, this->bias,
-        this->gain_w, this->gain_b, this->init_method);
+        this->gain_w, this->gain_b, this->init_method, this->device_idx);
 
     // Move params from this->layer to cuda_layer
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());

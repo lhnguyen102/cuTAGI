@@ -11,11 +11,12 @@ void bind_lstm_layer(pybind11::module_& modo)
 {
     pybind11::class_<LSTM, std::shared_ptr<LSTM>, BaseLayer>(modo, "LSTM")
         .def(pybind11::init<size_t, size_t, int, bool, float, float,
-                            std::string>(),
+                            std::string, int>(),
              pybind11::arg("input_size"), pybind11::arg("output_size"),
              pybind11::arg("seq_len"), pybind11::arg("bias"),
              pybind11::arg("gain_weight") = 1.0f,
-             pybind11::arg("gain_bias") = 1.0f, pybind11::arg("method") = "He")
+             pybind11::arg("gain_bias") = 1.0f, pybind11::arg("method") = "He",
+             pybind11::arg("device_idx") = 0)
         .def("get_layer_info", &LSTM::get_layer_info)
         .def("get_layer_name", &LSTM::get_layer_name)
         .def_readwrite("gain_w", &LSTM::gain_w)

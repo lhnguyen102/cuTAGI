@@ -1,6 +1,7 @@
 
 #include "../include/resnet_block.h"
 
+#include "../include/custom_logger.h"
 #ifdef USE_CUDA
 #include "../include/resnet_block_cuda.cuh"
 #endif
@@ -71,16 +72,22 @@ std::string ResNetBlock::get_device()
  */
 {
     auto main_block_device = this->main_block->get_device();
-    if (main_block_device != this->device) {
-        return main_block_device;
+    std::string resnet_block_device =
+        this->device + ":" + std::to_string(this->device_idx);
+    if (main_block_device != resnet_block_device) {
+        LOG(LogLevel::ERROR, "Main block device [" + main_block_device +
+                                 "] does not match block device [" +
+                                 resnet_block_device + "]");
     }
     if (this->shortcut != nullptr) {
         auto shortcut_device = this->shortcut->get_device();
-        if (shortcut_device != this->device) {
-            return shortcut_device;
+        if (shortcut_device != resnet_block_device) {
+            LOG(LogLevel::ERROR, "Shortcut device [" + shortcut_device +
+                                     "] does not match block device [" +
+                                     resnet_block_device + "]");
         }
     }
-    return this->device;
+    return resnet_block_device;
 }
 
 void ResNetBlock::compute_input_output_size(const InitArgs &args)
@@ -342,8 +349,16 @@ std::vector<ParameterTuple> ResNetBlock::parameters() {
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> ResNetBlock::to_cuda() {
+std::unique_ptr<BaseLayer> ResNetBlock::to_cuda(int device_idx) {
     this->device = "cuda";
+
+    // TODO: pass device_idx through main_block and shortcut might not be
+    // optimal. Using "to()" is much more elegant.
+    this->device_idx = device_idx;
+    this->main_block->to(device_idx);
+    if (this->shortcut != nullptr) {
+        this->shortcut->to(device_idx);
+    }
     return std::make_unique<ResNetBlockCuda>(this->main_block, this->shortcut);
 }
 #endif

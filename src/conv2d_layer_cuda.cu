@@ -229,7 +229,8 @@ void conv2d_param_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
 Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
                        size_t kernel_size, bool bias, int stride, int padding,
                        int padding_type, size_t in_width, size_t in_height,
-                       float gain_w, float gain_b, std::string init_method)
+                       float gain_w, float gain_b, std::string init_method,
+                       int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
@@ -245,6 +246,7 @@ Conv2dCuda::Conv2dCuda(size_t in_channels, size_t out_channels,
     this->in_channels = in_channels;
     this->out_channels = out_channels;
     this->bias = bias;
+    this->device_idx = device_idx;
 }
 
 Conv2dCuda::~Conv2dCuda() {

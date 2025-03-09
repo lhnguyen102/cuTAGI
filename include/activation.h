@@ -144,7 +144,7 @@ class ReLU : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -188,7 +188,7 @@ class Sigmoid : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -232,7 +232,7 @@ class Tanh : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -276,7 +276,7 @@ class MixtureReLU : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -320,7 +320,7 @@ class MixtureSigmoid : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -364,7 +364,7 @@ class MixtureTanh : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -408,7 +408,7 @@ class Softplus : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -453,7 +453,7 @@ class LeakyReLU : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -498,7 +498,7 @@ class Softmax : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
 
@@ -593,6 +593,6 @@ class EvenExp : public BaseLayer {
     void load(std::ifstream &file) override {};
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 };
