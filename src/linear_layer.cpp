@@ -459,7 +459,7 @@ void linear_bwd_fc_delta_b_mp(std::vector<float> &var_b,
 }
 
 Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
-               float gain_bias, std::string method)
+               float gain_bias, std::string method, int device_idx)
     : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
@@ -469,6 +469,7 @@ Linear::Linear(size_t ip_size, size_t op_size, bool bias, float gain_weight,
     this->input_size = ip_size;
     this->output_size = op_size;
     this->bias = bias;
+    this->device_idx = device_idx;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = 0;
     if (this->bias) {
@@ -630,11 +631,12 @@ void Linear::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Linear::to_cuda() {
+std::unique_ptr<BaseLayer> Linear::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     auto cuda_layer = std::make_unique<LinearCuda>(
         this->input_size, this->output_size, this->bias, this->gain_w,
-        this->gain_b, this->init_method);
+        this->gain_b, this->init_method, this->device_idx);
 
     // Move params from this->layer to cuda_layer
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());

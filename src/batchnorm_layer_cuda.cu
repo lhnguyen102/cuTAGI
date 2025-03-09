@@ -691,7 +691,8 @@ batch-normalization layer applied to convolutional layer.
 //// Batch Norm
 ////////////////////////////////////////////////////////////////////////////////
 BatchNorm2dCuda::BatchNorm2dCuda(int num_features, float eps, float momentum,
-                                 bool bias, float gain_weight, float gain_bias)
+                                 bool bias, float gain_weight, float gain_bias,
+                                 int device_idx)
     : num_features(num_features),
       epsilon(eps),
       momentum(momentum),
@@ -701,6 +702,7 @@ BatchNorm2dCuda::BatchNorm2dCuda(int num_features, float eps, float momentum,
  */
 {
     this->bias = bias;
+    this->device_idx = device_idx;
     this->init_weight_bias();
     this->allocate_running_mean_var();
     if (this->training) {

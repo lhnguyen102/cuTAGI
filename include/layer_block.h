@@ -95,7 +95,7 @@ class LayerBlock : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     void preinit_layer() override;

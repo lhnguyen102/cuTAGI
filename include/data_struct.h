@@ -20,8 +20,9 @@ class BaseHiddenStates {
     size_t block_size = 0;   // batch size
     size_t actual_size = 0;  // actual size of data
     size_t width = 0, height = 0, depth = 0;
+    int device_idx = 0;
 
-    BaseHiddenStates(size_t n, size_t m);
+    BaseHiddenStates(size_t n, size_t m, int device_idx = 0);
     BaseHiddenStates();
     ~BaseHiddenStates() = default;
 
@@ -43,7 +44,8 @@ class BaseHiddenStates {
           actual_size(other.actual_size),
           width(other.width),
           height(other.height),
-          depth(other.depth) {}
+          depth(other.depth),
+          device_idx(other.device_idx) {}
 
     // Custom copy assignment operator
     BaseHiddenStates &operator=(const BaseHiddenStates &other) {
@@ -57,6 +59,7 @@ class BaseHiddenStates {
             width = other.width;
             height = other.height;
             depth = other.depth;
+            device_idx = other.device_idx;
         }
         return *this;
     }
@@ -71,7 +74,8 @@ class BaseHiddenStates {
           actual_size(other.actual_size),
           width(other.width),
           height(other.height),
-          depth(other.depth) {};
+          depth(other.depth),
+          device_idx(other.device_idx) {};
 
     // Move assignment operator
     BaseHiddenStates &operator=(BaseHiddenStates &&other) noexcept {
@@ -85,6 +89,7 @@ class BaseHiddenStates {
             width = other.width;
             height = other.height;
             depth = other.depth;
+            device_idx = other.device_idx;
         }
         return *this;
     };
@@ -160,8 +165,9 @@ class BaseDeltaStates {
     std::vector<float> delta_mu;
     std::vector<float> delta_var;
     size_t size = 0, block_size = 0, actual_size = 0;
+    int device_idx = 0;
 
-    BaseDeltaStates(size_t n, size_t m);
+    BaseDeltaStates(size_t n, size_t m, int device_idx = 0);
     BaseDeltaStates();
     ~BaseDeltaStates() = default;
     virtual std::string get_name() const { return "BaseDeltaStates"; };
@@ -175,7 +181,8 @@ class BaseDeltaStates {
           delta_var(std::move(other.delta_var)),
           size(other.size),
           block_size(other.block_size),
-          actual_size(other.actual_size) {};
+          actual_size(other.actual_size),
+          device_idx(other.device_idx) {};
 
     // Move assigment operator
     BaseDeltaStates &operator=(BaseDeltaStates &&other) noexcept {
@@ -185,6 +192,7 @@ class BaseDeltaStates {
             size = other.size;
             block_size = other.block_size;
             actual_size = other.actual_size;
+            device_idx = other.device_idx;
         }
         return *this;
     };
@@ -197,8 +205,9 @@ class BaseTempStates {
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
     size_t size = 0, block_size = 0, actual_size = 0;
+    int device_idx = 0;
 
-    BaseTempStates(size_t n, size_t m);
+    BaseTempStates(size_t n, size_t m, int device_idx = 0);
     BaseTempStates();
     virtual std::string get_name() const { return "BaseTempStates"; };
     virtual void set_size(size_t size, size_t block_size);
@@ -209,12 +218,12 @@ class BaseBackwardStates {
     std::vector<float> mu_a;
     std::vector<float> jcb;
     size_t size = 0;
-
+    int device_idx = 0;
     BaseBackwardStates(int num);
     BaseBackwardStates();
     ~BaseBackwardStates() = default;
     virtual std::string get_name() const { return "BaseBackwardStates"; };
-    virtual void set_size(size_t size, int device_idx = 0);
+    virtual void set_size(size_t size);
 };
 
 class BaseObservation {
@@ -224,8 +233,8 @@ class BaseObservation {
     std::vector<int> selected_idx;
     size_t size = 0, block_size = 0, actual_size = 0;
     size_t idx_size = 0;
-
-    BaseObservation(size_t n, size_t m, size_t k);
+    int device_idx = 0;
+    BaseObservation(size_t n, size_t m, size_t k, int device_idx = 0);
     BaseObservation();
     ~BaseObservation() = default;
 
@@ -240,6 +249,7 @@ class BaseLSTMStates {
    public:
     size_t num_states;
     size_t num_inputs;
+    int device_idx = 0;
     std::vector<float> mu_ha, var_ha, mu_f_ga, var_f_ga, jcb_f_ga, mu_i_ga,
         var_i_ga, jcb_i_ga, mu_c_ga, var_c_ga, jcb_c_ga, mu_o_ga, var_o_ga,
         jcb_o_ga, mu_ca, var_ca, jcb_ca, mu_c, var_c, cov_i_c, cov_o_tanh_c;
@@ -247,7 +257,7 @@ class BaseLSTMStates {
     std::vector<float> mu_c_prev, var_c_prev, mu_h_prev, var_h_prev, mu_h_prior,
         var_h_prior, mu_c_prior, var_c_prior;
 
-    BaseLSTMStates(size_t num_states, size_t num_inputs);
+    BaseLSTMStates(size_t num_states, size_t num_inputs, int device_idx = 0);
     BaseLSTMStates();
     ~BaseLSTMStates() = default;
     virtual void set_num_states(size_t num_states, size_t num_inputs);

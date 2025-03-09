@@ -109,8 +109,8 @@ void ResNetBlockCuda::init_shortcut_state()
 {
     int max_num_states = this->shortcut->get_max_num_states();
     int size = max_num_states * this->_batch_size;
-    this->shortcut_output_z =
-        std::make_shared<HiddenStateCuda>(size, this->_batch_size);
+    this->shortcut_output_z = std::make_shared<HiddenStateCuda>(
+        size, this->_batch_size, this->device_idx);
 }
 
 void ResNetBlockCuda::init_shortcut_delta_state()
@@ -119,8 +119,8 @@ void ResNetBlockCuda::init_shortcut_delta_state()
 {
     int max_num_states = this->shortcut->get_max_num_states();
     int size = max_num_states * this->_batch_size;
-    this->shortcut_output_delta_z =
-        std::make_shared<DeltaStateCuda>(size, this->_batch_size);
+    this->shortcut_output_delta_z = std::make_shared<DeltaStateCuda>(
+        size, this->_batch_size, this->device_idx);
 }
 
 void ResNetBlockCuda::init_input_buffer()
@@ -132,9 +132,10 @@ void ResNetBlockCuda::init_input_buffer()
         max_num_states = this->shortcut->get_max_num_states();
     }
     int size = max_num_states * this->_batch_size;
-    this->input_z = std::make_shared<HiddenStateCuda>(size, this->_batch_size);
-    this->input_delta_z =
-        std::make_shared<DeltaStateCuda>(size, this->_batch_size);
+    this->input_z = std::make_shared<HiddenStateCuda>(size, this->_batch_size,
+                                                      this->device_idx);
+    this->input_delta_z = std::make_shared<DeltaStateCuda>(
+        size, this->_batch_size, this->device_idx);
 }
 
 void ResNetBlockCuda::init_weight_bias()

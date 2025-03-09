@@ -11,13 +11,14 @@
 /// AvgPool2d
 ////////////////////////////////////////////////////////////////////////////////
 AvgPool2d::AvgPool2d(size_t kernel_size, int stride, int padding,
-                     int padding_type)
+                     int padding_type, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding_type(padding_type),
       padding(padding)
 /**/
 {
+    this->device_idx = device_idx;
     if (this->training) {
         this->bwd_states = std::make_unique<BaseBackwardStates>();
     }
@@ -175,10 +176,12 @@ void AvgPool2d::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> AvgPool2d::to_cuda() {
+std::unique_ptr<BaseLayer> AvgPool2d::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     return std::make_unique<AvgPool2dCuda>(this->kernel_size, this->stride,
-                                           this->padding, this->padding_type);
+                                           this->padding, this->padding_type,
+                                           this->device_idx);
 }
 #endif
 

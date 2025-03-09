@@ -45,9 +45,10 @@ class Sequential {
     bool input_state_update = false;
     unsigned num_threads = 1;
     std::string device = "cpu";
+    int device_idx = 0;
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Variadic template
+    // Variadic template allows for arbitrary number of layers
     template <typename... Layers>
     Sequential(Layers&&... layers) {
         add_layers(std::forward<Layers>(layers)...);

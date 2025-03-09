@@ -27,7 +27,8 @@ class ResNetBlockCuda : public BaseLayerCuda {
                             typename std::decay<Shortcut>::type>::value,
             "Shortcut must be derived from BaseLayer");
 
-        auto cu_main = main->to_cuda();
+        this->device_idx = main->device_idx;
+        auto cu_main = main->to_cuda(this->device_idx);
         main_block = std::make_shared<typename std::decay<MainBlock>::type>(
             std::move(cu_main));
 
@@ -35,9 +36,10 @@ class ResNetBlockCuda : public BaseLayerCuda {
             !std::is_same<typename std::decay<Shortcut>::type,
                           BaseLayer>::value;
         if (is_shortcut_exist) {
+            this->device_idx = shortcut_layer->device_idx;
             this->shortcut =
                 std::make_shared<Shortcut>(std::move(shortcut_layer));
-            this->shortcut->to_cuda();
+            this->shortcut->to_cuda(this->device_idx);
         }
 
         // Set input & output sizes
@@ -54,14 +56,16 @@ class ResNetBlockCuda : public BaseLayerCuda {
                       "Shortcut must be derived from BaseLayer");
 
         if (main->device != "cuda") {
-            auto cu_main = main->to_cuda();
+            this->device_idx = main->device_idx;
+            auto cu_main = main->to_cuda(this->device_idx);
             this->main_block = std::move(cu_main);
         } else {
             this->main_block = std::move(main);
         }
 
         if (shortcut_layer) {
-            auto cu_layer = shortcut_layer->to_cuda();
+            this->device_idx = shortcut_layer->device_idx;
+            auto cu_layer = shortcut_layer->to_cuda(this->device_idx);
             this->shortcut = std::move(cu_layer);
         }
 

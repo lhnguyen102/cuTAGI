@@ -15,7 +15,7 @@ class LayerNorm : public BaseLayer {
     int _batch_size = 0;
 
     LayerNorm(const std::vector<int> &normalized_shape, float eps = 1e-5,
-              bool bias = true);
+              bool bias = true, int device_idx = 0);
     ~LayerNorm();
 
     // Delete copy constructor and copy assignment
@@ -50,7 +50,7 @@ class LayerNorm : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     // DEBUG

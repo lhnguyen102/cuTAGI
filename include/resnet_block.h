@@ -135,7 +135,7 @@ class ResNetBlock : public BaseLayer {
     get_norm_mean_var() override;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     void preinit_layer() override;
