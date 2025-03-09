@@ -1,4 +1,3 @@
-
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -327,6 +326,7 @@ void Conv2dCuda::allocate_conv_index()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Memory alignment
     unsigned int size_idx_mwa_2 =
         ((this->idx_mwa_2.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
@@ -346,6 +346,7 @@ void Conv2dCuda::conv_index_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_idx_mwa_2, this->idx_mwa_2.data(),
                this->idx_mwa_2.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_idx_cov_zwa_1, this->idx_cov_zwa_1.data(),
@@ -537,10 +538,14 @@ void Conv2dCuda::preinit_layer() {
     if (this->num_weights == 0) {
         this->get_number_param();
         this->init_weight_bias();
-        this->allocate_param_delta();
+        if (this->training) {
+            this->allocate_param_delta();
+        }
     }
 
     if (this->idx_mwa_2.size() == 0) {
         this->lazy_index_init();
     }
 }
+
+void Conv2dCuda::to(int device_idx) { this->device_idx = device_idx; }

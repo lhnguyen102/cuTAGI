@@ -62,6 +62,8 @@ class Conv2dCuda : public BaseLayerCuda {
 
     void preinit_layer() override;
 
+    void to(int device_idx_) override;
+
    protected:
     void allocate_conv_index();
     void conv_index_to_device();

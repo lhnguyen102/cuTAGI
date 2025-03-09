@@ -86,6 +86,12 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_EXTENSIONS OFF)
 set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
 
+# Set CUDA architectures
+set(CMAKE_CUDA_ARCHITECTURES 75 80 86)  # Target Turing (75), Ampere (80, 86)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  set(CMAKE_CUDA_ARCHITECTURES 75)  # Default to Turing if not specified
+endif()
+
 # Set compiler options
 if(MSVC)
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-bigobji")

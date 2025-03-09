@@ -43,6 +43,7 @@ class BaseLayer {
     bool param_update = true;
     float cap_factor_update = 1.0f;
     int neg_var_w_counter = 0;
+    int device_idx = 0;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;
@@ -129,6 +130,8 @@ class BaseLayer {
                                  " at line: " + std::to_string(__LINE__) +
                                  ". Cuda device is not available");
     };
+
+    virtual void to(int device_idx = 0) {};
 
     // Get/load Parameters
     virtual ParameterMap get_parameters_as_map(std::string suffix = "");

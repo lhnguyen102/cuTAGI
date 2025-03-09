@@ -3,12 +3,14 @@
 #include <cuda_runtime.h>
 
 #include <stdexcept>
+
+#include "../include/custom_logger.h"
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
 
-DistributedConfig::DistributedConfig(const std::vector<int>& device_ids,
-                                     const std::string& backend, int rank,
+DistributedConfig::DistributedConfig(const std::vector<int> &device_ids,
+                                     const std::string &backend, int rank,
                                      int world_size)
     : device_ids(device_ids),
       backend(backend),
@@ -16,7 +18,7 @@ DistributedConfig::DistributedConfig(const std::vector<int>& device_ids,
       world_size(world_size) {}
 
 NCCLCommunicator::NCCLCommunicator(int rank,
-                                   const std::vector<int>& device_ids) {
+                                   const std::vector<int> &device_ids) {
     this->rank = rank;
     this->world_size = device_ids.size();
 
@@ -48,7 +50,7 @@ NCCLCommunicator::~NCCLCommunicator() {
     cudaStreamDestroy(stream);
 }
 
-void NCCLCommunicator::all_reduce(float* data, size_t count) {
+void NCCLCommunicator::all_reduce(float *data, size_t count) {
     ncclAllReduce(data, data, count, ncclFloat32, ncclSum, comm, stream);
     cudaStreamSynchronize(stream);
 }
@@ -61,7 +63,7 @@ MPICommunicator::MPICommunicator() {
     int initialized;
     MPI_Initialized(&initialized);
     if (!initialized) {
-        throw std::runtime_error(
+        LOG(LogLevel::ERROR,
             "MPI must be initialized before creating MPICommunicator");
     }
 
@@ -70,11 +72,10 @@ MPICommunicator::MPICommunicator() {
 }
 
 MPICommunicator::~MPICommunicator() {
-    // Don't call MPI_Finalize here since we didn't initialize
-    // Let the main program handle MPI cleanup
+    // Main program handle MPI cleanup
 }
 
-void MPICommunicator::all_reduce(float* data, size_t count) {
+void MPICommunicator::all_reduce(float *data, size_t count) {
     MPI_Allreduce(MPI_IN_PLACE, data, count, MPI_FLOAT, MPI_SUM,
                   MPI_COMM_WORLD);
 }
@@ -83,7 +84,7 @@ void MPICommunicator::barrier() { MPI_Barrier(MPI_COMM_WORLD); }
 #endif
 
 DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
-                                             const DistributedConfig& config)
+                                             const DistributedConfig &config)
     : model(model), config(config) {
     // Create appropriate communicator based on backend. The model that trained
     // on different batches to communicate with each other.
@@ -97,7 +98,7 @@ DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
     }
 #endif
     else {
-        throw std::runtime_error("Unsupported backend: " + config.backend);
+        LOG(LogLevel::ERROR, "Unsupported backend: " + config.backend);
     }
 
     // Move model to appropriate device
@@ -109,7 +110,7 @@ DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
 
 void DistributedSequential::sync_parameters() {
     // Synchronize delta parameters across processes
-    for (auto& layer : model->layers) {
+    for (auto &layer : model->layers) {
         if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
             // Synchronize weight deltas
@@ -130,19 +131,19 @@ void DistributedSequential::sync_parameters() {
             float scale = 1.0f / communicator->get_world_size();
 
             // Scale deltas
-            for (auto& val : layer->delta_mu_w) val *= scale;
-            for (auto& val : layer->delta_var_w) val *= scale;
+            for (auto &val : layer->delta_mu_w) val *= scale;
+            for (auto &val : layer->delta_var_w) val *= scale;
 
             if (layer->bias) {
-                for (auto& val : layer->delta_mu_b) val *= scale;
-                for (auto& val : layer->delta_var_b) val *= scale;
+                for (auto &val : layer->delta_mu_b) val *= scale;
+                for (auto &val : layer->delta_var_b) val *= scale;
             }
         }
     }
 }
 
-void DistributedSequential::forward(const std::vector<float>& mu_a,
-                                    const std::vector<float>& var_a) {
+void DistributedSequential::forward(const std::vector<float> &mu_a,
+                                    const std::vector<float> &var_a) {
     model->forward(mu_a, var_a);
 }
 

@@ -78,6 +78,7 @@ class LSTMCuda : public BaseLayerCuda {
                        const std::vector<float> &var_h,
                        const std::vector<float> &mu_c,
                        const std::vector<float> &var_c);
+    void to(int device_idx) override;
 
    protected:
     using BaseLayerCuda::allocate_param_memory;

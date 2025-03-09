@@ -124,30 +124,6 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_neg_var_count);
 }
 
-void BaseLayerCuda::allocate_param_delta()
-/*
- */
-{
-    // Recalculate size for the memory alignment
-    unsigned int num_w =
-        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
-
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-
-    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
-    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
-    if (this->bias) {
-        unsigned int num_b =
-            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
-        this->delta_mu_b.resize(this->num_biases, 0.0f);
-        this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
-        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
-    }
-    CHECK_LAST_CUDA_ERROR();
-}
-
 void BaseLayerCuda::raw_update_weights()
 /*
  */
@@ -236,6 +212,7 @@ void BaseLayerCuda::allocate_param_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     unsigned int num_w =
         ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
 
@@ -258,6 +235,8 @@ void BaseLayerCuda::params_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->d_mu_w, this->mu_w.data(),
                this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_w, this->var_w.data(),
@@ -270,10 +249,38 @@ void BaseLayerCuda::params_to_device()
     CHECK_LAST_CUDA_ERROR();
 }
 
+void BaseLayerCuda::allocate_param_delta()
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+
+    // Recalculate size for the memory alignment
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+
+    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
+    if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+        this->delta_mu_b.resize(this->num_biases, 0.0f);
+        this->delta_var_b.resize(this->num_biases, 0.0f);
+        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
+    }
+    CHECK_LAST_CUDA_ERROR();
+}
+
 void BaseLayerCuda::params_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->mu_w.data(), this->d_mu_w,
                this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_w.data(), this->d_var_w,
@@ -290,6 +297,8 @@ void BaseLayerCuda::delta_params_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->delta_mu_w.data(), this->d_delta_mu_w,
                this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->delta_var_w.data(), this->d_delta_var_w,
@@ -298,6 +307,41 @@ void BaseLayerCuda::delta_params_to_host()
                this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->delta_var_b.data(), this->d_delta_var_b,
                this->num_biases * sizeof(float), cudaMemcpyDeviceToHost);
+
+    CHECK_LAST_CUDA_ERROR();
+}
+
+void BaseLayerCuda::to(int device_idx) {
+    this->device_idx = device_idx;
+    cudaSetDevice(this->device_idx);
+
+    if (d_mu_w != nullptr) {
+        params_to_host();
+
+        // Free existing device memory
+        cudaFree(d_mu_w);
+        cudaFree(d_var_w);
+        cudaFree(d_mu_b);
+        cudaFree(d_var_b);
+        cudaFree(d_delta_mu_w);
+        cudaFree(d_delta_var_w);
+        cudaFree(d_delta_mu_b);
+        cudaFree(d_delta_var_b);
+        if (d_neg_var_count != nullptr) {
+            cudaFree(d_neg_var_count);
+        }
+
+        allocate_param_memory();
+        if (this->training) {
+            allocate_param_delta();
+        }
+        params_to_device();
+    } else {
+        allocate_param_memory();
+        if (this->training) {
+            allocate_param_delta();
+        }
+    }
 
     CHECK_LAST_CUDA_ERROR();
 }
@@ -432,9 +476,8 @@ std::vector<ParameterTuple> BaseLayerCuda::parameters() {
 }
 
 std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
-    throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                             " at line: " + std::to_string(__LINE__) +
-                             ". ErrorNotImplemented");
+    LOG(LogLevel::ERROR, "ErrorNotImplemented");
+    return nullptr;
 }
 
 void BaseLayerCuda::store_states_for_training_cuda(
@@ -450,19 +493,14 @@ void BaseLayerCuda::store_states_for_training_cuda(
         cu_bwd_states->size = act_size;
         cu_bwd_states->allocate_memory();
     }
+    cu_bwd_states->copy_from(input_states, act_size);
+
+    // cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
+    //            act_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    // cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
+    //            act_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
     constexpr unsigned int THREADS = 256;
-    // unsigned int blocks = (act_size + THREADS - 1) / THREADS;
-
-    // fill_bwd_states_on_device<<<blocks, THREADS>>>(
-    //     input_states.d_mu_a, input_states.d_jcb, act_size,
-    //     cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
-
-    cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
-               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
-    cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
-               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
-
     int out_size = this->output_size * batch_size;
     unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
 

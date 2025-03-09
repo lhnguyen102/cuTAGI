@@ -537,13 +537,6 @@ layer is a convolutional layer.
             inv_var_ra * (tmp_var_a * (tmp_mu_w_2 + var_w[div_idx]) +
                           var_w[div_idx] * tmp_mu_a_tilde * tmp_mu_a_tilde);
 
-        // OLD FORMULATION
-        // float tmp_var_z =
-        //     inv_var_ra * (tmp_var_a * tmp_mu_w_2 +
-        //                   var_w[div_idx] * (tmp_mu_a * tmp_mu_a -
-        //                                     tmp_mu_ra * tmp_mu_ra +
-        //                                     tmp_var_a));
-
         mu_z[idx] = bias ? tmp_mu_z + mu_b[div_idx] : tmp_mu_z;
         var_z[idx] = bias ? tmp_var_z + var_b[div_idx] : tmp_var_z;
     }
@@ -719,6 +712,7 @@ BatchNorm2dCuda::~BatchNorm2dCuda()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaFree(d_mu_ra);
     cudaFree(d_var_ra);
 }
@@ -760,6 +754,7 @@ void BatchNorm2dCuda::init_weight_bias()
 }
 
 void BatchNorm2dCuda::deallocate_running_mean_var() {
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_mu_ra);
     cudaFree(this->d_var_ra);
     cudaFree(this->d_mu_norm_batch);
@@ -774,6 +769,7 @@ void BatchNorm2dCuda::allocate_running_mean_var()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     this->mu_ra.resize(this->num_features, 0.0f);
     this->var_ra.resize(this->num_features, 1.0f);
     this->mu_norm_batch.resize(this->num_features, 0.0f);
@@ -796,6 +792,7 @@ void BatchNorm2dCuda::running_mean_var_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_ra, this->mu_ra.data(),
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
@@ -814,6 +811,7 @@ void BatchNorm2dCuda::running_mean_var_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_ra.data(), this->d_mu_ra,
                this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
@@ -915,17 +913,6 @@ void BatchNorm2dCuda::forward(BaseHiddenStates &input_states,
         float *buf_mu_in = cu_temp_states->d_tmp_1;
         float *buf_var_in = cu_temp_states->d_tmp_2;
         if (this->training) {
-            // OLD KERNELS
-            // batchnorm2d_stat_mean_var_cuda<<<grid_size_ra, num_threads>>>(
-            //     cu_input_states->d_mu_a, cu_input_states->d_var_a, wihi,
-            //     this->in_channels, batch_size, this->d_mu_norm_batch,
-            //     cu_temp_states->d_tmp_2);
-
-            // batchnorm2d_sample_var_cuda<<<grid_size_ra, num_threads>>>(
-            //     cu_input_states->d_mu_a, this->d_mu_norm_batch,
-            //     cu_temp_states->d_tmp_2, wihi, this->in_channels, batch_size,
-            //     this->d_var_norm_batch);
-
             // Calculate  sum_val = \sum (samples)
             batchnorm2d_fwd_dual_sum_reduction(
                 cu_input_states->d_mu_a, cu_input_states->d_var_a, batch_size,
@@ -1117,9 +1104,7 @@ void BatchNorm2dCuda::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
     // Transfer data to host
     this->params_to_host();
@@ -1158,9 +1143,7 @@ void BatchNorm2dCuda::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        LOG(LogLevel::ERROR, "Failed to open file for loading");
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -1172,10 +1155,10 @@ void BatchNorm2dCuda::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
-                                 layer_name + ", Found: " + loaded_name);
+        std::string message =
+            ". Layer name are not match. Expected: " + layer_name +
+            ", Found: " + loaded_name;
+        LOG(LogLevel::ERROR, message);
     }
 
     for (auto &m_w : this->mu_w) {
@@ -1224,3 +1207,5 @@ BatchNorm2dCuda::get_norm_mean_var() {
 
     return std::make_tuple(mu_ras, var_ras, mu_norms, var_norms);
 }
+
+void BatchNorm2dCuda::to(int device_idx) { this->device_idx = device_idx; }

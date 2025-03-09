@@ -1103,3 +1103,4 @@ void LSTMCuda::d_set_LSTM_states(const std::vector<float> &mu_h,
     cudaMemcpy(lstm_state.d_var_c_prior, var_c.data(),
                lstm_state.num_states * sizeof(float), cudaMemcpyHostToDevice);
 }
+void LSTMCuda::to(int device_idx) { this->device_idx = device_idx; }

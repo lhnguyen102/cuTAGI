@@ -293,6 +293,7 @@ LayerNormCuda::~LayerNormCuda()
 }
 
 void LayerNormCuda::deallocate_running_mean_var() {
+    cudaSetDevice(this->device_idx);
     if (d_mu_ra != nullptr) {
         cudaFree(d_mu_ra);
     }
@@ -340,6 +341,7 @@ void LayerNormCuda::allocate_running_mean_var()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     this->mu_ra.resize(this->_batch_size, 0.0f);
     this->var_ra.resize(this->_batch_size, 1.0f);
 
@@ -356,6 +358,7 @@ void LayerNormCuda::running_mean_var_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_ra, this->mu_ra.data(),
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
@@ -368,6 +371,7 @@ void LayerNormCuda::running_mean_var_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_ra.data(), this->d_mu_ra,
                this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
@@ -599,9 +603,7 @@ void LayerNormCuda::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
     // Transfer data to host
     this->params_to_host();
@@ -673,3 +675,5 @@ void LayerNormCuda::load(std::ifstream &file)
     // Transfer data to device
     this->params_to_device();
 }
+
+void LayerNormCuda::to(int device_idx) { this->device_idx = device_idx; }
