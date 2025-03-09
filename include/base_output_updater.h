@@ -83,6 +83,7 @@ class OutputUpdater {
     std::shared_ptr<BaseOutputUpdater> updater;
     std::shared_ptr<BaseObservation> obs;
     std::string device = "cpu";
+    int device_idx = 0;
 
     OutputUpdater(const std::string model_device);
     OutputUpdater();

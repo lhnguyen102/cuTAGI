@@ -125,7 +125,10 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
     }
 }
 
-OutputUpdaterCuda::OutputUpdaterCuda() {}
+OutputUpdaterCuda::OutputUpdaterCuda(int device_idx) {
+    this->device_idx = device_idx;
+    cudaSetDevice(device_idx);
+}
 
 void OutputUpdaterCuda::set_num_cuda_threads(unsigned int num_threads) {
     this->num_cuda_threads = num_threads;
@@ -154,9 +157,9 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
     cu_delta_states->reset_zeros();
 
     // Kernel
+    int THREADS_PER_BLOCK = 256;
     int num_states = cu_obs->size;
-    int blocks =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    int blocks = (num_states + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 
     update_delta_z_cuda<<<blocks, this->num_cuda_threads>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,

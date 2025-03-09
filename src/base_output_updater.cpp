@@ -316,10 +316,17 @@ void BaseOutputUpdater::update_output_delta_z_heteros(
 ////////////////////////////////////////////////////////////////////////////////
 OutputUpdater::OutputUpdater(const std::string model_device)
     : device(model_device) {
+    // Get device index from model_device string
+    size_t colon_pos = model_device.find(':');
+    if (colon_pos != std::string::npos) {
+        this->device_idx = std::stoi(model_device.substr(colon_pos + 1));
+        this->device = model_device.substr(0, colon_pos);
+    }
+
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {
-        this->updater = std::make_shared<OutputUpdaterCuda>();
-        this->obs = std::make_shared<ObservationCuda>();
+        this->updater = std::make_shared<OutputUpdaterCuda>(this->device_idx);
+        this->obs = std::make_shared<ObservationCuda>(this->device_idx);
     } else
 #endif
     {
