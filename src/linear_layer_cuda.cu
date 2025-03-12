@@ -187,8 +187,6 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
     }
 
     if (this->training) {
-        // TODO: to be removed
-        this->bwd_states = std::make_unique<BackwardStateCuda>();
         this->allocate_param_delta();
     }
 }

@@ -106,3 +106,7 @@ cuTAGI is released under the MIT license.
   howpublished = {https://github.com/lhnguyen102/cuTAGI}
 }
 ```
+
+```shell
+mpirun -np 2 build/run_tests --gtest_filter=DistributedTest.SimpleCNN_NCCL
+```

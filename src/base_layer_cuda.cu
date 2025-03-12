@@ -491,6 +491,7 @@ void BaseLayerCuda::store_states_for_training_cuda(
     int act_size = input_states.actual_size * batch_size;
     if (cu_bwd_states->size != act_size) {
         cu_bwd_states->size = act_size;
+        cu_bwd_states->set_device_idx(input_states.device_idx);
         cu_bwd_states->allocate_memory();
     }
     cu_bwd_states->copy_from(input_states, act_size);
