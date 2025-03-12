@@ -117,6 +117,7 @@ class BackwardStateCuda : public BaseBackwardStates {
     void to_host();
     void copy_from(const HiddenStateCuda &source, int num_data);
     void set_size(size_t size);
+    void set_device_idx(int device_idx);
 };
 
 class ObservationCuda : public BaseObservation {

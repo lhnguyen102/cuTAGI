@@ -94,12 +94,6 @@ int get_mpi_world_size() { return 1; }
 
 /**
  * Distributed MNIST test runner
- *
- * This function runs a distributed training process on the MNIST dataset
- * Each process handles a subset of the training data
- *
- * @param dist_model The distributed model wrapper
- * @param avg_error_output Output parameter for the average error rate
  */
 void distributed_mnist_test_runner(DistributedSequential &dist_model,
                                    float &avg_error_output) {
@@ -147,12 +141,14 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
     ////////////////////////////////////////////////////////////////////////////
     // Training
     ////////////////////////////////////////////////////////////////////////////
-    OutputUpdater output_updater(model->device);
+    std::string device =
+        model->device + ":" + std::to_string(model->device_idx);
+    OutputUpdater output_updater(device);
 
     unsigned seed = 42 + rank;  // Different seed for each process
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
-    int batch_size = 16;
+    int n_epochs = 10;
+    int batch_size = 128;
     float sigma_obs = 1.0;
 
     // Calculate data partition for this process
@@ -193,44 +189,49 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
     // Train for a fixed number of iterations
     int num_iterations =
         100 / world_size;  // Adjust iterations based on world size
-    for (int i = 0; i < num_iterations; i++) {
-        // Get batch for this process
-        get_batch_images_labels(train_db, local_data_idx, batch_size, i,
-                                x_batch, y_batch, idx_ud_batch, label_batch);
+    for (int epoch = 0; epoch < n_epochs; epoch++) {
+        for (int i = 0; i < num_iterations; i++) {
+            // Get batch for this process
+            get_batch_images_labels(train_db, local_data_idx, batch_size, i,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
-        // Forward pass
-        dist_model.forward(x_batch);
+            // Forward pass
+            dist_model.forward(x_batch);
 
-        // Update output layer
-        output_updater.update_using_indices(*model->output_z_buffer, y_batch,
-                                            var_obs, idx_ud_batch,
-                                            *model->input_delta_z_buffer);
+            // Update output layer
+            output_updater.update_using_indices(*model->output_z_buffer,
+                                                y_batch, var_obs, idx_ud_batch,
+                                                *model->input_delta_z_buffer);
 
-        // Backward pass and parameter update
-        dist_model.backward();
-        dist_model.step();  // This will synchronize parameters across processes
+            // Backward pass and parameter update
+            dist_model.backward();
+            dist_model
+                .step();  // This will synchronize parameters across processes
 
-        // Extract output for error calculation
-        if (model->device.find("cuda") != std::string::npos) {
-            model->output_to_host();
-        }
+            // Extract output for error calculation
+            if (model->device.find("cuda") != std::string::npos) {
+                model->output_to_host();
+            }
 
-        for (int j = 0; j < batch_size * n_y; j++) {
-            mu_a_output[j] = model->output_z_buffer->mu_a[j];
-            var_a_output[j] = model->output_z_buffer->var_a[j];
-        }
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[j] = model->output_z_buffer->mu_a[j];
+                var_a_output[j] = model->output_z_buffer->var_a[j];
+            }
 
-        // Calculate error rate
-        std::tie(error_rate_batch, prob_class_batch) = get_error(
-            mu_a_output, var_a_output, label_batch, num_classes, batch_size);
-        mt_idx = i * batch_size;
-        update_vector(error_rate, error_rate_batch, mt_idx, 1);
+            // Calculate error rate
+            std::tie(error_rate_batch, prob_class_batch) =
+                get_error(mu_a_output, var_a_output, label_batch, num_classes,
+                          batch_size);
+            mt_idx = i * batch_size;
+            update_vector(error_rate, error_rate_batch, mt_idx, 1);
 
-        if (i % 10 == 0) {
-            LOG(LogLevel::INFO, "Process " + std::to_string(rank) +
-                                    " completed iteration " +
-                                    std::to_string(i) + " of " +
-                                    std::to_string(num_iterations));
+            if (i % 10 == 0) {
+                LOG(LogLevel::INFO, "Process " + std::to_string(rank) +
+                                        " completed iteration " +
+                                        std::to_string(i) + " of " +
+                                        std::to_string(num_iterations));
+            }
         }
     }
 
@@ -357,9 +358,9 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
 
     // Create a simple CNN model
     auto model = std::make_shared<Sequential>(
-        Conv2d(1, 8, 4, true, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
-        Conv2d(8, 8, 5), ReLU(), AvgPool2d(3, 2), Linear(8 * 4 * 4, 32), ReLU(),
-        Linear(32, 11));
+        Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
+        Conv2d(16, 16, 5), ReLU(), AvgPool2d(3, 2), Linear(16 * 4 * 4, 128),
+        ReLU(), Linear(128, 11));
 
     // Configure distributed training
     std::vector<int> device_ids;

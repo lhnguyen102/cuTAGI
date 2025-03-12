@@ -487,7 +487,9 @@ void BackwardStateCuda::copy_from(const HiddenStateCuda &source, int num_data)
 {
     cudaSetDevice(this->device_idx);
     if (this->device_idx != source.device_idx) {
-        LOG(LogLevel::ERROR, "Device index mismatch.");
+        LOG(LogLevel::ERROR, "Device index mismatch. " +
+                                 std::to_string(this->device_idx) +
+                                 " != " + std::to_string(source.device_idx));
     }
     cudaMemcpy(this->d_mu_a, source.d_mu_a, num_data * sizeof(float),
                cudaMemcpyDeviceToDevice);
@@ -511,10 +513,17 @@ void BackwardStateCuda::set_size(size_t new_size)
     }
 }
 
+void BackwardStateCuda::set_device_idx(int device_idx) {
+    this->device_idx = device_idx;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Observation
 ////////////////////////////////////////////////////////////////////////////////
-ObservationCuda::ObservationCuda(int device_idx) { cudaSetDevice(device_idx); }
+ObservationCuda::ObservationCuda(int device_idx) {
+    cudaSetDevice(device_idx);
+    this->device_idx = device_idx;
+}
 ObservationCuda::~ObservationCuda()
 /*
  */
