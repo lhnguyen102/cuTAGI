@@ -323,9 +323,6 @@ OutputUpdater::OutputUpdater(const std::string model_device)
         this->device_idx = std::stoi(model_device.substr(colon_pos + 1));
         this->device = model_device.substr(0, colon_pos);
     }
-    // log device index
-    LOG(LogLevel::INFO,
-        "OutputUpdater device index: " + std::to_string(this->device_idx));
 
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {

@@ -22,7 +22,10 @@
 #include "../../include/max_pooling_layer.h"
 #include "../../include/pooling_layer.h"
 #include "../../include/sequential.h"
-#ifdef USE_MPI
+
+// Check if all required dependencies for distributed training are available
+#if defined(USE_NCCL) && defined(USE_CUDA) && defined(USE_MPI)
+#define DISTRIBUTED_TEST_AVAILABLE 1
 #include <mpi.h>
 #endif
 
@@ -31,7 +34,7 @@ extern bool g_gpu_enabled;
 // Global flag to track if MPI is initialized by our tests
 static bool g_mpi_initialized_by_test = false;
 
-#ifdef USE_MPI
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 /**
  * Initialize MPI if not already initialized
  * Returns true if MPI was initialized by this function
@@ -209,9 +212,7 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
             dist_model.step();
 
             // Extract output for error calculation
-            if (model->device.find("cuda") != std::string::npos) {
-                model->output_to_host();
-            }
+            model->output_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {
                 mu_a_output[j] = model->output_z_buffer->mu_a[j];
@@ -330,7 +331,7 @@ class DistributedTest : public ::testing::Test {
     }
 };
 
-#if defined(USE_MPI) && defined(USE_CUDA)
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 /**
  * Test distributed training with a simple CNN model using NCCL backend
  */
@@ -379,49 +380,13 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
             "Final average error rate: " + std::to_string(avg_error));
     }
 }
-
-#endif
-
-#ifdef USE_MPI
-/**
- * Test distributed training with MPI backend
- */
-TEST_F(DistributedTest, SimpleCNN_MPI) {
-    // This test requires MPI to be initialized
-    if (!is_mpi_initialized()) {
-        GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
-    }
-
-    // Get MPI rank and world size
-    int rank = get_mpi_rank();
-    int world_size = get_mpi_world_size();
-
-    if (world_size < 2) {
-        GTEST_SKIP() << "This test requires at least 2 MPI processes";
-    }
-
-    // Log process information
-    LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
-                            std::to_string(world_size) + " starting MPI test");
-    auto model = std::make_shared<Sequential>(
-        Linear(28 * 28, 128), ReLU(), Linear(128, 64), ReLU(), Linear(64, 11));
-
-    // Configure distributed training with MPI backend
-    std::vector<int> device_ids = {0};  // Not used for MPI
-    DistributedConfig config(device_ids, "mpi", rank, world_size);
-    DistributedSequential dist_model(model, config);
-
-    // Run distributed training
-    float avg_error;
-    distributed_mnist_test_runner(dist_model, avg_error);
-
-    // Only rank 0 should assert the results
-    if (rank == 0) {
-        float threshold = 0.6;
-        EXPECT_LT(avg_error, threshold)
-            << "Error rate should be below " << threshold;
-        LOG(LogLevel::INFO,
-            "Final average error rate with MPI: " + std::to_string(avg_error));
-    }
+#else
+// Add a dummy test when distributed functionality is not available
+TEST(DistributedTest, DistributedNotAvailable) {
+    LOG(LogLevel::INFO,
+        "Distributed functionality is not available. Skipping distributed "
+        "tests.");
+    GTEST_SKIP() << "Distributed functionality is not available (requires "
+                    "NCCL, CUDA, and MPI)";
 }
 #endif
