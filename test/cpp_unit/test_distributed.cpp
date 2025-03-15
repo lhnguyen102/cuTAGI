@@ -186,9 +186,9 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
     std::vector<int> error_rate_batch;
     std::vector<float> prob_class_batch;
 
-    // Train for a fixed number of iterations
-    int num_iterations =
-        100 / world_size;  // Adjust iterations based on world size
+    // Train for a fixed number of iterations by adjusting iterations based on
+    // world size
+    int num_iterations = 100 / world_size;
     for (int epoch = 0; epoch < n_epochs; epoch++) {
         for (int i = 0; i < num_iterations; i++) {
             // Get batch for this process
@@ -206,8 +206,7 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
 
             // Backward pass and parameter update
             dist_model.backward();
-            dist_model
-                .step();  // This will synchronize parameters across processes
+            dist_model.step();
 
             // Extract output for error calculation
             if (model->device.find("cuda") != std::string::npos) {
@@ -244,9 +243,6 @@ void distributed_mnist_test_runner(DistributedSequential &dist_model,
                             std::to_string(avg_error_output));
 }
 
-/**
- * Test class for distributed training
- */
 class DistributedTest : public ::testing::Test {
    protected:
     void SetUp() override {
@@ -339,7 +335,7 @@ class DistributedTest : public ::testing::Test {
  * Test distributed training with a simple CNN model using NCCL backend
  */
 TEST_F(DistributedTest, SimpleCNN_NCCL) {
-    // This test requires MPI to be initialized
+    // This test requires MPI to be initialized e.g., command: mpirun -np 2
     if (!is_mpi_initialized()) {
         GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
     }
@@ -356,7 +352,6 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
                             std::to_string(world_size) + " starting test");
 
-    // Create a simple CNN model
     auto model = std::make_shared<Sequential>(
         Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
         Conv2d(16, 16, 5), ReLU(), AvgPool2d(3, 2), Linear(16 * 4 * 4, 128),
@@ -408,8 +403,6 @@ TEST_F(DistributedTest, SimpleCNN_MPI) {
     // Log process information
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
                             std::to_string(world_size) + " starting MPI test");
-
-    // Create a simple model for MPI backend
     auto model = std::make_shared<Sequential>(
         Linear(28 * 28, 128), ReLU(), Linear(128, 64), ReLU(), Linear(64, 11));
 
@@ -424,7 +417,7 @@ TEST_F(DistributedTest, SimpleCNN_MPI) {
 
     // Only rank 0 should assert the results
     if (rank == 0) {
-        float threshold = 0.6;  // MLP model might have higher error rate
+        float threshold = 0.6;
         EXPECT_LT(avg_error, threshold)
             << "Error rate should be below " << threshold;
         LOG(LogLevel::INFO,

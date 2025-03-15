@@ -27,9 +27,10 @@ NCCLCommunicator::NCCLCommunicator(int rank,
 
     // Initialize NCCL
     ncclUniqueId id;
+    // Rank 0 creates the unique id. It communicates the id to all processes.
 #ifdef USE_MPI
     if (rank == 0) {
-        ncclGetUniqueId(&id);  // Rank 0 creates the unique id.
+        ncclGetUniqueId(&id);
     }
     // All processes get the id, i.e., secret key to communicate with each other
     MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
@@ -37,10 +38,7 @@ NCCLCommunicator::NCCLCommunicator(int rank,
     LOG(LogLevel::ERROR, "MPI is required to broadcast the NCCL unique id");
 #endif
 
-    // Initialize NCCL communicator
     ncclCommInitRank(&comm, world_size, id, rank);
-
-    // Create CUDA stream
     cudaStreamCreate(&stream);
 }
 
@@ -50,6 +48,8 @@ NCCLCommunicator::~NCCLCommunicator() {
 }
 
 void NCCLCommunicator::all_reduce(float *data, size_t count) {
+    // Perform all-reduce operation i.e., sum of all the data across all
+    // processes
     ncclAllReduce(data, data, count, ncclFloat32, ncclSum, comm, stream);
     cudaStreamSynchronize(stream);
 }
@@ -83,8 +83,9 @@ void MPICommunicator::barrier() { MPI_Barrier(MPI_COMM_WORLD); }
 #endif
 
 DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
-                                             const DistributedConfig &config)
-    : model(model), config(config) {
+                                             const DistributedConfig &config,
+                                             bool average)
+    : model(model), config(config), average(average) {
     // Create appropriate communicator based on backend. The model that trained
     // on different batches to communicate with each other.
     if (config.backend == "nccl") {
@@ -113,13 +114,12 @@ void DistributedSequential::sync_parameters() {
     for (auto &layer : model->layers) {
         if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
-            // Synchronize weight deltas
+            // Synchronize weights and biases deltas
             communicator->all_reduce(layer->delta_mu_w.data(),
                                      layer->delta_mu_w.size());
             communicator->all_reduce(layer->delta_var_w.data(),
                                      layer->delta_var_w.size());
 
-            // Synchronize bias deltas if the layer uses bias
             if (layer->bias) {
                 communicator->all_reduce(layer->delta_mu_b.data(),
                                          layer->delta_mu_b.size());
@@ -128,9 +128,9 @@ void DistributedSequential::sync_parameters() {
             }
 
             // Scale by world size to get average
-            float scale = 1.0f / communicator->get_world_size();
+            float scale =
+                this->average ? 1.0f / communicator->get_world_size() : 1.0f;
 
-            // Scale deltas
             for (auto &val : layer->delta_mu_w) val *= scale;
             for (auto &val : layer->delta_var_w) val *= scale;
 
@@ -150,7 +150,6 @@ void DistributedSequential::forward(const std::vector<float> &mu_a,
 void DistributedSequential::backward() { model->backward(); }
 
 void DistributedSequential::step() {
-    // Synchronize delta parameters before updating
     sync_parameters();
     model->step();
 }

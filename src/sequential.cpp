@@ -16,6 +16,8 @@
 #endif
 #include <memory>
 
+#include "../include/cuda_utils.h"
+
 // Sequential::Sequential() {}
 Sequential::~Sequential() { this->valid_ = false; }
 

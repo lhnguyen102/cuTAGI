@@ -76,12 +76,13 @@ class DistributedSequential {
     std::shared_ptr<Sequential> model;
     std::unique_ptr<Communicator> communicator;
     DistributedConfig config;
+    bool average = true;
 
     void sync_parameters();
 
    public:
     DistributedSequential(std::shared_ptr<Sequential> model,
-                          const DistributedConfig &config);
+                          const DistributedConfig &config, bool average = true);
 
     void forward(const std::vector<float> &mu_a,
                  const std::vector<float> &var_a = std::vector<float>());

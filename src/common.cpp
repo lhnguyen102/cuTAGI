@@ -355,25 +355,6 @@ std::mt19937 &get_random_engine() {
 }
 
 ///////////////////////////////////////////////////////
-// CHECK CUDA
-///////////////////////////////////////////////////////
-bool is_cuda_available() {
-#ifdef USE_CUDA
-    int deviceCount = 0;
-    cudaError_t error = cudaGetDeviceCount(&deviceCount);
-
-    if (error != cudaSuccess) {
-        std::cerr << "CUDA runtime error: " << cudaGetErrorString(error)
-                  << std::endl;
-        return false;
-    }
-    return deviceCount > 0;
-#else
-    return false;
-#endif
-}
-
-///////////////////////////////////////////////////////
 // NORM LAYER
 ///////////////////////////////////////////////////////
 void delta_param_sum(const std::vector<float> &delta_mu_e,
