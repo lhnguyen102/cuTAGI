@@ -15,6 +15,7 @@ from pytagi.nn.batch_norm import BatchNorm2d
 from pytagi.nn.conv2d import Conv2d
 from pytagi.nn.convtranspose2d import ConvTranspose2d
 from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates, HRCSoftmax
+from pytagi.nn.distributed import DistributedConfig, DistributedSequential
 from pytagi.nn.layer_block import LayerBlock
 from pytagi.nn.layer_norm import LayerNorm
 from pytagi.nn.linear import Linear

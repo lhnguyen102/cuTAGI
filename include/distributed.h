@@ -1,6 +1,10 @@
 #pragma once
 
+// Define a macro to check if all required dependencies are available
+#if defined(USE_NCCL) && defined(USE_CUDA) && defined(USE_MPI)
+#define DISTRIBUTED_AVAILABLE 1
 #include <nccl.h>
+#endif
 
 #include <memory>
 #include <vector>
@@ -21,8 +25,10 @@ class Communicator {
     virtual void barrier() = 0;
     virtual int get_rank() const = 0;
     virtual int get_world_size() const = 0;
+    virtual void check_async_error() = 0;
 };
 
+#ifdef DISTRIBUTED_AVAILABLE
 // NCCL-specific communicator implementation
 class NCCLCommunicator : public Communicator {
    private:
@@ -39,23 +45,27 @@ class NCCLCommunicator : public Communicator {
     void barrier() override;
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
+    void check_async_error() override;
 };
-
-// MPI-specific communicator implementation
-class MPICommunicator : public Communicator {
+#else
+// Stub implementation when NCCL is not available
+class NCCLCommunicator : public Communicator {
    private:
     int rank;
     int world_size;
 
    public:
-    MPICommunicator();
-    ~MPICommunicator();
+    NCCLCommunicator(int rank, const std::vector<int> &device_ids)
+        : rank(rank), world_size(1) {}
+    ~NCCLCommunicator() {}
 
-    void all_reduce(float *data, size_t count) override;
-    void barrier() override;
+    void all_reduce(float *data, size_t count) override {}
+    void barrier() override {}
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
+    void check_async_error() override {}
 };
+#endif
 
 // Configuration for distributed training
 class DistributedConfig {
@@ -88,6 +98,9 @@ class DistributedSequential {
                  const std::vector<float> &var_a = std::vector<float>());
     void backward();
     void step();
+    void train();
+    void eval();
+    void barrier();
 
     std::shared_ptr<Sequential> get_model() { return model; }
     const DistributedConfig &get_config() const { return config; }

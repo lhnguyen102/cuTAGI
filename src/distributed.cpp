@@ -1,14 +1,18 @@
 #include "../include/distributed.h"
 
-#include <cuda_runtime.h>
-
 #include <stdexcept>
 
 #include "../include/custom_logger.h"
-#ifdef USE_MPI
+
+#if defined(USE_NCCL) && defined(USE_CUDA) && defined(USE_MPI)
+#include <cuda_runtime.h>
 #include <mpi.h>
+#include <nccl.h>
+
+#include "../include/cuda_error_checking.cuh"
 #endif
 
+// DistributedConfig implementation is always available
 DistributedConfig::DistributedConfig(const std::vector<int> &device_ids,
                                      const std::string &backend, int rank,
                                      int world_size)
@@ -17,6 +21,8 @@ DistributedConfig::DistributedConfig(const std::vector<int> &device_ids,
       rank(rank),
       world_size(world_size) {}
 
+#if defined(DISTRIBUTED_AVAILABLE)
+// NCCLCommunicator implementation when dependencies are available
 NCCLCommunicator::NCCLCommunicator(int rank,
                                    const std::vector<int> &device_ids) {
     this->rank = rank;
@@ -28,15 +34,11 @@ NCCLCommunicator::NCCLCommunicator(int rank,
     // Initialize NCCL
     ncclUniqueId id;
     // Rank 0 creates the unique id. It communicates the id to all processes.
-#ifdef USE_MPI
     if (rank == 0) {
         ncclGetUniqueId(&id);
     }
     // All processes get the id, i.e., secret key to communicate with each other
     MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
-#else
-    LOG(LogLevel::ERROR, "MPI is required to broadcast the NCCL unique id");
-#endif
 
     ncclCommInitRank(&comm, world_size, id, rank);
     cudaStreamCreate(&stream);
@@ -56,48 +58,21 @@ void NCCLCommunicator::all_reduce(float *data, size_t count) {
 
 void NCCLCommunicator::barrier() { cudaStreamSynchronize(stream); }
 
-#ifdef USE_MPI
-MPICommunicator::MPICommunicator() {
-    // Check if MPI is already initialized
-    int initialized;
-    MPI_Initialized(&initialized);
-    if (!initialized) {
-        LOG(LogLevel::ERROR,
-            "MPI must be initialized before creating MPICommunicator");
-    }
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-}
-
-MPICommunicator::~MPICommunicator() {
-    // Main program handle MPI cleanup
-}
-
-void MPICommunicator::all_reduce(float *data, size_t count) {
-    MPI_Allreduce(MPI_IN_PLACE, data, count, MPI_FLOAT, MPI_SUM,
-                  MPI_COMM_WORLD);
-}
-
-void MPICommunicator::barrier() { MPI_Barrier(MPI_COMM_WORLD); }
+void NCCLCommunicator::check_async_error() { CHECK_CUDA_NCCL_ASYNC(comm); }
 #endif
 
+// DistributedSequential implementation
 DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
                                              const DistributedConfig &config,
                                              bool average)
     : model(model), config(config), average(average) {
+#if defined(DISTRIBUTED_AVAILABLE)
     // Create appropriate communicator based on backend. The model that trained
     // on different batches to communicate with each other.
     if (config.backend == "nccl") {
         communicator =
             std::make_unique<NCCLCommunicator>(config.rank, config.device_ids);
-    }
-#ifdef USE_MPI
-    else if (config.backend == "mpi") {
-        communicator = std::make_unique<MPICommunicator>();
-    }
-#endif
-    else {
+    } else {
         LOG(LogLevel::ERROR, "Unsupported backend: " + config.backend);
     }
 
@@ -107,9 +82,18 @@ DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
             "cuda:" + std::to_string(config.device_ids[config.rank]);
         model->to_device(device);
     }
+#else
+    LOG(LogLevel::WARNING,
+        "Distributed training is not available. Make sure NCCL, CUDA, and MPI "
+        "are enabled.");
+    // Create a stub communicator
+    communicator =
+        std::make_unique<NCCLCommunicator>(config.rank, config.device_ids);
+#endif
 }
 
 void DistributedSequential::sync_parameters() {
+#if defined(DISTRIBUTED_AVAILABLE)
     // Synchronize delta parameters across processes
     for (auto &layer : model->layers) {
         if (layer->get_layer_type() != LayerType::Activation &&
@@ -140,6 +124,7 @@ void DistributedSequential::sync_parameters() {
             }
         }
     }
+#endif
 }
 
 void DistributedSequential::forward(const std::vector<float> &mu_a,
@@ -150,6 +135,17 @@ void DistributedSequential::forward(const std::vector<float> &mu_a,
 void DistributedSequential::backward() { model->backward(); }
 
 void DistributedSequential::step() {
+#if defined(DISTRIBUTED_AVAILABLE)
     sync_parameters();
     model->step();
+    communicator->check_async_error();
+#else
+    model->step();
+#endif
 }
+
+void DistributedSequential::train() { model->train(); }
+
+void DistributedSequential::eval() { model->eval(); }
+
+void DistributedSequential::barrier() { communicator->barrier(); }

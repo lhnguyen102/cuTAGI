@@ -9,6 +9,7 @@
 #include "conv2d_layer_bindings.h"
 #include "convtranspose2d_layer_bindings.h"
 #include "data_struct_bindings.h"
+#include "distributed_bindings.h"
 #include "layer_block_bindings.h"
 #include "linear_layer_bindings.h"
 #include "lstm_layer_bindings.h"

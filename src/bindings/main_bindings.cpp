@@ -31,6 +31,7 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_layer_block(modo);
     bind_resnet_block(modo);
     bind_sequential(modo);
+    bind_distributed(modo);
     bind_output_updater(modo);
     bind_utils(modo);
     bind_manual_seed(modo);
