@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "cost.h"
+#include "cuda_utils.h"
 #include "data_struct.h"
 #include "dataloader.h"
 
@@ -56,3 +57,9 @@ class Utils {
 void bind_utils(pybind11::module_ &modo);
 void bind_manual_seed(pybind11::module_ &modo);
 void bind_is_cuda_available(pybind11::module_ &modo);
+void bind_cuda_device_memory(pybind11::module_ &modo);
+void bind_cuda_device_properties(pybind11::module_ &modo);
+void bind_cuda_device_count(pybind11::module_ &modo);
+void bind_cuda_current_device(pybind11::module_ &modo);
+void bind_cuda_set_device(pybind11::module_ &modo);
+void bind_cuda_device_available(pybind11::module_ &modo);

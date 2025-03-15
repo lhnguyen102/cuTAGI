@@ -167,3 +167,27 @@ void bind_manual_seed(pybind11::module_ &m) {
 void bind_is_cuda_available(pybind11::module_ &m) {
     m.def("is_cuda_available", &is_cuda_available);
 }
+
+void bind_cuda_device_memory(pybind11::module_ &m) {
+    m.def("get_cuda_device_memory", &get_cuda_device_memory);
+}
+
+void bind_cuda_device_properties(pybind11::module_ &m) {
+    m.def("get_cuda_device_properties", &get_cuda_device_properties);
+}
+
+void bind_cuda_device_count(pybind11::module_ &m) {
+    m.def("get_cuda_device_count", &get_cuda_device_count);
+}
+
+void bind_cuda_current_device(pybind11::module_ &m) {
+    m.def("get_cuda_current_device", &get_current_cuda_device);
+}
+
+void bind_cuda_set_device(pybind11::module_ &m) {
+    m.def("set_cuda_device", &set_cuda_device);
+}
+
+void bind_cuda_device_available(pybind11::module_ &m) {
+    m.def("is_cuda_device_available", &is_cuda_device_available);
+}
