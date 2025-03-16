@@ -6,13 +6,17 @@
 #include <nccl.h>
 #endif
 
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
 #include <memory>
 #include <vector>
 
 #include "sequential.h"
 
 // Forward declarations
-class DistributedConfig;
+class DDPConfig;
 class Communicator;
 class NCCLCommunicator;
 class MPICommunicator;
@@ -68,40 +72,55 @@ class NCCLCommunicator : public Communicator {
 #endif
 
 // Configuration for distributed training
-class DistributedConfig {
+class DDPConfig {
    public:
     std::vector<int> device_ids;
     std::string backend = "nccl";
     int rank = 0;
     int world_size = 1;
 
-    DistributedConfig(const std::vector<int> &device_ids,
-                      const std::string &backend = "nccl", int rank = 0,
-                      int world_size = 1);
+    DDPConfig(const std::vector<int> &device_ids,
+              const std::string &backend = "nccl", int rank = 0,
+              int world_size = 1);
 };
 
 // Main DDP wrapper class
-class DistributedSequential {
+class DDPSequential {
    private:
     std::shared_ptr<Sequential> model;
     std::unique_ptr<Communicator> communicator;
-    DistributedConfig config;
+    DDPConfig config;
     bool average = true;
 
     void sync_parameters();
 
    public:
-    DistributedSequential(std::shared_ptr<Sequential> model,
-                          const DistributedConfig &config, bool average = true);
+    DDPSequential(std::shared_ptr<Sequential> model, const DDPConfig &config,
+                  bool average = true);
 
     void forward(const std::vector<float> &mu_a,
                  const std::vector<float> &var_a = std::vector<float>());
+
+    void forward(BaseHiddenStates &input_states) {
+        this->model->forward(input_states);
+    }
+
+    // Python Wrapper
+    void forward_py(
+        pybind11::array_t<float> mu_a_np,
+        pybind11::array_t<float> var_a_np = pybind11::array_t<float>()) {
+        this->model->forward_py(mu_a_np, var_a_np);
+    }
     void backward();
     void step();
     void train();
     void eval();
     void barrier();
+    std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
+    get_outputs() {
+        return this->model->get_outputs();
+    }
 
     std::shared_ptr<Sequential> get_model() { return model; }
-    const DistributedConfig &get_config() const { return config; }
+    const DDPConfig &get_config() const { return config; }
 };

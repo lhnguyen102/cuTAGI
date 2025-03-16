@@ -83,52 +83,6 @@ void bind_sequential(pybind11::module_& m) {
         .def("parameters", &Sequential::parameters)
         .def("state_dict", &Sequential::state_dict)
         .def("load_state_dict", &Sequential::load_state_dict)
-        // .def("parameters",
-        //      [](Sequential& self) {
-        //          auto params = self.parameters();
-        //          pybind11::list py_params;
-        //          for (auto& param_ref : params) {
-        //              auto& param = param_ref.get();
-        //              py_params.append(pybind11::array_t<float>(
-        //                  {static_cast<long>(param.size())}, {sizeof(float)},
-        //                  param.data()));
-        //          }
-        //          return py_params;
-        //      })
-        // .def("get_state_dict",
-        //      [](Sequential& self) {
-        //          auto cpp_state_dict = self.get_state_dict();
-        //          pybind11::dict py_state_dict;
-        //          for (const auto& pair : cpp_state_dict) {
-        //              pybind11::dict layer_dict;
-        //              layer_dict["mu_w"] = std::get<0>(pair.second);
-        //              layer_dict["var_w"] = std::get<1>(pair.second);
-        //              layer_dict["mu_b"] = std::get<2>(pair.second);
-        //              layer_dict["var_b"] = std::get<3>(pair.second);
-        //              py_state_dict[pair.first.c_str()] = layer_dict;
-        //          }
-        //          return py_state_dict;
-        //      })
-
-        // .def("load_state_dict",
-        //      [](Sequential& self, const pybind11::dict& py_state_dict) {
-        //          std::map<std::string,
-        //                   std::tuple<std::vector<float>, std::vector<float>,
-        //                              std::vector<float>, std::vector<float>>>
-        //              cpp_state_dict;
-        //          for (const auto& item : py_state_dict) {
-        //              std::string key =
-        //              pybind11::cast<std::string>(item.first); pybind11::dict
-        //              layer_dict =
-        //                  item.second.cast<pybind11::dict>();
-        //              cpp_state_dict[key] = std::make_tuple(
-        //                  layer_dict["mu_w"].cast<std::vector<float>>(),
-        //                  layer_dict["var_w"].cast<std::vector<float>>(),
-        //                  layer_dict["mu_b"].cast<std::vector<float>>(),
-        //                  layer_dict["var_b"].cast<std::vector<float>>());
-        //          }
-        //          self.load_state_dict(cpp_state_dict);
-        //      })
         .def("get_outputs", &Sequential::get_outputs)
         .def("get_outputs_smoother", &Sequential::get_outputs_smoother)
         .def("get_input_states", &Sequential::get_input_states)

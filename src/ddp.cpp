@@ -1,4 +1,4 @@
-#include "../include/distributed.h"
+#include "../include/ddp.h"
 
 #include <stdexcept>
 
@@ -12,10 +12,8 @@
 #include "../include/cuda_error_checking.cuh"
 #endif
 
-// DistributedConfig implementation is always available
-DistributedConfig::DistributedConfig(const std::vector<int> &device_ids,
-                                     const std::string &backend, int rank,
-                                     int world_size)
+DDPConfig::DDPConfig(const std::vector<int> &device_ids,
+                     const std::string &backend, int rank, int world_size)
     : device_ids(device_ids),
       backend(backend),
       rank(rank),
@@ -61,12 +59,16 @@ void NCCLCommunicator::barrier() { cudaStreamSynchronize(stream); }
 void NCCLCommunicator::check_async_error() { CHECK_CUDA_NCCL_ASYNC(comm); }
 #endif
 
-// DistributedSequential implementation
-DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
-                                             const DistributedConfig &config,
-                                             bool average)
+// DDPSequential implementation
+DDPSequential::DDPSequential(std::shared_ptr<Sequential> model,
+                             const DDPConfig &config, bool average)
     : model(model), config(config), average(average) {
 #if defined(DISTRIBUTED_AVAILABLE)
+
+    if (config.device_ids.size() < 2) {
+        LOG(LogLevel::ERROR, "DDP requires at least 2 devices.");
+    }
+
     // Create appropriate communicator based on backend. The model that trained
     // on different batches to communicate with each other.
     if (config.backend == "nccl") {
@@ -92,7 +94,7 @@ DistributedSequential::DistributedSequential(std::shared_ptr<Sequential> model,
 #endif
 }
 
-void DistributedSequential::sync_parameters() {
+void DDPSequential::sync_parameters() {
 #if defined(DISTRIBUTED_AVAILABLE)
     // Synchronize delta parameters across processes
     for (auto &layer : model->layers) {
@@ -127,14 +129,14 @@ void DistributedSequential::sync_parameters() {
 #endif
 }
 
-void DistributedSequential::forward(const std::vector<float> &mu_a,
-                                    const std::vector<float> &var_a) {
+void DDPSequential::forward(const std::vector<float> &mu_a,
+                            const std::vector<float> &var_a) {
     model->forward(mu_a, var_a);
 }
 
-void DistributedSequential::backward() { model->backward(); }
+void DDPSequential::backward() { model->backward(); }
 
-void DistributedSequential::step() {
+void DDPSequential::step() {
 #if defined(DISTRIBUTED_AVAILABLE)
     sync_parameters();
     model->step();
@@ -144,8 +146,8 @@ void DistributedSequential::step() {
 #endif
 }
 
-void DistributedSequential::train() { model->train(); }
+void DDPSequential::train() { model->train(); }
 
-void DistributedSequential::eval() { model->eval(); }
+void DDPSequential::eval() { model->eval(); }
 
-void DistributedSequential::barrier() { communicator->barrier(); }
+void DDPSequential::barrier() { communicator->barrier(); }

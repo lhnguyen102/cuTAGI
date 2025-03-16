@@ -7,19 +7,20 @@
 #include <memory>
 #include <vector>
 
-#include "../include/distributed.h"
+#include "../include/data_struct.h"
+#include "../include/ddp.h"
 #include "../include/sequential.h"
 
 void bind_distributed(pybind11::module_& m) {
-    pybind11::class_<DistributedConfig>(m, "DistributedConfig")
+    pybind11::class_<DDPConfig>(m, "DDPConfig")
         .def(pybind11::init<const std::vector<int>&, const std::string&, int,
                             int>(),
              pybind11::arg("device_ids"), pybind11::arg("backend") = "nccl",
              pybind11::arg("rank") = 0, pybind11::arg("world_size") = 1)
-        .def_readwrite("device_ids", &DistributedConfig::device_ids)
-        .def_readwrite("backend", &DistributedConfig::backend)
-        .def_readwrite("rank", &DistributedConfig::rank)
-        .def_readwrite("world_size", &DistributedConfig::world_size);
+        .def_readwrite("device_ids", &DDPConfig::device_ids)
+        .def_readwrite("backend", &DDPConfig::backend)
+        .def_readwrite("rank", &DDPConfig::rank)
+        .def_readwrite("world_size", &DDPConfig::world_size);
 
 #if defined(DISTRIBUTED_AVAILABLE)
     pybind11::class_<NCCLCommunicator>(m, "NCCLCommunicator")
@@ -31,16 +32,33 @@ void bind_distributed(pybind11::module_& m) {
         .def("get_rank", &NCCLCommunicator::get_rank);
 #endif
 
-    pybind11::class_<DistributedSequential,
-                     std::shared_ptr<DistributedSequential>>(
-        m, "DistributedSequential")
-        .def(pybind11::init<std::shared_ptr<Sequential>,
-                            const DistributedConfig&, bool>(),
+    pybind11::class_<DDPSequential, std::shared_ptr<DDPSequential>>(
+        m, "DDPSequential")
+        .def(pybind11::init<std::shared_ptr<Sequential>, const DDPConfig&,
+                            bool>(),
              pybind11::arg("model"), pybind11::arg("config"),
              pybind11::arg("average") = true)
-        .def("forward", &DistributedSequential::forward)
-        .def("backward", &DistributedSequential::backward)
-        .def("step", &DistributedSequential::step)
-        .def("train", &DistributedSequential::train)
-        .def("eval", &DistributedSequential::eval);
+        .def("forward",
+             [](DDPSequential& self, pybind11::object arg1,
+                pybind11::object arg2 = pybind11::none()) {
+                 if (pybind11::isinstance<pybind11::array_t<float>>(arg1)) {
+                     pybind11::array_t<float> mu_a_np =
+                         arg1.cast<pybind11::array_t<float>>();
+                     pybind11::array_t<float> var_a_np =
+                         arg2.is_none() ? pybind11::array_t<float>()
+                                        : arg2.cast<pybind11::array_t<float>>();
+                     self.forward_py(mu_a_np, var_a_np);
+                 } else {
+                     // Handle the case for BaseHiddenStates
+                     BaseHiddenStates& input_states =
+                         arg1.cast<BaseHiddenStates&>();
+                     self.forward(input_states);
+                 }
+             })
+        .def("backward", &DDPSequential::backward)
+        .def("step", &DDPSequential::step)
+        .def("train", &DDPSequential::train)
+        .def("eval", &DDPSequential::eval)
+        .def("barrier", &DDPSequential::barrier)
+        .def("get_outputs", &DDPSequential::get_outputs);
 }

@@ -17,7 +17,7 @@
 #include "../../include/custom_logger.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
-#include "../../include/distributed.h"
+#include "../../include/ddp.h"
 #include "../../include/linear_layer.h"
 #include "../../include/max_pooling_layer.h"
 #include "../../include/pooling_layer.h"
@@ -98,7 +98,7 @@ int get_mpi_world_size() { return 1; }
 /**
  * Distributed MNIST test runner
  */
-void distributed_mnist_test_runner(DistributedSequential &dist_model,
+void distributed_mnist_test_runner(DDPSequential &dist_model,
                                    float &avg_error_output) {
     // Get the underlying model and configuration
     auto model = dist_model.get_model();
@@ -364,8 +364,8 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
         device_ids.push_back(i % 2);  // Use GPUs 0 and 1 in round-robin fashion
     }
 
-    DistributedConfig config(device_ids, "nccl", rank, world_size);
-    DistributedSequential dist_model(model, config);
+    DDPConfig config(device_ids, "nccl", rank, world_size);
+    DDPSequential dist_model(model, config);
 
     // Run distributed training
     float avg_error;
