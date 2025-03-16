@@ -6,7 +6,7 @@ import numpy as np
 from pytagi.nn.sequential import Sequential
 
 
-class DistributedConfig:
+class DDPConfig:
     """Configuration for distributed training"""
 
     def __init__(
@@ -16,9 +16,7 @@ class DistributedConfig:
         rank: int = 0,
         world_size: int = 1,
     ):
-        self._cpp_backend = cutagi.DistributedConfig(
-            device_ids, backend, rank, world_size
-        )
+        self._cpp_backend = cutagi.DDPConfig(device_ids, backend, rank, world_size)
 
     @property
     def device_ids(self) -> List[int]:
@@ -53,27 +51,33 @@ class DistributedConfig:
         self._cpp_backend.world_size = value
 
 
-class DistributedSequential:
+class DDPSequential:
     """Distributed training wrapper for Sequential models"""
 
     def __init__(
         self,
         model: Sequential,
-        config: DistributedConfig,
+        config: DDPConfig,
         average: bool = True,
     ):
-        self._cpp_backend = cutagi.DistributedSequential(
+        self._cpp_backend = cutagi.DDPSequential(
             model._cpp_backend, config._cpp_backend, average
         )
         self.model = model
         self.config = config
+
+    def __call__(
+        self, mu_x: np.ndarray, var_x: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Perform a forward pass"""
+        return self.forward(mu_x, var_x)
 
     def forward(
         self, mu_x: np.ndarray, var_x: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Perform a forward pass"""
         self._cpp_backend.forward(mu_x, var_x)
-        return self.model.get_outputs()
+        return self._cpp_backend.get_outputs()
 
     def backward(self):
         """Perform a backward pass"""
@@ -90,3 +94,11 @@ class DistributedSequential:
     def eval(self):
         """Set the model in evaluation mode"""
         self._cpp_backend.eval()
+
+    def barrier(self):
+        """Synchronize all processes"""
+        self._cpp_backend.barrier()
+
+    def get_outputs(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get the outputs of the model"""
+        return self._cpp_backend.get_outputs()

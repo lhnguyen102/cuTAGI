@@ -17,12 +17,13 @@ from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
-    DistributedConfig,
-    DistributedSequential,
+    DDPConfig,
+    DDPSequential,
     Linear,
     MixtureReLU,
     OutputUpdater,
     Sequential,
+    ReLU,
 )
 
 # Define a simple CNN model
@@ -38,12 +39,22 @@ CNN = Sequential(
     Linear(100, 11),
 )
 
+CNN_BATCHNORM = Sequential(
+    Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28, bias=False),
+    ReLU(),
+    BatchNorm2d(16),
+    AvgPool2d(3, 2),
+    Conv2d(16, 32, 5, bias=False),
+    ReLU(),
+    BatchNorm2d(32),
+    AvgPool2d(3, 2),
+    Linear(32 * 4 * 4, 100),
+    ReLU(),
+    Linear(100, 11),
+)
 
-def main(
-    num_epochs: int = 20,
-    batch_size: int = 128,
-    sigma_v: float = 0.05,
-):
+
+def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run distributed classification training on the MNIST dataset.
     Parameters:
@@ -51,24 +62,21 @@ def main(
     - batch_size: int, size of the batch for training
     - sigma_v: float, variance for the output
     """
+    if not pytagi.cuda.is_available():
+        raise ValueError("CUDA is not available")
+
     # Initialize MPI
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     world_size = comm.Get_size()
 
     # Set up distributed configuration
-    device_ids = list(range(world_size))
-    config = DistributedConfig(
+    device_ids = [i % 2 for i in range(world_size)]
+    config = DDPConfig(
         device_ids=device_ids, backend="nccl", rank=rank, world_size=world_size
     )
 
-    # Create the distributed model
-    if pytagi.cuda.is_available():
-        CNN.to_device("cuda")
-    else:
-        CNN.set_threads(8)
-
-    dist_model = DistributedSequential(CNN, config, average=True)
+    dist_model = DDPSequential(CNN, config, average=True)
 
     # Load dataset - each process loads a subset of the data
     train_dtl = MnistDataLoader(
@@ -86,17 +94,14 @@ def main(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Create output updater
-    out_updater = OutputUpdater(CNN.device)
+    device = "cuda:" + str(device_ids[rank])
+    out_updater = OutputUpdater(device)
 
     # Training
     error_rates = []
     var_y = np.full(
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
-
-    # Split data among processes
-    total_batches = len(train_dtl) // batch_size
-    batches_per_process = total_batches // world_size
 
     pbar = None
     if rank == 0:
@@ -105,17 +110,31 @@ def main(
     for epoch in range(num_epochs):
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         dist_model.train()
+        # print epoch
+        print(f"Epoch {epoch + 1}/{num_epochs}")
+
+        # Calculate total number of batches and ensure all processes handle the same number
+        total_batches = train_dtl.dataset["value"][0].shape[0] // batch_size
+        batches_per_process = total_batches // world_size
+        if rank == 0:
+            print(
+                f"Total batches: {total_batches}, Batches per process: {batches_per_process}"
+            )
 
         # Each process processes a subset of batches
         batch_count = 0
+        process_batch_count = 0
         for x, y, y_idx, label in batch_iter:
             # Skip batches not assigned to this process
             if batch_count % world_size != rank:
                 batch_count += 1
                 continue
 
-            # Feedforward and backward pass
-            m_pred, v_pred = dist_model.forward(x)
+            # Stop if this process has handled its share of batches
+            if process_batch_count >= batches_per_process:
+                break
+
+            m_pred, v_pred = dist_model(x)
 
             # Update output layers based on targets
             out_updater.update_using_indices(
@@ -135,8 +154,10 @@ def main(
             error_rates.append(error_rate)
 
             batch_count += 1
+            process_batch_count += 1
 
         # Synchronize at the end of each epoch
+        dist_model.barrier()
         comm.Barrier()
 
         # Testing (only on rank 0)
@@ -147,7 +168,7 @@ def main(
             dist_model.eval()
 
             for x, _, _, label in test_batch_iter:
-                m_pred, v_pred = dist_model.forward(x)
+                m_pred, v_pred = dist_model(x)
 
                 # Training metric
                 pred = metric.get_predicted_labels(m_pred, v_pred)
@@ -163,10 +184,17 @@ def main(
                     refresh=True,
                 )
                 pbar.update(1)
-
     if rank == 0:
         print("Training complete.")
+        if pbar:
+            pbar.close()
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    # Command: `mpiexec -n 2 python -m examples.ddp_classification`
+    try:
+        fire.Fire(main)
+    finally:
+        if not MPI.Is_finalized():
+            MPI.COMM_WORLD.Barrier()
+            MPI.Finalize()
