@@ -380,6 +380,133 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
             "Final average error rate: " + std::to_string(avg_error));
     }
 }
+
+/**
+ * Test parameter synchronization in DDPSequential
+ * This test verifies that the sync_parameters() method correctly synchronizes
+ * model parameters across processes
+ */
+TEST_F(DistributedTest, ParameterSynchronization_NCCL) {
+    // This test requires MPI to be initialized
+    if (!is_mpi_initialized()) {
+        GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
+    }
+
+    // Get MPI rank and world size
+    int rank = get_mpi_rank();
+    int world_size = get_mpi_world_size();
+
+    if (world_size < 2) {
+        GTEST_SKIP() << "This test requires at least 2 MPI processes";
+    }
+
+    LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
+                            std::to_string(world_size) +
+                            " starting parameter sync test");
+
+    // Create a simple model
+    auto model = std::make_shared<Sequential>(Linear(10, 5, true));
+
+    // Configure distributed training
+    std::vector<int> device_ids;
+    for (int i = 0; i < world_size; i++) {
+        device_ids.push_back(i % 2);  // Use GPUs 0 and 1 in round-robin fashion
+    }
+
+    DDPConfig config(device_ids, "nccl", rank, world_size);
+    DDPSequential dist_model(model, config, true);  // Enable averaging
+
+    // Get the underlying model
+    auto sequential_model = dist_model.get_model();
+
+    // Set different delta parameters on each process
+    auto &linear_layer = sequential_model->layers[0];
+
+    // Fill delta parameters with rank-specific values
+    float rank_value = static_cast<float>(rank + 1);
+    std::fill(linear_layer->delta_mu_w.begin(), linear_layer->delta_mu_w.end(),
+              rank_value);
+    std::fill(linear_layer->delta_var_w.begin(),
+              linear_layer->delta_var_w.end(), rank_value * 2);
+
+    if (linear_layer->bias) {
+        std::fill(linear_layer->delta_mu_b.begin(),
+                  linear_layer->delta_mu_b.end(), rank_value * 3);
+        std::fill(linear_layer->delta_var_b.begin(),
+                  linear_layer->delta_var_b.end(), rank_value * 4);
+    }
+
+    // Synchronize parameters
+    dist_model.sync_parameters();
+    dist_model.barrier();
+
+    // Expected values after synchronization (with averaging enabled)
+    float expected_mu_w = (world_size + 1) / 2.0f;
+    float expected_var_w = expected_mu_w * 2;
+    float expected_mu_b = expected_mu_w * 3;
+    float expected_var_b = expected_mu_w * 4;
+
+    // Check if parameters were properly synchronized
+    bool sync_successful = true;
+
+    // Check weights
+    for (size_t i = 0; i < linear_layer->delta_mu_w.size(); i++) {
+        if (std::abs(linear_layer->delta_mu_w[i] - expected_mu_w) > 1e-5) {
+            sync_successful = false;
+            LOG(LogLevel::ERROR,
+                "Process " + std::to_string(rank) + " delta_mu_w[" +
+                    std::to_string(i) +
+                    "] = " + std::to_string(linear_layer->delta_mu_w[i]) +
+                    ", expected " + std::to_string(expected_mu_w));
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < linear_layer->delta_var_w.size(); i++) {
+        if (std::abs(linear_layer->delta_var_w[i] - expected_var_w) > 1e-5) {
+            sync_successful = false;
+            LOG(LogLevel::ERROR,
+                "Process " + std::to_string(rank) + " delta_var_w[" +
+                    std::to_string(i) +
+                    "] = " + std::to_string(linear_layer->delta_var_w[i]) +
+                    ", expected " + std::to_string(expected_var_w));
+            break;
+        }
+    }
+
+    // Check biases if present
+    if (linear_layer->bias) {
+        for (size_t i = 0; i < linear_layer->delta_mu_b.size(); i++) {
+            if (std::abs(linear_layer->delta_mu_b[i] - expected_mu_b) > 1e-5) {
+                sync_successful = false;
+                LOG(LogLevel::ERROR,
+                    "Process " + std::to_string(rank) + " delta_mu_b[" +
+                        std::to_string(i) +
+                        "] = " + std::to_string(linear_layer->delta_mu_b[i]) +
+                        ", expected " + std::to_string(expected_mu_b));
+                break;
+            }
+        }
+
+        for (size_t i = 0; i < linear_layer->delta_var_b.size(); i++) {
+            if (std::abs(linear_layer->delta_var_b[i] - expected_var_b) >
+                1e-5) {
+                sync_successful = false;
+                LOG(LogLevel::ERROR,
+                    "Process " + std::to_string(rank) + " delta_var_b[" +
+                        std::to_string(i) +
+                        "] = " + std::to_string(linear_layer->delta_var_b[i]) +
+                        ", expected " + std::to_string(expected_var_b));
+                break;
+            }
+        }
+    }
+
+    // Only rank 0 should assert the results to avoid multiple test failures
+    if (rank == 0) {
+        EXPECT_TRUE(sync_successful) << "Parameter synchronization failed";
+    }
+}
 #else
 // Add a dummy test when distributed functionality is not available
 TEST(DistributedTest, DistributedNotAvailable) {

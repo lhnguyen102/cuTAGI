@@ -92,8 +92,6 @@ class DDPSequential {
     DDPConfig config;
     bool average = true;
 
-    void sync_parameters();
-
    public:
     DDPSequential(std::shared_ptr<Sequential> model, const DDPConfig &config,
                   bool average = true);
@@ -120,6 +118,8 @@ class DDPSequential {
     get_outputs() {
         return this->model->get_outputs();
     }
+
+    void sync_parameters();
 
     std::shared_ptr<Sequential> get_model() { return model; }
     const DDPConfig &get_config() const { return config; }

@@ -185,7 +185,7 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
                 )
                 pbar.update(1)
     if rank == 0:
-        print("Training complete.")
+        print("\nTraining complete.")
         if pbar:
             pbar.close()
 
