@@ -10,6 +10,7 @@
 #include "common.h"
 #include "data_struct.h"
 #include "linear_layer.h"
+#include "MixtureLReLU_layer.h"
 #include "lstm_layer.h"
 #include "output_layer_update_cpu.h"
 #include "slinear_layer.h"

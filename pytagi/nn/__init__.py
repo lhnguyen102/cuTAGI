@@ -18,6 +18,7 @@ from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates, HRCSoftmax
 from pytagi.nn.layer_block import LayerBlock
 from pytagi.nn.layer_norm import LayerNorm
 from pytagi.nn.linear import Linear
+from pytagi.nn.MixtureLReLU import MixtureLReLU
 from pytagi.nn.slinear import SLinear
 from pytagi.nn.lstm import LSTM
 from pytagi.nn.slstm import SLSTM

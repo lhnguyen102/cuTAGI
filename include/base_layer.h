@@ -17,6 +17,7 @@ enum class LayerType {
     LSTM,
     SLSTM,
     Activation,
+    MixtureLReLU,
     Norm,
     LayerBlock,
     ResNetBlock
@@ -42,6 +43,7 @@ class BaseLayer {
     bool bias = true;
     bool param_update = true;
     float cap_factor_update = 1.0f;
+    float slope = 0.1f;
     int neg_var_w_counter = 0;
 
     std::vector<float> mu_w;

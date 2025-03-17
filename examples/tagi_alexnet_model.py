@@ -3,6 +3,7 @@ from pytagi.nn import (
     Conv2d,
     Linear,
     ReLU,
+    LeakyReLU,
     MixtureReLU,
     Sequential,
     ReLU,
@@ -25,12 +26,14 @@ def create_alexnet(gain_w: float = 1, gain_b: float = 1, nb_outputs: int = 1001)
             in_height=224,
             bias=True,
         ),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         # 55x55
         AvgPool2d(3, 2),
         # 27x27
         Conv2d(64, 192, 5, bias=True, padding=2, gain_weight=gain_w, gain_bias=gain_b),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         # 27x27
         AvgPool2d(3, 2),
         # 13x13
@@ -38,24 +41,29 @@ def create_alexnet(gain_w: float = 1, gain_b: float = 1, nb_outputs: int = 1001)
             192, 384, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
         ),
         # 13x13
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         # 13x13
         Conv2d(
             384, 256, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
         ),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         # 13x13
         Conv2d(
             256, 256, 3, bias=True, padding=1, gain_weight=gain_w, gain_bias=gain_b
         ),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         # 13x13
         AvgPool2d(3, 2),
         # 6x6
         Linear(256 * 6 * 6, 4096, gain_weight=gain_w, gain_bias=gain_b),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         Linear(4096, 4096, gain_weight=gain_w, gain_bias=gain_b),
-        MixtureReLU(),
+        #MixtureReLU(),
+        LeakyReLU(),
         Linear(4096, nb_outputs, gain_weight=gain_w, gain_bias=gain_b),
     )
 

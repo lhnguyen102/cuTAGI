@@ -131,7 +131,7 @@ def tagi_trainer(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_var = False
+    print_var = True
     viz_norm_stats = False  # print norm stats at last epoch
     viz_param = False  # visualize parameter distributions
     print_param_stat = False  # print mean and std of parameters
@@ -203,24 +203,27 @@ def tagi_trainer(
                 desc=f"Epoch {epoch + 1}/{num_epochs} - Batch Progress",
                 disable=True,
             ) as batch_pbar:
+                print_var = True
+                if epoch==0:
+                    scaling_var_y = 1
+
                 for i, (x, labels) in enumerate(batch_pbar):
                     m_pred, v_pred = net(x)
+
+                    if i==0 and epoch == 0:
+                        v_pred_init = np.average(v_pred)
                     if np.isnan(np.mean(m_pred)):
                         print("m_pred is nan")
                         break
                     if print_var:  # Print prior predictive variance
                         print(
-                            "Prior predictive -> E[v_pred] = ",
-                            np.average(v_pred),
-                            " | E[s_pred]",
-                            np.average(np.sqrt(v_pred)),
-                        )
-                        print(
-                            "                 -> V[m_pred] = ",
-                            np.var(m_pred),
-                            " | s[m_pred]",
+                            "\nPrior predictive -> s[m_pred]",
                             np.std(m_pred),
+                            " | E[s_pred]",
+                            np.average(np.sqrt(v_pred))
                         )
+                        #scaling_var_y = min(1,3.5*np.average(v_pred)/v_pred_init)
+                        print("\nsigma_v = ", (sigma_v**2*scaling_var_y)**0.5)
                         print_var = False
 
                     # Update output layers based on targets
@@ -230,13 +233,14 @@ def tagi_trainer(
                     out_updater.update_using_indices(
                         output_states=net.output_z_buffer,
                         mu_obs=y / 1,
-                        var_obs=var_y,
+                        #var_obs=var_y,
+                        var_obs=var_y*scaling_var_y,
                         selected_idx=y_idx,
                         delta_states=net.input_delta_z_buffer,
                     )
                     net.backward()
                     net.step()
-                    print(net.get_neg_var_w_counter())
+                    #print(net.get_neg_var_w_counter())
 
                     # Training metric
                     pred = metric.get_predicted_labels(m_pred, v_pred)
@@ -410,7 +414,7 @@ def main(
     batch_size: int = 8,
     epochs: int = 100,
     device: str = "cuda",
-    sigma_v: float = 0.025,
+    sigma_v: float = 0.04,
     nb_classes: int = 1000,
 ):
     if framework == "torch":

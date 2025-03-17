@@ -325,7 +325,7 @@ def main(
     framework: str = "tagi",
     batch_size: int = 128,
     epochs: int = 20,
-    device: str = "cuda",
+    device: str = "cpu",
 ):
     if framework == "torch":
         torch_trainer(batch_size=batch_size, num_epochs=epochs, device=device)

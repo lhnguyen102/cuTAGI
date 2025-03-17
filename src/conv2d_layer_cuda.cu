@@ -402,7 +402,13 @@ void Conv2dCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&output_states);
 
     int batch_size = input_states.block_size;
+    //this->set_cap_factor_udapte(batch_size);
+    //if (this->out_channels == 384) {
+    //    this->set_cap_factor_udapte(1);
+    //} else {
     this->set_cap_factor_udapte(batch_size);
+    //}
+
 
     if (this->num_weights == 0) {
         this->get_number_param();

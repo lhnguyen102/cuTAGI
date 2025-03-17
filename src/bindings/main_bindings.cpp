@@ -19,6 +19,7 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_softmax(modo);
     bind_even_exp(modo);
     bind_linear_layer(modo);
+    bind_MixtureLReLU_layer(modo);
     bind_slinear_layer(modo);
     bind_conv2d_layer(modo);
     bind_convtranspose2d_layer(modo);

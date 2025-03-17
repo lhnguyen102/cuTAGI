@@ -64,7 +64,7 @@ std::tuple<std::vector<float>, std::vector<float>> gaussian_param_init(
     // Initialize pointers
     std::vector<float> S(N);
     std::vector<float> m(N);
-    std::normal_distribution<float> dist_mean(0.0f, scale);
+    std::normal_distribution<float> dist_mean(0.0f, scale*1.3);
 
     // Weights
     for (int i = 0; i < N; i++) {

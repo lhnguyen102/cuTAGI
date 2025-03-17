@@ -7,6 +7,7 @@
 #include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
+#include "../include/MixtureLReLU_layer.h"
 #ifdef USE_CUDA
 #include "../include/base_layer_cuda.cuh"
 #include "../include/batchnorm_layer_cuda.cuh"
@@ -17,16 +18,20 @@
 // Sequential::Sequential() {}
 Sequential::~Sequential() { this->valid_ = false; }
 
-void Sequential::switch_to_cuda() {
-    for (size_t i = 0; i < this->layers.size(); ++i) {
+void Sequential::switch_to_cuda()
+{
+    for (size_t i = 0; i < this->layers.size(); ++i)
+    {
         auto cuda_layer = layers[i]->to_cuda();
         layers[i] = std::move(cuda_layer);
     }
 }
 
-void Sequential::to_device(const std::string &new_device) {
+void Sequential::to_device(const std::string &new_device)
+{
     this->device = new_device;
-    if (this->device == "cuda") {
+    if (this->device == "cuda")
+    {
         switch_to_cuda();
     }
 
@@ -35,29 +40,37 @@ void Sequential::to_device(const std::string &new_device) {
     this->set_buffer_size();
 }
 #ifdef USE_CUDA
-void Sequential::params_to_host() {
-    for (auto &layer : this->layers) {
+void Sequential::params_to_host()
+{
+    for (auto &layer : this->layers)
+    {
         auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
-        if (cuda_layer) {
+        if (cuda_layer)
+        {
             cuda_layer->params_to_host();
         }
     }
 }
 
-void Sequential::params_to_device() {
-    for (auto &layer : this->layers) {
+void Sequential::params_to_device()
+{
+    for (auto &layer : this->layers)
+    {
         auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
-        if (cuda_layer) {
+        if (cuda_layer)
+        {
             cuda_layer->params_to_device();
         }
     }
 }
 #else
-void Sequential::params_to_host() {
+void Sequential::params_to_host()
+{
     // No CUDA support, do nothing
 }
 
-void Sequential::params_to_device() {
+void Sequential::params_to_device()
+{
     // No CUDA support, do nothing
 }
 #endif
@@ -67,7 +80,8 @@ void Sequential::add_layers()
  */
 {
     // After variadic template, meanings vector of layers has formed
-    if (this->device == "cpu") {
+    if (this->device == "cpu")
+    {
         this->compute_input_output_size();
         this->set_buffer_size();
     }
@@ -81,11 +95,16 @@ it will be corrected at the first run in the forward pass.
  */
 {
     // Stack layer
-    if (this->device.compare("cpu") == 0) {
+    if (this->device.compare("cpu") == 0)
+    {
         this->layers.push_back(layer);
-    } else if (this->device.compare("cuda") == 0) {
+    }
+    else if (this->device.compare("cuda") == 0)
+    {
         this->layers.push_back(layer->to_cuda());
-    } else {
+    }
+    else
+    {
         LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
@@ -94,13 +113,15 @@ void Sequential::set_buffer_size()
 /*
  */
 {
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         int max_size = layer->get_max_num_states();
         this->z_buffer_size = std::max(max_size, this->z_buffer_size);
     }
 
     // Convert to the size that is multiple of PACK_SIZE
-    if (this->z_buffer_size % PACK_SIZE != 0) {
+    if (this->z_buffer_size % PACK_SIZE != 0)
+    {
         this->z_buffer_size =
             ((this->z_buffer_size + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
     }
@@ -115,7 +136,8 @@ void Sequential::compute_input_output_size()
     int in_height = this->layers.front()->in_height;
     int in_depth = this->layers.front()->in_channels;
 
-    for (size_t i = 0; i < this->layers.size(); i++) {
+    for (size_t i = 0; i < this->layers.size(); i++)
+    {
         InitArgs args = InitArgs(in_width, in_height, in_depth);
         this->layers[i]->compute_input_output_size(args);
 
@@ -130,15 +152,19 @@ void Sequential::init_output_state_buffer()
 /*
  */
 {
-    if (this->device.compare("cpu") == 0) {
-        if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
+    if (this->device.compare("cpu") == 0)
+    {
+        if (this->layers[0]->get_layer_type() == LayerType::SLSTM)
+        {
             this->output_z_buffer = std::make_shared<SmoothingHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size,
                 this->num_samples);
             this->input_z_buffer = std::make_shared<SmoothingHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size,
                 this->num_samples);
-        } else {
+        }
+        else
+        {
             this->output_z_buffer = std::make_shared<BaseHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size);
             this->input_z_buffer = std::make_shared<BaseHiddenStates>(
@@ -148,20 +174,25 @@ void Sequential::init_output_state_buffer()
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #ifdef USE_CUDA
-    else if (this->device.compare("cuda") == 0) {
-        if (this->layers[0]->get_layer_type() != LayerType::SLSTM) {
+    else if (this->device.compare("cuda") == 0)
+    {
+        if (this->layers[0]->get_layer_type() != LayerType::SLSTM)
+        {
             this->output_z_buffer = std::make_shared<HiddenStateCuda>(
                 this->z_buffer_size, this->z_buffer_block_size);
             this->input_z_buffer = std::make_shared<HiddenStateCuda>(
                 this->z_buffer_size, this->z_buffer_block_size);
             this->temp_states = std::make_shared<TempStateCuda>(
                 this->z_buffer_size, this->z_buffer_block_size);
-        } else {
+        }
+        else
+        {
             LOG(LogLevel::ERROR, "Smoothing feature does not support CUDA");
         }
     }
 #endif
-    else {
+    else
+    {
         LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
@@ -170,21 +201,24 @@ void Sequential::init_delta_state_buffer()
 /*
  */
 {
-    if (this->device.compare("cpu") == 0) {
+    if (this->device.compare("cpu") == 0)
+    {
         this->output_delta_z_buffer = std::make_shared<BaseDeltaStates>(
             this->z_buffer_size, this->z_buffer_block_size);
         this->input_delta_z_buffer = std::make_shared<BaseDeltaStates>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #ifdef USE_CUDA
-    else if (this->device.compare("cuda") == 0) {
+    else if (this->device.compare("cuda") == 0)
+    {
         this->output_delta_z_buffer = std::make_shared<DeltaStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
         this->input_delta_z_buffer = std::make_shared<DeltaStateCuda>(
             this->z_buffer_size, this->z_buffer_block_size);
     }
 #endif
-    else {
+    else
+    {
         LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
 }
@@ -194,7 +228,8 @@ void Sequential::set_threads(unsigned int num_threads)
  */
 {
     this->num_threads = num_threads;
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         layer->set_threads(num_threads);
     }
 }
@@ -203,7 +238,8 @@ void Sequential::train()
 /*
  */
 {
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         layer->train();
     }
 }
@@ -212,7 +248,8 @@ void Sequential::eval()
 /*
  */
 {
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         layer->eval();
     }
 }
@@ -221,9 +258,11 @@ std::string Sequential::get_device()
 /*
  */
 {
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         auto layer_device = layer->get_device();
-        if (layer_device != this->device) {
+        if (layer_device != this->device)
+        {
             return layer_device;
         }
     }
@@ -237,7 +276,8 @@ void Sequential::forward(const std::vector<float> &mu_x,
 {
     // Batch size: TODO: this is only correct if input size is correctly set
     int input_size = this->layers.front()->get_input_size();
-    if (mu_x.size() % input_size != 0) {
+    if (mu_x.size() % input_size != 0)
+    {
         std::string message =
             "Input size mismatch: " + std::to_string(input_size) + " vs " +
             std::to_string(mu_x.size());
@@ -246,24 +286,28 @@ void Sequential::forward(const std::vector<float> &mu_x,
     int batch_size = mu_x.size() / input_size;
 
     // Lazy initialization
-    if (this->z_buffer_block_size == 0) {
+    if (this->z_buffer_block_size == 0)
+    {
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
         init_output_state_buffer();
-        if (this->training) {
+        if (this->training)
+        {
             init_delta_state_buffer();
         }
     }
 
     // Reallocate the buffer if batch size changes
-    if (batch_size != this->z_buffer_block_size) {
+    if (batch_size != this->z_buffer_block_size)
+    {
         this->z_buffer_size =
             batch_size * (this->z_buffer_size / this->z_buffer_block_size);
         this->z_buffer_block_size = batch_size;
 
         this->input_z_buffer->set_size(this->z_buffer_size, batch_size);
-        if (this->training) {
+        if (this->training)
+        {
             this->input_delta_z_buffer->set_size(this->z_buffer_size,
                                                  batch_size);
             this->output_delta_z_buffer->set_size(this->z_buffer_size,
@@ -275,7 +319,8 @@ void Sequential::forward(const std::vector<float> &mu_x,
     this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
 
     // Forward pass for all layers
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         auto *current_layer = layer.get();
 
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
@@ -297,23 +342,27 @@ void Sequential::forward(BaseHiddenStates &input_states)
     int batch_size = input_states.block_size;
 
     // Only initialize if batch size changes
-    if (this->z_buffer_block_size == 0) {
+    if (this->z_buffer_block_size == 0)
+    {
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
         init_output_state_buffer();
-        if (this->training) {
+        if (this->training)
+        {
             init_delta_state_buffer();
         }
     }
 
-    if (batch_size != this->z_buffer_block_size) {
+    if (batch_size != this->z_buffer_block_size)
+    {
         this->z_buffer_size =
             batch_size * (this->z_buffer_size / this->z_buffer_block_size);
         this->z_buffer_block_size = batch_size;
 
         this->input_z_buffer->set_size(this->z_buffer_size, batch_size);
-        if (this->training) {
+        if (this->training)
+        {
             this->input_delta_z_buffer->set_size(this->z_buffer_size,
                                                  batch_size);
             this->output_delta_z_buffer->set_size(this->z_buffer_size,
@@ -325,7 +374,8 @@ void Sequential::forward(BaseHiddenStates &input_states)
     first_layer->forward(input_states, *this->input_z_buffer,
                          *this->temp_states);
 
-    for (int i = 1; i < this->layers.size(); i++) {
+    for (int i = 1; i < this->layers.size(); i++)
+    {
         auto *current_layer = this->layers[i].get();
 
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
@@ -343,7 +393,8 @@ void Sequential::backward()
 {
     // Hidden layers
     for (auto layer = this->layers.rbegin(); layer != this->layers.rend() - 1;
-         ++layer) {
+         ++layer)
+    {
         auto *current_layer = layer->get();
 
         // Backward pass for hidden states
@@ -352,7 +403,8 @@ void Sequential::backward()
                                 *this->temp_states);
 
         // Pass new input data for next iteration
-        if (current_layer->get_layer_type() != LayerType::Activation) {
+        if (current_layer->get_layer_type() != LayerType::Activation)
+        {
             std::swap(this->input_delta_z_buffer, this->output_delta_z_buffer);
         }
     }
@@ -370,12 +422,16 @@ std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
     std::vector<float> mu_zo_smooths, var_zo_smooths;
     // Hidden layers
     for (auto layer = this->layers.begin(); layer != this->layers.end();
-         layer++) {
+         layer++)
+    {
         auto *current_layer = layer->get();
-        if (current_layer->get_layer_type() == LayerType::SLSTM) {
+        if (current_layer->get_layer_type() == LayerType::SLSTM)
+        {
             auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer);
             slstm_layer->smoother();
-        } else if (current_layer->get_layer_type() == LayerType::SLinear) {
+        }
+        else if (current_layer->get_layer_type() == LayerType::SLinear)
+        {
             auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
             slinear_layer->smoother();
             mu_zo_smooths = slinear_layer->smooth_states.mu_zo_smooths;
@@ -389,7 +445,8 @@ void Sequential::step()
 /*
  */
 {
-    for (const auto &layer : this->layers) {
+    for (const auto &layer : this->layers)
+    {
         layer->update_weights();
         layer->update_biases();
     }
@@ -401,18 +458,22 @@ void Sequential::reset_lstm_states()
 {
     // Hidden layers
     for (auto layer = this->layers.begin(); layer != this->layers.end();
-         layer++) {
+         layer++)
+    {
         auto *current_layer = layer->get();
-        if (current_layer->get_layer_type() == LayerType::LSTM) {
+        if (current_layer->get_layer_type() == LayerType::LSTM)
+        {
             auto *lstm_layer = dynamic_cast<LSTM *>(current_layer);
             lstm_layer->lstm_states.reset_zeros();
         }
     }
 }
 
-void Sequential::output_to_host() {
+void Sequential::output_to_host()
+{
 #ifdef USE_CUDA
-    if (this->device.compare("cuda") == 0) {
+    if (this->device.compare("cuda") == 0)
+    {
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get());
         cu_output_states->to_host();
@@ -420,9 +481,11 @@ void Sequential::output_to_host() {
 #endif
 }
 
-void Sequential::delta_z_to_host() {
+void Sequential::delta_z_to_host()
+{
 #ifdef USE_CUDA
-    if (this->device.compare("cuda") == 0) {
+    if (this->device.compare("cuda") == 0)
+    {
         DeltaStateCuda *cu_input_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->input_delta_z_buffer.get());
         DeltaStateCuda *cu_output_delta_z =
@@ -434,9 +497,11 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
-std::unordered_map<std::string, int> Sequential::get_neg_var_w_counter() {
+std::unordered_map<std::string, int> Sequential::get_neg_var_w_counter()
+{
     std::unordered_map<std::string, int> counter;
-    for (const auto &layer : this->layers) {
+    for (const auto &layer : this->layers)
+    {
         counter[layer->get_layer_info()] = layer->get_neg_var_w_counter();
     }
     return counter;
@@ -455,7 +520,8 @@ Sequential::get_norm_mean_var()
                                                std::vector<std::vector<float>>,
                                                std::vector<std::vector<float>>>>
         norm_mean_var;
-    for (int i = 0; i < this->layers.size(); i++) {
+    for (int i = 0; i < this->layers.size(); i++)
+    {
         auto layer = this->layers[i];
         std::string layer_name =
             layer->get_layer_info() + "_" + std::to_string(i);
@@ -463,7 +529,8 @@ Sequential::get_norm_mean_var()
         std::vector<std::vector<float>> mu_ra, var_ra, mu_norm, var_norm;
         std::tie(mu_ra, var_ra, mu_norm, var_norm) = layer->get_norm_mean_var();
         // check if the mu_ra is empty
-        if (mu_ra.empty()) {
+        if (mu_ra.empty())
+        {
             continue;
         }
         norm_mean_var[layer_name] =
@@ -473,19 +540,25 @@ Sequential::get_norm_mean_var()
 }
 
 // Utility function to get layer stack info
-std::string Sequential::get_layer_stack_info() const {
+std::string Sequential::get_layer_stack_info() const
+{
     std::stringstream ss;
-    for (const auto &layer : this->layers) {
-        if (layer) {
+    for (const auto &layer : this->layers)
+    {
+        if (layer)
+        {
             ss << layer->get_layer_info() << "\n";
         }
     }
     return ss.str();
 }
 
-void Sequential::preinit_layer() {
-    for (const auto &layer : this->layers) {
-        if (layer) {
+void Sequential::preinit_layer()
+{
+    for (const auto &layer : this->layers)
+    {
+        if (layer)
+        {
             layer->preinit_layer();
         }
     }
@@ -499,12 +572,14 @@ void Sequential::save(const std::string &filename)
     create_directory(directory);
 
     std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         LOG(LogLevel::ERROR, "Failed to open file for saving");
         return;
     }
 
-    for (const auto &layer : layers) {
+    for (const auto &layer : layers)
+    {
         layer->save(file);
     }
     file.close();
@@ -518,12 +593,14 @@ void Sequential::load(const std::string &filename)
     this->preinit_layer();
 
     std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         LOG(LogLevel::ERROR, "Failed to open file for loading");
         return;
     }
 
-    for (auto &layer : layers) {
+    for (auto &layer : layers)
+    {
         layer->load(file);
     }
     file.close();
@@ -545,7 +622,8 @@ This allows saving network's parameters in csv so that
            total_var_b_size = 0;
 
     // Calculate the total size needed for each vector
-    for (const auto &layer : this->layers) {
+    for (const auto &layer : this->layers)
+    {
         total_mu_w_size += layer->mu_w.size();
         total_var_w_size += layer->var_w.size();
         total_mu_b_size += layer->mu_b.size();
@@ -560,7 +638,8 @@ This allows saving network's parameters in csv so that
     var_b.reserve(total_var_b_size);
 
     // Concatenate layer parameters
-    for (const auto &layer : this->layers) {
+    for (const auto &layer : this->layers)
+    {
         mu_w.insert(mu_w.end(), layer->mu_w.begin(), layer->mu_w.end());
         var_w.insert(var_w.end(), layer->var_w.begin(), layer->var_w.end());
         mu_b.insert(mu_b.end(), layer->mu_b.begin(), layer->mu_b.end());
@@ -585,7 +664,8 @@ void Sequential::load_csv(const std::string &filename)
 {
     // Count number of weights & biases for the entire network
     int num_weights = 0, num_biases = 0;
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         num_weights += layer->mu_w.size();
         num_biases += layer->mu_b.size();
     }
@@ -609,7 +689,8 @@ void Sequential::load_csv(const std::string &filename)
 
     // Distribute parameter for each layer
     int weight_start_idx = 0, bias_start_idx = 0;
-    for (auto &layer : this->layers) {
+    for (auto &layer : this->layers)
+    {
         std::copy(mu_w.begin() + weight_start_idx,
                   mu_w.begin() + weight_start_idx + layer->mu_w.size(),
                   layer->mu_w.begin());
@@ -628,11 +709,14 @@ void Sequential::load_csv(const std::string &filename)
     }
 }
 
-std::vector<ParameterTuple> Sequential::parameters() {
+std::vector<ParameterTuple> Sequential::parameters()
+{
     std::vector<ParameterTuple> params;
-    for (auto &layer : layers) {
+    for (auto &layer : layers)
+    {
         if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
+            layer->get_layer_type() != LayerType::Pool2d)
+        {
             auto layer_params = layer->parameters();
             params.insert(params.end(), layer_params.begin(),
                           layer_params.end());
@@ -641,12 +725,15 @@ std::vector<ParameterTuple> Sequential::parameters() {
     return params;
 }
 
-ParameterMap Sequential::state_dict() {
+ParameterMap Sequential::state_dict()
+{
     ParameterMap state_dict;
-    for (size_t i = 0; i < layers.size(); ++i) {
+    for (size_t i = 0; i < layers.size(); ++i)
+    {
         const auto &layer = this->layers[i];
         if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
+            layer->get_layer_type() != LayerType::Pool2d)
+        {
             auto params = layer->get_parameters_as_map(std::to_string(i));
             state_dict.insert(params.begin(), params.end());
         }
@@ -654,24 +741,31 @@ ParameterMap Sequential::state_dict() {
     return state_dict;
 }
 
-void Sequential::load_state_dict(const ParameterMap &state_dict) {
-    for (size_t i = 0; i < layers.size(); ++i) {
+void Sequential::load_state_dict(const ParameterMap &state_dict)
+{
+    for (size_t i = 0; i < layers.size(); ++i)
+    {
         const auto &layer = this->layers[i];
         if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
+            layer->get_layer_type() != LayerType::Pool2d)
+        {
             layer->load_parameters_from_map(state_dict, std::to_string(i));
         }
     }
 }
 
-void Sequential::params_from(const Sequential &model_ref) {
-    if (this->layers.size() != model_ref.layers.size()) {
+void Sequential::params_from(const Sequential &model_ref)
+{
+    if (this->layers.size() != model_ref.layers.size())
+    {
         LOG(LogLevel::ERROR, "Model architecture is different.");
     }
 
     // TODO: need to add more checks before copying
-    for (int i = 0; i < this->layers.size(); i++) {
-        if (this->layers[i]->mu_w.size() == 0) {
+    for (int i = 0; i < this->layers.size(); i++)
+    {
+        if (this->layers[i]->mu_w.size() == 0)
+        {
             this->layers[i]->mu_w.resize(model_ref.layers[i]->mu_w.size());
             this->layers[i]->var_w.resize(model_ref.layers[i]->var_w.size());
             this->layers[i]->mu_b.resize(model_ref.layers[i]->mu_b.size());
@@ -698,12 +792,15 @@ void Sequential::forward_py(pybind11::array_t<float> mu_a_np,
     float *mu_a_ptr = static_cast<float *>(mu_a_buf.ptr);
     std::vector<float> mu_a(mu_a_ptr, mu_a_ptr + mu_a_buf.size);
 
-    if (!var_a_np.is_none()) {
+    if (!var_a_np.is_none())
+    {
         auto var_a_buf = var_a_np.request();
         float *var_a_ptr = static_cast<float *>(var_a_buf.ptr);
         std::vector<float> var_a(var_a_ptr, var_a_ptr + var_a_buf.size);
         this->forward(mu_a, var_a);
-    } else {
+    }
+    else
+    {
         this->forward(mu_a);
     }
 }
@@ -713,7 +810,8 @@ Sequential::get_outputs()
 /*
  */
 {
-    if (this->device.compare("cuda") == 0) {
+    if (this->device.compare("cuda") == 0)
+    {
         this->output_to_host();
     }
     int batch_size = this->output_z_buffer->block_size;
@@ -721,7 +819,8 @@ Sequential::get_outputs()
     std::vector<float> mu_a_output(batch_size * num_outputs);
     std::vector<float> var_a_output(batch_size * num_outputs);
 
-    for (int j = 0; j < batch_size * num_outputs; j++) {
+    for (int j = 0; j < batch_size * num_outputs; j++)
+    {
         mu_a_output[j] = this->output_z_buffer->mu_a[j];
         var_a_output[j] = this->output_z_buffer->var_a[j];
     }
@@ -751,15 +850,18 @@ Sequential::get_outputs_smoother()
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_input_states() {
+Sequential::get_input_states()
+{
     // Check if input_state_update is enabled
-    if (!this->input_state_update) {
+    if (!this->input_state_update)
+    {
         LOG(LogLevel::ERROR, "input_state_update is set to False.");
     }
 
 #ifdef USE_CUDA
     // Output delta_states to host
-    if (this->device.compare("cuda") == 0) {
+    if (this->device.compare("cuda") == 0)
+    {
         this->delta_z_to_host();
     }
 #endif

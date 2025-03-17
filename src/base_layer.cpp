@@ -176,13 +176,13 @@ Returns:
 {
     // TODO: Heuristic values!!
     if (batch_size == 1) {
-        this->cap_factor_update = 0.1f;
+        this->cap_factor_update = 0.01f;
     }
     if (batch_size > 1 && batch_size < 256) {
-        this->cap_factor_update = 0.1f;
+        this->cap_factor_update = 0.5f;
     }
     if (batch_size >= 256) {
-        this->cap_factor_update = 2.0f;
+        this->cap_factor_update = 0.01f;
     }
 }
 

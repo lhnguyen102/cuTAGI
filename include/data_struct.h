@@ -196,6 +196,8 @@ class BaseTempStates {
    public:
     std::vector<float> tmp_1;
     std::vector<float> tmp_2;
+    std::vector<float> tmp_3;
+    std::vector<float> tmp_4;
     size_t size = 0, block_size = 0, actual_size = 0;
 
     BaseTempStates(size_t n, size_t m);
