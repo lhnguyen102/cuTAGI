@@ -78,7 +78,7 @@ public:
 
     using BaseLayer::to_cuda;
 
-#ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
-#endif
+// #ifdef USE_CUDA
+//     std::unique_ptr<BaseLayer> to_cuda() override;
+// #endif
 };

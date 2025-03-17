@@ -318,3 +318,9 @@ void MixtureLReLU::backward(BaseDeltaStates &input_delta_states,
 //     return cuda_layer;
 // }
 // #endif
+// #ifdef USE_CUDA
+// std::unique_ptr<BaseLayer> MixtureLReLU::to_cuda() {
+//     this->device = "cuda";
+//     return std::make_unique<MixtureLReLUCuda>();
+// }
+// #endif
