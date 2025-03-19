@@ -29,13 +29,13 @@ from pytagi.nn import (
 # Define a simple CNN model
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
-    MixtureReLU(),
+    ReLU(),
     Linear(100, 11),
 )
 
@@ -53,8 +53,16 @@ CNN_BATCHNORM = Sequential(
     Linear(100, 11),
 )
 
+FNN = Sequential(
+    Linear(784, 128),
+    ReLU(),
+    Linear(128, 128),
+    ReLU(),
+    Linear(128, 11),
+)
 
-def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
+
+def main(num_epochs: int = 2, batch_size: int = 64, sigma_v: float = 0.2):
     """
     Run distributed classification training on the MNIST dataset.
     Parameters:
@@ -76,7 +84,7 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
         device_ids=device_ids, backend="nccl", rank=rank, world_size=world_size
     )
 
-    dist_model = DDPSequential(CNN, config, average=True)
+    ddp_model = DDPSequential(CNN, config, average=True)
 
     # Load dataset - each process loads a subset of the data
     train_dtl = MnistDataLoader(
@@ -109,7 +117,7 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
 
     for epoch in range(num_epochs):
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
-        dist_model.train()
+        ddp_model.train()
         # print epoch
         print(f"Epoch {epoch + 1}/{num_epochs}")
 
@@ -134,20 +142,20 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
             if process_batch_count >= batches_per_process:
                 break
 
-            m_pred, v_pred = dist_model(x)
+            m_pred, v_pred = ddp_model(x)
 
             # Update output layers based on targets
             out_updater.update_using_indices(
-                output_states=dist_model.model.output_z_buffer,
+                output_states=ddp_model.model.output_z_buffer,
                 mu_obs=y,
                 var_obs=var_y,
                 selected_idx=y_idx,
-                delta_states=dist_model.model.input_delta_z_buffer,
+                delta_states=ddp_model.model.input_delta_z_buffer,
             )
 
             # Update parameters
-            dist_model.backward()
-            dist_model.step()
+            ddp_model.backward()
+            ddp_model.step()
 
             # Training metric
             error_rate = metric.error_rate(m_pred, v_pred, label)
@@ -157,7 +165,7 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
             process_batch_count += 1
 
         # Synchronize at the end of each epoch
-        dist_model.barrier()
+        ddp_model.barrier()
         comm.Barrier()
 
         # Testing (only on rank 0)
@@ -165,10 +173,10 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
             correct = 0
             num_samples = 0
             test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
-            dist_model.eval()
+            ddp_model.eval()
 
             for x, _, _, label in test_batch_iter:
-                m_pred, v_pred = dist_model(x)
+                m_pred, v_pred = ddp_model(x)
 
                 # Training metric
                 pred = metric.get_predicted_labels(m_pred, v_pred)
@@ -185,13 +193,13 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.05):
                 )
                 pbar.update(1)
     if rank == 0:
-        print("\nTraining complete.")
+        print("Training complete.")
         if pbar:
             pbar.close()
 
 
 if __name__ == "__main__":
-    # Command: `mpiexec -n 2 python -m examples.ddp_classification`
+    # Command: `mpirun -n 2 python -m examples.ddp_classification`
     try:
         fire.Fire(main)
     finally:

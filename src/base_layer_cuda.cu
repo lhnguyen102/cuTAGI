@@ -311,6 +311,27 @@ void BaseLayerCuda::delta_params_to_host()
     CHECK_LAST_CUDA_ERROR();
 }
 
+void BaseLayerCuda::delta_params_to_device()
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+
+    cudaMemcpy(this->d_delta_mu_w, this->delta_mu_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_delta_var_w, this->delta_var_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+
+    if (this->bias) {
+        cudaMemcpy(this->d_delta_mu_b, this->delta_mu_b.data(),
+                   this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_var_b, this->delta_var_b.data(),
+                   this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+    }
+
+    CHECK_LAST_CUDA_ERROR();
+}
+
 void BaseLayerCuda::to(int device_idx) {
     this->device_idx = device_idx;
     cudaSetDevice(this->device_idx);

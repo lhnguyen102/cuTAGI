@@ -10,6 +10,9 @@
 #include <nccl.h>
 
 #include "../include/cuda_error_checking.cuh"
+#ifdef USE_CUDA
+#include "../include/base_layer_cuda.cuh"
+#endif
 #endif
 
 DDPConfig::DDPConfig(const std::vector<int> &device_ids,
@@ -47,10 +50,10 @@ NCCLCommunicator::~NCCLCommunicator() {
     cudaStreamDestroy(stream);
 }
 
-void NCCLCommunicator::all_reduce(float *data, size_t count) {
-    // Perform all-reduce operation i.e., sum of all the data across all
-    // processes
-    ncclAllReduce(data, data, count, ncclFloat32, ncclSum, comm, stream);
+void NCCLCommunicator::all_reduce(float *data, size_t count, bool average) {
+    // Use averaging if requested
+    ncclRedOp_t op = average ? ncclAvg : ncclSum;
+    ncclAllReduce(data, data, count, ncclFloat32, op, comm, stream);
     cudaStreamSynchronize(stream);
 }
 
@@ -100,29 +103,24 @@ void DDPSequential::sync_parameters() {
     for (auto &layer : model->layers) {
         if (layer->get_layer_type() != LayerType::Activation &&
             layer->get_layer_type() != LayerType::Pool2d) {
-            // Synchronize weights and biases deltas
-            communicator->all_reduce(layer->delta_mu_w.data(),
-                                     layer->delta_mu_w.size());
-            communicator->all_reduce(layer->delta_var_w.data(),
-                                     layer->delta_var_w.size());
+            // Check if this is a CUDA layer
+            auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
+            if (cuda_layer) {
+                // For CUDA layers, use device pointers directly
+                // Synchronize weights and biases deltas
+                communicator->all_reduce(cuda_layer->d_delta_mu_w,
+                                         layer->delta_mu_w.size(), average);
+                communicator->all_reduce(cuda_layer->d_delta_var_w,
+                                         layer->delta_var_w.size(), average);
 
-            if (layer->bias) {
-                communicator->all_reduce(layer->delta_mu_b.data(),
-                                         layer->delta_mu_b.size());
-                communicator->all_reduce(layer->delta_var_b.data(),
-                                         layer->delta_var_b.size());
-            }
-
-            // Scale by world size to get average
-            float scale =
-                this->average ? 1.0f / communicator->get_world_size() : 1.0f;
-
-            for (auto &val : layer->delta_mu_w) val *= scale;
-            for (auto &val : layer->delta_var_w) val *= scale;
-
-            if (layer->bias) {
-                for (auto &val : layer->delta_mu_b) val *= scale;
-                for (auto &val : layer->delta_var_b) val *= scale;
+                if (layer->bias) {
+                    communicator->all_reduce(cuda_layer->d_delta_mu_b,
+                                             layer->delta_mu_b.size(), average);
+                    communicator->all_reduce(cuda_layer->d_delta_var_b,
+                                             layer->delta_var_b.size());
+                }
+            } else {
+                LOG(LogLevel::ERROR, "CUDA layer not found");
             }
         }
     }

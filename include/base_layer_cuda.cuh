@@ -57,6 +57,7 @@ class BaseLayerCuda : public BaseLayer {
     void allocate_param_delta() override;
     virtual void params_to_host();
     virtual void delta_params_to_host();
+    virtual void delta_params_to_device();
     void to(int device_idx) override;
 
     void save(std::ofstream &file) override;
