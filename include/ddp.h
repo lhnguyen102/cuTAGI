@@ -25,7 +25,8 @@ class MPICommunicator;
 class Communicator {
    public:
     virtual ~Communicator() = default;
-    virtual void all_reduce(float *data, size_t count) = 0;
+    virtual void all_reduce(float *data, size_t count,
+                            bool average = false) = 0;
     virtual void barrier() = 0;
     virtual int get_rank() const = 0;
     virtual int get_world_size() const = 0;
@@ -45,7 +46,7 @@ class NCCLCommunicator : public Communicator {
     NCCLCommunicator(int rank, const std::vector<int> &device_ids);
     ~NCCLCommunicator();
 
-    void all_reduce(float *data, size_t count) override;
+    void all_reduce(float *data, size_t count, bool average = false) override;
     void barrier() override;
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
@@ -63,7 +64,7 @@ class NCCLCommunicator : public Communicator {
         : rank(rank), world_size(1) {}
     ~NCCLCommunicator() {}
 
-    void all_reduce(float *data, size_t count) override {}
+    void all_reduce(float *data, size_t count, bool average = false) override {}
     void barrier() override {}
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
