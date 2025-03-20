@@ -109,18 +109,22 @@ void DDPSequential::sync_parameters() {
                 // For CUDA layers, use device pointers directly
                 // Synchronize weights and biases deltas
                 communicator->all_reduce(cuda_layer->d_delta_mu_w,
-                                         layer->delta_mu_w.size(), average);
+                                         layer->delta_mu_w.size(),
+                                         this->average);
                 communicator->all_reduce(cuda_layer->d_delta_var_w,
-                                         layer->delta_var_w.size(), average);
+                                         layer->delta_var_w.size(),
+                                         this->average);
 
                 if (layer->bias) {
                     communicator->all_reduce(cuda_layer->d_delta_mu_b,
-                                             layer->delta_mu_b.size(), average);
+                                             layer->delta_mu_b.size(),
+                                             this->average);
                     communicator->all_reduce(cuda_layer->d_delta_var_b,
-                                             layer->delta_var_b.size());
+                                             layer->delta_var_b.size(),
+                                             this->average);
                 }
             } else {
-                LOG(LogLevel::ERROR, "CUDA layer not found");
+                LOG(LogLevel::ERROR, "Layer is not a CUDA layer");
             }
         }
     }
@@ -139,6 +143,7 @@ void DDPSequential::step() {
     sync_parameters();
     model->step();
     communicator->check_async_error();
+    communicator->barrier();
 #else
     model->step();
 #endif
