@@ -62,7 +62,7 @@ FNN = Sequential(
 )
 
 
-def main(num_epochs: int = 2, batch_size: int = 64, sigma_v: float = 0.2):
+def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.2):
     """
     Run distributed classification training on the MNIST dataset.
     Parameters:
@@ -112,7 +112,7 @@ def main(num_epochs: int = 2, batch_size: int = 64, sigma_v: float = 0.2):
     )
 
     pbar = None
-    if rank == 0:
+    if rank == 1:
         pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in range(num_epochs):
@@ -164,12 +164,12 @@ def main(num_epochs: int = 2, batch_size: int = 64, sigma_v: float = 0.2):
             batch_count += 1
             process_batch_count += 1
 
-        # Synchronize at the end of each epoch
-        ddp_model.barrier()
-        comm.Barrier()
+        # # Synchronize at the end of each epoch
+        # ddp_model.barrier()
+        # comm.Barrier()
 
         # Testing (only on rank 0)
-        if rank == 0:
+        if rank == 1:
             correct = 0
             num_samples = 0
             test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
@@ -181,7 +181,12 @@ def main(num_epochs: int = 2, batch_size: int = 64, sigma_v: float = 0.2):
                 # Training metric
                 pred = metric.get_predicted_labels(m_pred, v_pred)
                 correct += np.sum(pred == label)
+                tmp_error = 1.0 - correct / len(label)
                 num_samples += len(label)
+                if tmp_error > 0.4:
+                    print(m_pred)
+                    print(v_pred)
+                    print(f"Error rate: {tmp_error:.2f}%")
 
             test_error_rate = (1.0 - correct / num_samples) * 100
             avg_error_rate = sum(error_rates[-100:]) / min(100, len(error_rates))
