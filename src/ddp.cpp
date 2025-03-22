@@ -60,6 +60,20 @@ void NCCLCommunicator::all_reduce(float *data, size_t count, bool average) {
 void NCCLCommunicator::barrier() { cudaStreamSynchronize(stream); }
 
 void NCCLCommunicator::check_async_error() { CHECK_CUDA_NCCL_ASYNC(comm); }
+
+void NCCLCommunicator::broadcast(float *data, size_t count, int root)
+/*
+ * Broadcast data from root to all processes
+ *
+ * Args:
+ *    data: Pointer to the data to broadcast
+ *    count: Number of elements to broadcast
+ *    root: Rank of the process to broadcast from
+ */
+{
+    ncclBroadcast(data, data, count, ncclFloat32, root, comm, stream);
+    cudaStreamSynchronize(stream);
+}
 #endif
 
 // DDPSequential implementation
@@ -95,14 +109,18 @@ DDPSequential::DDPSequential(std::shared_ptr<Sequential> model,
     communicator =
         std::make_unique<NCCLCommunicator>(config.rank, config.device_ids);
 #endif
+
+    // Initialize parameters
+    this->sync_base_parameters();
 }
 
 void DDPSequential::sync_parameters() {
 #if defined(DISTRIBUTED_AVAILABLE)
     // Synchronize delta parameters across processes
     for (auto &layer : model->layers) {
-        if (layer->get_layer_type() != LayerType::Activation &&
-            layer->get_layer_type() != LayerType::Pool2d) {
+        auto layer_type = layer->get_layer_type();
+        if (layer_type != LayerType::Activation &&
+            layer_type != LayerType::Pool2d) {
             // Check if this is a CUDA layer
             auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
             if (cuda_layer) {
@@ -131,6 +149,38 @@ void DDPSequential::sync_parameters() {
 #endif
 }
 
+void DDPSequential::sync_base_parameters() {
+#if defined(DISTRIBUTED_AVAILABLE)
+    // Synchronize base parameters across processes by broadcasting from rank 0
+    for (auto &layer : model->layers) {
+        auto layer_type = layer->get_layer_type();
+        if (layer_type != LayerType::Activation &&
+            layer_type != LayerType::Pool2d) {
+            // Check if this is a CUDA layer
+            auto cuda_layer = dynamic_cast<BaseLayerCuda *>(layer.get());
+            if (cuda_layer) {
+                // For CUDA layers, broadcast parameters from rank 0. As as it
+                // initializes the NCCL ID.
+                communicator->broadcast(cuda_layer->d_mu_w, layer->mu_w.size(),
+                                        0);
+                communicator->broadcast(cuda_layer->d_var_w,
+                                        layer->var_w.size(), 0);
+
+                if (layer->bias) {
+                    communicator->broadcast(cuda_layer->d_mu_b,
+                                            layer->mu_b.size(), 0);
+                    communicator->broadcast(cuda_layer->d_var_b,
+                                            layer->var_b.size(), 0);
+                }
+            } else {
+                LOG(LogLevel::ERROR, "Layer is not a CUDA layer");
+            }
+        }
+    }
+    communicator->barrier();
+#endif
+}
+
 void DDPSequential::forward(const std::vector<float> &mu_a,
                             const std::vector<float> &var_a) {
     model->forward(mu_a, var_a);
@@ -142,7 +192,7 @@ void DDPSequential::step() {
 #if defined(DISTRIBUTED_AVAILABLE)
     sync_parameters();
     model->step();
-    communicator->check_async_error();
+    sync_base_parameters();
     communicator->barrier();
 #else
     model->step();

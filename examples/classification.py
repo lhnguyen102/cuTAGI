@@ -58,13 +58,13 @@ FNN_LAYERNORM = Sequential(
 
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
-    MixtureReLU(),
+    ReLU(),
     Linear(100, 11),
 )
 
@@ -98,8 +98,8 @@ CNN_LAYERNORM = Sequential(
 
 
 def main(
-    num_epochs: int = 20,
-    batch_size: int = 128,
+    num_epochs: int = 2,
+    batch_size: int = 256,
     sigma_v: float = 0.05,
     is_tracking: bool = False,
 ):
@@ -110,7 +110,7 @@ def main(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_param_stat = True  # print mean and std of parameters
+    print_param_stat = False  # print mean and std of parameters
     is_tracking = is_tracking if print_param_stat else False  # track params with wandb
 
     # Visual tool
@@ -121,7 +121,7 @@ def main(
             project_name="resnet",
             config={
                 "sigma_v": sigma_v,
-                "dataset": "imagenet",
+                "dataset": "mnist",
                 "nb_classes": 10,
                 "batch_size": batch_size,
                 "num_epochs": num_epochs,
@@ -144,7 +144,7 @@ def main(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
+    net = CNN
     if pytagi.cuda.is_available():
         net.to_device("cuda")
     else:

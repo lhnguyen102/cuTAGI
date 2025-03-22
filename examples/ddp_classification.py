@@ -61,8 +61,10 @@ FNN = Sequential(
     Linear(128, 11),
 )
 
+pytagi.manual_seed(0)
 
-def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.2):
+
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run distributed classification training on the MNIST dataset.
     Parameters:
@@ -164,32 +166,33 @@ def main(num_epochs: int = 2, batch_size: int = 128, sigma_v: float = 0.2):
             batch_count += 1
             process_batch_count += 1
 
-        # # Synchronize at the end of each epoch
-        # ddp_model.barrier()
-        # comm.Barrier()
+        # Synchronize at the end of each epoch
+        ddp_model.barrier()
+        comm.Barrier()
 
         # Testing (only on rank 0)
         if rank == 1:
-            correct = 0
-            num_samples = 0
-            test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
-            ddp_model.eval()
+            test_error_rate = 0
+            # correct = 0
+            # num_samples = 0
+            # test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
+            # ddp_model.eval()
 
-            for x, _, _, label in test_batch_iter:
-                m_pred, v_pred = ddp_model(x)
+            # for x, _, _, label in test_batch_iter:
+            #     m_pred, v_pred = ddp_model(x)
 
-                # Training metric
-                pred = metric.get_predicted_labels(m_pred, v_pred)
-                correct += np.sum(pred == label)
-                tmp_error = 1.0 - correct / len(label)
-                num_samples += len(label)
-                if tmp_error > 0.4:
-                    print(m_pred)
-                    print(v_pred)
-                    print(f"Error rate: {tmp_error:.2f}%")
+            #     # Training metric
+            #     pred = metric.get_predicted_labels(m_pred, v_pred)
+            #     correct += np.sum(pred == label)
+            #     tmp_error = 1.0 - correct / len(label)
+            #     num_samples += len(label)
+            #     if tmp_error > 0.4:
+            #         print(m_pred)
+            #         print(v_pred)
+            #         print(f"Error rate: {tmp_error:.2f}%")
 
-            test_error_rate = (1.0 - correct / num_samples) * 100
-            avg_error_rate = sum(error_rates[-100:]) / min(100, len(error_rates))
+            # test_error_rate = (1.0 - correct / num_samples) * 100
+            avg_error_rate = sum(error_rates[-100:]) / min(100, len(error_rates)) * 100
 
             if pbar:
                 pbar.set_description(

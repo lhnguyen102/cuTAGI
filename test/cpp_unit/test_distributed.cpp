@@ -13,6 +13,7 @@
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
 #include "../../include/batchnorm_layer.h"
+#include "../../include/common.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/custom_logger.h"
 #include "../../include/data_struct.h"
@@ -102,7 +103,8 @@ int get_mpi_world_size() { return 1; }
  * Distributed MNIST test runner
  */
 void distributed_mnist_test_runner(DDPSequential &dist_model,
-                                   float &avg_error_output) {
+                                   float &avg_error_output,
+                                   float &test_error_output) {
     // Get the underlying model and configuration
     auto model = dist_model.get_model();
     auto config = dist_model.get_config();
@@ -112,6 +114,9 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
                             std::to_string(world_size) +
                             " starting distributed training");
+
+    // Set seed
+    manual_seed(42 + rank);
 
     //////////////////////////////////////////////////////////////////////
     // Data preprocessing
@@ -127,7 +132,7 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
 
     std::string data_name = "mnist";
     std::vector<float> mu = {0.1309};
-    std::vector<float> sigma = {2.0f};
+    std::vector<float> sigma = {1.0f};
     int num_train_data = 60000;
     int num_test_data = 10000;
     int num_classes = 10;
@@ -153,9 +158,9 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
 
     unsigned seed = 42 + rank;  // Different seed for each process
     std::default_random_engine seed_e(seed);
-    int n_epochs = 10;
+    int n_epochs = 2;
     int batch_size = 128;
-    float sigma_obs = 1.0;
+    float sigma_obs = 0.05;
 
     // Calculate data partition for this process
     int data_per_process = train_db.num_data / world_size;
@@ -194,8 +199,11 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
 
     // Train for a fixed number of iterations by adjusting iterations based on
     // world size
-    int num_iterations = 100 / world_size;
+    int num_iterations = train_db.num_data / world_size / batch_size;
+    int total_train_error = 0;
+    int total_train_samples = 0;
     for (int epoch = 0; epoch < n_epochs; epoch++) {
+        std::shuffle(local_data_idx.begin(), local_data_idx.end(), seed_e);
         for (int i = 0; i < num_iterations; i++) {
             // Get batch for this process
             get_batch_images_labels(train_db, local_data_idx, batch_size, i,
@@ -215,7 +223,7 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
             dist_model.step();
 
             // Extract output for error calculation
-            model->output_to_host();
+            dist_model.output_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {
                 mu_a_output[j] = model->output_z_buffer->mu_a[j];
@@ -232,25 +240,89 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
             std::tie(error_rate_batch, prob_class_batch) =
                 get_error(mu_a_output, var_a_output, label_batch, num_classes,
                           batch_size);
-            mt_idx = i * batch_size;
-            update_vector(error_rate, error_rate_batch, mt_idx, 1);
+            total_train_error += std::accumulate(error_rate_batch.begin(),
+                                                 error_rate_batch.end(), 0);
+            total_train_samples += batch_size;
 
             if (i % 10 == 0) {
-                LOG(LogLevel::INFO, "Process " + std::to_string(rank) +
-                                        " completed iteration " +
-                                        std::to_string(i) + " of " +
-                                        std::to_string(num_iterations));
+                float train_error_rate_float =
+                    static_cast<float>(total_train_error) / total_train_samples;
+                LOG(LogLevel::INFO,
+                    "Process " + std::to_string(rank) +
+                        " completed iteration " + std::to_string(i) + " of " +
+                        std::to_string(num_iterations) + " with error rate: " +
+                        std::to_string(train_error_rate_float));
             }
         }
     }
 
-    int curr_idx = mt_idx + batch_size;
-    avg_error_output = compute_average_error_rate(error_rate, curr_idx,
-                                                  num_iterations * batch_size);
+    avg_error_output =
+        static_cast<float>(total_train_error) / total_train_samples;
 
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) +
                             " finished with average error rate: " +
                             std::to_string(avg_error_output));
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Testing (only on rank 0)
+    ////////////////////////////////////////////////////////////////////////////
+    if (rank == 0) {
+        // Prepare test data
+        std::vector<float> x_test_batch(batch_size * n_x, 0.0f);
+        std::vector<float> y_test_batch(batch_size * train_db.output_len, 0.0f);
+        std::vector<int> idx_ud_test_batch(train_db.output_len * batch_size, 0);
+        std::vector<int> label_test_batch(batch_size, 0);
+        std::vector<int> test_error_rate;
+        std::vector<float> test_prob_class;
+        int total_test_error = 0;
+        int total_test_samples = 0;
+
+        // Create test data indices
+        auto test_data_idx = create_range(test_db.num_data);
+        int test_iterations = test_db.num_data / batch_size;
+
+        for (int i = 0; i < test_iterations; i++) {
+            // Get test batch
+            get_batch_images_labels(test_db, test_data_idx, batch_size, i,
+                                    x_test_batch, y_test_batch,
+                                    idx_ud_test_batch, label_test_batch);
+
+            // Forward pass
+            dist_model.forward(x_test_batch);
+            dist_model.output_to_host();
+
+            // Extract output
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[j] = model->output_z_buffer->mu_a[j];
+                var_a_output[j] = model->output_z_buffer->var_a[j];
+            }
+
+            // Calculate error rate
+            std::tie(test_error_rate, test_prob_class) =
+                get_error(mu_a_output, var_a_output, label_test_batch,
+                          num_classes, batch_size);
+
+            // Accumulate errors
+            total_test_error += std::accumulate(test_error_rate.begin(),
+                                                test_error_rate.end(), 0);
+            total_test_samples += batch_size;
+
+            float test_error_rate_float =
+                static_cast<float>(total_test_error) / total_test_samples;
+            LOG(LogLevel::INFO,
+                "Process " + std::to_string(rank) +
+                    " completed test iteration " + std::to_string(i) + " of " +
+                    std::to_string(test_iterations) + " with error rate: " +
+                    std::to_string(test_error_rate_float));
+        }
+
+        // Calculate final test error rate
+        test_error_output =
+            static_cast<float>(total_test_error) / total_test_samples;
+
+        LOG(LogLevel::INFO,
+            "Test error rate: " + std::to_string(test_error_output));
+    }
 }
 
 class DistributedTest : public ::testing::Test {
@@ -364,7 +436,7 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
 
     auto model = std::make_shared<Sequential>(
         Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
-        Conv2d(16, 16, 5), ReLU(), AvgPool2d(3, 2), Linear(16 * 4 * 4, 128),
+        Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2), Linear(32 * 4 * 4, 128),
         ReLU(), Linear(128, 11));
 
     // Configure distributed training
@@ -377,16 +449,20 @@ TEST_F(DistributedTest, SimpleCNN_NCCL) {
     DDPSequential dist_model(model, config);
 
     // Run distributed training
-    float avg_error;
-    distributed_mnist_test_runner(dist_model, avg_error);
+    float avg_error, test_error;
+    distributed_mnist_test_runner(dist_model, avg_error, test_error);
 
     // Only rank 0 should assert the results
     if (rank == 0) {
         float threshold = 0.5;
         EXPECT_LT(avg_error, threshold)
-            << "Error rate should be below " << threshold;
+            << "Training error rate should be below " << threshold;
+        EXPECT_LT(test_error, threshold)
+            << "Test error rate should be below " << threshold;
         LOG(LogLevel::INFO,
-            "Final average error rate: " + std::to_string(avg_error));
+            "Final training error rate: " + std::to_string(avg_error));
+        LOG(LogLevel::INFO,
+            "Final test error rate: " + std::to_string(test_error));
     }
 }
 
@@ -723,6 +799,146 @@ TEST_F(DistributedTest, ParameterSynchronization_NCCL_Average) {
     if (rank == 0) {
         EXPECT_TRUE(sync_successful)
             << "Parameter synchronization (average mode) failed";
+    }
+}
+
+/**
+ * Test base parameter synchronization in DDPSequential using broadcast from
+ * rank 0 This test verifies that the sync_base_parameters() method correctly
+ * synchronizes model parameters across processes by broadcasting from rank 0
+ */
+TEST_F(DistributedTest, BaseParameterSynchronization_NCCL_Broadcast) {
+    // This test requires MPI to be initialized
+    if (!is_mpi_initialized()) {
+        GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
+    }
+
+    // Get MPI rank and world size
+    int rank = get_mpi_rank();
+    int world_size = get_mpi_world_size();
+
+    if (world_size < 2) {
+        GTEST_SKIP() << "This test requires at least 2 MPI processes";
+    }
+
+    LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
+                            std::to_string(world_size) +
+                            " starting base parameter sync test");
+
+    // Create a simple model
+    auto model = std::make_shared<Sequential>(Linear(10, 5, true));
+
+    // Configure distributed training
+    std::vector<int> device_ids;
+    for (int i = 0; i < world_size; i++) {
+        device_ids.push_back(i % 2);  // Use GPUs 0 and 1 in round-robin fashion
+    }
+
+    DDPConfig config(device_ids, "nccl", rank, world_size);
+    DDPSequential dist_model(model, config);
+
+    // Get the underlying model
+    auto sequential_model = dist_model.get_model();
+    auto &linear_layer = sequential_model->layers[0];
+
+    // Set different parameters on each process
+    float rank_value = static_cast<float>(rank + 1);
+    std::fill(linear_layer->mu_w.begin(), linear_layer->mu_w.end(), rank_value);
+    std::fill(linear_layer->var_w.begin(), linear_layer->var_w.end(),
+              rank_value * 2);
+
+    if (linear_layer->bias) {
+        std::fill(linear_layer->mu_b.begin(), linear_layer->mu_b.end(),
+                  rank_value * 3);
+        std::fill(linear_layer->var_b.begin(), linear_layer->var_b.end(),
+                  rank_value * 4);
+    }
+
+    // Make sure all parameters are copied to the device for CUDA layers
+#ifdef USE_CUDA
+    auto cuda_layer = dynamic_cast<BaseLayerCuda *>(linear_layer.get());
+    if (cuda_layer) {
+        cuda_layer->params_to_device();
+    }
+#endif
+
+    // Remember rank 0's values as they should be broadcast to all processes
+    float rank0_value = 1.0f;  // rank 0 + 1
+    float expected_mu_w = rank0_value;
+    float expected_var_w = rank0_value * 2;
+    float expected_mu_b = rank0_value * 3;
+    float expected_var_b = rank0_value * 4;
+
+    // Synchronize parameters
+    dist_model.sync_base_parameters();
+    dist_model.barrier();
+
+    // Copy any device parameters back to host for checking
+#ifdef USE_CUDA
+    if (cuda_layer) {
+        cuda_layer->params_to_host();
+    }
+#endif
+
+    // Check if parameters were properly synchronized
+    bool sync_successful = true;
+
+    // Check weights
+    for (size_t i = 0; i < linear_layer->mu_w.size(); i++) {
+        if (std::abs(linear_layer->mu_w[i] - expected_mu_w) > 1e-5) {
+            sync_successful = false;
+            LOG(LogLevel::ERROR,
+                "Process " + std::to_string(rank) + " mu_w[" +
+                    std::to_string(i) +
+                    "] = " + std::to_string(linear_layer->mu_w[i]) +
+                    ", expected " + std::to_string(expected_mu_w));
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < linear_layer->var_w.size(); i++) {
+        if (std::abs(linear_layer->var_w[i] - expected_var_w) > 1e-5) {
+            sync_successful = false;
+            LOG(LogLevel::ERROR,
+                "Process " + std::to_string(rank) + " var_w[" +
+                    std::to_string(i) +
+                    "] = " + std::to_string(linear_layer->var_w[i]) +
+                    ", expected " + std::to_string(expected_var_w));
+            break;
+        }
+    }
+
+    // Check biases if present
+    if (linear_layer->bias) {
+        for (size_t i = 0; i < linear_layer->mu_b.size(); i++) {
+            if (std::abs(linear_layer->mu_b[i] - expected_mu_b) > 1e-5) {
+                sync_successful = false;
+                LOG(LogLevel::ERROR,
+                    "Process " + std::to_string(rank) + " mu_b[" +
+                        std::to_string(i) +
+                        "] = " + std::to_string(linear_layer->mu_b[i]) +
+                        ", expected " + std::to_string(expected_mu_b));
+                break;
+            }
+        }
+
+        for (size_t i = 0; i < linear_layer->var_b.size(); i++) {
+            if (std::abs(linear_layer->var_b[i] - expected_var_b) > 1e-5) {
+                sync_successful = false;
+                LOG(LogLevel::ERROR,
+                    "Process " + std::to_string(rank) + " var_b[" +
+                        std::to_string(i) +
+                        "] = " + std::to_string(linear_layer->var_b[i]) +
+                        ", expected " + std::to_string(expected_var_b));
+                break;
+            }
+        }
+    }
+
+    // Only rank 0 should assert the results to avoid multiple test failures
+    if (rank == 0) {
+        EXPECT_TRUE(sync_successful)
+            << "Base parameter synchronization (broadcast from rank 0) failed";
     }
 }
 #else

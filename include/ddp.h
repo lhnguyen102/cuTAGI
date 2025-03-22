@@ -31,6 +31,7 @@ class Communicator {
     virtual int get_rank() const = 0;
     virtual int get_world_size() const = 0;
     virtual void check_async_error() = 0;
+    virtual void broadcast(float *data, size_t count, int root) = 0;
 };
 
 #ifdef DISTRIBUTED_AVAILABLE
@@ -51,6 +52,11 @@ class NCCLCommunicator : public Communicator {
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
     void check_async_error() override;
+    void broadcast(float *data, size_t count, int root) override;
+
+    // Add methods to get NCCL communicator and stream
+    ncclComm_t get_comm() const { return comm; }
+    cudaStream_t get_stream() const { return stream; }
 };
 #else
 // Stub implementation when NCCL is not available
@@ -69,6 +75,7 @@ class NCCLCommunicator : public Communicator {
     int get_rank() const override { return rank; }
     int get_world_size() const override { return world_size; }
     void check_async_error() override {}
+    void broadcast(float *data, size_t count, int root) override {}
 };
 #endif
 
@@ -120,7 +127,10 @@ class DDPSequential {
         return this->model->get_outputs();
     }
 
+    void output_to_host() { this->model->output_to_host(); }
+
     void sync_parameters();
+    void sync_base_parameters();
 
     std::shared_ptr<Sequential> get_model() { return model; }
     const DDPConfig &get_config() const { return config; }
