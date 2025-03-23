@@ -192,7 +192,6 @@ void DDPSequential::step() {
 #if defined(DISTRIBUTED_AVAILABLE)
     sync_parameters();
     model->step();
-    sync_base_parameters();
     communicator->barrier();
 #else
     model->step();
