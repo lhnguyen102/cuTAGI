@@ -16,6 +16,7 @@
 #include "slstm_layer.h"
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
+#include "lstm_layer_cuda.cuh"
 #endif
 
 #include <pybind11/numpy.h>
