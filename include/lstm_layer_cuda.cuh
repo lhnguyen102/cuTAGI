@@ -70,6 +70,15 @@ class LSTMCuda : public BaseLayerCuda {
 
     void preinit_layer() override;
 
+    void getLSTMStates(std::vector<float> &mu_h, std::vector<float> &var_h,
+                       std::vector<float> &mu_c,
+                       std::vector<float> &var_c) const;
+
+    void setLSTMStates(const std::vector<float> &mu_h,
+                       const std::vector<float> &var_h,
+                       const std::vector<float> &mu_c,
+                       const std::vector<float> &var_c);
+
    protected:
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;

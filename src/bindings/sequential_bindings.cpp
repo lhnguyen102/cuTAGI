@@ -133,22 +133,51 @@ void bind_sequential(pybind11::module_& m) {
         .def("get_outputs_smoother", &Sequential::get_outputs_smoother)
         .def("get_input_states", &Sequential::get_input_states)
         .def("get_norm_mean_var", [](Sequential& self) {
-            auto cpp_norm_mean_var = self.get_norm_mean_var();
-            pybind11::dict py_norm_mean_var;
-            for (const auto& pair : cpp_norm_mean_var) {
-                pybind11::list mu_ra;
-                pybind11::list var_ra;
-                pybind11::list mu_norm;
-                pybind11::list var_norm;
-                for (size_t i = 0; i < std::get<0>(pair.second).size(); i++) {
-                    mu_ra.append(std::get<0>(pair.second)[i]);
-                    var_ra.append(std::get<1>(pair.second)[i]);
-                    mu_norm.append(std::get<2>(pair.second)[i]);
-                    var_norm.append(std::get<3>(pair.second)[i]);
-                }
-                py_norm_mean_var[pair.first.c_str()] =
-                    std::make_tuple(mu_ra, var_ra, mu_norm, var_norm);
+                 auto cpp_norm_mean_var = self.get_norm_mean_var();
+                 pybind11::dict py_norm_mean_var;
+                 for (const auto& pair : cpp_norm_mean_var) {
+                     pybind11::list mu_ra;
+                     pybind11::list var_ra;
+                     pybind11::list mu_norm;
+                     pybind11::list var_norm;
+                     for (size_t i = 0; i < std::get<0>(pair.second).size(); i++) {
+                         mu_ra.append(std::get<0>(pair.second)[i]);
+                         var_ra.append(std::get<1>(pair.second)[i]);
+                         mu_norm.append(std::get<2>(pair.second)[i]);
+                         var_norm.append(std::get<3>(pair.second)[i]);
+                     }
+                     py_norm_mean_var[pair.first.c_str()] =
+                         std::make_tuple(mu_ra, var_ra, mu_norm, var_norm);
+                 }
+                 return py_norm_mean_var;
+             })
+        // New bindings for LSTM states
+        .def("get_lstm_states",
+             [](Sequential& self) {
+                 // Get the C++ unordered_map of states.
+                 auto states = self.get_lstm_states();
+                 // Convert it into a Python dict.
+                 pybind11::dict py_states;
+                 for (const auto& pair : states) {
+                     // Wrap the int key as a pybind11::int_ so it can be used
+                     // in the dict.
+                     py_states[pybind11::int_(pair.first)] = pair.second;
+                 }
+                 return py_states;
+             })
+        .def("set_lstm_states", [](Sequential& self, pybind11::dict py_states) {
+            // Convert the Python dict to the required unordered_map.
+            std::unordered_map<
+                int, std::tuple<std::vector<float>, std::vector<float>,
+                                std::vector<float>, std::vector<float>>>
+                states;
+            for (auto item : py_states) {
+                int key = item.first.cast<int>();
+                auto value = item.second.cast<
+                    std::tuple<std::vector<float>, std::vector<float>,
+                               std::vector<float>, std::vector<float>>>();
+                states[key] = value;
             }
-            return py_norm_mean_var;
+            self.set_lstm_states(states);
         });
 }

@@ -785,3 +785,74 @@ Sequential::get_input_states() {
 
     return {py_delta_mu, py_delta_var};
 }
+
+std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
+                                   std::vector<float>, std::vector<float>>>
+Sequential::get_lstm_states() const {
+    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
+                                       std::vector<float>, std::vector<float>>>
+        lstm_states;
+
+    for (size_t i = 0; i < layers.size(); ++i) {
+        if (layers[i]->get_layer_type() == LayerType::LSTM) {
+            if (this->device == "cpu") {
+                LSTM *lstm_layer = dynamic_cast<LSTM *>(layers[i].get());
+                if (lstm_layer) {
+                    // CPU
+                    auto states = lstm_layer->get_LSTM_states();
+                    lstm_states[static_cast<int>(i)] = states;
+                }
+            }
+#ifdef USE_CUDA
+            else if (this->device == "cuda") {
+                LSTMCuda *lstm_cuda = dynamic_cast<LSTMCuda *>(layers[i].get());
+                if (lstm_cuda) {
+                    // CUDA
+                    std::vector<float> mu_h, var_h, mu_c, var_c;
+                    lstm_cuda->d_get_LSTM_states(mu_h, var_h, mu_c, var_c);
+                    lstm_states[static_cast<int>(i)] =
+                        std::make_tuple(mu_h, var_h, mu_c, var_c);
+                }
+            }
+#endif
+        }
+    }
+    return lstm_states;
+}
+
+void Sequential::set_lstm_states(
+    const std::unordered_map<
+        int, std::tuple<std::vector<float>, std::vector<float>,
+                        std::vector<float>, std::vector<float>>> &lstm_states) {
+    for (const auto &pair : lstm_states) {
+        int layer_idx = pair.first;
+        if (layer_idx >= 0 && layer_idx < static_cast<int>(layers.size()) &&
+            layers[layer_idx]->get_layer_type() == LayerType::LSTM) {
+            // Unpack the tuple
+            const auto &state_tuple = pair.second;
+            const auto &mu_h = std::get<0>(state_tuple);
+            const auto &var_h = std::get<1>(state_tuple);
+            const auto &mu_c = std::get<2>(state_tuple);
+            const auto &var_c = std::get<3>(state_tuple);
+
+            // CPU
+            if (this->device == "cpu") {
+                LSTM *lstm_layer =
+                    dynamic_cast<LSTM *>(layers[layer_idx].get());
+                if (lstm_layer) {
+                    lstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
+                }
+            }
+#ifdef USE_CUDA
+            // CUDA
+            else if (this->device == "cuda") {
+                LSTMCuda *lstm_cuda =
+                    dynamic_cast<LSTMCuda *>(layers[layer_idx].get());
+                if (lstm_cuda) {
+                    lstm_cuda->d_set_LSTM_states(mu_h, var_h, mu_c, var_c);
+                }
+            }
+#endif
+        }
+    }
+}
