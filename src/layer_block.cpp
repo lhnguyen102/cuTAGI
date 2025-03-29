@@ -37,7 +37,7 @@ it will be corrected at the first run in the forward pass.
     if (this->device.compare("cpu") == 0) {
         this->layers.push_back(std::move(layer));
     } else if (this->device.compare("cuda") == 0) {
-        this->layers.push_back(std::move(layer->to_cuda()));
+        this->layers.push_back(std::move(layer->to_cuda(this->device_idx)));
     } else {
         LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }

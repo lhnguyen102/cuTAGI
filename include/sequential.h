@@ -112,6 +112,10 @@ class Sequential {
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
 
+    std::string get_device_with_index() const {
+        return this->device + ":" + std::to_string(this->device_idx);
+    }
+
     // Saving and loading
     void save(const std::string& filename);
 

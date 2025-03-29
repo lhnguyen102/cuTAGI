@@ -278,6 +278,10 @@ void DeltaStateCuda::copy_from(const BaseDeltaStates &source, int num_data)
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+    if (this->device_idx != source.device_idx) {
+        LOG(LogLevel::ERROR, "Device index mismatch.");
+    }
     if (num_data == -1) {
         num_data = this->size;
     }
@@ -689,10 +693,12 @@ void LSTMStateCuda::deallocate_memory()
     CHECK_LAST_CUDA_ERROR();
 }
 
-void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs)
+void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs,
+                                   int device_idx_)
 /*
  */
 {
+    this->device_idx = device_idx_;
     cudaSetDevice(this->device_idx);
     this->num_states = num_states;
     this->num_inputs = num_inputs;

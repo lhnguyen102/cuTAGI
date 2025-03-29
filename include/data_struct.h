@@ -260,7 +260,8 @@ class BaseLSTMStates {
     BaseLSTMStates(size_t num_states, size_t num_inputs, int device_idx = 0);
     BaseLSTMStates();
     ~BaseLSTMStates() = default;
-    virtual void set_num_states(size_t num_states, size_t num_inputs);
+    virtual void set_num_states(size_t num_states, size_t num_inputs,
+                                int device_idx_ = 0);
     virtual std::string get_name() const { return "BaseLSTMStates"; };
     void reset_zeros();
 };

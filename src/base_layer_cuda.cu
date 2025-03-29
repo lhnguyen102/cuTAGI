@@ -332,40 +332,7 @@ void BaseLayerCuda::delta_params_to_device()
     CHECK_LAST_CUDA_ERROR();
 }
 
-void BaseLayerCuda::to(int device_idx) {
-    this->device_idx = device_idx;
-    cudaSetDevice(this->device_idx);
-
-    if (d_mu_w != nullptr) {
-        params_to_host();
-
-        // Free existing device memory
-        cudaFree(d_mu_w);
-        cudaFree(d_var_w);
-        cudaFree(d_mu_b);
-        cudaFree(d_var_b);
-        cudaFree(d_delta_mu_w);
-        cudaFree(d_delta_var_w);
-        cudaFree(d_delta_mu_b);
-        cudaFree(d_delta_var_b);
-        if (d_neg_var_count != nullptr) {
-            cudaFree(d_neg_var_count);
-        }
-
-        allocate_param_memory();
-        if (this->training) {
-            allocate_param_delta();
-        }
-        params_to_device();
-    } else {
-        allocate_param_memory();
-        if (this->training) {
-            allocate_param_delta();
-        }
-    }
-
-    CHECK_LAST_CUDA_ERROR();
-}
+void BaseLayerCuda::to(int device_idx) { this->device_idx = device_idx; }
 
 void BaseLayerCuda::save(std::ofstream &file)
 /*

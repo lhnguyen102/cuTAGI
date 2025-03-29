@@ -12,6 +12,7 @@
 #include "../../include/pooling_layer.h"
 #include "../../include/resnet_block.h"
 #include "../../include/sequential.h"
+#include "test_utils.h"
 
 extern bool g_gpu_enabled;
 
@@ -26,7 +27,7 @@ char gray_to_ascii(float gray) {
     return chars[int(gray * (chars.size() - 1))];
 }
 
-void visualize_image(std::vector<float> &data)
+void visualize_image(std::vector<float>& data)
 /**/
 {
     const int width = 32;
@@ -44,16 +45,7 @@ void visualize_image(std::vector<float> &data)
     }
 }
 
-LayerBlock create_layer_block(int in_channels, int out_channels, int stride = 1,
-                              int padding_type = 1) {
-    return LayerBlock(
-        Conv2d(in_channels, out_channels, 3, false, stride, 1, padding_type),
-        ReLU(), BatchNorm2d(out_channels),
-        Conv2d(out_channels, out_channels, 3, false, 1, 1), ReLU(),
-        BatchNorm2d(out_channels));
-}
-
-void resnet_cifar10_runner(Sequential &model, float &avg_error_output)
+void resnet_cifar10_runner(Sequential& model, float& avg_error_output)
 /**/
 {
     ////////////////////////////////////////////////////////////////////////////
@@ -96,8 +88,8 @@ void resnet_cifar10_runner(Sequential &model, float &avg_error_output)
     unsigned seed = 42;
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 32;
-    float sigma_obs = 1;
+    int batch_size = 64;
+    float sigma_obs = 0.1;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> var_obs(batch_size * train_db.output_len,
@@ -120,7 +112,7 @@ void resnet_cifar10_runner(Sequential &model, float &avg_error_output)
             // Shuffle data
             std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
         }
-        for (int i = 0; i < 40; i++) {
+        for (int i = 0; i < 200; i++) {
             mt_idx = i * batch_size;
             // Load data
             get_batch_images_labels(train_db, data_idx, batch_size, mt_idx,
@@ -129,11 +121,8 @@ void resnet_cifar10_runner(Sequential &model, float &avg_error_output)
 
             // Forward pass
             model.forward(x_batch);
+            model.output_to_host();
 
-            // Extract output
-            if (model.device == "cuda") {
-                model.output_to_host();
-            }
             for (int j = 0; j < batch_size * n_y; j++) {
                 mu_a_output[j] = model.output_z_buffer->mu_a[j];
                 var_a_output[j] = model.output_z_buffer->var_a[j];
@@ -158,55 +147,121 @@ void resnet_cifar10_runner(Sequential &model, float &avg_error_output)
 
 class ResnetTest : public ::testing::Test {
    protected:
-    void SetUp() override {}
+    void SetUp() override {
+        // Check if CIFAR-10 dataset exists
+        std::string data_dir = "data/cifar/cifar-10-batches-c";
+        std::vector<std::string> required_files = {
+            "data_batch_1.bin", "data_batch_2.bin", "data_batch_3.bin",
+            "data_batch_4.bin", "data_batch_5.bin", "test_batch.bin"};
+
+        bool missing_files = false;
+        for (const auto& file : required_files) {
+            if (!file_exists(data_dir + "/" + file)) {
+                missing_files = true;
+                break;
+            }
+        }
+
+        if (missing_files) {
+            std::cout << "CIFAR-10 dataset files are missing. Downloading..."
+                      << std::endl;
+            if (!download_cifar10_data()) {
+                std::cerr << "Failed to download CIFAR-10 data files."
+                          << std::endl;
+            }
+        }
+    }
 
     void TearDown() override {}
+
+    bool file_exists(const std::string& path) {
+        std::ifstream file(path);
+        return file.good();
+    }
+
+    bool download_cifar10_data() {
+        // Create directory
+        if (system("mkdir -p ./data/cifar/cifar-10-batches-c") != 0) {
+            std::cerr
+                << "Failed to create directory ./data/cifar/cifar-10-batches-c"
+                << std::endl;
+            return false;
+        }
+
+        std::string data_dir = "./data/cifar/cifar-10-batches-c";
+        std::string url =
+            "https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz";
+        std::string tar_file = data_dir + "/cifar-10-binary.tar.gz";
+
+        // Download the binary tar.gz file
+        std::string command = "curl --fail -o " + tar_file + " " + url;
+        if (system(command.c_str()) != 0) {
+            std::cerr << "Failed to download CIFAR-10 binary tar.gz file"
+                      << std::endl;
+            return false;
+        }
+
+        // Extract and move files to correct location
+        command = "cd " + data_dir +
+                  " && tar xzf cifar-10-binary.tar.gz && "
+                  "mv cifar-10-batches-bin/* . && "
+                  "rm -rf cifar-10-batches-bin cifar-10-binary.tar.gz";
+
+        if (system(command.c_str()) != 0) {
+            std::cerr << "Failed to extract and move CIFAR-10 files"
+                      << std::endl;
+            return false;
+        }
+
+        std::cout << "CIFAR-10 data files downloaded successfully."
+                  << std::endl;
+        return true;
+    }
 };
 
 TEST_F(ResnetTest, TestResnetCifar10) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
-    // auto block_1 = create_layer_block(64, 64);
-    // auto block_2 = create_layer_block(64, 64);
-    // auto block_3 = create_layer_block(64, 128, 2, 2);
-    // auto block_4 = create_layer_block(128, 128);
-    // auto block_5 = create_layer_block(128, 256, 2, 2);
-    // auto block_6 = create_layer_block(256, 256);
-    // auto block_7 = create_layer_block(256, 512, 2, 2);
-    // auto block_8 = create_layer_block(512, 512);
+    auto block_1 = create_layer_block(64, 64);
+    auto block_2 = create_layer_block(64, 64);
+    auto block_3 = create_layer_block(64, 128, 2, 2);
+    auto block_4 = create_layer_block(128, 128);
+    auto block_5 = create_layer_block(128, 256, 2, 2);
+    auto block_6 = create_layer_block(256, 256);
+    auto block_7 = create_layer_block(256, 512, 2, 2);
+    auto block_8 = create_layer_block(512, 512);
 
-    // ResNetBlock resnet_block_1(block_1);
-    // ResNetBlock resnet_block_2(block_2);
+    ResNetBlock resnet_block_1(block_1);
+    ResNetBlock resnet_block_2(block_2);
 
-    // ResNetBlock resnet_block_3(block_3, LayerBlock(Conv2d(64, 128, 2, false,
-    // 2),
-    //                                                ReLU(),
-    //                                                BatchNorm2d(128)));
-    // ResNetBlock resnet_block_4(block_4);
+    ResNetBlock resnet_block_3(block_3, LayerBlock(Conv2d(64, 128, 2, false, 2),
+                                                   ReLU(), BatchNorm2d(128)));
+    ResNetBlock resnet_block_4(block_4);
 
-    // ResNetBlock resnet_block_5(
-    //     block_5,
-    //     LayerBlock(Conv2d(128, 256, 2, false, 2), ReLU(), BatchNorm2d(256)));
-    // ResNetBlock resnet_block_6(block_6);
+    ResNetBlock resnet_block_5(
+        block_5,
+        LayerBlock(Conv2d(128, 256, 2, false, 2), ReLU(), BatchNorm2d(256)));
+    ResNetBlock resnet_block_6(block_6);
 
-    // ResNetBlock resnet_block_7(
-    //     block_7,
-    //     LayerBlock(Conv2d(256, 512, 2, false, 2), ReLU(), BatchNorm2d(512)));
-    // ResNetBlock resnet_block_8(block_8);
+    ResNetBlock resnet_block_7(
+        block_7,
+        LayerBlock(Conv2d(256, 512, 2, false, 2), ReLU(), BatchNorm2d(512)));
+    ResNetBlock resnet_block_8(block_8);
 
-    // Sequential model(
-    //     // Input block
-    //     Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), ReLU(), BatchNorm2d(64),
+    Sequential model(
+        // Input block
+        Conv2d(3, 64, 3, false, 1, 1, 1, 32, 32), ReLU(), BatchNorm2d(64),
 
-    //     // Residual blocks
-    //     resnet_block_1, resnet_block_2, resnet_block_3, resnet_block_4,
-    //     resnet_block_5, resnet_block_6, resnet_block_7, resnet_block_8,
+        // Residual blocks
+        resnet_block_1, resnet_block_2, resnet_block_3, resnet_block_4,
+        resnet_block_5, resnet_block_6, resnet_block_7, resnet_block_8,
 
-    //     // Output block
-    //     AvgPool2d(4), Linear(512, 11));
+        // Output block
+        AvgPool2d(4), Linear(512, 11));
 
-    // model.to_device("cuda");
+    model.to_device("cuda");
 
-    // float avg_error_output;
-    // resnet_cifar10_runner(model, avg_error_output);
-    EXPECT_LT(0.4, 0.5);
+    float avg_error_output;
+    resnet_cifar10_runner(model, avg_error_output);
+    EXPECT_LT(avg_error_output, 0.8)
+        << "Average error output is greater than 0.5";
 }

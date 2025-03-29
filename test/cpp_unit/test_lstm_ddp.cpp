@@ -75,7 +75,9 @@ void distributed_sin_signal_lstm_test_runner(DDPSequential &dist_model,
     ////////////////////////////////////////////////////////////////////////////
     // Training
     ////////////////////////////////////////////////////////////////////////////
-    OutputUpdater output_updater(model->device);
+    std::string device =
+        model->device + ":" + std::to_string(model->device_idx);
+    OutputUpdater output_updater(device);
     unsigned seed = 42 + rank;
     std::default_random_engine seed_e(seed);
     int n_epochs = 2;
@@ -129,12 +131,12 @@ void distributed_sin_signal_lstm_test_runner(DDPSequential &dist_model,
 
             // Forward
             dist_model.forward(x_batch);
-            // output_updater.update(*model->output_z_buffer, y_batch, var_obs,
-            //                       *model->input_delta_z_buffer);
+            output_updater.update(*model->output_z_buffer, y_batch, var_obs,
+                                  *model->input_delta_z_buffer);
 
-            // // Backward pass
-            // dist_model.backward();
-            // dist_model.step();
+            // Backward pass
+            dist_model.backward();
+            dist_model.step();
         }
     }
 
@@ -142,72 +144,67 @@ void distributed_sin_signal_lstm_test_runner(DDPSequential &dist_model,
     // Testing (only on rank 0)
     ///////////////////////////////////////////////////////////////////////////
     if (rank == 0) {
-        float mse = 0.0f, log_lik = 0.0f;
-        // std::vector<float> mu_a_output_test(test_db.num_data * test_db.ny,
-        // 0); std::vector<float> var_a_output_test(test_db.num_data *
-        // test_db.ny, 0); auto test_data_idx = create_range(test_db.num_data);
+        std::vector<float> mu_a_output_test(test_db.num_data * test_db.ny, 0);
+        std::vector<float> var_a_output_test(test_db.num_data * test_db.ny, 0);
+        auto test_data_idx = create_range(test_db.num_data);
 
-        // int n_iter = static_cast<float>(test_db.num_data) /
-        //              static_cast<float>(batch_size);
-        // int mt_idx = 0;
+        int n_iter = static_cast<float>(test_db.num_data) /
+                     static_cast<float>(batch_size);
+        int mt_idx = 0;
 
-        // for (int i = 0; i < n_iter; i++) {
-        //     mt_idx = i * test_db.ny * batch_size;
+        for (int i = 0; i < n_iter; i++) {
+            mt_idx = i * test_db.ny * batch_size;
 
-        //     // Data
-        //     get_batch_idx(test_data_idx, i * batch_size, batch_size,
-        //     batch_idx); get_batch_data(test_db.x, batch_idx, test_db.nx,
-        //     x_batch); get_batch_data(test_db.y, batch_idx, test_db.ny,
-        //     y_batch);
+            // Data
+            get_batch_idx(test_data_idx, i * batch_size, batch_size, batch_idx);
+            get_batch_data(test_db.x, batch_idx, test_db.nx, x_batch);
+            get_batch_data(test_db.y, batch_idx, test_db.ny, y_batch);
 
-        //     // Forward
-        //     dist_model.forward(x_batch);
+            // Forward
+            dist_model.forward(x_batch);
 
-        //     // Extract output
-        //     if (model->device == "cuda") {
-        //         model->output_to_host();
-        //     }
+            // Extract output
+            if (model->device == "cuda") {
+                model->output_to_host();
+            }
 
-        //     for (int j = 0; j < batch_size * test_db.ny; j++) {
-        //         mu_a_output_test[j + mt_idx] =
-        //         model->output_z_buffer->mu_a[j]; var_a_output_test[j +
-        //         mt_idx] =
-        //             model->output_z_buffer->var_a[j];
-        //     }
-        // }
+            for (int j = 0; j < batch_size * test_db.ny; j++) {
+                mu_a_output_test[j + mt_idx] = model->output_z_buffer->mu_a[j];
+                var_a_output_test[j + mt_idx] =
+                    model->output_z_buffer->var_a[j];
+            }
+        }
 
-        // // Retrive predictions (i.e., 1st column)
-        // int n_y = test_db.ny / output_seq_len;
-        // std::vector<float> mu_y_1(test_db.num_data, 0);
-        // std::vector<float> var_y_1(test_db.num_data, 0);
-        // std::vector<float> y_1(test_db.num_data, 0);
-        // get_1st_column_data(mu_a_output_test, output_seq_len, n_y, mu_y_1);
-        // get_1st_column_data(var_a_output_test, output_seq_len, n_y, var_y_1);
-        // get_1st_column_data(test_db.y, output_seq_len, n_y, y_1);
+        // Retrive predictions (i.e., 1st column)
+        int n_y = test_db.ny / output_seq_len;
+        std::vector<float> mu_y_1(test_db.num_data, 0);
+        std::vector<float> var_y_1(test_db.num_data, 0);
+        std::vector<float> y_1(test_db.num_data, 0);
+        get_1st_column_data(mu_a_output_test, output_seq_len, n_y, mu_y_1);
+        get_1st_column_data(var_a_output_test, output_seq_len, n_y, var_y_1);
+        get_1st_column_data(test_db.y, output_seq_len, n_y, y_1);
 
-        // // Unnormalize data
-        // std::vector<float> std_y_norm(test_db.num_data, 0);
-        // std::vector<float> mu_y(test_db.num_data, 0);
-        // std::vector<float> std_y(test_db.num_data, 0);
-        // std::vector<float> y_test(test_db.num_data, 0);
+        // Unnormalize data
+        std::vector<float> std_y_norm(test_db.num_data, 0);
+        std::vector<float> mu_y(test_db.num_data, 0);
+        std::vector<float> std_y(test_db.num_data, 0);
+        std::vector<float> y_test(test_db.num_data, 0);
 
-        // // Compute log-likelihood
-        // for (int k = 0; k < test_db.num_data; k++) {
-        //     std_y_norm[k] = pow(var_y_1[k] + pow(sigma_obs, 2), 0.5);
-        // }
+        // Compute log-likelihood
+        for (int k = 0; k < test_db.num_data; k++) {
+            std_y_norm[k] = pow(var_y_1[k] + pow(sigma_obs, 2), 0.5);
+        }
 
-        // denormalize_mean(mu_y_1, test_db.mu_y, test_db.sigma_y, n_y, mu_y);
-        // denormalize_mean(y_1, test_db.mu_y, test_db.sigma_y, n_y, y_test);
-        // denormalize_std(std_y_norm, test_db.mu_y, test_db.sigma_y, n_y,
-        // std_y);
+        denormalize_mean(mu_y_1, test_db.mu_y, test_db.sigma_y, n_y, mu_y);
+        denormalize_mean(y_1, test_db.mu_y, test_db.sigma_y, n_y, y_test);
+        denormalize_std(std_y_norm, test_db.mu_y, test_db.sigma_y, n_y, std_y);
 
-        // // Compute metrics
-        // mse = mean_squared_error(mu_y, y_test);
-        // log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
+        // Compute metrics
+        mse = mean_squared_error(mu_y, y_test);
+        log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
 
-        // LOG(LogLevel::INFO, "Final MSE: " + std::to_string(mse));
-        // LOG(LogLevel::INFO, "Final log likelihood: " +
-        // std::to_string(log_lik));
+        LOG(LogLevel::INFO, "Final MSE: " + std::to_string(mse));
+        LOG(LogLevel::INFO, "Final log likelihood: " + std::to_string(log_lik));
     }
 }
 

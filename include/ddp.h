@@ -129,6 +129,16 @@ class DDPSequential {
 
     void output_to_host() { this->model->output_to_host(); }
 
+    BaseHiddenStates *output_z_buffer() {
+        return this->model->output_z_buffer.get();
+    }
+    BaseDeltaStates *input_delta_z_buffer() {
+        return this->model->input_delta_z_buffer.get();
+    }
+
+    std::string get_device_with_index() const {
+        return this->model->get_device_with_index();
+    }
     void sync_parameters();
     void sync_base_parameters();
 
