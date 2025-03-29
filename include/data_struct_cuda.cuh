@@ -156,7 +156,8 @@ class LSTMStateCuda : public BaseLSTMStates {
     LSTMStateCuda();
     ~LSTMStateCuda();
     std::string get_name() const override { return "LSTMStateCuda"; };
-    void set_num_states(size_t num_states, size_t num_inputs) override;
+    void set_num_states(size_t num_states, size_t num_inputs,
+                        int device_idx_ = 0) override;
     void allocate_memory();
     void deallocate_memory();
     void to_device();

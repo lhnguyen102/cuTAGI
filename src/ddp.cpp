@@ -55,11 +55,18 @@ void NCCLCommunicator::all_reduce(float *data, size_t count, bool average) {
     ncclRedOp_t op = average ? ncclAvg : ncclSum;
     ncclAllReduce(data, data, count, ncclFloat32, op, comm, stream);
     cudaStreamSynchronize(stream);
+    MPI_Barrier(MPI_COMM_WORLD);  // Add MPI synchronization
 }
 
-void NCCLCommunicator::barrier() { cudaStreamSynchronize(stream); }
+void NCCLCommunicator::barrier() {
+    cudaStreamSynchronize(stream);
+    MPI_Barrier(MPI_COMM_WORLD);  // Add MPI synchronization
+}
 
-void NCCLCommunicator::check_async_error() { CHECK_CUDA_NCCL_ASYNC(comm); }
+void NCCLCommunicator::check_async_error() {
+    CHECK_CUDA_NCCL_ASYNC(comm);
+    MPI_Barrier(MPI_COMM_WORLD);  // Add MPI synchronization
+}
 
 void NCCLCommunicator::broadcast(float *data, size_t count, int root)
 /*
@@ -73,6 +80,7 @@ void NCCLCommunicator::broadcast(float *data, size_t count, int root)
 {
     ncclBroadcast(data, data, count, ncclFloat32, root, comm, stream);
     cudaStreamSynchronize(stream);
+    MPI_Barrier(MPI_COMM_WORLD);  // Add MPI synchronization
 }
 #endif
 

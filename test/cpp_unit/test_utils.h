@@ -5,6 +5,7 @@
 
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
+#include "../../include/layer_block.h"
 #include "../../include/sequential.h"
 
 #if defined(USE_NCCL) && defined(USE_CUDA) && defined(USE_MPI)
@@ -76,6 +77,9 @@ class DistributedTestFixture : public ::testing::Test {
     int rank;
     int world_size;
 };
+
+LayerBlock create_layer_block(int in_channels, int out_channels, int stride = 1,
+                              int padding_type = 1);
 
 Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
                                       int num_data, int num_features,

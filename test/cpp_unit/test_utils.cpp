@@ -1,5 +1,11 @@
 #include "test_utils.h"
 
+#include "../../include/activation.h"
+#include "../../include/batchnorm_layer.h"
+#include "../../include/conv2d_layer.h"
+#include "../../include/resnet_block.h"
+#include "../../include/sequential.h"
+
 // Global flag to track if MPI is initialized by our tests
 bool g_mpi_initialized_by_test = false;
 
@@ -48,6 +54,16 @@ bool is_mpi_initialized() { return false; }
 int get_mpi_rank() { return 0; }
 int get_mpi_world_size() { return 1; }
 #endif
+
+// Helper function to create layer blocks (reused from test_resnet.cpp)
+LayerBlock create_layer_block(int in_channels, int out_channels, int stride,
+                              int padding_type) {
+    return LayerBlock(
+        Conv2d(in_channels, out_channels, 3, false, stride, 1, padding_type),
+        ReLU(), BatchNorm2d(out_channels),
+        Conv2d(out_channels, out_channels, 3, false, 1, 1), ReLU(),
+        BatchNorm2d(out_channels));
+}
 
 Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
                                       int num_data, int num_features,

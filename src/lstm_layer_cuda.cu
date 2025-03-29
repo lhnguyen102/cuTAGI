@@ -826,7 +826,7 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
         this->_batch_size = batch_size;
         this->lstm_state.set_num_states(
             batch_size * this->seq_len * this->output_size,
-            batch_size * this->seq_len * this->input_size);
+            batch_size * this->seq_len * this->input_size, this->device_idx);
     }
     // Update number of actual states.
     output_states.width = this->out_width;
@@ -836,6 +836,7 @@ void LSTMCuda::forward(BaseHiddenStates &input_states,
     output_states.actual_size = this->output_size * this->seq_len;
 
     if (this->seq_len == 1 && batch_size == 1) {
+        cudaSetDevice(this->device_idx);
         cudaMemcpy(this->lstm_state.d_mu_h_prev, this->lstm_state.d_mu_h_prior,
                    this->lstm_state.num_states * sizeof(float),
                    cudaMemcpyDeviceToDevice);

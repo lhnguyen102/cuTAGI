@@ -229,6 +229,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     }
     // Store jacobian matrix for backward pass
     if (this->training) {
+        cudaSetDevice(this->device_idx);
         HiddenStateCuda *cu_input_states =
             dynamic_cast<HiddenStateCuda *>(&input_states);
         BackwardStateCuda *cu_bwd_states =
@@ -237,6 +238,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
         int act_size = cu_input_states->actual_size * batch_size;
         if (cu_bwd_states->size != act_size) {
             cu_bwd_states->size = act_size;
+            cu_bwd_states->set_device_idx(cu_input_states->device_idx);
             cu_bwd_states->allocate_memory();
         }
         cudaMemcpy(cu_bwd_states->d_mu_a, cu_input_states->d_mu_a,
@@ -247,7 +249,6 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
 
     // Make a copy of input states for residual connection
     this->input_z->copy_from(input_states, this->input_size * batch_size);
-
     this->main_block->forward(input_states, output_states, temp_states);
 
     int num_states = output_states.block_size * this->output_size;

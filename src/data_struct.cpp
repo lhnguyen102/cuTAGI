@@ -274,10 +274,12 @@ BaseLSTMStates::BaseLSTMStates(size_t num_states, size_t num_inputs,
     this->reset_zeros();
 }
 
-void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs)
+void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs,
+                                    int device_idx_)
 /*
  */
 {
+    this->device_idx = device_idx_;
     this->num_states = num_states;
     this->num_inputs = num_inputs;
     this->reset_zeros();

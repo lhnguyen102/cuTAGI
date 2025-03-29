@@ -92,6 +92,13 @@ class LayerBlock : public BaseLayer {
                                   const std::string &suffix = "") override;
     std::vector<ParameterTuple> parameters() override;
 
+    void to(int device_idx = 0) override {
+        this->device_idx = device_idx;
+        for (auto &layer : layers) {
+            layer->to(device_idx);
+        }
+    }
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

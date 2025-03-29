@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base_layer_cuda.cuh"
+#include "custom_logger.h"
 #include "layer_block.h"
 
 class ResNetBlockCuda : public BaseLayerCuda {
@@ -36,7 +37,6 @@ class ResNetBlockCuda : public BaseLayerCuda {
             !std::is_same<typename std::decay<Shortcut>::type,
                           BaseLayer>::value;
         if (is_shortcut_exist) {
-            this->device_idx = shortcut_layer->device_idx;
             this->shortcut =
                 std::make_shared<Shortcut>(std::move(shortcut_layer));
             this->shortcut->to_cuda(this->device_idx);
@@ -55,8 +55,8 @@ class ResNetBlockCuda : public BaseLayerCuda {
         static_assert(std::is_base_of<BaseLayer, Shortcut>::value,
                       "Shortcut must be derived from BaseLayer");
 
+        this->device_idx = main->device_idx;
         if (main->device != "cuda") {
-            this->device_idx = main->device_idx;
             auto cu_main = main->to_cuda(this->device_idx);
             this->main_block = std::move(cu_main);
         } else {
@@ -64,7 +64,6 @@ class ResNetBlockCuda : public BaseLayerCuda {
         }
 
         if (shortcut_layer) {
-            this->device_idx = shortcut_layer->device_idx;
             auto cu_layer = shortcut_layer->to_cuda(this->device_idx);
             this->shortcut = std::move(cu_layer);
         }
