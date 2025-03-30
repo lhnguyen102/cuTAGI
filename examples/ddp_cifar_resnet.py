@@ -199,10 +199,8 @@ def main(
         batch_size, data_dir, world_size, rank, seed, num_workers
     )
 
-    # Hierarchical Softmax metric
     metric = HRCSoftmaxMetric(num_classes=10)
 
-    # Create output updater
     device = "cuda:" + str(device_ids[rank])
     out_updater = OutputUpdater(device)
 

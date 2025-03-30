@@ -153,7 +153,6 @@ def main(
         ]
     )
 
-    # Load MNIST datasets using PyTorch's datasets
     train_dataset = torchvision.datasets.MNIST(
         root=data_dir, train=True, download=True, transform=transform
     )
@@ -222,7 +221,6 @@ def main(
                 dtype=np.float32,
             )
 
-            # Forward pass
             m_pred, v_pred = ddp_model(x_batch)
 
             # Update output layers based on targets
