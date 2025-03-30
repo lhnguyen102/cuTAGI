@@ -64,7 +64,7 @@ FNN = Sequential(
 pytagi.manual_seed(0)
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
+def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 0.1):
     """
     Run distributed classification training on the MNIST dataset.
     Parameters:
@@ -80,6 +80,12 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
     rank = comm.Get_rank()
     world_size = comm.Get_size()
 
+    print(f"Process {rank} of {world_size} starting distributed training")
+
+    # Set seed (add rank to the seed to ensure different processes have different seeds)
+    seed = 42 + rank
+    pytagi.manual_seed(seed)
+
     # Set up distributed configuration
     device_ids = [i % 2 for i in range(world_size)]
     config = DDPConfig(
@@ -88,7 +94,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
 
     ddp_model = DDPSequential(CNN, config, average=True)
 
-    # Load dataset - each process loads a subset of the data
+    # Load dataset - each process loads the full dataset, but will process only its subset
     train_dtl = MnistDataLoader(
         x_file="data/mnist/train-images-idx3-ubyte",
         y_file="data/mnist/train-labels-idx1-ubyte",
@@ -113,27 +119,26 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
         (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
     )
 
+    # Progress bar (only on rank 0)
     pbar = None
-    if rank == 1:
+    if rank == 0:
         pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in range(num_epochs):
         batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
         ddp_model.train()
-        # print epoch
-        print(f"Epoch {epoch + 1}/{num_epochs}")
 
         # Calculate total number of batches and ensure all processes handle the same number
         total_batches = train_dtl.dataset["value"][0].shape[0] // batch_size
         batches_per_process = total_batches // world_size
-        if rank == 0:
-            print(
-                f"Total batches: {total_batches}, Batches per process: {batches_per_process}"
-            )
 
         # Each process processes a subset of batches
         batch_count = 0
         process_batch_count = 0
+
+        total_train_error = 0
+        total_train_samples = 0
+
         for x, y, y_idx, label in batch_iter:
             # Skip batches not assigned to this process
             if batch_count % world_size != rank:
@@ -148,11 +153,11 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
 
             # Update output layers based on targets
             out_updater.update_using_indices(
-                output_states=ddp_model.model.output_z_buffer,
+                output_states=ddp_model.output_z_buffer,
                 mu_obs=y,
                 var_obs=var_y,
                 selected_idx=y_idx,
-                delta_states=ddp_model.model.input_delta_z_buffer,
+                delta_states=ddp_model.input_delta_z_buffer,
             )
 
             # Update parameters
@@ -163,43 +168,82 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
             error_rate = metric.error_rate(m_pred, v_pred, label)
             error_rates.append(error_rate)
 
+            # Calculate errors per batch
+            pred = metric.get_predicted_labels(m_pred, v_pred)
+            batch_errors = np.sum(pred != label)
+            total_train_error += batch_errors
+            total_train_samples += len(label)
+
             batch_count += 1
             process_batch_count += 1
 
-        # Synchronize at the end of each epoch
-        ddp_model.barrier()
-        comm.Barrier()
+        # Gather training errors from all processes
+        all_train_errors = comm.gather(total_train_error, root=0)
+        all_train_samples = comm.gather(total_train_samples, root=0)
 
-        # Testing (only on rank 0)
-        if rank == 1:
-            test_error_rate = 0
-            # correct = 0
-            # num_samples = 0
-            # test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
-            # ddp_model.eval()
+        if rank == 0 and all_train_errors and all_train_samples:
+            global_train_error = sum(all_train_errors)
+            global_train_samples = sum(all_train_samples)
+            global_train_error_rate = (
+                global_train_error / global_train_samples
+                if global_train_samples > 0
+                else 0.0
+            )
 
-            # for x, _, _, label in test_batch_iter:
-            #     m_pred, v_pred = ddp_model(x)
+        ############################################################################
+        # Testing (distributed across all processes)
+        ############################################################################
+        ddp_model.eval()
 
-            #     # Training metric
-            #     pred = metric.get_predicted_labels(m_pred, v_pred)
-            #     correct += np.sum(pred == label)
-            #     tmp_error = 1.0 - correct / len(label)
-            #     num_samples += len(label)
-            #     if tmp_error > 0.4:
-            #         print(m_pred)
-            #         print(v_pred)
-            #         print(f"Error rate: {tmp_error:.2f}%")
+        local_test_error = 0
+        local_test_samples = 0
+        test_batch_per_process = test_dtl.dataset["value"][0].shape[0] // world_size
 
-            # test_error_rate = (1.0 - correct / num_samples) * 100
-            avg_error_rate = sum(error_rates[-100:]) / min(100, len(error_rates)) * 100
+        test_batch_iter = test_dtl.create_data_loader(batch_size=batch_size)
+
+        test_batch_count = 0
+        test_process_batch_count = 0
+
+        for x_batch, _, _, label in test_batch_iter:
+            # Skip batches not assigned to this process
+            if batch_count % world_size != rank:
+                batch_count += 1
+                continue
+
+            # Stop if this process has handled its share of batches
+            if test_process_batch_count >= test_batch_per_process:
+                break
+
+            # Forward pass
+            m_pred, v_pred = ddp_model(x_batch)
+
+            # Calculate errors
+            pred = metric.get_predicted_labels(m_pred, v_pred)
+            batch_errors = np.sum(pred != label)
+
+            local_test_error += batch_errors
+            local_test_samples += len(label)
+
+            test_batch_count += 1
+            test_process_batch_count += 1
+
+        # Use MPI to gather and reduce the test error statistics
+        total_test_error = comm.reduce(local_test_error, op=MPI.SUM, root=0)
+        total_test_samples = comm.reduce(local_test_samples, op=MPI.SUM, root=0)
+
+        # Calculate and print final test error rate on rank 0
+        if rank == 0:
+            global_test_error_rate = (
+                total_test_error / total_test_samples if total_test_samples > 0 else 0.0
+            )
 
             if pbar:
                 pbar.set_description(
-                    f"Epoch {epoch + 1}/{num_epochs} | training error: {avg_error_rate:.2f}% | test error: {test_error_rate:.2f}%",
+                    f"Epoch {epoch + 1}/{num_epochs} | train error: {global_train_error_rate * 100:.2f}% | test error: {global_test_error_rate * 100:.2f}%",
                     refresh=True,
                 )
                 pbar.update(1)
+
     if rank == 0:
         print("Training complete.")
         if pbar:
@@ -207,7 +251,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
 
 
 if __name__ == "__main__":
-    # Command: `mpirun -n 2 python -m examples.ddp_classification`
+    # Command: `mpirun -n <num_processes> python -m examples.ddp_classification`
     try:
         fire.Fire(main)
     finally:

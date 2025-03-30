@@ -43,7 +43,6 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
                                    float &avg_error_output,
                                    float &test_error_output) {
     // Get the underlying model and configuration
-    auto model = dist_model.get_model();
     auto config = dist_model.get_config();
     int rank = config.rank;
     int world_size = config.world_size;
@@ -53,7 +52,9 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
                             " starting distributed training");
 
     // Set seed
-    manual_seed(42 + rank);
+    int seed = 42 + rank;
+    manual_seed(seed);
+    auto seed_engine = get_random_engine();
 
     //////////////////////////////////////////////////////////////////////
     // Data preprocessing
@@ -89,15 +90,12 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
     ////////////////////////////////////////////////////////////////////////////
     // Training
     ////////////////////////////////////////////////////////////////////////////
-    std::string device =
-        model->device + ":" + std::to_string(model->device_idx);
-    OutputUpdater output_updater(device);
+    std::string device_with_index = dist_model.get_device_with_index();
+    OutputUpdater output_updater(device_with_index);
 
-    unsigned seed = 42 + rank;  // Different seed for each process
-    std::default_random_engine seed_e(seed);
     int n_epochs = 2;
-    int batch_size = 128;
-    float sigma_obs = 0.05;
+    int batch_size = 64;
+    float sigma_obs = 0.1;
 
     // Calculate data partition for this process
     int data_per_process = train_db.num_data / world_size;
@@ -123,7 +121,7 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
 
     // Create a range for this process's data
     auto full_data_idx = create_range(train_db.num_data);
-    std::shuffle(full_data_idx.begin(), full_data_idx.end(), seed_e);
+    std::shuffle(full_data_idx.begin(), full_data_idx.end(), seed_engine);
 
     // Extract this process's portion of the data
     std::vector<int> local_data_idx(full_data_idx.begin() + start_idx,
@@ -140,31 +138,32 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
     int total_train_error = 0;
     int total_train_samples = 0;
     for (int epoch = 0; epoch < n_epochs; epoch++) {
-        std::shuffle(local_data_idx.begin(), local_data_idx.end(), seed_e);
+        std::shuffle(local_data_idx.begin(), local_data_idx.end(), seed_engine);
         for (int i = 0; i < num_iterations; i++) {
+            int mt_idx = i * batch_size;
             // Get batch for this process
-            get_batch_images_labels(train_db, local_data_idx, batch_size, i,
-                                    x_batch, y_batch, idx_ud_batch,
+            get_batch_images_labels(train_db, local_data_idx, batch_size,
+                                    mt_idx, x_batch, y_batch, idx_ud_batch,
                                     label_batch);
 
             // Forward pass
             dist_model.forward(x_batch);
 
             // Update output layer
-            output_updater.update_using_indices(*model->output_z_buffer,
-                                                y_batch, var_obs, idx_ud_batch,
-                                                *model->input_delta_z_buffer);
+            output_updater.update_using_indices(
+                *dist_model.model->output_z_buffer, y_batch, var_obs,
+                idx_ud_batch, *dist_model.model->input_delta_z_buffer);
 
             // Backward pass and parameter update
             dist_model.backward();
             dist_model.step();
 
-            // Extract output for error calculation
+            // Cuda device to host
             dist_model.output_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model->output_z_buffer->mu_a[j];
-                var_a_output[j] = model->output_z_buffer->var_a[j];
+                mu_a_output[j] = dist_model.model->output_z_buffer->mu_a[j];
+                var_a_output[j] = dist_model.model->output_z_buffer->var_a[j];
                 // check if nan or inf
                 if (std::isnan(mu_a_output[j]) || std::isinf(mu_a_output[j]) ||
                     std::isnan(var_a_output[j]) ||
@@ -181,9 +180,10 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
                                                  error_rate_batch.end(), 0);
             total_train_samples += batch_size;
 
-            if (i % 10 == 0) {
+            if (i % 100 == 0 && i > 0) {
                 float train_error_rate_float =
                     static_cast<float>(total_train_error) / total_train_samples;
+
                 LOG(LogLevel::INFO,
                     "Process " + std::to_string(rank) +
                         " completed iteration " + std::to_string(i) + " of " +
@@ -201,64 +201,83 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
                             std::to_string(avg_error_output));
 
     ////////////////////////////////////////////////////////////////////////////
-    // Testing (only on rank 0)
+    // Testing (distributed across all devices)
     ////////////////////////////////////////////////////////////////////////////
-    if (rank == 0) {
-        // Prepare test data
-        std::vector<float> x_test_batch(batch_size * n_x, 0.0f);
-        std::vector<float> y_test_batch(batch_size * train_db.output_len, 0.0f);
-        std::vector<int> idx_ud_test_batch(train_db.output_len * batch_size, 0);
-        std::vector<int> label_test_batch(batch_size, 0);
-        std::vector<int> test_error_rate;
-        std::vector<float> test_prob_class;
-        int total_test_error = 0;
-        int total_test_samples = 0;
+    int test_data_per_process = test_db.num_data / world_size;
+    int test_start_idx = rank * test_data_per_process;
+    int test_end_idx = (rank == world_size - 1)
+                           ? test_db.num_data
+                           : (rank + 1) * test_data_per_process;
+    int local_test_size = test_end_idx - test_start_idx;
 
-        // Create test data indices
-        auto test_data_idx = create_range(test_db.num_data);
-        int test_iterations = test_db.num_data / batch_size;
+    // Prepare test data for this process
+    std::vector<float> x_test_batch(batch_size * n_x, 0.0f);
+    std::vector<float> y_test_batch(batch_size * train_db.output_len, 0.0f);
+    std::vector<int> idx_ud_test_batch(train_db.output_len * batch_size, 0);
+    std::vector<int> label_test_batch(batch_size, 0);
 
-        for (int i = 0; i < test_iterations; i++) {
-            // Get test batch
-            get_batch_images_labels(test_db, test_data_idx, batch_size, i,
-                                    x_test_batch, y_test_batch,
-                                    idx_ud_test_batch, label_test_batch);
+    // Create test data indices for this process
+    auto test_data_idx = create_range(test_db.num_data);
+    std::vector<int> local_test_idx(test_data_idx.begin() + test_start_idx,
+                                    test_data_idx.begin() + test_end_idx);
 
-            // Forward pass
-            dist_model.forward(x_test_batch);
-            dist_model.output_to_host();
+    int local_test_iterations = local_test_size / batch_size;
+    int local_test_error = 0;
+    int local_test_samples = 0;
 
-            // Extract output
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = model->output_z_buffer->mu_a[j];
-                var_a_output[j] = model->output_z_buffer->var_a[j];
-            }
+    // Run testing on local partition
+    for (int i = 0; i < local_test_iterations; i++) {
+        int mt_test_idx = i * batch_size;
+        // Get test batch
+        get_batch_images_labels(test_db, local_test_idx, batch_size,
+                                mt_test_idx, x_test_batch, y_test_batch,
+                                idx_ud_test_batch, label_test_batch);
 
-            // Calculate error rate
-            std::tie(test_error_rate, test_prob_class) =
-                get_error(mu_a_output, var_a_output, label_test_batch,
-                          num_classes, batch_size);
+        // Forward pass
+        dist_model.forward(x_test_batch);
+        dist_model.output_to_host();
 
-            // Accumulate errors
-            total_test_error += std::accumulate(test_error_rate.begin(),
-                                                test_error_rate.end(), 0);
-            total_test_samples += batch_size;
-
-            float test_error_rate_float =
-                static_cast<float>(total_test_error) / total_test_samples;
-            LOG(LogLevel::INFO,
-                "Process " + std::to_string(rank) +
-                    " completed test iteration " + std::to_string(i) + " of " +
-                    std::to_string(test_iterations) + " with error rate: " +
-                    std::to_string(test_error_rate_float));
+        // Extract output
+        for (int j = 0; j < batch_size * n_y; j++) {
+            mu_a_output[j] = dist_model.model->output_z_buffer->mu_a[j];
+            var_a_output[j] = dist_model.model->output_z_buffer->var_a[j];
         }
 
-        // Calculate final test error rate
+        // Calculate error rate
+        std::tie(error_rate_batch, prob_class_batch) =
+            get_error(mu_a_output, var_a_output, label_test_batch, num_classes,
+                      batch_size);
+
+        // Accumulate errors
+        local_test_error += std::accumulate(error_rate_batch.begin(),
+                                            error_rate_batch.end(), 0);
+        local_test_samples += batch_size;
+    }
+    // print local test error and samples and its error rate
+    float local_test_error_rate =
+        static_cast<float>(local_test_error) / local_test_samples;
+    LOG(LogLevel::INFO,
+        "Process " + std::to_string(rank) +
+            " local test error: " + std::to_string(local_test_error) +
+            " local test samples: " + std::to_string(local_test_samples) +
+            " local test error rate: " + std::to_string(local_test_error_rate));
+
+    // Gather results from all processes
+    int total_test_error = 0;
+    int total_test_samples = 0;
+
+    // Use MPI_Reduce to sum up errors and samples
+    MPI_Reduce(&local_test_error, &total_test_error, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+    MPI_Reduce(&local_test_samples, &total_test_samples, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+
+    // Calculate final test error rate on rank 0
+    if (rank == 0) {
         test_error_output =
             static_cast<float>(total_test_error) / total_test_samples;
-
-        LOG(LogLevel::INFO,
-            "Test error rate: " + std::to_string(test_error_output));
+        LOG(LogLevel::INFO, "Final test error rate across all processes: " +
+                                std::to_string(test_error_output));
     }
 }
 
@@ -266,6 +285,19 @@ class MNISTDDPTest : public DistributedTestFixture {
    protected:
     void SetUp() override {
         DistributedTestFixture::SetUp();
+        // Check if CUDA is available
+        if (!g_gpu_enabled) {
+            GTEST_SKIP() << "CUDA is not available, skipping distributed tests";
+        }
+
+        // Check if we have at least 2 GPUs
+        int device_count = 0;
+        cudaGetDeviceCount(&device_count);
+        if (device_count < 2) {
+            GTEST_SKIP() << "At least 2 GPUs are required for distributed "
+                            "tests, but only "
+                         << device_count << " found";
+        }
 
         // Check if MNIST data exists, download if needed
         const std::string x_train_path = "./data/mnist/train-images-idx3-ubyte";
@@ -282,20 +314,6 @@ class MNISTDDPTest : public DistributedTestFixture {
                 std::cerr << "Failed to download MNIST data files."
                           << std::endl;
             }
-        }
-
-        // Check if CUDA is available
-        if (!g_gpu_enabled) {
-            GTEST_SKIP() << "CUDA is not available, skipping distributed tests";
-        }
-
-        // Check if we have at least 2 GPUs
-        int device_count = 0;
-        cudaGetDeviceCount(&device_count);
-        if (device_count < 2) {
-            GTEST_SKIP() << "At least 2 GPUs are required for distributed "
-                            "tests, but only "
-                         << device_count << " found";
         }
     }
 
@@ -348,13 +366,17 @@ class MNISTDDPTest : public DistributedTestFixture {
  * Test distributed training with a simple CNN model using NCCL backend
  */
 TEST_F(MNISTDDPTest, SimpleCNN_NCCL) {
+    if (!is_mpi_initialized()) {
+        GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
+        return;
+    }
     // Log process information
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +
                             std::to_string(world_size) + " starting test");
 
     auto model = std::make_shared<Sequential>(
-        Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(), AvgPool2d(3, 2),
-        Conv2d(16, 32, 5), ReLU(), AvgPool2d(3, 2), Linear(32 * 4 * 4, 128),
+        Conv2d(1, 16, 4, true, 1, 1, 1, 28, 28), ReLU(), MaxPool2d(3, 2),
+        Conv2d(16, 32, 5), ReLU(), MaxPool2d(3, 2), Linear(32 * 4 * 4, 128),
         ReLU(), Linear(128, 11));
 
     // Configure distributed training

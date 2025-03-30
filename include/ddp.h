@@ -11,6 +11,7 @@
 #include <pybind11/stl.h>
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "sequential.h"
@@ -95,12 +96,12 @@ class DDPConfig {
 // Main DDP wrapper class
 class DDPSequential {
    private:
-    std::shared_ptr<Sequential> model;
     std::unique_ptr<Communicator> communicator;
     DDPConfig config;
     bool average = true;
 
    public:
+    std::shared_ptr<Sequential> model;
     DDPSequential(std::shared_ptr<Sequential> model, const DDPConfig &config,
                   bool average = true);
 
@@ -129,13 +130,6 @@ class DDPSequential {
 
     void output_to_host() { this->model->output_to_host(); }
 
-    BaseHiddenStates *output_z_buffer() {
-        return this->model->output_z_buffer.get();
-    }
-    BaseDeltaStates *input_delta_z_buffer() {
-        return this->model->input_delta_z_buffer.get();
-    }
-
     std::string get_device_with_index() const {
         return this->model->get_device_with_index();
     }
@@ -144,4 +138,8 @@ class DDPSequential {
 
     std::shared_ptr<Sequential> get_model() { return model; }
     const DDPConfig &get_config() const { return config; }
+
+    std::unordered_map<std::string, int> get_neg_var_w_counter() {
+        return this->model->get_neg_var_w_counter();
+    }
 };

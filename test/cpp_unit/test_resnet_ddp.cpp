@@ -105,7 +105,7 @@ void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
     unsigned seed = 42 + rank;
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 64;
+    int batch_size = 128;
     float sigma_obs = 0.1;
     int iters = local_data_size / batch_size;
 
@@ -153,8 +153,8 @@ void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
             dist_model.output_to_host();
 
             for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = dist_model.output_z_buffer()->mu_a[j];
-                var_a_output[j] = dist_model.output_z_buffer()->var_a[j];
+                mu_a_output[j] = dist_model.model->output_z_buffer->mu_a[j];
+                var_a_output[j] = dist_model.model->output_z_buffer->var_a[j];
             }
 
             std::tie(error_rate_batch, prob_class_batch) =
@@ -167,13 +167,13 @@ void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
 
             // Output layer update
             output_updater.update_using_indices(
-                *dist_model.output_z_buffer(), y_batch, var_obs, idx_ud_batch,
-                *dist_model.input_delta_z_buffer());
+                *dist_model.model->output_z_buffer, y_batch, var_obs,
+                idx_ud_batch, *dist_model.model->input_delta_z_buffer);
 
             // Backward pass
             dist_model.backward();
             dist_model.step();
-            if (i % 10 == 0) {
+            if (i % 100 == 0) {
                 float train_error_rate_float =
                     static_cast<float>(total_train_error) / total_train_samples;
                 LOG(LogLevel::INFO,
@@ -186,55 +186,78 @@ void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
     }
 
     // Testing (only on rank 0)
-    // Synchronize all processes before testing
-    dist_model.barrier();
+    int test_data_per_process = test_db.num_data / world_size;
+    int test_start_idx = rank * test_data_per_process;
+    int test_end_idx = (rank == world_size - 1)
+                           ? test_db.num_data
+                           : (rank + 1) * test_data_per_process;
+    int local_test_size = test_end_idx - test_start_idx;
 
-    if (rank == 0) {
-        // prepare test data
-        std::vector<float> x_test_batch(batch_size * n_x, 0.0f);
-        std::vector<float> y_test_batch(batch_size * train_db.output_len, 0.0f);
-        std::vector<int> idx_ud_test_batch(train_db.output_len * batch_size, 0);
-        std::vector<int> label_test_batch(batch_size, 0);
+    // prepare test data
+    std::vector<float> x_test_batch(batch_size * n_x, 0.0f);
+    std::vector<float> y_test_batch(batch_size * train_db.output_len, 0.0f);
+    std::vector<int> idx_ud_test_batch(train_db.output_len * batch_size, 0);
+    std::vector<int> label_test_batch(batch_size, 0);
 
-        auto test_data_idx = create_range(test_db.num_data);
-        int test_iterations = test_db.num_data / batch_size;
-        int total_test_error = 0;
-        int total_test_samples = 0;
+    // create test data indices
+    auto test_data_idx = create_range(test_db.num_data);
+    std::vector<int> local_test_idx(test_data_idx.begin() + test_start_idx,
+                                    test_data_idx.begin() + test_end_idx);
 
-        for (int i = 0; i < test_iterations; i++) {
-            // get test batch
-            get_batch_images_labels(test_db, test_data_idx, batch_size, i,
-                                    x_test_batch, y_test_batch,
-                                    idx_ud_test_batch, label_test_batch);
+    int local_test_iterations = local_test_size / batch_size;
+    int local_test_error = 0;
+    int local_test_samples = 0;
 
-            // forward pass
-            dist_model.forward(x_test_batch);
-            dist_model.output_to_host();
+    for (int i = 0; i < local_test_iterations; i++) {
+        int mt_test_idx = i * batch_size;
+        // get test batch
+        get_batch_images_labels(test_db, local_test_idx, batch_size,
+                                mt_test_idx, x_test_batch, y_test_batch,
+                                idx_ud_test_batch, label_test_batch);
 
-            // extract output
-            for (int j = 0; j < batch_size * n_y; j++) {
-                mu_a_output[j] = dist_model.output_z_buffer()->mu_a[j];
-                var_a_output[j] = dist_model.output_z_buffer()->var_a[j];
-            }
+        // forward pass
+        dist_model.forward(x_test_batch);
+        dist_model.output_to_host();
 
-            // calculate error rate
-            std::tie(error_rate_batch, prob_class_batch) =
-                get_error(mu_a_output, var_a_output, label_test_batch,
-                          num_classes, batch_size);
-
-            // accumulate errors
-            total_test_error += std::accumulate(error_rate_batch.begin(),
-                                                error_rate_batch.end(), 0);
-            total_test_samples += batch_size;
+        // extract output
+        for (int j = 0; j < batch_size * n_y; j++) {
+            mu_a_output[j] = dist_model.model->output_z_buffer->mu_a[j];
+            var_a_output[j] = dist_model.model->output_z_buffer->var_a[j];
         }
 
-        // Calculate final test error rate
-        avg_error_output =
-            static_cast<float>(total_test_error) / total_test_samples;
+        // calculate error rate
+        std::tie(error_rate_batch, prob_class_batch) =
+            get_error(mu_a_output, var_a_output, label_test_batch, num_classes,
+                      batch_size);
+
+        // accumulate errors
+        local_test_error += std::accumulate(error_rate_batch.begin(),
+                                            error_rate_batch.end(), 0);
+        local_test_samples += batch_size;
     }
 
-    // Synchronize all processes after testing
-    dist_model.barrier();
+    // print local test error and samples and its error rate
+    float local_test_error_rate =
+        static_cast<float>(local_test_error) / local_test_samples;
+    LOG(LogLevel::INFO,
+        "Process " + std::to_string(rank) +
+            " local test error: " + std::to_string(local_test_error) +
+            " local test samples: " + std::to_string(local_test_samples) +
+            " local test error rate: " + std::to_string(local_test_error_rate));
+
+    // Gather results from all processes
+    int total_test_error = 0;
+    int total_test_samples = 0;
+
+    // Use MPI_Reduce to sum up errors and samples
+    MPI_Reduce(&local_test_error, &total_test_error, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+    MPI_Reduce(&local_test_samples, &total_test_samples, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+
+    // Calculate final test error rate
+    avg_error_output =
+        static_cast<float>(total_test_error) / total_test_samples;
 }
 
 class ResNetDDPTest : public DistributedTestFixture {
