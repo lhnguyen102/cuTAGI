@@ -107,6 +107,3 @@ cuTAGI is released under the MIT license.
 }
 ```
 
-```shell
-mpirun -np 2 build/run_tests --gtest_filter=DDPOpsTest.*
-```
