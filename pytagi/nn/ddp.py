@@ -4,6 +4,7 @@ import cutagi
 import numpy as np
 
 from pytagi.nn.sequential import Sequential
+from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates
 
 
 class DDPConfig:
@@ -66,6 +67,26 @@ class DDPSequential:
         self.model = model
         self.config = config
 
+    @property
+    def output_z_buffer(self) -> BaseHiddenStates:
+        """Get the output hidden states"""
+        return self.model.output_z_buffer
+
+    @output_z_buffer.setter
+    def output_z_buffer(self, value: BaseHiddenStates):
+        """Set the output hidden states."""
+        self.model.output_z_buffer = value
+
+    @property
+    def input_delta_z_buffer(self) -> BaseDeltaStates:
+        """Get the delta hidden states"""
+        return self.model.input_delta_z_buffer
+
+    @input_delta_z_buffer.setter
+    def input_delta_z_buffer(self, value: BaseDeltaStates):
+        """Set the delta hidden states."""
+        self.model.input_delta_z_buffer = value
+
     def __call__(
         self, mu_x: np.ndarray, var_x: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -102,3 +123,11 @@ class DDPSequential:
     def get_outputs(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get the outputs of the model"""
         return self._cpp_backend.get_outputs()
+
+    def output_to_host(self):
+        """Copy the output to the host"""
+        self._cpp_backend.output_to_host()
+
+    def get_device_with_index(self) -> str:
+        """Get the device with index"""
+        return self._cpp_backend.get_device_with_index()

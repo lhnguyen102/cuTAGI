@@ -8,6 +8,8 @@
 
 // Global flag to track if MPI is initialized by our tests
 bool g_mpi_initialized_by_test = false;
+// Global flag to track if MPI has been finalized
+bool g_mpi_finalized = false;
 
 #ifdef DISTRIBUTED_TEST_AVAILABLE
 bool initialize_mpi_if_needed() {
@@ -26,6 +28,7 @@ void finalize_mpi_if_needed() {
     if (g_mpi_initialized_by_test) {
         MPI_Finalize();
         g_mpi_initialized_by_test = false;
+        g_mpi_finalized = true;
     }
 }
 

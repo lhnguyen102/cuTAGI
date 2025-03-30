@@ -98,8 +98,8 @@ CNN_LAYERNORM = Sequential(
 
 
 def main(
-    num_epochs: int = 2,
-    batch_size: int = 256,
+    num_epochs: int = 10,
+    batch_size: int = 64,
     sigma_v: float = 0.05,
     is_tracking: bool = False,
 ):

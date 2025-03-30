@@ -171,7 +171,7 @@ void BaseLayerCuda::update_weights()
         cudaMemcpy(this->d_neg_var_count, &this->neg_var_w_counter, sizeof(int),
                    cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        throw std::runtime_error("Failed to copy negative var count to device");
+        LOG(LogLevel::ERROR, "Failed to copy negative var count to device");
     }
 
     device_weight_update<<<blocks, num_add_threads>>>(
@@ -181,8 +181,7 @@ void BaseLayerCuda::update_weights()
     err = cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count,
                      sizeof(int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        throw std::runtime_error(
-            "Failed to copy negative var count from device");
+        LOG(LogLevel::ERROR, "Failed to copy negative var count from device");
     }
 }
 
@@ -339,9 +338,7 @@ void BaseLayerCuda::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
     // Transfer data to host
     this->params_to_host();
@@ -371,9 +368,7 @@ void BaseLayerCuda::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        LOG(LogLevel::ERROR, "Failed to open file for loading");
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -385,9 +380,7 @@ void BaseLayerCuda::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
+        LOG(LogLevel::ERROR, "Layer name are not match. Expected: " +
                                  layer_name + ", Found: " + loaded_name);
     }
 
@@ -483,11 +476,6 @@ void BaseLayerCuda::store_states_for_training_cuda(
         cu_bwd_states->allocate_memory();
     }
     cu_bwd_states->copy_from(input_states, act_size);
-
-    // cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
-    //            act_size * sizeof(float), cudaMemcpyDeviceToDevice);
-    // cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
-    //            act_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
     constexpr unsigned int THREADS = 256;
     int out_size = this->output_size * batch_size;

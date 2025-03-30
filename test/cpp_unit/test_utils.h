@@ -15,6 +15,8 @@
 
 // Global flag to track if MPI is initialized by our tests
 extern bool g_mpi_initialized_by_test;
+// Global flag to track if MPI has been finalized
+extern bool g_mpi_finalized;
 
 /**
  * Initialize MPI if not already initialized
@@ -48,16 +50,24 @@ int get_mpi_world_size();
 class DistributedTestFixture : public ::testing::Test {
    protected:
     static void SetUpTestSuite() {
-        // Initialize MPI if needed
-        g_mpi_initialized_by_test = initialize_mpi_if_needed();
+        // Initialize MPI if needed and if it hasn't been finalized
+        if (!g_mpi_finalized) {
+            g_mpi_initialized_by_test = initialize_mpi_if_needed();
+        }
     }
 
     static void TearDownTestSuite() {
-        // Finalize MPI if we initialized it
-        finalize_mpi_if_needed();
+        // Do nothing - we'll let the last test finalize MPI
     }
 
     void SetUp() override {
+        // Check if MPI has been finalized
+        if (g_mpi_finalized) {
+            GTEST_SKIP() << "MPI has been finalized by a previous test. Cannot "
+                            "run this test.";
+            return;
+        }
+
         // Check if MPI is initialized
         if (!is_mpi_initialized()) {
             GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
@@ -77,6 +87,22 @@ class DistributedTestFixture : public ::testing::Test {
     int rank;
     int world_size;
 };
+
+// Global environment to handle MPI finalization
+class MPIFinalizer : public ::testing::Environment {
+   public:
+    ~MPIFinalizer() override {
+        // Finalize MPI if we initialized it
+        if (g_mpi_initialized_by_test && !g_mpi_finalized) {
+            finalize_mpi_if_needed();
+            g_mpi_finalized = true;
+        }
+    }
+};
+
+// Register the MPI finalizer
+static ::testing::Environment *const mpi_env =
+    ::testing::AddGlobalTestEnvironment(new MPIFinalizer);
 
 LayerBlock create_layer_block(int in_channels, int out_channels, int stride = 1,
                               int padding_type = 1);

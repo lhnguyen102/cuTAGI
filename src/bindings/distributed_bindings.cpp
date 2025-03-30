@@ -60,5 +60,7 @@ void bind_distributed(pybind11::module_& m) {
         .def("train", &DDPSequential::train)
         .def("eval", &DDPSequential::eval)
         .def("barrier", &DDPSequential::barrier)
-        .def("get_outputs", &DDPSequential::get_outputs);
+        .def("get_outputs", &DDPSequential::get_outputs)
+        .def("output_to_host", &DDPSequential::output_to_host)
+        .def("get_device_with_index", &DDPSequential::get_device_with_index);
 }
