@@ -1,4 +1,3 @@
-```markdown
 # Distributed Data Parallel (DDP) with TAGI
 
 This guide explains how to install dependencies and run DDP training using TAGI, which distributes batches across multiple GPUs and synchronizes updating values for mean and variances (`delta_mu_`, `delta_var_`) for parameter updates. Implementation details can be found in `src/ddp`.
@@ -55,6 +54,13 @@ sudo dpkg -i cuda-keyring_1.1-1_all.deb
 sudo apt update
 sudo apt install libnccl2=2.25.1-1+cuda12.2 libnccl-dev=2.25.1-1+cuda12.2
 ```
+
+Verify if NCCL is installed on your machine by running this command
+
+```shell
+dpkg -l | grep nccl
+```
+
 
 ## How to Use
 
