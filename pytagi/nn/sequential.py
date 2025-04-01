@@ -234,3 +234,23 @@ class Sequential:
 
         """
         return self._cpp_backend.get_norm_mean_var()
+
+    def get_lstm_states(self) -> dict:
+        """
+        Get the LSTM states for all LSTM layers as a dictionary.
+
+        Returns:
+            dict: A dictionary where each key is the layer index (int) and each value is a 4-tuple
+                of numpy arrays (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
+        """
+        return self._cpp_backend.get_lstm_states()
+
+    def set_lstm_states(self, states: dict) -> None:
+        """
+        Set the LSTM states for all LSTM layers using a dictionary.
+
+        Args:
+            states (dict): A dictionary mapping layer indices (int) to a 4-tuple of numpy arrays:
+                        (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
+        """
+        self._cpp_backend.set_lstm_states(states)

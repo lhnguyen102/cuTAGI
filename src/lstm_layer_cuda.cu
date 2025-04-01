@@ -1051,3 +1051,55 @@ void LSTMCuda::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+void LSTMCuda::d_get_LSTM_states(std::vector<float> &mu_h,
+                                 std::vector<float> &var_h,
+                                 std::vector<float> &mu_c,
+                                 std::vector<float> &var_c) const {
+    // Size check
+    mu_h.resize(this->lstm_state.num_states);
+    var_h.resize(this->lstm_state.num_states);
+    mu_c.resize(this->lstm_state.num_states);
+    var_c.resize(this->lstm_state.num_states);
+
+    // Copy from device to host
+    cudaMemcpy(mu_h.data(), lstm_state.d_mu_h_prior,
+               lstm_state.num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaMemcpy(var_h.data(), lstm_state.d_var_h_prior,
+               lstm_state.num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaMemcpy(mu_c.data(), lstm_state.d_mu_c_prior,
+               lstm_state.num_states * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cudaMemcpy(var_c.data(), lstm_state.d_var_c_prior,
+               lstm_state.num_states * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
+void LSTMCuda::d_set_LSTM_states(const std::vector<float> &mu_h,
+                                 const std::vector<float> &var_h,
+                                 const std::vector<float> &mu_c,
+                                 const std::vector<float> &var_c) {
+    // Size check
+    if (mu_h.size() != lstm_state.num_states ||
+        var_h.size() != lstm_state.num_states ||
+        mu_c.size() != lstm_state.num_states ||
+        var_c.size() != lstm_state.num_states) {
+        std::cerr << "setLSTMStates() size mismatch. "
+                  << "Expected " << lstm_state.num_states << " states.\n";
+        return;
+    }
+
+    // Copy from host to device
+    cudaMemcpy(lstm_state.d_mu_h_prior, mu_h.data(),
+               lstm_state.num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(lstm_state.d_var_h_prior, var_h.data(),
+               lstm_state.num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(lstm_state.d_mu_c_prior, mu_c.data(),
+               lstm_state.num_states * sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(lstm_state.d_var_c_prior, var_c.data(),
+               lstm_state.num_states * sizeof(float), cudaMemcpyHostToDevice);
+}

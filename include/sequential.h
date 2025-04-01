@@ -16,6 +16,7 @@
 #include "slstm_layer.h"
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
+#include "lstm_layer_cuda.cuh"
 #endif
 
 #include <pybind11/numpy.h>
@@ -151,6 +152,16 @@ class Sequential {
                                                std::vector<std::vector<float>>>>
     get_norm_mean_var();
     std::unordered_map<std::string, int> get_neg_var_w_counter();
+
+    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
+                                       std::vector<float>, std::vector<float>>>
+    get_lstm_states() const;
+
+    void set_lstm_states(
+        const std::unordered_map<
+            int, std::tuple<std::vector<float>, std::vector<float>,
+                            std::vector<float>, std::vector<float>>>&
+            lstm_states);
 
    private:
     void compute_input_output_size();

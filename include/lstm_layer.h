@@ -1,4 +1,5 @@
 #pragma once
+#include <tuple>
 #include <vector>
 
 #include "base_layer.h"
@@ -244,6 +245,17 @@ class LSTM : public BaseLayer {
     // Optionally implement move constructor and move assignment
     LSTM(LSTM &&) = default;
     LSTM &operator=(LSTM &&) = default;
+
+    // Retrieve the LSTM prior states (hidden and cell)
+    std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+               std::vector<float>>
+    get_LSTM_states() const;
+
+    // Set the LSTM prior states (hidden and cell)
+    void set_LSTM_states(const std::vector<float> &new_mu_h_prior,
+                         const std::vector<float> &new_var_h_prior,
+                         const std::vector<float> &new_mu_c_prior,
+                         const std::vector<float> &new_var_c_prior);
 
     virtual std::string get_layer_info() const override;
 
