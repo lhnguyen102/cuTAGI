@@ -1,13 +1,12 @@
 # This code is modified based on https://github.com/pybind/cmake_example
+import io
 import os
 import re
 import subprocess
 import sys
-import io
 
-from setuptools import Extension, setup
+from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
-from setuptools import setup, find_packages
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 

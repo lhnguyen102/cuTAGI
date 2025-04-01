@@ -1,34 +1,25 @@
 import os
-import sys
 import signal
+import sys
 
 # Add the 'build' directory to sys.path
 sys.path.append(
     os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
 )
 import fire
+import mpi4py.MPI as MPI
 import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
-import mpi4py.MPI as MPI
 
-from pytagi import HRCSoftmaxMetric, Utils
 import pytagi
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    DDPConfig,
-    DDPSequential,
-    Linear,
-    MixtureReLU,
-    OutputUpdater,
-    Sequential,
-    ReLU,
-)
+from pytagi import HRCSoftmaxMetric, Utils
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, DDPConfig,
+                       DDPSequential, Linear, MixtureReLU, OutputUpdater, ReLU,
+                       Sequential)
 
 # Define a simple CNN model
 CNN = Sequential(

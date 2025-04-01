@@ -7,11 +7,10 @@ import pandas as pd
 from tqdm import tqdm
 
 import pytagi.metric as metric
+from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
-from pytagi.nn import SLSTM, SLinear, OutputUpdater, Sequential
-
-from examples.data_loader import TimeSeriesDataloader
+from pytagi.nn import SLSTM, OutputUpdater, Sequential, SLinear
 
 
 def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):

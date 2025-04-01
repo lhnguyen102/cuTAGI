@@ -6,25 +6,16 @@ sys.path.append(
     os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
 )
 import fire
+import mpi4py.MPI as MPI
 import numpy as np
 from tqdm import tqdm
-import mpi4py.MPI as MPI
 
+import pytagi
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
-import pytagi
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    DDPConfig,
-    DDPSequential,
-    Linear,
-    MixtureReLU,
-    OutputUpdater,
-    Sequential,
-    ReLU,
-)
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, DDPConfig,
+                       DDPSequential, Linear, MixtureReLU, OutputUpdater, ReLU,
+                       Sequential)
 
 # Define a simple CNN model
 CNN = Sequential(

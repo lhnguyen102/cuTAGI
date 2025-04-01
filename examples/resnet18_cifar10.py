@@ -14,17 +14,10 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    OutputUpdater,
-    ReLU,
-    Sequential,
-)
 from examples.tagi_resnet_model import resnet18_cifar10
+from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, OutputUpdater,
+                       ReLU, Sequential)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)

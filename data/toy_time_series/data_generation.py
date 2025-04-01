@@ -7,10 +7,11 @@
 ## Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 ## License:      This code is released under the MIT License.
 ###############################################################################
-from typing import Union, List
-import pandas as pd
-import numpy as np
+from typing import List, Union
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 class DataGeneration:

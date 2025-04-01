@@ -3,8 +3,8 @@ from typing import List, Tuple
 import cutagi
 import numpy as np
 
-from pytagi.nn.sequential import Sequential
 from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates
+from pytagi.nn.sequential import Sequential
 
 
 class DDPConfig:
