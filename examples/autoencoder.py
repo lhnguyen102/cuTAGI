@@ -17,18 +17,8 @@ from tqdm import tqdm
 
 from examples.data_loader import MnistDataLoader
 from pytagi import exponential_scheduler
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    ConvTranspose2d,
-    Linear,
-    OutputUpdater,
-    ReLU,
-    MixtureReLU,
-    Sequential,
-)
-
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, ConvTranspose2d, Linear,
+                       MixtureReLU, OutputUpdater, ReLU, Sequential)
 
 plt.rcParams.update(
     {

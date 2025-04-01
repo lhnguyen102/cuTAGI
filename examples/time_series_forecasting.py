@@ -15,11 +15,10 @@ import pandas as pd
 from tqdm import tqdm
 
 import pytagi.metric as metric
+from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
 from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
-
-from examples.data_loader import TimeSeriesDataloader
 
 
 def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):

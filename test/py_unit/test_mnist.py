@@ -7,18 +7,8 @@ import numpy as np
 import pytagi
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    LayerNorm,
-    Linear,
-    MixtureReLU,
-    OutputUpdater,
-    ReLU,
-    Sequential,
-    MaxPool2d,
-)
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, LayerNorm, Linear,
+                       MaxPool2d, MixtureReLU, OutputUpdater, ReLU, Sequential)
 
 # path to binding code
 sys.path.append(

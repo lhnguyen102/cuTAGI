@@ -1,13 +1,5 @@
-from pytagi.nn import (
-    AvgPool2d,
-    Conv2d,
-    Linear,
-    ReLU,
-    MixtureReLU,
-    Sequential,
-    ReLU,
-    MaxPool2d,
-)
+from pytagi.nn import (AvgPool2d, Conv2d, Linear, MaxPool2d, MixtureReLU, ReLU,
+                       Sequential)
 
 
 def create_alexnet(gain_w: float = 1, gain_b: float = 1, nb_outputs: int = 1001):

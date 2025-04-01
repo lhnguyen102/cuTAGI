@@ -1,5 +1,6 @@
-import cutagi
 from typing import List
+
+import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
 

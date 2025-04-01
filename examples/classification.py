@@ -10,23 +10,12 @@ import fire
 import numpy as np
 from tqdm import tqdm
 
-
-from examples.data_loader import MnistDataLoader
-from pytagi import HRCSoftmaxMetric
 import pytagi
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    LayerNorm,
-    Linear,
-    OutputUpdater,
-    MixtureReLU,
-    Sequential,
-    MaxPool2d,
-    ReLU,
-)
+from examples.data_loader import MnistDataLoader
 from examples.param_stat_table import ParamStatTable, WandBLogger
+from pytagi import HRCSoftmaxMetric
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, LayerNorm, Linear,
+                       MaxPool2d, MixtureReLU, OutputUpdater, ReLU, Sequential)
 
 FNN = Sequential(
     Linear(784, 128),

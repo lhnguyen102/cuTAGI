@@ -9,26 +9,19 @@ sys.path.append(
 import fire
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import torchvision
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import torch.nn as nn
-import torch.optim as optim
+
 import pytagi
-from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    OutputUpdater,
-    ReLU,
-    MixtureReLU,
-    Sequential,
-)
 from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
+from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, MixtureReLU,
+                       OutputUpdater, ReLU, Sequential)
 
 torch.manual_seed(17)
 

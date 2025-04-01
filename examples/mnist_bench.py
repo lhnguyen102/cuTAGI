@@ -8,15 +8,8 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    OutputUpdater,
-    ReLU,
-    Sequential,
-)
+from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, OutputUpdater,
+                       ReLU, Sequential)
 
 TAGI_FNN = Sequential(
     Linear(784, 4096),

@@ -7,9 +7,9 @@
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # License:      This code is released under the MIT License.
 ###############################################################################
-import pandas as pd
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 np.random.seed(1)
 

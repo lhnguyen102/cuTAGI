@@ -1,5 +1,6 @@
-import cutagi
 from typing import Tuple
+
+import cutagi
 
 
 def is_available() -> bool:

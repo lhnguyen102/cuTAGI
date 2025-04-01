@@ -7,14 +7,8 @@ sys.path.append(
 )
 
 import unittest
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    ReLU,
-    Sequential,
-)
+
+from pytagi.nn import AvgPool2d, BatchNorm2d, Conv2d, Linear, ReLU, Sequential
 
 # Define models for testing
 MODEL_1 = Sequential(
