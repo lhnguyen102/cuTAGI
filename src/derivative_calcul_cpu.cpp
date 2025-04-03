@@ -438,7 +438,7 @@ void compute_node_derv_mean_var_fc_mt(
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -544,7 +544,7 @@ void compute_cov_d_dw_fc_mt(std::vector<float> &mda, std::vector<float> &ma,
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -624,7 +624,7 @@ void compute_layer_derv_mean_var_fc_mt(
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_idx = n_batch * i;
@@ -725,7 +725,7 @@ void compute_cov_dz_fc_mt(std::vector<float> &ma, std::vector<float> &J,
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -786,7 +786,7 @@ void compute_cov_last_current_layers_mt(
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_idx = n_batch * i;
@@ -836,7 +836,7 @@ void compute_cov_last_layer_minus_1_fc_mt(std::vector<float> &mw,
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_idx = n_batch * i;
@@ -875,7 +875,7 @@ void copy_derv_mt(std::vector<float> &md_layer_m, int ni, int no, int nn, int B,
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_idx = n_batch * i;
@@ -917,7 +917,7 @@ void sum_derv_mt(std::vector<float> &d_layer_m, int ni, int no, int B,
     const int n_batch = tot_ops / num_threads;
     const int rem_batch = tot_ops % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
             start_idx = n_batch * i;
@@ -957,7 +957,7 @@ void tanh_derv_mt(std::vector<float> &ma, std::vector<float> &Sa,
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -995,7 +995,7 @@ void sigmoid_derv_mt(std::vector<float> &ma, std::vector<float> &Sa,
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -1033,7 +1033,7 @@ void relu_derv_mt(std::vector<float> &mz, int z_pos, int n,
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
@@ -1065,7 +1065,7 @@ void no_act_derv_mt(int z_pos, int n, unsigned int num_threads,
     const int n_batch = n / num_threads;
     const int rem_batch = n % num_threads;
     int start_idx, end_idx;
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < num_threads; i++) {
         if (i == 0) {
