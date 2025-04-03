@@ -8,6 +8,9 @@
 
 #include <iomanip>
 #include <sstream>
+#ifdef USE_NCCL
+#include <nccl.h>
+#endif
 
 bool is_cuda_available() {
 #ifdef USE_CUDA
@@ -216,6 +219,31 @@ bool get_cuda_device_memory(int device_index, size_t& free_memory,
     return true;
 #else
     LOG(LogLevel::ERROR, "CUDA is not available");
+    return false;
+#endif
+}
+
+bool is_nccl_available() {
+#ifdef USE_NCCL
+    if (!is_cuda_available()) {
+        return false;
+    }
+
+    // Get number of devices
+    int deviceCount = get_cuda_device_count();
+    if (deviceCount < 1) {
+        return false;
+    }
+
+    // Check if NCCL is available by trying to get NCCL version
+    int version;
+    ncclResult_t result = ncclGetVersion(&version);
+    if (result != ncclSuccess) {
+        return false;
+    }
+
+    return true;
+#else
     return false;
 #endif
 }

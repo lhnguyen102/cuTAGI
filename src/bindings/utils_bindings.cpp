@@ -191,3 +191,7 @@ void bind_cuda_set_device(pybind11::module_ &m) {
 void bind_cuda_device_available(pybind11::module_ &m) {
     m.def("is_cuda_device_available", &is_cuda_device_available);
 }
+
+void bind_nccl_available(pybind11::module_ &m) {
+    m.def("is_nccl_available", &is_nccl_available);
+}

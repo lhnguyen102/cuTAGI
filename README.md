@@ -74,6 +74,8 @@ cuTAGI offers a diverse set of examples to demonstrate its capabilities, includi
   python -m examples.time_series_forecasting
   ```
 
+For multi-gpu training, you follow [this doc](./docs/multi_gpu.md).
+
 ## Installation
 cuTAGI is available on PyPI. To install, execute the following command in Terminal:
 

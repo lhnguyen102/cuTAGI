@@ -15,6 +15,7 @@
 #include "../../include/batchnorm_layer.h"
 #include "../../include/common.h"
 #include "../../include/conv2d_layer.h"
+#include "../../include/cuda_utils.h"
 #include "../../include/custom_logger.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
@@ -368,6 +369,11 @@ class MNISTDDPTest : public DistributedTestFixture {
 TEST_F(MNISTDDPTest, SimpleCNN_NCCL) {
     if (!is_mpi_initialized()) {
         GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";
+        return;
+    }
+    // check if NCCL is available
+    if (!is_nccl_available()) {
+        GTEST_SKIP() << "NCCL is not available. Skipping distributed tests.";
         return;
     }
     // Log process information
