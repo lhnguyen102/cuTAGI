@@ -67,10 +67,8 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
 # Set compiler options
 if(MSVC)
-  option(BUILD_TESTING "Build and run tests" OFF)
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-bigobji")
 else()
-  option(BUILD_TESTING "Build and run tests" ON)
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-mf16c")
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-Wno-float-conversion")
   list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=-fno-strict-aliasing")
@@ -90,6 +88,7 @@ endif()
 # find_package(Python COMPONENTS Interpreter Development)
 # find_package(PythonInterp)
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+option(BUILD_TESTING "Build and run tests" ON)
 ################################################################################
 # ADD SUBMODULES AS SUBDIRECTORIES
 ################################################################################
