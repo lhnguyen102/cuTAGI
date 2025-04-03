@@ -14,24 +14,24 @@ This guide explains how to install dependencies and run DDP training using TAGI,
 |  Forward + Backward |     |  Forward + Backward |
 |  Compute Updates    |     |  Compute Updates    |
 +----------+----------+     +----------+----------+
-           \                      /
-            \ All-Reduce (NCCL)  /
-             +-----------------+
-             | Aggregated      |
-             | delta_mu_,      |
-             | delta_var_      |
-             +--------+--------+
-                      |
-            +---------v---------+
-            |  Update Weights   |
-            +-------------------+
+             \                       /
+              \   All-Reduce (NCCL) /
+                +-----------------+
+                | Aggregated      |
+                | delta_mu_,      |
+                | delta_var_      |
+                +--------+--------+
+                        |
+                +---------+-------+
+                |  Update Weights |
+                +-----------------+
 ```
 
-## Requirements
+`All-Reduce` aggregates `deltas` (updates) from all GPUs, typically summing or averaging them before updating model weights and biases.
 
+## Requirements
 - Ubuntu 22.04 or later
 - Compatible CUDA version for NCCL
-- Python or C++ build of TAGI
 
 ## Installation Steps
 
@@ -42,6 +42,12 @@ MPI is required to run and manage multiple parallel processes.
 ```bash
 sudo apt update
 sudo apt install openmpi-bin libopenmpi-dev
+```
+
+Verify if MPU is installed on you machine by running this command
+
+```shell
+mpirun --version
 ```
 
 ### 2. Install NCCL

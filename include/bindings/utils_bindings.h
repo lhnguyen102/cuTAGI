@@ -63,3 +63,4 @@ void bind_cuda_device_count(pybind11::module_ &modo);
 void bind_cuda_current_device(pybind11::module_ &modo);
 void bind_cuda_set_device(pybind11::module_ &modo);
 void bind_cuda_device_available(pybind11::module_ &modo);
+void bind_nccl_available(pybind11::module_ &modo);

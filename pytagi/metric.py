@@ -1,6 +1,6 @@
 import numpy as np
 
-from pytagi import HRCSoftmax, Utils
+from pytagi.tagi_utils import HRCSoftmax, Utils
 
 
 class HRCSoftmaxMetric:

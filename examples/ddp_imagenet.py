@@ -18,18 +18,9 @@ import pytagi
 from examples.tagi_alexnet_model import create_alexnet
 from examples.tagi_resnet_model import resnet18_imagenet
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (
-    BatchNorm2d,
-    Conv2d,
-    DDPConfig,
-    DDPSequential,
-    LayerBlock,
-    Linear,
-    MixtureReLU,
-    OutputUpdater,
-    ResNetBlock,
-    Sequential,
-)
+from pytagi.nn import (BatchNorm2d, Conv2d, DDPConfig, DDPSequential,
+                       LayerBlock, Linear, MixtureReLU, OutputUpdater,
+                       ResNetBlock, Sequential)
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()

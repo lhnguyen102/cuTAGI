@@ -13,6 +13,8 @@ bool set_cuda_device(int device_index);
 
 bool is_cuda_device_available(int device_index);
 
+bool is_nccl_available();
+
 std::string get_cuda_device_properties(int device_index);
 
 bool get_cuda_device_memory(int device_index, size_t& free_memory,

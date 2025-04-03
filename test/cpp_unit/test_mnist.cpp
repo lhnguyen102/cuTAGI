@@ -16,6 +16,7 @@
 #include "../../include/batchnorm_layer.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/convtranspose2d_layer.h"
+#include "../../include/cuda_utils.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
 #include "../../include/layernorm_layer.h"

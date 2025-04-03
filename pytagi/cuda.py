@@ -12,6 +12,15 @@ def is_available() -> bool:
     return cutagi.is_cuda_available()
 
 
+def is_nccl_available() -> bool:
+    """Check if NCCL is available
+
+    Returns:
+        bool: True if NCCL is available, False otherwise
+    """
+    return cutagi.is_nccl_available()
+
+
 def get_device_count() -> int:
     """Get the number of CUDA devices
 
