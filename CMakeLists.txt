@@ -90,7 +90,7 @@ endif()
 
 
 # Search for CUDA libs in standard locations (the find_library call is not
-# strictly necessary if you trust CMake’s defaults)
+# strictly necessary if you trust CMake's defaults)
 find_library(
   CUDA_LIBRARY_PATH
   NAMES cudart

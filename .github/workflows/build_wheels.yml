@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-22.04]
         cuda: ["12.2.2"]
         nccl: ["2.25.1"]
-        mpi: ["4.1.6"]
+        mpi: ["4.1.2-2ubuntu1"]
         python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:

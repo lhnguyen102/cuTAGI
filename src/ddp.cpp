@@ -51,7 +51,6 @@ NCCLCommunicator::~NCCLCommunicator() {
 }
 
 void NCCLCommunicator::all_reduce(float *data, size_t count, bool average) {
-    // Use averaging if requested
     ncclRedOp_t op = average ? ncclAvg : ncclSum;
     ncclAllReduce(data, data, count, ncclFloat32, op, comm, stream);
     cudaStreamSynchronize(stream);
@@ -65,13 +64,7 @@ void NCCLCommunicator::barrier() {
 void NCCLCommunicator::check_async_error() { CHECK_CUDA_NCCL_ASYNC(comm); }
 
 void NCCLCommunicator::broadcast(float *data, size_t count, int root)
-/*
- * Broadcast data from root to all processes
- *
- * Args:
- *    data: Pointer to the data to broadcast
- *    count: Number of elements to broadcast
- *    root: Rank of the process to broadcast from
+/*Broadcast data from root to all processes
  */
 {
     ncclBroadcast(data, data, count, ncclFloat32, root, comm, stream);
