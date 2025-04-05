@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 # Project Metadata
 # ------------------------------------------------------------------------------
 file(READ "pytagi/version.txt" ver)
+string(STRIP "${ver}" ver)
 PROJECT(
   cuTAGI
   VERSION ${ver}
@@ -90,7 +91,7 @@ endif()
 
 
 # Search for CUDA libs in standard locations (the find_library call is not
-# strictly necessary if you trust CMake’s defaults)
+# strictly necessary if you trust CMake's defaults)
 find_library(
   CUDA_LIBRARY_PATH
   NAMES cudart

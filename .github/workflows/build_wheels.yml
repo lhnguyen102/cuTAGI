@@ -13,6 +13,7 @@ on:
 jobs:
   build_linux:
     name: Linux Build
+    needs: [pre-commit]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -76,6 +77,7 @@ jobs:
 
   build_macos:
     name: MACOS Build
+    needs: [pre-commit]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -164,6 +166,7 @@ jobs:
 
   build_sdist:
     name: SDist Build
+    needs: [pre-commit]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -193,6 +196,36 @@ jobs:
         with:
           name: sdist-${{ matrix.python_version }}
           path: dist/*.tar.gz
+
+  pre-commit:
+    name: Run pre-commit
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pre-commit
+          pip install clang-format
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files
 
   test:
     name: Test
