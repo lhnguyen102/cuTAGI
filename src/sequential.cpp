@@ -44,6 +44,7 @@ void Sequential::to_device(const std::string &new_device) {
             this->device_idx = std::stoi(new_device.substr(colon_pos + 1));
 
             int device_count = 0;
+#ifdef USE_CUDA
             cudaGetDeviceCount(&device_count);
             if (this->device_idx < 0 || this->device_idx >= device_count) {
                 LOG(LogLevel::ERROR,
@@ -52,6 +53,7 @@ void Sequential::to_device(const std::string &new_device) {
                         ". Available devices: " + std::to_string(device_count));
                 return;
             }
+#endif
 
         } catch (const std::exception &e) {
             LOG(LogLevel::ERROR,

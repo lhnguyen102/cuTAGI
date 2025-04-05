@@ -57,7 +57,7 @@ jobs:
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt update
-          sudo apt-get install -y libnccl2=2.25.1-1+cuda12.2 libnccl-dev=2.25.1-1+cuda12.2
+          sudo apt get install -y libnccl2=2.25.1-1+cuda12.2 libnccl-dev=2.25.1-1+cuda12.2
 
       - name: Install build dependencies (setuptools, wheel)
         shell: bash -l {0}
