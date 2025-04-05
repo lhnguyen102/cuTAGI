@@ -90,7 +90,7 @@ endif()
 
 
 # Search for CUDA libs in standard locations (the find_library call is not
-# strictly necessary if you trust CMake's defaults)
+# strictly necessary if you trust CMake’s defaults)
 find_library(
   CUDA_LIBRARY_PATH
   NAMES cudart
@@ -133,12 +133,13 @@ if(APPLE)
 else()
   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G")
 endif()
+option(BUILD_TESTING "Build and run tests" ON)
 
 # ------------------------------------------------------------------------------
 # Python Support
 # ------------------------------------------------------------------------------
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-option(BUILD_TESTING "Build and run tests" ON)
+
 
 
 # ------------------------------------------------------------------------------
