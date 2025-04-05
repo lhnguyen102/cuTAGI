@@ -152,7 +152,9 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
 
                 # Training metric
                 pred = normalizer.unstandardize(
-                    m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                    m_pred,
+                    train_dtl.x_mean[output_col],
+                    train_dtl.x_std[output_col],
                 )
                 obs = normalizer.unstandardize(
                     y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
@@ -161,7 +163,9 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
                 mses.append(mse)
 
             # Validation
-            val_batch_iter = val_dtl.create_data_loader(batch_size, shuffle=False)
+            val_batch_iter = val_dtl.create_data_loader(
+                batch_size, shuffle=False
+            )
 
             mu_preds = []
             var_preds = []
@@ -183,7 +187,9 @@ def main(num_epochs: int = 10, batch_size: int = 16, sigma_v: float = 2):
             x_val = np.array(x_val)
 
             mu_preds = normalizer.unstandardize(
-                mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                mu_preds,
+                train_dtl.x_mean[output_col],
+                train_dtl.x_std[output_col],
             )
             std_preds = normalizer.unstandardize_std(
                 std_preds, train_dtl.x_std[output_col]
@@ -449,7 +455,10 @@ class PredictionViz:
         ax.set_yticks(y_ticks)
         ax.set_xticks(x_ticks)
         ax.tick_params(
-            axis="both", which="both", direction="inout", labelsize=self.fontsize
+            axis="both",
+            which="both",
+            direction="inout",
+            labelsize=self.fontsize,
         )
         ax.legend(
             loc="upper right",

@@ -108,7 +108,9 @@ class ParameterDistributionVisualizer:
                 verts.append((x_grid[-1], update_idx, 0))
                 verts.append((x_grid[0], update_idx, 0))
 
-                poly = Poly3DCollection([verts], facecolors=line_color, alpha=0.3)
+                poly = Poly3DCollection(
+                    [verts], facecolors=line_color, alpha=0.3
+                )
                 ax.add_collection3d(poly)
 
             ax.set_xlabel(param_name)
@@ -129,9 +131,7 @@ class ParameterDistributionVisualizer:
 
             # Save if output directory is specified
             if output_dir is not None:
-                filename = (
-                    f"{layer_name.replace('.', '_')}_{param_name}_distribution.png"
-                )
+                filename = f"{layer_name.replace('.', '_')}_{param_name}_distribution.png"
                 save_path = os.path.join(output_dir, filename)
                 plt.savefig(save_path, dpi=150, bbox_inches="tight")
 
@@ -146,7 +146,9 @@ class ParameterDistributionVisualizer:
         self._plot_distribution_3d(2, "mu_b", figsize, output_dir)
         self._plot_distribution_3d(3, "var_b", figsize, output_dir)
 
-    def plot_initial_vs_final_differences(self, figsize=(8, 6), output_dir: str = None):
+    def plot_initial_vs_final_differences(
+        self, figsize=(8, 6), output_dir: str = None
+    ):
         """
         Plots the differences in mu_w, var_w, mu_b, and var_b between initial
         and final updates as histograms.
@@ -189,9 +191,7 @@ class ParameterDistributionVisualizer:
 
                 # Save if output directory is specified
                 if output_dir is not None:
-                    filename = (
-                        f"{layer_name.replace('.', '_')}_{param_name}_differences.png"
-                    )
+                    filename = f"{layer_name.replace('.', '_')}_{param_name}_differences.png"
                     save_path = os.path.join(output_dir, filename)
                     plt.savefig(save_path, dpi=150, bbox_inches="tight")
 

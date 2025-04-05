@@ -18,4 +18,3 @@ echo "Removing zip files..."
 rm *.zip
 
 echo "Download and extraction complete!"
-

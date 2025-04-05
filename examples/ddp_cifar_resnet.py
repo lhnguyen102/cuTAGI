@@ -18,9 +18,18 @@ from tqdm import tqdm
 import pytagi
 from examples.tagi_resnet_model import resnet18_cifar10
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (BatchNorm2d, Conv2d, DDPConfig, DDPSequential,
-                       LayerBlock, Linear, MixtureReLU, OutputUpdater,
-                       ResNetBlock, Sequential)
+from pytagi.nn import (
+    BatchNorm2d,
+    Conv2d,
+    DDPConfig,
+    DDPSequential,
+    LayerBlock,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ResNetBlock,
+    Sequential,
+)
 
 # Initialize MPI communication
 comm = MPI.COMM_WORLD
@@ -79,7 +88,9 @@ def load_datasets(
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -87,7 +98,9 @@ def load_datasets(
         [
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -107,7 +120,11 @@ def load_datasets(
 
     # Training set with distributed sampler
     train_sampler = DistributedSampler(
-        train_dataset, num_replicas=world_size, rank=rank, shuffle=True, seed=seed
+        train_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=True,
+        seed=seed,
     )
 
     train_loader = DataLoader(
@@ -121,7 +138,11 @@ def load_datasets(
 
     # Test set with distributed sampler
     test_sampler = DistributedSampler(
-        test_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False
+        test_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=False,
+        drop_last=False,
     )
 
     test_loader = DataLoader(
@@ -284,7 +305,9 @@ def main(
         # Calculate and print final test error rate on rank 0
         if rank == 0:
             global_test_error_rate = (
-                total_test_error / total_test_samples if total_test_samples > 0 else 0.0
+                total_test_error / total_test_samples
+                if total_test_samples > 0
+                else 0.0
             )
 
             if pbar:

@@ -8,8 +8,15 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, OutputUpdater,
-                       ReLU, Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    Linear,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 TAGI_FNN = Sequential(
     Linear(784, 4096),
@@ -189,7 +196,9 @@ def tagi_trainer(
             curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
         )
         var_y = np.full(
-            (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
+            (batch_size * metric.hrc_softmax.num_obs,),
+            sigma_v**2,
+            dtype=np.float32,
         )
         net.train()
         for x, labels in train_loader:
@@ -256,7 +265,9 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cpu"):
     train_loader = DataLoader(
         dataset=train_dataset, batch_size=batch_size, shuffle=True
     )
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(
+        dataset=test_dataset, batch_size=batch_size, shuffle=False
+    )
 
     # Initialize the model, loss function, and optimizer
     torch_device = torch.device(device)

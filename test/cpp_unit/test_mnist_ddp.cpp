@@ -292,6 +292,7 @@ class MNISTDDPTest : public DistributedTestFixture {
         }
 
         // Check if we have at least 2 GPUs
+#ifdef USE_CUDA
         int device_count = 0;
         cudaGetDeviceCount(&device_count);
         if (device_count < 2) {
@@ -299,7 +300,7 @@ class MNISTDDPTest : public DistributedTestFixture {
                             "tests, but only "
                          << device_count << " found";
         }
-
+#endif
         // Check if MNIST data exists, download if needed
         const std::string x_train_path = "./data/mnist/train-images-idx3-ubyte";
         const std::string y_train_path = "./data/mnist/train-labels-idx1-ubyte";

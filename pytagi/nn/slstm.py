@@ -26,7 +26,13 @@ class SLSTM(BaseLayer):
         self.init_method = init_method
 
         self._cpp_backend = cutagi.SLSTM(
-            input_size, output_size, seq_len, bias, gain_weight, gain_bias, init_method
+            input_size,
+            output_size,
+            seq_len,
+            bias,
+            gain_weight,
+            gain_bias,
+            init_method,
         )
 
     def get_layer_info(self) -> str:

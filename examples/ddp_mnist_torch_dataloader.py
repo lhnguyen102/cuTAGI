@@ -17,9 +17,18 @@ from tqdm import tqdm
 
 import pytagi
 from pytagi import HRCSoftmaxMetric, Utils
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, DDPConfig,
-                       DDPSequential, Linear, MixtureReLU, OutputUpdater, ReLU,
-                       Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    DDPConfig,
+    DDPSequential,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 # Define a simple CNN model
 CNN = Sequential(
@@ -154,7 +163,11 @@ def main(
 
     # Training set
     train_sampler = DistributedSampler(
-        train_dataset, num_replicas=world_size, rank=rank, shuffle=True, seed=seed
+        train_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=True,
+        seed=seed,
     )
 
     train_loader = DataLoader(
@@ -168,7 +181,11 @@ def main(
 
     # Test set
     test_sampler = DistributedSampler(
-        test_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False
+        test_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=False,
+        drop_last=False,
     )
 
     test_loader = DataLoader(
@@ -278,7 +295,9 @@ def main(
         # Calculate and print final test error rate on rank 0
         if rank == 0:
             global_test_error_rate = (
-                total_test_error / total_test_samples if total_test_samples > 0 else 0.0
+                total_test_error / total_test_samples
+                if total_test_samples > 0
+                else 0.0
             )
 
             if pbar:

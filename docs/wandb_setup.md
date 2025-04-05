@@ -41,4 +41,3 @@ This dock shows the steps for setting up WandB
 2. Open [wandb.ai](https://wandb.ai) in your browser.
 3. Navigate to **Projects** and select your project e.g., resnet
 4. Explore plots for different metrics
-

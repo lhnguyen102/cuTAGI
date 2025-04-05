@@ -37,4 +37,4 @@ jobs:
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run pre-commit
-        run: pre-commit run --all-files --show-diff-on-failure
+        run: pre-commit run --all-files

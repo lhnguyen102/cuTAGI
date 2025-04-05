@@ -141,7 +141,6 @@ option(BUILD_TESTING "Build and run tests" ON)
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 
-
 # ------------------------------------------------------------------------------
 # Submodules and external libraries
 # ------------------------------------------------------------------------------

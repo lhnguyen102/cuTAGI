@@ -218,7 +218,8 @@ class LSTMDDPTest : public DistributedTestFixture {
             GTEST_SKIP() << "CUDA is not available, skipping distributed tests";
         }
 
-        // Check if we have at least 2 GPUs
+// Check if we have at least 2 GPUs
+#ifdef USE_CUDA
         int device_count = 0;
         cudaGetDeviceCount(&device_count);
         if (device_count < 2) {
@@ -226,6 +227,7 @@ class LSTMDDPTest : public DistributedTestFixture {
                             "tests, but only "
                          << device_count << " found";
         }
+#endif
     }
 };
 

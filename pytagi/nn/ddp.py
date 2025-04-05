@@ -17,7 +17,9 @@ class DDPConfig:
         rank: int = 0,
         world_size: int = 1,
     ):
-        self._cpp_backend = cutagi.DDPConfig(device_ids, backend, rank, world_size)
+        self._cpp_backend = cutagi.DDPConfig(
+            device_ids, backend, rank, world_size
+        )
 
     @property
     def device_ids(self) -> List[int]:

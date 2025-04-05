@@ -1,6 +1,15 @@
-from pytagi.nn.activation import (EvenExp, LeakyReLU, MixtureReLU,
-                                  MixtureSigmoid, MixtureTanh, ReLU, Sigmoid,
-                                  Softmax, Softplus, Tanh)
+from pytagi.nn.activation import (
+    EvenExp,
+    LeakyReLU,
+    MixtureReLU,
+    MixtureSigmoid,
+    MixtureTanh,
+    ReLU,
+    Sigmoid,
+    Softmax,
+    Softplus,
+    Tanh,
+)
 from pytagi.nn.base_layer import BaseLayer
 from pytagi.nn.batch_norm import BatchNorm2d
 from pytagi.nn.conv2d import Conv2d

@@ -19,7 +19,9 @@ class AvgPool2d(BaseLayer):
         self.padding = padding
         self.padding_type = padding_type
 
-        self._cpp_backend = cutagi.AvgPool2d(kernel_size, stride, padding, padding_type)
+        self._cpp_backend = cutagi.AvgPool2d(
+            kernel_size, stride, padding, padding_type
+        )
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -44,7 +46,9 @@ class MaxPool2d(BaseLayer):
         self.padding = padding
         self.padding_type = padding_type
 
-        self._cpp_backend = cutagi.MaxPool2d(kernel_size, stride, padding, padding_type)
+        self._cpp_backend = cutagi.MaxPool2d(
+            kernel_size, stride, padding, padding_type
+        )
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()

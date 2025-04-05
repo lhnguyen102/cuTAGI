@@ -76,7 +76,9 @@ def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
         sigma_v = exponential_scheduler(
             curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
         )
-        var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
+        var_y = np.full(
+            (batch_size * len(output_col),), sigma_v**2, dtype=np.float32
+        )
 
         for x, y in batch_iter:
             # Feed forward
@@ -96,7 +98,9 @@ def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
 
             # Training metric
             pred = normalizer.unstandardize(
-                m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                m_pred,
+                train_dtl.x_mean[output_col],
+                train_dtl.x_std[output_col],
             )
             obs = normalizer.unstandardize(
                 y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
@@ -136,7 +140,9 @@ def main(num_epochs: int = 50, batch_size: int = 5, sigma_v: float = 1):
     mu_preds = normalizer.unstandardize(
         mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
     )
-    std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
+    std_preds = normalizer.unstandardize_std(
+        std_preds, train_dtl.x_std[output_col]
+    )
 
     y_test = normalizer.unstandardize(
         y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
@@ -330,7 +336,10 @@ class PredictionViz:
         ax.set_yticks(y_ticks)
         ax.set_xticks(x_ticks)
         ax.tick_params(
-            axis="both", which="both", direction="inout", labelsize=self.fontsize
+            axis="both",
+            which="both",
+            direction="inout",
+            labelsize=self.fontsize,
         )
         ax.legend(
             loc="upper right",

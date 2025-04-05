@@ -18,9 +18,18 @@ import pytagi
 from examples.tagi_alexnet_model import create_alexnet
 from examples.tagi_resnet_model import resnet18_imagenet
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (BatchNorm2d, Conv2d, DDPConfig, DDPSequential,
-                       LayerBlock, Linear, MixtureReLU, OutputUpdater,
-                       ResNetBlock, Sequential)
+from pytagi.nn import (
+    BatchNorm2d,
+    Conv2d,
+    DDPConfig,
+    DDPSequential,
+    LayerBlock,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ResNetBlock,
+    Sequential,
+)
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -62,7 +71,9 @@ def load_datasets(
             transforms.RandomHorizontalFlip(),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -72,7 +83,9 @@ def load_datasets(
             transforms.CenterCrop(224),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -87,15 +100,25 @@ def load_datasets(
     train_indices = [
         i for i, label in enumerate(train_dataset.targets) if label in targets
     ]
-    val_indices = [i for i, label in enumerate(val_dataset.targets) if label in targets]
+    val_indices = [
+        i for i, label in enumerate(val_dataset.targets) if label in targets
+    ]
     train_dataset = Subset(train_dataset, train_indices)
     val_dataset = Subset(val_dataset, val_indices)
 
     train_sampler = DistributedSampler(
-        train_dataset, num_replicas=world_size, rank=rank, shuffle=True, seed=seed
+        train_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=True,
+        seed=seed,
     )
     val_sampler = DistributedSampler(
-        val_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False
+        val_dataset,
+        num_replicas=world_size,
+        rank=rank,
+        shuffle=False,
+        drop_last=False,
     )
 
     train_loader = DataLoader(
@@ -148,7 +171,9 @@ def main(
         device_ids=device_ids, backend="nccl", rank=rank, world_size=world_size
     )
 
-    tagi_model = create_alexnet(gain_w=gain_w, gain_b=gain_b, nb_outputs=nb_classes)
+    tagi_model = create_alexnet(
+        gain_w=gain_w, gain_b=gain_b, nb_outputs=nb_classes
+    )
     ddp_model = DDPSequential(tagi_model, config, average=True)
 
     train_loader, val_loader, train_sampler = load_datasets(
@@ -175,7 +200,9 @@ def main(
                 curr_v=sigma_v, min_v=0, decaying_factor=1, curr_iter=epoch
             )
             var_y = np.full(
-                (batch_size * metric.hrc_softmax.num_obs,), sigma_v**2, dtype=np.float32
+                (batch_size * metric.hrc_softmax.num_obs,),
+                sigma_v**2,
+                dtype=np.float32,
             )
 
         ddp_model.train()
@@ -183,7 +210,9 @@ def main(
         total_train_samples = 0
 
         for x_batch, labels in train_loader:
-            y, y_idx, _ = utils.label_to_obs(labels=labels, num_classes=nb_classes)
+            y, y_idx, _ = utils.label_to_obs(
+                labels=labels, num_classes=nb_classes
+            )
             m_pred, v_pred = ddp_model(x_batch)
 
             out_updater.update_using_indices(
@@ -230,7 +259,9 @@ def main(
 
         if rank == 0:
             global_val_error_rate = (
-                total_val_error / total_val_samples if total_val_samples > 0 else 0.0
+                total_val_error / total_val_samples
+                if total_val_samples > 0
+                else 0.0
             )
 
             if pbar:

@@ -13,6 +13,8 @@ repos:
       - id: black
         args: ["--preview", "--line-length=80"]
         language_version: python3
+        exclude: \.(cpp|h|hpp|cu|cuh)$'
+
 
   # Python isort for import sorting
   - repo: https://github.com/pycqa/isort
@@ -21,3 +23,4 @@ repos:
       - id: isort
         args: ["--profile", "black"]
         language_version: python3
+        exclude: \.(cpp|h|hpp|cu|cuh)$

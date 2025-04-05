@@ -64,7 +64,9 @@ class ParamStatTable:
                 var_b_vals,
             )
 
-    def _gather_row(self, layer_name: str, snapshots: list, use_diff_metric: bool):
+    def _gather_row(
+        self, layer_name: str, snapshots: list, use_diff_metric: bool
+    ):
         """
         Helper method to compute mean, std, and difference metric for a layer.
         """
@@ -74,10 +76,14 @@ class ParamStatTable:
         # please handle the none case
         if snapshots[0] is None:
             mu_w_init, var_w_init, mu_b_init, var_b_init = 0, 0, 0, 0
-            mu_w_current, var_w_current, mu_b_current, var_b_current = snapshots[-1]
+            mu_w_current, var_w_current, mu_b_current, var_b_current = (
+                snapshots[-1]
+            )
         else:
             mu_w_init, var_w_init, mu_b_init, var_b_init = snapshots[0]
-            mu_w_current, var_w_current, mu_b_current, var_b_current = snapshots[-1]
+            mu_w_current, var_w_current, mu_b_current, var_b_current = (
+                snapshots[-1]
+            )
 
         # Compute std from variance
         var_w_init = np.sqrt(var_w_init)
@@ -97,7 +103,9 @@ class ParamStatTable:
             d_var_b = var_b_current
 
         diff_metric = (
-            np.sum(np.abs(d_mu_w)) + np.sum(np.abs(d_var_w)) if use_diff_metric else 0.0
+            np.sum(np.abs(d_mu_w)) + np.sum(np.abs(d_var_w))
+            if use_diff_metric
+            else 0.0
         )
 
         # Select data to use based on use_diff_metric

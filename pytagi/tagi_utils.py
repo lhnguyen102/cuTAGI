@@ -37,7 +37,9 @@ class Utils:
 
         return np.array(obs), np.array(obs_idx), np.array(num_obs)
 
-    def label_to_one_hot(self, labels: np.ndarray, num_classes: int) -> np.ndarray:
+    def label_to_one_hot(
+        self, labels: np.ndarray, num_classes: int
+    ) -> np.ndarray:
         """Get the one hot encoder for each class
 
         Args:
@@ -82,7 +84,9 @@ class Utils:
             labels: Label dataset
         """
 
-        images, labels = self._cpp_backend.load_cifar_dataset_wrapper(image_file, num)
+        images, labels = self._cpp_backend.load_cifar_dataset_wrapper(
+            image_file, num
+        )
 
         return images, labels
 
@@ -206,16 +210,20 @@ class Utils:
             + 1
         )
 
-        input_data, output_data = self._cpp_backend.create_rolling_window_wrapper(
-            data.flatten(),
-            output_col,
-            input_seq_len,
-            output_seq_len,
-            num_features,
-            stride,
+        input_data, output_data = (
+            self._cpp_backend.create_rolling_window_wrapper(
+                data.flatten(),
+                output_col,
+                input_seq_len,
+                output_seq_len,
+                num_features,
+                stride,
+            )
         )
         # input_data = input_data.reshape((num_data, input_seq_len))
-        input_data = input_data.reshape((num_data, input_seq_len * num_features))
+        input_data = input_data.reshape(
+            (num_data, input_seq_len * num_features)
+        )
         output_data = output_data.reshape((num_data, output_seq_len))
 
         return input_data, output_data
@@ -225,7 +233,9 @@ class Utils:
     ) -> np.ndarray:
         """Create an upper triangle covriance matrix for inputs"""
 
-        vx_f = self._cpp_backend.get_upper_triu_cov_wrapper(batch_size, num_data, sigma)
+        vx_f = self._cpp_backend.get_upper_triu_cov_wrapper(
+            batch_size, num_data, sigma
+        )
 
         return np.array(vx_f)
 
@@ -246,7 +256,9 @@ class Normalizer:
         self.method = method
 
     @staticmethod
-    def standardize(data: np.ndarray, mu: np.ndarray, std: np.ndarray) -> np.ndarray:
+    def standardize(
+        data: np.ndarray, mu: np.ndarray, std: np.ndarray
+    ) -> np.ndarray:
         """Z-score normalization where
         data_norm = (data - data_mean) / data_std"""
 

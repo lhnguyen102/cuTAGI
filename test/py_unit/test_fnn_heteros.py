@@ -12,7 +12,9 @@ from pytagi.nn import EvenExp, Linear, OutputUpdater, ReLU, Sequential
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+    os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    )
 )
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
@@ -57,7 +59,9 @@ def heteros_test_runner(
             model.step()
 
             # Training metric
-            pred = Normalizer.unstandardize(m_pred, train_dtl.y_mean, train_dtl.y_std)
+            pred = Normalizer.unstandardize(
+                m_pred, train_dtl.y_mean, train_dtl.y_std
+            )
             obs = Normalizer.unstandardize(y, train_dtl.y_mean, train_dtl.y_std)
 
             # Even positions correspond to Z_out
@@ -84,7 +88,9 @@ class SineSignalHeterosTest(unittest.TestCase):
             EvenExp(),
         )
         mse = heteros_test_runner(model)
-        self.assertLess(mse, self.threshold, "Error rate is higher than threshold")
+        self.assertLess(
+            mse, self.threshold, "Error rate is higher than threshold"
+        )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_heteros_CUDA(self):
@@ -99,7 +105,9 @@ class SineSignalHeterosTest(unittest.TestCase):
             EvenExp(),
         )
         mse = heteros_test_runner(model, use_cuda=True)
-        self.assertLess(mse, self.threshold, "Error rate is higher than threshold")
+        self.assertLess(
+            mse, self.threshold, "Error rate is higher than threshold"
+        )
 
 
 if __name__ == "__main__":

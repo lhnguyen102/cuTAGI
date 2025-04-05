@@ -16,8 +16,15 @@ from tqdm import tqdm
 
 from examples.tagi_resnet_model import resnet18_cifar10
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, OutputUpdater,
-                       ReLU, Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    Linear,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 # Constants for dataset normalization
 NORMALIZATION_MEAN = (0.4914, 0.4822, 0.4465)
@@ -78,10 +85,16 @@ def load_datasets(batch_size: int):
     )
 
     train_set = torchvision.datasets.CIFAR10(
-        root="./data/cifar", train=True, download=True, transform=transform_train
+        root="./data/cifar",
+        train=True,
+        download=True,
+        transform=transform_train,
     )
     test_set = torchvision.datasets.CIFAR10(
-        root="./data/cifar", train=False, download=True, transform=transform_test
+        root="./data/cifar",
+        train=False,
+        download=True,
+        transform=transform_test,
     )
 
     train_loader = DataLoader(

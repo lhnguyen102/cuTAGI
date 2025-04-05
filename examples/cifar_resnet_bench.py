@@ -20,8 +20,16 @@ import pytagi
 from examples.tagi_resnet_model import resnet18_cifar10
 from examples.torch_resnet_model import ResNet18
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, Linear, MixtureReLU,
-                       OutputUpdater, ReLU, Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 torch.manual_seed(17)
 
@@ -154,7 +162,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -162,7 +172,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
         [
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 

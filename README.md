@@ -108,4 +108,3 @@ cuTAGI is released under the MIT license.
   howpublished = {https://github.com/lhnguyen102/cuTAGI}
 }
 ```
-

@@ -13,9 +13,18 @@ from tqdm import tqdm
 import pytagi
 from examples.data_loader import MnistDataLoader
 from pytagi import HRCSoftmaxMetric
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, DDPConfig,
-                       DDPSequential, Linear, MixtureReLU, OutputUpdater, ReLU,
-                       Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    DDPConfig,
+    DDPSequential,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 # Define a simple CNN model
 CNN = Sequential(
@@ -188,7 +197,9 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 0.1):
 
         local_test_error = 0
         local_test_samples = 0
-        test_batch_per_process = test_dtl.dataset["value"][0].shape[0] // world_size
+        test_batch_per_process = (
+            test_dtl.dataset["value"][0].shape[0] // world_size
+        )
 
         test_batch_iter = test_dtl.create_data_loader(batch_size=batch_size)
 
@@ -225,7 +236,9 @@ def main(num_epochs: int = 10, batch_size: int = 256, sigma_v: float = 0.1):
         # Calculate and print final test error rate on rank 0
         if rank == 0:
             global_test_error_rate = (
-                total_test_error / total_test_samples if total_test_samples > 0 else 0.0
+                total_test_error / total_test_samples
+                if total_test_samples > 0
+                else 0.0
             )
 
             if pbar:

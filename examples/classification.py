@@ -14,8 +14,18 @@ import pytagi
 from examples.data_loader import MnistDataLoader
 from examples.param_stat_table import ParamStatTable, WandBLogger
 from pytagi import HRCSoftmaxMetric
-from pytagi.nn import (AvgPool2d, BatchNorm2d, Conv2d, LayerNorm, Linear,
-                       MaxPool2d, MixtureReLU, OutputUpdater, ReLU, Sequential)
+from pytagi.nn import (
+    AvgPool2d,
+    BatchNorm2d,
+    Conv2d,
+    LayerNorm,
+    Linear,
+    MaxPool2d,
+    MixtureReLU,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+)
 
 FNN = Sequential(
     Linear(784, 128),
@@ -100,7 +110,9 @@ def main(
     """
     # User data
     print_param_stat = False  # print mean and std of parameters
-    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+    is_tracking = (
+        is_tracking if print_param_stat else False
+    )  # track params with wandb
 
     # Visual tool
     param_stat = ParamStatTable()
