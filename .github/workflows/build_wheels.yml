@@ -37,8 +37,8 @@ jobs:
 
       - name: Install MPI
         run: |
-          sudo apt update
-          sudo apt install -y openmpi-bin=${{ matrix.mpi }}-* libopenmpi-dev=${{ matrix.mpi }}-*
+          apt update
+          apt install -y openmpi-bin=${{ matrix.mpi }}-* libopenmpi-dev=${{ matrix.mpi }}-*
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
@@ -55,9 +55,9 @@ jobs:
       - name: Install NCCL
         run: |
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt update
-          sudo apt install -y libnccl2=${{ matrix.nccl }}-1+cuda${{ matrix.cuda }} libnccl-dev=${{ matrix.nccl }}-1+cuda${{ matrix.cuda }}
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          apt update
+          apt install -y libnccl2=${{ matrix.nccl }}-1+cuda${{ matrix.cuda }} libnccl-dev=${{ matrix.nccl }}-1+cuda${{ matrix.cuda }}
 
       - name: Install build dependencies (setuptools, wheel)
         shell: bash -l {0}
