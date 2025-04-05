@@ -58,7 +58,6 @@ jobs:
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt update
           sudo apt-get install -y libnccl2=2.25.1-1+cuda12.2 libnccl-dev=2.25.1-1+cuda12.2 && \
-          rm -rf /var/lib/apt/lists/*
 
       - name: Install build dependencies (setuptools, wheel)
         shell: bash -l {0}
