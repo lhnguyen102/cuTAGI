@@ -42,6 +42,7 @@ extern bool g_gpu_enabled;
 /**
  * Distributed ResNet test runner
  */
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
                                        float& avg_error_output) {
     // Get the underlying model and configuration
@@ -283,7 +284,6 @@ class ResNetDDPTest : public DistributedTestFixture {
     }
 };
 
-#ifdef DISTRIBUTED_TEST_AVAILABLE
 /**
  * Test distributed training with ResNet model using NCCL backend
  */

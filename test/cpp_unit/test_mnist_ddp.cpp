@@ -40,6 +40,7 @@ extern bool g_gpu_enabled;
 /**
  * Distributed MNIST test runner
  */
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 void distributed_mnist_test_runner(DDPSequential &dist_model,
                                    float &avg_error_output,
                                    float &test_error_output) {
@@ -363,7 +364,6 @@ class MNISTDDPTest : public DistributedTestFixture {
     }
 };
 
-#ifdef DISTRIBUTED_TEST_AVAILABLE
 /**
  * Test distributed training with a simple CNN model using NCCL backend
  */

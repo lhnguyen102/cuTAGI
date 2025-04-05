@@ -33,6 +33,8 @@ extern bool g_gpu_enabled;
 /**
  * Distributed LSTM test runner
  */
+
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 void distributed_sin_signal_lstm_test_runner(DDPSequential &dist_model,
                                              int input_seq_len, float &mse,
                                              float &log_lik) {
@@ -231,7 +233,6 @@ class LSTMDDPTest : public DistributedTestFixture {
     }
 };
 
-#ifdef DISTRIBUTED_TEST_AVAILABLE
 /**
  * Test distributed training with LSTM model using NCCL backend
  */
