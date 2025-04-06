@@ -29,14 +29,12 @@ void Sequential::switch_to_cuda() {
 }
 
 void Sequential::to_device(const std::string &new_device) {
-    // Check if device string contains index (e.g. "cuda:0")
-    size_t colon_pos = new_device.find(':');
-
-    // Currently, we only support CUDA
-    if (this->device == "cuda" && !is_cuda_available()) {
-        LOG(LogLevel::ERROR, "CUDA is not available");
+    if (new_device == "cpu") {
+        this->device = "cpu";
         return;
     }
+    // Check if device string contains index (e.g. "cuda:0")
+    size_t colon_pos = new_device.find(':');
 
     if (colon_pos != std::string::npos) {
         this->device = new_device.substr(0, colon_pos);
@@ -62,6 +60,9 @@ void Sequential::to_device(const std::string &new_device) {
         }
     } else {
         this->device = new_device;
+    }
+    if (this->device == "cuda" && !is_cuda_available()) {
+        LOG(LogLevel::ERROR, "CUDA is not available");
     }
     this->switch_to_cuda();
 
