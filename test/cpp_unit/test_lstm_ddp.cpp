@@ -209,7 +209,7 @@ void distributed_sin_signal_lstm_test_runner(DDPSequential &dist_model,
         LOG(LogLevel::INFO, "Final log likelihood: " + std::to_string(log_lik));
     }
 }
-
+#endif
 class LSTMDDPTest : public DistributedTestFixture {
    protected:
     void SetUp() override {
@@ -236,6 +236,7 @@ class LSTMDDPTest : public DistributedTestFixture {
 /**
  * Test distributed training with LSTM model using NCCL backend
  */
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 TEST_F(LSTMDDPTest, LSTM_NCCL) {
     // Log process information
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +

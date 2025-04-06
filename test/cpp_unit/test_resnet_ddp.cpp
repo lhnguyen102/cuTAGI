@@ -260,6 +260,7 @@ void distributed_resnet_cifar10_runner(DDPSequential& dist_model,
     avg_error_output =
         static_cast<float>(total_test_error) / total_test_samples;
 }
+#endif
 
 class ResNetDDPTest : public DistributedTestFixture {
    protected:
@@ -287,6 +288,7 @@ class ResNetDDPTest : public DistributedTestFixture {
 /**
  * Test distributed training with ResNet model using NCCL backend
  */
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 TEST_F(ResNetDDPTest, ResNet_NCCL) {
     // Log process information
     LOG(LogLevel::INFO, "Process " + std::to_string(rank) + " of " +

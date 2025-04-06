@@ -282,7 +282,7 @@ void distributed_mnist_test_runner(DDPSequential &dist_model,
                                 std::to_string(test_error_output));
     }
 }
-
+#endif
 class MNISTDDPTest : public DistributedTestFixture {
    protected:
     void SetUp() override {
@@ -367,6 +367,7 @@ class MNISTDDPTest : public DistributedTestFixture {
 /**
  * Test distributed training with a simple CNN model using NCCL backend
  */
+#ifdef DISTRIBUTED_TEST_AVAILABLE
 TEST_F(MNISTDDPTest, SimpleCNN_NCCL) {
     if (!is_mpi_initialized()) {
         GTEST_SKIP() << "MPI is not initialized. Run with mpirun.";

@@ -20,7 +20,7 @@ jobs:
         os: [ubuntu-22.04]
         cuda: ["12.2.2"]
         nccl: ["2.25.1"]
-        cuda_nccl: ["12.2"] # it should match cuda version patch.major
+        cuda_nccl: ["12.2"]
         mpi: ["4.1.2-2ubuntu1"]
         python_version: ["3.10", "3.11", "3.12"]
     if: ${{ github.event.pull_request.draft == false }}
@@ -59,7 +59,7 @@ jobs:
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt update
-          sudo apt install -y libnccl2=${{ matrix.cuda_nccl }} libnccl-dev=${{ matrix.cuda_nccl }}
+          sudo apt install -y libnccl2=${{ matrix.cuda_nccl }}-1+cuda${{ matrix.cuda_nccl }} libnccl-dev=${{ matrix.cuda_nccl }}-1+cuda${{ matrix.cuda_nccl }}
 
       - name: Install build dependencies (setuptools, wheel)
         shell: bash -l {0}
