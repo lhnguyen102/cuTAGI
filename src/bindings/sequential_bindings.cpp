@@ -86,7 +86,8 @@ void bind_sequential(pybind11::module_& m) {
         .def("get_outputs", &Sequential::get_outputs)
         .def("get_outputs_smoother", &Sequential::get_outputs_smoother)
         .def("get_input_states", &Sequential::get_input_states)
-        .def("get_norm_mean_var", [](Sequential& self) {
+        .def("get_norm_mean_var",
+             [](Sequential& self) {
                  auto cpp_norm_mean_var = self.get_norm_mean_var();
                  pybind11::dict py_norm_mean_var;
                  for (const auto& pair : cpp_norm_mean_var) {
@@ -94,7 +95,8 @@ void bind_sequential(pybind11::module_& m) {
                      pybind11::list var_ra;
                      pybind11::list mu_norm;
                      pybind11::list var_norm;
-                     for (size_t i = 0; i < std::get<0>(pair.second).size(); i++) {
+                     for (size_t i = 0; i < std::get<0>(pair.second).size();
+                          i++) {
                          mu_ra.append(std::get<0>(pair.second)[i]);
                          var_ra.append(std::get<1>(pair.second)[i]);
                          mu_norm.append(std::get<2>(pair.second)[i]);

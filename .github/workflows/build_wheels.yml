@@ -59,7 +59,7 @@ jobs:
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt update
-          sudo apt install -y libnccl2=${{ matrix.nccl }}-1+cuda${{ matrix.nccl }} libnccl-dev=${{ matrix.cuda_nccl }}-1+cuda${{ matrix.cuda_nccl }}
+          sudo apt install -y libnccl2=${{ matrix.nccl }}-1+cuda${{ matrix.cuda_nccl }} libnccl-dev=${{ matrix.nccl }}-1+cuda${{ matrix.cuda_nccl }}
 
       - name: Install build dependencies (setuptools, wheel)
         shell: bash -l {0}

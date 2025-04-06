@@ -24,3 +24,9 @@ repos:
         args: ["--profile", "black"]
         language_version: python3
         exclude: \.(cpp|h|hpp|cu|cuh)$
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v20.1.0
+    hooks:
+    - id: clang-format
+      types_or: [c++, c, cuda]
