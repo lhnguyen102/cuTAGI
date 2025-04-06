@@ -36,7 +36,7 @@ std::string BaseLayer::get_device()
 /*
  */
 {
-    return this->device;
+    return this->device + ":" + std::to_string(this->device_idx);
 }
 
 void BaseLayer::init_weight_bias() {}
@@ -179,10 +179,10 @@ Returns:
         this->cap_factor_update = 0.1f;
     }
     if (batch_size > 1 && batch_size < 256) {
-        this->cap_factor_update = 1.0f;
+        this->cap_factor_update = 2.0f;
     }
     if (batch_size >= 256) {
-        this->cap_factor_update = 2.0f;
+        this->cap_factor_update = 3.0f;
     }
 }
 

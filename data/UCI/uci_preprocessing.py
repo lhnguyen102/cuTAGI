@@ -7,9 +7,9 @@
 # Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 # License:      This code is released under the MIT License.
 ###############################################################################
-import pandas as pd
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 np.random.seed(1)
 
@@ -79,7 +79,9 @@ class UCIPreprocessing:
 
         # Save input data as csv file
         train_input_path = f"./data/UCI/{self.data_folder}/x_train.csv"
-        train_input_df = pd.DataFrame(train_input_dict, columns=input_data_label)
+        train_input_df = pd.DataFrame(
+            train_input_dict, columns=input_data_label
+        )
         train_input_df.to_csv(train_input_path, index=False, header=True)
 
         test_input_path = f"./data/UCI/{self.data_folder}/x_test.csv"
@@ -98,11 +100,15 @@ class UCIPreprocessing:
 
         # Save output data as csv file
         train_output_path = f"./data/UCI/{self.data_folder}/y_train.csv"
-        train_output_df = pd.DataFrame(train_output_dict, columns=output_data_label)
+        train_output_df = pd.DataFrame(
+            train_output_dict, columns=output_data_label
+        )
         train_output_df.to_csv(train_output_path, index=False, header=True)
 
         test_output_path = f"./data/UCI/{self.data_folder}/y_test.csv"
-        test_output_df = pd.DataFrame(test_output_dict, columns=output_data_label)
+        test_output_df = pd.DataFrame(
+            test_output_dict, columns=output_data_label
+        )
         test_output_df.to_csv(test_output_path, index=False, header=True)
 
 

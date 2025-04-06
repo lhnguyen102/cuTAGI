@@ -253,13 +253,14 @@ __global__ void delta_param_sum_cuda(float const *delta_mu_e,
 //// Layer Norm
 ////////////////////////////////////////////////////////////////////////////////
 LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
-                             float eps, bool bias)
+                             float eps, bool bias, int device_idx)
 /*
  */
 {
     this->normalized_shape = normalized_shape;
     this->epsilon = eps;
     this->bias = bias;
+    this->device_idx = device_idx;
     if (this->normalized_shape.size() == 1) {
         this->input_size = this->normalized_shape[0];
         this->output_size = normalized_shape[0];
@@ -274,10 +275,8 @@ LayerNormCuda::LayerNormCuda(const std::vector<int> &normalized_shape,
         this->output_size =
             this->out_channels * this->out_width * this->out_height;
     } else {
-        throw std::runtime_error(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            ". Normalized shape provided are not supported.");
+        std::string message = "Normalized shape provided are not supported.";
+        LOG(LogLevel::ERROR, message);
     }
     this->init_weight_bias();
     if (this->training) {
@@ -293,6 +292,7 @@ LayerNormCuda::~LayerNormCuda()
 }
 
 void LayerNormCuda::deallocate_running_mean_var() {
+    cudaSetDevice(this->device_idx);
     if (d_mu_ra != nullptr) {
         cudaFree(d_mu_ra);
     }
@@ -340,6 +340,7 @@ void LayerNormCuda::allocate_running_mean_var()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     this->mu_ra.resize(this->_batch_size, 0.0f);
     this->var_ra.resize(this->_batch_size, 1.0f);
 
@@ -356,6 +357,7 @@ void LayerNormCuda::running_mean_var_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_mu_ra, this->mu_ra.data(),
                this->mu_ra.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_ra, this->var_ra.data(),
@@ -368,6 +370,7 @@ void LayerNormCuda::running_mean_var_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->mu_ra.data(), this->d_mu_ra,
                this->mu_ra.size() * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_ra.data(), this->d_var_ra,
@@ -599,9 +602,7 @@ void LayerNormCuda::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
     // Transfer data to host
     this->params_to_host();
@@ -631,9 +632,8 @@ void LayerNormCuda::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        std::string message = "Failed to open file for loading";
+        LOG(LogLevel::ERROR, message);
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -645,10 +645,10 @@ void LayerNormCuda::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
-                                 layer_name + ", Found: " + loaded_name);
+        std::string message =
+            "Layer name are not match. Expected: " + layer_name +
+            ", Found: " + loaded_name;
+        LOG(LogLevel::ERROR, message);
     }
 
     for (auto &m_w : this->mu_w) {
@@ -673,3 +673,5 @@ void LayerNormCuda::load(std::ifstream &file)
     // Transfer data to device
     this->params_to_device();
 }
+
+void LayerNormCuda::to(int device_idx) { this->device_idx = device_idx; }

@@ -1,5 +1,5 @@
+#include "../include/custom_logger.h"
 #include "../include/output_updater_cuda.cuh"
-
 __global__ void update_delta_z_using_indices_cuda(
     float const *mu_a, float const *var_a, float const *jcb, float const *obs,
     float const *var_obs, int const *selected_idx, int n_obs, int n_enc,
@@ -125,7 +125,10 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
     }
 }
 
-OutputUpdaterCuda::OutputUpdaterCuda() {}
+OutputUpdaterCuda::OutputUpdaterCuda(int device_idx) {
+    this->device_idx = device_idx;
+    cudaSetDevice(device_idx);
+}
 
 void OutputUpdaterCuda::set_num_cuda_threads(unsigned int num_threads) {
     this->num_cuda_threads = num_threads;
@@ -154,9 +157,9 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
     cu_delta_states->reset_zeros();
 
     // Kernel
+    int THREADS_PER_BLOCK = 256;
     int num_states = cu_obs->size;
-    int blocks =
-        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
+    int blocks = (num_states + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 
     update_delta_z_cuda<<<blocks, this->num_cuda_threads>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
@@ -182,6 +185,16 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
     }
 
     cu_obs->to_device();
+
+    // check if device index match
+    if (cu_obs->device_idx != cu_output_states->device_idx &&
+        cu_obs->device_idx != cu_delta_states->device_idx) {
+        std::string message =
+            "Device index mismatch: " + std::to_string(cu_obs->device_idx) +
+            " vs " + std::to_string(cu_output_states->device_idx) + " vs " +
+            std::to_string(cu_delta_states->device_idx);
+        LOG(LogLevel::ERROR, message);
+    }
 
     // Reset delta to zero
     cu_delta_states->reset_zeros();
@@ -218,6 +231,16 @@ void OutputUpdaterCuda::update_output_delta_z_heteros(
     }
 
     cu_obs->to_device();
+
+    // check if device index match
+    if (cu_obs->device_idx != cu_output_states->device_idx &&
+        cu_obs->device_idx != cu_delta_states->device_idx) {
+        std::string message =
+            "Device index mismatch: " + std::to_string(cu_obs->device_idx) +
+            " vs " + std::to_string(cu_output_states->device_idx) + " vs " +
+            std::to_string(cu_delta_states->device_idx);
+        LOG(LogLevel::ERROR, message);
+    }
 
     // Reset delta to zero
     cu_delta_states->reset_zeros();

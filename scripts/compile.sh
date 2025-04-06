@@ -28,4 +28,3 @@ mkdir -p build
 cmake -B build -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
 cmake --build build -j $(nproc)
-

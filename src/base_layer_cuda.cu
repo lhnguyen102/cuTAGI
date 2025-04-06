@@ -124,30 +124,6 @@ BaseLayerCuda::~BaseLayerCuda()
     cudaFree(d_neg_var_count);
 }
 
-void BaseLayerCuda::allocate_param_delta()
-/*
- */
-{
-    // Recalculate size for the memory alignment
-    unsigned int num_w =
-        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
-
-    this->delta_mu_w.resize(this->num_weights, 0.0f);
-    this->delta_var_w.resize(this->num_weights, 0.0f);
-
-    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
-    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
-    if (this->bias) {
-        unsigned int num_b =
-            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
-        this->delta_mu_b.resize(this->num_biases, 0.0f);
-        this->delta_var_b.resize(this->num_biases, 0.0f);
-        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
-        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
-    }
-    CHECK_LAST_CUDA_ERROR();
-}
-
 void BaseLayerCuda::raw_update_weights()
 /*
  */
@@ -195,7 +171,7 @@ void BaseLayerCuda::update_weights()
         cudaMemcpy(this->d_neg_var_count, &this->neg_var_w_counter, sizeof(int),
                    cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        throw std::runtime_error("Failed to copy negative var count to device");
+        LOG(LogLevel::ERROR, "Failed to copy negative var count to device");
     }
 
     device_weight_update<<<blocks, num_add_threads>>>(
@@ -205,8 +181,7 @@ void BaseLayerCuda::update_weights()
     err = cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count,
                      sizeof(int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        throw std::runtime_error(
-            "Failed to copy negative var count from device");
+        LOG(LogLevel::ERROR, "Failed to copy negative var count from device");
     }
 }
 
@@ -236,6 +211,7 @@ void BaseLayerCuda::allocate_param_memory()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     unsigned int num_w =
         ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
 
@@ -258,6 +234,8 @@ void BaseLayerCuda::params_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->d_mu_w, this->mu_w.data(),
                this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_var_w, this->var_w.data(),
@@ -270,10 +248,38 @@ void BaseLayerCuda::params_to_device()
     CHECK_LAST_CUDA_ERROR();
 }
 
+void BaseLayerCuda::allocate_param_delta()
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+
+    // Recalculate size for the memory alignment
+    unsigned int num_w =
+        ((this->num_weights + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+
+    this->delta_mu_w.resize(this->num_weights, 0.0f);
+    this->delta_var_w.resize(this->num_weights, 0.0f);
+
+    cudaMalloc((void **)&this->d_delta_mu_w, num_w * sizeof(float));
+    cudaMalloc((void **)&this->d_delta_var_w, num_w * sizeof(float));
+    if (this->bias) {
+        unsigned int num_b =
+            ((this->num_biases + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
+        this->delta_mu_b.resize(this->num_biases, 0.0f);
+        this->delta_var_b.resize(this->num_biases, 0.0f);
+        cudaMalloc((void **)&this->d_delta_mu_b, num_b * sizeof(float));
+        cudaMalloc((void **)&this->d_delta_var_b, num_b * sizeof(float));
+    }
+    CHECK_LAST_CUDA_ERROR();
+}
+
 void BaseLayerCuda::params_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->mu_w.data(), this->d_mu_w,
                this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->var_w.data(), this->d_var_w,
@@ -290,6 +296,8 @@ void BaseLayerCuda::delta_params_to_host()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
+
     cudaMemcpy(this->delta_mu_w.data(), this->d_delta_mu_w,
                this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(this->delta_var_w.data(), this->d_delta_var_w,
@@ -302,14 +310,35 @@ void BaseLayerCuda::delta_params_to_host()
     CHECK_LAST_CUDA_ERROR();
 }
 
+void BaseLayerCuda::delta_params_to_device()
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+
+    cudaMemcpy(this->d_delta_mu_w, this->delta_mu_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_delta_var_w, this->delta_var_w.data(),
+               this->num_weights * sizeof(float), cudaMemcpyHostToDevice);
+
+    if (this->bias) {
+        cudaMemcpy(this->d_delta_mu_b, this->delta_mu_b.data(),
+                   this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(this->d_delta_var_b, this->delta_var_b.data(),
+                   this->num_biases * sizeof(float), cudaMemcpyHostToDevice);
+    }
+
+    CHECK_LAST_CUDA_ERROR();
+}
+
+void BaseLayerCuda::to(int device_idx) { this->device_idx = device_idx; }
+
 void BaseLayerCuda::save(std::ofstream &file)
 /*
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        LOG(LogLevel::ERROR, "Failed to open file for saving");
     }
     // Transfer data to host
     this->params_to_host();
@@ -339,9 +368,7 @@ void BaseLayerCuda::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        LOG(LogLevel::ERROR, "Failed to open file for loading");
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -353,9 +380,7 @@ void BaseLayerCuda::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
+        LOG(LogLevel::ERROR, "Layer name are not match. Expected: " +
                                  layer_name + ", Found: " + loaded_name);
     }
 
@@ -432,9 +457,8 @@ std::vector<ParameterTuple> BaseLayerCuda::parameters() {
 }
 
 std::unique_ptr<BaseLayer> BaseLayerCuda::to_host() {
-    throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                             " at line: " + std::to_string(__LINE__) +
-                             ". ErrorNotImplemented");
+    LOG(LogLevel::ERROR, "ErrorNotImplemented");
+    return nullptr;
 }
 
 void BaseLayerCuda::store_states_for_training_cuda(
@@ -448,21 +472,12 @@ void BaseLayerCuda::store_states_for_training_cuda(
     int act_size = input_states.actual_size * batch_size;
     if (cu_bwd_states->size != act_size) {
         cu_bwd_states->size = act_size;
+        cu_bwd_states->set_device_idx(input_states.device_idx);
         cu_bwd_states->allocate_memory();
     }
+    cu_bwd_states->copy_from(input_states, act_size);
 
     constexpr unsigned int THREADS = 256;
-    // unsigned int blocks = (act_size + THREADS - 1) / THREADS;
-
-    // fill_bwd_states_on_device<<<blocks, THREADS>>>(
-    //     input_states.d_mu_a, input_states.d_jcb, act_size,
-    //     cu_bwd_states->d_mu_a, cu_bwd_states->d_jcb);
-
-    cudaMemcpy(cu_bwd_states->d_mu_a, input_states.d_mu_a,
-               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
-    cudaMemcpy(cu_bwd_states->d_jcb, input_states.d_jcb,
-               act_size * sizeof(float), cudaMemcpyDeviceToDevice);
-
     int out_size = this->output_size * batch_size;
     unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
 

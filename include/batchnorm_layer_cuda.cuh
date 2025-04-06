@@ -20,7 +20,7 @@ class BatchNorm2dCuda : public BaseLayerCuda {
 
     BatchNorm2dCuda(int num_features, float eps = 1e-5, float mometum = 0.9,
                     bool bias = true, float gain_weight = 1.0,
-                    float gain_bias = 1.0);
+                    float gain_bias = 1.0, int device_idx = 0);
     ~BatchNorm2dCuda();
 
     // Delete copy constructor and copy assignment
@@ -57,12 +57,13 @@ class BatchNorm2dCuda : public BaseLayerCuda {
                std::vector<std::vector<float>>, std::vector<std::vector<float>>>
     get_norm_mean_var() override;
 
+    void to(int device_idx) override;
+
    protected:
     void allocate_running_mean_var();
     void deallocate_running_mean_var();
     void running_mean_var_to_host();
     void running_mean_var_to_device();
-    void lazy_init();
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
 };

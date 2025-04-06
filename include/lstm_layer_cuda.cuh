@@ -20,7 +20,7 @@ class LSTMCuda : public BaseLayerCuda {
 
     LSTMCuda(size_t input_size, size_t output_size, int seq_len,
              bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-             std::string init_method = "Xavier");
+             std::string init_method = "Xavier", int device_idx = 0);
 
     ~LSTMCuda();
 
@@ -71,13 +71,14 @@ class LSTMCuda : public BaseLayerCuda {
     void preinit_layer() override;
 
     void d_get_LSTM_states(std::vector<float> &mu_h, std::vector<float> &var_h,
-                       std::vector<float> &mu_c,
-                       std::vector<float> &var_c) const;
+                           std::vector<float> &mu_c,
+                           std::vector<float> &var_c) const;
 
     void d_set_LSTM_states(const std::vector<float> &mu_h,
-                       const std::vector<float> &var_h,
-                       const std::vector<float> &mu_c,
-                       const std::vector<float> &var_c);
+                           const std::vector<float> &var_h,
+                           const std::vector<float> &mu_c,
+                           const std::vector<float> &var_c);
+    void to(int device_idx) override;
 
    protected:
     using BaseLayerCuda::allocate_param_memory;

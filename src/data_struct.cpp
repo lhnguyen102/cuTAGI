@@ -3,12 +3,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Base Hidden States
 ////////////////////////////////////////////////////////////////////////////////
-BaseHiddenStates::BaseHiddenStates(size_t n, size_t m)
+BaseHiddenStates::BaseHiddenStates(size_t n, size_t m, int device_idx)
     : mu_a(n, 0.0f),
       var_a(n, 0.0f),
       jcb(n, 1.0f),
       size(n),
-      block_size(m)
+      block_size(m),
+      device_idx(device_idx)
 /**/
 {
     this->actual_size = n / m;
@@ -127,8 +128,12 @@ void SmoothingHiddenStates::swap(BaseHiddenStates& other) {
 ////////////////////////////////////////////////////////////////////////////////
 // Base Delta States
 ////////////////////////////////////////////////////////////////////////////////
-BaseDeltaStates::BaseDeltaStates(size_t n, size_t m)
-    : delta_mu(n, 0.0f), delta_var(n, 0.0f), size(n), block_size(m) {
+BaseDeltaStates::BaseDeltaStates(size_t n, size_t m, int device_idx)
+    : delta_mu(n, 0.0f),
+      delta_var(n, 0.0f),
+      size(n),
+      block_size(m),
+      device_idx(device_idx) {
     this->actual_size = this->size / this->block_size;
 }
 
@@ -179,9 +184,14 @@ void BaseDeltaStates::swap(BaseDeltaStates& other)
 ////////////////////////////////////////////////////////////////////////////////
 // Base Temp States
 ////////////////////////////////////////////////////////////////////////////////
-
-BaseTempStates::BaseTempStates(size_t n, size_t m)
-    : tmp_1(n, 0.0f), tmp_2(n, 0.0f), size(n), block_size(m) {}
+BaseTempStates::BaseTempStates(size_t n, size_t m, int device_idx)
+    : tmp_1(n, 0.0f),
+      tmp_2(n, 0.0f),
+      size(n),
+      block_size(m),
+      device_idx(device_idx) {
+    this->actual_size = this->size / this->block_size;
+}
 
 BaseTempStates::BaseTempStates() {}
 
@@ -218,8 +228,8 @@ void BaseBackwardStates::set_size(size_t new_size)
 ////////////////////////////////////////////////////////////////////////////////
 // Base Observation
 ////////////////////////////////////////////////////////////////////////////////
-BaseObservation::BaseObservation(size_t n, size_t m, size_t k)
-    : size(n), block_size(m), idx_size(k) {}
+BaseObservation::BaseObservation(size_t n, size_t m, size_t k, int device_idx)
+    : size(n), block_size(m), idx_size(k), device_idx(device_idx) {}
 
 BaseObservation::BaseObservation() {}
 
@@ -253,19 +263,23 @@ void BaseObservation::set_size(size_t new_size, size_t new_block_size)
 // LSTM States
 ////////////////////////////////////////////////////////////////////////////////
 BaseLSTMStates::BaseLSTMStates() {}
-BaseLSTMStates::BaseLSTMStates(size_t num_states, size_t num_inputs)
+BaseLSTMStates::BaseLSTMStates(size_t num_states, size_t num_inputs,
+                               int device_idx)
     : num_states(num_states),
-      num_inputs(num_inputs)
+      num_inputs(num_inputs),
+      device_idx(device_idx)
 /*
  */
 {
     this->reset_zeros();
 }
 
-void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs)
+void BaseLSTMStates::set_num_states(size_t num_states, size_t num_inputs,
+                                    int device_idx_)
 /*
  */
 {
+    this->device_idx = device_idx_;
     this->num_states = num_states;
     this->num_inputs = num_inputs;
     this->reset_zeros();

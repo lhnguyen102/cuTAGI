@@ -15,7 +15,7 @@ class MaxPool2dCuda : public BaseLayerCuda {
     int *d_pool_idx, *d_max_pool_idx;
 
     MaxPool2dCuda(size_t kernel_size, int stride = 1, int padding = 0,
-                  int padding_type = 0);
+                  int padding_type = 0, int device_idx = 0);
 
     ~MaxPool2dCuda();
 
@@ -51,6 +51,8 @@ class MaxPool2dCuda : public BaseLayerCuda {
     void update_biases() override {};
 
     void preinit_layer() override;
+
+    void to(int device_idx_) override;
 
    protected:
     void lazy_index_init();

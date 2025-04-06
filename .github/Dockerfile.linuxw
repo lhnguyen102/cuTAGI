@@ -1,0 +1,79 @@
+FROM ubuntu:22.04
+
+# Set Python version as build argument
+ARG PYTHON_VERSION=3.11
+ENV PYTHON_VERSION=${PYTHON_VERSION} \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    autoconf automake libtool pkg-config \
+    apt-transport-https ca-certificates \
+    software-properties-common g++ git wget \
+    cmake gdb valgrind \
+    openmpi-bin=4.1.2-2ubuntu1 \
+    libopenmpi-dev=4.1.2-2ubuntu1 \
+    curl file gzip gnupg gcc-12 g++-12 \
+    locales locales-all && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set default gcc/g++ version
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+
+# Install CUDA keyring and NCCL
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt-get update && \
+    apt-get install -y libnccl2=2.25.1-1+cuda12.2 libnccl-dev=2.25.1-1+cuda12.2 && \
+    rm -rf /var/lib/apt/lists/* cuda-keyring_1.1-1_all.deb
+
+# Install Miniconda and configure environment
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    rm /tmp/miniconda.sh && \
+    /opt/conda/bin/conda config --add channels nvidia && \
+    /opt/conda/bin/conda config --add channels conda-forge && \
+    /opt/conda/bin/conda config --add channels defaults && \
+    /opt/conda/bin/conda create -n cutagi python=${PYTHON_VERSION} -y && \
+    /opt/conda/bin/conda init bash && \
+    echo "conda activate cutagi" >> ~/.bashrc
+
+# Set cutagi as default environment
+ENV PATH=/opt/conda/bin:/opt/conda/envs/cutagi/bin:$PATH \
+    CONDA_DEFAULT_ENV=cutagi \
+    CONDA_PREFIX=/opt/conda/envs/cutagi
+
+# Install dependencies in the cutagi environment
+RUN conda install -y cuda -c nvidia/label/cuda-12.2.2 && \
+    pip install --upgrade pip setuptools==75.3.0 wheel==0.44.0 ninja==1.11.1.1
+
+# Set compilation environment variables
+ENV CC=gcc-12 \
+    CXX=g++-12 \
+    CUDA_HOME=/usr/local/cuda \
+    PATH=/usr/local/cuda/bin:$PATH \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# Create a non-root user and workspace
+RUN useradd -m -s /bin/bash builder && \
+    mkdir -p /workspace && \
+    chown -R builder:builder /workspace && \
+    echo "conda activate cutagi" >> /home/builder/.bashrc
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy only necessary files, excluding data folders
+COPY --chown=builder:builder . /workspace/
+
+# Switch to non-root user
+USER builder
+
+# Command to run when container starts
+CMD ["/bin/bash"]

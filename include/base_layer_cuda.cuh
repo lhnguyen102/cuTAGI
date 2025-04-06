@@ -40,8 +40,6 @@ class BaseLayerCuda : public BaseLayer {
 
     using BaseLayer::forward;
 
-    void allocate_param_delta() override;
-
     void update_weights() override;
 
     void update_biases() override;
@@ -53,9 +51,14 @@ class BaseLayerCuda : public BaseLayer {
     virtual void set_cuda_threads(int);
 
     virtual std::unique_ptr<BaseLayer> to_host();
+
+    // CUDA allocation
     virtual void params_to_device();
+    void allocate_param_delta() override;
     virtual void params_to_host();
     virtual void delta_params_to_host();
+    virtual void delta_params_to_device();
+    void to(int device_idx) override;
 
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;

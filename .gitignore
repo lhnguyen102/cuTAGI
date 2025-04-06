@@ -15,6 +15,7 @@ dist
 # folders
 data/cifar
 data/mnist/
+data/MNIST/
 data/traffic
 data/imagenet
 test_model/

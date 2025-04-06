@@ -10,23 +10,22 @@ import fire
 import numpy as np
 from tqdm import tqdm
 
-
-from examples.data_loader import MnistDataLoader
-from pytagi import HRCSoftmaxMetric
 import pytagi
+from examples.data_loader import MnistDataLoader
+from examples.param_stat_table import ParamStatTable, WandBLogger
+from pytagi import HRCSoftmaxMetric
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
     LayerNorm,
     Linear,
-    OutputUpdater,
-    MixtureReLU,
-    Sequential,
     MaxPool2d,
+    MixtureReLU,
+    OutputUpdater,
     ReLU,
+    Sequential,
 )
-from examples.param_stat_table import ParamStatTable, WandBLogger
 
 FNN = Sequential(
     Linear(784, 128),
@@ -58,13 +57,13 @@ FNN_LAYERNORM = Sequential(
 
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5),
-    MixtureReLU(),
+    ReLU(),
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
-    MixtureReLU(),
+    ReLU(),
     Linear(100, 11),
 )
 
@@ -98,8 +97,8 @@ CNN_LAYERNORM = Sequential(
 
 
 def main(
-    num_epochs: int = 20,
-    batch_size: int = 128,
+    num_epochs: int = 10,
+    batch_size: int = 64,
     sigma_v: float = 0.05,
     is_tracking: bool = False,
 ):
@@ -110,8 +109,10 @@ def main(
     - batch_size: int, size of the batch for training
     """
     # User data
-    print_param_stat = True  # print mean and std of parameters
-    is_tracking = is_tracking if print_param_stat else False  # track params with wandb
+    print_param_stat = False  # print mean and std of parameters
+    is_tracking = (
+        is_tracking if print_param_stat else False
+    )  # track params with wandb
 
     # Visual tool
     param_stat = ParamStatTable()
@@ -121,7 +122,7 @@ def main(
             project_name="resnet",
             config={
                 "sigma_v": sigma_v,
-                "dataset": "imagenet",
+                "dataset": "mnist",
                 "nb_classes": 10,
                 "batch_size": batch_size,
                 "num_epochs": num_epochs,
@@ -144,7 +145,7 @@ def main(
     metric = HRCSoftmaxMetric(num_classes=10)
 
     # Network configuration
-    net = FNN
+    net = CNN
     if pytagi.cuda.is_available():
         net.to_device("cuda")
     else:

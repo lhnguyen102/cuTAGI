@@ -4,7 +4,9 @@ import cutagi
 
 
 class BaseHiddenStates:
-    def __init__(self, size: Optional[int] = None, block_size: Optional[int] = None):
+    def __init__(
+        self, size: Optional[int] = None, block_size: Optional[int] = None
+    ):
         if size is not None and block_size is not None:
             self._cpp_backend = cutagi.BaseHiddenStates(size, block_size)
         else:
@@ -46,7 +48,9 @@ class BaseHiddenStates:
     def actual_size(self) -> int:
         return self._cpp_backend.actual_size
 
-    def set_input_x(self, mu_x: List[float], var_x: List[float], block_size: int):
+    def set_input_x(
+        self, mu_x: List[float], var_x: List[float], block_size: int
+    ):
         self._cpp_backend.set_input_x(mu_x, var_x, block_size)
 
     def get_name(self) -> str:
@@ -57,7 +61,9 @@ class BaseHiddenStates:
 
 
 class BaseDeltaStates:
-    def __init__(self, size: Optional[int] = None, block_size: Optional[int] = None):
+    def __init__(
+        self, size: Optional[int] = None, block_size: Optional[int] = None
+    ):
         if size is not None and block_size is not None:
             self._cpp_backend = cutagi.BaseDeltaStates(size, block_size)
         else:

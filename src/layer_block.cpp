@@ -37,7 +37,7 @@ it will be corrected at the first run in the forward pass.
     if (this->device.compare("cpu") == 0) {
         this->layers.push_back(std::move(layer));
     } else if (this->device.compare("cuda") == 0) {
-        this->layers.push_back(std::move(layer->to_cuda()));
+        this->layers.push_back(std::move(layer->to_cuda(this->device_idx)));
     } else {
         LOG(LogLevel::ERROR, "Invalid device: [" + this->device + "]");
     }
@@ -45,7 +45,7 @@ it will be corrected at the first run in the forward pass.
 
 void LayerBlock::switch_to_cuda() {
     for (size_t i = 0; i < this->layers.size(); ++i) {
-        auto cuda_layer = layers[i]->to_cuda();
+        auto cuda_layer = layers[i]->to_cuda(this->device_idx);
         layers[i] = std::move(cuda_layer);
     }
 }
@@ -87,13 +87,17 @@ std::string LayerBlock::get_device()
 /*
  */
 {
+    std::string block_device =
+        this->device + ":" + std::to_string(this->device_idx);
     for (auto &layer : this->layers) {
         auto layer_device = layer->get_device();
-        if (layer_device != this->device) {
-            return layer_device;
+        if (layer_device != block_device) {
+            LOG(LogLevel::ERROR, "Layer device [" + layer_device +
+                                     "] does not match block device [" +
+                                     block_device + "]");
         }
     }
-    return this->device;
+    return block_device;
 }
 
 void LayerBlock::init_weight_bias()
@@ -314,8 +318,9 @@ std::vector<ParameterTuple> LayerBlock::parameters() {
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LayerBlock::to_cuda() {
+std::unique_ptr<BaseLayer> LayerBlock::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     this->switch_to_cuda();
     return std::make_unique<LayerBlock>(std::move(*this));
 }

@@ -572,7 +572,7 @@ void ReLU::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> ReLU::to_cuda() {
+std::unique_ptr<BaseLayer> ReLU::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<ReLUCuda>();
 }
@@ -628,7 +628,7 @@ void Sigmoid::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Sigmoid::to_cuda() {
+std::unique_ptr<BaseLayer> Sigmoid::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<SigmoidCuda>();
 }
@@ -683,7 +683,7 @@ void Tanh::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Tanh::to_cuda() {
+std::unique_ptr<BaseLayer> Tanh::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<TanhCuda>();
 }
@@ -740,7 +740,7 @@ void MixtureReLU::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> MixtureReLU::to_cuda() {
+std::unique_ptr<BaseLayer> MixtureReLU::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<MixtureReLUCuda>();
 }
@@ -797,7 +797,7 @@ void MixtureSigmoid::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> MixtureSigmoid::to_cuda() {
+std::unique_ptr<BaseLayer> MixtureSigmoid::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<MixtureSigmoidCuda>();
 }
@@ -854,7 +854,7 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> MixtureTanh::to_cuda() {
+std::unique_ptr<BaseLayer> MixtureTanh::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<MixtureTanhCuda>();
 }
@@ -910,7 +910,7 @@ void Softplus::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Softplus::to_cuda() {
+std::unique_ptr<BaseLayer> Softplus::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<SoftplusCuda>();
 }
@@ -967,7 +967,7 @@ void LeakyReLU::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LeakyReLU::to_cuda() {
+std::unique_ptr<BaseLayer> LeakyReLU::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<LeakyReLUCuda>();
 }
@@ -1023,7 +1023,7 @@ void Softmax::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Softmax::to_cuda() {
+std::unique_ptr<BaseLayer> Softmax::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<SoftmaxCuda>();
 }
@@ -1185,7 +1185,7 @@ void EvenExp::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> EvenExp::to_cuda() {
+std::unique_ptr<BaseLayer> EvenExp::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<EvenExpCuda>();
 }

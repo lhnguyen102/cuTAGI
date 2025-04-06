@@ -11,9 +11,10 @@ class SLSTM : public LSTM {
     int time_step = 0;
     SLSTM(size_t input_size, size_t output_size, int seq_len = 1,
           bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-          std::string init_method = "Xavier", int time_step = 0)
+          std::string init_method = "Xavier", int time_step = 0,
+          int device_idx = 0)
         : LSTM(input_size, output_size, seq_len, bias, gain_w, gain_b,
-               init_method),
+               init_method, device_idx),
           time_step(time_step) {}
 
     std::string get_layer_info() const override;

@@ -15,7 +15,15 @@ Cite any related GitHub issues that are addressed or resolved by this PR. Use th
 - [ ]  I have followed the project's coding conventions and style guidelines.
 - [ ]  I have updated the documentation, if applicable.
 - [ ]  I have rebased my branch on the latest upstream code to incorporate any changes.
-- [ ]  I have tested the changes locally.
+- [ ]  I have tested the changes locally by running the following tests on a CUDA-installed device
+
+    ```shell
+    build/run_tests
+    ```
+    ```shell
+    python -m test.py_unit.main
+    ```
+
 
 
 ## Notes for Reviewers

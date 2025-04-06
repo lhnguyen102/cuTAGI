@@ -21,7 +21,7 @@ class AvgPool2d : public BaseLayer {
     bool overlap = true;
 
     AvgPool2d(size_t kernel_size, int stride = -1, int padding = 0,
-              int padding_type = 0);
+              int padding_type = 0, int device_idx = 0);
 
     virtual ~AvgPool2d();
 
@@ -60,7 +60,7 @@ class AvgPool2d : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     void preinit_layer() override;

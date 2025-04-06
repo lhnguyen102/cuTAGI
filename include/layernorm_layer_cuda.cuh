@@ -16,7 +16,7 @@ class LayerNormCuda : public BaseLayerCuda {
     int _batch_size = 0;
 
     LayerNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5,
-                  bool bias = true);
+                  bool bias = true, int device_idx = 0);
     ~LayerNormCuda();
 
     // Delete copy constructor and copy assignment
@@ -56,6 +56,8 @@ class LayerNormCuda : public BaseLayerCuda {
 
     void save(std::ofstream &file) override;
     void load(std::ifstream &file) override;
+
+    void to(int device_idx) override;
 
    protected:
     void allocate_running_mean_var();

@@ -14,7 +14,7 @@
 Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
                bool bias, int stride, int padding, int padding_type,
                size_t in_width, size_t in_height, float gain_w, float gain_b,
-               std::string init_method)
+               std::string init_method, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
@@ -30,6 +30,7 @@ Conv2d::Conv2d(size_t in_channels, size_t out_channels, size_t kernel_size,
     this->in_channels = in_channels;
     this->out_channels = out_channels;
     this->bias = bias;
+    this->device_idx = device_idx;
 }
 
 Conv2d::~Conv2d() {}
@@ -245,12 +246,14 @@ void Conv2d::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> Conv2d::to_cuda() {
+std::unique_ptr<BaseLayer> Conv2d::to_cuda(int device_idx) {
     this->device = "cuda";
+    this->device_idx = device_idx;
     return std::make_unique<Conv2dCuda>(
         this->in_channels, this->out_channels, this->kernel_size, this->bias,
         this->stride, this->padding, this->padding_type, this->in_width,
-        this->in_height, this->gain_w, this->gain_b, this->init_method);
+        this->in_height, this->gain_w, this->gain_b, this->init_method,
+        this->device_idx);
 }
 #endif
 

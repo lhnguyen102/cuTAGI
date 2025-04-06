@@ -1,11 +1,4 @@
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    ReLU,
-    Sequential,
-)
+from pytagi.nn import AvgPool2d, BatchNorm2d, Conv2d, Linear, ReLU, Sequential
 
 MODEL_1 = Sequential(
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),

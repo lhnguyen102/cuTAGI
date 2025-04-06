@@ -98,11 +98,13 @@ __global__ void max2dpool_bwd_delta_z_cuda(int const *max_pool_idx,
 // MaxPool2dCuda
 ////////////////////////////////////////////////////////////////////////////////
 MaxPool2dCuda::MaxPool2dCuda(size_t kernel_size, int stride, int padding,
-                             int padding_type)
+                             int padding_type, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
-      padding_type(padding_type) {}
+      padding_type(padding_type) {
+    this->device_idx = device_idx;
+}
 
 MaxPool2dCuda::~MaxPool2dCuda() {}
 
@@ -254,6 +256,7 @@ void MaxPool2dCuda::allocate_maxpool2d_index()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Memory aligment
     unsigned int size_pool_idx =
         ((this->pool_idx.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
@@ -266,6 +269,7 @@ void MaxPool2dCuda::maxpool2d_index_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_pool_idx, this->pool_idx.data(),
                this->pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -280,6 +284,7 @@ void MaxPool2dCuda::preinit_layer() {
 }
 
 void MaxPool2dCuda::allocate_max_val_index(int batch_size) {
+    cudaSetDevice(this->device_idx);
     // Memory aligment
     int wohofo = this->out_width * this->out_height * this->out_channels;
     unsigned int size_max_pool_idx =
@@ -293,6 +298,7 @@ void MaxPool2dCuda::allocate_max_val_index(int batch_size) {
 }
 
 void MaxPool2dCuda::max_val_index_to_device() {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_max_pool_idx, this->max_pool_idx.data(),
                this->max_pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -301,9 +307,12 @@ void MaxPool2dCuda::max_val_index_to_device() {
 }
 
 void MaxPool2dCuda::max_val_index_to_host() {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->max_pool_idx.data(), this->d_max_pool_idx,
                this->max_pool_idx.size() * sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaError_t error = cudaGetLastError();
     CHECK_LAST_CUDA_ERROR();
 }
+
+void MaxPool2dCuda::to(int device_idx_) { this->device_idx = device_idx_; }

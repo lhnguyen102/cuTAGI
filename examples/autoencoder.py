@@ -23,12 +23,11 @@ from pytagi.nn import (
     Conv2d,
     ConvTranspose2d,
     Linear,
+    MixtureReLU,
     OutputUpdater,
     ReLU,
-    MixtureReLU,
     Sequential,
 )
-
 
 plt.rcParams.update(
     {
@@ -110,7 +109,9 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
             in_height=7,
         ),
         MixtureReLU(),
-        ConvTranspose2d(32, 16, 3, bias=True, stride=2, padding=1, padding_type=2),
+        ConvTranspose2d(
+            32, 16, 3, bias=True, stride=2, padding=1, padding_type=2
+        ),
         MixtureReLU(),
         ConvTranspose2d(16, 1, 3, bias=True, padding=1),
     )
@@ -133,7 +134,9 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
         sigma_v = exponential_scheduler(
             curr_v=sigma_v, min_v=1, decaying_factor=0.99, curr_iter=epoch
         )
-        var_y = np.full((batch_size * num_pixels,), sigma_v**2, dtype=np.float32)
+        var_y = np.full(
+            (batch_size * num_pixels,), sigma_v**2, dtype=np.float32
+        )
 
         for i, (x, _, _, _) in enumerate(batch_iter):
             # Feed forward
@@ -153,7 +156,9 @@ def main(num_epochs: int = 2, batch_size: int = 20, sigma_v: float = 16.0):
             decoder.step()
 
             # Send updating values to encoder
-            encoder.input_delta_z_buffer.copy_from(decoder.output_delta_z_buffer)
+            encoder.input_delta_z_buffer.copy_from(
+                decoder.output_delta_z_buffer
+            )
 
             encoder.backward()
             encoder.step()
@@ -245,7 +250,8 @@ class ImageViz:
         # Reshape data for plot
         num_imgs = int(len(imgs) / np.prod(self.img_size))
         imgs = np.reshape(
-            imgs, (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2])
+            imgs,
+            (num_imgs, self.img_size[0], self.img_size[1], self.img_size[2]),
         )
         mu = np.reshape(self.mu, (self.img_size[0], 1, 1))
         sigma = np.reshape(self.sigma, (self.img_size[0], 1, 1))

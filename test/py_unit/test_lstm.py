@@ -12,7 +12,9 @@ from pytagi.nn import LSTM, SLSTM, Linear, OutputUpdater, Sequential, SLinear
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+    os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    )
 )
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
@@ -69,7 +71,9 @@ def lstm_test_runner(
 
             # Training metric
             pred = normalizer.unstandardize(
-                m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                m_pred,
+                train_dtl.x_mean[output_col],
+                train_dtl.x_std[output_col],
             )
             obs = normalizer.unstandardize(
                 y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
@@ -153,7 +157,9 @@ def smoother_test_runner(
 
             # Training metric
             pred = normalizer.unstandardize(
-                m_pred, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                m_pred,
+                train_dtl.x_mean[output_col],
+                train_dtl.x_std[output_col],
             )
             y_train.append(y)
             obs = normalizer.unstandardize(
@@ -188,7 +194,9 @@ class SineSignalTest(unittest.TestCase):
             Linear(8 * input_seq_len, 1),
         )
         mse = lstm_test_runner(model, input_seq_len=input_seq_len)
-        self.assertLess(mse, self.threshold, "Error rate is higher than threshold")
+        self.assertLess(
+            mse, self.threshold, "Error rate is higher than threshold"
+        )
 
     def test_smoother_CPU(self):
         input_seq_len = 24
@@ -201,7 +209,9 @@ class SineSignalTest(unittest.TestCase):
         mse = smoother_test_runner(
             model, input_seq_len=input_seq_len, num_features=num_features
         )
-        self.assertLess(mse, self.threshold, "Error rate is higher than threshold")
+        self.assertLess(
+            mse, self.threshold, "Error rate is higher than threshold"
+        )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_lstm_CUDA(self):
@@ -213,8 +223,12 @@ class SineSignalTest(unittest.TestCase):
             LSTM(8, 8, input_seq_len),
             Linear(8 * input_seq_len, 1),
         )
-        mse = lstm_test_runner(model, input_seq_len=input_seq_len, use_cuda=True)
-        self.assertLess(mse, self.threshold, "Error rate is higher than threshold")
+        mse = lstm_test_runner(
+            model, input_seq_len=input_seq_len, use_cuda=True
+        )
+        self.assertLess(
+            mse, self.threshold, "Error rate is higher than threshold"
+        )
 
 
 if __name__ == "__main__":

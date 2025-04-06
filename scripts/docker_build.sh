@@ -50,11 +50,11 @@ echo "Device selected for build: $DEVICE"
 # Select Dockerfile and build command based on device
 if [ "$DEVICE" == "cpu" ]; then
     echo "Building Docker image with CPU support..."
-    docker build -f "cpu.dockerfile" -t "cutagi-cpu:$VERSION" .
+    docker build -f "scripts/cpu.dockerfile" -t "cutagi-cpu:$VERSION" .
 
 elif [ "$DEVICE" == "cuda" ]; then
     echo "Building Docker image with CUDA support..."
-    docker build -f "Dockerfile" -t "cutagi:$VERSION" .
+    docker build -f "scripts/Dockerfile" -t "cutagi:$VERSION" .
 else
     echo "Error: Unsupported device type '$DEVICE'. Use 'cpu' or 'cuda'."
     exit 1

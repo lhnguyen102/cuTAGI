@@ -35,7 +35,8 @@ class ConvTranspose2d : public BaseLayer {
                     bool bias = true, int stride = 1, int padding = 0,
                     int padding_type = 1, size_t in_width = 0,
                     size_t in_height = 0, float gain_w = 1.0f,
-                    float gain_b = 1.0f, std::string init_method = "He");
+                    float gain_b = 1.0f, std::string init_method = "He",
+                    int device_idx = 0);
     ~ConvTranspose2d();
 
     // Delete copy constructor and copy assignment
@@ -71,7 +72,7 @@ class ConvTranspose2d : public BaseLayer {
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     void preinit_layer() override;

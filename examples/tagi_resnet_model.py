@@ -1,3 +1,5 @@
+import numpy as np
+
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -5,11 +7,10 @@ from pytagi.nn import (
     LayerBlock,
     Linear,
     MixtureReLU,
+    ReLU,
     ResNetBlock,
     Sequential,
-    ReLU,
 )
-import numpy as np
 
 
 def make_layer_block(

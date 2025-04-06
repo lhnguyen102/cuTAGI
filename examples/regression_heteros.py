@@ -7,7 +7,7 @@ import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
 from pytagi import Normalizer
-from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential, EvenExp
+from pytagi.nn import EvenExp, Linear, OutputUpdater, ReLU, Sequential
 
 np.random.seed(0)
 

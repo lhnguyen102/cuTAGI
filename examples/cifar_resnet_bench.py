@@ -9,26 +9,27 @@ sys.path.append(
 import fire
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import torchvision
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import torch.nn as nn
-import torch.optim as optim
+
 import pytagi
+from examples.tagi_resnet_model import resnet18_cifar10
+from examples.torch_resnet_model import ResNet18
 from pytagi import HRCSoftmaxMetric, Utils, exponential_scheduler
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
     Linear,
+    MixtureReLU,
     OutputUpdater,
     ReLU,
-    MixtureReLU,
     Sequential,
 )
-from examples.tagi_resnet_model import resnet18_cifar10
-from examples.torch_resnet_model import ResNet18
 
 torch.manual_seed(17)
 
@@ -161,7 +162,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -169,7 +172,9 @@ def load_datasets(batch_size: int, framework: str = "tagi"):
         [
             transforms.ToImage(),
             transforms.ConvertImageDtype(torch.float32),
-            transforms.Normalize(mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD),
+            transforms.Normalize(
+                mean=NORMALIZATION_MEAN, std=NORMALIZATION_STD
+            ),
         ]
     )
 
@@ -378,7 +383,7 @@ def torch_trainer(batch_size: int, num_epochs: int, device: str = "cuda"):
 
 def main(
     framework: str = "tagi",
-    batch_size: int = 128,
+    batch_size: int = 256,
     epochs: int = 50,
     device: str = "cuda",
     sigma_v: float = 0.1,

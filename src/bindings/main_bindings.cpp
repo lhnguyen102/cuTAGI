@@ -31,8 +31,16 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_layer_block(modo);
     bind_resnet_block(modo);
     bind_sequential(modo);
+    bind_distributed(modo);
     bind_output_updater(modo);
     bind_utils(modo);
     bind_manual_seed(modo);
     bind_is_cuda_available(modo);
+    bind_cuda_device_memory(modo);
+    bind_cuda_device_properties(modo);
+    bind_cuda_device_count(modo);
+    bind_cuda_current_device(modo);
+    bind_cuda_set_device(modo);
+    bind_cuda_device_available(modo);
+    bind_nccl_available(modo);
 }

@@ -1,34 +1,70 @@
-
 #include "../include/sequential.h"
 
 #include "../include/batchnorm_layer.h"
+#include "../include/common.h"
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
 #ifdef USE_CUDA
+#include <cuda_runtime.h>
+
 #include "../include/base_layer_cuda.cuh"
 #include "../include/batchnorm_layer_cuda.cuh"
 #include "../include/resnet_block_cuda.cuh"
 #endif
 #include <memory>
 
+#include "../include/cuda_utils.h"
+
 // Sequential::Sequential() {}
 Sequential::~Sequential() { this->valid_ = false; }
 
 void Sequential::switch_to_cuda() {
     for (size_t i = 0; i < this->layers.size(); ++i) {
-        auto cuda_layer = layers[i]->to_cuda();
+        auto cuda_layer = layers[i]->to_cuda(this->device_idx);
         layers[i] = std::move(cuda_layer);
     }
 }
 
 void Sequential::to_device(const std::string &new_device) {
-    this->device = new_device;
-    if (this->device == "cuda") {
-        switch_to_cuda();
+    if (new_device == "cpu") {
+        this->device = "cpu";
+        return;
     }
+    // Check if device string contains index (e.g. "cuda:0")
+    size_t colon_pos = new_device.find(':');
+
+    if (colon_pos != std::string::npos) {
+        this->device = new_device.substr(0, colon_pos);
+        try {
+            this->device_idx = std::stoi(new_device.substr(colon_pos + 1));
+
+            int device_count = 0;
+#ifdef USE_CUDA
+            cudaGetDeviceCount(&device_count);
+            if (this->device_idx < 0 || this->device_idx >= device_count) {
+                LOG(LogLevel::ERROR,
+                    "Invalid CUDA device index: " +
+                        std::to_string(this->device_idx) +
+                        ". Available devices: " + std::to_string(device_count));
+                return;
+            }
+#endif
+
+        } catch (const std::exception &e) {
+            LOG(LogLevel::ERROR,
+                "Invalid device index format in: [" + new_device + "]");
+            return;
+        }
+    } else {
+        this->device = new_device;
+    }
+    if (this->device == "cuda" && !is_cuda_available()) {
+        LOG(LogLevel::ERROR, "CUDA is not available");
+    }
+    this->switch_to_cuda();
 
     // TODO: We should not run this again when switching device
     this->compute_input_output_size();
@@ -140,22 +176,27 @@ void Sequential::init_output_state_buffer()
                 this->num_samples);
         } else {
             this->output_z_buffer = std::make_shared<BaseHiddenStates>(
-                this->z_buffer_size, this->z_buffer_block_size);
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->device_idx);
             this->input_z_buffer = std::make_shared<BaseHiddenStates>(
-                this->z_buffer_size, this->z_buffer_block_size);
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->device_idx);
         }
         this->temp_states = std::make_shared<BaseTempStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
+            this->z_buffer_size, this->z_buffer_block_size, this->device_idx);
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
         if (this->layers[0]->get_layer_type() != LayerType::SLSTM) {
             this->output_z_buffer = std::make_shared<HiddenStateCuda>(
-                this->z_buffer_size, this->z_buffer_block_size);
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->device_idx);
             this->input_z_buffer = std::make_shared<HiddenStateCuda>(
-                this->z_buffer_size, this->z_buffer_block_size);
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->device_idx);
             this->temp_states = std::make_shared<TempStateCuda>(
-                this->z_buffer_size, this->z_buffer_block_size);
+                this->z_buffer_size, this->z_buffer_block_size,
+                this->device_idx);
         } else {
             LOG(LogLevel::ERROR, "Smoothing feature does not support CUDA");
         }
@@ -172,16 +213,16 @@ void Sequential::init_delta_state_buffer()
 {
     if (this->device.compare("cpu") == 0) {
         this->output_delta_z_buffer = std::make_shared<BaseDeltaStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
+            this->z_buffer_size, this->z_buffer_block_size, this->device_idx);
         this->input_delta_z_buffer = std::make_shared<BaseDeltaStates>(
-            this->z_buffer_size, this->z_buffer_block_size);
+            this->z_buffer_size, this->z_buffer_block_size, this->device_idx);
     }
 #ifdef USE_CUDA
     else if (this->device.compare("cuda") == 0) {
         this->output_delta_z_buffer = std::make_shared<DeltaStateCuda>(
-            this->z_buffer_size, this->z_buffer_block_size);
+            this->z_buffer_size, this->z_buffer_block_size, this->device_idx);
         this->input_delta_z_buffer = std::make_shared<DeltaStateCuda>(
-            this->z_buffer_size, this->z_buffer_block_size);
+            this->z_buffer_size, this->z_buffer_block_size, this->device_idx);
     }
 #endif
     else {
@@ -238,10 +279,9 @@ void Sequential::forward(const std::vector<float> &mu_x,
     // Batch size: TODO: this is only correct if input size is correctly set
     int input_size = this->layers.front()->get_input_size();
     if (mu_x.size() % input_size != 0) {
-        std::string message =
-            "Input size mismatch: " + std::to_string(input_size) + " vs " +
-            std::to_string(mu_x.size());
-        LOG(LogLevel::ERROR, message);
+        std::string msg = "Input size mismatch: " + std::to_string(input_size) +
+                          " vs " + std::to_string(mu_x.size());
+        LOG(LogLevel::ERROR, msg);
     }
     int batch_size = mu_x.size() / input_size;
 
@@ -250,9 +290,9 @@ void Sequential::forward(const std::vector<float> &mu_x,
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
-        init_output_state_buffer();
+        this->init_output_state_buffer();
         if (this->training) {
-            init_delta_state_buffer();
+            this->init_delta_state_buffer();
         }
     }
 
@@ -290,7 +330,8 @@ void Sequential::forward(const std::vector<float> &mu_x,
 }
 
 void Sequential::forward(BaseHiddenStates &input_states)
-/*
+/*This function is used for forward pass with hidden states as input applied for
+ * connection for two sequential models
  */
 {
     // Batch size
@@ -301,12 +342,13 @@ void Sequential::forward(BaseHiddenStates &input_states)
         this->z_buffer_block_size = batch_size;
         this->z_buffer_size = batch_size * this->z_buffer_size;
 
-        init_output_state_buffer();
+        this->init_output_state_buffer();
         if (this->training) {
-            init_delta_state_buffer();
+            this->init_delta_state_buffer();
         }
     }
 
+    // Reallocate the buffer if batch size changes
     if (batch_size != this->z_buffer_block_size) {
         this->z_buffer_size =
             batch_size * (this->z_buffer_size / this->z_buffer_block_size);

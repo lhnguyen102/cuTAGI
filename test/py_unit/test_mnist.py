@@ -13,16 +13,18 @@ from pytagi.nn import (
     Conv2d,
     LayerNorm,
     Linear,
+    MaxPool2d,
     MixtureReLU,
     OutputUpdater,
     ReLU,
     Sequential,
-    MaxPool2d,
 )
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+    os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    )
 )
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
@@ -48,7 +50,9 @@ def mnist_test_runner(
     # Training
     out_updater = OutputUpdater(model.device)
     error_rates = []
-    var_y = np.full((batch_size * metric.hrc_softmax.num_obs,), 1, dtype=np.float32)
+    var_y = np.full(
+        (batch_size * metric.hrc_softmax.num_obs,), 1, dtype=np.float32
+    )
     batch_iter = train_dtl.create_data_loader(batch_size=batch_size)
     for i, (x, y, y_idx, label) in enumerate(batch_iter):
         if i >= num_iters:
@@ -90,7 +94,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_mixturerelu_CPU(self):
@@ -103,7 +109,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_batchnorm_fnn_CPU(self):
@@ -118,7 +126,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_batchnorm_without_bias_fnn_CPU(self):
@@ -133,7 +143,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_layernorm_fnn_CPU(self):
@@ -148,13 +160,22 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_cnn_CPU(self):
         model = Sequential(
             Conv2d(
-                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+                1,
+                8,
+                4,
+                padding=1,
+                stride=1,
+                padding_type=1,
+                in_width=28,
+                in_height=28,
             ),
             ReLU(),
             AvgPool2d(3, 2),
@@ -167,13 +188,22 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_maxpooling_CPU(self):
         model = Sequential(
             Conv2d(
-                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+                1,
+                8,
+                4,
+                padding=1,
+                stride=1,
+                padding_type=1,
+                in_width=28,
+                in_height=28,
             ),
             ReLU(),
             MaxPool2d(3, 2),
@@ -186,7 +216,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_batchnorm_cnn_CPU(self):
@@ -215,7 +247,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     def test_layernorm_cnn_CPU(self):
@@ -244,7 +278,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     # CUDA Tests
@@ -257,7 +293,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
@@ -273,7 +311,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
@@ -291,7 +331,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
@@ -309,7 +351,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
@@ -318,7 +362,14 @@ class MnistTest(unittest.TestCase):
             self.skipTest("CUDA is not available")
         model = Sequential(
             Conv2d(
-                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+                1,
+                8,
+                4,
+                padding=1,
+                stride=1,
+                padding_type=1,
+                in_width=28,
+                in_height=28,
             ),
             ReLU(),
             AvgPool2d(3, 2),
@@ -331,14 +382,25 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_maxpooling_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Conv2d(
-                1, 8, 4, padding=1, stride=1, padding_type=1, in_width=28, in_height=28
+                1,
+                8,
+                4,
+                padding=1,
+                stride=1,
+                padding_type=1,
+                in_width=28,
+                in_height=28,
             ),
             ReLU(),
             MaxPool2d(3, 2),
@@ -351,7 +413,9 @@ class MnistTest(unittest.TestCase):
         )
         avg_error_rate = mnist_test_runner(model, use_cuda=True)
         self.assertLess(
-            avg_error_rate, self.threshold, "Error rate is higher than threshold"
+            avg_error_rate,
+            self.threshold,
+            "Error rate is higher than threshold",
         )
 
 

@@ -17,15 +17,14 @@ from torch.utils.data.dataset import Subset
 from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
-from examples.tagi_resnet_model import resnet18_imagenet
-from examples.tagi_alexnet_model import create_alexnet
-from pytagi import HRCSoftmaxMetric, Utils
-from pytagi.nn import OutputUpdater
 import pytagi
 from examples.batchnorm_viz import BatchNormViz
-from examples.param_viz import ParameterDistributionVisualizer
 from examples.param_stat_table import ParamStatTable, WandBLogger
-
+from examples.param_viz import ParameterDistributionVisualizer
+from examples.tagi_alexnet_model import create_alexnet
+from examples.tagi_resnet_model import resnet18_imagenet
+from pytagi import HRCSoftmaxMetric, Utils
+from pytagi.nn import OutputUpdater
 
 torch.manual_seed(42)
 pytagi.manual_seed(42)

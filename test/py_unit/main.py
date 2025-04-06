@@ -5,7 +5,9 @@ import unittest
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+    os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    )
 )
 
 
@@ -25,7 +27,9 @@ if __name__ == "__main__":
     remaining_args = set_cpu_only_flag()
 
     # Load test files start with `test_` and run them
-    test_suite = unittest.defaultTestLoader.discover(start_dir=".", pattern="test_*.py")
+    test_suite = unittest.defaultTestLoader.discover(
+        start_dir=".", pattern="test_*.py"
+    )
 
     runner = unittest.TextTestRunner(verbosity=2, failfast=True)
     result = runner.run(test_suite)

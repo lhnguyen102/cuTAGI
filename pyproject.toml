@@ -7,4 +7,3 @@ requires=[
     "ninja>=1.11.1.2",
 ]
 build-backend = "setuptools.build_meta"
-

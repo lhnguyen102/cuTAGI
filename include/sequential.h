@@ -45,9 +45,10 @@ class Sequential {
     bool input_state_update = false;
     unsigned num_threads = 1;
     std::string device = "cpu";
+    int device_idx = 0;
     std::vector<std::shared_ptr<BaseLayer>> layers;
 
-    // Variadic template
+    // Variadic template allows for arbitrary number of layers
     template <typename... Layers>
     Sequential(Layers&&... layers) {
         add_layers(std::forward<Layers>(layers)...);
@@ -110,6 +111,10 @@ class Sequential {
 
     // Utility function to get layer stack info
     std::string get_layer_stack_info() const;
+
+    std::string get_device_with_index() const {
+        return this->device + ":" + std::to_string(this->device_idx);
+    }
 
     // Saving and loading
     void save(const std::string& filename);

@@ -40,5 +40,3 @@ Follow these steps to rebase your branch onto the latest version of the `main` b
 
 6. **Verify the rebasing:**
    - Once you see the message confirming a successful rebase, your branch is now rebased onto `main`.
-
-

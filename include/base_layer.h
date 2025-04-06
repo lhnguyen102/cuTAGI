@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "custom_logger.h"
 #include "data_struct.h"
 
 enum class LayerType {
@@ -43,6 +44,7 @@ class BaseLayer {
     bool param_update = true;
     float cap_factor_update = 1.0f;
     int neg_var_w_counter = 0;
+    int device_idx = 0;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;
@@ -124,11 +126,13 @@ class BaseLayer {
 
     // NOTE: each layer has its own conversion to cuda layer. The idea is to
     // move the ownership of the layer to cuda layer, so unique_ptr is used.
-    virtual std::unique_ptr<BaseLayer> to_cuda() {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Cuda device is not available");
+    virtual std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) {
+        std::string msg = "Cuda device is not available";
+        LOG(LogLevel::ERROR, msg);
+        return nullptr;
     };
+
+    virtual void to(int device_idx = 0) { this->device_idx = device_idx; };
 
     // Get/load Parameters
     virtual ParameterMap get_parameters_as_map(std::string suffix = "");

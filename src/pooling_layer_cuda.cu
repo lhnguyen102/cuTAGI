@@ -121,11 +121,13 @@ __global__ void avgpool2d_bwd_delta_z_cuda(float const *jcb,
 ////////////////////////////////////////////////////////////////////////////////
 
 AvgPool2dCuda::AvgPool2dCuda(size_t kernel_size, int stride, int padding,
-                             int padding_type)
+                             int padding_type, int device_idx)
     : kernel_size(kernel_size),
       stride(stride),
       padding(padding),
-      padding_type(padding_type) {}
+      padding_type(padding_type) {
+    this->device_idx = device_idx;
+}
 
 AvgPool2dCuda::~AvgPool2dCuda() {
     cudaFree(d_pool_idx);
@@ -298,6 +300,7 @@ void AvgPool2dCuda::allocate_avgpool2d_index()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     // Memory aligment
     unsigned int size_pool_idx =
         ((this->pool_idx.size() + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE;
@@ -313,6 +316,7 @@ void AvgPool2dCuda::avgpool2d_index_to_device()
 /*
  */
 {
+    cudaSetDevice(this->device_idx);
     cudaMemcpy(this->d_pool_idx, this->pool_idx.data(),
                this->pool_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_z_ud_idx, this->z_ud_idx.data(),
@@ -327,3 +331,5 @@ void AvgPool2dCuda::preinit_layer() {
         this->lazy_index_init();
     }
 }
+
+void AvgPool2dCuda::to(int device_idx_) { this->device_idx = device_idx_; }

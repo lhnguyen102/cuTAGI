@@ -18,7 +18,7 @@ class BatchNorm2d : public BaseLayer {
 
     BatchNorm2d(int num_features, float eps = 1e-5, float mometum = 0.9,
                 bool bias = true, float gain_weight = 1.0f,
-                float gain_bias = 1.0f);
+                float gain_bias = 1.0f, int device_idx = 0);
     ~BatchNorm2d();
 
     // Delete copy constructor and copy assignment
@@ -53,7 +53,7 @@ class BatchNorm2d : public BaseLayer {
     get_norm_mean_var() override;
 
 #ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda() override;
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
     void save(std::ofstream &file) override;

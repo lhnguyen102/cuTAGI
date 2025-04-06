@@ -3,18 +3,14 @@ import sys
 
 # path to binding code
 sys.path.append(
-    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "build"))
+    os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    )
 )
 
 import unittest
-from pytagi.nn import (
-    AvgPool2d,
-    BatchNorm2d,
-    Conv2d,
-    Linear,
-    ReLU,
-    Sequential,
-)
+
+from pytagi.nn import AvgPool2d, BatchNorm2d, Conv2d, Linear, ReLU, Sequential
 
 # Define models for testing
 MODEL_1 = Sequential(
@@ -69,7 +65,9 @@ class TestModelOperations(unittest.TestCase):
 
         # Verify state dicts are equal
         state_dict_2 = self.model_2.state_dict()
-        self.assertEqual(state_dict, state_dict_2, "State dicts are not identical")
+        self.assertEqual(
+            state_dict, state_dict_2, "State dicts are not identical"
+        )
 
     # def test_parameters_soft_update(self):
     #     """test soft parameter update."""

@@ -7,10 +7,11 @@
 ## Contact:      luongha.nguyen@gmail.com & james.goulet@polymtl.ca
 ## License:      This code is released under the MIT License.
 ###############################################################################
-from typing import Union, List
-import pandas as pd
-import numpy as np
+from typing import List, Union
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 class DataGeneration:
@@ -48,7 +49,9 @@ class DataGeneration:
 
         return data_frame
 
-    def split_data(self, col_name: Union[str, List[str]], ratio: float = 0.8) -> None:
+    def split_data(
+        self, col_name: Union[str, List[str]], ratio: float = 0.8
+    ) -> None:
         """Split data into training and test sets"""
 
         # Split data
@@ -84,16 +87,24 @@ class DataGeneration:
     def add_weekly_feature(self) -> None:
         """Add weekly features"""
 
-        week_sin = np.sin(2 * np.pi * (self.data_frame.index.isocalendar().day / 7))
-        week_cos = np.cos(2 * np.pi * (self.data_frame.index.isocalendar().day / 7))
+        week_sin = np.sin(
+            2 * np.pi * (self.data_frame.index.isocalendar().day / 7)
+        )
+        week_cos = np.cos(
+            2 * np.pi * (self.data_frame.index.isocalendar().day / 7)
+        )
         self.data_frame["week_sin"] = week_sin
         self.data_frame["week_cos"] = week_cos
 
     def add_yearly_feature(self) -> None:
         """Add yearly feature"""
 
-        year_sin = np.sin(2 * np.pi * (self.data_frame.index.isocalendar().day / 52))
-        year_cos = np.cos(2 * np.pi * (self.data_frame.index.isocalendar().day / 52))
+        year_sin = np.sin(
+            2 * np.pi * (self.data_frame.index.isocalendar().day / 52)
+        )
+        year_cos = np.cos(
+            2 * np.pi * (self.data_frame.index.isocalendar().day / 52)
+        )
         self.data_frame["year_sin"] = year_sin
         self.data_frame["year_cos"] = year_cos
 
@@ -101,7 +112,9 @@ class DataGeneration:
         """Visualize time series"""
         _ = plt.figure(figsize=(12, 4))
         axes = plt.axes()
-        axes.plot(self.data_frame["datetime"].values, self.data_frame["sin"].values)
+        axes.plot(
+            self.data_frame["datetime"].values, self.data_frame["sin"].values
+        )
         plt.show()
 
 

@@ -630,10 +630,8 @@ std::tuple<int, int> get_number_params_layer_norm(
         num_weights = normalized_shape[0];
         num_biases = normalized_shape[0];
     } else {
-        throw std::runtime_error(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            ". Normalized shape provided are not supported.");
+        std::string message = "Normalized shape provided are not supported.";
+        LOG(LogLevel::ERROR, message);
     }
     return {num_weights, num_biases};
 }
@@ -643,13 +641,14 @@ std::tuple<int, int> get_number_params_layer_norm(
 ////////////////////////////////////////////////////////////////////////////////
 
 LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
-                     bool bias)
+                     bool bias, int device_idx)
     : normalized_shape(normalized_shape),
       epsilon(eps)
 /*
  */
 {
     this->bias = bias;
+    this->device_idx = device_idx;
     this->init_weight_bias();
     if (this->training) {
         this->allocate_param_delta();
@@ -668,10 +667,8 @@ LayerNorm::LayerNorm(const std::vector<int> &normalized_shape, float eps,
         this->output_size =
             this->out_channels * this->out_width * this->out_height;
     } else {
-        throw std::runtime_error(
-            "Error in file: " + std::string(__FILE__) +
-            " at line: " + std::to_string(__LINE__) +
-            ". Normalized shape provided are not supported.");
+        std::string message = "Normalized shape provided are not supported.";
+        LOG(LogLevel::ERROR, message);
     }
 }
 
@@ -938,10 +935,11 @@ void LayerNorm::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> LayerNorm::to_cuda() {
+std::unique_ptr<BaseLayer> LayerNorm::to_cuda(int device_idx) {
     this->device = "cuda";
-    return std::make_unique<LayerNormCuda>(this->normalized_shape,
-                                           this->epsilon, this->bias);
+    this->device_idx = device_idx;
+    return std::make_unique<LayerNormCuda>(
+        this->normalized_shape, this->epsilon, this->bias, this->device_idx);
 }
 #endif
 
@@ -958,9 +956,9 @@ void LayerNorm::save(std::ofstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for saving");
+        std::string message = "Failed to open file for saving";
+        LOG(LogLevel::ERROR, message);
+        return;
     }
 
     // Save the name length and name
@@ -996,9 +994,9 @@ void LayerNorm::load(std::ifstream &file)
  */
 {
     if (!file.is_open()) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Failed to open file for loading");
+        std::string message = "Failed to open file for loading";
+        LOG(LogLevel::ERROR, message);
+        return;
     }
     // Load the name length and name
     auto layer_name = this->get_layer_info();
@@ -1010,10 +1008,11 @@ void LayerNorm::load(std::ifstream &file)
 
     // Check layer name
     if (layer_name != loaded_name) {
-        throw std::runtime_error("Error in file: " + std::string(__FILE__) +
-                                 " at line: " + std::to_string(__LINE__) +
-                                 ". Layer name are not match. Expected: " +
-                                 layer_name + ", Found: " + loaded_name);
+        std::string message =
+            "Layer name are not match. Expected: " + layer_name +
+            ", Found: " + loaded_name;
+        LOG(LogLevel::ERROR, message);
+        return;
     }
 
     for (auto &m_w : this->mu_w) {

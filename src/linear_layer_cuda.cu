@@ -168,7 +168,8 @@ void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
 }
 
 LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
-                       float gain_weight, float gain_bias, std::string method)
+                       float gain_weight, float gain_bias, std::string method,
+                       int device_idx)
     : gain_w(gain_weight),
       gain_b(gain_bias),
       init_method(method)
@@ -178,6 +179,7 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
     this->input_size = ip_size;
     this->output_size = op_size;
     this->bias = bias;
+    this->device_idx = device_idx;
     this->num_weights = this->input_size * this->output_size;
     this->num_biases = 0;
     if (this->bias) {
@@ -185,8 +187,6 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
     }
 
     if (this->training) {
-        // TODO: to be removed
-        this->bwd_states = std::make_unique<BackwardStateCuda>();
         this->allocate_param_delta();
     }
 }

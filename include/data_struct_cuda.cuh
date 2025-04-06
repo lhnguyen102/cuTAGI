@@ -12,7 +12,7 @@ class HiddenStateCuda : public BaseHiddenStates {
     float *d_var_a = nullptr;
     float *d_jcb = nullptr;
 
-    HiddenStateCuda(size_t size, size_t block_size);
+    HiddenStateCuda(size_t size, size_t block_size, int device_idx = 0);
     HiddenStateCuda();
     ~HiddenStateCuda();
 
@@ -35,7 +35,7 @@ class HiddenStateCuda : public BaseHiddenStates {
         d_mu_a = other.d_mu_a;
         d_var_a = other.d_var_a;
         d_jcb = other.d_jcb;
-
+        device_idx = other.device_idx;
         other.d_mu_a = nullptr;
         other.d_var_a = nullptr;
         other.d_jcb = nullptr;
@@ -51,6 +51,7 @@ class HiddenStateCuda : public BaseHiddenStates {
             d_mu_a = other.d_mu_a;
             d_var_a = other.d_var_a;
             d_jcb = other.d_jcb;
+            device_idx = other.device_idx;
 
             other.d_mu_a = nullptr;
             other.d_var_a = nullptr;
@@ -67,7 +68,7 @@ class DeltaStateCuda : public BaseDeltaStates {
     float *d_delta_mu = nullptr;
     float *d_delta_var = nullptr;
 
-    DeltaStateCuda(size_t size, size_t block_size);
+    DeltaStateCuda(size_t size, size_t block_size, int device_idx = 0);
     DeltaStateCuda();
     ~DeltaStateCuda();
 
@@ -87,7 +88,7 @@ class TempStateCuda : public BaseTempStates {
     float *d_tmp_1 = nullptr;
     float *d_tmp_2 = nullptr;
 
-    TempStateCuda(size_t size, size_t block_size);
+    TempStateCuda(size_t size, size_t block_size, int device_idx = 0);
     TempStateCuda();
     ~TempStateCuda();
 
@@ -114,7 +115,9 @@ class BackwardStateCuda : public BaseBackwardStates {
     void deallocate_memory();
     void to_device();
     void to_host();
-    void set_size(size_t size) override;
+    void copy_from(const HiddenStateCuda &source, int num_data);
+    void set_size(size_t size);
+    void set_device_idx(int device_idx);
 };
 
 class ObservationCuda : public BaseObservation {
@@ -123,7 +126,7 @@ class ObservationCuda : public BaseObservation {
     float *d_var_obs = nullptr;
     int *d_selected_idx = nullptr;
 
-    ObservationCuda();
+    ObservationCuda(int device_idx = 0);
     ~ObservationCuda();
 
     std::string get_name() const override { return "ObservationCuda"; };
@@ -149,11 +152,12 @@ class LSTMStateCuda : public BaseLSTMStates {
           *d_mu_c_prior = nullptr, *d_var_c_prior = nullptr,
           *d_mu_h_prior = nullptr, *d_var_h_prior = nullptr;
 
-    LSTMStateCuda(size_t num_states, size_t num_inputs);
+    LSTMStateCuda(size_t num_states, size_t num_inputs, int device_idx = 0);
     LSTMStateCuda();
     ~LSTMStateCuda();
     std::string get_name() const override { return "LSTMStateCuda"; };
-    void set_num_states(size_t num_states, size_t num_inputs) override;
+    void set_num_states(size_t num_states, size_t num_inputs,
+                        int device_idx_ = 0) override;
     void allocate_memory();
     void deallocate_memory();
     void to_device();

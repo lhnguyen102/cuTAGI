@@ -1,5 +1,73 @@
 #include "test_utils.h"
 
+#include "../../include/activation.h"
+#include "../../include/batchnorm_layer.h"
+#include "../../include/conv2d_layer.h"
+#include "../../include/resnet_block.h"
+#include "../../include/sequential.h"
+
+// Global flag to track if MPI is initialized by our tests
+bool g_mpi_initialized_by_test = false;
+// Global flag to track if MPI has been finalized
+bool g_mpi_finalized = false;
+
+#ifdef DISTRIBUTED_TEST_AVAILABLE
+bool initialize_mpi_if_needed() {
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        int provided;
+        MPI_Init_thread(nullptr, nullptr, MPI_THREAD_MULTIPLE, &provided);
+        g_mpi_initialized_by_test = true;
+        return true;
+    }
+    return false;
+}
+
+void finalize_mpi_if_needed() {
+    if (g_mpi_initialized_by_test) {
+        MPI_Finalize();
+        g_mpi_initialized_by_test = false;
+        g_mpi_finalized = true;
+    }
+}
+
+bool is_mpi_initialized() {
+    int initialized;
+    MPI_Initialized(&initialized);
+    return initialized != 0;
+}
+
+int get_mpi_rank() {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    return rank;
+}
+
+int get_mpi_world_size() {
+    int world_size = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    return world_size;
+}
+#else
+// Stub implementations for non-MPI builds
+bool initialize_mpi_if_needed() { return false; }
+void finalize_mpi_if_needed() {}
+bool is_mpi_initialized() { return false; }
+int get_mpi_rank() { return 0; }
+int get_mpi_world_size() { return 1; }
+#endif
+
+// Helper function to create layer blocks (reused from test_resnet.cpp)
+LayerBlock create_layer_block(int in_channels, int out_channels, int stride,
+                              int padding_type) {
+    return LayerBlock(
+        Conv2d(in_channels, out_channels, 3, false, stride, 1, padding_type),
+        ReLU(), BatchNorm2d(out_channels),
+        Conv2d(out_channels, out_channels, 3, false, 1, 1), ReLU(),
+        BatchNorm2d(out_channels));
+}
+
 Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
                                       int num_data, int num_features,
                                       std::vector<int> &output_col,

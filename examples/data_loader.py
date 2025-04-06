@@ -19,7 +19,9 @@ class DataloaderBase(ABC):
     def process_data(self) -> dict:
         raise NotImplementedError
 
-    def create_data_loader(self, raw_input: np.ndarray, raw_output: np.ndarray) -> list:
+    def create_data_loader(
+        self, raw_input: np.ndarray, raw_output: np.ndarray
+    ) -> list:
         """Create dataloader based on batch size"""
         num_input_data = raw_input.shape[0]
         num_output_data = raw_output.shape[0]
@@ -42,7 +44,9 @@ class DataloaderBase(ABC):
         return dataset
 
     @staticmethod
-    def split_data(data: int, test_ratio: float = 0.2, val_ratio: float = 0.0) -> dict:
+    def split_data(
+        data: int, test_ratio: float = 0.2, val_ratio: float = 0.0
+    ) -> dict:
         """Split data into training, validation, and test sets"""
         num_data = data.shape[1]
         splited_data = {}
@@ -208,9 +212,9 @@ class MnistDataLoader:
         for start_idx in range(0, num_data, batch_size):
             end_idx = min(start_idx + batch_size, num_data)
             idx = indices[start_idx:end_idx]
-            yield input_data[idx].flatten(), output_data[idx].flatten(), output_idx[
+            yield input_data[idx].flatten(), output_data[
                 idx
-            ].flatten(), labels[idx].flatten()
+            ].flatten(), output_idx[idx].flatten(), labels[idx].flatten()
 
     def process_data(
         self, x_train_file: str, y_train_file: str, num_images: int
@@ -218,9 +222,13 @@ class MnistDataLoader:
         """Process MNIST images."""
         # Load training and test data
         utils = Utils()
-        images, labels = self.load_mnist_images(x_train_file, y_train_file, num_images)
+        images, labels = self.load_mnist_images(
+            x_train_file, y_train_file, num_images
+        )
 
-        y, y_idx, num_enc_obs = utils.label_to_obs(labels=labels, num_classes=10)
+        y, y_idx, num_enc_obs = utils.label_to_obs(
+            labels=labels, num_classes=10
+        )
         x_mean, x_std = Normalizer.compute_mean_std(images)
         x_std = 1
 
@@ -241,7 +249,11 @@ class MnistOneHotDataloader(DataloaderBase):
     """Data loader for mnist dataset"""
 
     def process_data(
-        self, x_train_file: str, y_train_file: str, x_test_file: str, y_test_file: str
+        self,
+        x_train_file: str,
+        y_train_file: str,
+        x_test_file: str,
+        y_test_file: str,
     ) -> dict:
         """Process mnist images"""
         # Initialization
@@ -262,12 +274,18 @@ class MnistOneHotDataloader(DataloaderBase):
 
         # Test set
         test_images, test_labels = utils.load_mnist_images(
-            image_file=x_test_file, label_file=y_test_file, num_images=num_test_images
+            image_file=x_test_file,
+            label_file=y_test_file,
+            num_images=num_test_images,
         )
 
         # Normalizer
-        x_train = self.normalizer.standardize(data=train_images, mu=x_mean, std=x_std)
-        x_test = self.normalizer.standardize(data=test_images, mu=x_mean, std=x_std)
+        x_train = self.normalizer.standardize(
+            data=train_images, mu=x_mean, std=x_std
+        )
+        x_test = self.normalizer.standardize(
+            data=test_images, mu=x_mean, std=x_std
+        )
 
         y_train = y_train.reshape((num_train_images, 10))
         x_train = x_train.reshape((num_train_images, 28, 28))
@@ -312,7 +330,9 @@ class TimeSeriesDataloader:
         self.stride = stride
         self.x_mean = x_mean
         self.x_std = x_std
-        self.ts_idx = ts_idx  # add time series index when data having multiple ts
+        self.ts_idx = (
+            ts_idx  # add time series index when data having multiple ts
+        )
         self.time_covariates = time_covariates  # for adding time covariates
         self.keep_last_time_cov = keep_last_time_cov
         self.dataset = self.process_data()
@@ -362,10 +382,14 @@ class TimeSeriesDataloader:
             date_time = np.array(date_time, dtype="datetime64")
             for time_cov in self.time_covariates:
                 if time_cov == "hour_of_day":
-                    hour_of_day = date_time.astype("datetime64[h]").astype(int) % 24
+                    hour_of_day = (
+                        date_time.astype("datetime64[h]").astype(int) % 24
+                    )
                     x = np.concatenate((x, hour_of_day), axis=1)
                 elif time_cov == "day_of_week":
-                    day_of_week = date_time.astype("datetime64[D]").astype(int) % 7
+                    day_of_week = (
+                        date_time.astype("datetime64[D]").astype(int) % 7
+                    )
                     x = np.concatenate((x, day_of_week), axis=1)
                 elif time_cov == "week_of_year":
                     week_of_year = (
@@ -408,18 +432,23 @@ class TimeSeriesDataloader:
         dataset["value"] = (x_rolled, y_rolled)
 
         # NOTE: Datetime is saved for the visualization purpose
-        dataset["date_time"] = [np.datetime64(date) for date in np.squeeze(date_time)]
+        dataset["date_time"] = [
+            np.datetime64(date) for date in np.squeeze(date_time)
+        ]
 
         return dataset
 
     def remove_time_cov(self, x):
         x_new = np.zeros(
-            (len(x), self.input_seq_len + self.num_features - 1), dtype=np.float32
+            (len(x), self.input_seq_len + self.num_features - 1),
+            dtype=np.float32,
         )
         for i in range(0, len(x)):
             x_ = x[i]
             keep_idx = np.arange(0, len(x_), self.num_features)
-            x_new[i] = np.concatenate((x_[keep_idx], x_[-self.num_features + 1 :]))
+            x_new[i] = np.concatenate(
+                (x_[keep_idx], x_[-self.num_features + 1 :])
+            )
         return x_new
 
     def create_data_loader(self, batch_size: int, shuffle: bool = True):
