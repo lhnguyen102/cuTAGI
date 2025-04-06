@@ -21,9 +21,9 @@ RUN apt-get update -y && \
     curl \
     file \
     gzip \
+    gnupg \
     gcc-12 \
     g++-12 \
-    gnupg \
     locales locales-all && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update -y && \
@@ -36,10 +36,10 @@ RUN apt-get update -y && \
     ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
-
 # Set default gcc/g++ version and Python version
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+
 
 # Install CUDA keyring and NCCL
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
@@ -82,7 +82,7 @@ COPY --chown=builder:builder . /workspace/
 # Switch to non-root user
 USER builder
 
-# Set environment variables for compilation
+# # Set environment variables for compilation
 ENV CC=gcc-12
 ENV CXX=g++-12
 ENV CUDA_HOME=/usr/local/cuda

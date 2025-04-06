@@ -17,6 +17,8 @@ RUN apt-get update -y && \
     apt-transport-https ca-certificates \
     software-properties-common g++ git wget \
     cmake gdb valgrind \
+    openmpi-bin=4.1.2-2ubuntu1 \
+    libopenmpi-dev=4.1.2-2ubuntu1 \
     locales locales-all && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update -y && \
@@ -52,7 +54,6 @@ COPY extern/ ${WDC}/extern
 COPY pytagi/ ${WDC}/pytagi
 COPY scripts/ ${WDC}/scripts
 COPY CMakeLists.txt ${WDC}/CMakeLists.txt
-COPY Dockerfile ${WDC}/Dockerfile
 COPY main.cpp ${WDC}/main.cpp
 COPY requirements.txt ${WDC}/requirements.txt
 COPY README.md ${WDC}/README.md

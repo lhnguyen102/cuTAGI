@@ -148,6 +148,7 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 # Add googletest
 add_subdirectory(extern/googletest)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/extern/googletest/googletest/include)
 
 add_subdirectory(extern/pybind11)
 include_directories(${pybind11_INCLUDE_DIRS})
@@ -294,25 +295,27 @@ if(BUILD_TESTING)
 
   # Glob the test sources
   file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
+  list(REMOVE_ITEM TEST_SOURCES "test/cpp_unit/main.cpp")
 
-  # Add main.cpp separately to specify the entry point
-  set(TEST_MAIN "test/cpp_unit/main.cpp")
+    # Add main.cpp separately to specify the entry point
+    set(TEST_MAIN "test/cpp_unit/main.cpp")
 
-  # Create an executable for the tests
-  add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
+    # Create an executable for the tests
+    add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
 
   # Set include directories for the test executable
   target_include_directories(run_tests PRIVATE
     ${pybind11_INCLUDE_DIRS}
+    ${Python_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
   )
 
   # Link the test executable with the required libraries and cutagi_lib
   target_link_libraries(run_tests PRIVATE
-    ${Python_INCLUDE_DIRS}
-    pybind11::embed
-    gtest_main
     cutagi_lib
+    gtest
+    gtest_main
+    pybind11::embed
   )
 
   # Discover GoogleTest tests

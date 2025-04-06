@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+
 
 #include <chrono>
 #include <cstdlib>
@@ -38,8 +38,20 @@ class DDPOpsTest : public DistributedTestFixture {
    protected:
     void SetUp() override {
         DistributedTestFixture::SetUp();
-        // No need to check MPI initialization or get rank/world_size here
-        // as it's already done in the base class
+        if (!g_gpu_enabled) {
+            GTEST_SKIP() << "CUDA is not available, skipping distributed tests";
+        }
+
+        // Check if we have at least 2 GPUs
+#ifdef USE_CUDA
+        int device_count = 0;
+        cudaGetDeviceCount(&device_count);
+        if (device_count < 2) {
+            GTEST_SKIP() << "At least 2 GPUs are required for distributed "
+                            "tests, but only "
+                         << device_count << " found";
+        }
+#endif
     }
 };
 
