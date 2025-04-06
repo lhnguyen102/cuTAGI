@@ -362,7 +362,7 @@ void lstm_cov_input_cell_states_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -417,7 +417,7 @@ void lstm_cell_state_mean_var_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -482,7 +482,7 @@ void lstm_cov_output_tanh_cell_states_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -534,7 +534,7 @@ void lstm_hidden_state_mean_var_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -585,7 +585,7 @@ void lstm_cat_activations_and_prev_states_mp(std::vector<float> &a,
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -676,7 +676,7 @@ void lstm_delta_mean_var_z_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -880,7 +880,7 @@ void lstm_delta_mean_var_w_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);
@@ -986,7 +986,7 @@ void lstm_delta_mean_var_b_mp(
     const int n_batch = tot_ops / NUM_THREADS;
     const int rem_batch = tot_ops % NUM_THREADS;
     int start_idx, end_idx;
-    std::thread threads[NUM_THREADS];
+    std::vector<std::thread> threads(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         get_multithread_indices(i, n_batch, rem_batch, start_idx, end_idx);

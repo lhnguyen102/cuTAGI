@@ -102,6 +102,7 @@ endif()
 # find_package(Python COMPONENTS Interpreter Development)
 # find_package(PythonInterp)
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+option(BUILD_TESTING "Build and run tests" ON)
 
 ################################################################################
 # ADD SUBMODULES AS SUBDIRECTORIES
@@ -183,7 +184,6 @@ else()
   # Executable code i.e. application
   add_executable(main main.cpp)
 
-
   # TODO: Remove when releasing new version
   pybind11_add_module(cutagi "src/bindings/main_bindings.cpp")
 endif()
@@ -198,33 +198,33 @@ target_link_libraries(cutagi PRIVATE cutagi_lib)
 ################################################################################
 # TESTS
 ################################################################################
-enable_testing()
+if(BUILD_TESTING)
+  enable_testing()
 
-# Glob the test sources
-file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
+  # Glob the test sources
+  file(GLOB TEST_SOURCES "test/cpp_unit/*.cpp")
 
-# Add main.cpp separately to specify the entry point
-set(TEST_MAIN "test/cpp_unit/main.cpp")
+  # Add main.cpp separately to specify the entry point
+  set(TEST_MAIN "test/cpp_unit/main.cpp")
 
-# Create an executable for the tests
-add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
+  # Create an executable for the tests
+  add_executable(run_tests ${TEST_MAIN} ${TEST_SOURCES})
 
-# Set include directories for the test executable
-target_include_directories(run_tests PRIVATE
-  ${pybind11_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
-)
+  # Set include directories for the test executable
+  target_include_directories(run_tests PRIVATE
+    ${pybind11_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/cpp_unit
+  )
 
-# Link the test executable with the required libraries and cutagi_lib
-target_link_libraries(run_tests PRIVATE
-  ${Python_INCLUDE_DIRS}
-  pybind11::embed
-  gtest_main
-  cutagi_lib
-)
+  # Link the test executable with the required libraries and cutagi_lib
+  target_link_libraries(run_tests PRIVATE
+    ${Python_INCLUDE_DIRS}
+    pybind11::embed
+    gtest_main
+    cutagi_lib
+  )
 
-# Discover GoogleTest tests
-include(GoogleTest)
-gtest_discover_tests(run_tests)
-
-
+  # Discover GoogleTest tests
+  include(GoogleTest)
+  gtest_discover_tests(run_tests)
+endif()
