@@ -125,6 +125,7 @@ jobs:
 
   build_windows:
     name: Windows Build (CPU Only)
+    needs: [pre-commit]
     runs-on: windows-latest
     strategy:
       matrix:
