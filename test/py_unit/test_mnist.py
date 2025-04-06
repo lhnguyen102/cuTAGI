@@ -389,6 +389,8 @@ class MnistTest(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_maxpooling_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         model = Sequential(
             Conv2d(
                 1,
