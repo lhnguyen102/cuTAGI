@@ -220,6 +220,9 @@ class ResnetTest : public ::testing::Test {
 };
 
 TEST_F(ResnetTest, TestResnetCifar10) {
+    if (!is_cuda_available()) {
+        GTEST_SKIP() << "CUDA is not available.";
+    }
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     auto block_1 = create_layer_block(64, 64);
     auto block_2 = create_layer_block(64, 64);
