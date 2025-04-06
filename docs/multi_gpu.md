@@ -30,8 +30,9 @@ This guide explains how to install dependencies and run DDP training using TAGI,
 `All-Reduce` aggregates `deltas` (updates) from all GPUs, typically summing or averaging (`average=True`) them before updating model weights and biases. Here is an example to select either summing or averaging.
 
 ```python
-from pytagi.nn import DDPSequential, Linear, Sequential, ReLU
+from pytagi.nn import DDPSequential, DDPConfig, Linear, Sequential, ReLU
 
+config = DDPConfig(device_ids=..., backend="nccl", rank=r..., world_size=...)
 model = Sequential(Linear(1, 16), ReLU(), Linear(16, 2))
 ddp_model = DDPSequential(model, config, average=True)
 ```
