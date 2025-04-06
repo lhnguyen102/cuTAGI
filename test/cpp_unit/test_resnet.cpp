@@ -4,6 +4,7 @@
 #include "../../include/base_output_updater.h"
 #include "../../include/batchnorm_layer.h"
 #include "../../include/conv2d_layer.h"
+#include "../../include/cuda_utils.h"
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
 #include "../../include/layer_block.h"
