@@ -67,6 +67,13 @@ Verify if NCCL is installed on your machine by running this command
 dpkg -l | grep nccl
 ```
 
+### 3. Install MPI4PY
+`mpi4py` is the Python package, it is required for Python script running on multiple-gpu
+
+```shell
+conda install mpi4py
+```
+
 
 ## How to Use
 
@@ -75,7 +82,7 @@ dpkg -l | grep nccl
 Run CIFAR-10 training with ResNet18 on 2 GPUs:
 
 ```bash
-mpirun -np 2 python examples/ddp_cifar_resnet.py
+mpirun -np 2 python -m examples.ddp_cifar_resnet
 ```
 
 ### C++ Example
@@ -87,6 +94,16 @@ mpirun -np 2 build/run_tests --gtest_filter=ResNetDDPTest.ResNet_NCCL
 ```
 
 ## Troubleshooting
+
+### 1. MPI4PY instalation issue?
+
+If you cannot install `mpi4py` using `pip install mpi4py`, a workaround is to install it using coda
+
+```shell
+conda install mpi4py
+```
+
+### 2. Pytorch data loader
 
 PyTorch's `DataLoader` uses multiprocessing. If you stop the script using `ctrl+c`, press it only once to avoid leaving zombie processes. To manually kill them:
 
