@@ -27,7 +27,14 @@ This guide explains how to install dependencies and run DDP training using TAGI,
                 +-----------------+
 ```
 
-`All-Reduce` aggregates `deltas` (updates) from all GPUs, typically summing or averaging them before updating model weights and biases.
+`All-Reduce` aggregates `deltas` (updates) from all GPUs, typically summing or averaging (`average=True`) them before updating model weights and biases. Here is an example to select either summing or averaging.
+
+```python
+from pytagi.nn import DDPSequential, Linear, Sequential, ReLU
+
+model = Sequential(Linear(1, 16), ReLU(), Linear(16, 2))
+ddp_model = DDPSequential(model, config, average=True)
+```
 
 ## Requirements
 - Ubuntu 22.04 or later
@@ -52,7 +59,7 @@ mpirun --version
 
 ### 2. Install NCCL
 
-NCCL handles communication between GPUs. Follow the [official NCCL guide](https://docs.nvidia.com/deeplearning/nccl/install-guide/index.html) or use the commands below:
+NCCL handles communication between GPUs.To install it, follow the [official NCCL guide](https://docs.nvidia.com/deeplearning/nccl/install-guide/index.html). Below is an example for CUDA 12.2. For other CUDA versions, refer to the guide for appropriate instructions.
 
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
