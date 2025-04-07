@@ -476,6 +476,20 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
+void Sequential::delta_z_to_device() {
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {    
+        DeltaStateCuda *cu_input_delta_z =
+            dynamic_cast<DeltaStateCuda *>(this->input_delta_z_buffer.get());
+        DeltaStateCuda *cu_output_delta_z =
+            dynamic_cast<DeltaStateCuda *>(this->output_delta_z_buffer.get());
+
+        cu_input_delta_z->to_device();
+        cu_output_delta_z->to_device();
+    }
+#endif
+}
+
 std::unordered_map<std::string, int> Sequential::get_neg_var_w_counter() {
     std::unordered_map<std::string, int> counter;
     for (const auto &layer : this->layers) {

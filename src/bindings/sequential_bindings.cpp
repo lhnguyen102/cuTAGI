@@ -72,6 +72,7 @@ void bind_sequential(pybind11::module_& m) {
         .def("reset_lstm_states", &Sequential::reset_lstm_states)
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
+        .def("delta_z_to_device", &Sequential::delta_z_to_device)       
         .def("get_layer_stack_info", &Sequential::get_layer_stack_info)
         .def("preinit_layer", &Sequential::preinit_layer)
         .def("get_neg_var_w_counter", &Sequential::get_neg_var_w_counter)
