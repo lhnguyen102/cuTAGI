@@ -150,6 +150,7 @@ class Sequential {
     // DEBUG
     void output_to_host();
     void delta_z_to_host();
+    void delta_z_to_device();
     void preinit_layer();
     std::unordered_map<std::string, std::tuple<std::vector<std::vector<float>>,
                                                std::vector<std::vector<float>>,
