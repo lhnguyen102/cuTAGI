@@ -192,24 +192,6 @@ class SineSignalTest(unittest.TestCase):
     def setUp(self):
         self.threshold = 0.5
 
-    def test_lstm_CPU(self):
-        input_seq_len = 4
-        model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
-        )
-        mse = lstm_test_runner(model, input_seq_len=input_seq_len)
-        same_delta_z = output_updater_test_runner(
-            model, input_seq_len=input_seq_len
-        )
-        self.assertLess(
-            mse, self.threshold, "Error rate is higher than threshold"
-        )
-        assert (
-            same_delta_z
-        ), "Different results for default and user-defined output_updater"
-
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_lstm_CUDA(self):
         if not pytagi.cuda.is_available():

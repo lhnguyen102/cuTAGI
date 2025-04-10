@@ -115,8 +115,21 @@ Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
                                       std::vector<float> &mu_x,
                                       std::vector<float> &sigma_x);
 
+void user_compute_delta_z_output(std::vector<float> &mu_output_z,
+                                 std::vector<float> &var_output_z,
+                                 std::vector<float> &jcb,
+                                 std::vector<float> &obs,
+                                 std::vector<float> &var_obs, int start_chunk,
+                                 int end_chunk, std::vector<float> &delta_mu,
+                                 std::vector<float> &delta_var);
+
 void sin_signal_lstm_test_runner(Sequential &model, int input_seq_len,
                                  float &mse, float &log_lik);
+
+void sin_signal_lstm_user_output_updater_test_runner(Sequential &model,
+                                                     int input_seq_len,
+                                                     float &mse,
+                                                     float &log_lik);
 
 void sin_signal_smoother_test_runner(Sequential &model, int input_seq_len,
                                      int num_features, float &mse,
