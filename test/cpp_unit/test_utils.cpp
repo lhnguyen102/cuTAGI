@@ -2,6 +2,7 @@
 
 #include "../../include/activation.h"
 #include "../../include/batchnorm_layer.h"
+#include "../../include/common.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/resnet_block.h"
 #include "../../include/sequential.h"
@@ -361,6 +362,11 @@ void sin_signal_lstm_user_output_updater_test_runner(Sequential &model,
             model.forward(x_batch);
 
             // User-defined output updater to compute input_delta_z
+            if (model.device == "cuda") {
+                model.delta_z_to_host();
+                model.output_to_host();
+            }
+
             user_output_updater(model.output_z_buffer->mu_a,
                                 model.output_z_buffer->var_a,
                                 model.output_z_buffer->jcb, y_batch, var_obs,

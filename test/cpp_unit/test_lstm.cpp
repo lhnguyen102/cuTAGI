@@ -35,6 +35,7 @@ TEST_F(SineSignalTest, LSTMTest_CPU) {
 
 #ifdef USE_CUDA
 TEST_F(SineSignalTest, LSTMTestUserOutputUpdater_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     int input_seq_len = 4;
     Sequential model(LSTM(1, 8, input_seq_len), LSTM(8, 8, input_seq_len),
                      Linear(8 * input_seq_len, 1));
