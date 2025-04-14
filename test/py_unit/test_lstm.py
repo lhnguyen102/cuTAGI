@@ -1,9 +1,5 @@
 import os
 import sys
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-)
 import unittest
 from typing import Tuple
 
@@ -80,7 +76,6 @@ def delta_z_to_device_test_runner(
 
     # -------------------------------------------------------------------------#
     # Training
-    var_y = np.full((batch_size * len(output_col),), 0.02**2, dtype=np.float32)
 
     for _ in np.arange(1):
 
@@ -94,7 +89,6 @@ def delta_z_to_device_test_runner(
         delta_mu = np.array([1, 2], dtype=np.float32)
         delta_var = np.array([3, 4], dtype=np.float32)
         model.delta_z_to_device(delta_mu, delta_var)
-
         mu_match = np.allclose(delta_mu, model.input_delta_z_buffer.delta_mu)
         var_match = np.allclose(delta_var, model.input_delta_z_buffer.delta_var)
         if mu_match and var_match:
@@ -361,6 +355,18 @@ class SineSignalTest(unittest.TestCase):
             mse, self.threshold, "Error rate is higher than threshold"
         )
 
+    def test_delta_z_to_device_CPU(self):
+        input_seq_len = 4
+        model = Sequential(
+            LSTM(1, 8, input_seq_len),
+            LSTM(8, 8, input_seq_len),
+            Linear(8 * input_seq_len, 1),
+        )
+        same_delta_z = delta_z_to_device_test_runner(
+            model, input_seq_len=input_seq_len
+        )
+        assert same_delta_z, "Delta_z is not sent correctlt to CPU"
+
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_lstm_CUDA(self):
         if not pytagi.cuda.is_available():
@@ -391,11 +397,22 @@ class SineSignalTest(unittest.TestCase):
         mse = lstm_user_output_updater_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True
         )
-        same_delta_z = delta_z_to_device_test_runner(
-            model, input_seq_len=input_seq_len, use_cuda=True
-        )
         self.assertLess(
             mse, self.threshold, "Error rate is higher than threshold"
+        )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_delta_z_to_device_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
+        input_seq_len = 4
+        model = Sequential(
+            LSTM(1, 8, input_seq_len),
+            LSTM(8, 8, input_seq_len),
+            Linear(8 * input_seq_len, 1),
+        )
+        same_delta_z = delta_z_to_device_test_runner(
+            model, input_seq_len=input_seq_len, use_cuda=True
         )
         assert same_delta_z, "Delta_z is not sent correctlt to cuda device"
 
