@@ -144,6 +144,7 @@ User-defined output updater to compute delta_z for updates
     int end_chunk = obs.size();
     float zero_pad = 0;
     float tmp = 0;
+
     // We compute directely the inovation vector for output layer
     for (int col = start_chunk; col < end_chunk; col++) {
         tmp = jcb[col] / (var_output_z[col] + var_obs[col]);
@@ -367,15 +368,15 @@ void sin_signal_lstm_user_output_updater_test_runner(Sequential &model,
                 model.output_to_host();
             }
 
+            std::vector<float> delta_mu(
+                model.input_delta_z_buffer->delta_mu.size(), 0.0f);
+            std::vector<float> delta_var(
+                model.input_delta_z_buffer->delta_var.size(), 0.0f);
             user_output_updater(model.output_z_buffer->mu_a,
                                 model.output_z_buffer->var_a,
                                 model.output_z_buffer->jcb, y_batch, var_obs,
-                                model.input_delta_z_buffer->delta_mu,
-                                model.input_delta_z_buffer->delta_var);
-
-            if (model.device == "cuda") {
-                model.delta_z_to_device();
-            }
+                                delta_mu, delta_var);
+            model.delta_z_to_device(delta_mu, delta_var);
 
             // Backward pass
             model.backward();

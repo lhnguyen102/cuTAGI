@@ -476,16 +476,20 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
-void Sequential::delta_z_to_device() {
+void Sequential::delta_z_to_device(std::vector<float> &delta_mu,
+                                   std::vector<float> &delta_var)
+/*
+ */
+{
+    this->input_delta_z_buffer->delta_mu = delta_mu;
+    this->input_delta_z_buffer->delta_var = delta_var;
+
 #ifdef USE_CUDA
     if (this->device.compare("cuda") == 0) {
         DeltaStateCuda *cu_input_delta_z =
             dynamic_cast<DeltaStateCuda *>(this->input_delta_z_buffer.get());
-        DeltaStateCuda *cu_output_delta_z =
-            dynamic_cast<DeltaStateCuda *>(this->output_delta_z_buffer.get());
 
         cu_input_delta_z->to_device();
-        cu_output_delta_z->to_device();
     }
 #endif
 }

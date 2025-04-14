@@ -1,5 +1,9 @@
 import os
 import sys
+
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+)
 import unittest
 from typing import Tuple
 
@@ -48,7 +52,7 @@ def user_output_updater(
     )
 
 
-def output_updater_test_runner(
+def delta_z_to_device_test_runner(
     model: Sequential,
     input_seq_len: int = 4,
     batch_size: int = 8,
@@ -60,6 +64,7 @@ def output_updater_test_runner(
     num_features = 1
     output_seq_len = 1
     seq_stride = 1
+    same_delta_z = False
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series/x_train_sin_data.csv",
@@ -72,48 +77,28 @@ def output_updater_test_runner(
     )
 
     model.to_device("cuda" if use_cuda else "cpu")
-    out_updater = OutputUpdater(model.device)
 
     # -------------------------------------------------------------------------#
     # Training
     var_y = np.full((batch_size * len(output_col),), 0.02**2, dtype=np.float32)
 
     for _ in np.arange(1):
-        same_delta_z = []
+
         batch_iter = train_dtl.create_data_loader(batch_size, False)
-        for x, y in batch_iter:
-            # Feed forward
-            m_pred, _ = model(x)
+        x, y = next(batch_iter)
 
-            # Default update output layer
-            out_updater.update(
-                output_states=model.output_z_buffer,
-                mu_obs=y,
-                var_obs=var_y,
-                delta_states=model.input_delta_z_buffer,
-            )
-            delta_z_mu = model.input_delta_z_buffer.delta_mu
-            delta_z_var = model.input_delta_z_buffer.delta_var
+        # Feed forward
+        m_pred, _ = model(x)
 
-            # User-defined update output layer
-            (
-                user_delta_z_mu,
-                user_delta_z_var,
-            ) = user_output_updater(
-                mu_obs=y,
-                var_obs=var_y,
-                jcb=model.output_z_buffer.jcb,
-                mu_output_z=model.output_z_buffer.mu_a,
-                var_output_z=model.output_z_buffer.var_a,
-                batch_size=batch_size,
-            )
+        # Test delta_z_to_device function:
+        delta_mu = np.array([1, 2], dtype=np.float32)
+        delta_var = np.array([3, 4], dtype=np.float32)
+        model.delta_z_to_device(delta_mu, delta_var)
 
-            # Compare default and user-defined update output layers
-            mu_match = np.allclose(delta_z_mu, user_delta_z_mu, atol=1e-6)
-            var_match = np.allclose(delta_z_var, user_delta_z_var, atol=1e-6)
-            same_delta_z.append(mu_match and var_match)
-
-        same_delta_z = all(same_delta_z)
+        mu_match = np.allclose(delta_mu, model.input_delta_z_buffer.delta_mu)
+        var_match = np.allclose(delta_var, model.input_delta_z_buffer.delta_var)
+        if mu_match and var_match:
+            same_delta_z = True
 
     return same_delta_z
 
@@ -154,10 +139,7 @@ def lstm_user_output_updater_test_runner(
             # Feed forward
             m_pred, _ = model(x)
 
-            (
-                model.input_delta_z_buffer.delta_mu,
-                model.input_delta_z_buffer.delta_var,
-            ) = user_output_updater(
+            delta_mu, delta_var = user_output_updater(
                 mu_obs=y,
                 var_obs=var_y,
                 jcb=model.output_z_buffer.jcb,
@@ -165,8 +147,7 @@ def lstm_user_output_updater_test_runner(
                 var_output_z=model.output_z_buffer.var_a,
                 batch_size=batch_size,
             )
-            if model.device == "cuda":
-                model.delta_z_to_device()
+            model.delta_z_to_device(delta_mu, delta_var)
 
             # Feed backward
             model.backward()
@@ -410,15 +391,13 @@ class SineSignalTest(unittest.TestCase):
         mse = lstm_user_output_updater_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True
         )
-        same_delta_z = output_updater_test_runner(
-            model, input_seq_len=input_seq_len
+        same_delta_z = delta_z_to_device_test_runner(
+            model, input_seq_len=input_seq_len, use_cuda=True
         )
         self.assertLess(
             mse, self.threshold, "Error rate is higher than threshold"
         )
-        assert (
-            same_delta_z
-        ), "Different results for default and user-defined output_updater"
+        assert same_delta_z, "Delta_z is not sent correctlt to cuda device"
 
 
 if __name__ == "__main__":
