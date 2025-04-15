@@ -72,6 +72,22 @@ void bind_sequential(pybind11::module_& m) {
         .def("reset_lstm_states", &Sequential::reset_lstm_states)
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
+        .def(
+            "set_delta_z",
+            [](Sequential& self, pybind11::object arg1, pybind11::object arg2) {
+                pybind11::array_t<float> mu_np =
+                    arg1.cast<pybind11::array_t<float>>();
+                pybind11::array_t<float> var_np =
+                    arg2.cast<pybind11::array_t<float>>();
+                std::vector<float> mu_vec(mu_np.size());
+                std::memcpy(mu_vec.data(), mu_np.data(),
+                            mu_np.size() * sizeof(float));
+                std::vector<float> var_vec(var_np.size());
+                std::memcpy(var_vec.data(), var_np.data(),
+                            var_np.size() * sizeof(float));
+                self.set_delta_z(mu_vec, var_vec);
+            },
+            pybind11::arg("delta_mu"), pybind11::arg("delta_var"))
         .def("get_layer_stack_info", &Sequential::get_layer_stack_info)
         .def("preinit_layer", &Sequential::preinit_layer)
         .def("get_neg_var_w_counter", &Sequential::get_neg_var_w_counter)

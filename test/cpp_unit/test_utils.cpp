@@ -2,6 +2,7 @@
 
 #include "../../include/activation.h"
 #include "../../include/batchnorm_layer.h"
+#include "../../include/common.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/resnet_block.h"
 #include "../../include/sequential.h"
@@ -127,6 +128,34 @@ Dataloader get_time_series_dataloader(std::vector<std::string> &data_file,
     db.num_data = num_samples;
 
     return db;
+}
+
+void user_output_updater(std::vector<float> &mu_output_z,
+                         std::vector<float> &var_output_z,
+                         std::vector<float> &jcb, std::vector<float> &obs,
+                         std::vector<float> &var_obs,
+                         std::vector<float> &delta_mu,
+                         std::vector<float> &delta_var)
+/*
+User-defined output updater to compute delta_z for updates
+*/
+{
+    int start_chunk = 0;
+    int end_chunk = obs.size();
+    float zero_pad = 0;
+    float tmp = 0;
+
+    // We compute directely the inovation vector for output layer
+    for (int col = start_chunk; col < end_chunk; col++) {
+        tmp = jcb[col] / (var_output_z[col] + var_obs[col]);
+        if (isinf(tmp) || isnan(tmp) || isnan(obs[col])) {
+            delta_mu[col] = zero_pad;
+            delta_var[col] = zero_pad;
+        } else {
+            delta_mu[col] = tmp * (obs[col] - mu_output_z[col]);
+            delta_var[col] = -tmp * jcb[col];
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -266,6 +295,157 @@ void sin_signal_lstm_test_runner(Sequential &model, int input_seq_len,
     mse = mean_squared_error(mu_y, y_test);
     log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
 }
+
+void sin_signal_lstm_user_output_updater_test_runner(Sequential &model,
+                                                     int input_seq_len,
+                                                     float &mse, float &log_lik)
+/**/
+{
+    // Data
+    int num_train_data = 924;
+    int num_test_data = 232;
+    std::vector<int> output_col{0};
+    int num_features = 1;
+    std::vector<std::string> x_train_path{
+        "data/toy_time_series/x_train_sin_data.csv"};
+    std::vector<std::string> x_test_path{
+        "data/toy_time_series/x_test_sin_data.csv"};
+
+    int output_seq_len = 1;
+    int seq_stride = 1;
+    std::vector<float> mu_x, sigma_x;
+
+    auto train_db = get_time_series_dataloader(
+        x_train_path, num_train_data, num_features, output_col, true,
+        input_seq_len, output_seq_len, seq_stride, mu_x, sigma_x);
+
+    auto test_db = get_time_series_dataloader(
+        x_test_path, num_test_data, num_features, output_col, true,
+        input_seq_len, output_seq_len, seq_stride, train_db.mu_x,
+        train_db.sigma_x);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Training
+    ////////////////////////////////////////////////////////////////////////////
+    OutputUpdater output_updater(model.device);
+    unsigned seed = 42;
+    std::default_random_engine seed_e(seed);
+    int n_epochs = 2;
+    int batch_size = 8;
+    float sigma_obs = 0.02;
+
+    int iters = train_db.num_data / batch_size;
+    std::vector<float> x_batch(batch_size * train_db.nx, 0.0f);
+    std::vector<float> var_obs(batch_size * train_db.ny, pow(sigma_obs, 2));
+    std::vector<float> y_batch(batch_size * train_db.ny, 0.0f);
+    std::vector<int> batch_idx(batch_size);
+    std::vector<float> mu_a_output(batch_size * train_db.ny, 0);
+    std::vector<float> var_a_output(batch_size * train_db.ny, 0);
+    auto data_idx = create_range(train_db.num_data);
+    float decay_factor = 0.95f;
+    float min_sigma_obs = 0.3f;
+
+    for (int e = 0; e < n_epochs; e++) {
+        if (e > 0) {
+            // Shuffle data
+            std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+            decay_obs_noise(sigma_obs, decay_factor, min_sigma_obs);
+            std::vector<float> var_obs(batch_size * train_db.ny,
+                                       pow(sigma_obs, 2));
+        }
+        for (int i = 0; i < iters; i++) {
+            // Load data
+            get_batch_idx(data_idx, i * batch_size, batch_size, batch_idx);
+            get_batch_data(train_db.x, batch_idx, train_db.nx, x_batch);
+            get_batch_data(train_db.y, batch_idx, train_db.ny, y_batch);
+
+            // Forward
+            model.forward(x_batch);
+
+            // User-defined output updater to compute input_delta_z
+            if (model.device == "cuda") {
+                model.delta_z_to_host();
+                model.output_to_host();
+            }
+
+            std::vector<float> delta_mu(
+                model.input_delta_z_buffer->delta_mu.size(), 0.0f);
+            std::vector<float> delta_var(
+                model.input_delta_z_buffer->delta_var.size(), 0.0f);
+            user_output_updater(model.output_z_buffer->mu_a,
+                                model.output_z_buffer->var_a,
+                                model.output_z_buffer->jcb, y_batch, var_obs,
+                                delta_mu, delta_var);
+            model.set_delta_z(delta_mu, delta_var);
+
+            // Backward pass
+            model.backward();
+            model.step();
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Testing
+    ///////////////////////////////////////////////////////////////////////////
+    std::vector<float> mu_a_output_test(test_db.num_data * test_db.ny, 0);
+    std::vector<float> var_a_output_test(test_db.num_data * test_db.ny, 0);
+    auto test_data_idx = create_range(test_db.num_data);
+
+    int n_iter =
+        static_cast<float>(test_db.num_data) / static_cast<float>(batch_size);
+    // int n_iter = ceil(n_iter_round);
+    int mt_idx = 0;
+
+    for (int i = 0; i < n_iter; i++) {
+        mt_idx = i * test_db.ny * batch_size;
+
+        // Data
+        get_batch_idx(test_data_idx, i * batch_size, batch_size, batch_idx);
+        get_batch_data(test_db.x, batch_idx, test_db.nx, x_batch);
+        get_batch_data(test_db.y, batch_idx, test_db.ny, y_batch);
+
+        // Forward
+        model.forward(x_batch);
+
+        // Extract output
+        if (model.device == "cuda") {
+            model.output_to_host();
+        }
+
+        for (int j = 0; j < batch_size * test_db.ny; j++) {
+            mu_a_output_test[j + mt_idx] = model.output_z_buffer->mu_a[j];
+            var_a_output_test[j + mt_idx] = model.output_z_buffer->var_a[j];
+        }
+    }
+    // Retrive predictions (i.e., 1st column)
+    int n_y = test_db.ny / output_seq_len;
+    std::vector<float> mu_y_1(test_db.num_data, 0);
+    std::vector<float> var_y_1(test_db.num_data, 0);
+    std::vector<float> y_1(test_db.num_data, 0);
+    get_1st_column_data(mu_a_output_test, output_seq_len, n_y, mu_y_1);
+    get_1st_column_data(var_a_output_test, output_seq_len, n_y, var_y_1);
+    get_1st_column_data(test_db.y, output_seq_len, n_y, y_1);
+
+    // Unnormalize data
+    std::vector<float> std_y_norm(test_db.num_data, 0);
+    std::vector<float> mu_y(test_db.num_data, 0);
+    std::vector<float> std_y(test_db.num_data, 0);
+    std::vector<float> y_test(test_db.num_data, 0);
+
+    // Compute log-likelihood
+    for (int k = 0; k < test_db.num_data; k++) {
+        std_y_norm[k] = pow(var_y_1[k] + pow(sigma_obs, 2), 0.5);
+    }
+
+    denormalize_mean(mu_y_1, test_db.mu_y, test_db.sigma_y, n_y, mu_y);
+    denormalize_mean(y_1, test_db.mu_y, test_db.sigma_y, n_y, y_test);
+    denormalize_std(std_y_norm, test_db.mu_y, test_db.sigma_y, n_y, std_y);
+
+    // // Compute metrics
+    mse = mean_squared_error(mu_y, y_test);
+    log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
+}
+
 //------------------------------------------------------------------------------
 // SMOOTHER
 //------------------------------------------------------------------------------

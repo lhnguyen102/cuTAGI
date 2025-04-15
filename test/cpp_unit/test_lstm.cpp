@@ -33,6 +33,25 @@ TEST_F(SineSignalTest, LSTMTest_CPU) {
         << "Log likelihood is lower than threshold";
 }
 
+#ifdef USE_CUDA
+TEST_F(SineSignalTest, LSTMTestUserOutputUpdater_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    int input_seq_len = 4;
+    Sequential model(LSTM(1, 8, input_seq_len), LSTM(8, 8, input_seq_len),
+                     Linear(8 * input_seq_len, 1));
+    model.to_device("cuda");
+    float avg_error;
+    float log_lik;
+    float mse_threshold = 0.5f;
+    float log_lik_threshold = -3.0f;
+    sin_signal_lstm_user_output_updater_test_runner(model, input_seq_len,
+                                                    avg_error, log_lik);
+    EXPECT_LT(avg_error, mse_threshold) << "MSE is higher than threshold";
+    EXPECT_GT(log_lik, log_lik_threshold)
+        << "Log likelihood is lower than threshold";
+}
+#endif
+
 TEST_F(SineSignalTest, SmootherTest_CPU) {
     int input_seq_len = 24;
     int num_features = 1;

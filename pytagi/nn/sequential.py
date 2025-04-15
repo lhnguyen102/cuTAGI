@@ -167,6 +167,10 @@ class Sequential:
         """Copy the delta Z data to the host."""
         return self._cpp_backend.delta_z_to_host()
 
+    def set_delta_z(self, delta_mu: np.ndarray, delta_var: np.ndarray):
+        """Send the delta Z to device"""
+        self._cpp_backend.set_delta_z(delta_mu, delta_var)
+
     def get_layer_stack_info(self) -> str:
         """Get information about the layer stack."""
         return self._cpp_backend.get_layer_stack_info()
