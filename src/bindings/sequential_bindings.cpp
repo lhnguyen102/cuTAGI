@@ -73,7 +73,7 @@ void bind_sequential(pybind11::module_& m) {
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)
         .def(
-            "delta_z_to_device",
+            "set_delta_z",
             [](Sequential& self, pybind11::object arg1, pybind11::object arg2) {
                 pybind11::array_t<float> mu_np =
                     arg1.cast<pybind11::array_t<float>>();
@@ -85,7 +85,7 @@ void bind_sequential(pybind11::module_& m) {
                 std::vector<float> var_vec(var_np.size());
                 std::memcpy(var_vec.data(), var_np.data(),
                             var_np.size() * sizeof(float));
-                self.delta_z_to_device(mu_vec, var_vec);
+                self.set_delta_z(mu_vec, var_vec);
             },
             pybind11::arg("delta_mu"), pybind11::arg("delta_var"))
         .def("get_layer_stack_info", &Sequential::get_layer_stack_info)

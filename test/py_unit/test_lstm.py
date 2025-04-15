@@ -48,7 +48,7 @@ def user_output_updater(
     )
 
 
-def delta_z_to_device_test_runner(
+def set_delta_z_test_runner(
     model: Sequential,
     input_seq_len: int = 4,
     batch_size: int = 8,
@@ -85,10 +85,10 @@ def delta_z_to_device_test_runner(
         # Feed forward
         m_pred, _ = model(x)
 
-        # Test delta_z_to_device function:
+        # Test set_delta_z function:
         delta_mu = np.array([1, 2], dtype=np.float32)
         delta_var = np.array([3, 4], dtype=np.float32)
-        model.delta_z_to_device(delta_mu, delta_var)
+        model.set_delta_z(delta_mu, delta_var)
         mu_match = np.allclose(delta_mu, model.input_delta_z_buffer.delta_mu)
         var_match = np.allclose(delta_var, model.input_delta_z_buffer.delta_var)
         if mu_match and var_match:
@@ -141,7 +141,7 @@ def lstm_user_output_updater_test_runner(
                 var_output_z=model.output_z_buffer.var_a,
                 batch_size=batch_size,
             )
-            model.delta_z_to_device(delta_mu, delta_var)
+            model.set_delta_z(delta_mu, delta_var)
 
             # Feed backward
             model.backward()
@@ -355,14 +355,14 @@ class SineSignalTest(unittest.TestCase):
             mse, self.threshold, "Error rate is higher than threshold"
         )
 
-    def test_delta_z_to_device_CPU(self):
+    def test_set_delta_z_CPU(self):
         input_seq_len = 4
         model = Sequential(
             LSTM(1, 8, input_seq_len),
             LSTM(8, 8, input_seq_len),
             Linear(8 * input_seq_len, 1),
         )
-        same_delta_z = delta_z_to_device_test_runner(
+        same_delta_z = set_delta_z_test_runner(
             model, input_seq_len=input_seq_len
         )
         assert same_delta_z, "Delta_z is not sent correctlt to CPU"
@@ -402,7 +402,7 @@ class SineSignalTest(unittest.TestCase):
         )
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
-    def test_delta_z_to_device_CUDA(self):
+    def test_set_delta_z_CUDA(self):
         if not pytagi.cuda.is_available():
             self.skipTest("CUDA is not available")
         input_seq_len = 4
@@ -411,7 +411,7 @@ class SineSignalTest(unittest.TestCase):
             LSTM(8, 8, input_seq_len),
             Linear(8 * input_seq_len, 1),
         )
-        same_delta_z = delta_z_to_device_test_runner(
+        same_delta_z = set_delta_z_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True
         )
         assert same_delta_z, "Delta_z is not sent correctlt to cuda device"

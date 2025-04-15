@@ -476,8 +476,8 @@ void Sequential::delta_z_to_host() {
 #endif
 }
 
-void Sequential::delta_z_to_device(std::vector<float> &delta_mu,
-                                   std::vector<float> &delta_var)
+void Sequential::set_delta_z(std::vector<float> &delta_mu,
+                             std::vector<float> &delta_var)
 /*
  */
 {

@@ -376,7 +376,7 @@ void sin_signal_lstm_user_output_updater_test_runner(Sequential &model,
                                 model.output_z_buffer->var_a,
                                 model.output_z_buffer->jcb, y_batch, var_obs,
                                 delta_mu, delta_var);
-            model.delta_z_to_device(delta_mu, delta_var);
+            model.set_delta_z(delta_mu, delta_var);
 
             // Backward pass
             model.backward();
