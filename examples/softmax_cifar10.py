@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import pytagi
+from examples.tagi_resnet_model import resnet18_cifar10
 from pytagi import HRCSoftmaxMetric
 from pytagi.nn import (
     AvgPool2d,
@@ -61,9 +62,11 @@ CNN = Sequential(
 )
 
 
-def one_hot_encode(labels, num_classes=10):
+def one_hot_encode(labels: torch.Tensor, num_classes: int = 10):
     """Convert labels to one-hot encoding"""
-    return F.one_hot(torch.tensor(labels), num_classes=num_classes).numpy()
+
+    labels = labels.clone().detach()
+    return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
 def load_datasets(batch_size: int):
@@ -129,7 +132,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.2):
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    net = CNN
+    net = resnet18_cifar10(num_outputs=10, gain_w=0.1, gain_b=0.1)
+    # net = CNN
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
     out_updater = OutputUpdater(net.device)
 
@@ -145,7 +149,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.2):
         for batch_idx, (data, target) in enumerate(pbar):
             # Prepare data
             x = data.numpy().flatten()  # Flatten the images
-            y = one_hot_encode(target).flatten()  # Convert to one-hot encoding
+            y = one_hot_encode(target)  # Convert to one-hot encoding
 
             m_pred, v_pred = net(x)
 
@@ -189,7 +193,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.2):
         test_error_rate = (test_error / num_test_samples) * 100
         print(
             f"\nEpoch {epoch+1}/{num_epochs}: "
-            f"Train Error: {train_error/num_train_samples:.2f}% | "
+            f"Train Error: {train_error/num_train_samples * 100:.2f}% | "
             f"Test Error: {test_error_rate:.2f}%"
         )
 

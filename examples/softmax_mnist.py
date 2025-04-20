@@ -94,7 +94,8 @@ CNN_BATCHNORM = Sequential(
 
 def one_hot_encode(labels, num_classes=10):
     """Convert labels to one-hot encoding"""
-    return F.one_hot(torch.tensor(labels), num_classes=num_classes).numpy()
+    labels = labels.clone().detach()
+    return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
 def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
@@ -185,7 +186,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
         test_error_rate = (test_error / num_test_samples) * 100
         print(
             f"\nEpoch {epoch+1}/{num_epochs}: "
-            f"Train Error: {train_error/num_train_samples:.2f}% | "
+            f"Train Error: {train_error/num_train_samples * 100:.2f}% | "
             f"Test Error: {test_error_rate:.2f}%"
         )
 
