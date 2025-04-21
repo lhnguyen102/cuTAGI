@@ -276,7 +276,6 @@ jobs:
     name: Upload to Test PyPI
     needs: [test]
     runs-on: ubuntu-22.04
-    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/checkout@v4
 
@@ -301,10 +300,23 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install twine==5.1.1
 
+      - name: List contents of dist
+        run: |
+          ls -lh dist
+          for file in dist/*; do
+            echo "Inspecting $file"
+            if [[ $file == *.tar.gz ]]; then
+              tar -tzf "$file" || echo "Invalid sdist: $file"
+            elif [[ $file == *.whl ]]; then
+              unzip -l "$file" || echo "Invalid wheel: $file"
+            fi
+          done
+
       - name: Upload to Test PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          twine upload --skip-existing dist/*
-# twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
+          twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
+# twine upload --skip-existing dist/*
+# if: github.event_name == 'release' && github.event.action == 'published'
