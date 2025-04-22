@@ -274,7 +274,7 @@ jobs:
 
   upload_pypi:
     name: Upload to Test PyPI
-    # needs: [test]
+    needs: [build_linux, build_macos, build_windows, build_sdist]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
