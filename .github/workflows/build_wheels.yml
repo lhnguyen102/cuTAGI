@@ -83,7 +83,7 @@ jobs:
     strategy:
       matrix:
         include:
-            host_python: "3.12"
+          host_python: "3.12"
 
     if: ${{ github.event.pull_request.draft == false }}
     steps:
