@@ -79,50 +79,76 @@ jobs:
   build_macos:
     name: MACOS Build
     needs: [pre-commit]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-13
     strategy:
       matrix:
         include:
-          - os: macos-13
-            python_version: "3.10"
-            cibuildwheel_python: "cp310-*"
+            host_python: "3.12"
 
-          - os: macos-13
-            python_version: "3.11"
-            cibuildwheel_python: "cp311-*"
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - name: Set up Python ${{ matrix.host_python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.host_python }}
 
-          - os: macos-13
-            python_version: "3.12"
-            cibuildwheel_python: "cp312-*"
+      - name: Install cibuildwheel
+        run: python3 -m pip install cibuildwheel==2.23.2
 
+      - name: Build wheels
+        run: python3 -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp310-*,cp311-*,cp312-*
+          CIBW_ARCHS_MACOS: universal2
+          CIBW_BUILD_VERBOSITY: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-wheels
+          path: ./wheelhouse/*.whl
+
+  build_windows:
+    name: Windows Build (CPU Only)
+    needs: [pre-commit]
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - python_version: "3.10"
+            cibw_build: "cp310-win_amd64"
+          - python_version: "3.11"
+            cibw_build: "cp311-win_amd64"
+          - python_version: "3.12"
+            cibw_build: "cp312-win_amd64"
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # Used to host cibuildwheel
       - name: Set up Python ${{ matrix.python_version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: build dependencies (setuptools, wheel)
-        run: python3 -m pip install cibuildwheel==2.23.2
-
-      - name: Build wheels
+      - name: Install cibuildwheel and NumPy <2.0
         run: |
-          python3 -m cibuildwheel --output-dir wheelhouse
+          python -m pip install cibuildwheel==2.21.3
+          python -m pip install "numpy<2.0"
+
+      - name: Build wheels (CPU Only)
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_BUILD: ${{ matrix.cibuildwheel_python }}
-          CIBW_ARCHS_MACOS: universal2
+          CIBW_BUILD: ${{ matrix.cibw_build }}
+          CIBW_ARCHS_WINDOWS: auto64
           CIBW_BUILD_VERBOSITY: 1
+          CIBW_ENVIRONMENT: "FORCE_CPU_ONLY=1 CMAKE_ARGS='-DBUILD_TESTING=OFF'"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-wheels-${{ matrix.python_version }}
+          name: windows-wheels-cpu-${{ matrix.python_version }}
           path: ./wheelhouse/*.whl
-
 
   build_sdist:
     name: SDist Build
@@ -230,55 +256,90 @@ jobs:
   #     - name : Run Python Test Unit
   #       run: python -m test.py_unit.main --cpu
 
+
   upload_pypi:
     name: Upload to Test PyPI
-    needs: [build_linux, build_macos, build_sdist]
+    needs: [build_linux, build_macos, build_windows, build_sdist]
     runs-on: ubuntu-22.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/pytagi
+    permissions:
+      contents: read       # to fetch artifacts
+      id-token: write      # mandatory for Trusted Publishing
+      packages: write      # to publish packages
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Download artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./artifacts
+          path: ./dist
 
-      - name: Collect and clean all build files
-        run: |
-          mkdir dist
-          find ./artifacts -type f -name "*.whl" -exec cp {} dist/ \;
-          cp ./artifacts/sdist-3.10/*.tar.gz dist/
-          rm -rf build *.egg-info  # Clean any stale metadata
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # points at Test PyPI instead of the default main index
+          repository-url: https://test.pypi.org/legacy/
+          user: __token__
+          password: ${{ secrets.PYPI_PASSWORD }}
 
-      - name: Install twine
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install twine==5.1.1
+  # upload_pypi:
+  #   name: Upload to Test PyPI
+  #   needs: [build_linux, build_macos, build_windows, build_sdist]
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: List contents of dist
-        run: |
-          ls -lh dist
-          for file in dist/*; do
-            echo "Inspecting $file"
-            if [[ $file == *.tar.gz ]]; then
-              tar -tzf "$file" || echo "Invalid sdist: $file"
-            elif [[ $file == *.whl ]]; then
-              unzip -l "$file" || echo "Invalid wheel: $file"
-            fi
-          done
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.x'
 
-      - name: Validate distributions before upload
-        run: twine check dist/*
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: ./artifacts
 
-      - name: Upload to Test PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
+  #     - name: Collect and clean all build files
+  #       run: |
+  #         mkdir dist
+  #         find ./artifacts -type f -name "*.whl" -exec cp {} dist/ \;
+  #         cp ./artifacts/sdist-3.10/*.tar.gz dist/
+  #         rm -rf build *.egg-info  # Clean any stale metadata
+
+  #     - name: Install twine
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         python -m pip install twine==5.1.1
+
+  #     - name: List contents of dist
+  #       run: |
+  #         ls -lh dist
+  #         for file in dist/*; do
+  #           echo "Inspecting $file"
+  #           if [[ $file == *.tar.gz ]]; then
+  #             tar -tzf "$file" || echo "Invalid sdist: $file"
+  #           elif [[ $file == *.whl ]]; then
+  #             unzip -l "$file" || echo "Invalid wheel: $file"
+  #           fi
+  #         done
+
+  #     - name: Validate distributions before upload
+  #       run: twine check dist/*
+
+  #     - name: Upload to Test PyPI
+  #       env:
+  #         TWINE_USERNAME: __token__
+  #         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+  #       run: |
+  #         twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
 # twine upload --skip-existing dist/*
 # if: github.event_name == 'release' && github.event.action == 'published'
