@@ -295,10 +295,11 @@ jobs:
 
       - name: Unzip build artifacts into dist
         run: |
-          mkdir -p dist
-          for zip in artifacts/*.zip; do
-            unzip -o "$zip" -d dist
-          done
+          mkdir dist
+          find ./artifacts -type f -name "*.whl" -exec cp {} dist/ \;
+          cp ./artifacts/sdist-3.10/*.tar.gz dist/
+          rm -rf build *.egg-info  # Clean any stale metadata
+
 
       - name: Publish to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
