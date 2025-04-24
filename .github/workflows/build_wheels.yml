@@ -291,7 +291,14 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./dist
+          path: ./artifacts
+
+      - name: Unzip build artifacts into dist
+        run: |
+          mkdir -p dist
+          for zip in artifacts/*.zip; do
+            unzip -o "$zip" -d dist
+          done
 
       - name: Publish to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
