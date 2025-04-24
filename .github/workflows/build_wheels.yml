@@ -308,6 +308,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
+          verbose: true
 
   # upload_pypi:
   #   name: Upload to Test PyPI
