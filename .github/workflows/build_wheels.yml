@@ -281,7 +281,7 @@ jobs:
       contents: read       # to fetch artifacts
       id-token: write      # mandatory for Trusted Publishing
       packages: write      # to publish packages
-
+    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -311,5 +311,3 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
           verbose: true
-
-# if: github.event_name == 'release' && github.event.action == 'published'
