@@ -226,57 +226,57 @@ jobs:
       - name: Run pre-commit
         run: pre-commit run --all-files
 
-  # test:
-  #   name: Test
-  #   needs: [build_linux, build_macos, build_windows, build_sdist]
-  #   runs-on: ubuntu-22.04
+  test:
+    name: Test
+    needs: [build_linux, build_macos, build_windows, build_sdist]
+    runs-on: ubuntu-22.04
 
-  #   if: ${{ github.event.pull_request.draft == false }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: recursive
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.10"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-  #     - name: Install MPI
-  #       run: |
-  #         sudo apt update
-  #         sudo apt install -y openmpi-bin=4.1.2-2ubuntu1 libopenmpi-dev=4.1.2-2ubuntu1
+      - name: Install MPI
+        run: |
+          sudo apt update
+          sudo apt install -y openmpi-bin=4.1.2-2ubuntu1 libopenmpi-dev=4.1.2-2ubuntu1
 
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         python -m pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
-  #     - name: Setup cmake
-  #       uses: jwlawson/actions-setup-cmake@v2.0.2
-  #       with:
-  #         cmake-version: "3.22.x"
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2.0.2
+        with:
+          cmake-version: "3.22.x"
 
-  #     - name: cmake version
-  #       run: cmake --version
+      - name: cmake version
+        run: cmake --version
 
-  #     - name: Build binary
-  #       run: |
-  #         sh scripts/compile.sh Release
+      - name: Build binary
+        run: |
+          sh scripts/compile.sh Release
 
-  #     - name: Run CPP Test Unit
-  #       run: build/run_tests --cpu
+      - name: Run CPP Test Unit
+        run: build/run_tests --cpu
 
-  #     - name : Run Python Test Unit
-  #       run: python -m test.py_unit.main --cpu
+      - name : Run Python Test Unit
+        run: python -m test.py_unit.main --cpu
 
 
   upload_pypi:
-    name: Upload to Test PyPI
-    needs: [build_linux, build_macos, build_windows, build_sdist]
+    name: Upload to PyPI
+    needs: [test]
     runs-on: ubuntu-22.04
     environment:
       name: testpypi
-      url: https://test.pypi.org/project/pytagi
+      url: https://pypi.org/project/pytagi
     permissions:
       contents: read       # to fetch artifacts
       id-token: write      # mandatory for Trusted Publishing
@@ -304,64 +304,12 @@ jobs:
           rm -rf build *.egg-info  # Clean any stale metadata
 
 
-      - name: Publish to Test PyPI
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # points at Test PyPI instead of the default main index
-          repository-url: https://test.pypi.org/legacy/
+          # repository-url: https://test.pypi.org/legacy/
           user: __token__
-          password: ${{ secrets.TEST_PYPI_PASSWORD }}
+          password: ${{ secrets.PYPI_PASSWORD }}
           verbose: true
 
-  # upload_pypi:
-  #   name: Upload to Test PyPI
-  #   needs: [build_linux, build_macos, build_windows, build_sdist]
-  #   runs-on: ubuntu-22.04
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.x'
-
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         path: ./artifacts
-
-  #     - name: Collect and clean all build files
-  #       run: |
-  #         mkdir dist
-  #         find ./artifacts -type f -name "*.whl" -exec cp {} dist/ \;
-  #         cp ./artifacts/sdist-3.10/*.tar.gz dist/
-  #         rm -rf build *.egg-info  # Clean any stale metadata
-
-  #     - name: Install twine
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         python -m pip install twine==5.1.1
-
-  #     - name: List contents of dist
-  #       run: |
-  #         ls -lh dist
-  #         for file in dist/*; do
-  #           echo "Inspecting $file"
-  #           if [[ $file == *.tar.gz ]]; then
-  #             tar -tzf "$file" || echo "Invalid sdist: $file"
-  #           elif [[ $file == *.whl ]]; then
-  #             unzip -l "$file" || echo "Invalid wheel: $file"
-  #           fi
-  #         done
-
-  #     - name: Validate distributions before upload
-  #       run: twine check dist/*
-
-  #     - name: Upload to Test PyPI
-  #       env:
-  #         TWINE_USERNAME: __token__
-  #         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-  #       run: |
-  #         twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
-# twine upload --skip-existing dist/*
 # if: github.event_name == 'release' && github.event.action == 'published'
