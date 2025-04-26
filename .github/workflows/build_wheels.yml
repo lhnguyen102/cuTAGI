@@ -79,20 +79,17 @@ jobs:
   build_macos:
     name: MACOS Build
     needs: [pre-commit]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-13
     strategy:
       matrix:
         include:
-          - os: macos-13
-            python_version: "3.10"
+          - python_version: "3.10"
             cibuildwheel_python: "cp310-*"
 
-          - os: macos-13
-            python_version: "3.11"
+          - python_version: "3.11"
             cibuildwheel_python: "cp311-*"
 
-          - os: macos-13
-            python_version: "3.12"
+          - python_version: "3.12"
             cibuildwheel_python: "cp312-*"
 
     if: ${{ github.event.pull_request.draft == false }}
@@ -108,7 +105,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: build dependencies (setuptools, wheel)
-        run: python3 -m pip install cibuildwheel==2.21.3
+        run: python3 -m pip install cibuildwheel==2.23.2
 
       - name: Build wheels
         run: |
@@ -173,7 +170,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        python_version: ["3.10", "3.11", "3.12"]
+        python_version: ["3.10"]
     if: ${{ github.event.pull_request.draft == false }}
     steps:
       - uses: actions/checkout@v4
@@ -272,39 +269,45 @@ jobs:
       - name : Run Python Test Unit
         run: python -m test.py_unit.main --cpu
 
+
   upload_pypi:
-    name: Upload to Test PyPI
+    name: Upload to PyPI
     needs: [test]
     runs-on: ubuntu-22.04
+    environment:
+      name: testpypi
+      url: https://pypi.org/project/pytagi
+    permissions:
+      contents: read       # to fetch artifacts
+      id-token: write      # mandatory for Trusted Publishing
+      packages: write      # to publish packages
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Download artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: Collect and clean all build files
+      - name: Unzip build artifacts into dist
         run: |
           mkdir dist
-          find ./artifacts -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
+          find ./artifacts -type f -name "*.whl" -exec cp {} dist/ \;
+          cp ./artifacts/sdist-3.10/*.tar.gz dist/
           rm -rf build *.egg-info  # Clean any stale metadata
 
-      - name: Install twine
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install twine==5.1.1
 
-      - name: Upload to Test PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          twine upload --skip-existing dist/*
-# twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # repository-url: https://test.pypi.org/legacy/
+          user: __token__
+          password: ${{ secrets.PYPI_PASSWORD }}
+          verbose: true
