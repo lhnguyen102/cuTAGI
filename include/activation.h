@@ -505,37 +505,15 @@ class Softmax : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax
 ////////////////////////////////////////////////////////////////////////////////
-class RemaxA : public BaseLayer {
+class Remax : public BaseLayer {
    public:
     float alpha = 0.1f;
-    RemaxA();
-    ~RemaxA();
+    Remax();
+    ~Remax();
 
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
-
-    // TODO: How to add mixture relu
-    void to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
-                int B, std::vector<float> &mu_log, std::vector<float> &var_log);
-
-    void sum_class_hidden_states(std::vector<float> &mu_m,
-                                 std::vector<float> &var_m, int no, int B,
-                                 std::vector<float> &mu_sum,
-                                 std::vector<float> &var_sum);
-
-    void compute_cov_log_logsum(std::vector<float> &mu_m,
-                                std::vector<float> &var_m,
-                                std::vector<float> &mu_sum, int no, int B,
-                                std::vector<float> &cov_log_logsum);
-
-    void compute_remax_prob(std::vector<float> &mu_log,
-                            std::vector<float> &var_log,
-                            std::vector<float> &mu_logsum,
-                            std::vector<float> &var_logsum,
-                            std::vector<float> &cov_log_logsum, int no, int B,
-                            std::vector<float> &mu_a,
-                            std::vector<float> &var_a);
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

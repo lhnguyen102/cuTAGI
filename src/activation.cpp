@@ -173,6 +173,35 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
+void mixture_relu_mean_var_v2(std::vector<float> &mu_z,
+                              std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, std::vector<float> &mu_a,
+                              float threshold, std::vector<float> &jcb,
+                              std::vector<float> &var_a)
+/*TODO: to be reviewed
+ */
+{
+    float std_z, alpha, pdf_alpha, cdf_alpha;
+    for (int i = start_chunk; i < end_chunk; i++) {
+        // Reused components for moments calculations
+        std_z = powf(var_z[i], 0.5);
+        alpha = mu_z[i] / std_z;
+        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        cdf_alpha = normcdf_cpu(alpha);
+
+        // Ensure numerical stability
+        pdf_alpha = std::max(pdf_alpha, threshold);
+        cdf_alpha = std::max(cdf_alpha, threshold);
+
+        // Moments calculations (L. Alric, 2024)
+        mu_a[i] = std::max(threshold, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
+        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
+                   mu_z[i] * std_z * pdf_alpha +
+                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+        jcb[i] = cdf_alpha;
+    }
+}
+
 void mixture_relu_mean_var_mp(std::vector<float> &mu_z,
                               std::vector<float> &var_z, int n,
                               unsigned int num_threads,
@@ -1032,99 +1061,133 @@ std::unique_ptr<BaseLayer> Softmax::to_cuda(int device_idx) {
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax
 ////////////////////////////////////////////////////////////////////////////////
-RemaxA::RemaxA() {}
-RemaxA::~RemaxA() {}
-
-std::string RemaxA::get_layer_info() const
-/*
- */
-{
-    return "RemaxA()";
-}
-
-std::string RemaxA::get_layer_name() const
-/*
- */
-
-{
-    return "RemaxA";
-}
-
-void RemaxA::to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
-                    int B, std::vector<float> &mu_log,
-                    std::vector<float> &var_log)
+void to_log(std::vector<float> &mu_m, std::vector<float> &var_m,
+            int hidden_size, int batch_size, std::vector<float> &mu_log,
+            std::vector<float> &var_log)
 /*
  */
 {
     float tmp_mu, tmp_var;
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            tmp_var =
-                logf(1.0f + (var_m[i * no + j] / powf(mu_m[i * no + j], 2)));
-            tmp_mu = logf(mu_m[i * no + j]) - 0.5 * tmp_var;
-            mu_log[i * no + j] = tmp_mu;
-            var_log[i * no + j] = tmp_var;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            tmp_var = logf(1.0f + (var_m[i * hidden_size + j] /
+                                   powf(mu_m[i * hidden_size + j], 2)));
+            tmp_mu = logf(mu_m[i * hidden_size + j]) - 0.5 * tmp_var;
+
+            mu_log[i * hidden_size + j] = tmp_mu;
+            var_log[i * hidden_size + j] = tmp_var;
         }
     }
 }
 
-void RemaxA::sum_class_hidden_states(std::vector<float> &mu_m,
-                                     std::vector<float> &var_m, int no, int B,
-                                     std::vector<float> &mu_sum,
-                                     std::vector<float> &var_sum)
+void compute_mean_var_sum(std::vector<float> &mu_m, std::vector<float> &var_m,
+                          int hidden_size, int batch_size,
+                          std::vector<float> &mu_sum,
+                          std::vector<float> &var_sum)
 /*
  */
 {
     float sum_mu, sum_var;
-    for (int i = 0; i < B; i++) {
+    for (int i = 0; i < batch_size; i++) {
         sum_mu = 0.0f;
         sum_var = 0.0f;
-        for (int j = 0; j < no; j++) {
-            sum_mu += mu_m[i * no + j];
-            sum_var += var_m[i * no + j];
+        for (int j = 0; j < hidden_size; j++) {
+            sum_mu += mu_m[i * hidden_size + j];
+            sum_var += var_m[i * hidden_size + j];
         }
         mu_sum[i] = sum_mu;
         var_sum[i] = sum_var;
     }
 }
 
-void RemaxA::compute_cov_log_logsum(std::vector<float> &mu_m,
-                                    std::vector<float> &var_m,
-                                    std::vector<float> &mu_sum, int no, int B,
-                                    std::vector<float> &cov_log_logsum)
-/*
+void compute_cov_log_m_mt(const std::vector<float> &mu_m,
+                          const std::vector<float> &var_m,
+                          const std::vector<float> &mu_mt, int hidden_size,
+                          int batch_size, std::vector<float> &cov_m_mt)
+/*Compute covariance \cov(\lnM, \lnMt).
  */
 {
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            cov_log_logsum[i * no + j] =
-                logf(1.0f + var_m[i * no + j] * (1.0f / mu_sum[i]) *
-                                (1.0f / mu_m[i * no + j]));
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            cov_m_mt[i * hidden_size + j] =
+                logf(1.0f + var_m[i * hidden_size + j] * (1.0f / mu_mt[i]) *
+                                (1.0f / mu_m[i * hidden_size + j]));
         }
     }
 }
 
-void RemaxA::compute_remax_prob(std::vector<float> &mu_log,
-                                std::vector<float> &var_log,
-                                std::vector<float> &mu_logsum,
-                                std::vector<float> &var_logsum,
-                                std::vector<float> &cov_log_logsum, int no,
-                                int B, std::vector<float> &mu_a,
-                                std::vector<float> &var_a)
+void compute_remax_mean_var(const std::vector<float> &mu_log_m,
+                            const std::vector<float> &var_log_m,
+                            const std::vector<float> &mu_log_mt,
+                            const std::vector<float> &var_log_mt,
+                            const std::vector<float> &cov_log_m_mt,
+                            int hidden_size, int batch_size,
+                            std::vector<float> &mu_a, std::vector<float> &var_a)
+/*Compute mean and variance for remax.
+ */
+{
+    float tmp_mu = 0.0f, tmp_var = 0.0f, sum_mu = 0.0f, sum_var = 0.0f;
+    for (int i = 0; i < batch_size; i++) {
+        sum_mu = 0.0f;
+        sum_var = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            tmp_mu = mu_log_m[i * hidden_size + j] - mu_log_mt[i];
+            tmp_var = var_log_m[i * hidden_size + j] + var_log_mt[i] -
+                      2 * cov_log_m_mt[i * hidden_size + j];
+            sum_mu += tmp_mu;
+            mu_a[i * hidden_size + j] = expf(tmp_mu + 0.5 * tmp_var);
+            var_a[i * hidden_size + j] = expf(tmp_var) - 1.0f;
+        }
+
+        for (int j = 0; j < hidden_size; j++) {
+            float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
+            var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
+        }
+    }
+}
+
+void compute_cov_a_z(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &conv_m_z,
+    const std::vector<float> &cdfn, int hidden_size, int batch_size,
+    std::vector<float> &cov_a_z)
 /*
  */
 {
-    float tmp_mu, tmp_var;
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            tmp_mu = mu_log[i * no + j] - mu_logsum[i];
-            tmp_var = var_log[i * no + j] + var_logsum[i] -
-                      2 * cov_log_logsum[i * no + j];
-            mu_a[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
-            var_a[i * no + j] =
-                expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            cov_a_z[i * hidden_size + j] =
+                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
+                             powf(var_z[i * hidden_size + j], 0.5f),
+                         cov_a_m / cdfn[i * hidden_size + j]);
         }
     }
+}
+
+Remax::Remax() {}
+Remax::~Remax() {}
+
+std::string Remax::get_layer_info() const
+/*
+ */
+{
+    return "Remax()";
+}
+
+std::string Remax::get_layer_name() const
+/*
+ */
+
+{
+    return "Remax";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
