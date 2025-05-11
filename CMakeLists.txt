@@ -147,8 +147,6 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 # ------------------------------------------------------------------------------
 # Submodules and external libraries
 # ------------------------------------------------------------------------------
-
-# Add googletest
 add_subdirectory(extern/googletest)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/extern/googletest/googletest/include)
 

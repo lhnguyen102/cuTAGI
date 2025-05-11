@@ -508,16 +508,39 @@ class Softmax : public BaseLayer {
 class Remax : public BaseLayer {
    public:
     float alpha = 0.1f;
+    std::vector<float> mu_m;
+    std::vector<float> var_m;
+    std::vector<float> jcb_m;
+    std::vector<float> mu_log_m;
+    std::vector<float> var_log_m;
+    std::vector<float> mu_mt;
+    std::vector<float> var_mt;
+    std::vector<float> mu_log_mt;
+    std::vector<float> var_log_mt;
+    std::vector<float> cov_log_m_mt;
+    float threshold = 1e-7;
+    int batch_size_ = 0;
     Remax();
     ~Remax();
+
+    // Delete copy constructor and copy assignment
+    Remax(const Remax &) = delete;
+    Remax &operator=(const Remax &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Remax(Remax &&) = default;
+    Remax &operator=(Remax &&) = default;
 
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
 
+    LayerType get_layer_type() const override;
+
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override {};
+                 BaseTempStates &temp_states) override;
 
     using BaseLayer::backward;
 

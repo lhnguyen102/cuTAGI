@@ -173,10 +173,10 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void mixture_relu_mean_var_v2(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, int start_chunk,
-                              int end_chunk, std::vector<float> &mu_a,
-                              float threshold, std::vector<float> &jcb,
+void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
+                              const std::vector<float> &var_z, int start_chunk,
+                              int end_chunk, float threshold,
+                              std::vector<float> &mu_a, std::vector<float> &jcb,
                               std::vector<float> &var_a)
 /*TODO: to be reviewed
  */
@@ -1103,13 +1103,13 @@ void compute_mean_var_sum(std::vector<float> &mu_m, std::vector<float> &var_m,
 void compute_cov_log_m_mt(const std::vector<float> &mu_m,
                           const std::vector<float> &var_m,
                           const std::vector<float> &mu_mt, int hidden_size,
-                          int batch_size, std::vector<float> &cov_m_mt)
+                          int batch_size, std::vector<float> &cov_log_m_mt)
 /*Compute covariance \cov(\lnM, \lnMt).
  */
 {
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < hidden_size; j++) {
-            cov_m_mt[i * hidden_size + j] =
+            cov_log_m_mt[i * hidden_size + j] =
                 logf(1.0f + var_m[i * hidden_size + j] * (1.0f / mu_mt[i]) *
                                 (1.0f / mu_m[i * hidden_size + j]));
         }
@@ -1150,9 +1150,33 @@ void compute_cov_a_z(
     const std::vector<float> &mu_a, const std::vector<float> &var_a,
     const std::vector<float> &var_z, const std::vector<float> &mu_m,
     const std::vector<float> &var_m, const std::vector<float> &var_log_m,
-    const std::vector<float> &cov_log_m_mt, const std::vector<float> &conv_m_z,
-    const std::vector<float> &cdfn, int hidden_size, int batch_size,
-    std::vector<float> &cov_a_z)
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            cov_a_z[i * hidden_size + j] =
+                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
+                             powf(var_z[i * hidden_size + j], 0.5f),
+                         cov_a_m / cdfn[i * hidden_size + j]);
+        }
+    }
+}
+
+void compute_cov_a_z_v2(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
 /*
  */
 {
@@ -1188,6 +1212,78 @@ std::string Remax::get_layer_name() const
 
 {
     return "Remax";
+}
+
+LayerType Remax::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void Remax::forward(BaseHiddenStates &input_states,
+                    BaseHiddenStates &output_states,
+                    BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    int hidden_size = input_states.actual_size;
+
+    if (this->batch_size_ != batch_size) {
+        this->batch_size_ = batch_size;
+        this->mu_m.resize(batch_size * hidden_size, 0.0f);
+        this->var_m.resize(batch_size * hidden_size, 0.0f);
+        this->jcb_m.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_m.resize(batch_size * hidden_size, 0.0f);
+        this->var_log_m.resize(batch_size * hidden_size, 0.0f);
+        this->mu_mt.resize(batch_size, 0.0f);
+        this->var_mt.resize(batch_size, 0.0f);
+        this->mu_log_mt.resize(batch_size, 0.0f);
+        this->var_log_mt.resize(batch_size, 0.0f);
+        this->cov_log_m_mt.resize(batch_size * hidden_size, 0.0f);
+    }
+    // Compute mean and variance of M. NOTE: jcb_m = cdfn
+    int start_chunk = 0;
+    int end_chunk = batch_size * hidden_size;
+    mixture_relu_mean_var_v2(input_states.mu_a, input_states.var_a, start_chunk,
+                             end_chunk, this->threshold, this->mu_m,
+                             this->jcb_m, this->var_m);
+
+    // Compute mean and variance of Mt
+    compute_mean_var_sum(this->mu_m, this->var_m, hidden_size, batch_size,
+                         this->mu_mt, this->var_mt);
+
+    // Compute mean and variance of log(M)
+    to_log(this->mu_m, this->var_m, hidden_size, batch_size, this->mu_log_m,
+           this->var_log_m);
+
+    // Compute mean and variance of log(Mt)
+    to_log(this->mu_mt, this->var_mt, 1, batch_size, this->mu_log_mt,
+           this->var_log_mt);
+
+    // Compute covariance of log(M) and log(Mt)
+    compute_cov_log_m_mt(this->mu_m, this->var_m, this->mu_mt, hidden_size,
+                         batch_size, this->cov_log_m_mt);
+
+    // Compute mean and variance of A
+    compute_remax_mean_var(this->mu_log_m, this->var_log_m, this->mu_log_mt,
+                           this->var_log_mt, this->cov_log_m_mt, hidden_size,
+                           batch_size, output_states.mu_a, output_states.var_a);
+
+    // Compute covariance of A and Z i.e., Jacobian.
+    compute_cov_a_z(output_states.mu_a, output_states.var_a, input_states.var_a,
+                    this->mu_m, this->var_m, this->var_log_m,
+                    this->cov_log_m_mt, this->jcb_m, hidden_size, batch_size,
+                    output_states.jcb);
+
+    // Save activation mean and jacobian to the class member for backward pass
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
