@@ -198,7 +198,7 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
         var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
                    mu_z[i] * std_z * pdf_alpha +
                    (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
-        jcb[i] = cdf_alpha;
+        jcb[i] = std::max(threshold, var_z[i] * cdf_alpha);
     }
 }
 
@@ -1167,6 +1167,7 @@ void compute_cov_a_z(
                 std::min(powf(var_a[i * hidden_size + j], 0.5f) *
                              powf(var_z[i * hidden_size + j], 0.5f),
                          cov_a_m / cdfn[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
 }
@@ -1188,10 +1189,13 @@ void compute_cov_a_z_v2(
                             mu_a[i * hidden_size + j] *
                             mu_m[i * hidden_size + j];
 
-            cov_a_z[i * hidden_size + j] =
-                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
-                             powf(var_z[i * hidden_size + j], 0.5f),
-                         cov_a_m / cdfn[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] = std::min(
+                powf(var_a[i * hidden_size + j], 0.5f) *
+                    powf(var_z[i * hidden_size + j], 0.5f),
+                cov_a_m * cdfn[i * hidden_size + j] *
+                    var_z[i * hidden_size + j] * cdfn[i * hidden_size + j] /
+                    var_m[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
 }

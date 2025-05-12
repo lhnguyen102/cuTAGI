@@ -518,7 +518,7 @@ class Remax : public BaseLayer {
     std::vector<float> mu_log_mt;
     std::vector<float> var_log_mt;
     std::vector<float> cov_log_m_mt;
-    float threshold = 1e-7;
+    float threshold = 1e-10;
     int batch_size_ = 0;
     Remax();
     ~Remax();

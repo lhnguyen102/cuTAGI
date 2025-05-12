@@ -131,7 +131,7 @@ void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
 
     std::string data_name = "mnist";
     std::vector<float> mu = {0.1309};
-    std::vector<float> sigma = {2.0f};
+    std::vector<float> sigma = {1.0f};
     int num_train_data = 60000;
     int num_test_data = 10000;
     int num_classes = 10;
@@ -155,9 +155,9 @@ void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
 
     unsigned seed = 42;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 1;
-    int batch_size = 16;
-    float sigma_obs = 0.01;
+    int n_epochs = 2;
+    int batch_size = 128;
+    float sigma_obs = 0.05;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
     std::vector<float> var_obs(batch_size * train_db.output_len,
@@ -173,35 +173,39 @@ void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
     std::vector<int> error_rate_batch;
     std::vector<float> prob_class_batch;
 
-    std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+    int n_iters = train_db.num_data / batch_size;
     int start_idx = 0;
-    for (int i = 0; i < 200; i++) {
-        start_idx = i * batch_size;
-        get_batch_images_labels(train_db, data_idx, batch_size, start_idx,
-                                x_batch, y_batch, idx_ud_batch, label_batch);
+    for (int epoch = 0; epoch < n_epochs; epoch++) {
+        std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        for (int i = 0; i < n_iters; i++) {
+            start_idx = i * batch_size;
+            get_batch_images_labels(train_db, data_idx, batch_size, start_idx,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
 
-        model.forward(x_batch);
-        output_updater.update(*model.output_z_buffer, y_batch, var_obs,
-                              *model.input_delta_z_buffer);
-        model.backward();
-        model.step();
+            model.forward(x_batch);
+            output_updater.update(*model.output_z_buffer, y_batch, var_obs,
+                                  *model.input_delta_z_buffer);
+            model.backward();
+            model.step();
 
-        if (model.device == "cuda") {
-            model.output_to_host();
-        }
+            if (model.device == "cuda") {
+                model.output_to_host();
+            }
 
-        for (int j = 0; j < batch_size * n_y; j++) {
-            mu_a_output[j] = model.output_z_buffer->mu_a[j];
-            var_a_output[j] = model.output_z_buffer->var_a[j];
-        }
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[j] = model.output_z_buffer->mu_a[j];
+                var_a_output[j] = model.output_z_buffer->var_a[j];
+            }
 
-        auto error_rate_batch =
-            get_class_error(mu_a_output, label_batch, num_classes, batch_size);
-        update_vector(error_rate, error_rate_batch, start_idx, batch_size);
-        if (i % 50 == 0 && i > 0) {
-            auto training_error =
-                compute_average_error_rate(error_rate, start_idx, batch_size);
-            std::cout << "Training error: " << training_error << std::endl;
+            auto error_rate_batch = get_class_error(mu_a_output, label_batch,
+                                                    num_classes, batch_size);
+            update_vector(error_rate, error_rate_batch, start_idx, batch_size);
+            if (i % 50 == 0 && i > 0) {
+                auto training_error = compute_average_error_rate(
+                    error_rate, start_idx, batch_size);
+                std::cout << "Training error: " << training_error << std::endl;
+            }
         }
     }
 
@@ -404,10 +408,10 @@ TEST_F(MnistTest, FNNModelTest_CPU) {
 }
 
 TEST_F(MnistTest, RemaxTest_CPU) {
-    Sequential model(Linear(784, 32), ReLU(), Linear(32, 32), ReLU(),
-                     Linear(32, 10), Remax());
+    Sequential model(Linear(784, 64), ReLU(), Linear(64, 64), ReLU(),
+                     Linear(64, 10), Remax());
     float avg_error;
-    float threshold = 0.5;  // Heuristic threshold
+    float threshold = 0.1;  // Heuristic threshold
     mnist_test_runner_v0(model, avg_error);
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
