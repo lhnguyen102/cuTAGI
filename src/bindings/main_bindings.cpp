@@ -43,4 +43,5 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_cuda_set_device(modo);
     bind_cuda_device_available(modo);
     bind_nccl_available(modo);
+    bind_remax(modo);
 }

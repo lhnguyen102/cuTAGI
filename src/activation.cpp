@@ -194,11 +194,12 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
         cdf_alpha = std::max(cdf_alpha, threshold);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[i] = std::max(threshold, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
-        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
-                   mu_z[i] * std_z * pdf_alpha +
-                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
-        jcb[i] = std::max(threshold, var_z[i] * cdf_alpha);
+        mu_a[i] = std::max(1e-6f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
+        var_a[i] =
+            std::max(0.000001f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
+                                    mu_z[i] * std_z * pdf_alpha +
+                                    (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
+        jcb[i] = cdf_alpha;
     }
 }
 
@@ -1250,7 +1251,15 @@ void Remax::forward(BaseHiddenStates &input_states,
     // Compute mean and variance of M. NOTE: jcb_m = cdfn
     int start_chunk = 0;
     int end_chunk = batch_size * hidden_size;
-    mixture_relu_mean_var_v2(input_states.mu_a, input_states.var_a, start_chunk,
+    std::vector<float> var_a_tmp(batch_size * hidden_size, 0.0f);
+    for (int i = 0; i < batch_size * hidden_size; i++) {
+        if (input_states.jcb[i] != 0.0f) {
+            var_a_tmp[i] = input_states.var_a[i] + 0.0f;
+        } else {
+            var_a_tmp[i] = input_states.var_a[i];
+        }
+    }
+    mixture_relu_mean_var_v2(input_states.mu_a, var_a_tmp, start_chunk,
                              end_chunk, this->threshold, this->mu_m,
                              this->jcb_m, this->var_m);
 

@@ -169,3 +169,19 @@ void bind_even_exp(pybind11::module_& modo)
         .def("save", &EvenExp::save)
         .def("to_cuda", &EvenExp::to_cuda);
 }
+
+void bind_remax(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<Remax, std::shared_ptr<Remax>, BaseLayer>(modo, "Remax")
+        .def(pybind11::init<>())
+        .def("get_layer_info", &Remax::get_layer_info)
+        .def("get_layer_name", &Remax::get_layer_name)
+        .def("forward", &Remax::forward)
+        .def("update_weights", &Remax::update_weights)
+        .def("update_biases", &Remax::update_biases)
+        .def("load", &Remax::load)
+        .def("save", &Remax::save)
+        .def("to_cuda", &Remax::to_cuda);
+}

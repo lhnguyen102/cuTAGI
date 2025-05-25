@@ -5,6 +5,7 @@ from pytagi.nn.activation import (
     MixtureSigmoid,
     MixtureTanh,
     ReLU,
+    Remax,
     Sigmoid,
     Softmax,
     Softplus,
