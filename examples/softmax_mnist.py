@@ -39,7 +39,7 @@ FNN = Sequential(
     Linear(128, 128),
     ReLU(),
     Linear(128, 10),
-    Softmax(),
+    Remax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -125,7 +125,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
 
     # Initialize network
     net = FNN
-    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
+    # net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
 

@@ -1167,7 +1167,8 @@ void compute_cov_a_z(
             cov_a_z[i * hidden_size + j] =
                 std::min(powf(var_a[i * hidden_size + j], 0.5f) *
                              powf(var_z[i * hidden_size + j], 0.5f),
-                         cov_a_m / cdfn[i * hidden_size + j]);
+                         cov_a_m / (cdfn[i * hidden_size + j] +
+                                    var_z[i * hidden_size + j]));
             cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
@@ -1193,9 +1194,35 @@ void compute_cov_a_z_v2(
             cov_a_z[i * hidden_size + j] = std::min(
                 powf(var_a[i * hidden_size + j], 0.5f) *
                     powf(var_z[i * hidden_size + j], 0.5f),
-                cov_a_m * cdfn[i * hidden_size + j] *
-                    var_z[i * hidden_size + j] * cdfn[i * hidden_size + j] /
-                    var_m[i * hidden_size + j]);
+                cov_a_m * var_z[i * hidden_size + j] *
+                    cdfn[i * hidden_size + j] / var_m[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+        }
+    }
+}
+
+void compute_cov_a_z_v3(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            cov_a_z[i * hidden_size + j] =
+                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
+                             powf(var_z[i * hidden_size + j], 0.5f),
+                         cov_a_m * var_z[i * hidden_size + j] /
+                             var_m[i * hidden_size + j]);
             cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
@@ -1285,10 +1312,10 @@ void Remax::forward(BaseHiddenStates &input_states,
                            batch_size, output_states.mu_a, output_states.var_a);
 
     // Compute covariance of A and Z i.e., Jacobian.
-    compute_cov_a_z(output_states.mu_a, output_states.var_a, input_states.var_a,
-                    this->mu_m, this->var_m, this->var_log_m,
-                    this->cov_log_m_mt, this->jcb_m, hidden_size, batch_size,
-                    output_states.jcb);
+    compute_cov_a_z_v3(output_states.mu_a, output_states.var_a,
+                       input_states.var_a, this->mu_m, this->var_m,
+                       this->var_log_m, this->cov_log_m_mt, this->jcb_m,
+                       hidden_size, batch_size, output_states.jcb);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;
