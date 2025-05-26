@@ -559,21 +559,21 @@ void SLSTM::smoother()
     this->time_step = 0;
     this->lstm_states.reset_zeros();
     // Reset the starting value to the smoothed one
-    this->lstm_states.mu_h_prev.assign(
-        this->smooth_states.mu_h_smooths.begin(),
-        this->smooth_states.mu_h_smooths.begin() +
-            this->smooth_states.num_states);
-    this->lstm_states.var_h_prev.assign(
-        this->smooth_states.var_h_smooths.begin(),
-        this->smooth_states.var_h_smooths.begin() +
-            this->smooth_states.num_states);
-    this->lstm_states.mu_c_prev.assign(
-        this->smooth_states.mu_c_smooths.begin(),
-        this->smooth_states.mu_c_smooths.begin() +
-            this->smooth_states.num_states);
-    this->lstm_states.var_c_prev.assign(
-        this->smooth_states.var_c_smooths.begin(),
-        this->smooth_states.var_c_smooths.begin() +
-            this->smooth_states.num_states);
+    // this->lstm_states.mu_h_prev.assign(
+    //     this->smooth_states.mu_h_smooths.begin(),
+    //     this->smooth_states.mu_h_smooths.begin() +
+    //         this->smooth_states.num_states);
+    // this->lstm_states.var_h_prev.assign(
+    //     this->smooth_states.var_h_smooths.begin(),
+    //     this->smooth_states.var_h_smooths.begin() +
+    //         this->smooth_states.num_states);
+    // this->lstm_states.mu_c_prev.assign(
+    //     this->smooth_states.mu_c_smooths.begin(),
+    //     this->smooth_states.mu_c_smooths.begin() +
+    //         this->smooth_states.num_states);
+    // this->lstm_states.var_c_prev.assign(
+    //     this->smooth_states.var_c_smooths.begin(),
+    //     this->smooth_states.var_c_smooths.begin() +
+    //         this->smooth_states.num_states);
     this->smooth_states.reset_zeros();
 }
