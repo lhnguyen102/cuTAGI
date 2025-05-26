@@ -146,16 +146,19 @@ void SLinear::forward(BaseHiddenStates &input_states,
     smooth_output_states->actual_size = this->output_size;
 
     // save z_output prior for smoothing
-    this->smooth_states.mu_zo_priors[this->time_step] =
-        smooth_output_states->mu_a[0];
-    this->smooth_states.var_zo_priors[this->time_step] =
-        smooth_output_states->var_a[0];
+    if (this->training) {
+        this->smooth_states.mu_zo_priors[this->time_step] =
+            smooth_output_states->mu_a[0];
+        this->smooth_states.var_zo_priors[this->time_step] =
+            smooth_output_states->var_a[0];
 
-    // save cov_zo for smoother
-    save_cov_zo_smoother(
-        this->input_size, this->time_step, this->mu_w, this->var_w, this->var_b,
-        smooth_input_states->mu_h_prev, smooth_input_states->mu_a,
-        smooth_input_states->cov_hh, this->smooth_states.cov_zo);
+        // save cov_zo for smoother
+        save_cov_zo_smoother(
+            this->input_size, this->time_step, this->mu_w, this->var_w,
+            this->var_b, smooth_input_states->mu_h_prev,
+            smooth_input_states->mu_a, smooth_input_states->cov_hh,
+            this->smooth_states.cov_zo);
+    }
 
     if (this->training) {
         this->storing_states_for_training(*smooth_input_states,
