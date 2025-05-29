@@ -7,6 +7,7 @@
 #include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
+#include "../include/slstm_layer.h"
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 
@@ -854,13 +855,16 @@ Sequential::get_lstm_states() const {
         lstm_states;
 
     for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::LSTM) {
+        if (layers[i]->get_layer_type() == LayerType::LSTM ||
+            layers[i]->get_layer_type() == LayerType::SLSTM) {
             if (this->device == "cpu") {
-                LSTM *lstm_layer = dynamic_cast<LSTM *>(layers[i].get());
-                if (lstm_layer) {
-                    // CPU
-                    auto states = lstm_layer->get_LSTM_states();
-                    lstm_states[static_cast<int>(i)] = states;
+                if (auto lstm_layer = dynamic_cast<LSTM *>(layers[i].get())) {
+                    lstm_states[static_cast<int>(i)] =
+                        lstm_layer->get_LSTM_states();
+                } else if (auto slstm_layer =
+                               dynamic_cast<SLSTM *>(layers[i].get())) {
+                    lstm_states[static_cast<int>(i)] =
+                        slstm_layer->get_LSTM_states();
                 }
             }
 #ifdef USE_CUDA
@@ -887,7 +891,8 @@ void Sequential::set_lstm_states(
     for (const auto &pair : lstm_states) {
         int layer_idx = pair.first;
         if (layer_idx >= 0 && layer_idx < static_cast<int>(layers.size()) &&
-            layers[layer_idx]->get_layer_type() == LayerType::LSTM) {
+            (layers[layer_idx]->get_layer_type() == LayerType::LSTM ||
+             layers[layer_idx]->get_layer_type() == LayerType::SLSTM)) {
             // Unpack the tuple
             const auto &state_tuple = pair.second;
             const auto &mu_h = std::get<0>(state_tuple);
@@ -897,10 +902,12 @@ void Sequential::set_lstm_states(
 
             // CPU
             if (this->device == "cpu") {
-                LSTM *lstm_layer =
-                    dynamic_cast<LSTM *>(layers[layer_idx].get());
-                if (lstm_layer) {
+                if (auto lstm_layer =
+                        dynamic_cast<LSTM *>(layers[layer_idx].get())) {
                     lstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
+                } else if (auto slstm_layer =
+                               dynamic_cast<SLSTM *>(layers[layer_idx].get())) {
+                    slstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
                 }
             }
 #ifdef USE_CUDA

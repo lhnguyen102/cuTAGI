@@ -1512,10 +1512,17 @@ void LSTM::set_LSTM_states(const std::vector<float> &mu_h,
                            const std::vector<float> &var_h,
                            const std::vector<float> &mu_c,
                            const std::vector<float> &var_c) {
+    // TODO: check for better way to set the states SLSTM vs LSTM
+    // needed for LSTM as prior will be pushed to prev in forward
     this->lstm_states.mu_h_prior = mu_h;
     this->lstm_states.var_h_prior = var_h;
     this->lstm_states.mu_c_prior = mu_c;
     this->lstm_states.var_c_prior = var_c;
+    // can directly set to the prev states in SLSTM
+    this->lstm_states.mu_h_prev  = mu_h;
+    this->lstm_states.var_h_prev = var_h;
+    this->lstm_states.mu_c_prev  = mu_c;
+    this->lstm_states.var_c_prev = var_c;
 }
 
 #ifdef USE_CUDA
