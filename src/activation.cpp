@@ -196,9 +196,9 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = std::max(1e-6f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
         var_a[i] =
-            std::max(0.000001f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
-                                    mu_z[i] * std_z * pdf_alpha +
-                                    (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
+            std::max(0.0f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
+                               mu_z[i] * std_z * pdf_alpha +
+                               (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
         jcb[i] = cdf_alpha;
     }
 }
@@ -1164,11 +1164,18 @@ void compute_cov_a_z(
                             mu_a[i * hidden_size + j] *
                             mu_m[i * hidden_size + j];
 
+            // // Original formula
+            // cov_a_z[i * hidden_size + j] =
+            //     std::min(powf(var_a[i * hidden_size + j], 0.5f) *
+            //                  powf(var_z[i * hidden_size + j], 0.5f),
+            //              cov_a_m / (cdfn[i * hidden_size + j] +
+            //                         var_z[i * hidden_size + j]));
+
             cov_a_z[i * hidden_size + j] =
                 std::min(powf(var_a[i * hidden_size + j], 0.5f) *
                              powf(var_z[i * hidden_size + j], 0.5f),
-                         cov_a_m / (cdfn[i * hidden_size + j] +
-                                    var_z[i * hidden_size + j]));
+                         cov_a_m / cdfn[i * hidden_size + j] *
+                             var_z[i * hidden_size + j]);
             cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
@@ -1312,10 +1319,10 @@ void Remax::forward(BaseHiddenStates &input_states,
                            batch_size, output_states.mu_a, output_states.var_a);
 
     // Compute covariance of A and Z i.e., Jacobian.
-    compute_cov_a_z_v3(output_states.mu_a, output_states.var_a,
-                       input_states.var_a, this->mu_m, this->var_m,
-                       this->var_log_m, this->cov_log_m_mt, this->jcb_m,
-                       hidden_size, batch_size, output_states.jcb);
+    compute_cov_a_z(output_states.mu_a, output_states.var_a, input_states.var_a,
+                    this->mu_m, this->var_m, this->var_log_m,
+                    this->cov_log_m_mt, this->jcb_m, hidden_size, batch_size,
+                    output_states.jcb);
 
     // Save activation mean and jacobian to the class member for backward pass
     this->input_size = input_states.actual_size;

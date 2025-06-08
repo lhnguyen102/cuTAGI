@@ -1054,3 +1054,146 @@ __global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// Remax kernels
+////////////////////////////////////////////////////////////////////////////////
+__global__ void to_log_cuda(float const *mu_m, float const *var_m,
+                            int hidden_size, int batch_size, float *mu_log,
+                            float *var_log)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (col < hidden_size && row < batch_size) {
+        float tmp_var = logf(1.0f + (var_m[row * hidden_size + col] /
+                                     powf(mu_m[row * hidden_size + col], 2)));
+        float tmp_mu = logf(mu_m[row * hidden_size + col]) - 0.5 * tmp_var;
+
+        mu_log[row * hidden_size + col] = tmp_mu;
+        var_log[row * hidden_size + col] = tmp_var;
+    }
+}
+
+__global__ void compute_mean_var_sum_cuda(float const *mu_m, float const *var_m,
+                                          int hidden_size, int batch_size,
+                                          float *mu_sum, float *var_sum)
+/*
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    if (row < batch_size) {
+        for (int i = 0; i < hidden_size; i++) {
+            sum_mu += mu_m[row * hidden_size + i];
+            sum_var += var_m[row * hidden_size + i];
+        }
+    }
+    mu_sum[row] = sum_mu;
+    var_sum[row] = sum_var;
+}
+
+__global__ void compute_cov_log_m_mt_cuda(float const *mu_m, float const *var_m,
+                                          float const *mu_mt, int hidden_size,
+                                          int batch_size, float *cov_log_m_mt)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (col < hidden_size && row < batch_size) {
+        cov_log_m_mt[row * hidden_size + col] =
+            logf(1.0f + var_m[row * hidden_size + col] * (1.0f / mu_mt[row]) *
+                            (1.0f / mu_m[row * hidden_size + col]));
+    }
+}
+
+__global__ void compute_remax_mean_var_cuda(
+    float const *mu_log_m, float const *var_log_m, float const *mu_log_mt,
+    float const *var_log_mt, float const *cov_log_m_mt, int hidden_size,
+    int batch_size, float *mu_a, float *var_a)
+/*
+ */
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (row < batch_size) {
+        float sum_mu = 0.0f;
+        for (int i = 0; i < hidden_size; i++) {
+            float tmp_mu = mu_log_m[row * hidden_size + i] - mu_log_mt[row];
+            float tmp_var = var_log_m[row * hidden_size + i] + var_log_mt[row] -
+                            2 * cov_log_m_mt[row * hidden_size + i];
+
+            sum_mu += tmp_mu;
+            mu_a[row * hidden_size + i] = expf(tmp_mu + 0.5f * tmp_var);
+            var_a[row * hidden_size + i] = expf(tmp_var) - 1.0f;
+        }
+        for (int i = 0; i < hidden_size; i++) {
+            float tmp_mu_norm = mu_a[row * hidden_size + i] / sum_mu;
+            var_a[row * hidden_size + i] *= tmp_mu_norm * tmp_mu_norm;
+        }
+    }
+}
+
+__global__ void compute_cov_a_z_cuda(float const *mu_a, float const *var_a,
+                                     float const *var_z, float const *mu_m,
+                                     float const *var_m, float const *var_log_m,
+                                     float const *cov_log_m_mt,
+                                     float const *cdfn, int hidden_size,
+                                     int batch_size, float *cov_a_z)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (col < hidden_size && row < batch_size) {
+        float cov_log_a_log_m = var_log_m[row * hidden_size + col] -
+                                cov_log_m_mt[row * hidden_size + col];
+        float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                        mu_a[row * hidden_size + col] *
+                        mu_m[row * hidden_size + col];
+
+        cov_a_z[row * hidden_size + col] =
+            min(powf(var_a[row * hidden_size + col], 0.5f) *
+                    powf(var_z[row * hidden_size + col], 0.5f),
+                cov_a_m / cdfn[row * hidden_size + col] *
+                    var_z[row * hidden_size + col]);
+
+        cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
+    }
+}
+
+__global__ void compute_cov_a_z_cuda_v2(float const *mu_a, float const *var_a,
+                                        float const *var_z, float const *mu_m,
+                                        float const *var_m,
+                                        float const *var_log_m,
+                                        float const *cov_log_m_mt,
+                                        float const *cdfn, int hidden_size,
+                                        int batch_size, float *cov_a_z)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (col < hidden_size && row < batch_size) {
+        float cov_log_a_log_m = var_log_m[row * hidden_size + col] -
+                                cov_log_m_mt[row * hidden_size + col];
+        float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                        mu_a[row * hidden_size + col] *
+                        mu_m[row * hidden_size + col];
+
+        cov_a_z[row * hidden_size + col] = min(
+            powf(var_a[row * hidden_size + col], 0.5f) *
+                powf(var_z[row * hidden_size + col], 0.5f),
+            cov_a_m * var_z[row * hidden_size + col] *
+                cdfn[row * hidden_size + col] / var_m[row * hidden_size + col]);
+
+        cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
+    }
+}
