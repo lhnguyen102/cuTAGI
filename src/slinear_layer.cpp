@@ -282,4 +282,7 @@ void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
 
     // this->print_summary();
     this->time_step = 0;
+
+    // // print summary of all smoother states
+    // this->print_summary();
 }
