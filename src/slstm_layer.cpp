@@ -13,6 +13,60 @@
 // SLSTM: LSTM layer with smoother
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <fstream>
+#include <sstream>
+
+void SLSTM::print_summary() const {
+    std::ofstream summary_file("smoother_state_summary.csv");
+
+    if (!summary_file.is_open()) {
+        LOG(LogLevel::ERROR, "Failed to open smoother_state_summary.csv");
+        return;
+    }
+
+    summary_file << "TimeStep,StateType,Variable,Values\n";
+
+    size_t num_timesteps = this->smooth_states.num_timesteps;
+    size_t num_states = this->smooth_states.num_states;
+
+    auto write_vector = [&](const std::string &state_type,
+                            const std::string &variable,
+                            const std::vector<float> &vec) {
+        for (size_t t = 0; t < num_timesteps; ++t) {
+            summary_file << t << "," << state_type << "," << variable << ",";
+            for (size_t i = 0; i < num_states; ++i) {
+                summary_file << vec[t * num_states + i];
+                if (i < num_states - 1) summary_file << " ";
+            }
+            summary_file << "\n";
+        }
+    };
+
+    // Write Priors
+    write_vector("Priors", "mu_c_priors", this->smooth_states.mu_c_priors);
+    write_vector("Priors", "var_c_priors", this->smooth_states.var_c_priors);
+    write_vector("Priors", "mu_h_priors", this->smooth_states.mu_h_priors);
+    write_vector("Priors", "var_h_priors", this->smooth_states.var_h_priors);
+
+    // Write Posteriors
+    write_vector("Posteriors", "mu_c_posts", this->smooth_states.mu_c_posts);
+    write_vector("Posteriors", "var_c_posts", this->smooth_states.var_c_posts);
+    write_vector("Posteriors", "mu_h_posts", this->smooth_states.mu_h_posts);
+    write_vector("Posteriors", "var_h_posts", this->smooth_states.var_h_posts);
+
+    // Write Smoothed
+    write_vector("Smoothed", "mu_c_smooths", this->smooth_states.mu_c_smooths);
+    write_vector("Smoothed", "var_c_smooths",
+                 this->smooth_states.var_c_smooths);
+    write_vector("Smoothed", "mu_h_smooths", this->smooth_states.mu_h_smooths);
+    write_vector("Smoothed", "var_h_smooths",
+                 this->smooth_states.var_h_smooths);
+
+    summary_file.close();
+    LOG(LogLevel::INFO,
+        "Smoother states successfully written to smoother_state_summary.csv");
+}
+
 std::string SLSTM::get_layer_info() const
 /*
  */
@@ -111,20 +165,26 @@ void smooth_cell_states(
 /*
  */
 {
+    const float eps = 1e-6f;  // small floor to prevent negative variances
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
             current = i * num_states + j;
             next = (i + 1) * num_states + j;
-            float tmp = cov_cc[next] / var_c_priors[next];
+            float denom = var_c_priors[next] < eps ? eps : var_c_priors[next];
+            float tmp = cov_cc[next] / denom;
 
             mu_c_smooths[current] =
                 mu_c_posts[current] +
                 tmp * (mu_c_smooths[next] - mu_c_priors[next]);
 
-            var_c_smooths[current] =
+            float var_update =
                 var_c_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
+            var_c_smooths[current] = var_update > eps ? var_update : eps;
+            // var_c_smooths[current] =
+            //     var_c_posts[current] +
+            //     tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
         }
     }
 }
@@ -138,18 +198,25 @@ void smooth_hidden_states(
 /*
  */
 {
+    const float eps = 1e-6f;  // small floor to prevent negative variances
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
             current = i * num_states + j;
             next = (i + 1) * num_states + j;
-            float tmp = cov_hc[next] / var_c_priors[next];
+            float denom = var_c_priors[next] < eps ? eps : var_c_priors[next];
+            float tmp = cov_hc[next] / denom;
             mu_h_smooths[current] =
                 mu_h_posts[current] +
                 tmp * (mu_c_smooths[next] - mu_c_priors[next]);
-            var_h_smooths[current] =
+
+            float var_h_update =
                 var_h_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
+            var_h_smooths[current] = var_h_update > eps ? var_h_update : eps;
+            // var_h_smooths[current] =
+            //     var_h_posts[current] +
+            //     tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
         }
     }
 }
@@ -555,25 +622,28 @@ void SLSTM::smoother()
         this->smooth_states.var_h_posts, this->smooth_states.mu_h_smooths,
         this->smooth_states.var_h_smooths);
 
-    // // TODO: Clear variables for next epoch
+    // Print summary of all smoother states
+    this->print_summary();
+
+    // Clear the LSTM states
     this->time_step = 0;
     this->lstm_states.reset_zeros();
     // Reset the starting value to the smoothed one
-    // this->lstm_states.mu_h_prev.assign(
-    //     this->smooth_states.mu_h_smooths.begin(),
-    //     this->smooth_states.mu_h_smooths.begin() +
-    //         this->smooth_states.num_states);
-    // this->lstm_states.var_h_prev.assign(
-    //     this->smooth_states.var_h_smooths.begin(),
-    //     this->smooth_states.var_h_smooths.begin() +
-    //         this->smooth_states.num_states);
-    // this->lstm_states.mu_c_prev.assign(
-    //     this->smooth_states.mu_c_smooths.begin(),
-    //     this->smooth_states.mu_c_smooths.begin() +
-    //         this->smooth_states.num_states);
-    // this->lstm_states.var_c_prev.assign(
-    //     this->smooth_states.var_c_smooths.begin(),
-    //     this->smooth_states.var_c_smooths.begin() +
-    //         this->smooth_states.num_states);
+    this->lstm_states.mu_h_prev.assign(
+        this->smooth_states.mu_h_smooths.begin(),
+        this->smooth_states.mu_h_smooths.begin() +
+            this->smooth_states.num_states);
+    this->lstm_states.var_h_prev.assign(
+        this->smooth_states.var_h_smooths.begin(),
+        this->smooth_states.var_h_smooths.begin() +
+            this->smooth_states.num_states);
+    this->lstm_states.mu_c_prev.assign(
+        this->smooth_states.mu_c_smooths.begin(),
+        this->smooth_states.mu_c_smooths.begin() +
+            this->smooth_states.num_states);
+    this->lstm_states.var_c_prev.assign(
+        this->smooth_states.var_c_smooths.begin(),
+        this->smooth_states.var_c_smooths.begin() +
+            this->smooth_states.num_states);
     this->smooth_states.reset_zeros();
 }

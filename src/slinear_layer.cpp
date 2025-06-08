@@ -8,6 +8,52 @@
 // SLinear: Linear layer with smoother for LSTM
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <fstream>
+#include <sstream>
+
+void SLinear::print_summary() const {
+    std::ofstream summary_file("linear_state_summary.csv");
+
+    if (!summary_file.is_open()) {
+        LOG(LogLevel::ERROR, "Failed to open linear_state_summary.csv");
+        return;
+    }
+
+    summary_file << "TimeStep,StateType,Variable,Values\n";
+
+    size_t T = this->smooth_states.num_timesteps;
+
+    auto write_vector = [&](auto const &state_type, auto const &variable,
+                            std::vector<float> const &vec) {
+        // Write one row: StateType,Variable,val0,val1,...,valT-1
+        summary_file << state_type << "," << variable;
+        for (size_t t = 0; t < T; ++t) {
+            summary_file << "," << vec[t];
+        }
+        summary_file << "\n";
+    };
+
+    // Write Priors
+    write_vector("Priors", "mu_zo_priors", this->smooth_states.mu_zo_priors);
+    write_vector("Priors", "var_zo_priors", this->smooth_states.var_zo_priors);
+
+    // Write Posteriors
+    write_vector("Posteriors", "mu_zo_posts", this->smooth_states.mu_zo_posts);
+    write_vector("Posteriors", "var_zo_posts",
+                 this->smooth_states.var_zo_posts);
+
+    // Write Smoothed
+    write_vector("Smoothed", "mu_zo_smooths",
+                 this->smooth_states.mu_zo_smooths);
+    write_vector("Smoothed", "var_zo_smooths",
+                 this->smooth_states.var_zo_smooths);
+    write_vector("Smoothed", "cov_zo", this->smooth_states.cov_zo);
+
+    summary_file.close();
+    LOG(LogLevel::INFO,
+        "Smoother states successfully written to linear_state_summary.csv");
+}
+
 std::string SLinear::get_layer_info() const
 /*
  */
@@ -82,11 +128,14 @@ void smooth_zo(int num_timestep, std::vector<float> &cov,
  */
 {
     for (int i = num_timestep - 2; i >= 0; i--) {
-        float tmp = cov[i + 1] / var_priors[i + 1];
+        // avoid divide-by-zero by adding small epsilon
+        float tmp = cov[i + 1] / (var_priors[i + 1] + 1e-6f);
         mu_smooths[i] =
             mu_posts[i] + tmp * (mu_smooths[i + 1] - mu_priors[i + 1]);
         var_smooths[i] =
             var_posts[i] + tmp * (var_smooths[i + 1] - var_priors[i + 1]) * tmp;
+        // clip any negative variance to epsilon
+        if (var_smooths[i] < 0.0f) var_smooths[i] = 1e-6f;
     }
 }
 
@@ -253,6 +302,12 @@ void SLinear::smoother()
         this->smooth_states.mu_zo_posts, this->smooth_states.var_zo_posts,
         this->smooth_states.mu_zo_smooths, this->smooth_states.var_zo_smooths);
 
+    // print summary of all smoother states
+    this->print_summary();
+
     // // TODO: Clear variables for next epoch
     this->time_step = 0;
+
+    // // print summary of all smoother states
+    // this->print_summary();
 }

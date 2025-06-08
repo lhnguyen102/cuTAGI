@@ -35,4 +35,6 @@ class SLSTM : public LSTM {
                   bool state_udapte = true) override;
 
     void smoother();
+
+    void print_summary() const;
 };

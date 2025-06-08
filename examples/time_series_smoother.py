@@ -9,21 +9,21 @@ from tqdm import tqdm
 import pytagi.metric as metric
 from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
-from pytagi import exponential_scheduler
+from pytagi import exponential_scheduler, manual_seed
 from pytagi.nn import SLSTM, OutputUpdater, Sequential, SLinear
 
 
-def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
+def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 3
+    num_features = 1
     input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
     # Number of observations before training time to be inferred. These
     # obervations are nan in training data.
-    infer_window_len = 48
+    infer_window_len = 24
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
@@ -33,8 +33,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         output_seq_len=output_seq_len,
         num_features=num_features,
         stride=seq_stride,
-        time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov=True,
+        # time_covariates=["hour_of_day", "day_of_week"],
+        # keep_last_time_cov=True,
     )
     val_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -46,8 +46,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov=True,
+        # time_covariates=["hour_of_day", "day_of_week"],
+        # keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -59,12 +59,15 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        time_covariates=["hour_of_day", "day_of_week"],
-        keep_last_time_cov=True,
+        # time_covariates=["hour_of_day", "day_of_week"],
+        # keep_last_time_cov=True,
     )
 
     # Viz
     viz = PredictionViz(task_name="forecasting", data_name="sin_signal")
+
+    # set seed
+    # manual_seed(1)
 
     # Network
     net = Sequential(
@@ -92,7 +95,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
-            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
+            curr_v=sigma_v, min_v=0.1, decaying_factor=0.9, curr_iter=epoch
         )
         var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
         y_train = []

@@ -37,4 +37,6 @@ class SLinear : public Linear {
                   BaseTempStates &temp_states, bool state_udapte) override;
 
     void smoother();
+
+    void print_summary() const;
 };
