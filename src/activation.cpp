@@ -194,7 +194,7 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
         cdf_alpha = std::max(cdf_alpha, threshold);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[i] = std::max(1e-6f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
+        mu_a[i] = std::max(0.0f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
         var_a[i] =
             std::max(0.0f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
                                mu_z[i] * std_z * pdf_alpha +
@@ -1332,6 +1332,13 @@ void Remax::forward(BaseHiddenStates &input_states,
     output_states.block_size = input_states.block_size;
     output_states.actual_size = input_states.actual_size;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> Remax::to_cuda(int device_idx) {
+    this->device = "cuda";
+    return std::make_unique<RemaxCuda>();
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// EvenExp

@@ -553,6 +553,10 @@ class Remax : public BaseLayer {
     void save(std::ofstream &file) override {};
 
     void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////

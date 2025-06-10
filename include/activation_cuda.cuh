@@ -431,13 +431,16 @@ class RemaxCuda : public BaseLayerCuda {
     std::vector<float> cov_log_m_mt;
     float threshold = 1e-10;
     int batch_size_ = 0;
-    float *d_mu_m;
-    float *d_var_m;
-    float *d_jcb_m;
-    float *d_mu_log_m;
-    float *d_var_log_m;
-    float *d_mu_mt;
-    float *d_var_mt;
+    float *d_mu_m = nullptr;
+    float *d_var_m = nullptr;
+    float *d_jcb_m = nullptr;
+    float *d_mu_log_m = nullptr;
+    float *d_var_log_m = nullptr;
+    float *d_mu_mt = nullptr;
+    float *d_var_mt = nullptr;
+    float *d_mu_log_mt = nullptr;
+    float *d_var_log_mt = nullptr;
+    float *d_cov_log_m_mt = nullptr;
 
     RemaxCuda();
     ~RemaxCuda();
@@ -473,9 +476,12 @@ class RemaxCuda : public BaseLayerCuda {
 
     void load(std::ifstream &file) override {};
 
-#ifdef USE_CUDA
-    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
-#endif
+    std::unique_ptr<BaseLayer> to_host() override;
+
+   private:
+    void allocate_memory(int hidden_size, int batch_size);
+    void deallocate_memory();
+    void data_to_host();
 };
 
 class EvenExpCuda : public BaseLayerCuda {

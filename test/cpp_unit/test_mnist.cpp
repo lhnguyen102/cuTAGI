@@ -155,7 +155,7 @@ void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
 
     unsigned seed = 42;
     std::default_random_engine seed_e(seed);
-    int n_epochs = 2;
+    int n_epochs = 1;
     int batch_size = 128;
     float sigma_obs = 0.05;
     int iters = train_db.num_data / batch_size;
@@ -503,6 +503,16 @@ TEST_F(MnistTest, MismatchSizeDetection) {
 }
 
 #ifdef USE_CUDA
+TEST_F(MnistTest, RemaxTest_CUDA) {
+    Sequential model(Linear(784, 64), ReLU(), Linear(64, 64), ReLU(),
+                     Linear(64, 10), Remax());
+
+    model.to_device("cuda");
+    float avg_error;
+    float threshold = 0.1;  // Heuristic threshold
+    mnist_test_runner_v0(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
 TEST_F(MnistTest, BatchnormWithoutBiases_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),

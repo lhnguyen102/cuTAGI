@@ -39,7 +39,7 @@ FNN = Sequential(
     Linear(128, 128),
     ReLU(),
     Linear(128, 10),
-    Softmax(),
+    Remax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -99,7 +99,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
