@@ -623,7 +623,7 @@ void SLSTM::smoother()
         this->smooth_states.var_h_smooths);
 
     // Print summary of all smoother states
-    this->print_summary();
+    // this->print_summary();
 
     // Clear the LSTM states
     this->time_step = 0;

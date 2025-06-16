@@ -307,7 +307,4 @@ void SLinear::smoother()
 
     // // TODO: Clear variables for next epoch
     this->time_step = 0;
-
-    // // print summary of all smoother states
-    // this->print_summary();
 }
