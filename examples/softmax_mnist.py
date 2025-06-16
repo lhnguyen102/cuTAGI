@@ -8,16 +8,12 @@ sys.path.append(
 )
 import fire
 import numpy as np
-import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
 
 import pytagi
-from examples.data_loader import MnistDataLoader
-from examples.param_stat_table import ParamStatTable, WandBLogger
-from pytagi import HRCSoftmaxMetric
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -74,7 +70,7 @@ CNN = Sequential(
     Linear(32 * 4 * 4, 100),
     ReLU(),
     Linear(100, 10),
-    Softmax(),
+    Remax(),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -89,7 +85,7 @@ CNN_BATCHNORM = Sequential(
     Linear(32 * 4 * 4, 100),
     ReLU(),
     Linear(100, 10),
-    Softmax(),
+    Remax(),
 )
 
 
@@ -124,7 +120,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     )
 
     # Initialize network
-    net = FNN
+    net = CNN_BATCHNORM
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)

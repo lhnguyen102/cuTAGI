@@ -144,6 +144,9 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
         float pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
         float cdf_alpha = normcdf_cuda(alpha);
 
+        pdf_alpha = max(pdf_alpha, 1e-10f);
+        cdf_alpha = max(cdf_alpha, 1e-10f);
+
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
         mu_a[col] = max(0.0f, tmp_mu_a);
@@ -152,7 +155,11 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
         var_a[col] = max(0.0f, tmp_var_a);
         // TODO: test it out. We might need the condition if var_a=0 -> jcb=0
-        jcb[col] = cdf_alpha;
+        if (var_a[col] == 0.0f) {
+            jcb[col] = 0.0f;
+        } else {
+            jcb[col] = cdf_alpha;
+        }
     }
 }
 
@@ -1331,6 +1338,33 @@ void RemaxCuda::data_to_host()
     cudaMemcpy(this->cov_log_m_mt.data(), this->d_cov_log_m_mt,
                this->cov_log_m_mt.size() * sizeof(float),
                cudaMemcpyDeviceToHost);
+}
+
+void RemaxCuda::data_to_device()
+/*
+ */
+{
+    cudaMemcpy(this->d_mu_m, this->mu_m.data(),
+               this->mu_m.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_m, this->var_m.data(),
+               this->var_m.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_jcb_m, this->jcb_m.data(),
+               this->jcb_m.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_log_m, this->mu_log_m.data(),
+               this->mu_log_m.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_log_m, this->var_log_m.data(),
+               this->var_log_m.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_mt, this->mu_mt.data(),
+               this->mu_mt.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_mt, this->var_mt.data(),
+               this->var_mt.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_log_mt, this->mu_log_mt.data(),
+               this->mu_log_mt.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_log_mt, this->var_log_mt.data(),
+               this->var_log_mt.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_log_m_mt, this->cov_log_m_mt.data(),
+               this->cov_log_m_mt.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
