@@ -50,8 +50,6 @@ void SLinear::print_summary() const {
     write_vector("Smoothed", "cov_zo", this->smooth_states.cov_zo);
 
     summary_file.close();
-    LOG(LogLevel::INFO,
-        "Smoother states successfully written to linear_state_summary.csv");
 }
 
 std::string SLinear::get_layer_info() const

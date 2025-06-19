@@ -9,21 +9,21 @@ from tqdm import tqdm
 import pytagi.metric as metric
 from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
-from pytagi import exponential_scheduler, manual_seed
+from pytagi import exponential_scheduler
 from pytagi.nn import SLSTM, OutputUpdater, Sequential, SLinear
 
 
-def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
+def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 1
+    num_features = 3
     input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
     # Number of observations before training time to be inferred. These
     # obervations are nan in training data.
-    infer_window_len = 24
+    infer_window_len = 48
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
@@ -33,21 +33,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
         output_seq_len=output_seq_len,
         num_features=num_features,
         stride=seq_stride,
-        # time_covariates=["hour_of_day", "day_of_week"],
-        # keep_last_time_cov=True,
-    )
-    val_dtl = TimeSeriesDataloader(
-        x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
-        date_time_file="data/toy_time_series_smoother/x_test_sin_smoother_datetime.csv",
-        output_col=output_col,
-        input_seq_len=input_seq_len,
-        output_seq_len=output_seq_len,
-        num_features=num_features,
-        stride=seq_stride,
-        x_mean=train_dtl.x_mean,
-        x_std=train_dtl.x_std,
-        # time_covariates=["hour_of_day", "day_of_week"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day", "day_of_week"],
+        keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -59,15 +46,12 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        # time_covariates=["hour_of_day", "day_of_week"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day", "day_of_week"],
+        keep_last_time_cov=True,
     )
 
     # Viz
     viz = PredictionViz(task_name="forecasting", data_name="sin_signal")
-
-    # set seed
-    # manual_seed(1)
 
     # Network
     net = Sequential(
@@ -90,12 +74,11 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
     pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in pbar:
-        net.train()
         batch_iter = train_dtl.create_data_loader(batch_size, shuffle=False)
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
-            curr_v=sigma_v, min_v=0.1, decaying_factor=0.9, curr_iter=epoch
+            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
         )
         var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
         y_train = []
@@ -139,52 +122,12 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
             mu_sequence = np.append(mu_sequence, m_pred)
             mu_sequence = mu_sequence[-input_seq_len:]
 
-        # Validation
-        net.eval()
-        val_batch_iter = val_dtl.create_data_loader(batch_size, shuffle=False)
-
-        mu_preds = []
-        var_preds = []
-        y_val = []
-        x_val = []
-
-        for x, y in val_batch_iter:
-            # Predicion
-            m_pred, v_pred = net(x)
-
-            mu_preds.extend(m_pred)
-            var_preds.extend(v_pred + sigma_v**2)
-            x_val.extend(x)
-            y_val.extend(y)
-
-        mu_preds = np.array(mu_preds)
-        std_preds = np.array(var_preds) ** 0.5
-        y_val = np.array(y_val)
-        x_val = np.array(x_val)
-
-        mu_preds = normalizer.unstandardize(
-            mu_preds,
-            train_dtl.x_mean[output_col],
-            train_dtl.x_std[output_col],
-        )
-        std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
-
-        y_val = normalizer.unstandardize(
-            y_val, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
-        )
-
-        # Compute log-likelihood for validation set
-        mse_val = metric.mse(mu_preds, y_val)
-        log_lik_val = metric.log_likelihood(
-            prediction=mu_preds, observation=y_val, std=std_preds
-        )
-
         # Smoother
         mu_zo_smooth, var_zo_smooth = net.smoother()
         zo_smooth_std = np.array(var_zo_smooth) ** 0.5
         mu_sequence = mu_zo_smooth[:input_seq_len]
 
-        # Figures for each epoch
+        # # Figures for each epoch
         t = np.arange(len(mu_zo_smooth))
         t_train = np.arange(len(y_train))
         plt.switch_backend("Agg")
@@ -210,7 +153,6 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 5):
 
     # -------------------------------------------------------------------------#
     # Testing
-    net.eval()
     test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
     mu_preds = []
     var_preds = []

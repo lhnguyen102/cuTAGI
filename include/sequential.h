@@ -170,6 +170,10 @@ class Sequential {
                             std::vector<float>, std::vector<float>>>&
             lstm_states);
 
+    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
+                                       std::vector<float>, std::vector<float>>>
+    get_lstm_states_smooth(int timestep);
+
    private:
     void compute_input_output_size();
 };

@@ -123,7 +123,6 @@ void bind_sequential(pybind11::module_& m) {
                  }
                  return py_norm_mean_var;
              })
-        // New bindings for LSTM states
         .def("get_lstm_states",
              [](Sequential& self) {
                  // Get the C++ unordered_map of states.
@@ -137,19 +136,33 @@ void bind_sequential(pybind11::module_& m) {
                  }
                  return py_states;
              })
-        .def("set_lstm_states", [](Sequential& self, pybind11::dict py_states) {
-            // Convert the Python dict to the required unordered_map.
-            std::unordered_map<
-                int, std::tuple<std::vector<float>, std::vector<float>,
-                                std::vector<float>, std::vector<float>>>
-                states;
-            for (auto item : py_states) {
-                int key = item.first.cast<int>();
-                auto value = item.second.cast<
-                    std::tuple<std::vector<float>, std::vector<float>,
-                               std::vector<float>, std::vector<float>>>();
-                states[key] = value;
-            }
-            self.set_lstm_states(states);
-        });
+        .def("set_lstm_states",
+             [](Sequential& self, pybind11::dict py_states) {
+                 // Convert the Python dict to the required unordered_map.
+                 std::unordered_map<
+                     int, std::tuple<std::vector<float>, std::vector<float>,
+                                     std::vector<float>, std::vector<float>>>
+                     states;
+                 for (auto item : py_states) {
+                     int key = item.first.cast<int>();
+                     auto value = item.second.cast<
+                         std::tuple<std::vector<float>, std::vector<float>,
+                                    std::vector<float>, std::vector<float>>>();
+                     states[key] = value;
+                 }
+                 self.set_lstm_states(states);
+             })
+        .def(
+            "get_lstm_states_smooth",
+            [](Sequential& self, int timestep) {
+                auto states = self.get_lstm_states_smooth(timestep);
+                pybind11::dict py_states;
+                for (const auto& pair : states) {
+                    py_states[pybind11::int_(pair.first)] = pair.second;
+                }
+                return py_states;
+            },
+            pybind11::arg("timestep"))
+
+        ;
 }
