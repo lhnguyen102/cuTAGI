@@ -408,3 +408,16 @@ class Sequential:
         :type states: dict
         """
         self._cpp_backend.set_lstm_states(states)
+
+    def get_lstm_states_smooth(self, timestep: int) -> dict:
+        """
+        Get the smoothed LSTM states at a given timestep for all SLSTM layers.
+
+        Args:
+            timestep (int): The timestep to extract smoothed states from.
+
+        Returns:
+            dict: A dictionary where each key is the layer index (int) and the value is a 4-tuple
+                  of numpy arrays (mu_h, var_h, mu_c, var_c).
+        """
+        return self._cpp_backend.get_lstm_states_smooth(timestep)
