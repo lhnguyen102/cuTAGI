@@ -478,11 +478,12 @@ class RemaxCuda : public BaseLayerCuda {
 
     std::unique_ptr<BaseLayer> to_host() override;
 
+    void data_to_host();
+    void data_to_device();
+
    private:
     void allocate_memory(int hidden_size, int batch_size);
     void deallocate_memory();
-    void data_to_host();
-    void data_to_device();
 };
 
 class EvenExpCuda : public BaseLayerCuda {

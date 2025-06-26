@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import pytagi
+from examples.tagi_resnet_model import resnet18_cifar10
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -37,18 +38,18 @@ NORMALIZATION_STD = [0.2470, 0.2435, 0.2616]
 
 CNN_NET = Sequential(
     Conv2d(3, 32, 5, bias=False, padding=2, in_width=32, in_height=32),
-    ReLU(),
+    MixtureReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2, padding=1, padding_type=2),
-    ReLU(),
+    MixtureReLU(),
     BatchNorm2d(32),
     AvgPool2d(3, 2, padding=1, padding_type=2),
     Conv2d(32, 64, 5, bias=False, padding=2),
-    ReLU(),
+    MixtureReLU(),
     BatchNorm2d(64),
     AvgPool2d(3, 2, padding=1, padding_type=2),
     Linear(64 * 4 * 4, 256),
-    ReLU(),
+    MixtureReLU(),
     Linear(256, 10),
     Remax(),
 )
@@ -133,14 +134,15 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 50, batch_size: int = 128, sigma_v: float = 0.1):
+def main(num_epochs: int = 50, batch_size: int = 128, sigma_v: float = 0.2):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    net = CNN_NET
+    # net = CNN_NET
+    net = resnet18_cifar10(is_remax=True, gain_w=0.05, gain_b=1)
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)

@@ -144,16 +144,16 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
         float pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
         float cdf_alpha = normcdf_cuda(alpha);
 
-        pdf_alpha = max(pdf_alpha, 1e-10f);
-        cdf_alpha = max(cdf_alpha, 1e-10f);
+        // pdf_alpha = fmaxf(pdf_alpha, 1e-10f);
+        // cdf_alpha = fmaxf(cdf_alpha, 1e-10f);
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        mu_a[col] = max(0.0f, tmp_mu_a);
+        mu_a[col] = fmaxf(0.0f, tmp_mu_a);
         float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
-        var_a[col] = max(0.0f, tmp_var_a);
+        var_a[col] = fmaxf(0.0f, tmp_var_a);
         // TODO: test it out. We might need the condition if var_a=0 -> jcb=0
         if (var_a[col] == 0.0f) {
             jcb[col] = 0.0f;
