@@ -325,7 +325,8 @@ float normpdf_cpu(float x, float mu, float sigma)
         LOG(LogLevel::ERROR, "Sigma value is negative");
     }
     const float SQRT_2PI = 2.5066282746310002f;
-    float prob_pdf = (1 / (sigma * SQRT_2PI)) * expf(-0.5 * mu * mu);
+    float prob_pdf =
+        (1 / (sigma * SQRT_2PI)) * expf(-0.5 * (x - mu) * (x - mu));
 
     return prob_pdf;
 }

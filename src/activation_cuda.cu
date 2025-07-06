@@ -1205,8 +1205,8 @@ void RemaxCuda::forward(BaseHiddenStates &input_states,
         this->d_var_log_m);
 
     // Compute mean and variance of log(Mt)
-    dim3 dim_grid_log_mt(batch_blocks, 1);
-    dim3 dim_block_log_mt(THREADS_BATCH, 1);
+    dim3 dim_grid_log_mt(1, batch_blocks);
+    dim3 dim_block_log_mt(1, THREADS_BATCH);
     to_log_cuda<<<dim_grid_log_mt, dim_block_log_mt>>>(
         this->d_mu_mt, this->d_var_mt, 1, batch_size, this->d_mu_log_mt,
         this->d_var_log_mt);

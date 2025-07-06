@@ -199,7 +199,12 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
             std::max(0.0f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
                                mu_z[i] * std_z * pdf_alpha +
                                (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
-        jcb[i] = cdf_alpha;
+
+        if (var_a[i] == 0.0f) {
+            jcb[i] = 0.0f;
+        } else {
+            jcb[i] = cdf_alpha;
+        }
     }
 }
 

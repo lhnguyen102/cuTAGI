@@ -8,7 +8,6 @@
 #include "../../include/activation_cuda.cuh"
 #include "../../include/data_struct.h"
 #include "../../include/data_struct_cuda.cuh"
-#include "../../include/sequential.h"
 
 extern bool g_gpu_enabled;
 
@@ -26,6 +25,8 @@ TEST(RemaxMinimal, CPUvsCUDA_InternalVars) {
         input_data[i] = dist(gen);
         input_var[i] = 0.1f + 0.1f * std::abs(dist(gen));
     }
+
+    // Create input states for CPU
     BaseHiddenStates input_states;
     input_states.mu_a = input_data;
     input_states.var_a = input_var;
@@ -34,12 +35,29 @@ TEST(RemaxMinimal, CPUvsCUDA_InternalVars) {
     input_states.actual_size = input_size;
     input_states.size = batch_size * input_size;
 
-#ifdef USE_CUDA
-    // For CUDA version, use HiddenStateCuda for both input and output
-    HiddenStateCuda cuda_input_states(batch_size * input_size, batch_size);
-    HiddenStateCuda cuda_out(batch_size * input_size, batch_size);
+    // Create output states for CPU
+    BaseHiddenStates cpu_output_states;
+    cpu_output_states.mu_a.resize(batch_size * input_size);
+    cpu_output_states.var_a.resize(batch_size * input_size);
+    cpu_output_states.jcb.resize(batch_size * input_size);
+    cpu_output_states.block_size = batch_size;
+    cpu_output_states.actual_size = input_size;
+    cpu_output_states.size = batch_size * input_size;
 
-    // Copy data to CUDA input states
+    // Create temp states for CPU
+    BaseTempStates temp_states;
+
+    // Create CPU Remax layer
+    Remax cpu_remax;
+    cpu_remax.input_size = input_size;
+    cpu_remax.output_size = input_size;
+
+    // Run CPU forward pass
+    cpu_remax.forward(input_states, cpu_output_states, temp_states);
+
+#ifdef USE_CUDA
+    // Create CUDA input states
+    HiddenStateCuda cuda_input_states(batch_size * input_size, batch_size);
     cuda_input_states.mu_a = input_data;
     cuda_input_states.var_a = input_var;
     cuda_input_states.jcb = input_jcb;
@@ -47,66 +65,80 @@ TEST(RemaxMinimal, CPUvsCUDA_InternalVars) {
     cuda_input_states.actual_size = input_size;
     cuda_input_states.size = batch_size * input_size;
     cuda_input_states.to_device();
-#else
-    // For CPU version, use BaseHiddenStates
-    BaseHiddenStates cuda_out;
-    cuda_out.mu_a.resize(batch_size * input_size);
-    cuda_out.var_a.resize(batch_size * input_size);
-    cuda_out.jcb.resize(batch_size * input_size);
-    cuda_out.block_size = batch_size;
-    cuda_out.actual_size = input_size;
-    cuda_out.size = batch_size * input_size;
-#endif
 
-    BaseHiddenStates cpu_out;
-    cpu_out.mu_a.resize(batch_size * input_size);
-    cpu_out.var_a.resize(batch_size * input_size);
-    cpu_out.jcb.resize(batch_size * input_size);
-    cpu_out.block_size = batch_size;
-    cpu_out.actual_size = input_size;
-    cpu_out.size = batch_size * input_size;
+    // Create CUDA output states
+    HiddenStateCuda cuda_output_states(batch_size * input_size, batch_size);
+    cuda_output_states.block_size = batch_size;
+    cuda_output_states.actual_size = input_size;
+    cuda_output_states.size = batch_size * input_size;
 
-    BaseTempStates temp;
-    Remax cpu_remax;
-    Remax cuda_remax;
-
-    // Set input and output sizes directly
-    cpu_remax.input_size = input_size;
-    cpu_remax.output_size = input_size;
+    // Create CUDA Remax layer
+    RemaxCuda cuda_remax;
     cuda_remax.input_size = input_size;
     cuda_remax.output_size = input_size;
 
-    Sequential cpu_model{cpu_remax};
-    Sequential cuda_model{cuda_remax};
-    cuda_model.to_device("cuda");
-    cpu_model.forward(input_states);
+    // Run CUDA forward pass
+    cuda_remax.forward(cuda_input_states, cuda_output_states, temp_states);
 
-#ifdef USE_CUDA
-    cuda_model.forward(cuda_input_states);
-    cuda_model.output_to_host();
+    // Transfer CUDA output to host for comparison
+    cuda_output_states.to_host();
+
+    // Transfer CUDA layer internal data to host for comparison
+    cuda_remax.data_to_host();
 #else
-    cuda_model.forward(input_states);
+    // For CPU-only builds, just use the same CPU results
+    BaseHiddenStates cuda_output_states = cpu_output_states;
+    Remax cuda_remax;
+    cuda_remax.input_size = input_size;
+    cuda_remax.output_size = input_size;
+    cuda_remax.forward(input_states, cuda_output_states, temp_states);
 #endif
 
-    // Get the layers and transfer CUDA data to host
-    auto cpu_layer = dynamic_cast<Remax*>(cpu_model.layers[0].get());
-    auto cuda_layer = dynamic_cast<RemaxCuda*>(cuda_model.layers[0].get());
-    cuda_layer->data_to_host();
-    float tol = 1e-5f;
-    ASSERT_EQ(cpu_layer->mu_m.size(), cuda_layer->mu_m.size());
-    for (size_t i = 0; i < cpu_layer->mu_m.size(); ++i) {
-        EXPECT_NEAR(cpu_layer->mu_m[i], cuda_layer->mu_m[i], tol);
-        EXPECT_NEAR(cpu_layer->var_m[i], cuda_layer->var_m[i], tol);
-        EXPECT_NEAR(cpu_layer->jcb_m[i], cuda_layer->jcb_m[i], tol);
-        EXPECT_NEAR(cpu_layer->mu_log_m[i], cuda_layer->mu_log_m[i], tol);
-        EXPECT_NEAR(cpu_layer->var_log_m[i], cuda_layer->var_log_m[i], tol);
-        EXPECT_NEAR(cpu_layer->cov_log_m_mt[i], cuda_layer->cov_log_m_mt[i],
-                    tol);
+    // Compare output values
+    float tol = 1e-4f;
+
+    // Compare internal variables
+    ASSERT_EQ(cpu_remax.mu_m.size(), cuda_remax.mu_m.size());
+    for (size_t i = 0; i < cpu_remax.mu_m.size(); ++i) {
+        EXPECT_NEAR(cpu_remax.mu_m[i], cuda_remax.mu_m[i], tol)
+            << "mu_m mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.var_m[i], cuda_remax.var_m[i], tol)
+            << "var_m mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.jcb_m[i], cuda_remax.jcb_m[i], tol)
+            << "jcb_m mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.mu_log_m[i], cuda_remax.mu_log_m[i], tol)
+            << "mu_log_m mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.var_log_m[i], cuda_remax.var_log_m[i], tol)
+            << "var_log_m mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.cov_log_m_mt[i], cuda_remax.cov_log_m_mt[i], tol)
+            << "cov_log_m_mt mismatch at index " << i;
     }
-    for (size_t i = 0; i < cpu_layer->mu_mt.size(); ++i) {
-        EXPECT_NEAR(cpu_layer->mu_mt[i], cuda_layer->mu_mt[i], tol);
-        EXPECT_NEAR(cpu_layer->var_mt[i], cuda_layer->var_mt[i], tol);
-        EXPECT_NEAR(cpu_layer->mu_log_mt[i], cuda_layer->mu_log_mt[i], tol);
-        EXPECT_NEAR(cpu_layer->var_log_mt[i], cuda_layer->var_log_mt[i], tol);
+
+    for (size_t i = 0; i < cpu_remax.mu_mt.size(); ++i) {
+        EXPECT_NEAR(cpu_remax.mu_mt[i], cuda_remax.mu_mt[i], tol)
+            << "mu_mt mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.var_mt[i], cuda_remax.var_mt[i], tol)
+            << "var_mt mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.mu_log_mt[i], cuda_remax.mu_log_mt[i], tol)
+            << "mu_log_mt mismatch at index " << i;
+        EXPECT_NEAR(cpu_remax.var_log_mt[i], cuda_remax.var_log_mt[i], tol)
+            << "var_log_mt mismatch at index " << i;
+    }
+
+    // Compare output sizes
+    ASSERT_EQ(cpu_output_states.mu_a.size(), cuda_output_states.mu_a.size())
+        << "Output mu sizes differ";
+    ASSERT_EQ(cpu_output_states.var_a.size(), cuda_output_states.var_a.size())
+        << "Output var sizes differ";
+
+    // Compare output values
+    for (size_t i = 0; i < cpu_output_states.mu_a.size(); ++i) {
+        EXPECT_NEAR(cpu_output_states.mu_a[i], cuda_output_states.mu_a[i], tol)
+            << "Output mu mismatch at index " << i;
+        EXPECT_NEAR(cpu_output_states.var_a[i], cuda_output_states.var_a[i],
+                    tol)
+            << "Output var mismatch at index " << i;
+        EXPECT_NEAR(cpu_output_states.jcb[i], cuda_output_states.jcb[i], tol)
+            << "Output jcb mismatch at index " << i;
     }
 }

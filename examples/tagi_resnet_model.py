@@ -36,7 +36,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        MixtureReLU(),
+        ReLU(),
         BatchNorm2d(out_c),
         Conv2d(
             out_c,
@@ -47,7 +47,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        MixtureReLU(),
+        ReLU(),
         BatchNorm2d(out_c),
     )
 
