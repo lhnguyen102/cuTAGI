@@ -850,7 +850,7 @@ Sequential::get_input_states() {
 
 std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                    std::vector<float>, std::vector<float>>>
-Sequential::get_lstm_states() const {
+Sequential::get_lstm_states(int time_step) const {
     std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                        std::vector<float>, std::vector<float>>>
         lstm_states;
@@ -859,29 +859,33 @@ Sequential::get_lstm_states() const {
         if (layers[i]->get_layer_type() == LayerType::LSTM ||
             layers[i]->get_layer_type() == LayerType::SLSTM) {
             if (this->device == "cpu") {
-                if (auto lstm_layer = dynamic_cast<LSTM *>(layers[i].get())) {
+                if (auto slstm_layer = dynamic_cast<SLSTM *>(layers[i].get())) {
+                    if (time_step < 0) {
+                        lstm_states[static_cast<int>(i)] =
+                            slstm_layer->get_LSTM_states();
+                    } else {
+                        lstm_states[static_cast<int>(i)] =
+                            slstm_layer->get_smoothed_lstm_state_at(time_step);
+                    }
+                } else if (auto lstm_layer =
+                               dynamic_cast<LSTM *>(layers[i].get())) {
                     lstm_states[static_cast<int>(i)] =
                         lstm_layer->get_LSTM_states();
-                } else if (auto slstm_layer =
-                               dynamic_cast<SLSTM *>(layers[i].get())) {
-                    lstm_states[static_cast<int>(i)] =
-                        slstm_layer->get_LSTM_states();
                 }
-            }
 #ifdef USE_CUDA
-            else if (this->device == "cuda") {
-                LSTMCuda *lstm_cuda = dynamic_cast<LSTMCuda *>(layers[i].get());
-                if (lstm_cuda) {
-                    // CUDA
+            } else if (this->device == "cuda") {
+                if (auto lstm_cuda =
+                        dynamic_cast<LSTMCuda *>(layers[i].get())) {
                     std::vector<float> mu_h, var_h, mu_c, var_c;
                     lstm_cuda->d_get_LSTM_states(mu_h, var_h, mu_c, var_c);
                     lstm_states[static_cast<int>(i)] =
                         std::make_tuple(mu_h, var_h, mu_c, var_c);
                 }
-            }
 #endif
+            }
         }
     }
+
     return lstm_states;
 }
 
@@ -923,22 +927,4 @@ void Sequential::set_lstm_states(
 #endif
         }
     }
-}
-
-std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
-                                   std::vector<float>, std::vector<float>>>
-Sequential::get_lstm_states_smooth(int timestep) {
-    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
-                                       std::vector<float>, std::vector<float>>>
-        result;
-
-    for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::SLSTM) {
-            auto *slstm = dynamic_cast<SLSTM *>(layers[i].get());
-            if (slstm) {
-                result[i] = slstm->get_smoothed_lstm_state_at(timestep);
-            }
-        }
-    }
-    return result;
 }
