@@ -941,21 +941,3 @@ void Sequential::set_lstm_states(
         }
     }
 }
-
-std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
-                                   std::vector<float>, std::vector<float>>>
-Sequential::get_lstm_states_smooth(int timestep) {
-    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
-                                       std::vector<float>, std::vector<float>>>
-        result;
-
-    for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::SLSTM) {
-            auto *slstm = dynamic_cast<SLSTM *>(layers[i].get());
-            if (slstm) {
-                result[i] = slstm->get_smoothed_lstm_state_at(timestep);
-            }
-        }
-    }
-    return result;
-}
