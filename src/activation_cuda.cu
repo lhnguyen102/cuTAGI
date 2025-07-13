@@ -156,7 +156,7 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
         var_a[col] = fmaxf(0.0f, tmp_var_a);
         // TODO: test it out. We might need the condition if var_a=0 -> jcb=0
         if (var_a[col] == 0.0f) {
-            jcb[col] = 0.0f;
+            jcb[col] = 1.0f;
         } else {
             jcb[col] = cdf_alpha;
         }
@@ -416,12 +416,13 @@ __global__ void compute_remax_mean_var_cuda(
             float tmp_var = var_log_m[row * hidden_size + j] + var_log_mt[row] -
                             2 * cov_log_m_mt[row * hidden_size + j];
 
-            sum_mu += tmp_mu;
             mu_a[row * hidden_size + j] = expf(tmp_mu + 0.5f * tmp_var);
+            sum_mu += mu_a[row * hidden_size + j];
             var_a[row * hidden_size + j] = expf(tmp_var) - 1.0f;
         }
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu_norm = mu_a[row * hidden_size + j] / sum_mu;
+            mu_a[row * hidden_size + j] = tmp_mu_norm;
             var_a[row * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
         }
     }
