@@ -169,6 +169,7 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
         var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
                    mu_z[i] * std_z * pdf_alpha +
                    (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+
         jcb[i] = cdf_alpha;
     }
 }
@@ -189,10 +190,6 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
         pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
         cdf_alpha = normcdf_cpu(alpha);
 
-        // // Ensure numerical stability
-        // pdf_alpha = std::max(pdf_alpha, threshold);
-        // cdf_alpha = std::max(cdf_alpha, threshold);
-
         // Moments calculations (L. Alric, 2024)
         mu_a[i] = std::max(0.0f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
         var_a[i] =
@@ -200,11 +197,7 @@ void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
                                mu_z[i] * std_z * pdf_alpha +
                                (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
 
-        if (var_a[i] == 0.0f) {
-            jcb[i] = 1.0f;
-        } else {
-            jcb[i] = cdf_alpha;
-        }
+        jcb[i] = cdf_alpha;
     }
 }
 
@@ -1140,6 +1133,7 @@ void compute_remax_mean_var(const std::vector<float> &mu_log_m,
             tmp_mu = mu_log_m[i * hidden_size + j] - mu_log_mt[i];
             tmp_var = var_log_m[i * hidden_size + j] + var_log_mt[i] -
                       2 * cov_log_m_mt[i * hidden_size + j];
+
             mu_a[i * hidden_size + j] = expf(tmp_mu + 0.5 * tmp_var);
             sum_mu += mu_a[i * hidden_size + j];
             var_a[i * hidden_size + j] = expf(tmp_var) - 1.0f;
@@ -1170,19 +1164,13 @@ void compute_cov_a_z(
                             mu_a[i * hidden_size + j] *
                             mu_m[i * hidden_size + j];
 
-            // // Original formula
-            // cov_a_z[i * hidden_size + j] =
-            //     std::min(powf(var_a[i * hidden_size + j], 0.5f) *
-            //                  powf(var_z[i * hidden_size + j], 0.5f),
-            //              cov_a_m / (cdfn[i * hidden_size + j] +
-            //                         var_z[i * hidden_size + j]));
-
+            // Original formula
             cov_a_z[i * hidden_size + j] =
                 std::min(powf(var_a[i * hidden_size + j], 0.5f) *
                              powf(var_z[i * hidden_size + j], 0.5f),
-                         cov_a_m / cdfn[i * hidden_size + j] *
-                             var_z[i * hidden_size + j]);
-            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+                         cov_a_m / cdfn[i * hidden_size + j]);
+
+            // cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
 }

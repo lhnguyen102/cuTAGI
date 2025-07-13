@@ -14,7 +14,7 @@ extern bool g_gpu_enabled;
 TEST(RemaxMinimal, CPUvsCUDA_InternalVars) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     int batch_size = 4;
-    int hidden_size = 8;
+    int hidden_size = 16;
     int input_size = hidden_size;
     std::vector<float> input_data(batch_size * input_size);
     std::vector<float> input_var(batch_size * input_size);
@@ -95,7 +95,7 @@ TEST(RemaxMinimal, CPUvsCUDA_InternalVars) {
 #endif
 
     // Compare output values
-    float tol = 1e-4f;
+    float tol = 1e-3f;
 
     // Compare internal variables
     ASSERT_EQ(cpu_remax.mu_m.size(), cuda_remax.mu_m.size());

@@ -31,9 +31,9 @@ from pytagi.nn import (
 
 FNN = Sequential(
     Linear(784, 128),
-    MixtureReLU(),
+    ReLU(),
     Linear(128, 128),
-    MixtureReLU(),
+    ReLU(),
     Linear(128, 10),
     Remax(),
 )
@@ -67,9 +67,9 @@ CNN = Sequential(
     Conv2d(16, 32, 5),
     ReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100),
+    Linear(32 * 4 * 4, 128),
     ReLU(),
-    Linear(100, 10),
+    Linear(128, 10),
     Remax(),
 )
 
@@ -120,8 +120,8 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.2):
     )
 
     # Initialize network
-    net = FNN
-    # net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
+    net = CNN
+    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
 
