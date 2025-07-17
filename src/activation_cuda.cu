@@ -449,7 +449,7 @@ __global__ void compute_cov_a_z_cuda(float const *mu_a, float const *var_a,
                     powf(var_z[row * hidden_size + col], 0.5f),
                 cov_a_m / cdfn[row * hidden_size + col]);
 
-        // cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
+        cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }
 }
 
@@ -473,11 +473,18 @@ __global__ void compute_cov_a_z_cuda_v2(float const *mu_a, float const *var_a,
                         mu_a[row * hidden_size + col] *
                         mu_m[row * hidden_size + col];
 
+        //cov_a_z[row * hidden_size + col] = min(
+        //    powf(var_a[row * hidden_size + col], 0.5f) *
+        //        powf(var_z[row * hidden_size + col], 0.5f),
+        //    cov_a_m * cdfn[row * hidden_size + col] / var_m[row * hidden_size + col] * var_z[row * hidden_size + col]);
+
         cov_a_z[row * hidden_size + col] = min(
             powf(var_a[row * hidden_size + col], 0.5f) *
                 powf(var_z[row * hidden_size + col], 0.5f),
-            cov_a_m * var_z[row * hidden_size + col] *
-                cdfn[row * hidden_size + col] / var_m[row * hidden_size + col]);
+            cov_a_m * (1 / cdfn[row * hidden_size + col]
+                + cdfn[row * hidden_size + col]
+                / var_m[row * hidden_size + col]
+                * var_z[row * hidden_size + col])/2);
 
         cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }
@@ -1220,7 +1227,7 @@ void RemaxCuda::forward(BaseHiddenStates &input_states,
         cu_output_states->d_mu_a, cu_output_states->d_var_a);
 
     // Compute covariance of A and Z i.e., Jacobian.
-    compute_cov_a_z_cuda<<<dim_grid_log, dim_block_log>>>(
+    compute_cov_a_z_cuda_v2<<<dim_grid_log, dim_block_log>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
         cu_input_states->d_var_a, this->d_mu_m, this->d_var_m,
         this->d_var_log_m, this->d_cov_log_m_mt, this->d_jcb_m, hidden_size,

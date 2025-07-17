@@ -57,14 +57,14 @@ FNN_LAYERNORM = Sequential(
 
 CNN = Sequential(
     Conv2d(1, 16, 4, padding=1, in_width=28, in_height=28),
-    ReLU(),
+    MixtureReLU(),
     AvgPool2d(3, 2),
     Conv2d(16, 32, 5),
-    ReLU(),
+    MixtureReLU(),
     AvgPool2d(3, 2),
-    Linear(32 * 4 * 4, 100),
-    ReLU(),
-    Linear(100, 11),
+    Linear(32 * 4 * 4, 128),
+    MixtureReLU(),
+    Linear(128, 11),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -98,7 +98,7 @@ CNN_LAYERNORM = Sequential(
 
 def main(
     num_epochs: int = 10,
-    batch_size: int = 64,
+    batch_size: int = 128,
     sigma_v: float = 0.05,
     is_tracking: bool = False,
 ):
