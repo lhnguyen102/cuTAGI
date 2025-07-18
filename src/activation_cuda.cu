@@ -146,11 +146,11 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        mu_a[col] = fmaxf(0.0000001f, tmp_mu_a);
+        mu_a[col] = fmaxf(1E-9f, tmp_mu_a);
         float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
-        var_a[col] = fmaxf(0.0000001f, tmp_var_a);
+        var_a[col] = fmaxf(0.0f, tmp_var_a);
         // if (var_a[col] == 0.0f) {
         //     jcb[col] = 1.0f;
         // } else {
@@ -413,9 +413,10 @@ __global__ void compute_remax_mean_var_cuda(
             float tmp_var = var_log_m[row * hidden_size + j] + var_log_mt[row] -
                             2 * cov_log_m_mt[row * hidden_size + j];
 
-            mu_a[row * hidden_size + j] = expf(tmp_mu + 0.5f * tmp_var);
+            mu_a[row * hidden_size + j] = fmaxf(1E-9f,
+                                        expf(tmp_mu + 0.5f * tmp_var));
             sum_mu += mu_a[row * hidden_size + j];
-            var_a[row * hidden_size + j] = expf(tmp_var) - 1.0f;
+            var_a[row * hidden_size + j] = fmaxf(0.0f, expf(tmp_var) - 1.0f);
         }
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu_norm = mu_a[row * hidden_size + j] / sum_mu;
@@ -446,8 +447,8 @@ __global__ void compute_cov_a_z_cuda(float const *mu_a, float const *var_a,
 
         cov_a_z[row * hidden_size + col] =
             min(powf(var_a[row * hidden_size + col], 0.5f) *
-                    powf(var_z[row * hidden_size + col], 0.5f),
-                cov_a_m / cdfn[row * hidden_size + col]);
+                   powf(var_z[row * hidden_size + col], 0.5f),
+            cov_a_m / cdfn[row * hidden_size + col]);
 
         cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }
@@ -1227,7 +1228,7 @@ void RemaxCuda::forward(BaseHiddenStates &input_states,
         cu_output_states->d_mu_a, cu_output_states->d_var_a);
 
     // Compute covariance of A and Z i.e., Jacobian.
-    compute_cov_a_z_cuda_v2<<<dim_grid_log, dim_block_log>>>(
+    compute_cov_a_z_cuda<<<dim_grid_log, dim_block_log>>>(
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
         cu_input_states->d_var_a, this->d_mu_m, this->d_var_m,
         this->d_var_log_m, this->d_cov_log_m_mt, this->d_jcb_m, hidden_size,

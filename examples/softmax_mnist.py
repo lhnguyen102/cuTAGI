@@ -12,7 +12,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
-from pytagi import exponential_scheduler
 
 import pytagi
 from pytagi.nn import (
@@ -96,7 +95,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.1):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
@@ -139,16 +138,9 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.01):
             # Prepare data
             x = data.numpy().flatten()  # Flatten the images
             y = one_hot_encode(target).flatten() # Convert to one-hot encoding
-            #y = y * 0.98 + 0.01
-
 
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-                    # Decaying observation's variance
-            sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.01, decaying_factor=1.00, curr_iter=epoch
-            )
-            var_y = np.full((batch_size * 10,), sigma_v**2)
 
             # Update output layers
             out_updater.update(
