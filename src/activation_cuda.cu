@@ -146,11 +146,11 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        mu_a[col] = fmaxf(0.0f, tmp_mu_a);
+        mu_a[col] = fmaxf(0.0000001f, tmp_mu_a);
         float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
-        var_a[col] = fmaxf(0.0f, tmp_var_a);
+        var_a[col] = fmaxf(0.0000001f, tmp_var_a);
         // if (var_a[col] == 0.0f) {
         //     jcb[col] = 1.0f;
         // } else {
@@ -484,7 +484,7 @@ __global__ void compute_cov_a_z_cuda_v2(float const *mu_a, float const *var_a,
             cov_a_m * (1 / cdfn[row * hidden_size + col]
                 + cdfn[row * hidden_size + col]
                 / var_m[row * hidden_size + col]
-                * var_z[row * hidden_size + col])/2);
+                * var_z[row * hidden_size + col])/2.0f);
 
         cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }

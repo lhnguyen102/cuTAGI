@@ -32,9 +32,9 @@ from pytagi.nn import (
 
 FNN = Sequential(
     Linear(784, 128),
-    ReLU(),
+    MixtureReLU(),
     Linear(128, 128),
-    ReLU(),
+    MixtureReLU(),
     Linear(128, 10),
     Remax(),
 )
@@ -96,7 +96,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.35):
+def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
@@ -146,7 +146,7 @@ def main(num_epochs: int = 10, batch_size: int = 128, sigma_v: float = 0.35):
             m_pred, v_pred = net(x)
                     # Decaying observation's variance
             sigma_v = exponential_scheduler(
-                curr_v=sigma_v, min_v=0.01, decaying_factor=1.005, curr_iter=epoch
+                curr_v=sigma_v, min_v=0.01, decaying_factor=1.00, curr_iter=epoch
             )
             var_y = np.full((batch_size * 10,), sigma_v**2)
 
