@@ -111,6 +111,7 @@ void smooth_cell_states(
  */
 {
     const float eps = 1e-6f;  // small floor to prevent negative variances
+    bool print_clip_c = false;
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
@@ -126,10 +127,13 @@ void smooth_cell_states(
             float var_update =
                 var_c_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
+            if (var_update <= eps && !print_clip_c) {
+                LOG(LogLevel::WARNING,
+                    "Negative variance in SLSTM smoother at time step " +
+                        std::to_string(i) + " state " + std::to_string(j));
+                print_clip_c = true;
+            }
             var_c_smooths[current] = var_update > eps ? var_update : eps;
-            // var_c_smooths[current] =
-            //     var_c_posts[current] +
-            //     tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
         }
     }
 }
@@ -144,6 +148,7 @@ void smooth_hidden_states(
  */
 {
     const float eps = 1e-6f;  // small floor to prevent negative variances
+    bool print_clip_h = false;
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
@@ -158,10 +163,13 @@ void smooth_hidden_states(
             float var_h_update =
                 var_h_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
+            if (var_h_update <= eps && !print_clip_h) {
+                LOG(LogLevel::WARNING,
+                    "Negative variance in SLSTM smoother at time step " +
+                        std::to_string(i) + " state " + std::to_string(j));
+                print_clip_h = true;
+            }
             var_h_smooths[current] = var_h_update > eps ? var_h_update : eps;
-            // var_h_smooths[current] =
-            //     var_h_posts[current] +
-            //     tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
         }
     }
 }

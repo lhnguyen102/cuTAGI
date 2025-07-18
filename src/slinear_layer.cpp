@@ -125,6 +125,8 @@ void smooth_zo(int num_timestep, std::vector<float> &cov,
 /*
  */
 {
+    const float eps = 1e-6f;  // small floor to prevent negative variances
+    bool print_clip = false;
     for (int i = num_timestep - 2; i >= 0; i--) {
         // avoid divide-by-zero by adding small epsilon
         float tmp = cov[i + 1] / (var_priors[i + 1] + 1e-6f);
@@ -133,7 +135,16 @@ void smooth_zo(int num_timestep, std::vector<float> &cov,
         var_smooths[i] =
             var_posts[i] + tmp * (var_smooths[i + 1] - var_priors[i + 1]) * tmp;
         // clip any negative variance to epsilon
-        if (var_smooths[i] < 0.0f) var_smooths[i] = 1e-6f;
+        if (var_smooths[i] < 0.0f) {
+            var_smooths[i] = eps;
+            if (!print_clip) {
+                LOG(LogLevel::WARNING,
+                    "Negative variance in SLinear smoother clipped at time "
+                    "step " +
+                        std::to_string(i));
+                print_clip = true;
+            }
+        }
     }
 }
 
