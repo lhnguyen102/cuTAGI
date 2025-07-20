@@ -146,11 +146,11 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        mu_a[col] = fmaxf(0.0f, tmp_mu_a);
+        mu_a[col] = fmaxf(0.0000001f, tmp_mu_a);
         float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
-        var_a[col] = fmaxf(0.0f, tmp_var_a);
+        var_a[col] = fmaxf(0.0000001f, tmp_var_a);
         // if (var_a[col] == 0.0f) {
         //     jcb[col] = 1.0f;
         // } else {
@@ -187,9 +187,9 @@ __global__ void mixture_sigmoid_mean_var_cuda(float const *mu_z,
         float tmp_mu_a = (tmp_mu_z + 1) * cdf_l + (tmp_mu_z - 1) * cdf_u +
                          std_z * (pdf_l - pdf_u) - tmp_mu_z;
 
-        mu_a[col] = tmp_mu_a;
+        mu_a[col] = fmaxf(0.0000001f, tmp_mu_a);
         var_a[col] =
-            max(0.000001f,
+            max(0.0000001f,
                 (cdf_l * (var_z[col] - tmp_mu_z_2 - 2 * tmp_mu_z - 1) +
                  cdf_u * (var_z[col] - tmp_mu_z_2 + 2 * tmp_mu_z - 1) +
                  std_z * (pdf_u * (tmp_mu_z - 1) - pdf_l * (tmp_mu_z + 1)) -
@@ -449,7 +449,7 @@ __global__ void compute_cov_a_z_cuda(float const *mu_a, float const *var_a,
                     powf(var_z[row * hidden_size + col], 0.5f),
                 cov_a_m / cdfn[row * hidden_size + col]);
 
-        // cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
+        cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }
 }
 

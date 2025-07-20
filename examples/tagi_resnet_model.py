@@ -36,7 +36,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(out_c),
         Conv2d(
             out_c,
@@ -47,7 +47,7 @@ def make_layer_block(
             gain_weight=gain_weight,
             gain_bias=gain_bias,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(out_c),
     )
 
@@ -68,7 +68,7 @@ def resnet18_cifar10(
             in_height=32,
             gain_weight=gain_w,
         ),
-        ReLU(),
+        MixtureReLU(),
         BatchNorm2d(64),
     ]
 
@@ -88,7 +88,7 @@ def resnet18_cifar10(
                     stride=2,
                     gain_weight=gain_w,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(128),
             ),
         ),
@@ -105,7 +105,7 @@ def resnet18_cifar10(
                     stride=2,
                     gain_weight=gain_w,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(256),
             ),
         ),
@@ -122,7 +122,7 @@ def resnet18_cifar10(
                     stride=2,
                     gain_weight=gain_w,
                 ),
-                ReLU(),
+                MixtureReLU(),
                 BatchNorm2d(512),
             ),
         ),

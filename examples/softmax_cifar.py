@@ -50,7 +50,7 @@ CNN_NET = Sequential(
     AvgPool2d(3, 2, padding=1, padding_type=2),
     Linear(64 * 4 * 4, 256),
     MixtureReLU(),
-    Linear(256, 10),
+    Linear(256, 10, gain_weight=0.25, gain_bias=0.25),
     Remax(),
 )
 
@@ -134,14 +134,14 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 50, batch_size: int = 128, sigma_v: float = 0.2):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.2):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    # net = CNN_NET
+    net = CNN_NET
     net = resnet18_cifar10(is_remax=True, gain_w=1.0, gain_b=1.0)
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
