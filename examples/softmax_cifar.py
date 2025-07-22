@@ -134,14 +134,14 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.2):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    net = CNN_NET
+    # net = CNN_NET
     net = resnet18_cifar10(is_remax=True, gain_w=1.0, gain_b=1.0)
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
@@ -185,6 +185,10 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.2):
             pbar.set_postfix(
                 {"train_error": f"{train_error/num_train_samples:.2f}%"}
             )
+
+        # Save the model state
+        if (epoch + 1) % 10 == 0:
+            net.save(f"models_bin/cifar10_resnet_remax_epoch_{epoch + 1}.bin")
 
         # Testing
         net.eval()
