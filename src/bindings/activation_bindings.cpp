@@ -185,3 +185,15 @@ void bind_remax(pybind11::module_& modo)
         .def("save", &Remax::save)
         .def("to_cuda", &Remax::to_cuda);
 }
+
+void bind_closed_form_softmax(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<ClosedFormSoftmax, std::shared_ptr<ClosedFormSoftmax>,
+                     BaseLayer>(modo, "ClosedFormSoftmax")
+        .def(pybind11::init<>())
+        .def("get_layer_info", &ClosedFormSoftmax::get_layer_info)
+        .def("get_layer_name", &ClosedFormSoftmax::get_layer_name)
+        .def("forward", &ClosedFormSoftmax::forward);
+}

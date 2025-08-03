@@ -1,4 +1,5 @@
 from pytagi.nn.activation import (
+    ClosedFormSoftmax,
     EvenExp,
     LeakyReLU,
     MixtureReLU,

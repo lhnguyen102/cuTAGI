@@ -560,6 +560,63 @@ class Remax : public BaseLayer {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+class ClosedFormSoftmax : public BaseLayer {
+   public:
+    std::vector<float> mu_e_sum;
+    std::vector<float> var_e_sum;
+    std::vector<float> cov_z_log_e_sum;
+    std::vector<float> mu_log_e_sum;
+    std::vector<float> var_log_e_sum;
+    std::vector<float> cov_log_a_z;
+    std::vector<float> mu_log_a;
+    std::vector<float> var_log_a;
+    std::vector<float> mu_a;
+    std::vector<float> var_a;
+    std::vector<float> jcb_a;
+    int batch_size_ = 0;
+
+    ClosedFormSoftmax();
+    ~ClosedFormSoftmax();
+
+    // Delete copy constructor and copy assignment
+    ClosedFormSoftmax(const ClosedFormSoftmax &) = delete;
+    ClosedFormSoftmax &operator=(const ClosedFormSoftmax &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    ClosedFormSoftmax(ClosedFormSoftmax &&) = default;
+    ClosedFormSoftmax &operator=(ClosedFormSoftmax &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+};
+
+////////////////////////////////////////////////////////////////////////////////
 /// EvenExp
 ////////////////////////////////////////////////////////////////////////////////
 class EvenExp : public BaseLayer {

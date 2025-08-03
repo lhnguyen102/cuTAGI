@@ -146,11 +146,11 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
 
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
-        mu_a[col] = fmaxf(0.0000001f, tmp_mu_a);
+        mu_a[col] = fmaxf(0.000001f, tmp_mu_a);
         float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
-        var_a[col] = fmaxf(0.0000001f, tmp_var_a);
+        var_a[col] = tmp_var_a;
         // if (var_a[col] == 0.0f) {
         //     jcb[col] = 1.0f;
         // } else {
@@ -413,7 +413,8 @@ __global__ void compute_remax_mean_var_cuda(
             float tmp_var = var_log_m[row * hidden_size + j] + var_log_mt[row] -
                             2 * cov_log_m_mt[row * hidden_size + j];
 
-            mu_a[row * hidden_size + j] = expf(tmp_mu + 0.5f * tmp_var);
+            mu_a[row * hidden_size + j] =
+                fmaxf(0.000001f, expf(tmp_mu + 0.5f * tmp_var));
             sum_mu += mu_a[row * hidden_size + j];
             var_a[row * hidden_size + j] = expf(tmp_var) - 1.0f;
         }
@@ -1363,6 +1364,59 @@ void RemaxCuda::data_to_device()
                this->cov_log_m_mt.size() * sizeof(float),
                cudaMemcpyHostToDevice);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+ClosedFormSoftmaxCuda::ClosedFormSoftmaxCuda() {}
+ClosedFormSoftmaxCuda::~ClosedFormSoftmaxCuda() {}
+
+std::string ClosedFormSoftmaxCuda::get_layer_info() const
+/*
+ */
+{
+    return "ClosedFormSoftmax()";
+}
+
+std::string ClosedFormSoftmaxCuda::get_layer_name() const
+/*
+ */
+{
+    return "ClosedFormSoftmaxCuda";
+}
+
+LayerType ClosedFormSoftmaxCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void ClosedFormSoftmaxCuda::forward(BaseHiddenStates &input_states,
+                                    BaseHiddenStates &output_states,
+                                    BaseTempStates &temp_states)
+/*
+ */
+{}
+
+std::unique_ptr<BaseLayer> ClosedFormSoftmaxCuda::to_host()
+/*
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer =
+        std::make_unique<ClosedFormSoftmax>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
+
+    return host_layer;
+}
+
+void ClosedFormSoftmaxCuda::allocate_memory(int hidden_size, int batch_size)
+/*
+ */
+{}
+
+void ClosedFormSoftmaxCuda::deallocate_memory() {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// EvenExp

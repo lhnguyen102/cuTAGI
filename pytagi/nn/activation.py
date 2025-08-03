@@ -144,3 +144,16 @@ class Remax(BaseLayer):
 
     def get_layer_name(self) -> str:
         return self._cpp_backend.get_layer_name()
+
+
+class ClosedFormSoftmax(BaseLayer):
+    """ClosedFormSoftmax"""
+
+    def __init__(self):
+        self._cpp_backend = cutagi.ClosedFormSoftmax()
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()

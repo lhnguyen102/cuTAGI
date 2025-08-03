@@ -30,6 +30,9 @@ saved_results/param_viz
 *sys-rep
 *sqlite
 
+# claude
+CLAUDE.md
+
 
 !test/data/*.csv
 !test/act_func/data/*.csv

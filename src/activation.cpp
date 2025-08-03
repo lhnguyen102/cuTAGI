@@ -1335,6 +1335,167 @@ std::unique_ptr<BaseLayer> Remax::to_cuda(int device_idx) {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+void compute_mean_var_exp_sum(const std::vector<float> &mu_z,
+                              const std::vector<float> &var_z, int hidden_size,
+                              int batch_size, std::vector<float> &mu_e_sum,
+                              std::vector<float> &var_e_sum)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            sum_mu += expf(mu_z[i * hidden_size + j] +
+                           0.5 * var_z[i * hidden_size + j]);
+            sum_var += expf(2 * mu_z[i * hidden_size + j] +
+                            var_z[i * hidden_size + j]) *
+                       (expf(var_z[i * hidden_size + j]) - 1.0f);
+        }
+        mu_e_sum[i] = sum_mu;
+        var_e_sum[i] = sum_var;
+    }
+}
+
+void compute_mean_var_log_a(
+    const std::vector<float> &mu_z, const std::vector<float> &var_z,
+    const std::vector<float> &mu_log_e_sum,
+    const std::vector<float> &var_log_e_sum, const std::vector<float> &mu_e_sum,
+    const std::vector<float> &var_e_sum, int hidden_size, int batch_size,
+    std::vector<float> &mu_log_a, std::vector<float> &var_log_a,
+    std::vector<float> &cov_log_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_e_e_sum = expf(2 * mu_z[i * hidden_size + j] +
+                                     var_z[i * hidden_size + j]) *
+                                (expf(var_z[i * hidden_size + j]) - 1.0f);
+            float mu_e = expf(mu_z[i * hidden_size + j] +
+                              0.5 * var_z[i * hidden_size + j]);
+
+            float tmp_inverse_mu = 1.0f / (mu_e_sum[i] * mu_e);
+            float cov_z_log_e_sum = logf(1.0f + cov_e_e_sum * tmp_inverse_mu);
+            mu_log_a[i * hidden_size + j] =
+                mu_z[i * hidden_size + j] - mu_log_e_sum[i];
+            var_log_a[i * hidden_size + j] = var_z[i * hidden_size + j] +
+                                             var_log_e_sum[i] -
+                                             2.0f * cov_z_log_e_sum;
+            cov_log_a_z[i * hidden_size + j] = -cov_z_log_e_sum;
+        }
+    }
+}
+
+void compute_cfsoftmax_mean_var(
+    const std::vector<float> &mu_log_a, const std::vector<float> &var_log_a,
+    const std::vector<float> &cov_log_a_z, const std::vector<float> &var_z,
+    int hidden_size, int batch_size, std::vector<float> &mu_a,
+    std::vector<float> &var_a, std::vector<float> &jcb_a) {
+    for (int i = 0; i < batch_size; i++) {
+        float sum_mu = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            float tmp_mu = expf(mu_log_a[i * hidden_size + j] +
+                                0.5 * var_log_a[i * hidden_size + j]);
+            mu_a[i * hidden_size + j] = tmp_mu;
+            sum_mu += mu_a[i * hidden_size + j];
+            var_a[i * hidden_size + j] =
+                (expf(var_log_a[i * hidden_size + j]) - 1.0f) * tmp_mu * tmp_mu;
+
+            // TODO: Need to used normalized mean?
+            jcb_a[i * hidden_size + j] = tmp_mu *
+                                         cov_log_a_z[i * hidden_size + j] /
+                                         var_z[i * hidden_size + j];
+        }
+        // for (int j = 0; j < hidden_size; j++) {
+        //     float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
+        //     mu_a[i * hidden_size + j] = tmp_mu_norm;
+        //     var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
+        // }
+    }
+}
+
+ClosedFormSoftmax::ClosedFormSoftmax() {}
+ClosedFormSoftmax::~ClosedFormSoftmax() {}
+
+std::string ClosedFormSoftmax::get_layer_info() const
+/*
+ */
+{
+    return "ClosedFormSoftmax()";
+}
+
+std::string ClosedFormSoftmax::get_layer_name() const
+/*
+ */
+{
+    return "ClosedFormSoftmax";
+}
+
+LayerType ClosedFormSoftmax::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
+                                BaseHiddenStates &output_states,
+                                BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    int hidden_size = input_states.actual_size;
+
+    if (this->batch_size_ != batch_size) {
+        this->batch_size_ = batch_size;
+        this->mu_e_sum.resize(batch_size, 0.0f);
+        this->var_e_sum.resize(batch_size, 0.0f);
+        this->cov_z_log_e_sum.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_e_sum.resize(batch_size, 0.0f);
+        this->var_log_e_sum.resize(batch_size, 0.0f);
+        this->cov_log_a_z.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_a.resize(batch_size * hidden_size, 0.0f);
+        this->var_log_a.resize(batch_size * hidden_size, 0.0f);
+        this->mu_a.resize(batch_size * hidden_size, 0.0f);
+        this->var_a.resize(batch_size * hidden_size, 0.0f);
+        this->jcb_a.resize(batch_size * hidden_size, 0.0f);
+    }
+
+    compute_mean_var_exp_sum(input_states.mu_a, input_states.var_a, hidden_size,
+                             batch_size, this->mu_e_sum, this->var_e_sum);
+    to_log(this->mu_e_sum, this->var_e_sum, 1, batch_size, this->mu_log_e_sum,
+           this->var_log_e_sum);
+
+    compute_mean_var_log_a(
+        input_states.mu_a, input_states.var_a, this->mu_log_e_sum,
+        this->var_log_e_sum, this->mu_e_sum, this->var_e_sum, hidden_size,
+        batch_size, this->mu_log_a, this->var_log_a, this->cov_log_a_z);
+
+    compute_cfsoftmax_mean_var(this->mu_log_a, this->var_log_a,
+                               this->cov_log_a_z, input_states.var_a,
+                               hidden_size, batch_size, output_states.mu_a,
+                               output_states.var_a, output_states.jcb);
+
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> ClosedFormSoftmax::to_cuda(int device_idx) {
+    this->device = "cuda";
+    return std::make_unique<ClosedFormSoftmaxCuda>();
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 /// EvenExp
 ////////////////////////////////////////////////////////////////////////////////
 EvenExp::EvenExp() {}

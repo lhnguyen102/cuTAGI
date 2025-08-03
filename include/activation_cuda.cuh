@@ -486,6 +486,52 @@ class RemaxCuda : public BaseLayerCuda {
     void deallocate_memory();
 };
 
+////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+class ClosedFormSoftmaxCuda : public BaseLayerCuda {
+   public:
+    ClosedFormSoftmaxCuda();
+    ~ClosedFormSoftmaxCuda();
+
+    // Delete copy constructor and copy assignment
+    ClosedFormSoftmaxCuda(const ClosedFormSoftmaxCuda &) = delete;
+    ClosedFormSoftmaxCuda &operator=(const ClosedFormSoftmaxCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    ClosedFormSoftmaxCuda(ClosedFormSoftmaxCuda &&) = default;
+    ClosedFormSoftmaxCuda &operator=(ClosedFormSoftmaxCuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+   private:
+    void allocate_memory(int hidden_size, int batch_size);
+    void deallocate_memory();
+};
+
 class EvenExpCuda : public BaseLayerCuda {
    public:
     EvenExpCuda();
