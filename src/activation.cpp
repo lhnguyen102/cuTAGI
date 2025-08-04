@@ -1384,7 +1384,8 @@ void compute_mean_var_log_a(
             var_log_a[i * hidden_size + j] = var_z[i * hidden_size + j] +
                                              var_log_e_sum[i] -
                                              2.0f * cov_z_log_e_sum;
-            cov_log_a_z[i * hidden_size + j] = -cov_z_log_e_sum;
+            cov_log_a_z[i * hidden_size + j] =
+                var_z[i * hidden_size + j] - cov_z_log_e_sum;
         }
     }
 }
@@ -1479,6 +1480,14 @@ void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
                                this->cov_log_a_z, input_states.var_a,
                                hidden_size, batch_size, output_states.mu_a,
                                output_states.var_a, output_states.jcb);
+    // check if the output is nan
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            if (std::isnan(output_states.mu_a[i * hidden_size + j])) {
+                std::cout << "nan in output_states.mu_a" << std::endl;
+            }
+        }
+    }
 
     this->input_size = input_states.actual_size;
     this->output_size = input_states.actual_size;

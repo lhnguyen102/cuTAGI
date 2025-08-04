@@ -151,11 +151,6 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
                           tmp_mu_z * std_z * pdf_alpha +
                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
         var_a[col] = tmp_var_a;
-        // if (var_a[col] == 0.0f) {
-        //     jcb[col] = 1.0f;
-        // } else {
-        //     jcb[col] = cdf_alpha;
-        // }
         jcb[col] = cdf_alpha;
     }
 }
