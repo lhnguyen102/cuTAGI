@@ -147,9 +147,10 @@ __global__ void mixture_relu_mean_var_cuda(float const *mu_z,
         // Moments calculations (L. Alric, 2024)
         float tmp_mu_a = mu_z[col] * cdf_alpha + std_z * pdf_alpha;
         mu_a[col] = fmaxf(0.000001f, tmp_mu_a);
-        float tmp_var_a = -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
-                          tmp_mu_z * std_z * pdf_alpha +
-                          (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha;
+        float tmp_var_a = fmaxf(
+            0.000001f, -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
+                           tmp_mu_z * std_z * pdf_alpha +
+                           (var_z[col] - tmp_mu_z * tmp_mu_z) * cdf_alpha);
         var_a[col] = tmp_var_a;
         jcb[col] = cdf_alpha;
     }
@@ -441,9 +442,9 @@ __global__ void compute_cov_a_z_cuda(float const *mu_a, float const *var_a,
                         mu_m[row * hidden_size + col];
 
         cov_a_z[row * hidden_size + col] =
-            min(powf(var_a[row * hidden_size + col], 0.5f) *
-                    powf(var_z[row * hidden_size + col], 0.5f),
-                cov_a_m / cdfn[row * hidden_size + col]);
+            fminf(powf(var_a[row * hidden_size + col], 0.5f) *
+                      powf(var_z[row * hidden_size + col], 0.5f),
+                  cov_a_m / cdfn[row * hidden_size + col]);
 
         cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
     }
@@ -1198,8 +1199,9 @@ void RemaxCuda::forward(BaseHiddenStates &input_states,
         this->d_var_log_m);
 
     // Compute mean and variance of log(Mt)
-    dim3 dim_grid_log_mt(1, batch_blocks);
-    dim3 dim_block_log_mt(1, THREADS_BATCH);
+    unsigned int blocks_log_mt = (batch_size + THREADS - 1) / THREADS;
+    dim3 dim_grid_log_mt(1, blocks_log_mt);
+    dim3 dim_block_log_mt(1, THREADS);
     to_log_cuda<<<dim_grid_log_mt, dim_block_log_mt>>>(
         this->d_mu_mt, this->d_var_mt, 1, batch_size, this->d_mu_log_mt,
         this->d_var_log_mt);
@@ -1363,6 +1365,70 @@ void RemaxCuda::data_to_device()
 ////////////////////////////////////////////////////////////////////////////////
 /// ClosedFormSoftmax
 ////////////////////////////////////////////////////////////////////////////////
+__global__ void compute_mean_var_exp_sum_cuda(const float *mu_z,
+                                              const float *var_z,
+                                              int hidden_size, int batch_size,
+                                              float *mu_e_sum,
+                                              float *var_e_sum) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < batch_size) {
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            sum_mu += expf(mu_z[idx * hidden_size + j] +
+                           0.5 * var_z[idx * hidden_size + j]);
+            sum_var += expf(2 * mu_z[idx * hidden_size + j] +
+                            var_z[idx * hidden_size + j]) *
+                       (expf(var_z[idx * hidden_size + j]) - 1.0f);
+        }
+        mu_e_sum[idx] = sum_mu;
+        var_e_sum[idx] = sum_var;
+    }
+}
+
+__global__ void compute_mean_var_log_a_cuda(
+    const float *mu_z, const float *var_z, const float *mu_log_e_sum,
+    const float *var_log_e_sum, const float *mu_e_sum, const float *var_e_sum,
+    int hidden_size, int batch_size, float *mu_log_a, float *var_log_a,
+    float *cov_log_a_z) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < batch_size && col < hidden_size) {
+        float cov_e_e_sum = expf(2 * mu_z[row * hidden_size + col] +
+                                 var_z[row * hidden_size + col]) *
+                            (expf(var_z[row * hidden_size + col]) - 1.0f);
+        float mu_e = expf(mu_z[row * hidden_size + col] +
+                          0.5 * var_z[row * hidden_size + col]);
+        float tmp_inverse_mu = 1.0f / (mu_e_sum[row] * mu_e);
+        float cov_z_log_e_sum = logf(1.0f + cov_e_e_sum * tmp_inverse_mu);
+        mu_log_a[row * hidden_size + col] =
+            mu_z[row * hidden_size + col] - mu_log_e_sum[row];
+        var_log_a[row * hidden_size + col] = var_z[row * hidden_size + col] +
+                                             var_log_e_sum[row] -
+                                             2.0f * cov_z_log_e_sum;
+        cov_log_a_z[row * hidden_size + col] =
+            var_z[row * hidden_size + col] - cov_z_log_e_sum;
+    }
+}
+
+__global__ void compute_cfsoftmax_mean_var_cuda(
+    const float *mu_log_a, const float *var_log_a, const float *cov_log_a_z,
+    const float *var_z, int hidden_size, int batch_size, float *mu_a,
+    float *var_a, float *jcb_a) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row < batch_size && col < hidden_size) {
+        float tmp_mu = expf(mu_log_a[row * hidden_size + col] +
+                            0.5 * var_log_a[row * hidden_size + col]);
+        mu_a[row * hidden_size + col] = tmp_mu;
+        var_a[row * hidden_size + col] =
+            (expf(var_log_a[row * hidden_size + col]) - 1.0f) * tmp_mu * tmp_mu;
+        jcb_a[row * hidden_size + col] = tmp_mu *
+                                         cov_log_a_z[row * hidden_size + col] /
+                                         var_z[row * hidden_size + col];
+    }
+}
+
 ClosedFormSoftmaxCuda::ClosedFormSoftmaxCuda() {}
 ClosedFormSoftmaxCuda::~ClosedFormSoftmaxCuda() {}
 
@@ -1392,7 +1458,62 @@ void ClosedFormSoftmaxCuda::forward(BaseHiddenStates &input_states,
                                     BaseTempStates &temp_states)
 /*
  */
-{}
+{
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    int batch_size = input_states.block_size;
+    int hidden_size = input_states.actual_size;
+    if (this->batch_size_ != batch_size) {
+        this->batch_size_ = batch_size;
+        this->deallocate_memory();
+        this->allocate_memory(hidden_size, batch_size);
+    }
+    constexpr int THREADS = 256;
+    unsigned int blocks = (batch_size + THREADS - 1) / THREADS;
+
+    // Compute mean and variance of softmax's denominator sum[exp(z)]
+    compute_mean_var_exp_sum_cuda<<<blocks, THREADS>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, hidden_size,
+        batch_size, this->d_mu_e_sum, this->d_var_e_sum);
+
+    // Transform to log space
+    dim3 dim_grid_log(1, blocks);
+    dim3 dim_block_log(1, THREADS);
+    to_log_cuda<<<dim_grid_log, dim_block_log>>>(
+        this->d_mu_e_sum, this->d_var_e_sum, 1, batch_size,
+        this->d_mu_log_e_sum, this->d_var_log_e_sum);
+
+    // Compute mean and variance of log[softmax(z)]
+    constexpr int THREADS_BATCH = 16;
+    constexpr int THREADS_HIDDEN = 16;
+    const int batch_blocks = (batch_size + THREADS_BATCH - 1) / THREADS_BATCH;
+    const int hidden_blocks =
+        (hidden_size + THREADS_HIDDEN - 1) / THREADS_HIDDEN;
+    dim3 dim_grid_a(hidden_blocks, batch_blocks);
+    dim3 dim_block_a(THREADS_HIDDEN, THREADS_BATCH);
+    compute_mean_var_log_a_cuda<<<dim_grid_a, dim_block_a>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_log_e_sum,
+        this->d_var_log_e_sum, this->d_mu_e_sum, this->d_var_e_sum, hidden_size,
+        batch_size, this->d_mu_log_a, this->d_var_log_a, this->d_cov_log_a_z);
+
+    // Compute mean and variance of softmax(z)
+    compute_cfsoftmax_mean_var_cuda<<<dim_grid_a, dim_block_a>>>(
+        this->d_mu_log_a, this->d_var_log_a, this->d_cov_log_a_z,
+        cu_input_states->d_var_a, hidden_size, batch_size,
+        cu_output_states->d_mu_a, cu_output_states->d_var_a,
+        cu_output_states->d_jcb);
+
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
+}
 
 std::unique_ptr<BaseLayer> ClosedFormSoftmaxCuda::to_host()
 /*
@@ -1409,9 +1530,100 @@ std::unique_ptr<BaseLayer> ClosedFormSoftmaxCuda::to_host()
 void ClosedFormSoftmaxCuda::allocate_memory(int hidden_size, int batch_size)
 /*
  */
-{}
+{
+    int size = hidden_size * batch_size;
+    this->mu_e_sum.resize(batch_size, 0.0f);
+    this->var_e_sum.resize(batch_size, 0.0f);
+    this->cov_z_log_e_sum.resize(size, 0.0f);
+    this->mu_log_e_sum.resize(batch_size, 0.0f);
+    this->var_log_e_sum.resize(batch_size, 0.0f);
+    this->cov_log_a_z.resize(size, 0.0f);
+    this->mu_log_a.resize(size, 0.0f);
+    this->var_log_a.resize(size, 0.0f);
 
-void ClosedFormSoftmaxCuda::deallocate_memory() {}
+    cudaMalloc(&this->d_mu_e_sum, batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_e_sum, batch_size * sizeof(float));
+    cudaMalloc(&this->d_cov_z_log_e_sum,
+               batch_size * hidden_size * sizeof(float));
+    cudaMalloc(&this->d_mu_log_e_sum, batch_size * sizeof(float));
+    cudaMalloc(&this->d_var_log_e_sum, batch_size * sizeof(float));
+    cudaMalloc(&this->d_cov_log_a_z, size * sizeof(float));
+    cudaMalloc(&this->d_mu_log_a, size * sizeof(float));
+    cudaMalloc(&this->d_var_log_a, size * sizeof(float));
+}
+
+void ClosedFormSoftmaxCuda::deallocate_memory() {
+    cudaFree(this->d_mu_e_sum);
+    this->d_mu_e_sum = nullptr;
+    cudaFree(this->d_var_e_sum);
+    this->d_var_e_sum = nullptr;
+    cudaFree(this->d_cov_z_log_e_sum);
+    this->d_cov_z_log_e_sum = nullptr;
+    cudaFree(this->d_mu_log_e_sum);
+    this->d_mu_log_e_sum = nullptr;
+    cudaFree(this->d_var_log_e_sum);
+    this->d_var_log_e_sum = nullptr;
+    cudaFree(this->d_cov_log_a_z);
+    this->d_cov_log_a_z = nullptr;
+    cudaFree(this->d_mu_log_a);
+    this->d_mu_log_a = nullptr;
+    cudaFree(this->d_var_log_a);
+    this->d_var_log_a = nullptr;
+    this->mu_e_sum.clear();
+    this->var_e_sum.clear();
+    this->cov_z_log_e_sum.clear();
+    this->mu_log_e_sum.clear();
+    this->var_log_e_sum.clear();
+    this->cov_log_a_z.clear();
+    this->mu_log_a.clear();
+    this->var_log_a.clear();
+}
+
+void ClosedFormSoftmaxCuda::data_to_host() {
+    cudaMemcpy(this->mu_e_sum.data(), this->d_mu_e_sum,
+               this->mu_e_sum.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_e_sum.data(), this->d_var_e_sum,
+               this->var_e_sum.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cov_z_log_e_sum.data(), this->d_cov_z_log_e_sum,
+               this->cov_z_log_e_sum.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_log_e_sum.data(), this->d_mu_log_e_sum,
+               this->mu_log_e_sum.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_log_e_sum.data(), this->d_var_log_e_sum,
+               this->var_log_e_sum.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->cov_log_a_z.data(), this->d_cov_log_a_z,
+               this->cov_log_a_z.size() * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->mu_log_a.data(), this->d_mu_log_a,
+               this->mu_log_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_log_a.data(), this->d_var_log_a,
+               this->var_log_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
+void ClosedFormSoftmaxCuda::data_to_device() {
+    cudaMemcpy(this->d_mu_e_sum, this->mu_e_sum.data(),
+               this->mu_e_sum.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_e_sum, this->var_e_sum.data(),
+               this->var_e_sum.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_z_log_e_sum, this->cov_z_log_e_sum.data(),
+               this->cov_z_log_e_sum.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_log_e_sum, this->mu_log_e_sum.data(),
+               this->mu_log_e_sum.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_log_e_sum, this->var_log_e_sum.data(),
+               this->var_log_e_sum.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_cov_log_a_z, this->cov_log_a_z.data(),
+               this->cov_log_a_z.size() * sizeof(float),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_mu_log_a, this->mu_log_a.data(),
+               this->mu_log_a.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_var_log_a, this->var_log_a.data(),
+               this->var_log_a.size() * sizeof(float), cudaMemcpyHostToDevice);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// EvenExp

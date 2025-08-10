@@ -572,9 +572,7 @@ class ClosedFormSoftmax : public BaseLayer {
     std::vector<float> cov_log_a_z;
     std::vector<float> mu_log_a;
     std::vector<float> var_log_a;
-    std::vector<float> mu_a;
-    std::vector<float> var_a;
-    std::vector<float> jcb_a;
+
     int batch_size_ = 0;
 
     ClosedFormSoftmax();

@@ -36,7 +36,7 @@ FNN = Sequential(
     Linear(128, 128),
     ReLU(),
     Linear(128, 10),
-    ClosedFormSoftmax(),
+    Remax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -71,7 +71,7 @@ CNN = Sequential(
     Linear(32 * 4 * 4, 128),
     ReLU(),
     Linear(128, 10),
-    Remax(),
+    ClosedFormSoftmax(),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -121,8 +121,8 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.2):
     )
 
     # Initialize network
-    net = FNN
-    # net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
+    net = CNN
+    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
 
@@ -142,8 +142,6 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.2):
 
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-            # print(m_pred)
-            # breakpoint()
 
             # Update output layers
             out_updater.update(

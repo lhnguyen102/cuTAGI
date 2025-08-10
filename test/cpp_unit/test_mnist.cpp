@@ -204,7 +204,6 @@ void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
             if (i % 50 == 0 && i > 0) {
                 auto training_error = compute_average_error_rate(
                     error_rate, start_idx, batch_size);
-                std::cout << "Training error: " << training_error << std::endl;
             }
         }
     }

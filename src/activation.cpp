@@ -157,45 +157,21 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
  */
 {
     float std_z, alpha, pdf_alpha, cdf_alpha;
+    constexpr float SQRT_2PI = 2.5066282746310002f;
     for (int i = start_chunk; i < end_chunk; i++) {
-        // Reused components for moments calculations
+        float tmp_mu_z = mu_z[i];
         std_z = powf(var_z[i], 0.5);
-        alpha = mu_z[i] / std_z;
-        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        alpha = tmp_mu_z / std_z;
+        pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
         cdf_alpha = normcdf_cpu(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[i] = mu_z[i] * cdf_alpha + std_z * pdf_alpha;
-        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
-                   mu_z[i] * std_z * pdf_alpha +
-                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
-
-        jcb[i] = cdf_alpha;
-    }
-}
-
-void mixture_relu_mean_var_v2(const std::vector<float> &mu_z,
-                              const std::vector<float> &var_z, int start_chunk,
-                              int end_chunk, float threshold,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
-                              std::vector<float> &var_a)
-/*TODO: to be reviewed
- */
-{
-    float std_z, alpha, pdf_alpha, cdf_alpha;
-    for (int i = start_chunk; i < end_chunk; i++) {
-        // Reused components for moments calculations
-        std_z = powf(var_z[i], 0.5);
-        alpha = mu_z[i] / std_z;
-        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
-        cdf_alpha = normcdf_cpu(alpha);
-
-        // Moments calculations (L. Alric, 2024)
-        mu_a[i] = std::max(0.0f, mu_z[i] * cdf_alpha + std_z * pdf_alpha);
+        float tmp_mu_a = tmp_mu_z * cdf_alpha + std_z * pdf_alpha;
+        mu_a[i] = fmaxf(0.000001f, tmp_mu_a);
         var_a[i] =
-            std::max(0.0f, -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
-                               mu_z[i] * std_z * pdf_alpha +
-                               (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha);
+            fmaxf(0.000001f, -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
+                                 tmp_mu_z * std_z * pdf_alpha +
+                                 (var_z[i] - tmp_mu_z * tmp_mu_z) * cdf_alpha);
 
         jcb[i] = cdf_alpha;
     }
@@ -1134,7 +1110,8 @@ void compute_remax_mean_var(const std::vector<float> &mu_log_m,
             tmp_var = var_log_m[i * hidden_size + j] + var_log_mt[i] -
                       2 * cov_log_m_mt[i * hidden_size + j];
 
-            mu_a[i * hidden_size + j] = expf(tmp_mu + 0.5 * tmp_var);
+            mu_a[i * hidden_size + j] =
+                std::max(0.000001f, expf(tmp_mu + 0.5 * tmp_var));
             sum_mu += mu_a[i * hidden_size + j];
             var_a[i * hidden_size + j] = expf(tmp_var) - 1.0f;
         }
@@ -1166,11 +1143,11 @@ void compute_cov_a_z(
 
             // Original formula
             cov_a_z[i * hidden_size + j] =
-                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
-                             powf(var_z[i * hidden_size + j], 0.5f),
-                         cov_a_m / cdfn[i * hidden_size + j]);
+                fminf(powf(var_a[i * hidden_size + j], 0.5f) *
+                          powf(var_z[i * hidden_size + j], 0.5f),
+                      cov_a_m / cdfn[i * hidden_size + j]);
 
-            // cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
         }
     }
 }
@@ -1279,17 +1256,8 @@ void Remax::forward(BaseHiddenStates &input_states,
     // Compute mean and variance of M. NOTE: jcb_m = cdfn
     int start_chunk = 0;
     int end_chunk = batch_size * hidden_size;
-    std::vector<float> var_a_tmp(batch_size * hidden_size, 0.0f);
-    for (int i = 0; i < batch_size * hidden_size; i++) {
-        if (input_states.jcb[i] != 0.0f) {
-            var_a_tmp[i] = input_states.var_a[i] + 0.0f;
-        } else {
-            var_a_tmp[i] = input_states.var_a[i];
-        }
-    }
-    mixture_relu_mean_var_v2(input_states.mu_a, var_a_tmp, start_chunk,
-                             end_chunk, this->threshold, this->mu_m,
-                             this->jcb_m, this->var_m);
+    mixture_relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                          end_chunk, this->mu_m, this->jcb_m, this->var_m);
 
     // Compute mean and variance of Mt
     compute_mean_var_sum(this->mu_m, this->var_m, hidden_size, batch_size,
@@ -1396,12 +1364,10 @@ void compute_cfsoftmax_mean_var(
     int hidden_size, int batch_size, std::vector<float> &mu_a,
     std::vector<float> &var_a, std::vector<float> &jcb_a) {
     for (int i = 0; i < batch_size; i++) {
-        float sum_mu = 0.0f;
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu = expf(mu_log_a[i * hidden_size + j] +
                                 0.5 * var_log_a[i * hidden_size + j]);
             mu_a[i * hidden_size + j] = tmp_mu;
-            sum_mu += mu_a[i * hidden_size + j];
             var_a[i * hidden_size + j] =
                 (expf(var_log_a[i * hidden_size + j]) - 1.0f) * tmp_mu * tmp_mu;
 
@@ -1410,11 +1376,6 @@ void compute_cfsoftmax_mean_var(
                                          cov_log_a_z[i * hidden_size + j] /
                                          var_z[i * hidden_size + j];
         }
-        // for (int j = 0; j < hidden_size; j++) {
-        //     float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
-        //     mu_a[i * hidden_size + j] = tmp_mu_norm;
-        //     var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
-        // }
     }
 }
 
@@ -1461,9 +1422,6 @@ void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
         this->cov_log_a_z.resize(batch_size * hidden_size, 0.0f);
         this->mu_log_a.resize(batch_size * hidden_size, 0.0f);
         this->var_log_a.resize(batch_size * hidden_size, 0.0f);
-        this->mu_a.resize(batch_size * hidden_size, 0.0f);
-        this->var_a.resize(batch_size * hidden_size, 0.0f);
-        this->jcb_a.resize(batch_size * hidden_size, 0.0f);
     }
 
     compute_mean_var_exp_sum(input_states.mu_a, input_states.var_a, hidden_size,
@@ -1480,14 +1438,6 @@ void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
                                this->cov_log_a_z, input_states.var_a,
                                hidden_size, batch_size, output_states.mu_a,
                                output_states.var_a, output_states.jcb);
-    // check if the output is nan
-    for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < hidden_size; j++) {
-            if (std::isnan(output_states.mu_a[i * hidden_size + j])) {
-                std::cout << "nan in output_states.mu_a" << std::endl;
-            }
-        }
-    }
 
     this->input_size = input_states.actual_size;
     this->output_size = input_states.actual_size;

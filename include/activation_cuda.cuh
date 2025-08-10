@@ -491,6 +491,25 @@ class RemaxCuda : public BaseLayerCuda {
 ////////////////////////////////////////////////////////////////////////////////
 class ClosedFormSoftmaxCuda : public BaseLayerCuda {
    public:
+    std::vector<float> mu_e_sum;
+    std::vector<float> var_e_sum;
+    std::vector<float> cov_z_log_e_sum;
+    std::vector<float> mu_log_e_sum;
+    std::vector<float> var_log_e_sum;
+    std::vector<float> cov_log_a_z;
+    std::vector<float> mu_log_a;
+    std::vector<float> var_log_a;
+
+    int batch_size_ = 0;
+    float *d_mu_e_sum = nullptr;
+    float *d_var_e_sum = nullptr;
+    float *d_cov_z_log_e_sum = nullptr;
+    float *d_mu_log_e_sum = nullptr;
+    float *d_var_log_e_sum = nullptr;
+    float *d_cov_log_a_z = nullptr;
+    float *d_mu_log_a = nullptr;
+    float *d_var_log_a = nullptr;
+
     ClosedFormSoftmaxCuda();
     ~ClosedFormSoftmaxCuda();
 
@@ -526,6 +545,9 @@ class ClosedFormSoftmaxCuda : public BaseLayerCuda {
     void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
+
+    void data_to_host();
+    void data_to_device();
 
    private:
     void allocate_memory(int hidden_size, int batch_size);
