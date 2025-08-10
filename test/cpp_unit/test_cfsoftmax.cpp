@@ -5,9 +5,11 @@
 #include <vector>
 
 #include "../../include/activation.h"
-#include "../../include/activation_cuda.cuh"
 #include "../../include/data_struct.h"
+#ifdef USE_CUDA
+#include "../../include/activation_cuda.cuh"
 #include "../../include/data_struct_cuda.cuh"
+#endif
 
 extern bool g_gpu_enabled;
 
