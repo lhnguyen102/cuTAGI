@@ -1376,8 +1376,8 @@ __global__ void compute_mean_var_exp_sum_cuda(const float *mu_z,
         float sum_var = 0.0f;
         for (int j = 0; j < hidden_size; j++) {
             sum_mu += expf(mu_z[idx * hidden_size + j] +
-                           0.5 * var_z[idx * hidden_size + j]);
-            sum_var += expf(2 * mu_z[idx * hidden_size + j] +
+                           0.5f * var_z[idx * hidden_size + j]);
+            sum_var += expf(2.0f * mu_z[idx * hidden_size + j] +
                             var_z[idx * hidden_size + j]) *
                        (expf(var_z[idx * hidden_size + j]) - 1.0f);
         }
@@ -1394,11 +1394,11 @@ __global__ void compute_mean_var_log_a_cuda(
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     if (row < batch_size && col < hidden_size) {
-        float cov_e_e_sum = expf(2 * mu_z[row * hidden_size + col] +
+        float cov_e_e_sum = expf(2.0f * mu_z[row * hidden_size + col] +
                                  var_z[row * hidden_size + col]) *
                             (expf(var_z[row * hidden_size + col]) - 1.0f);
         float mu_e = expf(mu_z[row * hidden_size + col] +
-                          0.5 * var_z[row * hidden_size + col]);
+                          0.5f * var_z[row * hidden_size + col]);
         float tmp_inverse_mu = 1.0f / (mu_e_sum[row] * mu_e);
         float cov_z_log_e_sum = logf(1.0f + cov_e_e_sum * tmp_inverse_mu);
         mu_log_a[row * hidden_size + col] =
@@ -1407,7 +1407,7 @@ __global__ void compute_mean_var_log_a_cuda(
                                              var_log_e_sum[row] -
                                              2.0f * cov_z_log_e_sum;
         cov_log_a_z[row * hidden_size + col] =
-            var_z[row * hidden_size + col] - cov_z_log_e_sum;
+                            var_z[row * hidden_size + col] - cov_z_log_e_sum;
     }
 }
 
@@ -1419,13 +1419,24 @@ __global__ void compute_cfsoftmax_mean_var_cuda(
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     if (row < batch_size && col < hidden_size) {
         float tmp_mu = expf(mu_log_a[row * hidden_size + col] +
-                            0.5 * var_log_a[row * hidden_size + col]);
+                            0.5f * var_log_a[row * hidden_size + col]);
+        if (isnan(tmp_mu)) {
+            tmp_mu = 0.00001f;
+        } else {
+            tmp_mu = min(1.0f,max(0.00001f,tmp_mu));
+        }
         mu_a[row * hidden_size + col] = tmp_mu;
-        var_a[row * hidden_size + col] =
-            (expf(var_log_a[row * hidden_size + col]) - 1.0f) * tmp_mu * tmp_mu;
-        jcb_a[row * hidden_size + col] = tmp_mu *
-                                         cov_log_a_z[row * hidden_size + col] /
-                                         var_z[row * hidden_size + col];
+        var_a[row * hidden_size + col] = max(0.00001f,
+            (expf(var_log_a[row * hidden_size + col]) - 1.0f) * tmp_mu * tmp_mu);
+        if (isnan(var_a[row * hidden_size + col])) {
+            var_a[row * hidden_size + col] = 0.00001f;
+        }
+        jcb_a[row * hidden_size + col] = max(0.00001f,
+                                min(powf(var_a[row * hidden_size + col], 0.5f)
+                                *powf(var_z[row * hidden_size + col], 0.5f),
+                                tmp_mu *
+                                cov_log_a_z[row * hidden_size + col])) /
+                                var_z[row * hidden_size + col];
     }
 }
 

@@ -96,7 +96,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.2):
+def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """

@@ -26,6 +26,7 @@ from pytagi.nn import (
     OutputUpdater,
     ReLU,
     Remax,
+    ClosedFormSoftmax,
     Sequential,
 )
 
@@ -134,7 +135,7 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.2):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
