@@ -578,12 +578,14 @@ void SLSTM::smoother()
     // Clear the LSTM states
     this->time_step = 0;
     this->lstm_states.reset_zeros();
-    // this->smooth_states.reset_zeros();
 }
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
-SLSTM::get_smoothed_lstm_state_at(int timestep) const {
+SLSTM::get_smoothed_lstm_state_at(int timestep)
+    /*
+     */
+    const {
     const auto &smooth = this->smooth_states;
     size_t num_states = smooth.num_states;
     size_t T = smooth.num_timesteps;
