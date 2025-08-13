@@ -1519,9 +1519,9 @@ void LSTM::set_LSTM_states(const std::vector<float> &mu_h,
     this->lstm_states.mu_c_prior = mu_c;
     this->lstm_states.var_c_prior = var_c;
     // can directly set to the prev states in SLSTM
-    this->lstm_states.mu_h_prev  = mu_h;
+    this->lstm_states.mu_h_prev = mu_h;
     this->lstm_states.var_h_prev = var_h;
-    this->lstm_states.mu_c_prev  = mu_c;
+    this->lstm_states.mu_c_prev = mu_c;
     this->lstm_states.var_c_prev = var_c;
 }
 

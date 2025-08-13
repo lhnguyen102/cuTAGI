@@ -1,6 +1,6 @@
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 # --- 1. Load the raw CSV (no header) ---
 # Make sure your CSV is named 'state_values.csv' and is in the same folder as this script.
@@ -17,7 +17,7 @@ mu_df = df_raw[df_raw[1].str.startswith("mu")]
 
 # --- 4. Plot ---
 plt.figure(figsize=(8, 4))
-cmap = plt.get_cmap('winter')
+cmap = plt.get_cmap("winter")
 colors = cmap(np.linspace(0, 1, len(mu_df)))
 
 for color, (_, row) in zip(colors, mu_df.iterrows()):
@@ -26,7 +26,7 @@ for color, (_, row) in zip(colors, mu_df.iterrows()):
     print(len(values), len(time_steps), label)
     plt.plot(time_steps, values, color=color, label=label)
 
-plt.axvline(x=24, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=24, color="red", linestyle="--", linewidth=1)
 plt.xlabel("Time Step")
 plt.ylabel("Value")
 plt.title("Evolution of μ Priors, Posteriors and Smoothed Over Time")

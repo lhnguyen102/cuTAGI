@@ -118,33 +118,30 @@ void save_cov_zo_smoother(int ni, int time_step, std::vector<float> &mu_w,
     cov_zo[time_step] = C_zo_zo;
 }
 
-void smooth_zo(int num_timestep, std::vector<float> &cov,
-               std::vector<float> &mu_priors, std::vector<float> &var_priors,
-               std::vector<float> &mu_posts, std::vector<float> &var_posts,
-               std::vector<float> &mu_smooths, std::vector<float> &var_smooths)
+void smooth_zo(int num_timestep, int num_states, std::vector<float> &mu_w,
+               std::vector<float> &var_w, std::vector<float> &mu_b,
+               std::vector<float> &var_b,
+               const std::vector<float> &prev_mu_h_smooths,
+               const std::vector<float> &prev_var_h_smooths,
+               std::vector<float> &mu_zo_smooths,
+               std::vector<float> &var_zo_smooths)
 /*
  */
 {
-    const float eps = 1e-6f;  // small floor to prevent negative variances
-    bool print_clip = false;
-    for (int i = num_timestep - 2; i >= 0; i--) {
-        // avoid divide-by-zero by adding small epsilon
-        float tmp = cov[i + 1] / (var_priors[i + 1] + 1e-6f);
-        mu_smooths[i] =
-            mu_posts[i] + tmp * (mu_smooths[i + 1] - mu_priors[i + 1]);
-        var_smooths[i] =
-            var_posts[i] + tmp * (var_smooths[i + 1] - var_priors[i + 1]) * tmp;
-        // clip any negative variance to epsilon
-        if (var_smooths[i] < 0.0f) {
-            var_smooths[i] = eps;
-            if (!print_clip) {
-                LOG(LogLevel::WARNING,
-                    "Negative variance in SLinear smoother clipped at time "
-                    "step " +
-                        std::to_string(i));
-                print_clip = true;
-            }
+    int idx;
+    for (int i = num_timestep - 1; i >= 0; i--) {
+        float mu_zo = 0.0f;
+        float var_zo = 0.0f;
+        for (int j = num_states - 1; j >= 0; --j) {
+            idx = i * num_states + j;
+            mu_zo += prev_mu_h_smooths[idx] * mu_w[j];
+            var_zo +=
+                prev_var_h_smooths[idx] * var_w[j] +
+                prev_var_h_smooths[idx] * mu_w[j] * mu_w[j] +
+                var_w[j] * prev_mu_h_smooths[idx] * prev_mu_h_smooths[idx];
         }
+        mu_zo_smooths[i] = mu_zo + mu_b[0];
+        var_zo_smooths[i] = var_zo + var_b[0];
     }
 }
 
@@ -295,25 +292,14 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
     ++this->time_step;
 }
 
-void SLinear::smoother()
+void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
+                       const std::vector<float> &prev_var_h_smooths)
 /*
  */
 {
-    // Initialize the last time step for smoothing
-    this->smooth_states.mu_zo_smooths.back() =
-        this->smooth_states.mu_zo_posts.back();
-    this->smooth_states.var_zo_smooths.back() =
-        this->smooth_states.var_zo_posts.back();
-
-    smooth_zo(
-        this->smooth_states.num_timesteps, this->smooth_states.cov_zo,
-        this->smooth_states.mu_zo_priors, this->smooth_states.var_zo_priors,
-        this->smooth_states.mu_zo_posts, this->smooth_states.var_zo_posts,
-        this->smooth_states.mu_zo_smooths, this->smooth_states.var_zo_smooths);
-
-    // print summary of all smoother states
-    this->print_summary();
-
-    // // TODO: Clear variables for next epoch
-    this->time_step = 0;
+    int num_states = this->input_size;
+    smooth_zo(this->smooth_states.num_timesteps, num_states, this->mu_w,
+              this->var_w, this->mu_b, this->var_b, prev_mu_h_smooths,
+              prev_var_h_smooths, this->smooth_states.mu_zo_smooths,
+              this->smooth_states.var_zo_smooths);
 }

@@ -36,7 +36,8 @@ class SLinear : public Linear {
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states, bool state_udapte) override;
 
-    void smoother();
+    void smoother(const std::vector<float> &prev_mu_h_smooths,
+                  const std::vector<float> &prev_var_h_smooths);
 
     void print_summary() const;
 };
