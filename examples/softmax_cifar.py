@@ -20,13 +20,13 @@ from examples.tagi_resnet_model import resnet18_cifar10
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
+    ClosedFormSoftmax,
     Conv2d,
     Linear,
     MixtureReLU,
     OutputUpdater,
     ReLU,
     Remax,
-    ClosedFormSoftmax,
     Sequential,
 )
 

@@ -1407,7 +1407,7 @@ __global__ void compute_mean_var_log_a_cuda(
                                              var_log_e_sum[row] -
                                              2.0f * cov_z_log_e_sum;
         cov_log_a_z[row * hidden_size + col] =
-                            var_z[row * hidden_size + col] - cov_z_log_e_sum;
+            var_z[row * hidden_size + col] - cov_z_log_e_sum;
     }
 }
 
@@ -1423,20 +1423,20 @@ __global__ void compute_cfsoftmax_mean_var_cuda(
         if (isnan(tmp_mu)) {
             tmp_mu = 0.00001f;
         } else {
-            tmp_mu = min(1.0f,max(0.00001f,tmp_mu));
+            tmp_mu = min(1.0f, max(0.00001f, tmp_mu));
         }
         mu_a[row * hidden_size + col] = tmp_mu;
-        var_a[row * hidden_size + col] = max(0.00001f,
-            (expf(var_log_a[row * hidden_size + col]) - 1.0f) * tmp_mu * tmp_mu);
+        var_a[row * hidden_size + col] =
+            max(0.00001f, (expf(var_log_a[row * hidden_size + col]) - 1.0f) *
+                              tmp_mu * tmp_mu);
         if (isnan(var_a[row * hidden_size + col])) {
             var_a[row * hidden_size + col] = 0.00001f;
         }
-        jcb_a[row * hidden_size + col] = max(0.00001f,
-                                min(powf(var_a[row * hidden_size + col], 0.5f)
-                                *powf(var_z[row * hidden_size + col], 0.5f),
-                                tmp_mu *
-                                cov_log_a_z[row * hidden_size + col])) /
-                                var_z[row * hidden_size + col];
+        jcb_a[row * hidden_size + col] =
+            max(0.00001f, min(powf(var_a[row * hidden_size + col], 0.5f) *
+                                  powf(var_z[row * hidden_size + col], 0.5f),
+                              tmp_mu * cov_log_a_z[row * hidden_size + col])) /
+            var_z[row * hidden_size + col];
     }
 }
 
