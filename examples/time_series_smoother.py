@@ -80,7 +80,9 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         sigma_v = exponential_scheduler(
             curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
         )
-        var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
+        var_y = np.full(
+            (batch_size * len(output_col),), sigma_v**2, dtype=np.float32
+        )
         y_train = []
 
         # for x, y in batch_iter:
@@ -176,7 +178,9 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     mu_preds = normalizer.unstandardize(
         mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
     )
-    std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
+    std_preds = normalizer.unstandardize_std(
+        std_preds, train_dtl.x_std[output_col]
+    )
 
     y_test = normalizer.unstandardize(
         y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
