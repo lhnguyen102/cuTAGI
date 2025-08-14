@@ -118,9 +118,9 @@ void save_cov_zo_smoother(int ni, int time_step, std::vector<float> &mu_w,
     cov_zo[time_step] = C_zo_zo;
 }
 
-void smooth_zo(int num_timestep, int num_states, std::vector<float> &mu_w,
-               std::vector<float> &var_w, std::vector<float> &mu_b,
-               std::vector<float> &var_b,
+void smooth_zo(int num_timestep, int input_size, int output_size,
+               std::vector<float> &mu_w, std::vector<float> &var_w,
+               std::vector<float> &mu_b, std::vector<float> &var_b,
                const std::vector<float> &prev_mu_h_smooths,
                const std::vector<float> &prev_var_h_smooths,
                std::vector<float> &mu_zo_smooths,
@@ -128,20 +128,24 @@ void smooth_zo(int num_timestep, int num_states, std::vector<float> &mu_w,
 /*
  */
 {
-    int idx;
+    int idx_h, idx_w;
     for (int i = num_timestep - 1; i >= 0; i--) {
-        float mu_zo = 0.0f;
-        float var_zo = 0.0f;
-        for (int j = num_states - 1; j >= 0; --j) {
-            idx = i * num_states + j;
-            mu_zo += prev_mu_h_smooths[idx] * mu_w[j];
-            var_zo +=
-                prev_var_h_smooths[idx] * var_w[j] +
-                prev_var_h_smooths[idx] * mu_w[j] * mu_w[j] +
-                var_w[j] * prev_mu_h_smooths[idx] * prev_mu_h_smooths[idx];
+        for (int k = 0; k <= output_size - 1; ++k) {
+            float mu_zo = 0.0f;
+            float var_zo = 0.0f;
+            for (int j = 0; j <= input_size - 1; ++j) {
+                idx_h = i * input_size + k * output_size + j;
+                idx_w = k * output_size + j;
+                mu_zo += prev_mu_h_smooths[idx_h] * mu_w[idx_w];
+                var_zo +=
+                    prev_var_h_smooths[idx_h] * var_w[idx_w] +
+                    prev_var_h_smooths[idx_h] * mu_w[idx_w] * mu_w[idx_w] +
+                    var_w[idx_w] * prev_mu_h_smooths[idx_h] *
+                        prev_mu_h_smooths[idx_h];
+            }
+            mu_zo_smooths[i] = mu_zo + mu_b[k];
+            var_zo_smooths[i] = var_zo + var_b[k];
         }
-        mu_zo_smooths[i] = mu_zo + mu_b[0];
-        var_zo_smooths[i] = var_zo + var_b[0];
     }
 }
 
@@ -297,10 +301,10 @@ void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
 /*
  */
 {
-    int num_states = this->input_size;
-    smooth_zo(this->smooth_states.num_timesteps, num_states, this->mu_w,
-              this->var_w, this->mu_b, this->var_b, prev_mu_h_smooths,
-              prev_var_h_smooths, this->smooth_states.mu_zo_smooths,
+    smooth_zo(this->smooth_states.num_timesteps, this->input_size,
+              this->output_size, this->mu_w, this->var_w, this->mu_b,
+              this->var_b, prev_mu_h_smooths, prev_var_h_smooths,
+              this->smooth_states.mu_zo_smooths,
               this->smooth_states.var_zo_smooths);
 
     this->print_summary();
