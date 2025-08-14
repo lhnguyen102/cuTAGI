@@ -803,7 +803,10 @@ Sequential::get_outputs()
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_outputs_smoother() {
+Sequential::get_outputs_smoother()
+/*
+ */
+{
     auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
     auto py_mu_zo_smooths = pybind11::array_t<float>(
         last_layer->smooth_states.mu_zo_smooths.size(),
@@ -817,7 +820,10 @@ Sequential::get_outputs_smoother() {
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_input_states() {
+Sequential::get_input_states()
+/*
+ */
+{
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
         LOG(LogLevel::ERROR, "input_state_update is set to False.");
@@ -854,7 +860,10 @@ Sequential::get_input_states() {
 
 std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                    std::vector<float>, std::vector<float>>>
-Sequential::get_lstm_states(int time_step) const {
+Sequential::get_lstm_states(int time_step)
+    /*
+     */
+    const {
     std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                        std::vector<float>, std::vector<float>>>
         lstm_states;
@@ -896,7 +905,10 @@ Sequential::get_lstm_states(int time_step) const {
 void Sequential::set_lstm_states(
     const std::unordered_map<
         int, std::tuple<std::vector<float>, std::vector<float>,
-                        std::vector<float>, std::vector<float>>> &lstm_states) {
+                        std::vector<float>, std::vector<float>>> &lstm_states)
+/*
+ */
+{
     for (const auto &pair : lstm_states) {
         int layer_idx = pair.first;
         if (layer_idx >= 0 && layer_idx < static_cast<int>(layers.size()) &&
