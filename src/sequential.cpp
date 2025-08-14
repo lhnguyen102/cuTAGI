@@ -803,7 +803,10 @@ Sequential::get_outputs()
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_outputs_smoother() {
+Sequential::get_outputs_smoother()
+/*
+ */
+{
     auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
     auto py_mu_zo_smooths = pybind11::array_t<float>(
         last_layer->smooth_states.mu_zo_smooths.size(),
