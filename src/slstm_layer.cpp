@@ -75,21 +75,20 @@ void save_cov_hidden_cell_states_smoother(int time_step, int num_states,
 }
 
 void save_cov_hidden_states_smoother(
-    std::vector<float> &mw, std::vector<float> &Jf_ga,
+    int time_step, std::vector<float> &mw, std::vector<float> &Jf_ga,
     std::vector<float> &mi_ga, std::vector<float> &Ji_ga,
     std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
     std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
     std::vector<float> &var_h_prev, std::vector<float> &mc_prev,
     std::vector<float> &mca, std::vector<float> &Jca, int w_pos_f, int w_pos_i,
-    int w_pos_c, int w_pos_o, int no, int ni, int start_idx, int end_idx,
-    std::vector<float> &cov_hh)
+    int w_pos_c, int w_pos_o, int no, int ni, std::vector<float> &cov_hh)
 /*
  */
 {
     float Czz_f, Czz_i, Czz_c, Czz_o;
     int m;
 
-    for (int t = start_idx; t < end_idx; t++) {
+    for (int t = 0; t < no; t++) {
         for (int j = 0; j < no; j++) {
             // Forget gate
             Czz_f = var_h_prev[t] * Jca[j] * mo_ga[j] * Jf_ga[j] *
@@ -108,7 +107,7 @@ void save_cov_hidden_states_smoother(
                     mw[(ni + no) * j + t + ni + w_pos_o] * mca[j];
 
             // Updating quantities
-            m = t * no + j;
+            m = time_step * no * no + t * no + j;
             cov_hh[m] = Czz_f + Czz_i + Czz_c + Czz_o;
         }
     }
@@ -122,14 +121,14 @@ void smooth_cell_states(
 /*
  */
 {
-    const float eps = 1e-10f;  // small floor to prevent negative variances
-    bool print_clip_c = false;
+    const float eps = 1e-10f;
+    bool print_clip_c = true;
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
         for (int j = num_states - 1; j >= 0; --j) {
             current = i * num_states + j;
             next = (i + 1) * num_states + j;
-            float denom = var_c_priors[next] < eps ? eps : var_c_priors[next];
+            float denom = var_c_priors[next] <= 0 ? eps : var_c_priors[next];
             float tmp = cov_cc[next] / denom;
 
             mu_c_smooths[current] =
@@ -139,13 +138,14 @@ void smooth_cell_states(
             float var_update =
                 var_c_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
-            if (var_update <= 0 && !print_clip_c) {
+            if (var_update < 0 && print_clip_c) {
                 LOG(LogLevel::WARNING,
-                    "Negative variance in SLSTM smoother at time step " +
+                    "Negative variance for cell states in SLSTM smoother at "
+                    "time step " +
                         std::to_string(i) + " state " + std::to_string(j));
-                print_clip_c = true;
+                print_clip_c = false;
             }
-            var_c_smooths[current] = var_update > eps ? var_update : eps;
+            var_c_smooths[current] = var_update < 0 ? eps : var_update;
         }
     }
 }
@@ -158,8 +158,8 @@ void smooth_hidden_states(
 /*
  */
 {
-    const float eps = 1e-10f;  // small floor to prevent negative variances
-    bool print_clip_h = false;
+    const float eps = 1e-10f;
+    bool print_clip_h = true;
     int current, next, idx_cov;
 
     for (int i = num_timestep - 2; i >= 0; --i) {
@@ -171,20 +171,25 @@ void smooth_hidden_states(
                 next = (i + 1) * num_states + k;
                 idx_cov =
                     (i + 1) * num_states * num_states + j * num_states + k;
-                float denom = var_h_priors[next] < 0 ? eps : var_h_priors[next];
+                float denom =
+                    var_h_priors[next] <= 0 ? eps : var_h_priors[next];
                 float tmp = cov_hh[idx_cov] / denom;
+
                 sum_delta_mu += tmp * (mu_h_smooths[next] - mu_h_priors[next]);
                 sum_delta_var +=
                     tmp * (var_h_smooths[next] - var_h_priors[next]) * tmp;
             }
             mu_h_smooths[current] = mu_h_posts[current] + sum_delta_mu;
-            var_h_smooths[current] = var_h_posts[current] + sum_delta_var;
-            if (var_h_smooths[current] < 0 && !print_clip_h) {
+            float var_update = var_h_posts[current] + sum_delta_var;
+
+            if (var_update < 0 && print_clip_h) {
                 LOG(LogLevel::WARNING,
-                    "Negative variance in SLSTM smoother at time step " +
-                        std::to_string(i) + "hidden state ");
-                print_clip_h = true;
+                    "Negative variance for hidden states in SLSTM smoother at "
+                    "time step " +
+                        std::to_string(i));
+                print_clip_h = false;
             }
+            var_h_smooths[current] = var_update < 0 ? eps : var_update;
         }
     }
 }
@@ -412,22 +417,15 @@ void SLSTM::forward(BaseHiddenStates &input_states,
             this->lstm_states.mu_o_ga, this->lstm_states.jcb_ca,
             this->smooth_states.cov_hc);
 
-        int end_chunk_ = batch_size * this->seq_len * this->output_size;
         save_cov_hidden_states_smoother(
-            this->mu_w, lstm_states.jcb_f_ga, lstm_states.mu_i_ga,
-            lstm_states.jcb_i_ga, lstm_states.mu_c_ga, lstm_states.jcb_c_ga,
-            lstm_states.mu_o_ga, lstm_states.jcb_o_ga, lstm_states.var_h_prev,
-            lstm_states.mu_c_prev, lstm_states.mu_ca, lstm_states.jcb_ca,
-            this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
-            this->output_size, this->input_size, 0, end_chunk_,
-            smooth_output_states->cov_hh);
-
-        save_cov_hidden_states_smoother_time(this->time_step, this->output_size,
-                                             smooth_output_states->cov_hh,
-                                             this->smooth_states.cov_hh);
+            this->time_step, this->mu_w, lstm_states.jcb_f_ga,
+            lstm_states.mu_i_ga, lstm_states.jcb_i_ga, lstm_states.mu_c_ga,
+            lstm_states.jcb_c_ga, lstm_states.mu_o_ga, lstm_states.jcb_o_ga,
+            lstm_states.var_h_prev, lstm_states.mu_c_prev, lstm_states.mu_ca,
+            lstm_states.jcb_ca, this->w_pos_f, this->w_pos_i, this->w_pos_c,
+            this->w_pos_o, this->output_size, this->input_size,
+            this->smooth_states.cov_hh);
     }
-
-    smooth_output_states->mu_h_prev = lstm_states.mu_h_prev;
 }
 
 void SLSTM::backward(BaseDeltaStates &input_delta_states,

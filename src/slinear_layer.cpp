@@ -89,35 +89,6 @@ void linear_update_hidden_states(int time_step, std::vector<float> &mu_a_prior,
         (1.0f + delta_var[0] * var_a_prior[time_step]) * var_a_prior[time_step];
 }
 
-void save_cov_zo_smoother(int ni, int time_step, std::vector<float> &mu_w,
-                          std::vector<float> &var_w, std::vector<float> &var_b,
-                          std::vector<float> &mu_h_prev,
-                          std::vector<float> &mu_h_prior,
-                          std::vector<float> &cov_hh,
-                          std::vector<float> &cov_zo)
-/*
- */
-{
-    float C_zo_zo = 0;
-    int m;
-
-    for (int t = 0; t < ni; t++) {
-        for (int j = 0; j < ni; j++) {
-            // C_zo_zo : cov(z^{O}_{t-1}, z^{O}_{t})
-            m = t * ni + j;
-            if (t != j) {
-                C_zo_zo += cov_hh[m] * mu_w[t] * mu_w[j];
-            } else {
-                C_zo_zo +=
-                    var_w[t] * (cov_hh[m] + mu_h_prev[t] * mu_h_prior[j]) +
-                    cov_hh[m] * mu_w[t] * mu_w[j];
-            }
-        }
-    }
-    C_zo_zo = C_zo_zo + var_b[0];
-    cov_zo[time_step] = C_zo_zo;
-}
-
 void smooth_zo(int num_timestep, int input_size, int output_size,
                std::vector<float> &mu_w, std::vector<float> &var_w,
                std::vector<float> &mu_b, std::vector<float> &var_b,
@@ -129,6 +100,8 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
  */
 {
     int idx_h, idx_w;
+    bool print_clip_z = true;
+
     for (int i = num_timestep - 1; i >= 0; i--) {
         for (int k = 0; k <= output_size - 1; ++k) {
             float mu_zo = 0.0f;
@@ -145,6 +118,13 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
             }
             mu_zo_smooths[i] = mu_zo + mu_b[k];
             var_zo_smooths[i] = var_zo + var_b[k];
+            if (var_zo_smooths[i] < 0 && print_clip_z) {
+                LOG(LogLevel::WARNING,
+                    "Negative variance for z output at SLSTM smoother at time "
+                    "step " +
+                        std::to_string(i));
+                print_clip_z = false;
+            }
         }
     }
 }
@@ -210,13 +190,6 @@ void SLinear::forward(BaseHiddenStates &input_states,
             smooth_output_states->mu_a[0];
         this->smooth_states.var_zo_priors[this->time_step] =
             smooth_output_states->var_a[0];
-
-        // save cov_zo for smoother
-        save_cov_zo_smoother(
-            this->input_size, this->time_step, this->mu_w, this->var_w,
-            this->var_b, smooth_input_states->mu_h_prev,
-            smooth_input_states->mu_a, smooth_input_states->cov_hh,
-            this->smooth_states.cov_zo);
     }
 
     if (this->training) {

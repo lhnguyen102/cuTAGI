@@ -104,57 +104,13 @@ class BaseHiddenStates {
 
 class SmoothingHiddenStates : public BaseHiddenStates {
    public:
-    std::vector<float> mu_h_prev;
-    std::vector<float> cov_hh;
     int num_timesteps = 0;
 
     // Constructor with initialization
     SmoothingHiddenStates(size_t n, size_t m, int num_timesteps)
-        : BaseHiddenStates(n, m),
-          mu_h_prev(n, 0.0f),
-          cov_hh(n * n, 0.0f),
-          num_timesteps(num_timesteps) {}
-
-    // Default constructor
-    SmoothingHiddenStates() = default;
-    ~SmoothingHiddenStates() = default;
-
-    // Custom copy constructor
-    SmoothingHiddenStates(const SmoothingHiddenStates &other)
-        : BaseHiddenStates(other),
-          cov_hh(other.cov_hh),
-          mu_h_prev(other.mu_h_prev) {}
-
-    // Custom copy assignment operator
-    SmoothingHiddenStates &operator=(const SmoothingHiddenStates &other) {
-        if (this != &other) {
-            BaseHiddenStates::operator=(other);
-            cov_hh = other.cov_hh;
-            mu_h_prev = other.mu_h_prev;
-        }
-        return *this;
-    }
-
-    // Move constructor
-    SmoothingHiddenStates(SmoothingHiddenStates &&other) noexcept
-        : BaseHiddenStates(std::move(other)),
-          cov_hh(std::move(other.cov_hh)),
-          mu_h_prev(std::move(other.mu_h_prev)) {}
-
-    // Move assignment operator
-    SmoothingHiddenStates &operator=(SmoothingHiddenStates &&other) noexcept {
-        if (this != &other) {
-            BaseHiddenStates::operator=(std::move(other));
-            cov_hh = std::move(other.cov_hh);
-            mu_h_prev = std::move(other.mu_h_prev);
-        }
-        return *this;
-    }
+        : BaseHiddenStates(n, m), num_timesteps(num_timesteps) {}
 
     std::string get_name() const override { return "SmoothingHiddenStates"; }
-    void set_size(size_t new_size, size_t new_block_size) override;
-    void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
-    void swap(BaseHiddenStates &other) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
