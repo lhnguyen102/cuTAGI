@@ -307,6 +307,6 @@ void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
               this->smooth_states.mu_zo_smooths,
               this->smooth_states.var_zo_smooths);
 
-    this->print_summary();
+    // this->print_summary();
     this->time_step = 0;
 }

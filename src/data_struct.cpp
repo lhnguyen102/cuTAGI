@@ -520,4 +520,9 @@ void SmoothSLSTM::reset_zeros()
     if (cov_cc.size() != num_states * num_timesteps)
         cov_cc.resize(num_states * num_timesteps);
     for (auto& val : cov_cc) val = 0;
+
+    // Resize and reset cov_hh
+    if (cov_hh.size() != num_states * num_states * num_timesteps)
+        cov_hh.resize(num_states * num_states * num_timesteps);
+    for (auto& val : cov_hh) val = 0;
 }

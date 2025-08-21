@@ -47,6 +47,18 @@ void save_cov_cell_states_smoother(int time_step, int num_states,
     }
 }
 
+void save_cov_hidden_states_smoother_time(int time_step, int num_states,
+                                          std::vector<float> &cov_hh_step,
+                                          std::vector<float> &cov_hh)
+/*
+ */
+{
+    for (int i = 0; i < num_states * num_states; i++) {
+        // cov(h_{t-1},h_{t})
+        cov_hh[time_step * num_states * num_states + i] = cov_hh_step[i];
+    }
+}
+
 void save_cov_hidden_cell_states_smoother(int time_step, int num_states,
                                           std::vector<float> &var_c_prior,
                                           std::vector<float> &mu_o_ga,
@@ -110,7 +122,7 @@ void smooth_cell_states(
 /*
  */
 {
-    const float eps = 1e-6f;  // small floor to prevent negative variances
+    const float eps = 1e-10f;  // small floor to prevent negative variances
     bool print_clip_c = false;
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
@@ -127,7 +139,7 @@ void smooth_cell_states(
             float var_update =
                 var_c_posts[current] +
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
-            if (var_update <= eps && !print_clip_c) {
+            if (var_update <= 0 && !print_clip_c) {
                 LOG(LogLevel::WARNING,
                     "Negative variance in SLSTM smoother at time step " +
                         std::to_string(i) + " state " + std::to_string(j));
@@ -139,37 +151,40 @@ void smooth_cell_states(
 }
 
 void smooth_hidden_states(
-    int num_timestep, int num_states, std::vector<float> &cov_hc,
-    std::vector<float> &mu_c_priors, std::vector<float> &var_c_priors,
-    std::vector<float> &mu_c_smooths, std::vector<float> &var_c_smooths,
+    int num_timestep, int num_states, std::vector<float> &cov_hh,
+    std::vector<float> &mu_h_priors, std::vector<float> &var_h_priors,
     std::vector<float> &mu_h_posts, std::vector<float> &var_h_posts,
     std::vector<float> &mu_h_smooths, std::vector<float> &var_h_smooths)
 /*
  */
 {
-    const float eps = 1e-6f;  // small floor to prevent negative variances
+    const float eps = 1e-10f;  // small floor to prevent negative variances
     bool print_clip_h = false;
-    int current, next;
-    for (int i = num_timestep - 2; i >= 0; --i) {
-        for (int j = num_states - 1; j >= 0; --j) {
-            current = i * num_states + j;
-            next = (i + 1) * num_states + j;
-            float denom = var_c_priors[next] < eps ? eps : var_c_priors[next];
-            float tmp = cov_hc[next] / denom;
-            mu_h_smooths[current] =
-                mu_h_posts[current] +
-                tmp * (mu_c_smooths[next] - mu_c_priors[next]);
+    int current, next, idx_cov;
 
-            float var_h_update =
-                var_h_posts[current] +
-                tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
-            if (var_h_update <= eps && !print_clip_h) {
+    for (int i = num_timestep - 2; i >= 0; --i) {
+        for (int j = 0; j < num_states; ++j) {
+            float sum_delta_mu = 0.0f;
+            float sum_delta_var = 0.0f;
+            current = i * num_states + j;
+            for (int k = 0; k < num_states; ++k) {
+                next = (i + 1) * num_states + k;
+                idx_cov =
+                    (i + 1) * num_states * num_states + j * num_states + k;
+                float denom = var_h_priors[next] < 0 ? eps : var_h_priors[next];
+                float tmp = cov_hh[idx_cov] / denom;
+                sum_delta_mu += tmp * (mu_h_smooths[next] - mu_h_priors[next]);
+                sum_delta_var +=
+                    tmp * (var_h_smooths[next] - var_h_priors[next]) * tmp;
+            }
+            mu_h_smooths[current] = mu_h_posts[current] + sum_delta_mu;
+            var_h_smooths[current] = var_h_posts[current] + sum_delta_var;
+            if (var_h_smooths[current] < 0 && !print_clip_h) {
                 LOG(LogLevel::WARNING,
                     "Negative variance in SLSTM smoother at time step " +
-                        std::to_string(i) + " state " + std::to_string(j));
+                        std::to_string(i) + "hidden state ");
                 print_clip_h = true;
             }
-            var_h_smooths[current] = var_h_update > eps ? var_h_update : eps;
         }
     }
 }
@@ -406,6 +421,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
             this->w_pos_f, this->w_pos_i, this->w_pos_c, this->w_pos_o,
             this->output_size, this->input_size, 0, end_chunk_,
             smooth_output_states->cov_hh);
+
+        save_cov_hidden_states_smoother_time(this->time_step, this->output_size,
+                                             smooth_output_states->cov_hh,
+                                             this->smooth_states.cov_hh);
     }
 
     smooth_output_states->mu_h_prev = lstm_states.mu_h_prev;
@@ -569,9 +588,8 @@ void SLSTM::smoother()
 
     smooth_hidden_states(
         this->smooth_states.num_timesteps, this->smooth_states.num_states,
-        this->smooth_states.cov_hc, this->smooth_states.mu_c_priors,
-        this->smooth_states.var_c_priors, this->smooth_states.mu_c_smooths,
-        this->smooth_states.var_c_smooths, this->smooth_states.mu_h_posts,
+        this->smooth_states.cov_hh, this->smooth_states.mu_h_priors,
+        this->smooth_states.var_h_priors, this->smooth_states.mu_h_posts,
         this->smooth_states.var_h_posts, this->smooth_states.mu_h_smooths,
         this->smooth_states.var_h_smooths);
 
