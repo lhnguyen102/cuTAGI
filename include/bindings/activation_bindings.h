@@ -24,3 +24,7 @@ void bind_leakyrelu(pybind11::module_& modo);
 void bind_softmax(pybind11::module_& modo);
 
 void bind_even_exp(pybind11::module_& modo);
+
+void bind_remax(pybind11::module_& modo);
+
+void bind_closed_form_softmax(pybind11::module_& modo);

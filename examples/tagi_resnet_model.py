@@ -8,6 +8,7 @@ from pytagi.nn import (
     Linear,
     MixtureReLU,
     ReLU,
+    Remax,
     ResNetBlock,
     Sequential,
 )
@@ -51,7 +52,9 @@ def make_layer_block(
     )
 
 
-def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
+def resnet18_cifar10(
+    gain_w: float = 1, gain_b: float = 1, is_remax: bool = False
+) -> Sequential:
     """Resnet18 architecture for cifar10"""
     # 32x32
     initial_layers = [
@@ -125,11 +128,17 @@ def resnet18_cifar10(gain_w: float = 1, gain_b: float = 1) -> Sequential:
         ),
         ResNetBlock(make_layer_block(512, 512, gain_weight=gain_w)),
     ]
-
-    final_layers = [
-        AvgPool2d(4),
-        Linear(512, 11, gain_weight=gain_w, gain_bias=gain_b),
-    ]
+    if is_remax:
+        final_layers = [
+            AvgPool2d(4),
+            Linear(512, 10, gain_weight=gain_w, gain_bias=gain_b),
+            Remax(),
+        ]
+    else:
+        final_layers = [
+            AvgPool2d(4),
+            Linear(512, 11, gain_weight=gain_w, gain_bias=gain_b),
+        ]
 
     return Sequential(*initial_layers, *resnet_layers, *final_layers)
 

@@ -157,18 +157,22 @@ void mixture_relu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
  */
 {
     float std_z, alpha, pdf_alpha, cdf_alpha;
+    constexpr float SQRT_2PI = 2.5066282746310002f;
     for (int i = start_chunk; i < end_chunk; i++) {
-        // Reused components for moments calculations
+        float tmp_mu_z = mu_z[i];
         std_z = powf(var_z[i], 0.5);
-        alpha = mu_z[i] / std_z;
-        pdf_alpha = normpdf_cpu(alpha, 0.0f, 1.0f);
+        alpha = tmp_mu_z / std_z;
+        pdf_alpha = (1.0f / SQRT_2PI) * expf(-0.5f * alpha * alpha);
         cdf_alpha = normcdf_cpu(alpha);
 
         // Moments calculations (L. Alric, 2024)
-        mu_a[i] = mu_z[i] * cdf_alpha + std_z * pdf_alpha;
-        var_a[i] = -powf(mu_a[i], 2) + 2 * mu_a[i] * mu_z[i] -
-                   mu_z[i] * std_z * pdf_alpha +
-                   (var_z[i] - powf(mu_z[i], 2)) * cdf_alpha;
+        float tmp_mu_a = tmp_mu_z * cdf_alpha + std_z * pdf_alpha;
+        mu_a[i] = fmaxf(0.000001f, tmp_mu_a);
+        var_a[i] =
+            fmaxf(0.000001f, -tmp_mu_a * tmp_mu_a + 2 * tmp_mu_a * tmp_mu_z -
+                                 tmp_mu_z * std_z * pdf_alpha +
+                                 (var_z[i] - tmp_mu_z * tmp_mu_z) * cdf_alpha);
+
         jcb[i] = cdf_alpha;
     }
 }
@@ -1032,100 +1036,423 @@ std::unique_ptr<BaseLayer> Softmax::to_cuda(int device_idx) {
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax
 ////////////////////////////////////////////////////////////////////////////////
-RemaxA::RemaxA() {}
-RemaxA::~RemaxA() {}
-
-std::string RemaxA::get_layer_info() const
-/*
- */
-{
-    return "RemaxA()";
-}
-
-std::string RemaxA::get_layer_name() const
-/*
- */
-
-{
-    return "RemaxA";
-}
-
-void RemaxA::to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
-                    int B, std::vector<float> &mu_log,
-                    std::vector<float> &var_log)
+void to_log(std::vector<float> &mu_m, std::vector<float> &var_m,
+            int hidden_size, int batch_size, std::vector<float> &mu_log,
+            std::vector<float> &var_log)
 /*
  */
 {
     float tmp_mu, tmp_var;
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            tmp_var =
-                logf(1.0f + (var_m[i * no + j] / powf(mu_m[i * no + j], 2)));
-            tmp_mu = logf(mu_m[i * no + j]) - 0.5 * tmp_var;
-            mu_log[i * no + j] = tmp_mu;
-            var_log[i * no + j] = tmp_var;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            tmp_var = logf(1.0f + (var_m[i * hidden_size + j] /
+                                   powf(mu_m[i * hidden_size + j], 2)));
+            tmp_mu = logf(mu_m[i * hidden_size + j]) - 0.5 * tmp_var;
+
+            mu_log[i * hidden_size + j] = tmp_mu;
+            var_log[i * hidden_size + j] = tmp_var;
         }
     }
 }
 
-void RemaxA::sum_class_hidden_states(std::vector<float> &mu_m,
-                                     std::vector<float> &var_m, int no, int B,
-                                     std::vector<float> &mu_sum,
-                                     std::vector<float> &var_sum)
+void compute_mean_var_sum(std::vector<float> &mu_m, std::vector<float> &var_m,
+                          int hidden_size, int batch_size,
+                          std::vector<float> &mu_sum,
+                          std::vector<float> &var_sum)
 /*
  */
 {
     float sum_mu, sum_var;
-    for (int i = 0; i < B; i++) {
+    for (int i = 0; i < batch_size; i++) {
         sum_mu = 0.0f;
         sum_var = 0.0f;
-        for (int j = 0; j < no; j++) {
-            sum_mu += mu_m[i * no + j];
-            sum_var += var_m[i * no + j];
+        for (int j = 0; j < hidden_size; j++) {
+            sum_mu += mu_m[i * hidden_size + j];
+            sum_var += var_m[i * hidden_size + j];
         }
         mu_sum[i] = sum_mu;
         var_sum[i] = sum_var;
     }
 }
 
-void RemaxA::compute_cov_log_logsum(std::vector<float> &mu_m,
-                                    std::vector<float> &var_m,
-                                    std::vector<float> &mu_sum, int no, int B,
-                                    std::vector<float> &cov_log_logsum)
-/*
+void compute_cov_log_m_mt(const std::vector<float> &mu_m,
+                          const std::vector<float> &var_m,
+                          const std::vector<float> &mu_mt, int hidden_size,
+                          int batch_size, std::vector<float> &cov_log_m_mt)
+/*Compute covariance \cov(\lnM, \lnMt).
  */
 {
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            cov_log_logsum[i * no + j] =
-                logf(1.0f + var_m[i * no + j] * (1.0f / mu_sum[i]) *
-                                (1.0f / mu_m[i * no + j]));
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            cov_log_m_mt[i * hidden_size + j] =
+                logf(1.0f + var_m[i * hidden_size + j] * (1.0f / mu_mt[i]) *
+                                (1.0f / mu_m[i * hidden_size + j]));
         }
     }
 }
 
-void RemaxA::compute_remax_prob(std::vector<float> &mu_log,
-                                std::vector<float> &var_log,
-                                std::vector<float> &mu_logsum,
-                                std::vector<float> &var_logsum,
-                                std::vector<float> &cov_log_logsum, int no,
-                                int B, std::vector<float> &mu_a,
-                                std::vector<float> &var_a)
-/*
+void compute_remax_mean_var(const std::vector<float> &mu_log_m,
+                            const std::vector<float> &var_log_m,
+                            const std::vector<float> &mu_log_mt,
+                            const std::vector<float> &var_log_mt,
+                            const std::vector<float> &cov_log_m_mt,
+                            int hidden_size, int batch_size,
+                            std::vector<float> &mu_a, std::vector<float> &var_a)
+/*Compute mean and variance for remax.
  */
 {
-    float tmp_mu, tmp_var;
-    for (int i = 0; i < B; i++) {
-        for (int j = 0; j < no; j++) {
-            tmp_mu = mu_log[i * no + j] - mu_logsum[i];
-            tmp_var = var_log[i * no + j] + var_logsum[i] -
-                      2 * cov_log_logsum[i * no + j];
-            mu_a[i * no + j] = expf(tmp_mu + 0.5 * tmp_var);
-            var_a[i * no + j] =
-                expf(tmp_mu + 0.5 * tmp_var) * (expf(tmp_var) - 1.0f);
+    float tmp_mu = 0.0f, tmp_var = 0.0f, sum_mu = 0.0f, sum_var = 0.0f;
+    for (int i = 0; i < batch_size; i++) {
+        sum_mu = 0.0f;
+        sum_var = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            tmp_mu = mu_log_m[i * hidden_size + j] - mu_log_mt[i];
+            tmp_var = var_log_m[i * hidden_size + j] + var_log_mt[i] -
+                      2 * cov_log_m_mt[i * hidden_size + j];
+
+            mu_a[i * hidden_size + j] =
+                std::max(0.000001f, expf(tmp_mu + 0.5 * tmp_var));
+            sum_mu += mu_a[i * hidden_size + j];
+            var_a[i * hidden_size + j] = expf(tmp_var) - 1.0f;
+        }
+
+        for (int j = 0; j < hidden_size; j++) {
+            float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
+            mu_a[i * hidden_size + j] = tmp_mu_norm;
+            var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
         }
     }
 }
+
+void compute_cov_a_z(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            // Original formula
+            cov_a_z[i * hidden_size + j] =
+                fminf(powf(var_a[i * hidden_size + j], 0.5f) *
+                          powf(var_z[i * hidden_size + j], 0.5f),
+                      cov_a_m / cdfn[i * hidden_size + j]);
+
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+        }
+    }
+}
+
+void compute_cov_a_z_v2(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            cov_a_z[i * hidden_size + j] = std::min(
+                powf(var_a[i * hidden_size + j], 0.5f) *
+                    powf(var_z[i * hidden_size + j], 0.5f),
+                cov_a_m * var_z[i * hidden_size + j] *
+                    cdfn[i * hidden_size + j] / var_m[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+        }
+    }
+}
+
+void compute_cov_a_z_v3(
+    const std::vector<float> &mu_a, const std::vector<float> &var_a,
+    const std::vector<float> &var_z, const std::vector<float> &mu_m,
+    const std::vector<float> &var_m, const std::vector<float> &var_log_m,
+    const std::vector<float> &cov_log_m_mt, const std::vector<float> &cdfn,
+    int hidden_size, int batch_size, std::vector<float> &cov_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_log_a_log_m = var_log_m[i * hidden_size + j] -
+                                    cov_log_m_mt[i * hidden_size + j];
+            float cov_a_m = (expf(cov_log_a_log_m) - 1.0f) *
+                            mu_a[i * hidden_size + j] *
+                            mu_m[i * hidden_size + j];
+
+            cov_a_z[i * hidden_size + j] =
+                std::min(powf(var_a[i * hidden_size + j], 0.5f) *
+                             powf(var_z[i * hidden_size + j], 0.5f),
+                         cov_a_m * var_z[i * hidden_size + j] /
+                             var_m[i * hidden_size + j]);
+            cov_a_z[i * hidden_size + j] /= var_z[i * hidden_size + j];
+        }
+    }
+}
+
+Remax::Remax() {}
+Remax::~Remax() {}
+
+std::string Remax::get_layer_info() const
+/*
+ */
+{
+    return "Remax()";
+}
+
+std::string Remax::get_layer_name() const
+/*
+ */
+
+{
+    return "Remax";
+}
+
+LayerType Remax::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void Remax::forward(BaseHiddenStates &input_states,
+                    BaseHiddenStates &output_states,
+                    BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    int hidden_size = input_states.actual_size;
+
+    if (this->batch_size_ != batch_size) {
+        this->batch_size_ = batch_size;
+        this->mu_m.resize(batch_size * hidden_size, 0.0f);
+        this->var_m.resize(batch_size * hidden_size, 0.0f);
+        this->jcb_m.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_m.resize(batch_size * hidden_size, 0.0f);
+        this->var_log_m.resize(batch_size * hidden_size, 0.0f);
+        this->mu_mt.resize(batch_size, 0.0f);
+        this->var_mt.resize(batch_size, 0.0f);
+        this->mu_log_mt.resize(batch_size, 0.0f);
+        this->var_log_mt.resize(batch_size, 0.0f);
+        this->cov_log_m_mt.resize(batch_size * hidden_size, 0.0f);
+    }
+    // Compute mean and variance of M. NOTE: jcb_m = cdfn
+    int start_chunk = 0;
+    int end_chunk = batch_size * hidden_size;
+    mixture_relu_mean_var(input_states.mu_a, input_states.var_a, start_chunk,
+                          end_chunk, this->mu_m, this->jcb_m, this->var_m);
+
+    // Compute mean and variance of Mt
+    compute_mean_var_sum(this->mu_m, this->var_m, hidden_size, batch_size,
+                         this->mu_mt, this->var_mt);
+
+    // Compute mean and variance of log(M)
+    to_log(this->mu_m, this->var_m, hidden_size, batch_size, this->mu_log_m,
+           this->var_log_m);
+
+    // Compute mean and variance of log(Mt)
+    to_log(this->mu_mt, this->var_mt, 1, batch_size, this->mu_log_mt,
+           this->var_log_mt);
+
+    // Compute covariance of log(M) and log(Mt)
+    compute_cov_log_m_mt(this->mu_m, this->var_m, this->mu_mt, hidden_size,
+                         batch_size, this->cov_log_m_mt);
+
+    // Compute mean and variance of A
+    compute_remax_mean_var(this->mu_log_m, this->var_log_m, this->mu_log_mt,
+                           this->var_log_mt, this->cov_log_m_mt, hidden_size,
+                           batch_size, output_states.mu_a, output_states.var_a);
+
+    // Compute covariance of A and Z i.e., Jacobian.
+    compute_cov_a_z(output_states.mu_a, output_states.var_a, input_states.var_a,
+                    this->mu_m, this->var_m, this->var_log_m,
+                    this->cov_log_m_mt, this->jcb_m, hidden_size, batch_size,
+                    output_states.jcb);
+
+    // Save activation mean and jacobian to the class member for backward pass
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> Remax::to_cuda(int device_idx) {
+    this->device = "cuda";
+    return std::make_unique<RemaxCuda>();
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+void compute_mean_var_exp_sum(const std::vector<float> &mu_z,
+                              const std::vector<float> &var_z, int hidden_size,
+                              int batch_size, std::vector<float> &mu_e_sum,
+                              std::vector<float> &var_e_sum)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            sum_mu += expf(mu_z[i * hidden_size + j] +
+                           0.5 * var_z[i * hidden_size + j]);
+            sum_var += expf(2 * mu_z[i * hidden_size + j] +
+                            var_z[i * hidden_size + j]) *
+                       (expf(var_z[i * hidden_size + j]) - 1.0f);
+        }
+        mu_e_sum[i] = sum_mu;
+        var_e_sum[i] = sum_var;
+    }
+}
+
+void compute_mean_var_log_a(
+    const std::vector<float> &mu_z, const std::vector<float> &var_z,
+    const std::vector<float> &mu_log_e_sum,
+    const std::vector<float> &var_log_e_sum, const std::vector<float> &mu_e_sum,
+    const std::vector<float> &var_e_sum, int hidden_size, int batch_size,
+    std::vector<float> &mu_log_a, std::vector<float> &var_log_a,
+    std::vector<float> &cov_log_a_z)
+/*
+ */
+{
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float cov_e_e_sum = expf(2 * mu_z[i * hidden_size + j] +
+                                     var_z[i * hidden_size + j]) *
+                                (expf(var_z[i * hidden_size + j]) - 1.0f);
+            float mu_e = expf(mu_z[i * hidden_size + j] +
+                              0.5 * var_z[i * hidden_size + j]);
+
+            float tmp_inverse_mu = 1.0f / (mu_e_sum[i] * mu_e);
+            float cov_z_log_e_sum = logf(1.0f + cov_e_e_sum * tmp_inverse_mu);
+            mu_log_a[i * hidden_size + j] =
+                mu_z[i * hidden_size + j] - mu_log_e_sum[i];
+            var_log_a[i * hidden_size + j] = var_z[i * hidden_size + j] +
+                                             var_log_e_sum[i] -
+                                             2.0f * cov_z_log_e_sum;
+            cov_log_a_z[i * hidden_size + j] =
+                var_z[i * hidden_size + j] - cov_z_log_e_sum;
+        }
+    }
+}
+
+void compute_cfsoftmax_mean_var(
+    const std::vector<float> &mu_log_a, const std::vector<float> &var_log_a,
+    const std::vector<float> &cov_log_a_z, const std::vector<float> &var_z,
+    int hidden_size, int batch_size, std::vector<float> &mu_a,
+    std::vector<float> &var_a, std::vector<float> &jcb_a) {
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            float tmp_mu = expf(mu_log_a[i * hidden_size + j] +
+                                0.5 * var_log_a[i * hidden_size + j]);
+            mu_a[i * hidden_size + j] = tmp_mu;
+            var_a[i * hidden_size + j] =
+                (expf(var_log_a[i * hidden_size + j]) - 1.0f) * tmp_mu * tmp_mu;
+
+            // TODO: Need to used normalized mean?
+            jcb_a[i * hidden_size + j] = tmp_mu *
+                                         cov_log_a_z[i * hidden_size + j] /
+                                         var_z[i * hidden_size + j];
+        }
+    }
+}
+
+ClosedFormSoftmax::ClosedFormSoftmax() {}
+ClosedFormSoftmax::~ClosedFormSoftmax() {}
+
+std::string ClosedFormSoftmax::get_layer_info() const
+/*
+ */
+{
+    return "ClosedFormSoftmax()";
+}
+
+std::string ClosedFormSoftmax::get_layer_name() const
+/*
+ */
+{
+    return "ClosedFormSoftmax";
+}
+
+LayerType ClosedFormSoftmax::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
+                                BaseHiddenStates &output_states,
+                                BaseTempStates &temp_states)
+/*
+ */
+{
+    int batch_size = input_states.block_size;
+    int hidden_size = input_states.actual_size;
+
+    if (this->batch_size_ != batch_size) {
+        this->batch_size_ = batch_size;
+        this->mu_e_sum.resize(batch_size, 0.0f);
+        this->var_e_sum.resize(batch_size, 0.0f);
+        this->cov_z_log_e_sum.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_e_sum.resize(batch_size, 0.0f);
+        this->var_log_e_sum.resize(batch_size, 0.0f);
+        this->cov_log_a_z.resize(batch_size * hidden_size, 0.0f);
+        this->mu_log_a.resize(batch_size * hidden_size, 0.0f);
+        this->var_log_a.resize(batch_size * hidden_size, 0.0f);
+    }
+
+    compute_mean_var_exp_sum(input_states.mu_a, input_states.var_a, hidden_size,
+                             batch_size, this->mu_e_sum, this->var_e_sum);
+    to_log(this->mu_e_sum, this->var_e_sum, 1, batch_size, this->mu_log_e_sum,
+           this->var_log_e_sum);
+
+    compute_mean_var_log_a(
+        input_states.mu_a, input_states.var_a, this->mu_log_e_sum,
+        this->var_log_e_sum, this->mu_e_sum, this->var_e_sum, hidden_size,
+        batch_size, this->mu_log_a, this->var_log_a, this->cov_log_a_z);
+
+    compute_cfsoftmax_mean_var(this->mu_log_a, this->var_log_a,
+                               this->cov_log_a_z, input_states.var_a,
+                               hidden_size, batch_size, output_states.mu_a,
+                               output_states.var_a, output_states.jcb);
+
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> ClosedFormSoftmax::to_cuda(int device_idx) {
+    this->device = "cuda";
+    return std::make_unique<ClosedFormSoftmaxCuda>();
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// EvenExp

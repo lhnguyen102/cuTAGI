@@ -74,22 +74,22 @@ void mnist_test_runner(Sequential &model, float &avg_error_output) {
     std::vector<float> var_obs(batch_size * train_db.output_len,
                                pow(sigma_obs, 2));
     std::vector<float> y_batch(batch_size * train_db.output_len, 0.0f);
-    std::vector<int> batch_idx(batch_size);
     std::vector<int> idx_ud_batch(train_db.output_len * batch_size, 0);
     std::vector<int> label_batch(batch_size, 0);
     std::vector<float> mu_a_output(batch_size * n_y, 0);
     std::vector<float> var_a_output(batch_size * n_y, 0);
     auto data_idx = create_range(train_db.num_data);
 
-    int mt_idx = 0;
     std::vector<int> error_rate(train_db.num_data, 0);
     std::vector<int> error_rate_batch;
     std::vector<float> prob_class_batch;
 
     std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+    int start_idx = 0;
     for (int i = 0; i < 100; i++) {
-        get_batch_images_labels(train_db, data_idx, batch_size, i, x_batch,
-                                y_batch, idx_ud_batch, label_batch);
+        start_idx = i * batch_size;
+        get_batch_images_labels(train_db, data_idx, batch_size, start_idx,
+                                x_batch, y_batch, idx_ud_batch, label_batch);
 
         model.forward(x_batch);
         output_updater.update_using_indices(*model.output_z_buffer, y_batch,
@@ -109,11 +109,106 @@ void mnist_test_runner(Sequential &model, float &avg_error_output) {
 
         std::tie(error_rate_batch, prob_class_batch) = get_error(
             mu_a_output, var_a_output, label_batch, num_classes, batch_size);
-        mt_idx = i * batch_size;
-        update_vector(error_rate, error_rate_batch, mt_idx, 1);
+        update_vector(error_rate, error_rate_batch, start_idx, batch_size);
     }
 
-    int curr_idx = mt_idx + batch_size;
+    int curr_idx = start_idx + batch_size;
+    avg_error_output = compute_average_error_rate(error_rate, curr_idx, 100);
+}
+
+void mnist_test_runner_v0(Sequential &model, float &avg_error_output) {
+    //////////////////////////////////////////////////////////////////////
+    // Data preprocessing
+    //////////////////////////////////////////////////////////////////////
+    std::vector<std::string> x_train_paths = {
+        "./data/mnist/train-images-idx3-ubyte"};
+    std::vector<std::string> y_train_paths = {
+        "./data/mnist/train-labels-idx1-ubyte"};
+    std::vector<std::string> x_test_paths = {
+        "./data/mnist/t10k-images-idx3-ubyte"};
+    std::vector<std::string> y_test_paths = {
+        "./data/mnist/t10k-labels-idx1-ubyte"};
+
+    std::string data_name = "mnist";
+    std::vector<float> mu = {0.1309};
+    std::vector<float> sigma = {1.0f};
+    int num_train_data = 60000;
+    int num_test_data = 10000;
+    int num_classes = 10;
+    int width = 28;
+    int height = 28;
+    int channel = 1;
+    int n_x = width * height;
+    int n_y = 10;
+
+    auto train_db = get_images_v2(data_name, x_train_paths, y_train_paths, mu,
+                                  sigma, num_train_data, num_classes, width,
+                                  height, channel, false);
+    auto test_db = get_images_v2(data_name, x_test_paths, y_test_paths, mu,
+                                 sigma, num_test_data, num_classes, width,
+                                 height, channel, false);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Training
+    ////////////////////////////////////////////////////////////////////////////
+    OutputUpdater output_updater(model.device);
+
+    unsigned seed = 42;
+    std::default_random_engine seed_e(seed);
+    int n_epochs = 1;
+    int batch_size = 128;
+    float sigma_obs = 0.05;
+    int iters = train_db.num_data / batch_size;
+    std::vector<float> x_batch(batch_size * n_x, 0.0f);
+    std::vector<float> var_obs(batch_size * train_db.output_len,
+                               pow(sigma_obs, 2));
+    std::vector<float> y_batch(batch_size * train_db.output_len, 0.0f);
+    std::vector<int> idx_ud_batch;
+    std::vector<int> label_batch(batch_size, 0);
+    std::vector<float> mu_a_output(batch_size * n_y, 0);
+    std::vector<float> var_a_output(batch_size * n_y, 0);
+    auto data_idx = create_range(train_db.num_data);
+
+    std::vector<int> error_rate(train_db.num_data, 0);
+    std::vector<int> error_rate_batch;
+    std::vector<float> prob_class_batch;
+
+    int n_iters = train_db.num_data / batch_size;
+    int start_idx = 0;
+    for (int epoch = 0; epoch < n_epochs; epoch++) {
+        std::shuffle(data_idx.begin(), data_idx.end(), seed_e);
+        for (int i = 0; i < n_iters; i++) {
+            start_idx = i * batch_size;
+            get_batch_images_labels(train_db, data_idx, batch_size, start_idx,
+                                    x_batch, y_batch, idx_ud_batch,
+                                    label_batch);
+
+            model.forward(x_batch);
+            output_updater.update(*model.output_z_buffer, y_batch, var_obs,
+                                  *model.input_delta_z_buffer);
+            model.backward();
+            model.step();
+
+            if (model.device == "cuda") {
+                model.output_to_host();
+            }
+
+            for (int j = 0; j < batch_size * n_y; j++) {
+                mu_a_output[j] = model.output_z_buffer->mu_a[j];
+                var_a_output[j] = model.output_z_buffer->var_a[j];
+            }
+
+            auto error_rate_batch = get_class_error(mu_a_output, label_batch,
+                                                    num_classes, batch_size);
+            update_vector(error_rate, error_rate_batch, start_idx, batch_size);
+            if (i % 50 == 0 && i > 0) {
+                auto training_error = compute_average_error_rate(
+                    error_rate, start_idx, batch_size);
+            }
+        }
+    }
+
+    int curr_idx = start_idx + batch_size;
     avg_error_output = compute_average_error_rate(error_rate, curr_idx, 100);
 }
 
@@ -163,7 +258,7 @@ std::vector<float> autoencoder_test_runner(Sequential &encoder,
     unsigned seed = 42;
     std::default_random_engine seed_e(seed);
     int n_epochs = 1;
-    int batch_size = 16;
+    int batch_size = 2;
     float sigma_obs = 20.0;
     int iters = train_db.num_data / batch_size;
     std::vector<float> x_batch(batch_size * n_x, 0.0f);
@@ -311,6 +406,15 @@ TEST_F(MnistTest, FNNModelTest_CPU) {
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
+TEST_F(MnistTest, RemaxTest_CPU) {
+    Sequential model(Linear(784, 64), ReLU(), Linear(64, 64), ReLU(),
+                     Linear(64, 10), Remax());
+    float avg_error;
+    float threshold = 0.1;  // Heuristic threshold
+    mnist_test_runner_v0(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
+
 TEST_F(MnistTest, MixtureReLUModelTest_CPU) {
     Sequential model(Linear(784, 32), MixtureReLU(), Linear(32, 32),
                      MixtureReLU(), Linear(32, 11));
@@ -398,6 +502,16 @@ TEST_F(MnistTest, MismatchSizeDetection) {
 }
 
 #ifdef USE_CUDA
+TEST_F(MnistTest, RemaxTest_CUDA) {
+    Sequential model(Linear(784, 64), ReLU(), Linear(64, 64), ReLU(),
+                     Linear(64, 10), Remax());
+
+    model.to_device("cuda");
+    float avg_error;
+    float threshold = 0.1;  // Heuristic threshold
+    mnist_test_runner_v0(model, avg_error);
+    EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
+}
 TEST_F(MnistTest, BatchnormWithoutBiases_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     Sequential model(Conv2d(1, 8, 4, false, 1, 1, 1, 28, 28),

@@ -315,7 +315,7 @@ Returns:
 float normcdf_cpu(float x)
 /* Normal cumulative distribution */
 {
-    return std::erfc(-x / std::sqrt(2)) / 2;
+    return 0.5f * erfcf(-x * 0.7071067811865475f);
 }
 
 float normpdf_cpu(float x, float mu, float sigma)
@@ -324,9 +324,9 @@ float normpdf_cpu(float x, float mu, float sigma)
     if (sigma < 0.0f) {
         LOG(LogLevel::ERROR, "Sigma value is negative");
     }
-    const float PI = 3.14159265358979323846f;
-    float prob_pdf = (1 / (sigma * pow(2 * PI, 0.5))) *
-                     exp(-pow(x - mu, 2) / (2 * pow(sigma, 2)));
+    const float SQRT_2PI = 2.5066282746310002f;
+    float prob_pdf =
+        (1 / (sigma * SQRT_2PI)) * expf(-0.5 * (x - mu) * (x - mu));
 
     return prob_pdf;
 }

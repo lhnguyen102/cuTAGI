@@ -413,6 +413,147 @@ class SoftmaxCuda : public BaseLayerCuda {
     std::unique_ptr<BaseLayer> to_host() override;
 };
 
+////////////////////////////////////////////////////////////////////////////////
+/// Remax
+////////////////////////////////////////////////////////////////////////////////
+class RemaxCuda : public BaseLayerCuda {
+   public:
+    float alpha = 0.1f;
+    std::vector<float> mu_m;
+    std::vector<float> var_m;
+    std::vector<float> jcb_m;
+    std::vector<float> mu_log_m;
+    std::vector<float> var_log_m;
+    std::vector<float> mu_mt;
+    std::vector<float> var_mt;
+    std::vector<float> mu_log_mt;
+    std::vector<float> var_log_mt;
+    std::vector<float> cov_log_m_mt;
+    float threshold = 1e-10;
+    int batch_size_ = 0;
+    float *d_mu_m = nullptr;
+    float *d_var_m = nullptr;
+    float *d_jcb_m = nullptr;
+    float *d_mu_log_m = nullptr;
+    float *d_var_log_m = nullptr;
+    float *d_mu_mt = nullptr;
+    float *d_var_mt = nullptr;
+    float *d_mu_log_mt = nullptr;
+    float *d_var_log_mt = nullptr;
+    float *d_cov_log_m_mt = nullptr;
+
+    RemaxCuda();
+    ~RemaxCuda();
+
+    // Delete copy constructor and copy assignment
+    RemaxCuda(const RemaxCuda &) = delete;
+    RemaxCuda &operator=(const RemaxCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    RemaxCuda(RemaxCuda &&) = default;
+    RemaxCuda &operator=(RemaxCuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+    void data_to_host();
+    void data_to_device();
+
+   private:
+    void allocate_memory(int hidden_size, int batch_size);
+    void deallocate_memory();
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+class ClosedFormSoftmaxCuda : public BaseLayerCuda {
+   public:
+    std::vector<float> mu_e_sum;
+    std::vector<float> var_e_sum;
+    std::vector<float> cov_z_log_e_sum;
+    std::vector<float> mu_log_e_sum;
+    std::vector<float> var_log_e_sum;
+    std::vector<float> cov_log_a_z;
+    std::vector<float> mu_log_a;
+    std::vector<float> var_log_a;
+
+    int batch_size_ = 0;
+    float *d_mu_e_sum = nullptr;
+    float *d_var_e_sum = nullptr;
+    float *d_cov_z_log_e_sum = nullptr;
+    float *d_mu_log_e_sum = nullptr;
+    float *d_var_log_e_sum = nullptr;
+    float *d_cov_log_a_z = nullptr;
+    float *d_mu_log_a = nullptr;
+    float *d_var_log_a = nullptr;
+
+    ClosedFormSoftmaxCuda();
+    ~ClosedFormSoftmaxCuda();
+
+    // Delete copy constructor and copy assignment
+    ClosedFormSoftmaxCuda(const ClosedFormSoftmaxCuda &) = delete;
+    ClosedFormSoftmaxCuda &operator=(const ClosedFormSoftmaxCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    ClosedFormSoftmaxCuda(ClosedFormSoftmaxCuda &&) = default;
+    ClosedFormSoftmaxCuda &operator=(ClosedFormSoftmaxCuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+    void data_to_host();
+    void data_to_device();
+
+   private:
+    void allocate_memory(int hidden_size, int batch_size);
+    void deallocate_memory();
+};
+
 class EvenExpCuda : public BaseLayerCuda {
    public:
     EvenExpCuda();

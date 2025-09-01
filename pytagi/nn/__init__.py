@@ -1,10 +1,12 @@
 from pytagi.nn.activation import (
+    ClosedFormSoftmax,
     EvenExp,
     LeakyReLU,
     MixtureReLU,
     MixtureSigmoid,
     MixtureTanh,
     ReLU,
+    Remax,
     Sigmoid,
     Softmax,
     Softplus,

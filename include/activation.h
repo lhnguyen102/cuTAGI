@@ -505,41 +505,42 @@ class Softmax : public BaseLayer {
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax
 ////////////////////////////////////////////////////////////////////////////////
-class RemaxA : public BaseLayer {
+class Remax : public BaseLayer {
    public:
     float alpha = 0.1f;
-    RemaxA();
-    ~RemaxA();
+    std::vector<float> mu_m;
+    std::vector<float> var_m;
+    std::vector<float> jcb_m;
+    std::vector<float> mu_log_m;
+    std::vector<float> var_log_m;
+    std::vector<float> mu_mt;
+    std::vector<float> var_mt;
+    std::vector<float> mu_log_mt;
+    std::vector<float> var_log_mt;
+    std::vector<float> cov_log_m_mt;
+    float threshold = 1e-10;
+    int batch_size_ = 0;
+    Remax();
+    ~Remax();
+
+    // Delete copy constructor and copy assignment
+    Remax(const Remax &) = delete;
+    Remax &operator=(const Remax &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    Remax(Remax &&) = default;
+    Remax &operator=(Remax &&) = default;
 
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;
 
-    // TODO: How to add mixture relu
-    void to_log(std::vector<float> &mu_m, std::vector<float> &var_m, int no,
-                int B, std::vector<float> &mu_log, std::vector<float> &var_log);
-
-    void sum_class_hidden_states(std::vector<float> &mu_m,
-                                 std::vector<float> &var_m, int no, int B,
-                                 std::vector<float> &mu_sum,
-                                 std::vector<float> &var_sum);
-
-    void compute_cov_log_logsum(std::vector<float> &mu_m,
-                                std::vector<float> &var_m,
-                                std::vector<float> &mu_sum, int no, int B,
-                                std::vector<float> &cov_log_logsum);
-
-    void compute_remax_prob(std::vector<float> &mu_log,
-                            std::vector<float> &var_log,
-                            std::vector<float> &mu_logsum,
-                            std::vector<float> &var_logsum,
-                            std::vector<float> &cov_log_logsum, int no, int B,
-                            std::vector<float> &mu_a,
-                            std::vector<float> &var_a);
+    LayerType get_layer_type() const override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
-                 BaseTempStates &temp_states) override {};
+                 BaseTempStates &temp_states) override;
 
     using BaseLayer::backward;
 
@@ -552,6 +553,65 @@ class RemaxA : public BaseLayer {
     void save(std::ofstream &file) override {};
 
     void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// ClosedFormSoftmax
+////////////////////////////////////////////////////////////////////////////////
+class ClosedFormSoftmax : public BaseLayer {
+   public:
+    std::vector<float> mu_e_sum;
+    std::vector<float> var_e_sum;
+    std::vector<float> cov_z_log_e_sum;
+    std::vector<float> mu_log_e_sum;
+    std::vector<float> var_log_e_sum;
+    std::vector<float> cov_log_a_z;
+    std::vector<float> mu_log_a;
+    std::vector<float> var_log_a;
+
+    int batch_size_ = 0;
+
+    ClosedFormSoftmax();
+    ~ClosedFormSoftmax();
+
+    // Delete copy constructor and copy assignment
+    ClosedFormSoftmax(const ClosedFormSoftmax &) = delete;
+    ClosedFormSoftmax &operator=(const ClosedFormSoftmax &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    ClosedFormSoftmax(ClosedFormSoftmax &&) = default;
+    ClosedFormSoftmax &operator=(ClosedFormSoftmax &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
