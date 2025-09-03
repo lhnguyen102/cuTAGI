@@ -471,32 +471,29 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
     }
 }
 
-void even_exp_mean_var(std::vector<float> const &mu_z,
-                       std::vector<float> const &var_z,
-                       std::vector<float> &jcb_z, int start_chunk,
-                       int end_chunk, std::vector<float> &mu_a,
-                       std::vector<float> &var_a, std::vector<float> &jcb_a)
+void exp_mean_var(std::vector<float> const &mu_z,
+                  std::vector<float> const &var_z, std::vector<float> &jcb_z,
+                  int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                  std::vector<float> &var_a, std::vector<float> &jcb_a,
+                  float scale, float shift)
 
 {
     for (int i = start_chunk; i < end_chunk; i++) {
-        if (i % 2 == 0) {
-            mu_a[i] = mu_z[i];
-            var_a[i] = var_z[i];
-            jcb_a[i] = jcb_z[i];
-        } else {
-            mu_a[i] = expf(mu_z[i] + 0.5 * var_z[i]);
-            var_a[i] = expf(2 * mu_z[i] + var_z[i]) * (expf(var_z[i]) - 1);
-            jcb_a[i] = var_z[i] * mu_a[i];
-        }
+        float new_mu = mu_z[i] * scale + shift;
+        float new_var = var_z[i] * scale * scale;
+
+        mu_a[i] = std::min(expf(new_mu + 0.5 * new_var), 1e-12f);
+        var_a[i] =
+            std::min(expf(2 * new_mu + new_var) * (expf(new_var) - 1), 1e-12f);
+        jcb_a[i] = std::min(mu_a[i] * scale, 1e-12f);
     }
 }
 
-void even_exp_mean_var_mp(std::vector<float> const &mu_z,
-                          std::vector<float> const &var_z,
-                          std::vector<float> &jcb_z, int n,
-                          unsigned int num_threads, std::vector<float> &mu_a,
-                          std::vector<float> &var_a,
-                          std::vector<float> &jcb_a) {
+void exp_mean_var_mp(std::vector<float> const &mu_z,
+                     std::vector<float> const &var_z, std::vector<float> &jcb_z,
+                     int n, unsigned int num_threads, std::vector<float> &mu_a,
+                     std::vector<float> &var_a, std::vector<float> &jcb_a,
+                     float scale, float shift) {
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
@@ -509,8 +506,141 @@ void even_exp_mean_var_mp(std::vector<float> const &mu_z,
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
         threads.emplace_back([=, &mu_z, &var_z, &jcb_z, &mu_a, &var_a, &jcb_a] {
-            even_exp_mean_var(mu_z, var_z, jcb_z, start_chunk, end_chunk, mu_a,
-                              var_a, jcb_a);
+            exp_mean_var(mu_z, var_z, jcb_z, start_chunk, end_chunk, mu_a,
+                         var_a, jcb_a, scale, shift);
+        });
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void agvi_backward_chunk(int start_chunk, int end_chunk,
+                         BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         const BaseHiddenStates &stored_output_states,
+                         const BaseHiddenStates &stored_inner_output_states,
+                         const BaseHiddenStates &stored_input_states,
+                         bool overfit_mu) {
+    /*
+     * Processes a chunk of the backward pass for the AGVI layer.
+     * This function is designed to be called by a single thread.
+     *
+     * @param start_chunk The starting index for the chunk.
+     * @param end_chunk The ending index for the chunk.
+     * @param input_delta_states Deltas from the subsequent layer.
+     * @param output_delta_states Deltas to be passed to the preceding layer.
+     * @param stored_output_states The output states from the forward pass.
+     * @param stored_inner_output_states The inner activation's output from the
+     * forward pass.
+     * @param stored_input_states The input states from the forward pass.
+     * @param overfit_mu Flag to control the Jacobian for the mean delta.
+     */
+    for (int i = start_chunk; i < end_chunk; i++) {
+        // 1. Retrieve stored values from the forward pass.
+        float mu_a = stored_output_states.mu_a[i];
+        float var_a = stored_output_states.var_a[i];
+
+        // V2_bar_tilde
+        float mu_v2_bar_tilde = stored_inner_output_states.mu_a[i];
+        float var_v2_bar_tilde = stored_inner_output_states.var_a[i];
+        float jcb_v2_bar_tilde = stored_inner_output_states.jcb[i];
+
+        // Deltas from the subsequent layer
+        float incoming_delta_mu = input_delta_states.delta_mu[i];
+        float incoming_delta_var = input_delta_states.delta_var[i];
+
+        // Prior variance for Z (from the even input stream)
+        float var_z = stored_input_states.var_a[i * 2];
+
+        // 2. Perform the backward message passing calculations.
+
+        // Compute the prior predictive PDF for v2
+        float mu_v2 = mu_v2_bar_tilde;
+        float var_v2 =
+            3.0f * var_v2_bar_tilde + 2.0f * mu_v2_bar_tilde * mu_v2_bar_tilde;
+
+        // V ~ N(0, mu_v2)
+        float mu_v = 0.0f;
+        float var_v = mu_v2;
+
+        // Compute the posterior mean and variance for A (output)
+        float mu_a_pos = mu_a + incoming_delta_mu * var_a;
+        float var_a_pos = var_a + incoming_delta_var * var_a * var_a;
+
+        // Compute the posterior mean and variance for V
+        float Jv = var_v / var_a;
+        float mu_v_pos = mu_v + Jv * (mu_a_pos - mu_a);
+        float var_v_pos = var_v + Jv * Jv * (var_a_pos - var_a);
+
+        // Compute the posterior mean and variance for V2
+        float mu_v2_pos = mu_v_pos * mu_v_pos + var_v_pos;
+        float var_v2_pos = 2.0f * var_v_pos * var_v_pos +
+                           4.0f * var_v_pos * mu_v_pos * mu_v_pos;
+
+        // Compute the posterior mean and variance for V2_bar_tilde
+        float Jv2_bar_tilde = var_v2_bar_tilde / var_v2;
+        float mu_v2_bar_tilde_pos =
+            mu_v2_bar_tilde + Jv2_bar_tilde * (mu_v2_pos - mu_v2);
+        float var_v2_bar_tilde_pos =
+            var_v2_bar_tilde +
+            Jv2_bar_tilde * Jv2_bar_tilde * (var_v2_pos - var_v2);
+
+        // 3. Define the output indices for the even (Z) and odd (V2_bar) stream
+        int even_idx = 2 * i;
+        int odd_idx = 2 * i + 1;
+
+        // 4. Compute and write deltas for V2_bar (the odd input stream).
+        float Jv2_bar = jcb_v2_bar_tilde / var_v2_bar_tilde;
+        output_delta_states.delta_mu[odd_idx] =
+            Jv2_bar * (mu_v2_bar_tilde_pos - mu_v2_bar_tilde);
+        output_delta_states.delta_var[odd_idx] =
+            Jv2_bar * Jv2_bar * (var_v2_bar_tilde_pos - var_v2_bar_tilde);
+
+        // --- MODIFIED ---
+        // 5. Compute and write deltas for Z (the even input stream).
+        float Jz = 1.0f / var_a;
+        float Jz_mu;
+        if (overfit_mu) {
+            // Use different J for the mean to allow overfitting on it
+            Jz_mu = 1.0f / var_z;
+        } else {
+            // Use the same J for the mean and variance
+            Jz_mu = Jz;
+        }
+        output_delta_states.delta_mu[even_idx] = Jz_mu * (mu_a_pos - mu_a);
+        output_delta_states.delta_var[even_idx] = Jz * Jz * (var_a_pos - var_a);
+    }
+}
+
+void agvi_backward_mp(int n, unsigned int num_threads,
+                      BaseDeltaStates &input_delta_states,
+                      BaseDeltaStates &output_delta_states,
+                      const BaseHiddenStates &stored_output_states,
+                      const BaseHiddenStates &stored_inner_output_states,
+                      const BaseHiddenStates &stored_input_states,
+                      bool overfit_mu) {
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    int n_per_thread = n / num_threads;
+    int extra = n % num_threads;
+
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        int start_chunk = i * n_per_thread + std::min(i, (unsigned int)extra);
+        int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
+
+        threads.emplace_back([=, &input_delta_states, &output_delta_states,
+                              &stored_output_states,
+                              &stored_inner_output_states,
+                              &stored_input_states] {
+            agvi_backward_chunk(start_chunk, end_chunk, input_delta_states,
+                                output_delta_states, stored_output_states,
+                                stored_inner_output_states, stored_input_states,
+                                overfit_mu);
         });
     }
 
@@ -1455,51 +1585,206 @@ std::unique_ptr<BaseLayer> ClosedFormSoftmax::to_cuda(int device_idx) {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-/// EvenExp
+/// SplitActivation (formerly EvenExp)
 ////////////////////////////////////////////////////////////////////////////////
-EvenExp::EvenExp() {}
-EvenExp::~EvenExp() {}
 
-std::string EvenExp::get_layer_info() const
+SplitActivation::SplitActivation(std::shared_ptr<BaseLayer> odd_layer,
+                                 std::shared_ptr<BaseLayer> even_layer)
+    : odd_layer(odd_layer), even_layer(even_layer) {
+    if (!odd_layer) {
+        // It's crucial that the odd_layer exists.
+        // We could throw an exception here for robustness.
+        std::cerr << "Error: SplitActivation must be initialized with a valid "
+                     "layer for odd-indexed positions."
+                  << std::endl;
+    }
+}
+
+SplitActivation::~SplitActivation() {}
+
+std::string SplitActivation::get_layer_info() const {
+    std::string even_layer_name = "Identity";
+    if (even_layer) {
+        even_layer_name = even_layer->get_layer_name();
+    }
+    return "SplitActivation(odd=" + odd_layer->get_layer_name() +
+           ", even=" + even_layer_name + ")";
+}
+
+std::string SplitActivation::get_layer_name() const {
+    return "SplitActivation";
+}
+
+LayerType SplitActivation::get_layer_type() const {
+    return LayerType::Activation;
+}
+
+void SplitActivation::forward(BaseHiddenStates &input_states,
+                              BaseHiddenStates &output_states,
+                              BaseTempStates &temp_states) {
+    // 1. Calculate the total number of elements to process.
+    int total_elements = input_states.actual_size * input_states.block_size;
+    int odd_count = total_elements / 2;
+    int even_count = total_elements - odd_count;
+
+    // 2. Prepare temporary hidden states for the odd and even data streams.
+    BaseHiddenStates odd_input_states;
+    odd_input_states.mu_a.reserve(odd_count);
+    odd_input_states.var_a.reserve(odd_count);
+    odd_input_states.jcb.reserve(odd_count);
+
+    BaseHiddenStates even_input_states;
+    even_input_states.mu_a.reserve(even_count);
+    even_input_states.var_a.reserve(even_count);
+    even_input_states.jcb.reserve(even_count);
+
+    // 3. Split the input data into odd and even streams.
+    for (int i = 0; i < total_elements; ++i) {
+        if (i % 2 == 0) {  // Even indices
+            even_input_states.mu_a.push_back(input_states.mu_a[i]);
+            even_input_states.var_a.push_back(input_states.var_a[i]);
+            even_input_states.jcb.push_back(input_states.jcb[i]);
+        } else {  // Odd indices
+            odd_input_states.mu_a.push_back(input_states.mu_a[i]);
+            odd_input_states.var_a.push_back(input_states.var_a[i]);
+            odd_input_states.jcb.push_back(input_states.jcb[i]);
+        }
+    }
+
+    // Set metadata for the temporary states.
+    odd_input_states.block_size = input_states.block_size;
+    odd_input_states.actual_size = odd_count / input_states.block_size;
+    even_input_states.block_size = input_states.block_size;
+    even_input_states.actual_size = even_count / input_states.block_size;
+
+    // 4. Apply the activation layers to their respective streams.
+
+    // Process the odd stream using the mandatory odd_layer.
+    BaseHiddenStates odd_output_states;
+    odd_output_states.mu_a.resize(odd_count);
+    odd_output_states.var_a.resize(odd_count);
+    odd_output_states.jcb.resize(odd_count);
+    odd_layer->forward(odd_input_states, odd_output_states, temp_states);
+
+    // Process the even stream.
+    BaseHiddenStates even_output_states;
+    if (even_layer) {
+        // If an even_layer is provided, use it.
+        even_output_states.mu_a.resize(even_count);
+        even_output_states.var_a.resize(even_count);
+        even_output_states.jcb.resize(even_count);
+        even_layer->forward(even_input_states, even_output_states, temp_states);
+    } else {
+        // If no even_layer is provided, apply an identity transformation
+        // by moving the input states to the output states.
+        even_output_states = std::move(even_input_states);
+    }
+
+    // 5. Merge the processed streams back into the final output_states.
+    int odd_idx = 0;
+    int even_idx = 0;
+    for (int i = 0; i < total_elements; ++i) {
+        if (i % 2 == 0) {  // Even indices
+            output_states.mu_a[i] = even_output_states.mu_a[even_idx];
+            output_states.var_a[i] = even_output_states.var_a[even_idx];
+            output_states.jcb[i] = even_output_states.jcb[even_idx];
+            even_idx++;
+        } else {  // Odd indices
+            output_states.mu_a[i] = odd_output_states.mu_a[odd_idx];
+            output_states.var_a[i] = odd_output_states.var_a[odd_idx];
+            output_states.jcb[i] = odd_output_states.jcb[odd_idx];
+            odd_idx++;
+        }
+    }
+
+    // 6. Update layer and output_states metadata to match the input.
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    output_states.size = input_states.size;
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+void SplitActivation::save(std::ofstream &file) {
+    // Save the state of the inner layers.
+    if (odd_layer) {
+        odd_layer->save(file);
+    }
+    if (even_layer) {
+        even_layer->save(file);
+    }
+}
+
+void SplitActivation::load(std::ifstream &file) {
+    // Load the state of the inner layers.
+    if (odd_layer) {
+        odd_layer->load(file);
+    }
+    if (even_layer) {
+        even_layer->load(file);
+    }
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> SplitActivation::to_cuda(int device_idx) {
+    this->device = "cuda";
+    // Convert inner layers to their CUDA equivalents.
+    auto cuda_odd_layer = odd_layer->to_cuda(device_idx);
+    std::unique_ptr<BaseLayer> cuda_even_layer = nullptr;
+    if (even_layer) {
+        cuda_even_layer = even_layer->to_cuda(device_idx);
+    }
+    // Note: This assumes a SplitActivationCuda class exists.
+    return std::make_unique<SplitActivationCuda>(std::move(cuda_odd_layer),
+                                                 std::move(cuda_even_layer));
+    // return nullptr; // Placeholder until SplitActivationCuda is implemented
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+/// Exp
+////////////////////////////////////////////////////////////////////////////////
+Exp::Exp(float scale, float shift) : scale(scale), shift(shift) {}
+Exp::~Exp() {}
+
+std::string Exp::get_layer_info() const
 /*
  */
 {
-    return "EvenExp()";
+    return "Exp()";
 }
 
-std::string EvenExp::get_layer_name() const
+std::string Exp::get_layer_name() const
 /*
  */
 
 {
-    return "EvenExp";
+    return "Exp";
 }
 
-LayerType EvenExp::get_layer_type() const
+LayerType Exp::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void EvenExp::forward(BaseHiddenStates &input_states,
-                      BaseHiddenStates &output_states,
-                      BaseTempStates &temp_states)
+void Exp::forward(BaseHiddenStates &input_states,
+                  BaseHiddenStates &output_states, BaseTempStates &temp_states)
 /*
  */
 {
     int start_chunk = 0;
     int end_chunk = input_states.actual_size * input_states.block_size;
     if (this->num_threads > 1) {
-        even_exp_mean_var_mp(input_states.mu_a, input_states.var_a,
-                             input_states.jcb, end_chunk, this->num_threads,
-                             output_states.mu_a, output_states.var_a,
-                             output_states.jcb);
+        exp_mean_var_mp(input_states.mu_a, input_states.var_a, input_states.jcb,
+                        end_chunk, this->num_threads, output_states.mu_a,
+                        output_states.var_a, output_states.jcb, scale, shift);
     } else {
-        even_exp_mean_var(input_states.mu_a, input_states.var_a,
-                          input_states.jcb, start_chunk, end_chunk,
-                          output_states.mu_a, output_states.var_a,
-                          output_states.jcb);
+        exp_mean_var(input_states.mu_a, input_states.var_a, input_states.jcb,
+                     start_chunk, end_chunk, output_states.mu_a,
+                     output_states.var_a, output_states.jcb, scale, shift);
     }
 
     this->input_size = input_states.actual_size;
@@ -1512,8 +1797,163 @@ void EvenExp::forward(BaseHiddenStates &input_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> EvenExp::to_cuda(int device_idx) {
+std::unique_ptr<BaseLayer> Exp::to_cuda(int device_idx) {
     this->device = "cuda";
-    return std::make_unique<EvenExpCuda>();
+    return std::make_unique<ExpCuda>(scale, shift);
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+/// AGVI (Approximate Gaussian Variance Inference)
+////////////////////////////////////////////////////////////////////////////////
+AGVI::AGVI(std::shared_ptr<BaseLayer> activation_layer, bool overfit_mu,
+           bool agvi)
+    : m_activation_layer(activation_layer),
+      m_overfit_mu(overfit_mu),
+      m_agvi(agvi) {
+    if (!m_activation_layer ||
+        m_activation_layer->get_layer_type() != LayerType::Activation) {
+        std::cerr << "Error: AGVI layer must be initialized with a valid "
+                     "activation layer."
+                  << std::endl;
+        m_activation_layer = std::make_shared<ReLU>();
+    }
+}
+
+AGVI::~AGVI() {}
+
+std::string AGVI::get_layer_info() const {
+    return "AGVI(" + m_activation_layer->get_layer_name() + ")";
+}
+
+std::string AGVI::get_layer_name() const { return "AGVI"; }
+
+LayerType AGVI::get_layer_type() const { return LayerType::AGVI; }
+
+void AGVI::forward(BaseHiddenStates &input_states,
+                   BaseHiddenStates &output_states,
+                   BaseTempStates &temp_states) {
+    // The AGVI layer's logic is a wrapper for another activation function.
+    // 1. Take odd-indexed positions from the input.
+    // 2. Pass them through the inner activation function.
+    // 3. Take the output mean of the inner activation and add it to the
+    //    variance of the corresponding even-indexed position of the input.
+    // 4. The output of the AGVI layer is only the even-indexed positions.
+
+    int total_elements = input_states.actual_size * input_states.block_size;
+    int odd_count = total_elements / 2;
+    int even_count = total_elements / 2;
+
+    // The output size is halved as we only propagate the even stream.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size / 2;
+    output_states.size = input_states.size;
+
+    // Prepare temporary vectors for odd positions
+    std::vector<float> odd_mu, odd_var, odd_jcb;
+    odd_mu.reserve(odd_count);
+    odd_var.reserve(odd_count);
+    odd_jcb.reserve(odd_count);
+
+    // Copy odd-indexed elements to a temporary state
+    for (int i = 0; i < total_elements; ++i) {
+        if (i % 2 != 0) {  // Check for odd positions
+            odd_mu.push_back(input_states.mu_a[i]);
+            odd_var.push_back(input_states.var_a[i]);
+            odd_jcb.push_back(input_states.jcb[i]);
+        }
+    }
+
+    // Create temporary BaseHiddenStates for the inner activation layer
+    BaseHiddenStates odd_input_states;
+    odd_input_states.mu_a = std::move(odd_mu);
+    odd_input_states.var_a = std::move(odd_var);
+    odd_input_states.jcb = std::move(odd_jcb);
+    odd_input_states.actual_size = odd_count / input_states.block_size;
+    odd_input_states.block_size = input_states.block_size;
+
+    // Create temporary BaseHiddenStates for the output of the inner layer
+    BaseHiddenStates odd_output_states;
+    odd_output_states.mu_a.resize(odd_count);
+    odd_output_states.var_a.resize(odd_count);
+    odd_output_states.jcb.resize(odd_count);
+
+    // Call the forward pass of the inner activation layer on the odd positions
+    m_activation_layer->forward(odd_input_states, odd_output_states,
+                                temp_states);
+
+    // Store the output of the inner layer for use in the backward pass.
+    m_stored_inner_output_states = odd_output_states;
+
+    int even_pos_idx = 0;
+    for (int i = 0; i < total_elements; ++i) {
+        if (i % 2 == 0) {  // Check for even positions
+            output_states.mu_a[even_pos_idx] = input_states.mu_a[i];
+            output_states.jcb[even_pos_idx] = input_states.jcb[i];
+            // The output variance is the input variance
+            // + the mean of the corresponding odd position
+            if (m_agvi) {
+                output_states.var_a[even_pos_idx] =
+                    input_states.var_a[i] +
+                    m_stored_inner_output_states.mu_a[even_pos_idx];
+            } else {
+                output_states.var_a[even_pos_idx] = input_states.var_a[i];
+            }
+            even_pos_idx++;
+        }
+    }
+
+    // Store states for backward pass
+    m_stored_output_states = output_states;
+    m_stored_input_states = input_states;
+
+    // Update layer input and output sizes
+    this->input_size = input_states.actual_size;
+    this->output_size = output_states.actual_size;
+}
+
+void AGVI::backward(BaseDeltaStates &input_delta_states,
+                    BaseDeltaStates &output_delta_states,
+                    BaseTempStates &temp_states, bool state_update) {
+    int total_output_size = this->output_size * input_delta_states.block_size;
+
+    // Decide whether to use multiprocessing
+    if (this->num_threads > 1) {
+        agvi_backward_mp(total_output_size, this->num_threads,
+                         input_delta_states, output_delta_states,
+                         m_stored_output_states, m_stored_inner_output_states,
+                         m_stored_input_states, m_overfit_mu);
+    } else {
+        agvi_backward_chunk(0, total_output_size, input_delta_states,
+                            output_delta_states, m_stored_output_states,
+                            m_stored_inner_output_states, m_stored_input_states,
+                            m_overfit_mu);
+    }
+
+    // Remove the stored states after the backward pass is complete to free
+    // memory.
+    m_stored_inner_output_states.mu_a.clear();
+    m_stored_inner_output_states.var_a.clear();
+    m_stored_inner_output_states.jcb.clear();
+    m_stored_output_states.mu_a.clear();
+    m_stored_output_states.var_a.clear();
+    m_stored_output_states.jcb.clear();
+    m_stored_input_states.mu_a.clear();
+    m_stored_input_states.var_a.clear();
+    m_stored_input_states.jcb.clear();
+
+    // The output deltas now have the same full size as the original input to
+    // this layer.
+    output_delta_states.actual_size = this->input_size;
+    output_delta_states.block_size = input_delta_states.block_size;
+    output_delta_states.size = input_delta_states.size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> AGVI::to_cuda(int device_idx) {
+    this->device = "cuda";
+    auto cuda_inner_layer = m_activation_layer->to_cuda(device_idx);
+    return std::make_unique<AGVICuda>(std::move(cuda_inner_layer), m_overfit_mu,
+                                      m_agvi);
 }
 #endif

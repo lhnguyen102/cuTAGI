@@ -152,24 +152,6 @@ void bind_softmax(pybind11::module_& modo)
         .def("to_cuda", &Softmax::to_cuda);
 }
 
-void bind_even_exp(pybind11::module_& modo)
-/*
- */
-{
-    pybind11::class_<EvenExp, std::shared_ptr<EvenExp>, BaseLayer>(modo,
-                                                                   "EvenExp")
-        .def(pybind11::init<>())
-        .def("get_layer_info", &EvenExp::get_layer_info)
-        .def("get_layer_name", &EvenExp::get_layer_name)
-        .def("get_layer_type", &EvenExp::get_layer_type)
-        .def("forward", &EvenExp::forward)
-        .def("update_weights", &EvenExp::update_weights)
-        .def("update_biases", &EvenExp::update_biases)
-        .def("load", &EvenExp::load)
-        .def("save", &EvenExp::save)
-        .def("to_cuda", &EvenExp::to_cuda);
-}
-
 void bind_remax(pybind11::module_& modo)
 /*
  */
@@ -196,4 +178,70 @@ void bind_closed_form_softmax(pybind11::module_& modo)
         .def("get_layer_info", &ClosedFormSoftmax::get_layer_info)
         .def("get_layer_name", &ClosedFormSoftmax::get_layer_name)
         .def("forward", &ClosedFormSoftmax::forward);
+}
+
+void bind_split_activation(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<SplitActivation, std::shared_ptr<SplitActivation>,
+                     BaseLayer>(modo, "SplitActivation")
+        // Bind the new constructor
+        .def(pybind11::init<std::shared_ptr<BaseLayer>,
+                            std::shared_ptr<BaseLayer>>(),
+             "Initializes the SplitActivation layer.",
+             pybind11::arg("odd_layer"),
+             pybind11::arg("even_layer") =
+                 nullptr)  // Define named, optional argument
+
+        // The rest of the functions are bound as before
+        .def("get_layer_info", &SplitActivation::get_layer_info)
+        .def("get_layer_name", &SplitActivation::get_layer_name)
+        .def("get_layer_type", &SplitActivation::get_layer_type)
+        .def("forward", &SplitActivation::forward)
+        .def("update_weights", &SplitActivation::update_weights)
+        .def("update_biases", &SplitActivation::update_biases)
+        .def("load", &SplitActivation::load)
+        .def("save", &SplitActivation::save)
+        .def("to_cuda", &SplitActivation::to_cuda);
+}
+
+void bind_exp(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<Exp, std::shared_ptr<Exp>, BaseLayer>(modo, "Exp")
+        .def(pybind11::init<float, float>(), pybind11::arg("scale") = 1.0f,
+             pybind11::arg("shift") = 0.0f)
+        .def("get_layer_info", &Exp::get_layer_info)
+        .def("get_layer_name", &Exp::get_layer_name)
+        .def("get_layer_type", &Exp::get_layer_type)
+        .def("forward", &Exp::forward)
+        .def("update_weights", &Exp::update_weights)
+        .def("update_biases", &Exp::update_biases)
+        .def("load", &Exp::load)
+        .def("save", &Exp::save)
+        .def("to_cuda", &Exp::to_cuda);
+}
+
+void bind_agvi(pybind11::module_& modo) {
+    pybind11::class_<AGVI, std::shared_ptr<AGVI>, BaseLayer>(modo, "AGVI")
+        .def(pybind11::init<std::shared_ptr<BaseLayer>, bool, bool>(),
+             pybind11::arg("activation_layer"),
+             pybind11::arg_v(
+                 "overfit_mu", true,
+                 "If true, use a different Jacobian for the mean delta"),
+             pybind11::arg_v("agvi", true,
+                             "If true, use the AGVI learned noise model"))
+
+        .def("get_layer_info", &AGVI::get_layer_info)
+        .def("get_layer_name", &AGVI::get_layer_name)
+        .def("get_layer_type", &AGVI::get_layer_type)
+        .def("forward", &AGVI::forward)
+        .def("backward", &AGVI::backward)
+        .def("update_weights", &AGVI::update_weights)
+        .def("update_biases", &AGVI::update_biases)
+        .def("load", &AGVI::load)
+        .def("save", &AGVI::save)
+        .def("to_cuda", &AGVI::to_cuda);
 }

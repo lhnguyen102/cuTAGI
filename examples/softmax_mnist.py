@@ -14,10 +14,12 @@ from tqdm import tqdm
 
 import pytagi
 from pytagi.nn import (
+    AGVI,
     AvgPool2d,
     BatchNorm2d,
     ClosedFormSoftmax,
     Conv2d,
+    Exp,
     LayerNorm,
     Linear,
     MaxPool2d,
@@ -69,8 +71,9 @@ CNN = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 128),
     ReLU(),
-    Linear(128, 10),
-    ClosedFormSoftmax(),
+    Linear(128, 20),
+    AGVI(Exp(), overfit_mu=True),
+    # ClosedFormSoftmax(),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -95,7 +98,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
+def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """

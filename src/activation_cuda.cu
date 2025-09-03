@@ -117,6 +117,22 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
         jcb[col] = (1.0f - tmp_2);
         var_a[col] = (1.0f - tmp_2) * var_z[col] * (1.0f - tmp_2);
     }
+
+    // printf("mean_var_cuda: mu_z[%d]=%f, var_z[%d]=%f\n", col, mu_z[col],
+    //            col, var_z[col]);
+
+    //     float delta = 20.0f;
+    //     float sign = (mu_z[col] >= 0.0f) ? 1.0f : -1.0f;
+
+    //     if (std::abs(mu_z[col]) > delta) {
+    //         mu_a[col] = sign * delta;
+    //         jcb[col] = 0.0f;
+    //         var_a[col] = 0.0f;
+    //     } else {
+    //         mu_a[col] = mu_z[col];
+    //         var_a[col] = var_z[col];
+    //         jcb[col] = 1.0f;
+    //     }
 }
 
 __device__ float normcdf_cuda(float x)
@@ -314,28 +330,6 @@ __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
     }
 }
 
-__global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
-                                       float const *jcb_z, int num_states,
-                                       float *mu_a, float *var_a, float *jcb_a)
-/*
- */
-{
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (col < num_states) {
-        if (col % 2 == 0) {
-            mu_a[col] = mu_z[col];
-            var_a[col] = var_z[col];
-            jcb_a[col] = jcb_z[col];
-        } else {
-            mu_a[col] = expf(mu_z[col] + 0.5f * var_z[col]);
-            var_a[col] =
-                expf(2.0f * mu_z[col] + var_z[col]) * (expf(var_z[col]) - 1.0f);
-            jcb_a[col] = var_z[col] * mu_a[col];
-        }
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Remax kernels
 ////////////////////////////////////////////////////////////////////////////////
@@ -477,6 +471,190 @@ __global__ void compute_cov_a_z_cuda_v2(float const *mu_a, float const *var_a,
                 cdfn[row * hidden_size + col] / var_m[row * hidden_size + col]);
 
         cov_a_z[row * hidden_size + col] /= var_z[row * hidden_size + col];
+    }
+}
+
+__global__ void split_stream_kernel(const float *d_in_mu, const float *d_in_var,
+                                    const float *d_in_jcb, int half_size,
+                                    float *d_even_mu, float *d_even_var,
+                                    float *d_even_jcb, float *d_odd_mu,
+                                    float *d_odd_var, float *d_odd_jcb) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < half_size) {
+        // Handle even index
+        int even_idx = 2 * i;
+        d_even_mu[i] = d_in_mu[even_idx];
+        d_even_var[i] = d_in_var[even_idx];
+        d_even_jcb[i] = d_in_jcb[even_idx];
+
+        // Handle odd index
+        int odd_idx = 2 * i + 1;
+        d_odd_mu[i] = d_in_mu[odd_idx];
+        d_odd_var[i] = d_in_var[odd_idx];
+        d_odd_jcb[i] = d_in_jcb[odd_idx];
+    }
+}
+
+__global__ void merge_stream_kernel(
+    const float *d_even_mu, const float *d_even_var, const float *d_even_jcb,
+    const float *d_odd_mu, const float *d_odd_var, const float *d_odd_jcb,
+    int half_size, float *d_out_mu, float *d_out_var, float *d_out_jcb) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < half_size) {
+        // Handle even index
+        int even_idx = 2 * i;
+        d_out_mu[even_idx] = d_even_mu[i];
+        d_out_var[even_idx] = d_even_var[i];
+        d_out_jcb[even_idx] = d_even_jcb[i];
+
+        // Handle odd index
+        int odd_idx = 2 * i + 1;
+        d_out_mu[odd_idx] = d_odd_mu[i];
+        d_out_var[odd_idx] = d_odd_var[i];
+        d_out_jcb[odd_idx] = d_odd_jcb[i];
+    }
+}
+
+__global__ void exp_mean_var_cuda(float const *mu_z, float const *var_z,
+                                  float const *jcb_z, int num_states,
+                                  float *mu_a, float *var_a, float *jcb_a,
+                                  float scale, float shift)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (col < num_states) {
+        float new_var_z = var_z[col] * (scale * scale);
+        // Calculate the new mean of the input z, and constrain it
+        float new_mu_z = mu_z[col] * scale + shift;
+
+        // Calculate the output mean using the constrained new_mu_z
+        mu_a[col] = expf(new_mu_z + 0.5f * new_var_z);
+
+        // Calculate the output variance using the constrained new_mu_z
+        var_a[col] =
+            expf(2.0f * new_mu_z + new_var_z) * (expf(new_var_z) - 1.0f);
+
+        // Calculate the Jacobian based on the constrained new_mu_z
+        jcb_a[col] = mu_a[col] * scale;
+    }
+}
+
+__global__ void agvi_extract_odd_stream_kernel(
+    const float *d_input_mu, const float *d_input_var, const float *d_input_jcb,
+    int half_size, float *d_odd_mu, float *d_odd_var, float *d_odd_jcb) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < half_size) {
+        int input_idx = 2 * i + 1;
+        d_odd_mu[i] = d_input_mu[input_idx];
+        d_odd_var[i] = d_input_var[input_idx];
+        d_odd_jcb[i] = d_input_jcb[input_idx];
+    }
+}
+
+__global__ void agvi_forward_combine_kernel(
+    const float *d_input_mu, const float *d_input_var, const float *d_input_jcb,
+    const float *d_inner_output_mu, int half_size, float *d_output_mu,
+    float *d_output_var, float *d_output_jcb, bool agvi) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < half_size) {
+        int even_input_idx = 2 * i;
+        d_output_mu[i] = d_input_mu[even_input_idx];
+        d_output_jcb[i] = d_input_jcb[even_input_idx];
+        if (agvi)
+            d_output_var[i] =
+                d_input_var[even_input_idx] + d_inner_output_mu[i];
+        else
+            d_output_var[i] = d_input_var[even_input_idx];
+    }
+}
+
+__global__ void agvi_backward_kernel(
+    const float *d_incoming_delta_mu, const float *d_incoming_delta_var,
+    const float *d_stored_output_mu_a, const float *d_stored_output_var_a,
+    const float *d_stored_inner_mu_a, const float *d_stored_inner_var_a,
+    const float *d_stored_inner_jcb, const float *d_stored_input_var_a,
+    int half_size, float *d_output_delta_mu, float *d_output_delta_var,
+    bool overfit_mu) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    const float epsilon = 1e-12f;
+
+    if (i < half_size) {
+        float mu_a = d_stored_output_mu_a[i];
+        float var_a = fmaxf(d_stored_output_var_a[i], epsilon);
+
+        float mu_v2_bar_tilde = d_stored_inner_mu_a[i];
+        float var_v2_bar_tilde = d_stored_inner_var_a[i];
+        float jcb_v2_bar_tilde = d_stored_inner_jcb[i];
+
+        float incoming_delta_mu = d_incoming_delta_mu[i];
+        float incoming_delta_var = d_incoming_delta_var[i];
+
+        float var_z = d_stored_input_var_a[i * 2];
+
+        float delta_a_mu = incoming_delta_mu * var_a;
+        float delta_a_var = incoming_delta_var * var_a * var_a;
+
+        float mu_v2 = mu_v2_bar_tilde;
+        float var_v2 =
+            3.0f * var_v2_bar_tilde + 2.0f * mu_v2_bar_tilde * mu_v2_bar_tilde;
+
+        float Jv = mu_v2_bar_tilde / fmaxf(var_a, epsilon);
+
+        float mu_v_pos = Jv * delta_a_mu;
+        float var_v_pos = mu_v2_bar_tilde + Jv * Jv * delta_a_var;
+
+        float mu_v2_pos = mu_v_pos * mu_v_pos + var_v_pos;
+        float var_v2_pos = 2.0f * var_v_pos * var_v_pos +
+                           4.0f * var_v_pos * mu_v_pos * mu_v_pos;
+
+        float Jv2_bar_tilde = var_v2_bar_tilde / fmaxf(var_v2, epsilon);
+        float mu_v2_bar_tilde_pos =
+            mu_v2_bar_tilde + Jv2_bar_tilde * (mu_v2_pos - mu_v2);
+        float var_v2_bar_tilde_pos =
+            var_v2_bar_tilde +
+            Jv2_bar_tilde * Jv2_bar_tilde * (var_v2_pos - var_v2);
+
+        int even_idx = 2 * i;
+        int odd_idx = 2 * i + 1;
+
+        float Jv2_bar = jcb_v2_bar_tilde / fmaxf(var_v2_bar_tilde, epsilon);
+
+        float odd_delta_mu = Jv2_bar * (mu_v2_bar_tilde_pos - mu_v2_bar_tilde);
+        float odd_delta_var =
+            Jv2_bar * Jv2_bar * (var_v2_bar_tilde_pos - var_v2_bar_tilde);
+
+        if (isnan(odd_delta_mu) || isinf(odd_delta_mu) ||
+            isnan(odd_delta_var) || isinf(odd_delta_var)) {
+            odd_delta_mu = 0.0f;
+            odd_delta_var = 0.0f;
+        }
+
+        d_output_delta_mu[odd_idx] = odd_delta_mu;
+        d_output_delta_var[odd_idx] = odd_delta_var;
+
+        float Jz = 1.0f / (var_a);
+        float Jz_mu;
+        if (overfit_mu) {
+            Jz_mu = 1.0f / (var_z);
+        } else {
+            Jz_mu = Jz;
+        }
+
+        float even_delta_mu = Jz_mu * delta_a_mu;
+        float even_delta_var = Jz * Jz * delta_a_var;
+
+        // Check and handle potential NaN or Inf values for even stream deltas.
+        if (isnan(even_delta_mu) || isinf(even_delta_mu) ||
+            isnan(even_delta_var) || isinf(even_delta_var)) {
+            even_delta_mu = 0.0f;
+            even_delta_var = 0.0f;
+        }
+
+        d_output_delta_mu[even_idx] = even_delta_mu;
+        d_output_delta_var[even_idx] = even_delta_var;
     }
 }
 
@@ -910,6 +1088,69 @@ std::unique_ptr<BaseLayer> MixtureTanhCuda::to_host()
 
     return host_layer;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// CELU + alpha
+////////////////////////////////////////////////////////////////////////////////
+
+// // Configuration constants
+//     constexpr float EPS = 1e-9;        // floor for variance
+//     constexpr float MIN_TAIL = 1e-20;  // clamp for tail
+//     constexpr float SQRT_2PI = 2.5066282746310002;
+//     constexpr float INV_SQRT2 = 0.7071067811865475;
+//     constexpr float ALPHA = 0.2;  // slope of negative part
+
+//     // inside your kernel, per-element:
+//     float mz = mu_z[col];
+//     float varz = var_z[col];
+
+//     mz = mz / 1.0f - 0.0f;        // Scale and shift the mean
+//     varz = varz / (1.0f * 1.0f);  // Scale the variance
+
+//     // 1) std-dev and standardize
+//     float sz = sqrt(varz);
+//     float z = mz / sz;
+
+//     // 2) shift amount
+//     float a = sz / ALPHA;
+//     float z_a = z + a;
+//     float z_2a = z + 2.0 * a;
+
+//     // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
+//     float phi_z = exp(-0.5 * z * z) / SQRT_2PI;
+
+//     float tail_z = 0.5 * erfc(z * INV_SQRT2);
+//     float tail_za = 0.5 * erfc(z_a * INV_SQRT2);
+//     float tail_z2a = 0.5 * erfc(z_2a * INV_SQRT2);
+
+//     // 4) analytic ratios instead of φ(z)/φ(z+k·a)
+//     float exp_a = exp(a * z + 0.5 * (a * a));
+//     float exp_2a = exp(2 * a * z + 0.5 * (2 * a) * (2 * a));
+
+//     // 5) Mean E[CELU(z)]
+//     float mean_d =
+//         mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
+
+//     // 6) Second moment E[CELU(z)²]
+//     float E2 = mz * mz + mz * sz * phi_z + varz -
+//                2.0 * ALPHA * ALPHA * tail_za * exp_a +
+//                ALPHA * ALPHA * tail_z2a * exp_2a +
+//                (ALPHA * ALPHA - mz * mz - varz) * tail_z;
+
+//     // 7) Variance = E2 – mean², with floor
+//     float var_d = E2 - mean_d * mean_d;
+
+//     // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
+//     float cov_d = varz * ((1.0 - tail_z) + tail_za * exp_a);
+
+//     // 9) Jacobian in [0,1]
+//     float jcb_d = cov_d / varz;
+//     // jcb_d = fmin(fmax(jcb_d, 0.0), 1.0);
+
+//     // 10) Store back (cast to float, clamp mean+α > 0)
+//     mu_a[col] = fmax(mean_d + ALPHA, 0.000001f);
+//     var_a[col] = fmaxf(var_d, 0.000001f);
+//     jcb[col] = jcb_d / 1.0f;  // Scale back the jacobian
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
@@ -1637,35 +1878,184 @@ void ClosedFormSoftmaxCuda::data_to_device() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// EvenExp
+/// SplitActivationCuda
 ////////////////////////////////////////////////////////////////////////////////
-EvenExpCuda::EvenExpCuda() {}
-EvenExpCuda::~EvenExpCuda() {}
 
-std::string EvenExpCuda::get_layer_info() const
+SplitActivationCuda::SplitActivationCuda(std::unique_ptr<BaseLayer> odd_layer,
+                                         std::unique_ptr<BaseLayer> even_layer)
+    : odd_layer(std::move(odd_layer)), even_layer(std::move(even_layer)) {}
+
+SplitActivationCuda::~SplitActivationCuda() {}
+
+std::string SplitActivationCuda::get_layer_info() const {
+    std::string even_layer_name = "Identity";
+    if (even_layer) {
+        even_layer_name = even_layer->get_layer_name();
+    }
+    return "SplitActivationCuda(odd=" + odd_layer->get_layer_name() +
+           ", even=" + even_layer_name + ")";
+}
+
+std::string SplitActivationCuda::get_layer_name() const {
+    return "SplitActivationCuda";
+}
+
+LayerType SplitActivationCuda::get_layer_type() const {
+    return LayerType::Activation;
+}
+
+std::unique_ptr<BaseLayer> SplitActivationCuda::to_host() {
+    auto *odd_cuda_layer = dynamic_cast<BaseLayerCuda *>(odd_layer.get());
+    auto host_odd_layer = odd_cuda_layer->to_host();
+
+    std::shared_ptr<BaseLayer> host_even_layer = nullptr;
+    if (even_layer) {
+        auto *even_cuda_layer = dynamic_cast<BaseLayerCuda *>(even_layer.get());
+        host_even_layer = even_cuda_layer->to_host();
+    }
+
+    return std::make_unique<SplitActivation>(std::move(host_odd_layer),
+                                             std::move(host_even_layer));
+}
+
+void SplitActivationCuda::forward(BaseHiddenStates &input_states,
+                                  BaseHiddenStates &output_states,
+                                  BaseTempStates &temp_states) {
+    // 1. Cast states to CUDA-specific types
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    // 2. Calculate sizes
+    int total_elements =
+        cu_input_states->actual_size * cu_input_states->block_size;
+    int half_size = total_elements / 2;
+
+    // 3. Prepare temporary states for split streams
+    HiddenStateCuda odd_input_states, even_input_states;
+    cudaMalloc(&odd_input_states.d_mu_a, half_size * sizeof(float));
+    cudaMalloc(&odd_input_states.d_var_a, half_size * sizeof(float));
+    cudaMalloc(&odd_input_states.d_jcb, half_size * sizeof(float));
+    cudaMalloc(&even_input_states.d_mu_a, half_size * sizeof(float));
+    cudaMalloc(&even_input_states.d_var_a, half_size * sizeof(float));
+    cudaMalloc(&even_input_states.d_jcb, half_size * sizeof(float));
+
+    odd_input_states.block_size = cu_input_states->block_size;
+    odd_input_states.actual_size = half_size / cu_input_states->block_size;
+    even_input_states.block_size = cu_input_states->block_size;
+    even_input_states.actual_size = half_size / cu_input_states->block_size;
+
+    // 4. Launch kernel to split the input stream
+    unsigned int threads = 256;
+    unsigned int blocks = (half_size + threads - 1) / threads;
+    split_stream_kernel<<<blocks, threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
+        cu_input_states->d_jcb, half_size, even_input_states.d_mu_a,
+        even_input_states.d_var_a, even_input_states.d_jcb,
+        odd_input_states.d_mu_a, odd_input_states.d_var_a,
+        odd_input_states.d_jcb);
+
+    // 5. Process the streams
+    HiddenStateCuda odd_output_states, even_output_states;
+    // odd_output_states.allocate(half_size);
+    // even_output_states.allocate(half_size);
+    cudaMalloc(&odd_output_states.d_mu_a, half_size * sizeof(float));
+    cudaMalloc(&odd_output_states.d_var_a, half_size * sizeof(float));
+    cudaMalloc(&odd_output_states.d_jcb, half_size * sizeof(float));
+    cudaMalloc(&even_output_states.d_mu_a, half_size * sizeof(float));
+    cudaMalloc(&even_output_states.d_var_a, half_size * sizeof(float));
+    cudaMalloc(&even_output_states.d_jcb, half_size * sizeof(float));
+
+    // Process odd stream (mandatory)
+    odd_layer->forward(odd_input_states, odd_output_states, temp_states);
+
+    // Process even stream (optional)
+    if (even_layer) {
+        even_layer->forward(even_input_states, even_output_states, temp_states);
+    } else {
+        // Identity: Copy even input directly to even output
+        cudaMemcpy(even_output_states.d_mu_a, even_input_states.d_mu_a,
+                   half_size * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(even_output_states.d_var_a, even_input_states.d_var_a,
+                   half_size * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(even_output_states.d_jcb, even_input_states.d_jcb,
+                   half_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
+
+    // 6. Launch kernel to merge the processed streams
+    merge_stream_kernel<<<blocks, threads>>>(
+        even_output_states.d_mu_a, even_output_states.d_var_a,
+        even_output_states.d_jcb, odd_output_states.d_mu_a,
+        odd_output_states.d_var_a, odd_output_states.d_jcb, half_size,
+        cu_output_states->d_mu_a, cu_output_states->d_var_a,
+        cu_output_states->d_jcb);
+
+    // 7. Update output state metadata
+    cu_output_states->actual_size = cu_input_states->actual_size;
+    cu_output_states->block_size = cu_input_states->block_size;
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
+
+    // 8. Free temporary device memory
+    cudaFree(odd_input_states.d_mu_a);
+    cudaFree(odd_input_states.d_var_a);
+    cudaFree(odd_input_states.d_jcb);
+    cudaFree(even_input_states.d_mu_a);
+    cudaFree(even_input_states.d_var_a);
+    cudaFree(even_input_states.d_jcb);
+    cudaFree(odd_output_states.d_mu_a);
+    cudaFree(odd_output_states.d_var_a);
+    cudaFree(odd_output_states.d_jcb);
+    cudaFree(even_output_states.d_mu_a);
+    cudaFree(even_output_states.d_var_a);
+    cudaFree(even_output_states.d_jcb);
+    odd_input_states.d_mu_a = nullptr;
+    odd_input_states.d_var_a = nullptr;
+    odd_input_states.d_jcb = nullptr;
+    even_input_states.d_mu_a = nullptr;
+    even_input_states.d_var_a = nullptr;
+    even_input_states.d_jcb = nullptr;
+    odd_output_states.d_mu_a = nullptr;
+    odd_output_states.d_var_a = nullptr;
+    odd_output_states.d_jcb = nullptr;
+    even_output_states.d_mu_a = nullptr;
+    even_output_states.d_var_a = nullptr;
+    even_output_states.d_jcb = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Exp
+////////////////////////////////////////////////////////////////////////////////
+ExpCuda::ExpCuda(float scale, float shift) : scale(scale), shift(shift) {}
+ExpCuda::~ExpCuda() {}
+
+std::string ExpCuda::get_layer_info() const
 /*
  */
 {
-    return "EvenExp()";
+    return "Exp()";
 }
 
-std::string EvenExpCuda::get_layer_name() const
+std::string ExpCuda::get_layer_name() const
 /*
  */
 {
-    return "EvenExpCuda";
+    return "ExpCuda";
 }
 
-LayerType EvenExpCuda::get_layer_type() const
+LayerType ExpCuda::get_layer_type() const
 /*
  */
 {
     return LayerType::Activation;
 }
 
-void EvenExpCuda::forward(BaseHiddenStates &input_states,
-                          BaseHiddenStates &output_states,
-                          BaseTempStates &temp_states)
+void ExpCuda::forward(BaseHiddenStates &input_states,
+                      BaseHiddenStates &output_states,
+                      BaseTempStates &temp_states)
 /*
  */
 {
@@ -1686,10 +2076,10 @@ void EvenExpCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
 
-    even_exp_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+    exp_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a,
         cu_input_states->d_jcb, num_states, cu_output_states->d_mu_a,
-        cu_output_states->d_var_a, cu_output_states->d_jcb);
+        cu_output_states->d_var_a, cu_output_states->d_jcb, scale, shift);
 
     if (this->input_size != input_states.actual_size) {
         this->input_size = input_states.actual_size;
@@ -1701,13 +2091,160 @@ void EvenExpCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->actual_size = cu_input_states->actual_size;
 }
 
-std::unique_ptr<BaseLayer> EvenExpCuda::to_host()
+std::unique_ptr<BaseLayer> ExpCuda::to_host()
 /* Transfer to cpu version
  */
 {
-    std::unique_ptr<BaseLayer> host_layer = std::make_unique<EvenExp>();
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<Exp>(scale, shift);
     host_layer->input_size = this->input_size;
     host_layer->output_size = this->output_size;
 
     return host_layer;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// AGVICuda
+////////////////////////////////////////////////////////////////////////////////
+
+AGVICuda::AGVICuda(std::unique_ptr<BaseLayer> activation_layer, bool overfit_mu,
+                   bool agvi)
+    : m_activation_layer(std::move(activation_layer)),
+      m_overfit_mu(overfit_mu),
+      m_agvi(agvi) {}
+
+AGVICuda::~AGVICuda() {}
+
+std::string AGVICuda::get_layer_info() const {
+    return "AGVICuda(" + m_activation_layer->get_layer_name() + ")";
+}
+
+std::string AGVICuda::get_layer_name() const { return "AGVICuda"; }
+
+LayerType AGVICuda::get_layer_type() const { return LayerType::AGVI; }
+
+std::unique_ptr<BaseLayer> AGVICuda::to_host() {
+    auto *cuda_layer = dynamic_cast<BaseLayerCuda *>(m_activation_layer.get());
+    if (!cuda_layer) {
+        throw std::runtime_error(
+            "AGVICuda::to_host(): Failed to cast inner layer to "
+            "BaseLayerCuda.");
+    }
+    auto host_inner_layer = cuda_layer->to_host();
+    return std::make_unique<AGVI>(std::move(host_inner_layer), m_overfit_mu,
+                                  m_agvi);
+}
+
+void AGVICuda::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states) {
+    // Cast to CUDA-specific types
+    auto *cu_input_states = dynamic_cast<HiddenStateCuda *>(&input_states);
+    auto *cu_output_states = dynamic_cast<HiddenStateCuda *>(&output_states);
+
+    // Calculate sizes
+    int total_elements =
+        cu_input_states->actual_size * cu_input_states->block_size;
+    int half_size = total_elements / 2;
+
+    // Set output dimensions
+    cu_output_states->actual_size = cu_input_states->actual_size / 2;
+    cu_output_states->block_size = cu_input_states->block_size;
+    this->input_size = cu_input_states->actual_size;
+    this->output_size = cu_output_states->actual_size;
+
+    // 1. Prepare states for the inner activation layer (odd stream)
+    HiddenStateCuda odd_input_states;
+    odd_input_states.block_size = cu_input_states->block_size;
+    odd_input_states.actual_size = cu_input_states->actual_size / 2;
+
+    // Allocate memory for odd input states
+    {
+        size_t size = odd_input_states.block_size *
+                      odd_input_states.actual_size * sizeof(float);
+        cudaMalloc(&odd_input_states.d_mu_a, size);
+        cudaMalloc(&odd_input_states.d_var_a, size);
+        cudaMalloc(&odd_input_states.d_jcb, size);
+    }
+
+    // 2. Launch kernel to extract the odd-indexed elements from the input
+    unsigned int threads = 256;
+    unsigned int blocks = (half_size + threads - 1) / threads;
+    agvi_extract_odd_stream_kernel<<<blocks, threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
+        cu_input_states->d_jcb, half_size, odd_input_states.d_mu_a,
+        odd_input_states.d_var_a, odd_input_states.d_jcb);
+
+    // 3. Allocate memory for the inner activation output and call its forward
+    // pass
+    m_stored_inner_output_states.block_size = odd_input_states.block_size;
+    m_stored_inner_output_states.actual_size = odd_input_states.actual_size;
+
+    // Allocate memory for the inner activation output states
+    {
+        size_t size = m_stored_inner_output_states.block_size *
+                      m_stored_inner_output_states.actual_size * sizeof(float);
+        cudaMalloc(&m_stored_inner_output_states.d_mu_a, size);
+        cudaMalloc(&m_stored_inner_output_states.d_var_a, size);
+        cudaMalloc(&m_stored_inner_output_states.d_jcb, size);
+    }
+
+    // Forward the inner activation layer
+    m_activation_layer->forward(odd_input_states, m_stored_inner_output_states,
+                                temp_states);
+
+    // 4. Launch kernel to combine the even stream and inner activation output
+    agvi_forward_combine_kernel<<<blocks, threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a,
+        cu_input_states->d_jcb, m_stored_inner_output_states.d_mu_a, half_size,
+        cu_output_states->d_mu_a, cu_output_states->d_var_a,
+        cu_output_states->d_jcb, m_agvi);
+
+    // 5. Store pointers for the backward pass
+    d_stored_input_var_a = cu_input_states->d_var_a;
+    d_stored_output_mu_a = cu_output_states->d_mu_a;
+    d_stored_output_var_a = cu_output_states->d_var_a;
+
+    // Deallocate the odd input states memory
+    cudaFree(odd_input_states.d_mu_a);
+    cudaFree(odd_input_states.d_var_a);
+    cudaFree(odd_input_states.d_jcb);
+    odd_input_states.d_mu_a = nullptr;
+    odd_input_states.d_var_a = nullptr;
+    odd_input_states.d_jcb = nullptr;
+}
+
+void AGVICuda::backward(BaseDeltaStates &input_delta_states,
+                        BaseDeltaStates &output_delta_states,
+                        BaseTempStates &temp_states, bool state_update) {
+    auto *cu_input_delta = dynamic_cast<DeltaStateCuda *>(&input_delta_states);
+    auto *cu_output_delta =
+        dynamic_cast<DeltaStateCuda *>(&output_delta_states);
+
+    int half_size = this->output_size * cu_input_delta->block_size;
+
+    unsigned int threads = 256;
+    unsigned int blocks = (half_size + threads - 1) / threads;
+    agvi_backward_kernel<<<blocks, threads>>>(
+        cu_input_delta->d_delta_mu, cu_input_delta->d_delta_var,
+        d_stored_output_mu_a, d_stored_output_var_a,
+        m_stored_inner_output_states.d_mu_a,
+        m_stored_inner_output_states.d_var_a,
+        m_stored_inner_output_states.d_jcb, d_stored_input_var_a, half_size,
+        cu_output_delta->d_delta_mu, cu_output_delta->d_delta_var,
+        m_overfit_mu);  // Pass the flag here
+
+    cu_output_delta->actual_size = this->input_size;
+    cu_output_delta->block_size = cu_input_delta->block_size;
+
+    // Free memory used for storing inner states.
+    // The other d_stored_* pointers are just views and don't own memory.
+    cudaFree(m_stored_inner_output_states.d_mu_a);
+    cudaFree(m_stored_inner_output_states.d_var_a);
+    cudaFree(m_stored_inner_output_states.d_jcb);
+    m_stored_inner_output_states.d_mu_a = nullptr;
+    m_stored_inner_output_states.d_var_a = nullptr;
+    m_stored_inner_output_states.d_jcb = nullptr;
+    d_stored_input_var_a = nullptr;
+    d_stored_output_mu_a = nullptr;
+    d_stored_output_var_a = nullptr;
 }

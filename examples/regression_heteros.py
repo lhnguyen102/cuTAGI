@@ -7,12 +7,23 @@ import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from examples.time_series_forecasting import PredictionViz
 from pytagi import Normalizer
-from pytagi.nn import EvenExp, Linear, OutputUpdater, ReLU, Sequential
+from pytagi.nn import (
+    AGVI,
+    Exp,
+    Linear,
+    MixtureReLU,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+    Softplus,
+    SplitActivation,
+    Tanh,
+)
 
 np.random.seed(0)
 
 
-def main(num_epochs: int = 50, batch_size: int = 10):
+def main(num_epochs: int = 20, batch_size: int = 10):
     """Run training for the regression"""
     # Dataset
     x_train_file = "./data/toy_example/x_train_noise.csv"
@@ -39,7 +50,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
 
     pytagi.manual_seed(0)
 
-    print(pytagi.is_cuda_available())
+    print(pytagi.cuda.is_available())
 
     net = Sequential(
         Linear(1, 128),
@@ -47,7 +58,8 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         Linear(128, 128),
         ReLU(),
         Linear(128, 2),
-        EvenExp(),
+        AGVI(Exp(), overfit_mu=True),
+        # SplitActivation(Exp())
     )
     if cuda:
         net.to_device("cuda")
@@ -64,12 +76,14 @@ def main(num_epochs: int = 50, batch_size: int = 10):
 
         for x, y in batch_iter:
             # Feed forward
-            m_pred, _ = net(x)
+            m_pred, v_pred = net(x)
+            # m_pred = m_pred[::2]
 
             # Update output layer
-            out_updater.update_heteros(
+            out_updater.update(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
+                var_obs=np.zeros_like(y),
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -82,9 +96,6 @@ def main(num_epochs: int = 50, batch_size: int = 10):
                 m_pred, train_dtl.y_mean, train_dtl.y_std
             )
             obs = Normalizer.unstandardize(y, train_dtl.y_mean, train_dtl.y_std)
-
-            # Even positions correspond to Z_out
-            pred = pred[::2]
 
             mse = metric.mse(pred, obs)
             mses.append(mse)
@@ -107,10 +118,10 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         # Predicion
         m_pred, v_pred = net(x)
 
-        # Even positions correspond to Z_out and odd positions to V
-        var_preds.extend(v_pred[::2] + m_pred[1::2])
-
-        mu_preds.extend(m_pred[::2])
+        # var_preds.extend(m_pred[1::2] + v_pred[::2])
+        # mu_preds.extend(m_pred[::2])
+        var_preds.extend(v_pred)
+        mu_preds.extend(m_pred)
 
         x_test.extend(x)
         y_test.extend(y)
@@ -153,6 +164,7 @@ def main(num_epochs: int = 50, batch_size: int = 10):
         label="heteros",
         title="Heteroscedastic Regression",
         time_series=False,
+        save_folder="./saved_results",
     )
 
     print("#############")

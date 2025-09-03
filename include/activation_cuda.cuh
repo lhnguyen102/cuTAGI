@@ -53,9 +53,38 @@ __global__ void softmax_mean_var_cuda(float const *mu_z, float *var_z,
                                       size_t output_size, int batch_size,
                                       float *mu_a, float *jcb, float *var_a);
 
-__global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
-                                       float const *jcb_z, int num_states,
-                                       float *mu_a, float *var_a, float *jcb_a);
+__global__ void exp_mean_var_cuda(float const *mu_z, float const *var_z,
+                                  float const *jcb_z, int num_states,
+                                  float *mu_a, float *var_a, float *jcb_a,
+                                  float scale, float shift);
+
+__global__ void split_stream_kernel(const float *d_in_mu, const float *d_in_var,
+                                    const float *d_in_jcb, int half_size,
+                                    float *d_even_mu, float *d_even_var,
+                                    float *d_even_jcb, float *d_odd_mu,
+                                    float *d_odd_var, float *d_odd_jcb);
+
+__global__ void merge_stream_kernel(
+    const float *d_even_mu, const float *d_even_var, const float *d_even_jcb,
+    const float *d_odd_mu, const float *d_odd_var, const float *d_odd_jcb,
+    int half_size, float *d_out_mu, float *d_out_var, float *d_out_jcb);
+
+__global__ void agvi_extract_odd_stream_kernel(
+    const float *d_input_mu, const float *d_input_var, const float *d_input_jcb,
+    int half_size, float *d_odd_mu, float *d_odd_var, float *d_odd_jcb);
+
+__global__ void agvi_forward_combine_kernel(
+    const float *d_input_mu, const float *d_input_var, const float *d_input_jcb,
+    const float *d_inner_output_mu, int half_size, float *d_output_mu,
+    float *d_output_var, float *d_output_jcb, bool agvi);
+
+__global__ void agvi_backward_kernel(
+    const float *d_incoming_delta_mu, const float *d_incoming_delta_var,
+    const float *d_stored_output_mu_a, const float *d_stored_output_var_a,
+    const float *d_stored_inner_mu_a, const float *d_stored_inner_var_a,
+    const float *d_stored_inner_jcb, const float *d_stored_input_var_a,
+    int half_size, float *d_output_delta_mu, float *d_output_delta_var,
+    bool overfit_mu);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
@@ -554,21 +583,62 @@ class ClosedFormSoftmaxCuda : public BaseLayerCuda {
     void deallocate_memory();
 };
 
-class EvenExpCuda : public BaseLayerCuda {
+////////////////////////////////////////////////////////////////////////////////
+/// SplitActivationCuda
+////////////////////////////////////////////////////////////////////////////////
+class SplitActivationCuda : public BaseLayerCuda {
    public:
-    EvenExpCuda();
-    ~EvenExpCuda();
+    SplitActivationCuda(std::unique_ptr<BaseLayer> odd_layer,
+                        std::unique_ptr<BaseLayer> even_layer = nullptr);
+    ~SplitActivationCuda();
+
+    // Delete copy constructor and copy assignment
+    SplitActivationCuda(const SplitActivationCuda &) = delete;
+    SplitActivationCuda &operator=(const SplitActivationCuda &) = delete;
+
+    // Default move constructor and move assignment
+    SplitActivationCuda(SplitActivationCuda &&) = default;
+    SplitActivationCuda &operator=(SplitActivationCuda &&) = default;
+
+    std::string get_layer_info() const override;
+    std::string get_layer_name() const override;
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+    // Methods that do nothing for this layer type
+    void allocate_param_delta() override {};
+    void update_weights() override {};
+    void update_biases() override {};
+    void save(std::ofstream &file) override {};
+    void load(std::ifstream &file) override {};
+
+   private:
+    std::unique_ptr<BaseLayer> odd_layer;
+    std::unique_ptr<BaseLayer> even_layer;
+};
+
+class ExpCuda : public BaseLayerCuda {
+   public:
+    ExpCuda(float scale = 1.0f, float shift = 0.0f);
+    ~ExpCuda();
 
     unsigned int num_cuda_threads = 16;
 
     // Delete copy constructor and copy assignment
-    EvenExpCuda(const EvenExpCuda &) = delete;
-    EvenExpCuda &operator=(const EvenExpCuda &) = delete;
+    ExpCuda(const ExpCuda &) = delete;
+    ExpCuda &operator=(const ExpCuda &) = delete;
 
     // Optionally implement move constructor and move assignment. This is
     // required for bwd_states
-    EvenExpCuda(EvenExpCuda &&) = default;
-    EvenExpCuda &operator=(EvenExpCuda &&) = default;
+    ExpCuda(ExpCuda &&) = default;
+    ExpCuda &operator=(ExpCuda &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -591,4 +661,72 @@ class EvenExpCuda : public BaseLayerCuda {
     void load(std::ifstream &file) override {};
 
     std::unique_ptr<BaseLayer> to_host() override;
+
+    float scale;
+    float shift;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// AGVI Cuda
+////////////////////////////////////////////////////////////////////////////////
+class AGVICuda : public BaseLayerCuda {
+   public:
+    /**
+     * @brief Construct a new AGVICuda object.
+     *
+     * @param activation_layer A unique_ptr to a CUDA-enabled activation layer
+     * that this AGVI layer will wrap. The AGVICuda
+     * instance takes ownership of this pointer.
+     * @param overfit_mu If true, uses a different Kalman gain for the mean
+     * delta to encourage overfitting.
+     * @param agvi If true, uses the AGVI learned noise model. Defaults to true.
+     */
+    explicit AGVICuda(std::unique_ptr<BaseLayer> activation_layer,
+                      bool overfit_mu = true, bool agvi = true);
+    ~AGVICuda();
+
+    // Standard move semantics are enabled.
+    AGVICuda(AGVICuda &&) = default;
+    AGVICuda &operator=(AGVICuda &&) = default;
+
+    // Copy semantics are disabled to prevent duplicate ownership of resources.
+    AGVICuda(const AGVICuda &) = delete;
+    AGVICuda &operator=(const AGVICuda &) = delete;
+
+    // Overridden BaseLayer methods
+    std::string get_layer_info() const override;
+    std::string get_layer_name() const override;
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_update = true) override;
+
+    std::unique_ptr<BaseLayer> to_host() override;
+
+    // Methods that do nothing for this layer type
+    void allocate_param_delta() override {};
+    void update_weights() override {};
+    void update_biases() override {};
+    void save(std::ofstream &file) override {};
+    void load(std::ifstream &file) override {};
+
+   private:
+    std::unique_ptr<BaseLayer> m_activation_layer;
+    bool m_overfit_mu;
+    bool m_agvi;
+
+    // Stored states for backward pass. These are raw pointers to device memory.
+    const float *d_stored_input_var_a = nullptr;
+    const float *d_stored_output_mu_a = nullptr;
+    const float *d_stored_output_var_a = nullptr;
+
+    // The full state object for the inner activation's output is stored
+    // to manage its device memory.
+    HiddenStateCuda m_stored_inner_output_states;
 };
