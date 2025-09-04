@@ -482,10 +482,9 @@ void exp_mean_var(std::vector<float> const &mu_z,
         float new_mu = mu_z[i] * scale + shift;
         float new_var = var_z[i] * scale * scale;
 
-        mu_a[i] = std::min(expf(new_mu + 0.5 * new_var), 1e-12f);
-        var_a[i] =
-            std::min(expf(2 * new_mu + new_var) * (expf(new_var) - 1), 1e-12f);
-        jcb_a[i] = std::min(mu_a[i] * scale, 1e-12f);
+        mu_a[i] = expf(new_mu + 0.5 * new_var);
+        var_a[i] = expf(2 * new_mu + new_var) * (expf(new_var) - 1);
+        jcb_a[i] = mu_a[i] * scale;
     }
 }
 

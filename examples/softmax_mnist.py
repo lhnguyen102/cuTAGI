@@ -29,6 +29,7 @@ from pytagi.nn import (
     Remax,
     Sequential,
     Softmax,
+    SplitActivation,
 )
 
 FNN = Sequential(
@@ -36,8 +37,10 @@ FNN = Sequential(
     ReLU(),
     Linear(128, 128),
     ReLU(),
-    Linear(128, 10),
-    Remax(),
+    Linear(128, 20),
+    # AGVI(Exp(), overfit_mu=True),
+    SplitActivation(Exp()),
+    # Remax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -123,7 +126,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
     )
 
     # Initialize network
-    net = CNN
+    net = FNN
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
@@ -144,12 +147,13 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
 
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            m_pred = m_pred[::2]
 
             # Update output layers
-            out_updater.update(
+            out_updater.update_heteros(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                var_obs=var_y,
+                # var_obs=var_y,
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -176,6 +180,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
         for data, target in test_loader:
             x = data.numpy().flatten()
             m_pred, v_pred = net(x)
+            m_pred = m_pred[::2]
 
             # Calculate test error
             pred = np.reshape(m_pred, (batch_size, 10))
