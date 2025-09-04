@@ -1,5 +1,6 @@
 from pytagi.nn.activation import (
     AGVI,
+    CELU,
     ClosedFormSoftmax,
     Exp,
     LeakyReLU,

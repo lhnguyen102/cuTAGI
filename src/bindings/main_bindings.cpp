@@ -14,6 +14,7 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_mixture_relu(modo);
     bind_mixture_sigmoid(modo);
     bind_mixture_tanh(modo);
+    bind_celu(modo);
     bind_softplus(modo);
     bind_leakyrelu(modo);
     bind_softmax(modo);

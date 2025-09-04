@@ -339,6 +339,62 @@ void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
     }
 }
 
+void celu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                   int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                   std::vector<float> &jcb, std::vector<float> &var_a)
+/*
+ */
+{
+    constexpr float SQRT_2PI = 2.5066282746310002f;
+    constexpr float INV_SQRT2 = 0.7071067811865475f;
+    constexpr float ALPHA = 0.2f;  // slope of negative part
+
+    for (int i = start_chunk; i < end_chunk; i++) {
+        float mz = mu_z[i];
+        float varz = var_z[i];
+
+        // 1) std-dev and standardize
+        float sz = sqrtf(varz);
+        float z = mz / sz;
+
+        // 2) shift amount
+        float a = sz / ALPHA;
+        float z_a = z + a;
+        float z_2a = z + 2.0f * a;
+
+        // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
+        float phi_z = expf(-0.5f * z * z) / SQRT_2PI;
+
+        float tail_z = 0.5f * erfcf(z * INV_SQRT2);
+        float tail_za = 0.5f * erfcf(z_a * INV_SQRT2);
+        float tail_z2a = 0.5f * erfcf(z_2a * INV_SQRT2);
+
+        // 4) analytic ratios instead of φ(z)/φ(z+k·a)
+        float exp_a = expf(a * z + 0.5f * (a * a));
+        float exp_2a = expf(2.0f * a * z + 0.5f * (2.0f * a) * (2.0f * a));
+
+        // 5) Mean E[CELU(z)]
+        float mean_d =
+            mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
+
+        // 6) Second moment E[CELU(z)²]
+        float E2 = mz * mz + mz * sz * phi_z + varz -
+                   2.0f * ALPHA * ALPHA * tail_za * exp_a +
+                   ALPHA * ALPHA * tail_z2a * exp_2a +
+                   (ALPHA * ALPHA - mz * mz - varz) * tail_z;
+
+        // 7) Variance = E2 – mean², with floor
+        float var_d = E2 - mean_d * mean_d;
+
+        // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
+        float cov_d = varz * ((1.0f - tail_z) + tail_za * exp_a);
+
+        // 9) Jacobian in [0,1]
+        float jcb_d = cov_d / varz;
+        jcb[i] = jcb_d;
+    }
+}
+
 void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                        int start_chunk, int end_chunk, std::vector<float> &mu_a,
                        std::vector<float> &jcb, std::vector<float> &var_a)
@@ -990,6 +1046,61 @@ void MixtureTanh::forward(BaseHiddenStates &input_states,
 std::unique_ptr<BaseLayer> MixtureTanh::to_cuda(int device_idx) {
     this->device = "cuda";
     return std::make_unique<MixtureTanhCuda>();
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+/// CELU
+////////////////////////////////////////////////////////////////////////////////
+CELU::CELU() {};
+CELU::~CELU() {};
+
+std::string CELU::get_layer_info() const
+/*
+ */
+{
+    return "CELU()";
+}
+
+std::string CELU::get_layer_name() const
+/*
+ */
+
+{
+    return "CELU";
+}
+
+LayerType CELU::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
+
+void CELU::forward(BaseHiddenStates &input_states,
+                   BaseHiddenStates &output_states, BaseTempStates &temp_states)
+/*
+ */
+{
+    // TODO: replace this function by the multiprocessing one
+    int start_chunk = 0;
+    int end_chunk = input_states.actual_size * input_states.block_size;
+    celu_mean_var(input_states.mu_a, input_states.var_a, start_chunk, end_chunk,
+                  output_states.mu_a, output_states.jcb, output_states.var_a);
+
+    // Save activation mean and jacobian to the class member for backward pass
+    this->input_size = input_states.actual_size;
+    this->output_size = input_states.actual_size;
+
+    // Update number of actual states.
+    output_states.block_size = input_states.block_size;
+    output_states.actual_size = input_states.actual_size;
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> CELU::to_cuda(int device_idx) {
+    this->device = "cuda";
+    return std::make_unique<CELUCuda>();
 }
 #endif
 

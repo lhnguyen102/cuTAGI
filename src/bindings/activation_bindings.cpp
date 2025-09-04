@@ -101,6 +101,22 @@ void bind_mixture_tanh(pybind11::module_& modo)
         .def("to_cuda", &MixtureTanh::to_cuda);
 }
 
+void bind_celu(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<CELU, std::shared_ptr<CELU>, BaseLayer>(modo, "CELU")
+        .def(pybind11::init<>())
+        .def("get_layer_info", &CELU::get_layer_info)
+        .def("get_layer_name", &CELU::get_layer_name)
+        .def("forward", &CELU::forward)
+        .def("update_weights", &CELU::update_weights)
+        .def("update_biases", &CELU::update_biases)
+        .def("load", &CELU::load)
+        .def("save", &CELU::save)
+        .def("to_cuda", &CELU::to_cuda);
+}
+
 void bind_softplus(pybind11::module_& modo)
 /*
  */

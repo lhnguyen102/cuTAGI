@@ -17,6 +17,8 @@ void bind_mixture_sigmoid(pybind11::module_& modo);
 
 void bind_mixture_tanh(pybind11::module_& modo);
 
+void bind_celu(pybind11::module_& modo);
+
 void bind_softplus(pybind11::module_& modo);
 
 void bind_leakyrelu(pybind11::module_& modo);

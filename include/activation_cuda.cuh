@@ -41,6 +41,10 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
                                            float *mu_a, float *jcb,
                                            float *var_a);
 
+__global__ void celu_mean_var_cuda(float const *mu_z, float const *var_z,
+                                   int num_states, float *mu_a, float *jcb,
+                                   float *var_a);
+
 __global__ void softplus_mean_var_cuda(float const *mu_z, float const *var_z,
                                        int num_states, float *mu_a, float *jcb,
                                        float *var_a);
@@ -298,6 +302,45 @@ class MixtureTanhCuda : public BaseLayerCuda {
     // required for bwd_states
     MixtureTanhCuda(MixtureTanhCuda &&) = default;
     MixtureTanhCuda &operator=(MixtureTanhCuda &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+    std::unique_ptr<BaseLayer> to_host() override;
+};
+
+class CELUCuda : public BaseLayerCuda {
+   public:
+    CELUCuda();
+    ~CELUCuda();
+
+    // Delete copy constructor and copy assignment
+    CELUCuda(const CELUCuda &) = delete;
+    CELUCuda &operator=(const CELUCuda &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    CELUCuda(CELUCuda &&) = default;
+    CELUCuda &operator=(CELUCuda &&) = default;
 
     std::string get_layer_info() const override;
 

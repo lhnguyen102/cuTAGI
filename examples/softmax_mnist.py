@@ -15,6 +15,7 @@ from tqdm import tqdm
 import pytagi
 from pytagi.nn import (
     AGVI,
+    CELU,
     AvgPool2d,
     BatchNorm2d,
     ClosedFormSoftmax,
@@ -38,9 +39,9 @@ FNN = Sequential(
     Linear(128, 128),
     ReLU(),
     Linear(128, 20),
-    # AGVI(Exp(), overfit_mu=True),
-    SplitActivation(Exp()),
-    # Remax(),
+    AGVI(CELU(), overfit_mu=False),
+    # SplitActivation(Exp()),
+    Remax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -90,8 +91,10 @@ CNN_BATCHNORM = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     ReLU(),
-    Linear(100, 10),
+    Linear(100, 20),
+    AGVI(Exp(), overfit_mu=False),
     Remax(),
+    # SplitActivation(Exp(), Remax()),
 )
 
 
@@ -101,7 +104,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
+def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.0):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
@@ -147,13 +150,16 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
 
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
-            m_pred = m_pred[::2]
+            # v_pred = m_pred[1::2] + v_pred[::2]
+            # m_pred = m_pred[::2]
+            print("m_pred: ", m_pred)
+            print("v_pred: ", v_pred)
 
             # Update output layers
-            out_updater.update_heteros(
+            out_updater.update(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                # var_obs=var_y,
+                var_obs=var_y,
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -180,7 +186,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.00):
         for data, target in test_loader:
             x = data.numpy().flatten()
             m_pred, v_pred = net(x)
-            m_pred = m_pred[::2]
+            # m_pred = m_pred[::2]
 
             # Calculate test error
             pred = np.reshape(m_pred, (batch_size, 10))

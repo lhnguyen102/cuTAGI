@@ -81,6 +81,19 @@ class MixtureTanh(BaseLayer):
         return self._cpp_backend.get_layer_name()
 
 
+class CELU(BaseLayer):
+    """CELU"""
+
+    def __init__(self):
+        self._cpp_backend = cutagi.CELU()
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+
 class Softplus(BaseLayer):
     """Softplus"""
 

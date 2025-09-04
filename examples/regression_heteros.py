@@ -58,8 +58,8 @@ def main(num_epochs: int = 20, batch_size: int = 10):
         Linear(128, 128),
         ReLU(),
         Linear(128, 2),
-        AGVI(Exp(), overfit_mu=True),
-        # SplitActivation(Exp())
+        # AGVI(Exp(), overfit_mu=True),
+        SplitActivation(Exp()),
     )
     if cuda:
         net.to_device("cuda")
@@ -77,13 +77,13 @@ def main(num_epochs: int = 20, batch_size: int = 10):
         for x, y in batch_iter:
             # Feed forward
             m_pred, v_pred = net(x)
-            # m_pred = m_pred[::2]
+            m_pred = m_pred[::2]
 
             # Update output layer
-            out_updater.update(
+            out_updater.update_heteros(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                var_obs=np.zeros_like(y),
+                # var_obs=np.zeros_like(y),
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -118,10 +118,10 @@ def main(num_epochs: int = 20, batch_size: int = 10):
         # Predicion
         m_pred, v_pred = net(x)
 
-        # var_preds.extend(m_pred[1::2] + v_pred[::2])
-        # mu_preds.extend(m_pred[::2])
-        var_preds.extend(v_pred)
-        mu_preds.extend(m_pred)
+        var_preds.extend(m_pred[1::2] + v_pred[::2])
+        mu_preds.extend(m_pred[::2])
+        # var_preds.extend(v_pred)
+        # mu_preds.extend(m_pred)
 
         x_test.extend(x)
         y_test.extend(y)

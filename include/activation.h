@@ -64,11 +64,9 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a);
 
-void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, int n,
-                              unsigned int num_threads,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
-                              std::vector<float> &var_a);
+void celu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                      int n, unsigned int num_threads, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a);
 
 void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                        int start_chunk, int end_chunk, std::vector<float> &mu_a,
@@ -357,6 +355,50 @@ class MixtureTanh : public BaseLayer {
     // required for bwd_states
     MixtureTanh(MixtureTanh &&) = default;
     MixtureTanh &operator=(MixtureTanh &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// CELU
+////////////////////////////////////////////////////////////////////////////////
+class CELU : public BaseLayer {
+   public:
+    CELU();
+    ~CELU();
+
+    // Delete copy constructor and copy assignment
+    CELU(const CELU &) = delete;
+    CELU &operator=(const CELU &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    CELU(CELU &&) = default;
+    CELU &operator=(CELU &&) = default;
 
     std::string get_layer_info() const override;
 

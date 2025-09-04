@@ -251,6 +251,69 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
     }
 }
 
+__global__ void celu_mean_var_cuda(float const *mu_z, float const *var_z,
+                                   int num_states, float *mu_a, float *jcb,
+                                   float *var_a)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    constexpr float SQRT_2PI = 2.5066282746310002;
+    constexpr float INV_SQRT2 = 0.7071067811865475;
+    constexpr float ALPHA = 0.2;  // slope of negative part
+
+    if (col < num_states) {
+        // inside your kernel, per-element:
+        float mz = mu_z[col];
+        float varz = var_z[col];
+
+        // 1) std-dev and standardize
+        float sz = sqrt(varz);
+        float z = mz / sz;
+
+        // 2) shift amount
+        float a = sz / ALPHA;
+        float z_a = z + a;
+        float z_2a = z + 2.0 * a;
+
+        // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
+        float phi_z = exp(-0.5 * z * z) / SQRT_2PI;
+
+        float tail_z = 0.5 * erfc(z * INV_SQRT2);
+        float tail_za = 0.5 * erfc(z_a * INV_SQRT2);
+        float tail_z2a = 0.5 * erfc(z_2a * INV_SQRT2);
+
+        // 4) analytic ratios instead of φ(z)/φ(z+k·a)
+        float exp_a = exp(a * z + 0.5 * (a * a));
+        float exp_2a = exp(2 * a * z + 0.5 * (2 * a) * (2 * a));
+
+        // 5) Mean E[CELU(z)]
+        float mean_d =
+            mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
+
+        // 6) Second moment E[CELU(z)²]
+        float E2 = mz * mz + mz * sz * phi_z + varz -
+                   2.0 * ALPHA * ALPHA * tail_za * exp_a +
+                   ALPHA * ALPHA * tail_z2a * exp_2a +
+                   (ALPHA * ALPHA - mz * mz - varz) * tail_z;
+
+        // 7) Variance = E2 – mean², with floor
+        float var_d = E2 - mean_d * mean_d;
+
+        // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
+        float cov_d = varz * ((1.0 - tail_z) + tail_za * exp_a);
+
+        // 9) Jacobian in [0,1]
+        float jcb_d = cov_d / varz;
+        // jcb_d = fmin(fmax(jcb_d, 0.0), 1.0);
+
+        // 10) Store back (cast to float, clamp mean+α > 0)
+        mu_a[col] = fmax(mean_d + ALPHA, 0.000001f);
+        var_a[col] = fmaxf(var_d, 0.000001f);
+        jcb[col] = jcb_d;
+    }
+}
+
 __global__ void softplus_mean_var_cuda(float const *mu_z, float const *var_z,
                                        int num_states, float *mu_a, float *jcb,
                                        float *var_a)
@@ -530,11 +593,12 @@ __global__ void exp_mean_var_cuda(float const *mu_z, float const *var_z,
         float new_mu_z = mu_z[col] * scale + shift;
 
         // Calculate the output mean using the constrained new_mu_z
-        mu_a[col] = expf(new_mu_z + 0.5f * new_var_z);
+        mu_a[col] = fmaxf(expf(new_mu_z + 0.5f * new_var_z), 0.0000001f);
 
         // Calculate the output variance using the constrained new_mu_z
         var_a[col] =
-            expf(2.0f * new_mu_z + new_var_z) * (expf(new_var_z) - 1.0f);
+            fmaxf(expf(2.0f * new_mu_z + new_var_z) * (expf(new_var_z) - 1.0f),
+                  0.0000001f);
 
         // Calculate the Jacobian based on the constrained new_mu_z
         jcb_a[col] = mu_a[col] * scale;
@@ -1093,64 +1157,73 @@ std::unique_ptr<BaseLayer> MixtureTanhCuda::to_host()
 // CELU + alpha
 ////////////////////////////////////////////////////////////////////////////////
 
-// // Configuration constants
-//     constexpr float EPS = 1e-9;        // floor for variance
-//     constexpr float MIN_TAIL = 1e-20;  // clamp for tail
-//     constexpr float SQRT_2PI = 2.5066282746310002;
-//     constexpr float INV_SQRT2 = 0.7071067811865475;
-//     constexpr float ALPHA = 0.2;  // slope of negative part
+CELUCuda::CELUCuda() {}
+CELUCuda ::~CELUCuda() {}
 
-//     // inside your kernel, per-element:
-//     float mz = mu_z[col];
-//     float varz = var_z[col];
+std::string CELUCuda::get_layer_info() const
+/*
+ */
+{
+    return "CELU()";
+}
 
-//     mz = mz / 1.0f - 0.0f;        // Scale and shift the mean
-//     varz = varz / (1.0f * 1.0f);  // Scale the variance
+std::string CELUCuda::get_layer_name() const
+/*
+ */
+{
+    return "CELUCuda";
+}
 
-//     // 1) std-dev and standardize
-//     float sz = sqrt(varz);
-//     float z = mz / sz;
+LayerType CELUCuda::get_layer_type() const
+/*
+ */
+{
+    return LayerType::Activation;
+}
 
-//     // 2) shift amount
-//     float a = sz / ALPHA;
-//     float z_a = z + a;
-//     float z_2a = z + 2.0 * a;
+void CELUCuda::forward(BaseHiddenStates &input_states,
+                       BaseHiddenStates &output_states,
+                       BaseTempStates &temp_states)
+/*
+ */
+{
+    // New poitner will point to the same memory location when casting
+    HiddenStateCuda *cu_input_states =
+        dynamic_cast<HiddenStateCuda *>(&input_states);
+    HiddenStateCuda *cu_output_states =
+        dynamic_cast<HiddenStateCuda *>(&output_states);
+    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
+    // *>(&temp_states);
 
-//     // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
-//     float phi_z = exp(-0.5 * z * z) / SQRT_2PI;
+    int num_states = input_states.actual_size * input_states.block_size;
+    unsigned int blocks =
+        (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
 
-//     float tail_z = 0.5 * erfc(z * INV_SQRT2);
-//     float tail_za = 0.5 * erfc(z_a * INV_SQRT2);
-//     float tail_z2a = 0.5 * erfc(z_2a * INV_SQRT2);
+    celu_mean_var_cuda<<<blocks, this->num_cuda_threads>>>(
+        cu_input_states->d_mu_a, cu_input_states->d_var_a, num_states,
+        cu_output_states->d_mu_a, cu_output_states->d_jcb,
+        cu_output_states->d_var_a);
 
-//     // 4) analytic ratios instead of φ(z)/φ(z+k·a)
-//     float exp_a = exp(a * z + 0.5 * (a * a));
-//     float exp_2a = exp(2 * a * z + 0.5 * (2 * a) * (2 * a));
+    if (this->input_size != input_states.actual_size) {
+        this->input_size = input_states.actual_size;
+        this->output_size = input_states.actual_size;
+    }
 
-//     // 5) Mean E[CELU(z)]
-//     float mean_d =
-//         mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
+    // Update number of actual states.
+    cu_output_states->block_size = cu_input_states->block_size;
+    cu_output_states->actual_size = cu_input_states->actual_size;
+}
 
-//     // 6) Second moment E[CELU(z)²]
-//     float E2 = mz * mz + mz * sz * phi_z + varz -
-//                2.0 * ALPHA * ALPHA * tail_za * exp_a +
-//                ALPHA * ALPHA * tail_z2a * exp_2a +
-//                (ALPHA * ALPHA - mz * mz - varz) * tail_z;
+std::unique_ptr<BaseLayer> CELUCuda::to_host()
+/* Transfer to cpu version
+ */
+{
+    std::unique_ptr<BaseLayer> host_layer = std::make_unique<CELU>();
+    host_layer->input_size = this->input_size;
+    host_layer->output_size = this->output_size;
 
-//     // 7) Variance = E2 – mean², with floor
-//     float var_d = E2 - mean_d * mean_d;
-
-//     // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
-//     float cov_d = varz * ((1.0 - tail_z) + tail_za * exp_a);
-
-//     // 9) Jacobian in [0,1]
-//     float jcb_d = cov_d / varz;
-//     // jcb_d = fmin(fmax(jcb_d, 0.0), 1.0);
-
-//     // 10) Store back (cast to float, clamp mean+α > 0)
-//     mu_a[col] = fmax(mean_d + ALPHA, 0.000001f);
-//     var_a[col] = fmaxf(var_d, 0.000001f);
-//     jcb[col] = jcb_d / 1.0f;  // Scale back the jacobian
+    return host_layer;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Softplus
