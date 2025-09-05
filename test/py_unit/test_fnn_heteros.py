@@ -8,7 +8,14 @@ import pytagi
 import pytagi.metric as metric
 from examples.data_loader import RegressionDataLoader
 from pytagi import Normalizer
-from pytagi.nn import EvenExp, Linear, OutputUpdater, ReLU, Sequential
+from pytagi.nn import (
+    Exp,
+    Linear,
+    OutputUpdater,
+    ReLU,
+    Sequential,
+    SplitActivation,
+)
 
 # path to binding code
 sys.path.append(
@@ -85,7 +92,7 @@ class SineSignalHeterosTest(unittest.TestCase):
             Linear(32, 32),
             ReLU(),
             Linear(32, 2),
-            EvenExp(),
+            SplitActivation(Exp()),
         )
         mse = heteros_test_runner(model)
         self.assertLess(
@@ -102,7 +109,7 @@ class SineSignalHeterosTest(unittest.TestCase):
             Linear(32, 32),
             ReLU(),
             Linear(32, 2),
-            EvenExp(),
+            SplitActivation(Exp()),
         )
         mse = heteros_test_runner(model, use_cuda=True)
         self.assertLess(

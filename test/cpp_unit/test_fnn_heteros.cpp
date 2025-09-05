@@ -146,7 +146,8 @@ class SineSignalHeterosTest : public ::testing::Test {
 };
 
 TEST_F(SineSignalHeterosTest, HeterosNoiseTest_CPU) {
-    Sequential model(Linear(13, 16), ReLU(), Linear(16, 2), EvenExp());
+    Sequential model(Linear(13, 16), ReLU(), Linear(16, 2),
+                     SplitActivation(std::make_shared<Exp>()));
     model.set_threads(2);
 
     float avg_error;
@@ -162,7 +163,8 @@ TEST_F(SineSignalHeterosTest, HeterosNoiseTest_CPU) {
 #ifdef USE_CUDA
 TEST_F(SineSignalHeterosTest, HeterosNoiseTest_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
-    Sequential model(Linear(13, 16), ReLU(), Linear(16, 2), EvenExp());
+    Sequential model(Linear(13, 16), ReLU(), Linear(16, 2),
+                     SplitActivation(std::make_shared<Exp>()));
     model.to_device("cuda");
 
     float avg_error;

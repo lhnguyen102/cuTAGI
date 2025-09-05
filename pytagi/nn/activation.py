@@ -81,6 +81,19 @@ class MixtureTanh(BaseLayer):
         return self._cpp_backend.get_layer_name()
 
 
+class CELU(BaseLayer):
+    """CELU"""
+
+    def __init__(self):
+        self._cpp_backend = cutagi.CELU()
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+
 class Softplus(BaseLayer):
     """Softplus"""
 
@@ -120,19 +133,6 @@ class Softmax(BaseLayer):
         return self._cpp_backend.get_layer_name()
 
 
-class EvenExp(BaseLayer):
-    """EvenExp"""
-
-    def __init__(self):
-        self._cpp_backend = cutagi.EvenExp()
-
-    def get_layer_info(self) -> str:
-        return self._cpp_backend.get_layer_info()
-
-    def get_layer_name(self) -> str:
-        return self._cpp_backend.get_layer_name()
-
-
 class Remax(BaseLayer):
     """Remax"""
 
@@ -151,6 +151,76 @@ class ClosedFormSoftmax(BaseLayer):
 
     def __init__(self):
         self._cpp_backend = cutagi.ClosedFormSoftmax()
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+
+class SplitActivation(BaseLayer):
+    """
+    Applies a specified activation to odd-indexed inputs and another
+    (or an identity function) to even-indexed inputs.
+
+    Args:
+        odd_layer (BaseLayer): The activation layer to apply to odd-indexed elements.
+        even_layer (BaseLayer, optional): The activation layer to apply to
+                                          even-indexed elements. Defaults to None,
+                                          which is an identity transformation.
+    """
+
+    def __init__(self, odd_layer: BaseLayer, even_layer: BaseLayer = None):
+        if even_layer is None:
+            # Call C++ constructor with one argument
+            self._cpp_backend = cutagi.SplitActivation(odd_layer._cpp_backend)
+        else:
+            # Call C++ constructor with two arguments
+            self._cpp_backend = cutagi.SplitActivation(
+                odd_layer._cpp_backend, even_layer._cpp_backend
+            )
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+
+class Exp(BaseLayer):
+    """Exp"""
+
+    def __init__(self, scale: float = 1.0, shift: float = 0.0):
+        self._cpp_backend = cutagi.Exp(scale, shift)
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+
+class AGVI(BaseLayer):
+    """AGVI (Approximate Gaussian Variance Inference)"""
+
+    def __init__(
+        self,
+        activation_layer: BaseLayer,
+        overfit_mu: bool = True,
+        agvi: bool = True,
+    ):
+        """
+        Initializes the AGVI layer.
+
+        Args:
+            activation_layer: The inner activation layer to be used.
+            overfit_mu: If true, uses a different Kalman gain for the mean delta
+                        to encourage the mean overfitting. Defaults to True.
+        """
+        self._cpp_backend = cutagi.AGVI(
+            activation_layer._cpp_backend, overfit_mu, agvi
+        )
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()

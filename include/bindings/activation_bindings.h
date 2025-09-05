@@ -17,14 +17,20 @@ void bind_mixture_sigmoid(pybind11::module_& modo);
 
 void bind_mixture_tanh(pybind11::module_& modo);
 
+void bind_celu(pybind11::module_& modo);
+
 void bind_softplus(pybind11::module_& modo);
 
 void bind_leakyrelu(pybind11::module_& modo);
 
 void bind_softmax(pybind11::module_& modo);
 
-void bind_even_exp(pybind11::module_& modo);
-
 void bind_remax(pybind11::module_& modo);
 
 void bind_closed_form_softmax(pybind11::module_& modo);
+
+void bind_split_activation(pybind11::module_& modo);
+
+void bind_exp(pybind11::module_& modo);
+
+void bind_agvi(pybind11::module_& modo);

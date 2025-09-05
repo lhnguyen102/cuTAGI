@@ -14,10 +14,13 @@ from tqdm import tqdm
 
 import pytagi
 from pytagi.nn import (
+    AGVI,
+    CELU,
     AvgPool2d,
     BatchNorm2d,
     ClosedFormSoftmax,
     Conv2d,
+    Exp,
     LayerNorm,
     Linear,
     MaxPool2d,
@@ -27,6 +30,7 @@ from pytagi.nn import (
     Remax,
     Sequential,
     Softmax,
+    SplitActivation,
 )
 
 FNN = Sequential(
@@ -34,7 +38,9 @@ FNN = Sequential(
     ReLU(),
     Linear(128, 128),
     ReLU(),
-    Linear(128, 10),
+    Linear(128, 20),
+    AGVI(CELU(), overfit_mu=False),
+    # SplitActivation(Exp(), Remax()),
     Remax(),
 )
 
@@ -69,8 +75,9 @@ CNN = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 128),
     ReLU(),
-    Linear(128, 10),
-    ClosedFormSoftmax(),
+    Linear(128, 20),
+    AGVI(Exp(), overfit_mu=True),
+    # ClosedFormSoftmax(),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -84,8 +91,10 @@ CNN_BATCHNORM = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     ReLU(),
-    Linear(100, 10),
+    Linear(100, 20),
+    AGVI(CELU(), overfit_mu=False),
     Remax(),
+    # SplitActivation(Exp(), Remax()),
 )
 
 
@@ -120,7 +129,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
     )
 
     # Initialize network
-    net = CNN
+    net = FNN
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
@@ -141,6 +150,10 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
 
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            # v_pred = m_pred[1::2] + v_pred[::2]
+            # m_pred = m_pred[::2]
+            # print("m_pred: ", m_pred)
+            # print("v_pred: ", v_pred)
 
             # Update output layers
             out_updater.update(
@@ -173,6 +186,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
         for data, target in test_loader:
             x = data.numpy().flatten()
             m_pred, v_pred = net(x)
+            # m_pred = m_pred[::2]
 
             # Calculate test error
             pred = np.reshape(m_pred, (batch_size, 10))
