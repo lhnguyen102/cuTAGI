@@ -135,14 +135,14 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.0):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    net = CNN_NET
+    # net = CNN_NET
     net = resnet18_cifar10(is_remax=True, gain_w=1.0, gain_b=1.0)
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 

@@ -40,7 +40,7 @@ FNN = Sequential(
     ReLU(),
     Linear(128, 20),
     AGVI(CELU(), overfit_mu=False),
-    # SplitActivation(Exp()),
+    # SplitActivation(Exp(), Remax()),
     Remax(),
 )
 
@@ -92,7 +92,7 @@ CNN_BATCHNORM = Sequential(
     Linear(32 * 4 * 4, 100),
     ReLU(),
     Linear(100, 20),
-    AGVI(Exp(), overfit_mu=False),
+    AGVI(CELU(), overfit_mu=False),
     Remax(),
     # SplitActivation(Exp(), Remax()),
 )
@@ -104,7 +104,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.0):
+def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
@@ -152,8 +152,8 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.0):
             m_pred, v_pred = net(x)
             # v_pred = m_pred[1::2] + v_pred[::2]
             # m_pred = m_pred[::2]
-            print("m_pred: ", m_pred)
-            print("v_pred: ", v_pred)
+            # print("m_pred: ", m_pred)
+            # print("v_pred: ", v_pred)
 
             # Update output layers
             out_updater.update(

@@ -264,8 +264,10 @@ __global__ void celu_mean_var_cuda(float const *mu_z, float const *var_z,
 
     if (col < num_states) {
         // inside your kernel, per-element:
-        float mz = mu_z[col];
-        float varz = var_z[col];
+        float scale = 1.0f;  // scale for input
+        float shift = 10.0f;
+        float mz = mu_z[col] * scale + shift;
+        float varz = var_z[col] * (scale * scale);
 
         // 1) std-dev and standardize
         float sz = sqrt(varz);
@@ -308,9 +310,9 @@ __global__ void celu_mean_var_cuda(float const *mu_z, float const *var_z,
         // jcb_d = fmin(fmax(jcb_d, 0.0), 1.0);
 
         // 10) Store back (cast to float, clamp mean+α > 0)
-        mu_a[col] = fmax(mean_d + ALPHA, 0.000001f);
-        var_a[col] = fmaxf(var_d, 0.000001f);
-        jcb[col] = jcb_d;
+        mu_a[col] = fmaxf(mean_d + ALPHA, 1e-4f);
+        var_a[col] = fmaxf(var_d, 1e-4f);
+        jcb[col] = jcb_d * scale;
     }
 }
 

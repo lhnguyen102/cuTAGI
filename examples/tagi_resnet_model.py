@@ -1,6 +1,8 @@
 import numpy as np
 
 from pytagi.nn import (
+    AGVI,
+    CELU,
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
@@ -131,7 +133,8 @@ def resnet18_cifar10(
     if is_remax:
         final_layers = [
             AvgPool2d(4),
-            Linear(512, 10, gain_weight=gain_w, gain_bias=gain_b),
+            Linear(512, 20, gain_weight=gain_w, gain_bias=gain_b),
+            AGVI(CELU(), overfit_mu=False),
             Remax(),
         ]
     else:
