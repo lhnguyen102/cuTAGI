@@ -99,7 +99,7 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
             delta_var[obs_col] = zero_pad;
         } else {
             float obs_diff = obs[col] - mu_a_col;
-            delta_mu[obs_col] = tmp_mu * obs_diff;
+            delta_mu[obs_col] = tmp_var * obs_diff;
             delta_var[obs_col] = -tmp_var * jcb_col;
         }
 

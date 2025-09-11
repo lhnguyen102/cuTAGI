@@ -121,8 +121,8 @@ void bind_softplus(pybind11::module_& modo)
 /*
  */
 {
-    pybind11::class_<Softplus, std::shared_ptr<Softplus>, BaseLayer>(
-        modo, "MixtureSoftplus")
+    pybind11::class_<Softplus, std::shared_ptr<Softplus>, BaseLayer>(modo,
+                                                                     "Softplus")
         .def(pybind11::init<>())
         .def("get_layer_info", &Softplus::get_layer_info)
         .def("get_layer_name", &Softplus::get_layer_name)

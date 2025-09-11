@@ -18,7 +18,6 @@ data/mnist/
 data/MNIST/
 data/traffic
 data/imagenet
-data/UCI_bench
 test_model/
 wandb/
 saved_results/param_viz

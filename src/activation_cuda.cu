@@ -117,22 +117,6 @@ __global__ void tanh_mean_var_cuda(float const *mu_z, float const *var_z,
         jcb[col] = (1.0f - tmp_2);
         var_a[col] = (1.0f - tmp_2) * var_z[col] * (1.0f - tmp_2);
     }
-
-    // printf("mean_var_cuda: mu_z[%d]=%f, var_z[%d]=%f\n", col, mu_z[col],
-    //            col, var_z[col]);
-
-    //     float delta = 20.0f;
-    //     float sign = (mu_z[col] >= 0.0f) ? 1.0f : -1.0f;
-
-    //     if (std::abs(mu_z[col]) > delta) {
-    //         mu_a[col] = sign * delta;
-    //         jcb[col] = 0.0f;
-    //         var_a[col] = 0.0f;
-    //     } else {
-    //         mu_a[col] = mu_z[col];
-    //         var_a[col] = var_z[col];
-    //         jcb[col] = 1.0f;
-    //     }
 }
 
 __device__ float normcdf_cuda(float x)
@@ -253,67 +237,95 @@ __global__ void mixture_tanh_mean_var_cuda(float const *mu_z,
 
 __global__ void celu_mean_var_cuda(float const *mu_z, float const *var_z,
                                    int num_states, float *mu_a, float *jcb,
-                                   float *var_a)
-/*
- */
-{
+                                   float *var_a) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    constexpr float SQRT_2PI = 2.5066282746310002;
-    constexpr float INV_SQRT2 = 0.7071067811865475;
-    constexpr float ALPHA = 0.2;  // slope of negative part
-
-    if (col < num_states) {
-        // inside your kernel, per-element:
-        float scale = 1.0f;  // scale for input
-        float shift = 10.0f;
-        float mz = mu_z[col] * scale + shift;
-        float varz = var_z[col] * (scale * scale);
-
-        // 1) std-dev and standardize
-        float sz = sqrt(varz);
-        float z = mz / sz;
-
-        // 2) shift amount
-        float a = sz / ALPHA;
-        float z_a = z + a;
-        float z_2a = z + 2.0 * a;
-
-        // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
-        float phi_z = exp(-0.5 * z * z) / SQRT_2PI;
-
-        float tail_z = 0.5 * erfc(z * INV_SQRT2);
-        float tail_za = 0.5 * erfc(z_a * INV_SQRT2);
-        float tail_z2a = 0.5 * erfc(z_2a * INV_SQRT2);
-
-        // 4) analytic ratios instead of φ(z)/φ(z+k·a)
-        float exp_a = exp(a * z + 0.5 * (a * a));
-        float exp_2a = exp(2 * a * z + 0.5 * (2 * a) * (2 * a));
-
-        // 5) Mean E[CELU(z)]
-        float mean_d =
-            mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
-
-        // 6) Second moment E[CELU(z)²]
-        float E2 = mz * mz + mz * sz * phi_z + varz -
-                   2.0 * ALPHA * ALPHA * tail_za * exp_a +
-                   ALPHA * ALPHA * tail_z2a * exp_2a +
-                   (ALPHA * ALPHA - mz * mz - varz) * tail_z;
-
-        // 7) Variance = E2 – mean², with floor
-        float var_d = E2 - mean_d * mean_d;
-
-        // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
-        float cov_d = varz * ((1.0 - tail_z) + tail_za * exp_a);
-
-        // 9) Jacobian in [0,1]
-        float jcb_d = cov_d / varz;
-        // jcb_d = fmin(fmax(jcb_d, 0.0), 1.0);
-
-        // 10) Store back (cast to float, clamp mean+α > 0)
-        mu_a[col] = fmaxf(mean_d + ALPHA, 1e-4f);
-        var_a[col] = fmaxf(var_d, 1e-4f);
-        jcb[col] = jcb_d * scale;
+    if (col >= num_states) {
+        return;
     }
+
+    // --- Constants ---
+    constexpr float SQRT_2PI = 2.5066282746310002f;
+    constexpr float INV_SQRT2 = 0.7071067811865475f;
+    constexpr float ALPHA = 0.1f;
+    constexpr float VAR_MIN = 1e-8f;  // Threshold for small variance
+    constexpr float OUT_MIN = 1e-7f;  // Floor for output mean and variance
+
+    // --- Inputs ---
+    float scale = 1.0f;
+    float shift = 0.0f;
+    float mz = mu_z[col] * scale + shift;
+    float varz = var_z[col] * (scale * scale);
+
+    // --- Path 1: Deterministic case for small variance ---
+    // Handles near-zero variance to avoid division by zero and catastrophic
+    // cancellation.
+    if (varz < VAR_MIN) {
+        float out_mean, out_var, out_jcb;
+        if (mz > 0.0f) {
+            out_mean = mz;
+            out_jcb = 1.0f;  // Derivative of CELU is 1 for x > 0
+            out_var = varz;  // Propagate variance with (derivative)^2
+        } else {
+            // Derivative of CELU is exp(x/ALPHA) for x <= 0
+            float exp_mz_div_alpha = expf(mz / ALPHA);
+            out_mean = ALPHA * (exp_mz_div_alpha - 1.0f);
+            out_jcb = exp_mz_div_alpha;
+            out_var = varz * out_jcb *
+                      out_jcb;  // Propagate variance via Taylor expansion
+        }
+
+        // Store back, applying final shift and floor
+        mu_a[col] = fmaxf(out_mean + ALPHA, OUT_MIN);
+        var_a[col] = fmaxf(out_var, OUT_MIN);
+        jcb[col] = out_jcb * scale;
+        return;
+    }
+
+    // --- Path 2: Full stochastic calculation for non-trivial variance ---
+
+    // 1) Standardize input
+    float sz = sqrtf(varz);
+    float z = mz / sz;  // Standardized mean
+
+    // 2) Pre-compute common Gaussian terms
+    float exp_m_half_z2 = expf(-0.5f * z * z);
+    float phi_z = exp_m_half_z2 / SQRT_2PI;  // Standard normal PDF: φ(z)
+
+    // 3) Stably compute CDF and tail probability
+    // tail_z = P[Z > z]
+    float tail_z = 0.5f * erfcf(z * INV_SQRT2);
+    // cdf_z = P[Z <= z] = 1 - tail_z. The below is more stable than 1.0 -
+    // tail_z
+    float cdf_z = 0.5f * erfcf(-z * INV_SQRT2);
+
+    // 4) Compute key exponential terms stably using erfcx
+    // The scaled complementary error function, erfcx(x) = exp(x^2)erfc(x),
+    // avoids overflow that occurs when multiplying a large exp() by a small
+    // erfc().
+    float a = sz / ALPHA;
+    float T1 = 0.5f * erfcxf((z + a) * INV_SQRT2) * exp_m_half_z2;
+    float T2 = 0.5f * erfcxf((z + 2.0f * a) * INV_SQRT2) * exp_m_half_z2;
+
+    // 5) Mean E[CELU(z)]
+    // Rearranged formula to be more explicit about positive and negative parts
+    float mean_d = mz * cdf_z + sz * phi_z + ALPHA * (T1 - tail_z);
+
+    // 6) Second moment E[CELU(z)²]
+    // Separated into E[max(0,Z)²] and terms from the negative part
+    float E2_pos = (mz * mz + varz) * cdf_z + mz * sz * phi_z;
+    float E2_neg = ALPHA * ALPHA * (T2 - 2.0f * T1 + tail_z);
+    float E2 = E2_pos + E2_neg;
+
+    // 7) Variance = E[X²] – E[X]²
+    float var_d = E2 - mean_d * mean_d;
+
+    // 8) Jacobian term (proportional to Cov[z, CELU(z)])
+    float jcb_d = cdf_z + T1;
+
+    // 9) Store back, applying final shift and floor
+    mu_a[col] = fmaxf(mean_d + ALPHA, OUT_MIN);
+    var_a[col] = fmaxf(var_d, OUT_MIN);
+    jcb[col] = jcb_d * scale;
 }
 
 __global__ void softplus_mean_var_cuda(float const *mu_z, float const *var_z,
@@ -595,12 +607,12 @@ __global__ void exp_mean_var_cuda(float const *mu_z, float const *var_z,
         float new_mu_z = mu_z[col] * scale + shift;
 
         // Calculate the output mean using the constrained new_mu_z
-        mu_a[col] = fmaxf(expf(new_mu_z + 0.5f * new_var_z), 0.0000001f);
+        mu_a[col] = fmaxf(expf(new_mu_z + 0.5f * new_var_z), 0.0001f);
 
         // Calculate the output variance using the constrained new_mu_z
         var_a[col] =
             fmaxf(expf(2.0f * new_mu_z + new_var_z) * (expf(new_var_z) - 1.0f),
-                  0.0000001f);
+                  0.0001f);
 
         // Calculate the Jacobian based on the constrained new_mu_z
         jcb_a[col] = mu_a[col] * scale;
@@ -633,6 +645,11 @@ __global__ void agvi_forward_combine_kernel(
                 d_input_var[even_input_idx] + d_inner_output_mu[i];
         else
             d_output_var[i] = d_input_var[even_input_idx];
+
+        // printf("mu_out[%d]=%f, var_out[%d]=%f, epistemic_var=%f,
+        // aleatoric_var=%f\n",
+        //     i, d_output_mu[i], i, d_output_var[i],
+        //     d_input_var[even_input_idx], d_inner_output_mu[i]);
     }
 }
 
@@ -645,7 +662,7 @@ __global__ void agvi_backward_kernel(
     bool overfit_mu) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    const float epsilon = 1e-12f;
+    const float epsilon = 0.0f;
 
     if (i < half_size) {
         float mu_a = d_stored_output_mu_a[i];
@@ -660,17 +677,15 @@ __global__ void agvi_backward_kernel(
 
         float var_z = d_stored_input_var_a[i * 2];
 
-        float delta_a_mu = incoming_delta_mu * var_a;
-        float delta_a_var = incoming_delta_var * var_a * var_a;
-
         float mu_v2 = mu_v2_bar_tilde;
         float var_v2 =
             3.0f * var_v2_bar_tilde + 2.0f * mu_v2_bar_tilde * mu_v2_bar_tilde;
 
-        float Jv = mu_v2_bar_tilde / fmaxf(var_a, epsilon);
+        float mu_v = 0;
+        float var_v = fmaxf(mu_v2, epsilon);
 
-        float mu_v_pos = Jv * delta_a_mu;
-        float var_v_pos = mu_v2_bar_tilde + Jv * Jv * delta_a_var;
+        float mu_v_pos = var_v * incoming_delta_mu;
+        float var_v_pos = var_v + var_v * incoming_delta_var * var_v;
 
         float mu_v2_pos = mu_v_pos * mu_v_pos + var_v_pos;
         float var_v2_pos = 2.0f * var_v_pos * var_v_pos +
@@ -701,18 +716,17 @@ __global__ void agvi_backward_kernel(
         d_output_delta_mu[odd_idx] = odd_delta_mu;
         d_output_delta_var[odd_idx] = odd_delta_var;
 
-        float Jz = 1.0f / (var_a);
+        float Jz = 1.0f;
         float Jz_mu;
         if (overfit_mu) {
-            Jz_mu = 1.0f / (var_z);
+            Jz_mu = var_a / (var_z);
         } else {
             Jz_mu = Jz;
         }
 
-        float even_delta_mu = Jz_mu * delta_a_mu;
-        float even_delta_var = Jz * Jz * delta_a_var;
+        float even_delta_mu = Jz_mu * incoming_delta_mu;
+        float even_delta_var = Jz * Jz * incoming_delta_var;
 
-        // Check and handle potential NaN or Inf values for even stream deltas.
         if (isnan(even_delta_mu) || isinf(even_delta_mu) ||
             isnan(even_delta_var) || isinf(even_delta_var)) {
             even_delta_mu = 0.0f;

@@ -345,52 +345,84 @@ void celu_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
 /*
  */
 {
+    // --- Constants ---
     constexpr float SQRT_2PI = 2.5066282746310002f;
     constexpr float INV_SQRT2 = 0.7071067811865475f;
-    constexpr float ALPHA = 0.2f;  // slope of negative part
+    constexpr float ALPHA = 0.5f;  // Slope parameter of the activation
+
+    // --- Numerical stability constants ---
+    constexpr float EPSILON = 1e-8f;  // For preventing division by zero
+    constexpr float MIN_VAL = 1e-6f;  // Floor for output mean and variance
+    constexpr float STABILITY_THRESHOLD =
+        30.0f;  // Threshold for using stable approximation
 
     for (int i = start_chunk; i < end_chunk; i++) {
-        float mz = mu_z[i];
-        float varz = var_z[i];
+        const float mz = mu_z[i];
+        const float varz = var_z[i];
 
-        // 1) std-dev and standardize
-        float sz = sqrtf(varz);
-        float z = mz / sz;
+        // 1. Standardize input variable, with protection against zero variance.
+        const float sz = sqrtf(varz + EPSILON);
+        const float z_norm = mz / sz;  // Standardized mean, z ~ N(z_norm, 1)
 
-        // 2) shift amount
-        float a = sz / ALPHA;
-        float z_a = z + a;
-        float z_2a = z + 2.0f * a;
+        // 2. Precompute common terms.
+        // `phi_z` is the PDF of a standard normal distribution evaluated at
+        // `z_norm`.
+        const float phi_z = expf(-0.5f * z_norm * z_norm) / SQRT_2PI;
 
-        // 3) φ(z) and tail probs P[Z < −x] = 0.5*erfc(x/√2), clamped
-        float phi_z = expf(-0.5f * z * z) / SQRT_2PI;
+        // `tail_z` is the upper tail probability P(Z > z_norm).
+        const float tail_z = 0.5f * erfcf(z_norm * INV_SQRT2);
 
-        float tail_z = 0.5f * erfcf(z * INV_SQRT2);
-        float tail_za = 0.5f * erfcf(z_a * INV_SQRT2);
-        float tail_z2a = 0.5f * erfcf(z_2a * INV_SQRT2);
+        // `a` is a scaled standard deviation.
+        const float a = sz / ALPHA;
+        const float z_a = z_norm + a;
+        const float z_2a = z_norm + 2.0f * a;
 
-        // 4) analytic ratios instead of φ(z)/φ(z+k·a)
-        float exp_a = expf(a * z + 0.5f * (a * a));
-        float exp_2a = expf(2.0f * a * z + 0.5f * (2.0f * a) * (2.0f * a));
+        // 3. Calculate unstable products in a numerically stable way.
+        // The products are of the form `exp(B) * P(Z > A)`, which can cause
+        // `inf * 0`. We use a stable asymptotic approximation for large A.
 
-        // 5) Mean E[CELU(z)]
-        float mean_d =
-            mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * tail_za * exp_a;
+        // Product 1: P(Z > z_a) * exp(a*z_norm + 0.5*a²)
+        float prod1;
+        if (z_a > STABILITY_THRESHOLD) {
+            prod1 = phi_z / z_a;
+        } else {
+            const float tail_za = 0.5f * erfcf(z_a * INV_SQRT2);
+            const float exp_arg1 = mz / ALPHA + 0.5f * varz / (ALPHA * ALPHA);
+            prod1 = tail_za * expf(exp_arg1);
+        }
 
-        // 6) Second moment E[CELU(z)²]
-        float E2 = mz * mz + mz * sz * phi_z + varz -
-                   2.0f * ALPHA * ALPHA * tail_za * exp_a +
-                   ALPHA * ALPHA * tail_z2a * exp_2a +
-                   (ALPHA * ALPHA - mz * mz - varz) * tail_z;
+        // Product 2: P(Z > z_2a) * exp(2*a*z_norm + 2*a²)
+        float prod2;
+        if (z_2a > STABILITY_THRESHOLD) {
+            prod2 = phi_z / z_2a;
+        } else {
+            const float tail_z2a = 0.5f * erfcf(z_2a * INV_SQRT2);
+            const float exp_arg2 = 2.0f * (mz / ALPHA + varz / (ALPHA * ALPHA));
+            prod2 = tail_z2a * expf(exp_arg2);
+        }
 
-        // 7) Variance = E2 – mean², with floor
-        float var_d = E2 - mean_d * mean_d;
+        // 4. Calculate mean of the activation E[f(Z)]
+        const float mean_d =
+            mz + sz * phi_z - (ALPHA + mz) * tail_z + ALPHA * prod1;
 
-        // 8) Covariance Cov[z, CELU(z)] = varz * (P[Z> -z] + tail_za·exp_a)
-        float cov_d = varz * ((1.0f - tail_z) + tail_za * exp_a);
+        // 5. Calculate second moment E[f(Z)²]
+        const float E2 = mz * mz + mz * sz * phi_z + varz -
+                         2.0f * ALPHA * ALPHA * prod1 + ALPHA * ALPHA * prod2 +
+                         (ALPHA * ALPHA - mz * mz - varz) * tail_z;
 
-        // 9) Jacobian in [0,1]
-        float jcb_d = cov_d / varz;
+        // 6. Calculate variance Var(f(Z)) = E[f(Z)²] - (E[f(Z)])²
+        // This subtraction can suffer from catastrophic cancellation. Flooring
+        // is a safeguard.
+        const float var_d = E2 - mean_d * mean_d;
+
+        // 7. Calculate covariance term: Cov[Z, f(Z)] / Var(Z)
+        const float jcb_d = (1.0f - tail_z) + prod1;
+
+        // 8. Store results
+        // Note: Original code clamped the mean. This is preserved, though the
+        // mean of a CELU-like function can be negative.
+        mu_a[i] = fmaxf(MIN_VAL, mean_d + ALPHA);
+        var_a[i] = fmaxf(MIN_VAL, var_d);
         jcb[i] = jcb_d;
     }
 }
@@ -595,6 +627,10 @@ void agvi_backward_chunk(int start_chunk, int end_chunk,
      * @param overfit_mu Flag to control the Jacobian for the mean delta.
      */
     for (int i = start_chunk; i < end_chunk; i++) {
+        // 0. Define the output indices for the even (Z) and odd (V2_bar) stream
+        int even_idx = 2 * i;
+        int odd_idx = 2 * i + 1;
+
         // 1. Retrieve stored values from the forward pass.
         float mu_a = stored_output_states.mu_a[i];
         float var_a = stored_output_states.var_a[i];
@@ -607,6 +643,15 @@ void agvi_backward_chunk(int start_chunk, int end_chunk,
         // Deltas from the subsequent layer
         float incoming_delta_mu = input_delta_states.delta_mu[i];
         float incoming_delta_var = input_delta_states.delta_var[i];
+
+        if (std::isnan(incoming_delta_mu) || std::isnan(incoming_delta_var) ||
+            std::isinf(incoming_delta_mu) || std::isinf(incoming_delta_var)) {
+            output_delta_states.delta_mu[even_idx] = 0.0f;
+            output_delta_states.delta_var[even_idx] = 0.0f;
+            output_delta_states.delta_mu[odd_idx] = 0.0f;
+            output_delta_states.delta_var[odd_idx] = 0.0f;
+            continue;
+        }
 
         // Prior variance for Z (from the even input stream)
         float var_z = stored_input_states.var_a[i * 2];
@@ -622,14 +667,8 @@ void agvi_backward_chunk(int start_chunk, int end_chunk,
         float mu_v = 0.0f;
         float var_v = mu_v2;
 
-        // Compute the posterior mean and variance for A (output)
-        float mu_a_pos = mu_a + incoming_delta_mu * var_a;
-        float var_a_pos = var_a + incoming_delta_var * var_a * var_a;
-
-        // Compute the posterior mean and variance for V
-        float Jv = var_v / var_a;
-        float mu_v_pos = mu_v + Jv * (mu_a_pos - mu_a);
-        float var_v_pos = var_v + Jv * Jv * (var_a_pos - var_a);
+        float mu_v_pos = var_v * incoming_delta_mu;
+        float var_v_pos = var_v + var_v * incoming_delta_var * var_v;
 
         // Compute the posterior mean and variance for V2
         float mu_v2_pos = mu_v_pos * mu_v_pos + var_v_pos;
@@ -644,30 +683,36 @@ void agvi_backward_chunk(int start_chunk, int end_chunk,
             var_v2_bar_tilde +
             Jv2_bar_tilde * Jv2_bar_tilde * (var_v2_pos - var_v2);
 
-        // 3. Define the output indices for the even (Z) and odd (V2_bar) stream
-        int even_idx = 2 * i;
-        int odd_idx = 2 * i + 1;
-
         // 4. Compute and write deltas for V2_bar (the odd input stream).
         float Jv2_bar = jcb_v2_bar_tilde / var_v2_bar_tilde;
+        if (std::isnan(Jv2_bar) || std::isinf(Jv2_bar)) {
+            Jv2_bar = 0.0f;
+        }
         output_delta_states.delta_mu[odd_idx] =
             Jv2_bar * (mu_v2_bar_tilde_pos - mu_v2_bar_tilde);
         output_delta_states.delta_var[odd_idx] =
             Jv2_bar * Jv2_bar * (var_v2_bar_tilde_pos - var_v2_bar_tilde);
 
-        // --- MODIFIED ---
         // 5. Compute and write deltas for Z (the even input stream).
-        float Jz = 1.0f / var_a;
+        float Jz = 1.0f;
         float Jz_mu;
         if (overfit_mu) {
             // Use different J for the mean to allow overfitting on it
-            Jz_mu = 1.0f / var_z;
+            Jz_mu = var_a / var_z;
         } else {
             // Use the same J for the mean and variance
             Jz_mu = Jz;
         }
-        output_delta_states.delta_mu[even_idx] = Jz_mu * (mu_a_pos - mu_a);
-        output_delta_states.delta_var[even_idx] = Jz * Jz * (var_a_pos - var_a);
+
+        if (std::isnan(Jz_mu) || std::isinf(Jz_mu)) {
+            Jz_mu = 0.0f;
+        }
+        if (std::isnan(Jz) || std::isinf(Jz)) {
+            Jz = 0.0f;
+        }
+
+        output_delta_states.delta_mu[even_idx] = Jz_mu * incoming_delta_mu;
+        output_delta_states.delta_var[even_idx] = Jz * Jz * incoming_delta_var;
     }
 }
 
