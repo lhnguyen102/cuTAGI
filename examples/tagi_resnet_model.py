@@ -1,9 +1,12 @@
 import numpy as np
 
 from pytagi.nn import (
+    AGVI,
+    CELU,
     AvgPool2d,
     BatchNorm2d,
     Conv2d,
+    Exp,
     LayerBlock,
     Linear,
     MixtureReLU,
@@ -11,6 +14,9 @@ from pytagi.nn import (
     Remax,
     ResNetBlock,
     Sequential,
+    Softmax,
+    Softplus,
+    SplitActivation,
 )
 
 
@@ -131,8 +137,11 @@ def resnet18_cifar10(
     if is_remax:
         final_layers = [
             AvgPool2d(4),
-            Linear(512, 10, gain_weight=gain_w, gain_bias=gain_b),
-            Remax(),
+            Linear(512, 20, gain_weight=gain_w, gain_bias=gain_b),
+            # AGVI(Softplus(), overfit_mu=False),
+            # Softmax(),
+            SplitActivation(Exp(), Softmax()),
+            # Remax(),
         ]
     else:
         final_layers = [

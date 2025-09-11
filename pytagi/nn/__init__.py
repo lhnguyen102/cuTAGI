@@ -1,6 +1,8 @@
 from pytagi.nn.activation import (
+    AGVI,
+    CELU,
     ClosedFormSoftmax,
-    EvenExp,
+    Exp,
     LeakyReLU,
     MixtureReLU,
     MixtureSigmoid,
@@ -10,6 +12,7 @@ from pytagi.nn.activation import (
     Sigmoid,
     Softmax,
     Softplus,
+    SplitActivation,
     Tanh,
 )
 from pytagi.nn.base_layer import BaseLayer

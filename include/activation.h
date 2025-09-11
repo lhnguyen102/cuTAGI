@@ -64,11 +64,9 @@ void mixture_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                            std::vector<float> &mu_a, std::vector<float> &jcb,
                            std::vector<float> &var_a);
 
-void mixture_tanh_mean_var_mp(std::vector<float> &mu_z,
-                              std::vector<float> &var_z, int n,
-                              unsigned int num_threads,
-                              std::vector<float> &mu_a, std::vector<float> &jcb,
-                              std::vector<float> &var_a);
+void celu_mean_var_mp(std::vector<float> &mu_z, std::vector<float> &var_z,
+                      int n, unsigned int num_threads, std::vector<float> &mu_a,
+                      std::vector<float> &jcb, std::vector<float> &var_a);
 
 void softplus_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                        int start_chunk, int end_chunk, std::vector<float> &mu_a,
@@ -93,17 +91,34 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                       int no, int batch_size, std::vector<float> &mu_a,
                       std::vector<float> &jcb, std::vector<float> &var_a);
 
-void even_exp_mean_var(std::vector<float> const &mu_z,
-                       std::vector<float> const &var_z,
-                       std::vector<float> &jcb_z, int start_chunk,
-                       int end_chunk, std::vector<float> &mu_a,
-                       std::vector<float> &var_a, std::vector<float> &jcb_a);
+void exp_mean_var(std::vector<float> const &mu_z,
+                  std::vector<float> const &var_z, std::vector<float> &jcb_z,
+                  int start_chunk, int end_chunk, std::vector<float> &mu_a,
+                  std::vector<float> &var_a, std::vector<float> &jcb_a,
+                  float scale, float shift);
 
-void even_exp_mean_var_mp(std::vector<float> const &mu_z,
-                          std::vector<float> const &var_z,
-                          std::vector<float> const &jcb_z, int n,
-                          unsigned int num_threads, std::vector<float> &mu_a,
-                          std::vector<float> &var_a, std::vector<float> &jcb_a);
+void exp_mean_var_mp(std::vector<float> const &mu_z,
+                     std::vector<float> const &var_z,
+                     std::vector<float> const &jcb_z, int n,
+                     unsigned int num_threads, std::vector<float> &mu_a,
+                     std::vector<float> &var_a, std::vector<float> &jcb_a,
+                     float scale, float shift);
+
+void agvi_backward_chunk(int start_chunk, int end_chunk,
+                         BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         const BaseHiddenStates &stored_output_states,
+                         const BaseHiddenStates &stored_inner_output_states,
+                         const BaseHiddenStates &stored_input_states,
+                         bool overfit_mu);
+
+void agvi_backward_mp(int n, unsigned int num_threads,
+                      BaseDeltaStates &input_delta_states,
+                      BaseDeltaStates &output_delta_states,
+                      const BaseHiddenStates &stored_output_states,
+                      const BaseHiddenStates &stored_inner_output_states,
+                      const BaseHiddenStates &stored_input_states,
+                      bool overfit_mu);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -340,6 +355,50 @@ class MixtureTanh : public BaseLayer {
     // required for bwd_states
     MixtureTanh(MixtureTanh &&) = default;
     MixtureTanh &operator=(MixtureTanh &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override {};
+
+    void load(std::ifstream &file) override {};
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// CELU
+////////////////////////////////////////////////////////////////////////////////
+class CELU : public BaseLayer {
+   public:
+    CELU();
+    ~CELU();
+
+    // Delete copy constructor and copy assignment
+    CELU(const CELU &) = delete;
+    CELU &operator=(const CELU &) = delete;
+
+    // Optionally implement move constructor and move assignment. This is
+    // required for bwd_states
+    CELU(CELU &&) = default;
+    CELU &operator=(CELU &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -615,20 +674,20 @@ class ClosedFormSoftmax : public BaseLayer {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-/// EvenExp
+/// Exp
 ////////////////////////////////////////////////////////////////////////////////
-class EvenExp : public BaseLayer {
+class Exp : public BaseLayer {
    public:
-    EvenExp();
-    ~EvenExp();
+    Exp(float scale = 1.0f, float shift = 0.0f);
+    ~Exp();
 
     // Delete copy constructor and copy assignment
-    EvenExp(const EvenExp &) = delete;
-    EvenExp &operator=(const EvenExp &) = delete;
+    Exp(const Exp &) = delete;
+    Exp &operator=(const Exp &) = delete;
 
     // Optionally implement move constructor and move assignment
-    EvenExp(EvenExp &&) = default;
-    EvenExp &operator=(EvenExp &&) = default;
+    Exp(Exp &&) = default;
+    Exp &operator=(Exp &&) = default;
 
     std::string get_layer_info() const override;
 
@@ -652,7 +711,115 @@ class EvenExp : public BaseLayer {
 
     void load(std::ifstream &file) override {};
 
+    float scale;
+    float shift;
+
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// SplitActivation (formerly EvenExp)
+////////////////////////////////////////////////////////////////////////////////
+class SplitActivation : public BaseLayer {
+   public:
+    SplitActivation(std::shared_ptr<BaseLayer> odd_layer,
+                    std::shared_ptr<BaseLayer> even_layer = nullptr);
+    ~SplitActivation();
+
+    // Delete copy constructor and copy assignment
+    SplitActivation(const SplitActivation &) = delete;
+    SplitActivation &operator=(const SplitActivation &) = delete;
+
+    // Optionally implement move constructor and move assignment
+    SplitActivation(SplitActivation &&) = default;
+    SplitActivation &operator=(SplitActivation &&) = default;
+
+    std::string get_layer_info() const override;
+
+    std::string get_layer_name() const override;
+
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    using BaseLayer::backward;
+
+    void allocate_param_delta() override {};
+
+    void update_weights() override {};
+
+    void update_biases() override {};
+
+    void save(std::ofstream &file) override;
+
+    void load(std::ifstream &file) override;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+   private:
+    std::shared_ptr<BaseLayer> odd_layer;
+    std::shared_ptr<BaseLayer> even_layer;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// AGVI (Approximate Gaussian Variance Inference)
+////////////////////////////////////////////////////////////////////////////////
+class AGVI : public BaseLayer {
+   public:
+    /**
+     * @brief Construct a new AGVI object
+     *
+     * @param activation_layer The inner activation layer to be used.
+     * @param overfit_mu If true, uses a different Jacobian for the mean delta
+     * to encourage overfitting. Defaults to true.
+     * @param agvi If true, uses the AGVI learned noise model. Defaults to true.
+     */
+    explicit AGVI(std::shared_ptr<BaseLayer> activation_layer,
+                  bool overfit_mu = true, bool agvi = true);
+
+    ~AGVI();
+
+    AGVI(const AGVI &) = delete;
+    AGVI &operator=(const AGVI &) = delete;
+
+    // Default move constructor and move assignment.
+    AGVI(AGVI &&) = default;
+    AGVI &operator=(AGVI &&) = default;
+
+    std::string get_layer_info() const override;
+    std::string get_layer_name() const override;
+    LayerType get_layer_type() const override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_update = true) override;
+
+    void allocate_param_delta() override {};
+    void update_weights() override {};
+    void update_biases() override {};
+    void save(std::ofstream &file) override {};
+    void load(std::ifstream &file) override {};
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+
+   private:
+    std::shared_ptr<BaseLayer> m_activation_layer;
+    bool m_overfit_mu;
+    bool m_agvi;
+
+    // Stored hidden states for backward pass usage
+    BaseHiddenStates m_stored_inner_output_states;
+    BaseHiddenStates m_stored_output_states;
+    BaseHiddenStates m_stored_input_states;
 };

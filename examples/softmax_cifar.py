@@ -28,6 +28,7 @@ from pytagi.nn import (
     ReLU,
     Remax,
     Sequential,
+    Softmax,
 )
 
 torch.manual_seed(17)
@@ -52,7 +53,8 @@ CNN_NET = Sequential(
     Linear(64 * 4 * 4, 256),
     MixtureReLU(),
     Linear(256, 10, gain_weight=0.25, gain_bias=0.25),
-    Remax(),
+    # Remax(),
+    Softmax(),
 )
 
 
@@ -135,14 +137,14 @@ def load_datasets(batch_size: int):
     return train_loader, test_loader
 
 
-def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
+def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.0):
     """
     Run classification training on the CIFAR-10 dataset using PyTAGI.
     """
     train_loader, test_loader = load_datasets(batch_size)
 
     # Initialize network
-    net = CNN_NET
+    # net = CNN_NET
     net = resnet18_cifar10(is_remax=True, gain_w=1.0, gain_b=1.0)
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
@@ -160,15 +162,23 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
         for _, (data, target) in enumerate(pbar):
             # Feedforward and backward pass
             m_pred, v_pred = net(data)
+            m_pred = m_pred[::2]
+
+            # if inf or nan in m_pred or v_pred
+            # if np.any(np.isnan(m_pred)) or np.any(np.isinf(m_pred)):
+            #     print("NaN or Inf in m_pred")
+            #     break
 
             # Convert labels to one-hot encoding
             y = one_hot_encode(target)
+            # y[y == 0] = -0.4
+            # y[y == 1] = 16.5
 
             # Update output layers
-            out_updater.update(
+            out_updater.update_heteros(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                var_obs=var_y,
+                # var_obs=var_y,
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -194,6 +204,7 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
 
         for data, target in test_loader:
             m_pred, v_pred = net(data)
+            m_pred = m_pred[::2]
 
             # Calculate test error
             pred = np.reshape(m_pred, (batch_size, 10))
@@ -207,6 +218,8 @@ def main(num_epochs: int = 100, batch_size: int = 128, sigma_v: float = 0.05):
             f"Train Error: {train_error/num_train_samples * 100:.2f}% | "
             f"Test Error: {test_error_rate:.2f}%"
         )
+
+        net.save(f".examples/softmax_cifar_epoch{epoch+1}.bin")
 
 
 if __name__ == "__main__":

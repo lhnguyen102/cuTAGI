@@ -14,28 +14,37 @@ from tqdm import tqdm
 
 import pytagi
 from pytagi.nn import (
+    AGVI,
+    CELU,
     AvgPool2d,
     BatchNorm2d,
     ClosedFormSoftmax,
     Conv2d,
+    Exp,
     LayerNorm,
     Linear,
     MaxPool2d,
     MixtureReLU,
+    MixtureTanh,
     OutputUpdater,
     ReLU,
     Remax,
     Sequential,
     Softmax,
+    Softplus,
+    SplitActivation,
 )
 
 FNN = Sequential(
-    Linear(784, 128),
+    Linear(784, 128, gain_weight=1.0, gain_bias=1.0),
     ReLU(),
-    Linear(128, 128),
+    Linear(128, 128, gain_weight=1.0, gain_bias=1.0),
     ReLU(),
-    Linear(128, 10),
-    Remax(),
+    Linear(128, 10, gain_weight=1.0, gain_bias=1.0),
+    # AGVI(Softplus(), overfit_mu=False),
+    # SplitActivation(Exp(), Remax()),
+    # Remax(),
+    Softmax(),
 )
 
 FNN_BATCHNORM = Sequential(
@@ -69,8 +78,9 @@ CNN = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 128),
     ReLU(),
-    Linear(128, 10),
-    ClosedFormSoftmax(),
+    Linear(128, 20),
+    AGVI(Exp(), overfit_mu=True),
+    # ClosedFormSoftmax(),
 )
 
 CNN_BATCHNORM = Sequential(
@@ -84,8 +94,11 @@ CNN_BATCHNORM = Sequential(
     AvgPool2d(3, 2),
     Linear(32 * 4 * 4, 100),
     ReLU(),
-    Linear(100, 10),
-    Remax(),
+    Linear(100, 20),
+    # AGVI(Softplus(), overfit_mu=False),
+    # Remax(),
+    # Softmax(),
+    SplitActivation(Exp(), Softmax()),
 )
 
 
@@ -95,7 +108,7 @@ def one_hot_encode(labels, num_classes=10):
     return F.one_hot(labels, num_classes=num_classes).numpy().flatten()
 
 
-def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
+def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.0):
     """
     Run classification training on the MNIST dataset using PyTAGI.
     """
@@ -120,8 +133,10 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
     )
 
     # Initialize network
-    net = CNN
+    net = CNN_BATCHNORM
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
+
+    # net.load(".examples/softmax_mnist_epoch20.bin")
 
     out_updater = OutputUpdater(net.device)
 
@@ -133,20 +148,38 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
         train_error = 0
         num_train_samples = 0
 
+        all_m_pred = []
+        all_v_pred = []
+
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for batch_idx, (data, target) in enumerate(pbar):
             # Prepare data
             x = data.numpy().flatten()  # Flatten the images
             y = one_hot_encode(target).flatten()  # Convert to one-hot encoding
 
+            # y[y == 0] = -0.4
+            # y[y == 1] = 16.5
+
             # Feedforward and backward pass
             m_pred, v_pred = net(x)
+            v_pred = m_pred[1::2] + v_pred[::2]
+            m_pred = m_pred[::2]
+            print("m_pred: ", m_pred)
+            print("v_pred: ", v_pred)
+            all_m_pred.append(m_pred)
+            all_v_pred.append(v_pred)
+
+            # print("Probability statistics:")
+            # print("E[mu]: ", np.mean(m_pred))
+            # print("Std[mu]: ", np.std(m_pred))
+            # print("E[var]: ", np.mean(v_pred))
+            # print("Std[var]: ", np.std(v_pred))
 
             # Update output layers
-            out_updater.update(
+            out_updater.update_heteros(
                 output_states=net.output_z_buffer,
                 mu_obs=y,
-                var_obs=var_y,
+                # var_obs=var_y,
                 delta_states=net.input_delta_z_buffer,
             )
 
@@ -165,6 +198,30 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
                 {"train_error": f"{train_error/num_train_samples:.2f}%"}
             )
 
+        average_m_pred = np.mean(np.concatenate(all_m_pred))
+        average_v_pred = np.mean(np.concatenate(all_v_pred))
+        std_v_m_pred = np.std(np.concatenate(all_m_pred))
+        std_v_pred = np.std(np.concatenate(all_v_pred))
+
+        average_v_pred_positive_m_pred = np.mean(
+            np.concatenate(all_v_pred)[np.concatenate(all_m_pred) > 0]
+        )
+        average_v_pred_negative_m_pred = np.mean(
+            np.concatenate(all_v_pred)[np.concatenate(all_m_pred) < 0]
+        )
+        print("Average mu prediction: ", average_m_pred)
+        print("Average var prediction: ", average_v_pred)
+        print("Std mu prediction: ", std_v_m_pred)
+        print("Std var prediction: ", std_v_pred)
+        print(
+            "Average var prediction (positive mu): ",
+            average_v_pred_positive_m_pred,
+        )
+        print(
+            "Average var prediction (negative mu): ",
+            average_v_pred_negative_m_pred,
+        )
+
         # Testing
         net.eval()
         test_error = 0
@@ -173,6 +230,7 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
         for data, target in test_loader:
             x = data.numpy().flatten()
             m_pred, v_pred = net(x)
+            m_pred = m_pred[::2]
 
             # Calculate test error
             pred = np.reshape(m_pred, (batch_size, 10))
@@ -186,6 +244,8 @@ def main(num_epochs: int = 20, batch_size: int = 128, sigma_v: float = 0.05):
             f"Train Error: {train_error/num_train_samples * 100:.2f}% | "
             f"Test Error: {test_error_rate:.2f}%"
         )
+
+        # net.save(f".examples/softmax_mnist_epoch{epoch+1}.bin")
 
 
 if __name__ == "__main__":

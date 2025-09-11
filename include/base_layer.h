@@ -20,7 +20,8 @@ enum class LayerType {
     Activation,
     Norm,
     LayerBlock,
-    ResNetBlock
+    ResNetBlock,
+    AGVI
 };
 
 class InitArgs {
