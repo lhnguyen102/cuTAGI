@@ -1,6 +1,7 @@
 name: Build & Deploy Docs (via gh-pages)
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
