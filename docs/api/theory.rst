@@ -1,0 +1,5 @@
+.. _theory:
+
+Theory
+============
+Theory

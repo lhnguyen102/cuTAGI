@@ -56,6 +56,8 @@ Related references
    :maxdepth: 2
    :hidden:
 
-   installations
-   examples
-   api
+   api/installations
+   api/theory
+   api/examples
+   api/pytagi_api
+   api/dev_guides

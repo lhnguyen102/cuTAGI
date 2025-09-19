@@ -23,6 +23,13 @@ autoapi_keep_files = True
 
 napoleon_google_docstring = True
 html_theme = "sphinx_book_theme"
+html_theme_options = {
+    "repository_url": "https://github.com/lhnguyen102/cuTAGI",
+    "use_repository_button": True,
+    "use_download_button": False,
+}
+html_logo = "_static/tagiml.png"
+html_static_path = ["_static"]
 
 
 # --- Hide AutoAPI's attribute entries (keep your manual "Attributes:" docstrings) ---

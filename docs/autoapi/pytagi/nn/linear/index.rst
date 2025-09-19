@@ -6,6 +6,7 @@ pytagi.nn.linear
 .. autoapi-nested-parse::
 
    Introduction about the script: Fully-connected layer etc ...
+   Hello world
 
 
 
