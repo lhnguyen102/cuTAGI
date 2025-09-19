@@ -1,0 +1,11 @@
+{% extends "!autoapi/python/class.rst.jinja" %}
+
+{% block heading %}
+.. raw:: html
+
+   <!-- TEMPLATE OVERRIDE ACTIVE -->
+{{ super() }}
+{% endblock %}
+
+{# Hide the auto-generated Attributes section #}
+{% block attributes %}{% endblock %}
