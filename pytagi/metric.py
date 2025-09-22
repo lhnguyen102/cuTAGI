@@ -4,7 +4,7 @@ from pytagi.tagi_utils import HRCSoftmax, Utils
 
 
 class HRCSoftmaxMetric:
-    """Classifcation error for hierarchical softmax"""
+    """Classifcation error for hierarchical softmax used for classification"""
 
     def __init__(self, num_classes: int):
         self.num_classes = num_classes

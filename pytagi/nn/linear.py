@@ -1,10 +1,26 @@
+"""
+Introduction about the script: Fully-connected layer etc ...
+Hello world
+
+"""
+
 import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
 
 
 class Linear(BaseLayer):
-    """Fully-connected layer"""
+    """
+    Fully-connected layer
+
+    Args:
+        input_size (int): Input size of the layer
+
+    Attributes:
+        input_size (int): Input size of the layer
+        output_size (int): Output size of the layer
+        bias (boolen): If True, adding biases along with the weights
+    """
 
     def __init__(
         self,
@@ -28,6 +44,9 @@ class Linear(BaseLayer):
         )
 
     def get_layer_info(self) -> str:
+        """
+        get layer information
+        """
         return self._cpp_backend.get_layer_info()
 
     def get_layer_name(self) -> str:
