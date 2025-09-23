@@ -169,7 +169,7 @@ void Sequential::init_output_state_buffer()
 {
     if (this->device.compare("cpu") == 0) {
         if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
-            if (this->num_samples == 0 and this->training) {
+            if (this->num_samples == 0 && this->training) {
                 LOG(LogLevel::ERROR,
                     "num_samples was not initialized for smoothing.");
             }
