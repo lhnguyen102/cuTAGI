@@ -8,50 +8,6 @@
 // SLinear: Linear layer with smoother for LSTM
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <fstream>
-#include <sstream>
-
-void SLinear::print_summary() const {
-    std::ofstream summary_file("linear_state_summary.csv");
-
-    if (!summary_file.is_open()) {
-        LOG(LogLevel::ERROR, "Failed to open linear_state_summary.csv");
-        return;
-    }
-
-    summary_file << "TimeStep,StateType,Variable,Values\n";
-
-    size_t T = this->smooth_states.num_timesteps;
-
-    auto write_vector = [&](auto const &state_type, auto const &variable,
-                            std::vector<float> const &vec) {
-        // Write one row: StateType,Variable,val0,val1,...,valT-1
-        summary_file << state_type << "," << variable;
-        for (size_t t = 0; t < T; ++t) {
-            summary_file << "," << vec[t];
-        }
-        summary_file << "\n";
-    };
-
-    // Write Priors
-    write_vector("Priors", "mu_zo_priors", this->smooth_states.mu_zo_priors);
-    write_vector("Priors", "var_zo_priors", this->smooth_states.var_zo_priors);
-
-    // Write Posteriors
-    write_vector("Posteriors", "mu_zo_posts", this->smooth_states.mu_zo_posts);
-    write_vector("Posteriors", "var_zo_posts",
-                 this->smooth_states.var_zo_posts);
-
-    // Write Smoothed
-    write_vector("Smoothed", "mu_zo_smooths",
-                 this->smooth_states.mu_zo_smooths);
-    write_vector("Smoothed", "var_zo_smooths",
-                 this->smooth_states.var_zo_smooths);
-    write_vector("Smoothed", "cov_zo", this->smooth_states.cov_zo);
-
-    summary_file.close();
-}
-
 std::string SLinear::get_layer_info() const
 /*
  */
@@ -280,6 +236,5 @@ void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
               this->smooth_states.mu_zo_smooths,
               this->smooth_states.var_zo_smooths);
 
-    // this->print_summary();
     this->time_step = 0;
 }
