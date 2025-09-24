@@ -55,6 +55,7 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
 /*
  */
 {
+    const float eps = 1e-10f;
     int idx_h, idx_w;
     bool print_clip_z = true;
 
@@ -76,11 +77,12 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
             var_zo_smooths[i] = var_zo + var_b[k];
             if (var_zo_smooths[i] < 0 && print_clip_z) {
                 LOG(LogLevel::WARNING,
-                    "Negative variance for z output at SLSTM smoother at time "
+                    "Negative variance clipped for z output at SLinear at time "
                     "step " +
                         std::to_string(i));
                 print_clip_z = false;
             }
+            var_zo_smooths[i] = var_zo_smooths[i] < 0 ? eps : var_zo_smooths[i];
         }
     }
 }

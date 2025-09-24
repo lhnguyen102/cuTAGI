@@ -140,7 +140,7 @@ void smooth_cell_states(
                 tmp * (var_c_smooths[next] - var_c_priors[next]) * tmp;
             if (var_update < 0 && print_clip_c) {
                 LOG(LogLevel::WARNING,
-                    "Negative variance for cell states in SLSTM smoother at "
+                    "Negative variance clipped for cell states in SLSTM at "
                     "time step " +
                         std::to_string(i) + " state " + std::to_string(j));
                 print_clip_c = false;
@@ -184,7 +184,7 @@ void smooth_hidden_states(
 
             if (var_update < 0 && print_clip_h) {
                 LOG(LogLevel::WARNING,
-                    "Negative variance for hidden states in SLSTM smoother at "
+                    "Negative variance clipped for hidden states in SLSTM at "
                     "time step " +
                         std::to_string(i));
                 print_clip_h = false;
@@ -607,8 +607,7 @@ SLSTM::get_smoothed_lstm_state_at(int timestep)
     size_t T = smooth.num_timesteps;
 
     if (timestep < 0 || static_cast<size_t>(timestep) >= T)
-        throw std::out_of_range(
-            "Timestep out of range in get_smoothed_lstm_state_at");
+        throw std::out_of_range("Timestep out of range");
 
     size_t start = timestep * num_states;
     size_t end = start + num_states;
