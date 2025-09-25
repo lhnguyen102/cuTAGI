@@ -20,7 +20,7 @@ Getting started
 To get started with using our library, check out our:
 
 - :doc:`Installation guide <api/installations>` for Windows, MacOS, and Linux (CPU + GPU)
-- :doc:`Quick tutorial <api/examples>` for a 1D toy problem
+- :doc:`Quick tutorial <api/tutorials/regression_tutorial>` for a 1D toy problem
 
 Contributors
 ------------
@@ -67,3 +67,4 @@ Related references
    api/examples
    api/pytagi_api
    api/dev_guides
+   api/tutorials/index

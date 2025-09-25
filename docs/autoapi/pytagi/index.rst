@@ -49,18 +49,40 @@ Package Contents
 
 .. py:class:: HRCSoftmaxMetric(num_classes: int)
 
-   Classifcation error for hierarchical softmax used for classification
+   Classification error metric for Hierarchical Softmax.
+
+   This class provides methods to compute the error rate and get predicted labels
+   for a classification model that uses Hierarchical Softmax.
 
 
    .. py:method:: error_rate(m_pred: numpy.ndarray, v_pred: numpy.ndarray, label: numpy.ndarray) -> float
 
-      Compute error rate for classifier
+      Computes the classification error rate.
+
+      This method calculates the proportion of incorrect predictions by comparing
+      the predicted labels against the true labels.
+
+      :param m_pred: The mean of the predictions from the model.
+      :type m_pred: np.ndarray
+      :param v_pred: The variance of the predictions from the model.
+      :type v_pred: np.ndarray
+      :param label: The ground truth labels.
+      :type label: np.ndarray
+      :return: The classification error rate, a value between 0 and 1.
+      :rtype: float
 
 
 
    .. py:method:: get_predicted_labels(m_pred: numpy.ndarray, v_pred: numpy.ndarray) -> numpy.ndarray
 
-      Get the prediction
+      Gets the predicted class labels from the model's output.
+
+      :param m_pred: The mean of the predictions from the model.
+      :type m_pred: np.ndarray
+      :param v_pred: The variance of the predictions from the model.
+      :type v_pred: np.ndarray
+      :return: An array of predicted class labels.
+      :rtype: np.ndarray
 
 
 

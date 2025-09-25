@@ -17,266 +17,366 @@ Module Contents
 
 .. py:class:: Sequential(*layers: pytagi.nn.base_layer.BaseLayer)
 
-   Adding neural networks in a sequence mode
+   A sequential container for layers.
+
+   Layers are added to the container in the order they are passed in the
+   constructor. This class acts as a Python wrapper for the C++/CUDA
+   backend `cutagi.Sequential`.
+
+   .. rubric:: Example
+
+   >>> import pytagi.nn as nn
+   >>> model = nn.Sequential(
+   ...     nn.Linear(10, 20),
+   ...     nn.ReLU(),
+   ...     nn.Linear(20, 5)
+   ... )
+   >>> mu_in = np.random.randn(1, 10)
+   >>> var_in = np.abs(np.random.randn(1, 10))
+   >>> mu_out, var_out = model(mu_in, var_in)
 
 
    .. py:method:: __call__(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
+
+      A convenient alias for the forward pass.
+
+      :param mu_x: The mean of the input data.
+      :type mu_x: np.ndarray
+      :param var_x: The variance of the input data. Defaults to None.
+      :type var_x: np.ndarray, optional
+      :return: A tuple containing the mean and variance of the output.
+      :rtype: Tuple[np.ndarray, np.ndarray]
+
 
 
    .. py:property:: layers
       :type: List[pytagi.nn.base_layer.BaseLayer]
 
 
-      Get the layers of the model.
+      The list of layers in the model.
 
 
    .. py:property:: output_z_buffer
       :type: pytagi.nn.data_struct.BaseHiddenStates
 
 
-      Get the output hidden states
+      The output hidden states buffer from the forward pass.
 
 
    .. py:property:: input_delta_z_buffer
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get the delta hidden states
+      The input delta states buffer used in the backward pass.
 
 
    .. py:property:: output_delta_z_buffer
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get the delta hidden states
+      The output delta states buffer from the backward pass.
 
 
    .. py:property:: z_buffer_size
       :type: int
 
 
-      Get the z_buffer_size.
+      The size of the hidden state (`z`) buffer.
 
 
    .. py:property:: z_buffer_block_size
       :type: int
 
 
-      Get the z_buffer_block_size.
+      The block size of the hidden state (`z`) buffer.
 
 
    .. py:property:: device
       :type: str
 
 
-      Get the device
+      The computational device ('cpu' or 'cuda') the model is on.
 
 
    .. py:property:: input_state_update
       :type: bool
 
 
-      Get the device
+      Flag indicating if the input state should be updated.
 
 
    .. py:property:: num_samples
       :type: int
 
 
-      Get the num_samples.
+      The number of samples used for Monte Carlo estimation.
 
 
    .. py:method:: to_device(device: str)
 
-      Move the model to a specific device.
+      Moves the model and its parameters to a specified device.
+
+      :param device: The target device, e.g., 'cpu' or 'cuda:0'.
+      :type device: str
 
 
 
    .. py:method:: params_to_device()
 
-      Move the model parameters to a specific cuda device.
+      Moves the model parameters to the currently configured CUDA device.
 
 
 
    .. py:method:: params_to_host()
 
-      Move the model parameters from cuda device to the host.
+      Moves the model parameters from the CUDA device to the host (CPU).
 
 
 
    .. py:method:: set_threads(num_threads: int)
 
-      Set the number of threads to use.
+      Sets the number of CPU threads to use for computation.
+
+      :param num_threads: The number of threads.
+      :type num_threads: int
 
 
 
    .. py:method:: train()
 
-      Set the number of threads to use.
+      Sets the model to training mode.
 
 
 
    .. py:method:: eval()
 
-      Set the number of threads to use.
+      Sets the model to evaluation mode.
 
 
 
    .. py:method:: forward(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Perform a forward pass.
+      Performs a forward pass through the network.
+
+      :param mu_x: The mean of the input data.
+      :type mu_x: np.ndarray
+      :param var_x: The variance of the input data. Defaults to None.
+      :type var_x: np.ndarray, optional
+      :return: A tuple containing the mean and variance of the output.
+      :rtype: Tuple[np.ndarray, np.ndarray]
 
 
 
    .. py:method:: backward()
 
-      Perform a backward pass.
+      Performs a backward pass to update the network parameters.
 
 
 
-   .. py:method:: smoother()
+   .. py:method:: smoother() -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Perform a smoother pass.
+      Performs a smoother pass (e.g., Rauch-Tung-Striebel smoother).
+
+      This is typically used in state-space models to refine estimates.
+
+      :return: A tuple containing the mean and variance of the smoothed output.
+      :rtype: Tuple[np.ndarray, np.ndarray]
 
 
 
    .. py:method:: step()
 
-      Perform a step of inference.
+      Performs a single step of inference to update the parameters.
 
 
 
    .. py:method:: reset_lstm_states()
 
-      Reset lstm states
+      Resets the hidden and cell states of all LSTM layers in the model.
 
 
 
    .. py:method:: output_to_host() -> List[float]
 
-      Copy the output data to the host.
+      Copies the raw output data from the device to the host.
+
+      :return: A list of floating-point values representing the flattened output.
+      :rtype: List[float]
 
 
 
    .. py:method:: delta_z_to_host() -> List[float]
 
-      Copy the delta Z data to the host.
+      Copies the raw delta Z (error signal) data from the device to the host.
+
+      :return: A list of floating-point values representing the flattened delta Z.
+      :rtype: List[float]
 
 
 
    .. py:method:: set_delta_z(delta_mu: numpy.ndarray, delta_var: numpy.ndarray)
 
-      Send the delta Z to device
+      Sets the delta Z (error signal) on the device for the backward pass.
+
+      :param delta_mu: The mean of the error signal.
+      :type delta_mu: np.ndarray
+      :param delta_var: The variance of the error signal.
+      :type delta_var: np.ndarray
 
 
 
    .. py:method:: get_layer_stack_info() -> str
 
-      Get information about the layer stack.
+      Gets a string representation of the layer stack architecture.
+
+      :return: A descriptive string of the model's layers.
+      :rtype: str
 
 
 
    .. py:method:: preinit_layer()
 
-      Preinitialize the layer.
+      Pre-initializes the layers in the model.
 
 
 
    .. py:method:: get_neg_var_w_counter() -> dict
 
-      Get the number of negative variance weights.
+      Counts the number of negative variance weights in each layer.
+
+      :return: A dictionary where keys are layer names and values are the counts
+               of negative variances.
+      :rtype: dict
 
 
 
    .. py:method:: save(filename: str)
 
-      Save the model to a file.
+      Saves the model's state to a binary file.
+
+      :param filename: The path to the file where the model will be saved.
+      :type filename: str
 
 
 
    .. py:method:: load(filename: str)
 
-      Load the model from a file.
+      Loads the model's state from a binary file.
+
+      :param filename: The path to the file from which to load the model.
+      :type filename: str
 
 
 
    .. py:method:: save_csv(filename: str)
 
-      Save the model parameters to a CSV file.
+      Saves the model parameters to a CSV file.
+
+      :param filename: The base path for the CSV file(s).
+      :type filename: str
 
 
 
    .. py:method:: load_csv(filename: str)
 
-      Load the model parameters from a CSV file.
+      Loads the model parameters from a CSV file.
+
+      :param filename: The base path of the CSV file(s).
+      :type filename: str
 
 
 
-   .. py:method:: parameters() -> List[numpy.ndarray]
+   .. py:method:: parameters() -> List[Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]]
 
-      Get the model parameters. Stored tuple (mu_w, var_w, mu_b, var_b) in a list
+      Gets all model parameters.
+
+      :return: A list where each element is a tuple containing the parameters
+               for a layer: (mu_w, var_w, mu_b, var_b).
+      :rtype: List[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
 
 
 
    .. py:method:: load_state_dict(state_dict: dict)
 
-      Load the model parameters from a state dict.
+      Loads the model's parameters from a state dictionary.
+
+      :param state_dict: A dictionary containing the model's state.
+      :type state_dict: dict
 
 
 
    .. py:method:: state_dict() -> dict
 
-      Get the model parameters as a state dict where key is the layer name
-      and value is a tuple of 4 arrays (mu_w, var_w, mu_b, var_b)
+      Gets the model's parameters as a state dictionary.
+
+      :return: A dictionary where each key is the layer name and the value is a
+               tuple of parameters: (mu_w, var_w, mu_b, var_b).
+      :rtype: dict
 
 
 
    .. py:method:: params_from(other: Sequential)
 
-      Copy parameters from another model.
+      Copies parameters from another Sequential model.
+
+      :param other: The source model from which to copy parameters.
+      :type other: Sequential
 
 
 
    .. py:method:: get_outputs() -> Tuple[numpy.ndarray, numpy.ndarray]
 
+      Gets the outputs from the last forward pass.
+
+      :return: A tuple containing the mean and variance of the output.
+      :rtype: Tuple[np.ndarray, np.ndarray]
+
+
 
    .. py:method:: get_outputs_smoother() -> Tuple[numpy.ndarray, numpy.ndarray]
+
+      Gets the outputs from the last smoother pass.
+
+      :return: A tuple containing the mean and variance of the smoothed output.
+      :rtype: Tuple[np.ndarray, np.ndarray]
+
 
 
    .. py:method:: get_input_states() -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Get the input states.
+      Gets the input states of the model.
+
+      :return: A tuple containing the mean and variance of the input states.
+      :rtype: Tuple[np.ndarray, np.ndarray]
 
 
 
    .. py:method:: get_norm_mean_var() -> dict
 
-      Get the mean and variance of the normalization layer.
-      :returns: A dictionary containing the mean and variance of the normalization layer.
-                each key is the layer name and the value is a tuple of 4 arrays:
-                mu_batch: mean of the batch
-                var_batch: variance of the batch
-                mu_ema_batch: mean of the exponential moving average (ema) of the batch
-                var_ema_batch: variance of the ema of the batch
+      Gets the mean and variance from normalization layers.
+
+      :return: A dictionary where each key is a normalization layer name and
+               the value is a tuple of four arrays:
+               (mu_batch, var_batch, mu_ema_batch, var_ema_batch).
+      :rtype: dict
 
 
 
    .. py:method:: get_lstm_states() -> dict
 
-      Get the LSTM states for all LSTM layers as a dictionary.
+      Gets the states from all LSTM layers.
 
-      :returns:
-
-                A dictionary where each key is the layer index (int) and each value is a 4-tuple
-                    of numpy arrays (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
+      :return: A dictionary where each key is the layer index and the value
+               is a 4-tuple of numpy arrays:
+               (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
       :rtype: dict
 
 
 
    .. py:method:: set_lstm_states(states: dict) -> None
 
-      Set the LSTM states for all LSTM layers using a dictionary.
+      Sets the states for all LSTM layers.
 
-      :param states: A dictionary mapping layer indices (int) to a 4-tuple of numpy arrays:
-                     (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
+      :param states: A dictionary mapping layer indices to a 4-tuple of
+                     numpy arrays: (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
       :type states: dict
