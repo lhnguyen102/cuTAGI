@@ -883,7 +883,7 @@ Sequential::get_lstm_states(int time_step)
             layers[i]->get_layer_type() == LayerType::SLSTM) {
             if (this->device == "cpu") {
                 if (auto slstm_layer = dynamic_cast<SLSTM *>(layers[i].get())) {
-                    if (time_step < 0) {
+                    if (time_step == -1) {
                         lstm_states[static_cast<int>(i)] =
                             slstm_layer->get_LSTM_states();
                     } else {
