@@ -12,20 +12,26 @@ unsupervised, and reinforcement learning. This library has a python API called p
 How does it work?
 -----------------
 
-...
+TAGI leverages analytical approximations to make Bayesian neural networks tractable. Instead of relying on computationally expensive sampling methods, it uses mathematical techniques to directly infer the posterior distribution of model parameters. This allows for efficient uncertainty quantification and robust model performance across various machine learning tasks.
 
 Getting started
 ---------------
 
 To get started with using our library, check out our:
 
-- installation guide for Windows, MacOS, and Linux (CPU + GPU).
-- quick tutorial for a 1D toy problem.
+- :doc:`Installation guide <api/installations>` for Windows, MacOS, and Linux (CPU + GPU)
+- :doc:`Quick tutorial <api/examples>` for a 1D toy problem
 
 Contributors
 ------------
 
-....
+The principal developer of pytagi is Luong Ha Nguyen with the support of James-A. Goulet. The main contributors of the library are:
+
+- Luong Ha Nguyen (main developer)
+- James-A. Goulet (theory and supervision)
+- Van Dai Vuong (LSTM)
+- Miquel Florensa Montilla (Heteroscedasticity and Docker)
+- David Wardan (SLSTM)
 
 Acknowledgements
 ----------------

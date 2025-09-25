@@ -5,7 +5,9 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "pytagi"
-author = "Luong-Ha Nguyen, James-A. Goulet, Dai Vuong, Miquel Florensa-Montilla"
+author = (
+    "Luong-Ha Nguyen, James-A. Goulet, Van Dai Vuong, Miquel Florensa-Montilla"
+)
 copyright = f"{datetime.now():%Y}, {author}"
 
 extensions = [
@@ -14,6 +16,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
     "autoapi.extension",
+    "sphinx_copybutton",
 ]
 
 autoapi_type = "python"

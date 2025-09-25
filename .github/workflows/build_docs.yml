@@ -37,10 +37,6 @@ jobs:
         working-directory: docs
         run: sphinx-build -b html . _build/html
 
-      # ----------------------------------------------------
-      # New Steps for Official GitHub Pages Deployment
-      # ----------------------------------------------------
-
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
