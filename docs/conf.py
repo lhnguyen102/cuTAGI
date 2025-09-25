@@ -5,7 +5,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "pytagi"
-author = "Luong-Ha Nguyen and James-A. Goulet"
+author = "Luong-Ha Nguyen, James-A. Goulet, Dai Vuong, Miquel Florensa-Montilla"
 copyright = f"{datetime.now():%Y}, {author}"
 
 extensions = [
