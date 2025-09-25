@@ -4,23 +4,70 @@ py/cuTAGI's documentation
 What is py/cuTAGI?
 ---------------
 
-py/cuTAGI is an open-source Bayesian neural networks library that is based on the Tractable Approximate Gaussian Inference (TAGI) theory.
-It supports various neural network architectures such as fully-connected, convolutional, and transpose convolutional layers,
-as well as skip connections, pooling and normalization layers. cuTAGI is capable of performing different tasks such as supervised,
-unsupervised, and reinforcement learning. This library has a python API called pyTAGI that allows users to easily use the C++ and CUDA libraries.
-
-How does it work?
------------------
-
-TAGI leverages analytical approximations to make Bayesian neural networks tractable. Instead of relying on computationally expensive sampling methods, it uses mathematical techniques to directly infer the posterior distribution of model parameters. This allows for efficient uncertainty quantification and robust model performance across various machine learning tasks.
+py/cuTAGI is a probabilistic array framework built upon the principles of the Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks. Detailed information about the TAGI theory can be found in the :doc:`theory section <api/theory>`.
 
 Getting started
 ---------------
 
-To get started with using our library, check out our:
+cuTAGI is available on PyPI. To install, execute the following command in Terminal:
 
-- :doc:`Installation guide <api/installations>` for Windows, MacOS, and Linux (CPU + GPU)
-- :doc:`Quick tutorial <api/tutorials/regression_tutorial>` for a 1D toy problem
+.. code-block:: bash
+
+   pip install pytagi
+
+Full installation instructions can be found in the :doc:`installation guide <api/installations>`.
+
+Here is an example for training a classifer using pytagi on MNIST dataset
+
+.. code-block:: python
+
+   from pytagi.nn import Linear, OutputUpdater, ReLU, Sequential
+   from pytagi import Utils, HRCSoftmaxMetric
+   from examples.data_loader import MnistDataloader
+
+   batch_size = 32
+   dtl = MnistDataLoader()
+   metric = HRCSoftmaxMetric(num_classes=10)
+
+   net = Sequential(
+      Linear(784, 128),
+      ReLU(),
+      Linear(128, 128),
+      ReLU(),
+      Linear(128, 11),
+   )
+   #net.to_device("cuda")
+
+   udt = OutputUpdater(net.device)
+   var_y = np.full((batch_size * 4,), 1.0, dtype=np.float32)
+
+   batch_iter = dtl.create_data_loader(batch_size)
+
+   for i, (x, y, idx, label) in enumerate(batch_iter):
+      m_pred, v_pred = net(x)
+      # Update output layer based on targets
+      udt.update_using_indices(net.output_z_buffer, y, var_y, idx, net.input_delta_z_buffer)
+      net.backward()
+      net.step()
+      error_rate = metric.error_rate(m_pred, v_pred, label)
+      print(f"Iteration: {i} error rate: {error_rate}")
+
+
+Visit the :doc:`tutorials <api/tutorials/index>` page to learn how to run differnet models for different datasets.
+
+Features
+--------
+
+Some key features of cuTAGI include:
+
+- **Performance-Oriented Kernels**: All kernels of DNN layers are written in C++/CUDA from the scratch, with the utilization of pybind11 for seamless Python integration. It allows running on CPU and CUDA devices through Python API.
+- **Broad Architecture Support**: It currently supports the basic layer of DNNs including Linear, CNNs, Transposed CNNs, LSTM, Average Pooling,  normalization, enabling the building of mainstream architectures such as Autoencoders, Transformers, Diffusion Models, and GANs.
+- **Model Building and Execution**: Currently, it supports sequential model building, with plans to introduce Eager Execution in the future for better debugging.
+- **Multi-GPU Training**: Currently, it supports Distributed Data Parallel (DDP) for multi-GPU setups via NCCL and MPI. Find how to use it in the :doc:`Distributed Data Parallel <api/multi_gpu>` page.
+- **Open Platform**: cuTAGI provides open access to its entire codebase. This transparency and accessibility allows researchers and developers to dive deep into the cuTAGI's core functionalities.
+
+cuTAGI targets machine learning researchers and developers, aiming to improve the reliability of neural network outcomes, learning efficiency, and adaptability to different dataset sizes. The Python API, inspired by the PyTorch framework, is designed to quickly onboard researchers for idea exploration.
+
 
 Contributors
 ------------
@@ -63,8 +110,9 @@ Related references
    :hidden:
 
    api/installations
-   api/theory
-   api/examples
    api/pytagi_api
-   api/dev_guides
    api/tutorials/index
+   api/dev_guides
+   api/multi_gpu
+   api/theory
+   api/about
