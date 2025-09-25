@@ -446,18 +446,28 @@ void Sequential::step()
     }
 }
 
-void Sequential::reset_lstm_states()
-/*
- */
-{
-    // Hidden layers
-    for (auto layer = this->layers.begin(); layer != this->layers.end();
-         layer++) {
-        auto *current_layer = layer->get();
-        if (current_layer->get_layer_type() == LayerType::LSTM) {
-            auto *lstm_layer = dynamic_cast<LSTM *>(current_layer);
-            lstm_layer->lstm_states.reset_zeros();
+void Sequential::reset_lstm_states() {
+    /*
+     */
+    for (auto &layer : this->layers) {
+        if (layer->get_layer_type() != LayerType::LSTM) {
+            continue;
         }
+
+        if (this->device == "cpu") {
+            if (auto *lstm = dynamic_cast<LSTM *>(layer.get())) {
+                lstm->lstm_states.reset_zeros();
+            }
+        }
+#ifdef USE_CUDA
+        else if (this->device == "cuda") {
+            if (auto *lstm = dynamic_cast<LSTMCuda *>(layer.get())) {
+                lstm->lstm_state.to_host();
+                lstm->lstm_state.reset_zeros();
+                lstm->lstm_state.to_device();
+            }
+        }
+#endif
     }
 }
 
