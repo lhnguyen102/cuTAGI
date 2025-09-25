@@ -2,4 +2,4 @@
 
 Installation
 ============
-This section presents how to install
+This section presents how to install pyTAGI
