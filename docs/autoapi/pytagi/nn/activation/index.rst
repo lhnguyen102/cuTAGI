@@ -395,16 +395,14 @@ Module Contents
 
    Applies a probabilistic Remax approximation function.
 
-       Remax is a softmax-like activation function wich replaces the exponential function by a
-       rectified linear unit. It rescales the input so that the elements of the output
-       lie in the range [0,1] and sum to 1. It is commonly used as the final
-       activation function in a classification network to produce probability
-       distributions over classes.
+   Remax is a softmax-like activation function wich replaces the exponential function by a
+   rectified linear unit. It rescales the input so that the elements of the output
+   lie in the range [0,1] and sum to 1. It is commonly used as the final
+   activation function in a classification network to produce probability
+   distributions over classes.
 
-       .. math::
-                   ext{Remax}(x_{i}) =
-   rac{       ext{ReLU}(x_i)}{\sum_j  ext{ReLU}(x_j)}
-
+   .. math::
+       \text{Remax}(x_{i}) = \frac{\text{ReLU}(x_i)}{\sum_j \text{ReLU}(x_j)}
 
 
    .. py:method:: get_layer_info() -> str
@@ -436,6 +434,9 @@ Module Contents
    a closed-form solution for the output distribution when the input is a Gaussian
    distribution. It is commonly used as the final activation function in a classification
    network to produce probability distributions over classes.
+
+   .. math::
+       \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
 
 
    .. py:method:: get_layer_info() -> str

@@ -246,7 +246,7 @@ class EvenExp(BaseLayer):
 
 
 class Remax(BaseLayer):
-    """Applies a probabilistic Remax approximation function.
+    r"""Applies a probabilistic Remax approximation function.
 
     Remax is a softmax-like activation function wich replaces the exponential function by a
     rectified linear unit. It rescales the input so that the elements of the output
@@ -269,12 +269,15 @@ class Remax(BaseLayer):
 
 
 class ClosedFormSoftmax(BaseLayer):
-    """Applies a probabilistic Softmax approximation function.
+    r"""Applies a probabilistic Softmax approximation function.
 
     Closed-form softmax is an approximation of the softmax function that provides
     a closed-form solution for the output distribution when the input is a Gaussian
     distribution. It is commonly used as the final activation function in a classification
     network to produce probability distributions over classes.
+
+    .. math::
+        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
     """
 
     def __init__(self):
