@@ -244,7 +244,7 @@ class SmoothSLSTM {
     size_t num_timesteps = 0;
     std::vector<float> mu_h_priors, var_h_priors, mu_c_priors, var_c_priors,
         mu_h_posts, var_h_posts, mu_c_posts, var_c_posts, mu_h_smooths,
-        var_h_smooths, mu_c_smooths, var_c_smooths, cov_hc, cov_cc, cov_hh;
+        var_h_smooths, mu_c_smooths, var_c_smooths, cov_cc, cov_hh;
 
     SmoothSLSTM(size_t num_states, size_t num_timesteps);
     SmoothSLSTM();

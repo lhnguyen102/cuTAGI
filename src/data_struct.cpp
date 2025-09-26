@@ -479,11 +479,6 @@ void SmoothSLSTM::reset_zeros()
         var_c_smooths.resize(num_states * num_timesteps);
     for (auto& val : var_c_smooths) val = 0;
 
-    // Resize and reset cov_hc
-    if (cov_hc.size() != num_states * num_timesteps)
-        cov_hc.resize(num_states * num_timesteps);
-    for (auto& val : cov_hc) val = 0;
-
     // Resize and reset cov_cc
     if (cov_cc.size() != num_states * num_timesteps)
         cov_cc.resize(num_states * num_timesteps);

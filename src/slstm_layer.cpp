@@ -47,33 +47,6 @@ void save_cov_cell_states_smoother(int time_step, int num_states,
     }
 }
 
-void save_cov_hidden_states_smoother_time(int time_step, int num_states,
-                                          std::vector<float> &cov_hh_step,
-                                          std::vector<float> &cov_hh)
-/*
- */
-{
-    for (int i = 0; i < num_states * num_states; i++) {
-        // cov(h_{t-1},h_{t})
-        cov_hh[time_step * num_states * num_states + i] = cov_hh_step[i];
-    }
-}
-
-void save_cov_hidden_cell_states_smoother(int time_step, int num_states,
-                                          std::vector<float> &var_c_prior,
-                                          std::vector<float> &mu_o_ga,
-                                          std::vector<float> &jcb_ca,
-                                          std::vector<float> &cov_hc)
-/*
- */
-{
-    for (int i = 0; i < num_states; i++) {
-        // cov(h_{t},c_{t})
-        cov_hc[time_step * num_states + i] =
-            var_c_prior[i] * jcb_ca[i] * mu_o_ga[i];
-    }
-}
-
 void save_cov_hidden_states_smoother(
     int time_step, std::vector<float> &mw, std::vector<float> &Jf_ga,
     std::vector<float> &mi_ga, std::vector<float> &Ji_ga,
@@ -411,11 +384,6 @@ void SLSTM::forward(BaseHiddenStates &input_states,
         save_cov_cell_states_smoother(
             this->time_step, this->output_size, this->lstm_states.var_c_prev,
             this->lstm_states.mu_f_ga, this->smooth_states.cov_cc);
-
-        save_cov_hidden_cell_states_smoother(
-            this->time_step, this->output_size, this->lstm_states.var_c_prior,
-            this->lstm_states.mu_o_ga, this->lstm_states.jcb_ca,
-            this->smooth_states.cov_hc);
 
         save_cov_hidden_states_smoother(
             this->time_step, this->mu_w, lstm_states.jcb_f_ga,
