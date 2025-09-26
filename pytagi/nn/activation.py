@@ -36,7 +36,7 @@ class Sigmoid(BaseLayer):
     .. math::
         \text{Sigmoid}(x) = \sigma(x) = \frac{1}{1 + e^{-x}}
 
-    .. image:: _images/Sigmoid.png
+    .. image:: ../../../../_static/activation_io_sigmoid.png
        :align: center
     """
 
@@ -60,7 +60,7 @@ class Tanh(BaseLayer):
     .. math::
         \text{Tanh}(x) = \tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}
 
-    .. image:: _images/Tanh.png
+    .. image:: ../../../../_static/activation_io_tanh.png
        :align: center
     """
 
@@ -75,17 +75,17 @@ class Tanh(BaseLayer):
 
 
 class MixtureReLU(BaseLayer):
-    r"""Applies the probabilistic Rectified Linear Unit.
+    r"""Applies a probabilistic Rectified Linear Unit approximation.
 
     This activation function is designed for probabilistic neural networks where
     activations are represented by distributions. It takes a Gaussian distribution
     as input and computes the exact moments (mean and variance) of the output,
-    which is a rectified Gaussian distribution.
+    which is a truncated Gaussian distribution.
 
     For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, the output
     :math:`Y = \max(0, X)` results in a rectified Gaussian.
 
-    .. image:: _images/MixtureReLU.png
+    .. image:: ../../../../_static/activation_io_mixture_relu.png
        :align: center
     """
 
@@ -100,7 +100,7 @@ class MixtureReLU(BaseLayer):
 
 
 class MixtureSigmoid(BaseLayer):
-    r"""Applies the probabilistic Sigmoid function.
+    r"""Applies a probabilistic Sigmoid function approximation.
 
     This activation function processes an input Gaussian distribution and
     approximates the output distribution after applying the sigmoid function.
@@ -108,6 +108,9 @@ class MixtureSigmoid(BaseLayer):
 
     For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, this layer
     approximates the distribution of :math:`Y = \frac{1}{1 + e^{-X}}`.
+
+    .. image:: ../../../../_static/activation_io_mixture_sigmoid.png
+       :align: center
     """
 
     def __init__(self):
@@ -121,7 +124,7 @@ class MixtureSigmoid(BaseLayer):
 
 
 class MixtureTanh(BaseLayer):
-    r"""Applies the probabilistic Hyperbolic Tangent function.
+    r"""Applies a probabilistic Hyperbolic Tangent function approximation.
 
     This activation function processes an input Gaussian distribution and
     approximates the output distribution after applying the Tanh function.
@@ -129,6 +132,9 @@ class MixtureTanh(BaseLayer):
 
     For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, this layer
     approximates the distribution of :math:`Y = \tanh(X)`.
+
+    .. image:: ../../../../_static/activation_io_mixture_tanh.png
+       :align: center
     """
 
     def __init__(self):
@@ -149,7 +155,7 @@ class Softplus(BaseLayer):
     .. math::
         \text{Softplus}(x) = \log(1 + e^{x})
 
-    .. image:: _images/Softplus.png
+    .. image:: ../../../../_static/activation_io_softplus.png
        :align: center
     """
 
@@ -178,7 +184,7 @@ class LeakyReLU(BaseLayer):
 
     Where :math:`\alpha` is the `negative_slope` and is set to 0.1.
 
-    .. image:: _images/LeakyReLU.png
+    .. image:: ../../../../_static/activation_io_leaky_relu.png
        :align: center
     """
 
@@ -193,7 +199,7 @@ class LeakyReLU(BaseLayer):
 
 
 class Softmax(BaseLayer):
-    r"""Applies the Softmax function to an n-dimensional input Tensor.
+    r"""Applies a Local-Linearization of the Softmax function to an n-dimensional input.
 
     The Softmax function rescales the input so that the elements of the output
     lie in the range [0,1] and sum to 1. It is commonly used as the final
@@ -217,15 +223,16 @@ class Softmax(BaseLayer):
 class EvenExp(BaseLayer):
     r"""Applies the EvenExp activation function.
 
-    This is an even function (symmetric about the y-axis) based on the
-    exponential function, related to the hyperbolic cosine. It can be useful
-    in specific network architectures where such symmetry is desired.
+    This is an even function allows to pass just the odd postions of the output layer through
+    an exponential activation function. So it allows passing from V2_bar to V2_bar_tilde for
+    the correct aleatoric uncertainty inference in the case of heteroscedastic regression.
 
     .. math::
-        \text{EvenExp}(x) = \exp(x) + \exp(-x) = 2 \cosh(x)
+        \text{EvenExp}(x) = \begin{cases}
+            \exp(x) & \text{if } x \text{ is at an odd position}\\
+            x & \text{if } x \text{ is at an even position}
+        \end{cases}
 
-    .. image:: _images/EvenExp.png
-       :align: center
     """
 
     def __init__(self):
@@ -239,12 +246,16 @@ class EvenExp(BaseLayer):
 
 
 class Remax(BaseLayer):
-    """Applies the Remax activation function.
+    """Applies a probabilistic Remax approximation function.
 
-    Remax is a softmax-like activation function, often used in attention
-    mechanisms. It is designed to be a more expressive alternative to softmax,
-    particularly for tasks involving ranking or selection, and is based on
-    the recursive application of the max operator.
+    Remax is a softmax-like activation function wich replaces the exponential function by a
+    rectified linear unit. It rescales the input so that the elements of the output
+    lie in the range [0,1] and sum to 1. It is commonly used as the final
+    activation function in a classification network to produce probability
+    distributions over classes.
+
+    .. math::
+        \text{Remax}(x_{i}) = \frac{\text{ReLU}(x_i)}{\sum_j \text{ReLU}(x_j)}
     """
 
     def __init__(self):
@@ -258,12 +269,12 @@ class Remax(BaseLayer):
 
 
 class ClosedFormSoftmax(BaseLayer):
-    """Applies a closed-form variant of the Softmax function.
+    """Applies a probabilistic Softmax approximation function.
 
-    This layer is a specific implementation of Softmax designed for efficient,
-    closed-form updates within the pyTAGI probabilistic framework. It computes
-    the output distribution that results from applying the Softmax transformation
-    to an input Gaussian distribution.
+    Closed-form softmax is an approximation of the softmax function that provides
+    a closed-form solution for the output distribution when the input is a Gaussian
+    distribution. It is commonly used as the final activation function in a classification
+    network to produce probability distributions over classes.
     """
 
     def __init__(self):
