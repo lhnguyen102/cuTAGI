@@ -1,3 +1,13 @@
+"""
+Neural Network module for pyTAGI.
+
+This module provides various neural network layers and components,
+including activation functions, base layers, convolutional layers,
+recurrent layers, and utility modules. These components are designed
+to work with probabilistic data structures and leverage a C++ backend
+for performance.
+"""
+
 from pytagi.nn.activation import (
     ClosedFormSoftmax,
     EvenExp,

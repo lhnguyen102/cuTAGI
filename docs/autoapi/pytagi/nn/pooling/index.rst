@@ -21,24 +21,21 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Average Pooling layer
+   2D Average Pooling Layer.
+
+   This layer performs 2D average pooling operation. It wraps the C++/CUDA backend
+   `cutagi.AvgPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'AvgPool2d').
 
 
 
@@ -47,21 +44,18 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Max Pooling layer
+   2D Max Pooling Layer.
+
+   This layer performs 2D max pooling operation. It wraps the C++/CUDA backend
+   `cutagi.MaxPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'MaxPool2d').

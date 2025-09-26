@@ -20,25 +20,26 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Smoothering Linear layer
+   Smoother Linear layer for Recurrent Architectures.
+
+   This layer performs a linear transformation ($y = xW^T + b$), specifically designed
+   to be used within LSTMs where a smoothering
+   mechanism might be applied to the hidden states. It wraps the C++/CUDA backend
+   `cutagi.SLinear`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer's configuration (sizes, bias, etc.).
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'SLinear').
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's weight matrix and bias vector based on the configured method.

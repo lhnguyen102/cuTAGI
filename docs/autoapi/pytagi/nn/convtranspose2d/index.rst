@@ -20,12 +20,43 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Tranposed convolutional layer
+   Applies a 2D transposed convolution operation (also known as deconvolution).
+
+   This layer performs a transposed convolution, which is often used in tasks
+   like image generation or segmentation to upsample feature maps. It effectively
+   reverses the convolution operation, increasing the spatial dimensions of the input.
+   This implementation is designed to work with probabilistic inputs and leverages
+   a C++ backend for performance.
+
+   :param in_channels: Number of input channels.
+   :type in_channels: int
+   :param out_channels: Number of output channels.
+   :type out_channels: int
+   :param kernel_size: Size of the convolutional kernel.
+   :type kernel_size: int
+   :param bias: Whether to include a learnable bias term. Defaults to True.
+   :type bias: bool
+   :param stride: The step size of the kernel. Defaults to 1.
+   :type stride: int
+   :param padding: Amount of zero-padding added to the input. Defaults to 0.
+   :type padding: int
+   :param padding_type: Type of padding. Defaults to 1 (likely 'zeros' or similar).
+   :type padding_type: int
+   :param in_width: Input width. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_width: int
+   :param in_height: Input height. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_height: int
+   :param gain_weight: Initial value for the gain (scale) parameter of weights. Defaults to 1.0.
+   :type gain_weight: float
+   :param gain_bias: Initial value for the gain (scale) parameter of biases. Defaults to 1.0.
+   :type gain_bias: float
+   :param init_method: Method used for initializing weights. Defaults to "He".
+   :type init_method: str
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
+      Retrieves detailed information about the ConvTranspose2d layer.
 
       :returns: A string containing the layer's information.
       :rtype: str
@@ -34,7 +65,7 @@ Module Contents
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
+      Retrieves the name of the ConvTranspose2d layer.
 
       :returns: The name of the layer.
       :rtype: str
@@ -42,3 +73,5 @@ Module Contents
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the learnable weight and bias parameters of the transposed convolutional layer.

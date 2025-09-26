@@ -147,16 +147,32 @@ Package Contents
 
 .. py:class:: Normalizer(method: Union[str, None] = None)
 
-   Different method to normalize the data before feeding
-   to neural networks
+   A collection of methods for data normalization and denormalization.
+
+   Provides common scaling techniques such as standardization (Z-score) and
+   min-max normalization. It also includes methods to reverse the transformations.
+
+   :param method: The normalization method to use. Currently, this parameter is
+       not used in the methods but can be set for context.
+   :type method: str or None, optional
 
 
    .. py:method:: standardize(data: numpy.ndarray, mu: numpy.ndarray, std: numpy.ndarray) -> numpy.ndarray
       :staticmethod:
 
 
-      Z-score normalization where
-      data_norm = (data - data_mean) / data_std
+      Applies Z-score normalization to the data.
+
+      The transformation is given by: :math:`(data - \mu) / (\sigma + \epsilon)`.
+
+      :param data: The input data to normalize.
+      :type data: numpy.ndarray
+      :param mu: The mean of the data, typically computed per feature.
+      :type mu: numpy.ndarray
+      :param std: The standard deviation of the data, typically computed per feature.
+      :type std: numpy.ndarray
+      :return: The standardized data.
+      :rtype: numpy.ndarray
 
 
 
@@ -164,7 +180,18 @@ Package Contents
       :staticmethod:
 
 
-      Transform standardized data to original space
+      Reverts the Z-score normalization.
+
+      The transformation is given by: :math:`\text{norm_data} \times (\sigma + \epsilon) + \mu`.
+
+      :param norm_data: The standardized data to transform back to the original scale.
+      :type norm_data: numpy.ndarray
+      :param mu: The original mean used for standardization.
+      :type mu: numpy.ndarray
+      :param std: The original standard deviation used for standardization.
+      :type std: numpy.ndarray
+      :return: The data in its original scale.
+      :rtype: numpy.ndarray
 
 
 
@@ -172,13 +199,34 @@ Package Contents
       :staticmethod:
 
 
-      Transform standardized std to original space
+      Scales a standardized standard deviation back to the original space.
+
+      The transformation is given by: :math:`\text{norm_std} \times (\sigma + \epsilon)`.
+
+      :param norm_std: The standardized standard deviation.
+      :type norm_std: numpy.ndarray
+      :param std: The original standard deviation of the data.
+      :type std: numpy.ndarray
+      :return: The standard deviation in its original scale.
+      :rtype: numpy.ndarray
 
 
 
    .. py:method:: max_min_norm(data: numpy.ndarray, max_value: numpy.ndarray, min_value: numpy.ndarray) -> numpy.ndarray
 
-      Normalize the data between 0 and 1
+      Applies min-max normalization to scale data between 0 and 1.
+
+      The transformation is given by:
+      :math:`(\text{data} - \text{min_value}) / (\text{max_value} - \text{min_value} + \epsilon)`.
+
+      :param data: The input data to normalize.
+      :type data: numpy.ndarray
+      :param max_value: The maximum value of the data, typically per feature.
+      :type max_value: numpy.ndarray
+      :param min_value: The minimum value of the data, typically per feature.
+      :type min_value: numpy.ndarray
+      :return: The data scaled to the [0, 1] range.
+      :rtype: numpy.ndarray
 
 
 
@@ -186,7 +234,19 @@ Package Contents
       :staticmethod:
 
 
-      Transform max-min normalized data to original space
+      Reverts the min-max normalization.
+
+      The transformation is given by:
+      :math:`\text{norm_data} \times (\text{max_value} - \text{min_value} + \epsilon) + \text{min_value}`.
+
+      :param norm_data: The min-max normalized data.
+      :type norm_data: numpy.ndarray
+      :param max_value: The original maximum value used for normalization.
+      :type max_value: numpy.ndarray
+      :param min_value: The original minimum value used for normalization.
+      :type min_value: numpy.ndarray
+      :return: The data in its original scale.
+      :rtype: numpy.ndarray
 
 
 
@@ -194,7 +254,19 @@ Package Contents
       :staticmethod:
 
 
-      Transform max-min normalized std to original space
+      Scales a standard deviation from the min-max normalized space to the original space.
+
+      The transformation is given by:
+      :math:`\text{norm_std} \times (\text{max_value} - \text{min_value} + \epsilon)`.
+
+      :param norm_std: The standard deviation in the normalized space.
+      :type norm_std: numpy.ndarray
+      :param max_value: The original maximum value of the data.
+      :type max_value: numpy.ndarray
+      :param min_value: The original minimum value of the data.
+      :type min_value: numpy.ndarray
+      :return: The standard deviation in the original data scale.
+      :rtype: numpy.ndarray
 
 
 
@@ -202,7 +274,16 @@ Package Contents
       :staticmethod:
 
 
-      Compute sample mean and standard deviation
+      Computes the sample mean and standard deviation of the data along axis 0.
+
+      NaN values are ignored in the calculation.
+
+      :param data: The input data array.
+      :type data: numpy.ndarray
+      :return: A tuple containing:
+          - **mean** (*numpy.ndarray*): The mean of the data.
+          - **std** (*numpy.ndarray*): The standard deviation of the data.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
@@ -210,158 +291,239 @@ Package Contents
       :staticmethod:
 
 
-      Compute max min values
+      Computes the maximum and minimum values of the data along axis 0.
+
+      NaN values are ignored in the calculation.
+
+      :param data: The input data array.
+      :type data: numpy.ndarray
+      :return: A tuple containing:
+          - **max** (*numpy.ndarray*): The maximum values.
+          - **min** (*numpy.ndarray*): The minimum values.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
 .. py:class:: Utils
 
-   Frontend for utility functions from C++/CUDA backend
+   A frontend for utility functions from the C++/CUDA backend.
 
-   .. attribute:: _cpp_backend
+   This class provides a Python interface to various utility functions implemented
+   in the C++ `cutagi` library, such as data loading, preprocessing, and
+   post-processing tasks related to machine learning models.
 
-      Utility functionalities from the backend
+   :ivar _cpp_backend: An instance of `cutagi.Utils` which provides the
+       backend functionalities.
 
 
    .. py:method:: label_to_obs(labels: numpy.ndarray, num_classes: int) -> Tuple[numpy.ndarray, numpy.ndarray, int]
 
-      Get observations and observation indices of the binary tree for
-          classification
+      Converts class labels into observations for a binary tree structure.
 
-      :param labels: Labels of dataset
-      :param num_classes: Total number of classes
+      This is typically used for hierarchical classification, where each label
+      is mapped to a path in a binary tree, and the observations represent
+      the nodes along that path.
 
-      :returns: Encoded observations of the labels
-                obs_idx: Indices of the encoded observations in the output vector
-                num_obs: Number of encoded observations
-      :rtype: obs
+      :param labels: An array of class labels for the dataset.
+      :type labels: numpy.ndarray
+      :param num_classes: The total number of unique classes.
+      :type num_classes: int
+      :return: A tuple containing:
+          - **obs** (*numpy.ndarray*): Encoded observations corresponding to the labels.
+          - **obs_idx** (*numpy.ndarray*): Indices of the encoded observations.
+          - **num_obs** (*int*): The total number of encoded observations.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray, int]
 
 
 
    .. py:method:: label_to_one_hot(labels: numpy.ndarray, num_classes: int) -> numpy.ndarray
 
-      Get the one hot encoder for each class
+      Generates a one-hot encoding for the given labels.
 
-      :param labels: Labels of dataset
-      :param num_classes: Total number of classes
-
-      :returns: One hot encoder
-      :rtype: one_hot
+      :param labels: An array of class labels for the dataset.
+      :type labels: numpy.ndarray
+      :param num_classes: The total number of unique classes.
+      :type num_classes: int
+      :return: A 2D array representing the one-hot encoded labels.
+      :rtype: numpy.ndarray
 
 
 
    .. py:method:: load_mnist_images(image_file: str, label_file: str, num_images: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Load mnist dataset
+      Loads a specified number of images and labels from the MNIST dataset files.
 
-      :param image_file: Location of the Mnist image file
-      :param label_file: Location of the Mnist label file
-      :param num_images: Number of images to be loaded
-
-      :returns: Image dataset
-                labels: Label dataset
-                num_images: Total number of images
-      :rtype: images
+      :param image_file: The file path to the MNIST image data (e.g., 'train-images-idx3-ubyte').
+      :type image_file: str
+      :param label_file: The file path to the MNIST label data (e.g., 'train-labels-idx1-ubyte').
+      :type label_file: str
+      :param num_images: The number of images to load from the files.
+      :type num_images: int
+      :return: A tuple containing:
+          - **images** (*numpy.ndarray*): A 2D array of flattened MNIST images.
+          - **labels** (*numpy.ndarray*): A 1D array of corresponding labels.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
    .. py:method:: load_cifar_images(image_file: str, num: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Load cifar dataset
+      Loads a specified number of images and labels from a CIFAR-10 dataset file.
 
-      :param image_file: Location of image file
-      :param num: Number of images to be loaded
-
-      :returns: Image dataset
-                labels: Label dataset
-      :rtype: images
+      :param image_file: The file path to a CIFAR-10 data batch file.
+      :type image_file: str
+      :param num: The number of images to load from the file.
+      :type num: int
+      :return: A tuple containing:
+          - **images** (*numpy.ndarray*): A 2D array of flattened CIFAR-10 images.
+          - **labels** (*numpy.ndarray*): A 1D array of corresponding labels.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
    .. py:method:: get_labels(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Convert last layer's hidden state to labels
+      Predicts class labels from the output layer's activation statistics.
 
-      :param ma: Mean of activation units for the output layer
-      :param Sa: Variance of activation units for the output layer
-      :param hr_softmax: Hierarchical softmax
-      :param num_classes: Total number of classes
-      :param batch_size: Number of data in a batch
+      Uses hierarchical softmax to convert the mean and variance of the output
+      layer's activations into class predictions and their probabilities.
 
-      :returns: Label prediciton
-                prob: Probability for each label
-      :rtype: pred
+      :param ma: The mean of the activation units for the output layer.
+      :type ma: numpy.ndarray
+      :param Sa: The variance of the activation units for the output layer.
+      :type Sa: numpy.ndarray
+      :param hr_softmax: An initialized hierarchical softmax structure.
+      :type hr_softmax: pytagi.nn.HRCSoftmax
+      :param num_classes: The total number of classes.
+      :type num_classes: int
+      :param batch_size: The number of samples in the batch.
+      :type batch_size: int
+      :return: A tuple containing:
+          - **pred** (*numpy.ndarray*): The predicted class labels for the batch.
+          - **prob** (*numpy.ndarray*): The probabilities for each predicted label.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
    .. py:method:: get_errors(ma: numpy.ndarray, Sa: numpy.ndarray, labels: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Convert last layer's hidden state to labels
+      Computes the prediction error given the output layer's statistics and true labels.
 
-      :param ma: Mean of activation units for the output layer
-      :param Sa: Variance of activation units for the output layer
-      :param labels: Label dataset
-      :param hr_softmax: Hierarchical softmax
-      :param num_classes: Total number of classes
-      :param batch_size: Number of data in a batch
+      This method calculates the classification error rate and probabilities based
+      on the hierarchical softmax output.
 
-      :returns: Label prediction
-                prob: Probability for each label
-      :rtype: pred
+      :param ma: The mean of the activation units for the output layer.
+      :type ma: numpy.ndarray
+      :param Sa: The variance of the activation units for the output layer.
+      :type Sa: numpy.ndarray
+      :param labels: The ground truth labels for the dataset.
+      :type labels: numpy.ndarray
+      :param hr_softmax: An initialized hierarchical softmax structure.
+      :type hr_softmax: pytagi.nn.HRCSoftmax
+      :param num_classes: The total number of classes.
+      :type num_classes: int
+      :param batch_size: The number of samples in a batch.
+      :type batch_size: int
+      :return: A tuple containing:
+          - **pred** (*numpy.ndarray*): The prediction error for the batch.
+          - **prob** (*numpy.ndarray*): The probabilities associated with the predictions.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
    .. py:method:: get_hierarchical_softmax(num_classes: int) -> pytagi.nn.HRCSoftmax
 
-      Convert labels to binary tree
+      Constructs a hierarchical softmax structure (binary tree) for classification.
 
-      :param num_classes: Total number of classes
-
-      :returns: Hierarchical softmax
-      :rtype: hr_softmax
+      :param num_classes: The total number of classes to be included in the tree.
+      :type num_classes: int
+      :return: An object representing the hierarchical softmax structure.
+      :rtype: pytagi.nn.HRCSoftmax
 
 
 
    .. py:method:: obs_to_label_prob(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int) -> numpy.ndarray
 
-      Convert observation to label probabilities
+      Converts observation probabilities to label probabilities.
 
-      :param ma: Mean of activation units for the output layer
-      :param Sa: Variance of activation units for the output layer
-      :param hr_softmax: Hierarchical softmax
-      :param num_classes: Total number of classes
+      This function takes the output statistics of a model (mean and variance) and
+      uses the hierarchical softmax structure to compute the probability of each class label.
 
-      :returns: Probability for each label
-      :rtype: prob
+      :param ma: The mean of the activation units for the output layer.
+      :type ma: numpy.ndarray
+      :param Sa: The variance of the activation units for the output layer.
+      :type Sa: numpy.ndarray
+      :param hr_softmax: An initialized hierarchical softmax structure.
+      :type hr_softmax: pytagi.nn.HRCSoftmax
+      :param num_classes: The total number of classes.
+      :type num_classes: int
+      :return: An array of probabilities for each class label.
+      :rtype: numpy.ndarray
 
 
 
    .. py:method:: create_rolling_window(data: numpy.ndarray, output_col: numpy.ndarray, input_seq_len: int, output_seq_len: int, num_features: int, stride: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      Create rolling window for time series data
+      Creates input/output sequences for time-series forecasting using a rolling window.
 
-      :param data: dataset
-      :param output_col: Indices of the output columns
-      :param input_seq_len: Length of the input sequence
-      :param output_seq_len: Length of the output sequence
-      :param num_features: Number of features
-      :param stride: Controls number of steps for the window movements
+      This method slides a window over the time-series data to generate
+      input sequences and their corresponding future output sequences.
 
-      :returns: Input data for neural networks in sequence
-                output_data: Output data for neural networks in sequence
-      :rtype: input_data
+      :param data: The time-series dataset, typically a 2D array of shape (timesteps, features).
+      :type data: numpy.ndarray
+      :param output_col: The indices of the columns to be used as output targets.
+      :type output_col: numpy.ndarray
+      :param input_seq_len: The number of time steps in each input sequence.
+      :type input_seq_len: int
+      :param output_seq_len: The number of time steps in each output sequence.
+      :type output_seq_len: int
+      :param num_features: The total number of features in the dataset.
+      :type num_features: int
+      :param stride: The number of time steps to move the window forward for each new sequence.
+      :type stride: int
+      :return: A tuple containing:
+          - **input_data** (*numpy.ndarray*): A 2D array of input sequences.
+          - **output_data** (*numpy.ndarray*): A 2D array of corresponding output sequences.
+      :rtype: Tuple[numpy.ndarray, numpy.ndarray]
 
 
 
    .. py:method:: get_upper_triu_cov(batch_size: int, num_data: int, sigma: float) -> numpy.ndarray
 
-      Create an upper triangle covriance matrix for inputs
+      Creates an upper triangular covariance matrix for correlated inputs.
+
+      This is useful for models that assume temporal or spatial correlation
+      in the input data, such as time-series models.
+
+      :param batch_size: The number of samples in a batch.
+      :type batch_size: int
+      :param num_data: The number of data points (e.g., time steps) in each sample.
+      :type num_data: int
+      :param sigma: The standard deviation parameter controlling the covariance.
+      :type sigma: float
+      :return: A 1D array representing the flattened upper triangular part of the covariance matrix.
+      :rtype: numpy.ndarray
 
 
 
-.. py:function:: exponential_scheduler(curr_v: float, min_v: float, decaying_factor: float, curr_iter: float) -> float
+.. py:function:: exponential_scheduler(curr_v: float, min_v: float, decaying_factor: float, curr_iter: int) -> float
 
-   Exponentially decaying
+   Implements an exponential decay schedule for a given value.
+
+   The value decays according to the formula:
+   :math:`\text{new_v} = \max(\text{curr_v} \times (\text{decaying_factor} ** \text{curr_iter}), \text{min_v})`.
+   This is commonly used for learning rate scheduling or for decaying exploration rates.
+
+   :param curr_v: The current value to be decayed.
+   :type curr_v: float
+   :param min_v: The minimum floor value that `curr_v` can decay to.
+   :type min_v: float
+   :param decaying_factor: The base of the exponential decay (e.g., 0.99).
+   :type decaying_factor: float
+   :param curr_iter: The current iteration number.
+   :type curr_iter: int
+   :return: The decayed value.
+   :rtype: float
 
 
 .. py:data:: __version__

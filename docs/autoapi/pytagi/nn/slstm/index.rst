@@ -20,25 +20,25 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Smoothing LSTM layer
+   Smoothing Long Short-Term Memory (LSTM) layer.
+
+   This layer is a variation of the standard LSTM, likely incorporating a mechanism
+   for **smoothing** the hidden states or outputs. It's designed for sequence
+   processing tasks. It wraps the C++/CUDA backend `cutagi.SLSTM`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing detailed information about the layer's configuration.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'SLSTM').
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes all the layer's internal weight matrices and bias vectors (for gates and cell) based on the configured method.

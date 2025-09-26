@@ -20,25 +20,26 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Layer normalization
+   Implements Layer Normalization, a technique often used in neural networks
+   to stabilize the learning process by normalizing the inputs across the
+   features dimension. It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., its shape and parameters) from the C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'LayerNorm') from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's internal parameters, specifically the learnable
+      scale (gamma) and, if 'bias' is True, the learnable offset (beta).
+      This task is delegated to the C++ backend.

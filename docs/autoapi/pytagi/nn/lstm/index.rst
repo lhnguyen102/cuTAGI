@@ -20,25 +20,29 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   LSTM layer
+   Implements a **Long Short-Term Memory (LSTM)** layer. LSTMs are designed to model
+   sequential data and overcome the vanishing gradient problem in traditional
+   RNNs by using gates (input, forget, and output) and a cell state.
+   It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., input/output size, sequence length) from the
+      C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'LSTM') from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the various weight matrices and bias vectors used by the
+      LSTM's gates (input, forget, output) and cell state updates, using
+      the specified method and gain factors. This task is delegated to the
+      C++ backend.

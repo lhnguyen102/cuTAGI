@@ -20,24 +20,29 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   A residual architecture contains a main block and a shortcut layer
+   A Residual Network (ResNet) block structure.
+
+   This class implements the core structure of a ResNet block, consisting of a
+   **main block** (which performs the main transformations) and an optional
+   **shortcut** connection (which adds the input to the main block's output).
+   It wraps the C++/CUDA backend `cutagi.ResNetBlock`.
 
 
    .. py:method:: init_shortcut_state() -> None
 
-      Initialize state buffer for shortcut
+      Initializes the hidden state buffers for the shortcut layer.
 
 
 
    .. py:method:: init_shortcut_delta_state() -> None
 
-      Initialize update values for state buffer for the shortcut
+      Initializes the delta state buffers (error signals) for the shortcut layer.
 
 
 
    .. py:method:: init_input_buffer() -> None
 
-      Initialize input state buffer to hold temporary state
+      Initializes the input state buffer used to hold the input for both the main block and the shortcut.
 
 
 
@@ -45,39 +50,39 @@ Module Contents
       :type: pytagi.nn.layer_block.LayerBlock
 
 
-      Set main block
+      Gets the **main block** component of the ResNet block.
 
 
    .. py:property:: shortcut
       :type: pytagi.nn.base_layer.BaseLayer
 
 
-      Set shortcut
+      Gets the **shortcut** component of the ResNet block.
 
 
    .. py:property:: input_z
       :type: pytagi.nn.data_struct.BaseHiddenStates
 
 
-      Get output hidden states
+      Gets the buffered input hidden states (mean and variance) for the block.
 
 
    .. py:property:: input_delta_z
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get update values for input states
+      Gets the delta states (error signals) associated with the block's input.
 
 
    .. py:property:: shortcut_output_z
       :type: pytagi.nn.data_struct.BaseHiddenStates
 
 
-      Get output hidden states for shortcut
+      Gets the output hidden states (mean and variance) from the shortcut layer.
 
 
    .. py:property:: shortcut_output_delta_z
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get update values for output hidden states for shortcut
+      Gets the delta states (error signals) associated with the shortcut layer's output.

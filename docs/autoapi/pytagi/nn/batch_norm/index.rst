@@ -20,25 +20,52 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Batch normalization
+   Applies 2D Batch Normalization to a Gaussian distribution.
+
+   Batch Normalization is a technique used to normalize the inputs of a layer
+   by re-centering and re-scaling them. This helps to stabilize and accelerate
+   the training of deep neural networks. This implementation is designed to
+   work with probabilistic inputs (Gaussian distributions).
+
+   :param num_features: The number of features in the input tensor.
+   :type num_features: int
+   :param eps: A small value added to the variance to avoid division by zero.
+               Defaults to 1e-5.
+   :type eps: float
+   :param momentum: The momentum for the running mean and variance.
+                    Defaults to 0.9.
+   :type momentum: float
+   :param bias: Whether to include a learnable bias term. Defaults to True.
+   :type bias: bool
+   :param gain_weight: Initial value for the gain (scale) parameter. Defaults to 1.0.
+   :type gain_weight: float
+   :param gain_bias: Initial value for the bias (shift) parameter. Defaults to 1.0.
+   :type gain_bias: float
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
+      Retrieves detailed information about the BatchNorm2d layer.
 
-      :returns: A string containing the layer's information.
+      :returns:
+
+                A string containing the layer's information, typically delegated
+                     to the C++ backend implementation.
       :rtype: str
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
+      Retrieves the name of the BatchNorm2d layer.
 
-      :returns: The name of the layer.
+      :returns: The name of the layer, typically delegated to the C++ backend implementation.
       :rtype: str
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the learnable weight (scale/gain) and bias (shift/offset)
+      parameters of the batch normalization layer. This operation is
+      delegated to the C++ backend.

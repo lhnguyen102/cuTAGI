@@ -3,12 +3,6 @@ pytagi.nn.linear
 
 .. py:module:: pytagi.nn.linear
 
-.. autoapi-nested-parse::
-
-   Introduction about the script: Fully-connected layer etc ...
-   Hello world
-
-
 
 Classes
 -------
@@ -26,43 +20,29 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Fully-connected layer
-
-   :param input_size: Input size of the layer
-   :type input_size: int
-
-   .. attribute:: input_size
-
-      Input size of the layer
-
-      :type: int
-
-   .. attribute:: output_size
-
-      Output size of the layer
-
-      :type: int
-
-   .. attribute:: bias
-
-      If True, adding biases along with the weights
-
-      :type: boolen
+   Implements a **Fully-connected layer**, also known as a dense layer.
+   This layer performs a linear transformation on the input data:
+   :math:`y = xW^T + b`, where :math:`x` is the input, :math:`W` is the weight matrix,
+   and :math:`b` is the optional bias vector. It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      get layer information
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., input/output size, whether bias is used) from the
+      C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'Linear' or 'FullyConnected')
+      from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's parameters—the weight matrix (:math:`W`) and the
+      optional bias vector (:math:`b`)—using the specified initialization method
+      and gain factors. This task is delegated to the C++ backend.

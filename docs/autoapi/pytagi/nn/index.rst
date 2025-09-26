@@ -3,6 +3,17 @@ pytagi.nn
 
 .. py:module:: pytagi.nn
 
+.. autoapi-nested-parse::
+
+   Neural Network module for pyTAGI.
+
+   This module provides various neural network layers and components,
+   including activation functions, base layers, convolutional layers,
+   recurrent layers, and utility modules. These components are designed
+   to work with probabilistic data structures and leverage a C++ backend
+   for performance.
+
+
 
 Submodules
 ----------
@@ -701,28 +712,56 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Batch normalization
+   Applies 2D Batch Normalization to a Gaussian distribution.
+
+   Batch Normalization is a technique used to normalize the inputs of a layer
+   by re-centering and re-scaling them. This helps to stabilize and accelerate
+   the training of deep neural networks. This implementation is designed to
+   work with probabilistic inputs (Gaussian distributions).
+
+   :param num_features: The number of features in the input tensor.
+   :type num_features: int
+   :param eps: A small value added to the variance to avoid division by zero.
+               Defaults to 1e-5.
+   :type eps: float
+   :param momentum: The momentum for the running mean and variance.
+                    Defaults to 0.9.
+   :type momentum: float
+   :param bias: Whether to include a learnable bias term. Defaults to True.
+   :type bias: bool
+   :param gain_weight: Initial value for the gain (scale) parameter. Defaults to 1.0.
+   :type gain_weight: float
+   :param gain_bias: Initial value for the bias (shift) parameter. Defaults to 1.0.
+   :type gain_bias: float
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
+      Retrieves detailed information about the BatchNorm2d layer.
 
-      :returns: A string containing the layer's information.
+      :returns:
+
+                A string containing the layer's information, typically delegated
+                     to the C++ backend implementation.
       :rtype: str
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
+      Retrieves the name of the BatchNorm2d layer.
 
-      :returns: The name of the layer.
+      :returns: The name of the layer, typically delegated to the C++ backend implementation.
       :rtype: str
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the learnable weight (scale/gain) and bias (shift/offset)
+      parameters of the batch normalization layer. This operation is
+      delegated to the C++ backend.
+
 
 
 .. py:class:: Conv2d(in_channels: int, out_channels: int, kernel_size: int, bias: bool = True, stride: int = 1, padding: int = 0, padding_type: int = 1, in_width: int = 0, in_height: int = 0, gain_weight: float = 1.0, gain_bias: float = 1.0, init_method: str = 'He')
@@ -730,12 +769,42 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Convolutional layer
+   Applies a 2D convolution operation.
+
+   This layer performs a convolution operation, which is a fundamental building block
+   in convolutional neural networks (CNNs). It slides a kernel (or filter) over
+   an input tensor to produce an output tensor. This implementation is designed
+   to work with probabilistic inputs and leverages a C++ backend for performance.
+
+   :param in_channels: Number of input channels.
+   :type in_channels: int
+   :param out_channels: Number of output channels.
+   :type out_channels: int
+   :param kernel_size: Size of the convolutional kernel.
+   :type kernel_size: int
+   :param bias: Whether to include a learnable bias term. Defaults to True.
+   :type bias: bool
+   :param stride: The step size of the kernel. Defaults to 1.
+   :type stride: int
+   :param padding: Amount of zero-padding added to the input. Defaults to 0.
+   :type padding: int
+   :param padding_type: Type of padding. Defaults to 1 (likely 'zeros' or similar).
+   :type padding_type: int
+   :param in_width: Input width. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_width: int
+   :param in_height: Input height. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_height: int
+   :param gain_weight: Initial value for the gain (scale) parameter of weights. Defaults to 1.0.
+   :type gain_weight: float
+   :param gain_bias: Initial value for the gain (scale) parameter of biases. Defaults to 1.0.
+   :type gain_bias: float
+   :param init_method: Method used for initializing weights. Defaults to "He".
+   :type init_method: str
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
+      Retrieves detailed information about the Conv2d layer.
 
       :returns: A string containing the layer's information.
       :rtype: str
@@ -744,7 +813,7 @@ Package Contents
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
+      Retrieves the name of the Conv2d layer.
 
       :returns: The name of the layer.
       :rtype: str
@@ -752,6 +821,10 @@ Package Contents
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the learnable weight (kernel) and bias parameters of the convolutional layer.
+      This initialization is delegated to the C++ backend, likely using the 'init_method' specified (e.g., "He").
+
 
 
 .. py:class:: ConvTranspose2d(in_channels: int, out_channels: int, kernel_size: int, bias: bool = True, stride: int = 1, padding: int = 0, padding_type: int = 1, in_width: int = 0, in_height: int = 0, gain_weight: float = 1.0, gain_bias: float = 1.0, init_method: str = 'He')
@@ -759,12 +832,43 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Tranposed convolutional layer
+   Applies a 2D transposed convolution operation (also known as deconvolution).
+
+   This layer performs a transposed convolution, which is often used in tasks
+   like image generation or segmentation to upsample feature maps. It effectively
+   reverses the convolution operation, increasing the spatial dimensions of the input.
+   This implementation is designed to work with probabilistic inputs and leverages
+   a C++ backend for performance.
+
+   :param in_channels: Number of input channels.
+   :type in_channels: int
+   :param out_channels: Number of output channels.
+   :type out_channels: int
+   :param kernel_size: Size of the convolutional kernel.
+   :type kernel_size: int
+   :param bias: Whether to include a learnable bias term. Defaults to True.
+   :type bias: bool
+   :param stride: The step size of the kernel. Defaults to 1.
+   :type stride: int
+   :param padding: Amount of zero-padding added to the input. Defaults to 0.
+   :type padding: int
+   :param padding_type: Type of padding. Defaults to 1 (likely 'zeros' or similar).
+   :type padding_type: int
+   :param in_width: Input width. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_width: int
+   :param in_height: Input height. If 0, it might be inferred or set by the backend. Defaults to 0.
+   :type in_height: int
+   :param gain_weight: Initial value for the gain (scale) parameter of weights. Defaults to 1.0.
+   :type gain_weight: float
+   :param gain_bias: Initial value for the gain (scale) parameter of biases. Defaults to 1.0.
+   :type gain_bias: float
+   :param init_method: Method used for initializing weights. Defaults to "He".
+   :type init_method: str
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
+      Retrieves detailed information about the ConvTranspose2d layer.
 
       :returns: A string containing the layer's information.
       :rtype: str
@@ -773,7 +877,7 @@ Package Contents
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
+      Retrieves the name of the ConvTranspose2d layer.
 
       :returns: The name of the layer.
       :rtype: str
@@ -781,6 +885,9 @@ Package Contents
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the learnable weight and bias parameters of the transposed convolutional layer.
+
 
 
 .. py:class:: BaseDeltaStates(size: Optional[int] = None, block_size: Optional[int] = None)
@@ -1173,28 +1280,30 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Layer normalization
+   Implements Layer Normalization, a technique often used in neural networks
+   to stabilize the learning process by normalizing the inputs across the
+   features dimension. It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., its shape and parameters) from the C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'LayerNorm') from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's internal parameters, specifically the learnable
+      scale (gamma) and, if 'bias' is True, the learnable offset (beta).
+      This task is delegated to the C++ backend.
+
 
 
 .. py:class:: Linear(input_size: int, output_size: int, bias: bool = True, gain_weight: float = 1.0, gain_bias: float = 1.0, init_method: str = 'He')
@@ -1202,46 +1311,33 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Fully-connected layer
-
-   :param input_size: Input size of the layer
-   :type input_size: int
-
-   .. attribute:: input_size
-
-      Input size of the layer
-
-      :type: int
-
-   .. attribute:: output_size
-
-      Output size of the layer
-
-      :type: int
-
-   .. attribute:: bias
-
-      If True, adding biases along with the weights
-
-      :type: boolen
+   Implements a **Fully-connected layer**, also known as a dense layer.
+   This layer performs a linear transformation on the input data:
+   :math:`y = xW^T + b`, where :math:`x` is the input, :math:`W` is the weight matrix,
+   and :math:`b` is the optional bias vector. It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      get layer information
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., input/output size, whether bias is used) from the
+      C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'Linear' or 'FullyConnected')
+      from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's parameters—the weight matrix (:math:`W`) and the
+      optional bias vector (:math:`b`)—using the specified initialization method
+      and gain factors. This task is delegated to the C++ backend.
+
 
 
 .. py:class:: LSTM(input_size: int, output_size: int, seq_len: int, bias: bool = True, gain_weight: float = 1.0, gain_bias: float = 1.0, init_method: str = 'He')
@@ -1249,28 +1345,33 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   LSTM layer
+   Implements a **Long Short-Term Memory (LSTM)** layer. LSTMs are designed to model
+   sequential data and overcome the vanishing gradient problem in traditional
+   RNNs by using gates (input, forget, and output) and a cell state.
+   It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Retrieves a descriptive string containing information about the layer's
+      configuration (e.g., input/output size, sequence length) from the
+      C++ backend.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Retrieves the name of the layer (e.g., 'LSTM') from the C++ backend.
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the various weight matrices and bias vectors used by the
+      LSTM's gates (input, forget, output) and cell state updates, using
+      the specified method and gain factors. This task is delegated to the
+      C++ backend.
+
 
 
 .. py:class:: OutputUpdater(model_device: str)
@@ -1349,24 +1450,21 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Average Pooling layer
+   2D Average Pooling Layer.
+
+   This layer performs 2D average pooling operation. It wraps the C++/CUDA backend
+   `cutagi.AvgPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'AvgPool2d').
 
 
 
@@ -1375,24 +1473,21 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Max Pooling layer
+   2D Max Pooling Layer.
+
+   This layer performs 2D max pooling operation. It wraps the C++/CUDA backend
+   `cutagi.MaxPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'MaxPool2d').
 
 
 
@@ -1401,24 +1496,29 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   A residual architecture contains a main block and a shortcut layer
+   A Residual Network (ResNet) block structure.
+
+   This class implements the core structure of a ResNet block, consisting of a
+   **main block** (which performs the main transformations) and an optional
+   **shortcut** connection (which adds the input to the main block's output).
+   It wraps the C++/CUDA backend `cutagi.ResNetBlock`.
 
 
    .. py:method:: init_shortcut_state() -> None
 
-      Initialize state buffer for shortcut
+      Initializes the hidden state buffers for the shortcut layer.
 
 
 
    .. py:method:: init_shortcut_delta_state() -> None
 
-      Initialize update values for state buffer for the shortcut
+      Initializes the delta state buffers (error signals) for the shortcut layer.
 
 
 
    .. py:method:: init_input_buffer() -> None
 
-      Initialize input state buffer to hold temporary state
+      Initializes the input state buffer used to hold the input for both the main block and the shortcut.
 
 
 
@@ -1426,42 +1526,42 @@ Package Contents
       :type: pytagi.nn.layer_block.LayerBlock
 
 
-      Set main block
+      Gets the **main block** component of the ResNet block.
 
 
    .. py:property:: shortcut
       :type: pytagi.nn.base_layer.BaseLayer
 
 
-      Set shortcut
+      Gets the **shortcut** component of the ResNet block.
 
 
    .. py:property:: input_z
       :type: pytagi.nn.data_struct.BaseHiddenStates
 
 
-      Get output hidden states
+      Gets the buffered input hidden states (mean and variance) for the block.
 
 
    .. py:property:: input_delta_z
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get update values for input states
+      Gets the delta states (error signals) associated with the block's input.
 
 
    .. py:property:: shortcut_output_z
       :type: pytagi.nn.data_struct.BaseHiddenStates
 
 
-      Get output hidden states for shortcut
+      Gets the output hidden states (mean and variance) from the shortcut layer.
 
 
    .. py:property:: shortcut_output_delta_z
       :type: pytagi.nn.data_struct.BaseDeltaStates
 
 
-      Get update values for output hidden states for shortcut
+      Gets the delta states (error signals) associated with the shortcut layer's output.
 
 
 .. py:class:: Sequential(*layers: pytagi.nn.base_layer.BaseLayer)
@@ -1837,28 +1937,30 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Smoothering Linear layer
+   Smoother Linear layer for Recurrent Architectures.
+
+   This layer performs a linear transformation ($y = xW^T + b$), specifically designed
+   to be used within LSTMs where a smoothering
+   mechanism might be applied to the hidden states. It wraps the C++/CUDA backend
+   `cutagi.SLinear`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing information about the layer's configuration (sizes, bias, etc.).
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'SLinear').
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes the layer's weight matrix and bias vector based on the configured method.
+
 
 
 .. py:class:: SLSTM(input_size: int, output_size: int, seq_len: int, bias: bool = True, gain_weight: float = 1.0, gain_bias: float = 1.0, init_method: str = 'He')
@@ -1866,25 +1968,25 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Smoothing LSTM layer
+   Smoothing Long Short-Term Memory (LSTM) layer.
+
+   This layer is a variation of the standard LSTM, likely incorporating a mechanism
+   for **smoothing** the hidden states or outputs. It's designed for sequence
+   processing tasks. It wraps the C++/CUDA backend `cutagi.SLSTM`.
 
 
    .. py:method:: get_layer_info() -> str
 
-      Retrieves detailed information about the layer.
-
-      :returns: A string containing the layer's information.
-      :rtype: str
+      Returns a string containing detailed information about the layer's configuration.
 
 
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer.
-
-      :returns: The name of the layer.
-      :rtype: str
+      Returns the name of the layer (e.g., 'SLSTM').
 
 
 
    .. py:method:: init_weight_bias()
+
+      Initializes all the layer's internal weight matrices and bias vectors (for gates and cell) based on the configured method.
