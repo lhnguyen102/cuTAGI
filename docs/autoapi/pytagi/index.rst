@@ -88,44 +88,61 @@ Package Contents
 
 .. py:class:: HRCSoftmax
 
-   Hierarchical softmax wrapper from the CPP backend. Further details can be
-   found here https://building-babylon.net/2017/08/01/hierarchical-softmax
+   Hierarchical softmax wrapper from the CPP backend.
+
+   Further details can be found here: https://building-babylon.net/2017/08/01/hierarchical-softmax
 
    .. attribute:: obs
 
-      A fictive observation \in [-1, 1]
+      A fictive observation \in [-1, 1].
+
+      :type: List[float]
 
    .. attribute:: idx
 
-      Indices assigned to each label
+      Indices assigned to each label.
+
+      :type: List[int]
 
    .. attribute:: num_obs
 
-      Number of indices for each label
+      Number of indices for each label.
+
+      :type: int
 
    .. attribute:: len
 
-      Length of an observation e.g 10 labels -> len(obs) = 11
+      Length of an observation (e.g., 10 labels -> len(obs) = 11).
+
+      :type: int
 
 
    .. py:property:: obs
       :type: List[float]
 
 
+      Gets or sets the observations for hierarchical softmax.
+
 
    .. py:property:: idx
       :type: List[int]
 
+
+      Gets or sets the indices assigned to each label.
 
 
    .. py:property:: num_obs
       :type: int
 
 
+      Gets or sets the number of observations for each label.
+
 
    .. py:property:: len
       :type: int
 
+
+      Gets or sets the length of an observation.
 
 
 .. py:class:: Normalizer(method: Union[str, None] = None)

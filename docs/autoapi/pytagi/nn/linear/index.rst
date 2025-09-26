@@ -58,5 +58,11 @@ Module Contents
 
    .. py:method:: get_layer_name() -> str
 
+      Retrieves the name of the layer.
+
+      :returns: The name of the layer.
+      :rtype: str
+
+
 
    .. py:method:: init_weight_bias()
