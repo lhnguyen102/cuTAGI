@@ -1,5 +1,12 @@
 #include "../include/embedding_cpu.h"
 
+#include "../include/common.h"
+#include "../include/custom_logger.h"
+
+// #ifdef USE_CUDA
+// #include "../include/embedding_cuda.cuh"
+// #endif
+
 std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
     size_t num_classes, size_t emb_size, float scale, unsigned int *seed)
 /*
@@ -32,9 +39,7 @@ std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
     // Check dim
     if (cat_sizes.size() != emb_sizes.size() ||
         cat_sizes.size() != num_cat_var) {
-        std::cerr << "Error in file: " << __FILE__ << " at line: " << __LINE__
-                  << std::endl;
-        throw std::invalid_argument("Mismatch in vector sizes or num_cat_var.");
+        LOG(LogLevel::ERROR, "Mismatch in vector sizes or num_cat_var.");
     }
     // Initialize the embedding vectors
     std::vector<float> mu_emb;
@@ -58,255 +63,41 @@ std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
 // Embedding Layer
 ///////////////////////////////////////////////////////////////////////////////
 
-void forward(std::vector<float> &ma, std::vector<float> &mu_w,
+void fwd_emb(std::vector<float> &ma, std::vector<float> &mu_w,
              std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
              std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
-             int w_pos_in, int z_pos_in, int z_pos_out,
              std::vector<float> &mu_z, std::vector<float> &var_z)
 /**/
 {
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_cat; j++) {
-            int cat_idx = ma[j + i * batch_size + z_pos_in];
+            int cat_idx = ma[j + i * batch_size];
             int emb_size = emb_sizes[j];
             for (int k = 0; k < emb_size; k++) {
-                mu_z[k + z_pos_out] = mu_w[cat_idx * emb_size + k + w_pos_in];
-                var_z[k + z_pos_out] = var_w[cat_idx * emb_size + k + w_pos_in];
+                mu_z[k] = mu_w[cat_idx * emb_size + k];
+                var_z[k] = var_w[cat_idx * emb_size + k];
             }
         }
     }
 }
 
-void param_backward(std::vector<float> &ma, std::vector<float> &var_w,
-                    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                    std::vector<size_t> &cat_sizes,
-                    std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
-                    int z_pos_in, int z_pos_out, int w_pos_in,
-                    std::vector<float> &delta_mu_w,
-                    std::vector<float> &delta_var_w)
+void bwd_emb(std::vector<float> &ma, std::vector<float> &var_w,
+             std::vector<float> &delta_mu, std::vector<float> &delta_var,
+             std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
+             int num_cat, int batch_size, std::vector<float> &delta_mu_w,
+             std::vector<float> &delta_var_w)
 /*
  */
 {
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_cat; j++) {
-            int cat_idx = ma[j + i * batch_size + z_pos_in];
+            int cat_idx = ma[j + i * batch_size];
             int emb_size = emb_sizes[j];
             for (int k = 0; k < emb_size; k++) {
-                delta_mu_w[cat_idx * emb_size + k + w_pos_in] =
-                    delta_mu[k + z_pos_out] *
-                    var_w[cat_idx * emb_size + k + w_pos_in];
-
-                delta_var_w[cat_idx * emb_size + k + w_pos_in] =
-                    delta_var[k + z_pos_out] *
-                    var_w[cat_idx * emb_size + k + w_pos_in];
-            }
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Bag Embedding Layer
-///////////////////////////////////////////////////////////////////////////////
-struct Offsets {
-    std::vector<int> batch_in_offsets;
-    std::vector<int> batch_out_offsets;
-    std::vector<int> cat_in_offsets;
-    std::vector<int> cat_out_offsets;
-};
-
-Offsets precompute_offsets(const std::vector<size_t> &num_bags,
-                           const std::vector<size_t> &bag_sizes, int num_cat,
-                           int batch_size) {
-    Offsets offsets;
-    offsets.batch_in_offsets.resize(batch_size);
-    offsets.batch_out_offsets.resize(batch_size);
-    offsets.cat_in_offsets.resize(num_cat);
-    offsets.cat_out_offsets.resize(num_cat);
-
-    // Precompute batch offsets
-    int batch_size_in_offset = 0;
-    int batch_size_out_offset = 0;
-    for (int i = 0; i < batch_size; ++i) {
-        offsets.batch_in_offsets[i] = batch_size_in_offset;
-        offsets.batch_out_offsets[i] = batch_size_out_offset;
-
-        int cat_in_offset = 0;
-        int cat_out_offset = 0;
-
-        for (int j = 0; j < num_cat; ++j) {
-            size_t bag = num_bags[j];
-            size_t bag_size = bag_sizes[j];
-            offsets.cat_in_offsets[j] = cat_in_offset;
-            offsets.cat_out_offsets[j] = cat_out_offset;
-
-            cat_in_offset += bag_size * bag;
-            cat_out_offset += bag;
-        }
-
-        batch_size_in_offset += cat_in_offset;
-        batch_size_out_offset += cat_out_offset;
-    }
-
-    return offsets;
-}
-void bag_forward(std::vector<float> &mu_a, std::vector<float> &mu_w,
-                 std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
-                 std::vector<size_t> &emb_sizes, std::vector<size_t> &num_bags,
-                 std::vector<size_t> &bag_sizes, int num_cat, int batch_size,
-                 int w_pos_in, int z_pos_in, int z_pos_out,
-                 std::vector<float> &mu_z, std::vector<float> &var_z)
-/* Forward pass for bag embedding layer.
-
-Args:
-    mu_a: Input mean stored the categorical variable in float
-    mu_w: Embedding mean
-    var_w: Embedding variance
-    cat_sizes: Number of classes for each categorical variable
-    emb_sizes: Embedding size for each categoricals
-    num_bags: Number of bags for each categorical variable
-    bag_sizes: Number of classes for each bag
-    num_cat: Number of categorical variables stored in node vector
-    batch_size: Number of observation in batch
-    w_pos_in: Start position of the embedding vector
-    z_pos_in: Start position of the input hidden state vector i.e., mu_a
-    z_pos_out: Start position of the output hidden state vector i.e., mu_z
-    mu_z: Mean of output hidden states
-    var_z: Variance of output hidden states
-
-Example:
-    A two categorical varaibles num_cat = 2 each having 5 and 6 classes. In
-addition, assuming emb_sizes = [2, 3], num_bags = [3, 1], and bag_sizes = [4, 4]
-
-    embedding vector
-    cat_1 = [
-        [0.13, 0.23], -> class 0
-        [0.53, 0.23], -> class 1
-        [0.32, 0.43], -> class 2
-        [0.22, 0.13], -> class 3
-        [0.72, 0.18], -> class 4
-    ]
-
-    cat_2 = [
-        [0.13, 0.23, 0.34], -> class 0
-        [0.53, 0.23, 0.53], -> class 1
-        [0.32, 0.43, 0.65], -> class 2
-        [0.22, 0.13, 0.75], -> class 3
-        [0.72, 0.18, 0.87], -> class 4
-        [0.52, 0.28, 0.17], -> class 5
-    ]
-    mu_a = [
-        [[0, 1, 3, 4], [2, 3, 1, 4], [4, 3, 2, 1]], # bag 0
-        [[1, 8, 9, 6]]                              # bag 1
-    ]
-
-    output size (3, 1)
- */
-{
-    // Compute the offsets for each bags due to we store all data in a single
-    // vector
-    Offsets offsets =
-        precompute_offsets(num_bags, bag_sizes, num_cat, batch_size);
-    for (int i = 0; i < batch_size; i++) {
-        int batch_size_in_offset = offsets.batch_in_offsets[i];
-        int batch_size_out_offset = offsets.batch_out_offsets[i];
-        for (int j = 0; j < num_cat; j++) {
-            size_t bag = num_bags[j];
-            size_t emb_size = emb_sizes[j];
-            size_t bag_size = bag_sizes[j];
-            int cat_in_offset = offsets.cat_in_offsets[j];
-            int cat_out_offset = offsets.cat_out_offsets[j];
-            for (int m = 0; m < bag; m++) {
-                float sum_mu = 0.0f;
-                float sum_var = 0.0f;
-                for (int n = 0; n < bag_size; n++) {
-                    // Convert categorical index in each bag to integer. TODO:
-                    // need to avoid this conversion for computing performance
-                    int cat_idx = mu_a[n + m * bag_size + cat_in_offset +
-                                       batch_size_in_offset + z_pos_in];
-
-                    int offset = cat_idx * emb_size + w_pos_in;
-                    // Sum over all embedding values for each bag
-                    for (int k = 0; k < emb_size; k++) {
-                        sum_mu += mu_w[offset + k];
-                        sum_var += var_w[offset + k];
-                    }
-                }
-
-                // Average the embedding values. Output size (batch_size,
-                // num_cat, bag)
-                int z_idx =
-                    m + cat_out_offset + batch_size_out_offset + z_pos_out;
-                mu_z[z_idx] = sum_mu / bag_size;
-                var_z[z_idx] = sum_var / bag_size;
-            }
-        }
-    }
-}
-
-void bag_param_backward(
-    std::vector<float> &mu_a, std::vector<float> &var_w,
-    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-    std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
-    std::vector<size_t> &num_bags, std::vector<size_t> &bag_sizes, int num_cat,
-    int batch_size, int z_pos_in, int w_pos_in, int z_pos_out,
-    std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w)
-/*
-Args:
-    mu_a: Input mean stored the categorical variable in float
-    var_w: Embedding variance
-    delta_mu: Updating quantities for mean of the output layer
-    delta_var: Updating quantion for variance of the output layer
-    cat_sizes: Number of classes for each categorical variable
-    emb_sizes: Embedding size for each categoricals
-    num_bags: Number of bags for each categorical variable
-    bag_sizes: Number of classes for each bag
-    num_cat: Number of categorical variables stored in node vector
-    batch_size: Number of observation in batch
-    w_pos_in: Start position of the embedding vector
-    z_pos_in: Start position of the input hidden state vector i.e., mu_a
-    z_pos_out: Start postiion of the output hidden state vector i.e., mu_z
-    delta_mu_w: Updating quantities for mean of the embeddings
-    delta_var_w: Updating quantities for variance of the embeddings
-
- */
-{
-    // Compute the offsets for each bags due to we store all data in a single
-    // vector
-    Offsets offsets =
-        precompute_offsets(num_bags, bag_sizes, num_cat, batch_size);
-    for (int i = 0; i < batch_size; i++) {
-        int batch_size_in_offset = offsets.batch_in_offsets[i];
-        int batch_size_out_offset = offsets.batch_out_offsets[i];
-        for (int j = 0; j < num_cat; j++) {
-            size_t bag = num_bags[j];
-            size_t emb_size = emb_sizes[j];
-            int cat_in_offset = offsets.cat_in_offsets[j];
-            int cat_out_offset = offsets.cat_out_offsets[j];
-
-            for (int m = 0; m < bag; m++) {
-                size_t bag_size = bag_sizes[m];
-                for (int n = 0; n < bag_size; n++) {
-                    // Convert categorical index in each bag to integer. TODO:
-                    // need to avoid this conversion for computing performance
-                    int cat_idx = mu_a[n + m * bag_size + cat_in_offset +
-                                       batch_size_in_offset + z_pos_in];
-
-                    // Index for the updating quantities of the output layer
-                    int ino_idx =
-                        m + cat_out_offset + batch_size_out_offset + z_pos_out;
-
-                    // Calculate the updating quanties for embeddings inside
-                    // each bag
-                    for (int k = 0; k < emb_size; k++) {
-                        // Index for embedding
-                        int w_idx = cat_idx * emb_size + k + w_pos_in;
-
-                        // Updating quantities for embedding. TODO Need to set
-                        // all delta values to zero
-                        delta_mu_w[w_idx] += delta_mu[ino_idx] * var_w[w_idx];
-                        delta_var_w[w_idx] += delta_var[ino_idx] * var_w[w_idx];
-                    }
-                }
+                delta_mu_w[cat_idx * emb_size + k] =
+                    delta_mu[k] * var_w[cat_idx * emb_size + k];
+                delta_var_w[cat_idx * emb_size + k] =
+                    delta_var[k] * var_w[cat_idx * emb_size + k];
             }
         }
     }
@@ -329,3 +120,120 @@ Return:
 
     return std::max(600, emb_size);
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Embedding Layer Class
+///////////////////////////////////////////////////////////////////////////////
+
+Embedding::Embedding(const std::vector<size_t> &cat_sizes,
+                     const std::vector<size_t> &emb_sizes, float scale,
+                     int device_idx)
+    : cat_sizes(cat_sizes), emb_sizes(emb_sizes), scale(scale) {
+    this->device_idx = device_idx;
+    this->num_cat = cat_sizes.size();
+
+    this->calculate_sizes();
+
+    if (this->device.compare("cpu") == 0) {
+        this->init_weight_bias();
+    }
+
+    if (this->training && this->device.compare("cpu") == 0) {
+        this->allocate_param_delta();
+    }
+}
+
+Embedding::~Embedding() {}
+
+std::string Embedding::get_layer_info() const {
+    std::string info = "Embedding(";
+    for (size_t i = 0; i < this->cat_sizes.size(); ++i) {
+        if (i > 0) info += ",";
+        info += std::to_string(this->cat_sizes[i]) + "->" +
+                std::to_string(this->emb_sizes[i]);
+    }
+    info += ")";
+    return info;
+}
+
+std::string Embedding::get_layer_name() const { return "Embedding"; }
+
+LayerType Embedding::get_layer_type() const { return LayerType::Embedding; }
+
+void Embedding::calculate_sizes() {
+    this->input_size = this->num_cat;
+    this->num_weights = 0;
+    this->num_biases = 0;
+
+    for (int i = 0; i < this->num_cat; i++) {
+        this->num_weights += this->cat_sizes[i] * this->emb_sizes[i];
+    }
+
+    this->output_size = 0;
+    for (int i = 0; i < this->num_cat; i++) {
+        this->output_size += this->emb_sizes[i];
+    }
+}
+
+void Embedding::init_weight_bias() {
+    auto weights = initialize_embedding_values(this->cat_sizes, this->emb_sizes,
+                                               this->num_cat, this->scale);
+    this->mu_w = std::get<0>(weights);
+    this->var_w = std::get<1>(weights);
+}
+
+void Embedding::forward(BaseHiddenStates &input_states,
+                        BaseHiddenStates &output_states,
+                        BaseTempStates &temp_states) {
+    int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size);
+
+    if (this->input_size != input_states.actual_size) {
+        std::string message =
+            "Input size mismatch: " + std::to_string(this->input_size) +
+            " vs " + std::to_string(input_states.actual_size);
+        LOG(LogLevel::ERROR, message);
+    }
+
+    fwd_emb(input_states.mu_a, this->mu_w, this->var_w, this->cat_sizes,
+            this->emb_sizes, this->num_cat, batch_size, output_states.mu_a,
+            output_states.var_a);
+
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.actual_size = this->output_size;
+
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
+    }
+}
+
+void Embedding::backward(BaseDeltaStates &input_delta_states,
+                         BaseDeltaStates &output_delta_states,
+                         BaseTempStates &temp_states, bool state_udapte) {
+    int batch_size = input_delta_states.block_size;
+
+    if (this->param_update) {
+        bwd_emb(this->bwd_states->mu_a, this->var_w,
+                input_delta_states.delta_mu, input_delta_states.delta_var,
+                this->cat_sizes, this->emb_sizes, this->num_cat, batch_size,
+                this->delta_mu_w, this->delta_var_w);
+    }
+}
+
+// #ifdef USE_CUDA
+// std::unique_ptr<BaseLayer> Embedding::to_cuda(int device_idx) {
+//     this->device = "cuda";
+//     this->device_idx = device_idx;
+//     auto cuda_layer = std::make_unique<EmbeddingCuda>(
+//         this->cat_sizes, this->emb_sizes, this->num_bags, this->bag_sizes,
+//         this->scale, this->device_idx);
+
+//     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
+//     base_cuda->copy_params_from(*this);
+
+//     return cuda_layer;
+// }
+// #endif

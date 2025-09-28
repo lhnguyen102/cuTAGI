@@ -1,4 +1,4 @@
-# Temporary import. It will be removed in the final vserion
+# Temporary import. It will be removed in the final version
 import os
 import sys
 

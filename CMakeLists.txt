@@ -179,8 +179,6 @@ file(GLOB_RECURSE CPU_SOURCES
 # Exclude certain CPU source files
 list(REMOVE_ITEM CPU_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/derivative_calcul_cpu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/self_attention_cpu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/embedding_cpu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/debugger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/debugger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gated_residual_layer_cpu.cpp
