@@ -415,7 +415,7 @@ std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
  */
 {
     std::vector<float> mu_zo_smooths, var_zo_smooths;
-    std::vector<float> last_mu_h_smooths, last_var_h_smooths;
+    std::vector<float> mu_h_smooths_last_slstm, var_h_smooths_lastm_slstm;
     // Hidden layers
     for (auto layer = this->layers.begin(); layer != this->layers.end();
          layer++) {
@@ -423,12 +423,13 @@ std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
         if (current_layer->get_layer_type() == LayerType::SLSTM) {
             auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer);
             slstm_layer->smoother();
-            // Capture hidden-state smooths for the next layer
-            last_mu_h_smooths = slstm_layer->smooth_states.mu_h_smooths;
-            last_var_h_smooths = slstm_layer->smooth_states.var_h_smooths;
+            mu_h_smooths_last_slstm = slstm_layer->smooth_states.mu_h_smooths;
+            var_h_smooths_lastm_slstm =
+                slstm_layer->smooth_states.var_h_smooths;
         } else if (current_layer->get_layer_type() == LayerType::SLinear) {
             auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
-            slinear_layer->smoother(last_mu_h_smooths, last_var_h_smooths);
+            slinear_layer->smoother(mu_h_smooths_last_slstm,
+                                    var_h_smooths_lastm_slstm);
             mu_zo_smooths = slinear_layer->smooth_states.mu_zo_smooths;
             var_zo_smooths = slinear_layer->smooth_states.var_zo_smooths;
         }

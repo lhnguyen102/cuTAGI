@@ -226,8 +226,8 @@ class BaseLSTMStates {
 class SmoothSLinear {
    public:
     size_t num_timesteps = 0;
-    std::vector<float> cov_zo, mu_zo_priors, var_zo_priors, mu_zo_posts,
-        var_zo_posts, mu_zo_smooths, var_zo_smooths;
+    std::vector<float> mu_zo_priors, var_zo_priors, mu_zo_posts, var_zo_posts,
+        mu_zo_smooths, var_zo_smooths;
 
     SmoothSLinear(size_t num_timesteps);
     SmoothSLinear();

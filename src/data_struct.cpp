@@ -360,10 +360,6 @@ void SmoothSLinear::set_num_states(size_t num_timesteps)
 void SmoothSLinear::reset_zeros()
 /**/
 {
-    // Resize and reset cov_zo
-    if (cov_zo.size() != num_timesteps) cov_zo.resize(num_timesteps);
-    for (auto& val : cov_zo) val = 0;
-
     // Resize and reset mu_zo_priors
     if (mu_zo_priors.size() != num_timesteps)
         mu_zo_priors.resize(num_timesteps);

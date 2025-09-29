@@ -39,6 +39,4 @@ class SLSTM : public LSTM {
     std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
                std::vector<float>>
     get_smoothed_lstm_state_at(int timestep) const;
-
-    void print_summary() const;
 };

@@ -48,8 +48,8 @@ void linear_update_hidden_states(int time_step, std::vector<float> &mu_a_prior,
 void smooth_zo(int num_timestep, int input_size, int output_size,
                std::vector<float> &mu_w, std::vector<float> &var_w,
                std::vector<float> &mu_b, std::vector<float> &var_b,
-               const std::vector<float> &prev_mu_h_smooths,
-               const std::vector<float> &prev_var_h_smooths,
+               const std::vector<float> &mu_h_smooths_prev_slstm,
+               const std::vector<float> &var_h_smooths_prev_slstm,
                std::vector<float> &mu_zo_smooths,
                std::vector<float> &var_zo_smooths)
 /*
@@ -66,12 +66,12 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
             for (int j = 0; j <= input_size - 1; ++j) {
                 idx_h = i * input_size + k * output_size + j;
                 idx_w = k * output_size + j;
-                mu_zo += prev_mu_h_smooths[idx_h] * mu_w[idx_w];
-                var_zo +=
-                    prev_var_h_smooths[idx_h] * var_w[idx_w] +
-                    prev_var_h_smooths[idx_h] * mu_w[idx_w] * mu_w[idx_w] +
-                    var_w[idx_w] * prev_mu_h_smooths[idx_h] *
-                        prev_mu_h_smooths[idx_h];
+                mu_zo += mu_h_smooths_prev_slstm[idx_h] * mu_w[idx_w];
+                var_zo += var_h_smooths_prev_slstm[idx_h] * var_w[idx_w] +
+                          var_h_smooths_prev_slstm[idx_h] * mu_w[idx_w] *
+                              mu_w[idx_w] +
+                          var_w[idx_w] * mu_h_smooths_prev_slstm[idx_h] *
+                              mu_h_smooths_prev_slstm[idx_h];
             }
             mu_zo_smooths[i] = mu_zo + mu_b[k];
             var_zo_smooths[i] = var_zo + var_b[k];
@@ -227,14 +227,14 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
     ++this->time_step;
 }
 
-void SLinear::smoother(const std::vector<float> &prev_mu_h_smooths,
-                       const std::vector<float> &prev_var_h_smooths)
+void SLinear::smoother(const std::vector<float> &mu_h_smooths_prev_slstm,
+                       const std::vector<float> &var_h_smooths_prev_slstm)
 /*
  */
 {
     smooth_zo(this->smooth_states.num_timesteps, this->input_size,
               this->output_size, this->mu_w, this->var_w, this->mu_b,
-              this->var_b, prev_mu_h_smooths, prev_var_h_smooths,
+              this->var_b, mu_h_smooths_prev_slstm, var_h_smooths_prev_slstm,
               this->smooth_states.mu_zo_smooths,
               this->smooth_states.var_zo_smooths);
 
