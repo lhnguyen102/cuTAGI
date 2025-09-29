@@ -83,7 +83,7 @@ The principal developer of pytagi is Luong Ha Nguyen with the support of James-A
 Acknowledgements
 ----------------
 
-We acknowledge the financial support from ...
+We acknowledge the financial support from the Natural Sciences and Engineering Research Council of Canada, Hydro-Québec, and the Quebec transportation Ministry and in the development of the pyTAGI library.
 
 License
 -------

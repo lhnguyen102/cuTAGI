@@ -9,3 +9,4 @@ This section contains various tutorials to help you get started with pyTAGI and 
    TAGI_Tutorial_01_1D_toy_regression
    TAGI_Tutorial_02_1D_toy_regression_heteros
    TAGI_Tutorial_03_LSTM
+   TAGI_Tutorial_04_MNIST_CNN
