@@ -6,5 +6,6 @@ This section contains various tutorials to help you get started with pyTAGI and 
 .. toctree::
    :maxdepth: 1
 
-   regression_tutorial
    TAGI_Tutorial_01_1D_toy_regression
+   TAGI_Tutorial_02_1D_toy_regression_heteros
+   TAGI_Tutorial_03_LSTM
