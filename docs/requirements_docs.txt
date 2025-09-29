@@ -4,3 +4,5 @@ myst-parser>=2.0
 sphinx-autoapi>=3.0
 sphinx_autodoc_typehints
 sphinx-copybutton
+nbsphinx
+ipykernel
