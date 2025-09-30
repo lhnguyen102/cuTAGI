@@ -6,7 +6,7 @@ from pytagi.nn.base_layer import BaseLayer
 class SLinear(BaseLayer):
     """Smoother Linear layer for the SLSTM architecture.
 
-    This layer performs a linear transformation ($y = xW^T + b$), specifically designed
+    This layer performs a linear transformation (:math:`y = xW^T + b'), specifically designed
     to be used within SLSTM where a hidden- and cell-state smoothing through time is applied.
     It wraps the C++/CUDA backend `cutagi.SLinear`.
     """

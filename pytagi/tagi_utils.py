@@ -26,7 +26,7 @@ class Utils:
     ) -> Tuple[np.ndarray, np.ndarray, int]:
         """Converts class labels into observations for a binary tree structure.
 
-        This is typically used for hierarchical classification, where each label
+        This is used in the hierarchical classification, where each label
         is mapped to a path in a binary tree, and the observations represent
         the nodes along that path.
 
