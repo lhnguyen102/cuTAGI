@@ -5,10 +5,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 class LSTM(BaseLayer):
     """
-    Implements a **Long Short-Term Memory (LSTM)** layer. LSTMs are designed to model
-    sequential data and overcome the vanishing gradient problem in traditional
-    RNNs by using gates (input, forget, and output) and a cell state.
-    It inherits from BaseLayer.
+    A **Long Short-Term Memory (LSTM)** layer for RNNs. It inherits from BaseLayer.
     """
 
     def __init__(
