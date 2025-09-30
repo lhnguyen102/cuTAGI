@@ -61,7 +61,7 @@ class Linear(BaseLayer):
 
     def get_layer_name(self) -> str:
         """
-        Retrieves the name of the layer (e.g., 'Linear' or 'FullyConnected')
+        Retrieves the name of the layer (e.g., 'Linear')
         from the C++ backend.
         """
         return self._cpp_backend.get_layer_name()
