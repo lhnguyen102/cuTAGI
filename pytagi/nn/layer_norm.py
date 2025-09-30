@@ -7,8 +7,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 class LayerNorm(BaseLayer):
     """
-    Implements Layer Normalization, a technique often used in neural networks
-    to stabilize the learning process by normalizing the inputs across the
+    Implements Layer Normalization by normalizing the inputs across the
     features dimension. It inherits from BaseLayer.
     """
 
