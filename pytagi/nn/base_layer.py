@@ -276,6 +276,7 @@ class BaseLayer:
     def delta_var_w(self) -> np.ndarray:
         """
         Gets the delta variance of the weights (delta_var_w) as a NumPy array.
+        The delta corresponds to the amount of change induced by the update step.
         """
         return self._cpp_backend.delta_var_w
 
@@ -283,6 +284,7 @@ class BaseLayer:
     def delta_var_w(self, value: np.ndarray):
         """
         Sets the delta variance of the weights (delta_var_w) as a NumPy array.
+        The delta corresponds to the amount of change induced by the update step.
         """
         self._cpp_backend.delta_var_w = value
 
@@ -290,6 +292,7 @@ class BaseLayer:
     def delta_mu_b(self) -> np.ndarray:
         """
         Gets the delta mean of the biases (delta_mu_b) as a NumPy array.
+        This delta corresponds to the amount of change induced by the update step.
         """
         return self._cpp_backend.delta_mu_b
 
@@ -297,6 +300,7 @@ class BaseLayer:
     def delta_mu_b(self, value: np.ndarray):
         """
         Sets the delta mean of the biases (delta_mu_b) as a NumPy array.
+        This delta corresponds to the amount of change induced by the update step.
         """
         self._cpp_backend.delta_mu_b = value
 
@@ -304,6 +308,7 @@ class BaseLayer:
     def delta_var_b(self) -> np.ndarray:
         """
         Gets the delta variance of the biases (delta_var_b) as a NumPy array.
+        This delta corresponds to the amount of change induced by the update step.
         """
         return self._cpp_backend.delta_var_b
 
@@ -311,6 +316,7 @@ class BaseLayer:
     def delta_var_b(self, value: np.ndarray):
         """
         Sets the delta variance of the biases (delta_var_b) as a NumPy array.
+        This delta corresponds to the amount of change induced by the update step.
         """
         self._cpp_backend.delta_var_b = value
 
