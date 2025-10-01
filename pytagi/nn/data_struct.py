@@ -117,7 +117,8 @@ class BaseHiddenStates:
 class BaseDeltaStates:
     """
     Represents the base delta states, acting as a Python wrapper for the C++ backend.
-    This class manages the change in mean (delta_mu) and change in variance (delta_var).
+    This class manages the change in mean (delta_mu) and change in variance (delta_var)
+    induced by the update step.
     """
 
     def __init__(
@@ -218,8 +219,6 @@ class BaseDeltaStates:
 class HRCSoftmax:
     """
     Hierarchical softmax wrapper from the CPP backend.
-
-    Further details can be found here: https://building-babylon.net/2017/08/01/hierarchical-softmax
 
     Attributes:
         obs (List[float]): A fictive observation \in [-1, 1].

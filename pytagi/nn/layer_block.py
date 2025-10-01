@@ -6,7 +6,7 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class LayerBlock(BaseLayer):
-    """A stack of different layer derived from BaseLayer"""
+    """A stack of different layers derived from BaseLayer"""
 
     def __init__(self, *layers: BaseLayer):
         """

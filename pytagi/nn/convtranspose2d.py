@@ -7,11 +7,9 @@ class ConvTranspose2d(BaseLayer):
     """
     Applies a 2D transposed convolution operation (also known as deconvolution).
 
-    This layer performs a transposed convolution, which is often used in tasks
-    like image generation or segmentation to upsample feature maps. It effectively
+    This layer performs a transposed convolution, which is used in tasks
+    like image generation or segmentation to upsample feature maps. It
     reverses the convolution operation, increasing the spatial dimensions of the input.
-    This implementation is designed to work with probabilistic inputs and leverages
-    a C++ backend for performance.
 
     Args:
         in_channels (int): Number of input channels.

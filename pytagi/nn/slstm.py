@@ -6,9 +6,9 @@ from pytagi.nn.base_layer import BaseLayer
 class SLSTM(BaseLayer):
     """Smoothing Long Short-Term Memory (LSTM) layer.
 
-    This layer is a variation of the standard LSTM, likely incorporating a mechanism
-    for **smoothing** the hidden states or outputs. It's designed for sequence
-    processing tasks. It wraps the C++/CUDA backend `cutagi.SLSTM`.
+    This layer is a variation of the standard LSTM, incorporating a mechanism
+    for **smoothing** the hidden- and cell-states. It wraps the C++/CUDA backend
+    `cutagi.SLSTM`.
     """
 
     def __init__(

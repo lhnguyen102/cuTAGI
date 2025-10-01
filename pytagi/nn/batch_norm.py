@@ -7,12 +7,10 @@ from pytagi.nn.base_layer import BaseLayer
 
 class BatchNorm2d(BaseLayer):
     """
-    Applies 2D Batch Normalization to a Gaussian distribution.
+    Applies 2D Batch Normalization.
 
-    Batch Normalization is a technique used to normalize the inputs of a layer
-    by re-centering and re-scaling them. This helps to stabilize and accelerate
-    the training of deep neural networks. This implementation is designed to
-    work with probabilistic inputs (Gaussian distributions).
+    Batch Normalization normalizes the inputs of a layer by re-centering and
+    re-scaling them.
 
     Args:
         num_features (int): The number of features in the input tensor.

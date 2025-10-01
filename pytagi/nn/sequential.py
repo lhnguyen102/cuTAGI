@@ -39,7 +39,7 @@ class Sequential:
     def __call__(
         self, mu_x: np.ndarray, var_x: np.ndarray = None
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """A convenient alias for the forward pass.
+        """An alias for the forward pass.
 
         :param mu_x: The mean of the input data.
         :type mu_x: np.ndarray
@@ -155,12 +155,14 @@ class Sequential:
 
     @property
     def num_samples(self) -> int:
-        """The number of samples used for Monte Carlo estimation."""
+        """The number of samples used for Monte Carlo estimation. This is used
+        for debugging purposes"""
         return self._cpp_backend.num_samples
 
     @num_samples.setter
     def num_samples(self, value: int):
-        """Sets the number of samples for Monte Carlo estimation.
+        """Sets the number of samples for Monte Carlo estimation. This is used
+        for debugging purposes
 
         :param value: The number of samples.
         :type value: int
@@ -221,7 +223,8 @@ class Sequential:
     def smoother(self) -> Tuple[np.ndarray, np.ndarray]:
         """Performs a smoother pass (e.g., Rauch-Tung-Striebel smoother).
 
-        This is typically used in state-space models to refine estimates.
+        This is used with the SLSTM to refine estimates by running backwards
+        through time.
 
         :return: A tuple containing the mean and variance of the smoothed output.
         :rtype: Tuple[np.ndarray, np.ndarray]
