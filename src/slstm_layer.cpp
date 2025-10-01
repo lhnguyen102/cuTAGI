@@ -566,7 +566,7 @@ void SLSTM::smoother()
 
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
-SLSTM::get_smoothed_lstm_state_at(int timestep)
+SLSTM::get_smoothed_lstm_state(int timestep)
     /*
      */
     const {

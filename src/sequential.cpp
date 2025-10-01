@@ -889,7 +889,7 @@ Sequential::get_lstm_states(int time_step)
                             slstm_layer->get_LSTM_states();
                     } else {
                         lstm_states[static_cast<int>(i)] =
-                            slstm_layer->get_smoothed_lstm_state_at(time_step);
+                            slstm_layer->get_smoothed_lstm_state(time_step);
                     }
                 } else if (auto lstm_layer =
                                dynamic_cast<LSTM *>(layers[i].get())) {
