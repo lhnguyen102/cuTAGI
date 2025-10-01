@@ -4,7 +4,13 @@ py/cuTAGI's documentation
 What is py/cuTAGI?
 ---------------
 
-py/cuTAGI is a probabilistic array framework built upon the principles of the Tractable Approximate Gaussian Inference (TAGI) theory. It focuses on quantifying the uncertainty in Deep Neural Networks (DNNs), directly improving their reliability across supervised, unsupervised, and reinforcement learning tasks. A high-level overview about the TAGI theory can be found in the :doc:`theory section <api/theory>`.
+pyTAGI is a Python frontend for cuTAGI, its high-performance C++/CUDA backend,
+implementing Tractable Approximate Gaussian Inference (TAGI) for deep neural
+networks. TAGI treats all network parameters and hidden units as Gaussian random
+variables and derives closed-form expressions for prior/posterior means,
+variances, and covariances, enabling analytic Bayesian learning without relying
+on gradient descent or backpropagation. A high-level overview about the TAGI
+theory can be found in the :doc:`theory section <api/theory>`.
 
 Getting started
 ---------------
