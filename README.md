@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo/cupyTAGI.png" width="200px">
+  <img src="./logo/tagiml.png" width="200px">
 </p>
 
 #### [Examples](#examples) | [License](#license) | [Related Papers](#related-papers) | [Citation](#citation)
