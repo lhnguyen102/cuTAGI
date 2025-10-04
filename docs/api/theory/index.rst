@@ -4,7 +4,7 @@
 Theory
 ====================
 
-.. figure:: ../../_static/TAGI.gif
+.. figure:: ../../_static/tagi.gif
    :scale: 30%
    :align: right
 

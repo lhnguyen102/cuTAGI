@@ -38,7 +38,7 @@ Module Contents
 
    .. py:method:: __call__(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      A convenient alias for the forward pass.
+      An alias for the forward pass.
 
       :param mu_x: The mean of the input data.
       :type mu_x: np.ndarray
@@ -109,7 +109,8 @@ Module Contents
       :type: int
 
 
-      The number of samples used for Monte Carlo estimation.
+      The number of samples used for Monte Carlo estimation. This is used
+      for debugging purposes
 
 
    .. py:method:: to_device(device: str)
@@ -177,7 +178,8 @@ Module Contents
 
       Performs a smoother pass (e.g., Rauch-Tung-Striebel smoother).
 
-      This is typically used in state-space models to refine estimates.
+      This is used with the SLSTM to refine estimates by running backwards
+      through time.
 
       :return: A tuple containing the mean and variance of the smoothed output.
       :rtype: Tuple[np.ndarray, np.ndarray]
@@ -380,3 +382,6 @@ Module Contents
       :param states: A dictionary mapping layer indices to a 4-tuple of
                      numpy arrays: (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
       :type states: dict
+
+
+

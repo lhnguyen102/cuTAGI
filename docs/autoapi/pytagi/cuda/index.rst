@@ -80,3 +80,5 @@ Module Contents
    Get the memory of a specific CUDA device
 
    :param device_index: Device index to get memory of
+
+

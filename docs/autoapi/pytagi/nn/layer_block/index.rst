@@ -20,7 +20,7 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   A stack of different layer derived from BaseLayer
+   A stack of different layers derived from BaseLayer
 
 
    .. py:method:: switch_to_cuda()
@@ -34,3 +34,5 @@ Module Contents
 
 
       Get layers
+
+

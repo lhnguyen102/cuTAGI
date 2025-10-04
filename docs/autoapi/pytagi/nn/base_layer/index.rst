@@ -172,6 +172,7 @@ Module Contents
 
 
       Gets the delta variance of the weights (delta_var_w) as a NumPy array.
+      The delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: delta_mu_b
@@ -179,6 +180,7 @@ Module Contents
 
 
       Gets the delta mean of the biases (delta_mu_b) as a NumPy array.
+      This delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: delta_var_b
@@ -186,6 +188,7 @@ Module Contents
 
 
       Gets the delta variance of the biases (delta_var_b) as a NumPy array.
+      This delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: num_threads
@@ -207,3 +210,5 @@ Module Contents
 
 
       Gets a boolean indicating whether the layer is on the GPU ('cuda') or CPU ('cpu').
+
+

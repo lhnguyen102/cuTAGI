@@ -22,9 +22,9 @@ Module Contents
 
    Smoothing Long Short-Term Memory (LSTM) layer.
 
-   This layer is a variation of the standard LSTM, likely incorporating a mechanism
-   for **smoothing** the hidden states or outputs. It's designed for sequence
-   processing tasks. It wraps the C++/CUDA backend `cutagi.SLSTM`.
+   This layer is a variation of the standard LSTM, incorporating a mechanism
+   for **smoothing** the hidden- and cell-states. It wraps the C++/CUDA backend
+   `cutagi.SLSTM`.
 
 
    .. py:method:: get_layer_info() -> str
@@ -42,3 +42,6 @@ Module Contents
    .. py:method:: init_weight_bias()
 
       Initializes all the layer's internal weight matrices and bias vectors (for gates and cell) based on the configured method.
+
+
+

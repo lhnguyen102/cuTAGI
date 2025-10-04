@@ -69,8 +69,8 @@ Module Contents
 
    Calculates the Mean Squared Error (MSE).
 
-   MSE measures the average of the squares of the errors—that is, the average
-   squared difference between the estimated values and the actual value.
+   MSE measures the average of the squares of the errors, i.e., the average
+   squared difference between the estimated and the observed values.
 
    :param prediction: The predicted values.
    :type prediction: np.ndarray
@@ -82,7 +82,7 @@ Module Contents
 
 .. py:function:: log_likelihood(prediction: numpy.ndarray, observation: numpy.ndarray, std: numpy.ndarray) -> float
 
-   Computes the average Gaussian log-likelihood.
+   Computes the log-likelihood.
 
    This function assumes the likelihood of the observation given the prediction
    is a Gaussian distribution with a given standard deviation.
@@ -124,3 +124,5 @@ Module Contents
    :type label: np.ndarray
    :return: The classification error rate (proportion of incorrect predictions).
    :rtype: float
+
+

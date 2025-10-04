@@ -24,8 +24,7 @@ Module Contents
 
    This layer performs a convolution operation, which is a fundamental building block
    in convolutional neural networks (CNNs). It slides a kernel (or filter) over
-   an input tensor to produce an output tensor. This implementation is designed
-   to work with probabilistic inputs and leverages a C++ backend for performance.
+   an input tensor to produce an output tensor.
 
    :param in_channels: Number of input channels.
    :type in_channels: int
@@ -74,4 +73,7 @@ Module Contents
    .. py:method:: init_weight_bias()
 
       Initializes the learnable weight (kernel) and bias parameters of the convolutional layer.
-      This initialization is delegated to the C++ backend, likely using the 'init_method' specified (e.g., "He").
+      This initialization is delegated to the C++ backend using the 'init_method' specified (e.g., "He").
+
+
+
