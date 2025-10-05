@@ -15,37 +15,31 @@ struct EmbeddingProp {
     std::vector<size_t> cat_sizes, emb_sizes;
 };
 
-std::tuple<std::vector<float>, std::vector<float>> get_embedding_values(
-    size_t num_classes, size_t emb_size, float scale,
+std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
+    int num_embeddings, int embedding_dim, float scale,
     unsigned int *seed = nullptr);
 
-std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
-    std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
-    int num_cat_var, float scale, unsigned int *seed = nullptr);
-
 void fwd_emb(std::vector<float> &ma, std::vector<float> &mu_w,
-             std::vector<float> &var_w, std::vector<size_t> &cat_sizes,
-             std::vector<size_t> &emb_sizes, int num_cat, int batch_size,
-             std::vector<float> &mu_z, std::vector<float> &var_z);
+             std::vector<float> &var_w, int embedding_dim, int num_inputs,
+             int batch_size, int padding_idx, std::vector<float> &mu_z,
+             std::vector<float> &var_z);
 
 void bwd_emb(std::vector<float> &ma, std::vector<float> &var_w,
              std::vector<float> &delta_mu, std::vector<float> &delta_var,
-             std::vector<size_t> &cat_sizes, std::vector<size_t> &emb_sizes,
-             int num_cat, int batch_size, std::vector<float> &delta_mu_w,
-             std::vector<float> &delta_var_w);
+             int embedding_dim, int num_inputs, int batch_size, int padding_idx,
+             std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w);
 
 int calculate_embedding_size(int num_categories);
 
 class Embedding : public BaseLayer {
    public:
-    std::vector<size_t> cat_sizes;
-    std::vector<size_t> emb_sizes;
-    int num_cat;
+    int embedding_dim;
+    int num_embeddings;
     float scale;
+    int padding_idx;
 
-    Embedding(const std::vector<size_t> &cat_sizes,
-              const std::vector<size_t> &emb_sizes, float scale = 1.0f,
-              int device_idx = 0);
+    Embedding(int num_embeddings, int embedding_dim, float scale = 1.0f,
+              int padding_idx = -1, int device_idx = 0);
 
     ~Embedding();
 
@@ -76,10 +70,7 @@ class Embedding : public BaseLayer {
 
     using BaseLayer::to_cuda;
 
-    // #ifdef USE_CUDA
-    //     std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
-    // #endif
-
-   private:
-    void calculate_sizes();
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
 };
