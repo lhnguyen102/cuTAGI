@@ -63,8 +63,9 @@ __global__ void embedding_bwd_delta_w(const float *mu_a, const float *var_w,
     }
 }
 
-EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim, float scale,
-                             int padding_idx, int device_idx)
+EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim,
+                             int input_size, float scale, int padding_idx,
+                             int device_idx)
     : embedding_dim(embedding_dim),
       num_embeddings(num_embeddings),
       scale(scale),
@@ -72,6 +73,11 @@ EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim, float scale,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+
+    if (input_size > 0) {
+        this->input_size = input_size;
+        this->output_size = input_size * embedding_dim;
+    }
 
     if (this->training) {
         this->allocate_param_delta();
@@ -164,9 +170,9 @@ void EmbeddingCuda::backward(BaseDeltaStates &input_delta_states,
 }
 
 std::unique_ptr<BaseLayer> EmbeddingCuda::to_host() {
-    std::unique_ptr<BaseLayer> host_emb =
-        std::make_unique<Embedding>(this->num_embeddings, this->embedding_dim,
-                                    this->scale, this->padding_idx);
+    std::unique_ptr<BaseLayer> host_emb = std::make_unique<Embedding>(
+        this->num_embeddings, this->embedding_dim, this->input_size,
+        this->scale, this->padding_idx);
     host_emb->mu_w = this->mu_w;
     host_emb->var_w = this->var_w;
 

@@ -107,8 +107,8 @@ Return:
 // Embedding Layer Class
 ///////////////////////////////////////////////////////////////////////////////
 
-Embedding::Embedding(int num_embeddings, int embedding_dim, float scale,
-                     int padding_idx, int device_idx)
+Embedding::Embedding(int num_embeddings, int embedding_dim, int input_size,
+                     float scale, int padding_idx, int device_idx)
     : embedding_dim(embedding_dim),
       num_embeddings(num_embeddings),
       scale(scale),
@@ -116,6 +116,11 @@ Embedding::Embedding(int num_embeddings, int embedding_dim, float scale,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+
+    if (input_size > 0) {
+        this->input_size = input_size;
+        this->output_size = input_size * embedding_dim;
+    }
 
     if (this->device.compare("cpu") == 0) {
         this->init_weight_bias();
@@ -191,8 +196,8 @@ std::unique_ptr<BaseLayer> Embedding::to_cuda(int device_idx) {
     this->device = "cuda";
     this->device_idx = device_idx;
     auto cuda_layer = std::make_unique<EmbeddingCuda>(
-        this->num_embeddings, this->embedding_dim, this->scale,
-        this->padding_idx, this->device_idx);
+        this->num_embeddings, this->embedding_dim, this->input_size,
+        this->scale, this->padding_idx, this->device_idx);
 
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);

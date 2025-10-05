@@ -81,7 +81,8 @@ bool test_embedding_class_forward()
     unsigned int seed = 42;
     int batch_size = 2;
 
-    Embedding emb_layer(num_embeddings, embedding_dim, scale, padding_idx);
+    Embedding emb_layer(num_embeddings, embedding_dim, num_inputs, scale,
+                        padding_idx);
 
     std::vector<int> mu_a_int;
     for (int j = 0; j < batch_size; j++) {
@@ -149,7 +150,8 @@ bool test_embedding_class_backward()
     unsigned int seed = 42;
     int batch_size = 2;
 
-    Embedding emb_layer(num_embeddings, embedding_dim, scale, padding_idx);
+    Embedding emb_layer(num_embeddings, embedding_dim, num_inputs, scale,
+                        padding_idx);
     emb_layer.training = true;
     emb_layer.allocate_param_delta();
 
@@ -263,7 +265,8 @@ bool test_embedding_with_padding()
     int padding_idx = 0;
     int batch_size = 2;
 
-    Embedding emb_layer(num_embeddings, embedding_dim, scale, padding_idx);
+    Embedding emb_layer(num_embeddings, embedding_dim, num_inputs, scale,
+                        padding_idx);
 
     std::vector<int> mu_a_int = {0, 1, 2, 0, 3, 4};
 
@@ -327,7 +330,8 @@ bool test_embedding_class_forward_cuda() {
     unsigned int seed = 42;
     int batch_size = 2;
 
-    EmbeddingCuda emb_layer(num_embeddings, embedding_dim, scale, padding_idx);
+    EmbeddingCuda emb_layer(num_embeddings, embedding_dim, num_inputs, scale,
+                            padding_idx);
     emb_layer.init_weight_bias();
 
     std::vector<int> mu_a_int;
@@ -394,7 +398,8 @@ bool test_embedding_class_backward_cuda() {
     unsigned int seed = 42;
     int batch_size = 2;
 
-    EmbeddingCuda emb_layer(num_embeddings, embedding_dim, scale, padding_idx);
+    EmbeddingCuda emb_layer(num_embeddings, embedding_dim, num_inputs, scale,
+                            padding_idx);
     emb_layer.training = true;
     emb_layer.init_weight_bias();
     emb_layer.allocate_param_delta();

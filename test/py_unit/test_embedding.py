@@ -26,6 +26,7 @@ class TestEmbedding(unittest.TestCase):
             Embedding(
                 num_embeddings=num_embeddings,
                 embedding_dim=embedding_dim,
+                input_size=num_inputs,
                 scale=1.0,
                 padding_idx=padding_idx,
             )

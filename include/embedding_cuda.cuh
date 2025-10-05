@@ -31,8 +31,8 @@ class EmbeddingCuda : public BaseLayerCuda {
     float scale;
     int padding_idx;
 
-    EmbeddingCuda(int num_embeddings, int embedding_dim, float scale = 1.0f,
-                  int padding_idx = -1, int device_idx = 0);
+    EmbeddingCuda(int num_embeddings, int embedding_dim, int input_size,
+                  float scale = 1.0f, int padding_idx = -1, int device_idx = 0);
 
     ~EmbeddingCuda();
 
