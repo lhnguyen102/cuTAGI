@@ -20,8 +20,7 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Implements Layer Normalization, a technique often used in neural networks
-   to stabilize the learning process by normalizing the inputs across the
+   Implements Layer Normalization by normalizing the inputs across the
    features dimension. It inherits from BaseLayer.
 
 
@@ -43,3 +42,6 @@ Module Contents
       Initializes the layer's internal parameters, specifically the learnable
       scale (gamma) and, if 'bias' is True, the learnable offset (beta).
       This task is delegated to the C++ backend.
+
+
+

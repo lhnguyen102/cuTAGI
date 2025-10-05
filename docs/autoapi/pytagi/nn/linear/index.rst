@@ -36,7 +36,7 @@ Module Contents
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer (e.g., 'Linear' or 'FullyConnected')
+      Retrieves the name of the layer (e.g., 'Linear')
       from the C++ backend.
 
 
@@ -46,3 +46,6 @@ Module Contents
       Initializes the layer's parameters—the weight matrix (:math:`W`) and the
       optional bias vector (:math:`b`)—using the specified initialization method
       and gain factors. This task is delegated to the C++ backend.
+
+
+

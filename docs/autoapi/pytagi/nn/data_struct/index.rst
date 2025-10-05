@@ -104,7 +104,8 @@ Module Contents
 .. py:class:: BaseDeltaStates(size: Optional[int] = None, block_size: Optional[int] = None)
 
    Represents the base delta states, acting as a Python wrapper for the C++ backend.
-   This class manages the change in mean (delta_mu) and change in variance (delta_var).
+   This class manages the change in mean (delta_mu) and change in variance (delta_var)
+   induced by the update step.
 
 
    .. py:property:: delta_mu
@@ -186,8 +187,6 @@ Module Contents
 
    Hierarchical softmax wrapper from the CPP backend.
 
-   Further details can be found here: https://building-babylon.net/2017/08/01/hierarchical-softmax
-
    .. attribute:: obs
 
       A fictive observation \in [-1, 1].
@@ -239,3 +238,5 @@ Module Contents
 
 
       Gets or sets the length of an observation.
+
+

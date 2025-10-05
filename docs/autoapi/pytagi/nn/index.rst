@@ -89,10 +89,10 @@ Package Contents
 
    Applies a probabilistic Softmax approximation function.
 
-   Closed-form softmax is an approximation of the softmax function that provides
-   a closed-form solution for the output distribution when the input is a Gaussian
-   distribution. It is commonly used as the final activation function in a classification
-   network to produce probability distributions over classes.
+   Closed-form softmax is an approximation of the deterministic softmax function that provides
+   a closed-form solution for the output moments of Gaussian inputs. It is commonly
+   used as the final activation function in a classification network to produce
+   probability distributions over classes.
 
    .. math::
        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
@@ -123,9 +123,9 @@ Package Contents
 
    Applies the EvenExp activation function.
 
-   This is an even function allows to pass just the odd postions of the output layer through
-   an exponential activation function. So it allows passing from V2_bar to V2_bar_tilde for
-   the correct aleatoric uncertainty inference in the case of heteroscedastic regression.
+   This function allows passing only the odd postions of the output layer through
+   an exponential activation function. This is used for going from V2_bar to V2_bar_tilde
+   for the aleatoric uncertainty inference in the case of heteroscedastic regression.
 
    .. math::
        \text{EvenExp}(x) = \begin{cases}
@@ -161,7 +161,9 @@ Package Contents
    Applies the Leaky Rectified Linear Unit function element-wise.
 
    This is a variant of ReLU that allows a small, non-zero gradient
-   when the unit is not active, which can help mitigate the "dying ReLU" problem.
+   when the unit is not active. This layer relies on a first-order
+   Taylor-series approximation where the activation function is locally
+   linearized at the input expected value.
 
    .. math::
        \text{LeakyReLU}(x) =
@@ -201,10 +203,8 @@ Package Contents
 
    Applies a probabilistic Rectified Linear Unit approximation.
 
-   This activation function is designed for probabilistic neural networks where
-   activations are represented by distributions. It takes a Gaussian distribution
-   as input and computes the exact moments (mean and variance) of the output,
-   which is a truncated Gaussian distribution.
+   This layer processes an input Gaussian distribution and outputs the moments
+   for a rectified linear unit. This layer relies on exact moment calculations.
 
    For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, the output
    :math:`Y = \max(0, X)` results in a rectified Gaussian.
@@ -236,14 +236,11 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies a probabilistic Sigmoid function approximation.
+   Applies a probabilistic picewise-linear Sigmoid-like function.
 
-   This activation function processes an input Gaussian distribution and
-   approximates the output distribution after applying the sigmoid function.
-   The resulting distribution is confined to the range (0, 1).
-
-   For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, this layer
-   approximates the distribution of :math:`Y = \frac{1}{1 + e^{-X}}`.
+   This layer processes an input Gaussian distribution and outputs the moments
+   for a picewise-linear Sigmoid-like function. This layer relies on exact
+   moment calculations.
 
    .. image:: ../../../../_static/activation_io_mixture_sigmoid.png
       :align: center
@@ -272,14 +269,11 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies a probabilistic Hyperbolic Tangent function approximation.
+   Applies a probabilistic piecewise-linear Hyperbolic Tangent function.
 
-   This activation function processes an input Gaussian distribution and
-   approximates the output distribution after applying the Tanh function.
-   The resulting distribution is confined to the range (-1, 1).
-
-   For an input random variable :math:`X \sim \mathcal{N}(\mu, \sigma^2)`, this layer
-   approximates the distribution of :math:`Y = \tanh(X)`.
+   This layer processes an input Gaussian distribution and outputs the moments
+   for a picewise-linear Tanh-like function. This layer relies on exact
+   moment calculations.
 
    .. image:: ../../../../_static/activation_io_mixture_tanh.png
       :align: center
@@ -308,10 +302,12 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies the Rectified Linear Unit function element-wise.
+   Applies the Rectified Linear Unit function.
 
-   In the context of pyTAGI, which handles distributions, this layer processes an
-   input Gaussian distribution and outputs a rectified Gaussian distribution.
+   This layer processes an input Gaussian distribution and outputs the moments
+   for a rectified linear unit. This layer relies on a first-order
+   Taylor-series approximation where the activation function is locally
+   linearized at the input expected value.
 
    .. math::
        \text{ReLU}(x) = (x)^+ = \max(0, x)
@@ -345,8 +341,8 @@ Package Contents
 
    Applies a probabilistic Remax approximation function.
 
-   Remax is a softmax-like activation function wich replaces the exponential function by a
-   rectified linear unit. It rescales the input so that the elements of the output
+   Remax is a softmax-like activation function which replaces the exponential function by a
+   mixtureRelu. It rescales the input so that the elements of the output
    lie in the range [0,1] and sum to 1. It is commonly used as the final
    activation function in a classification network to produce probability
    distributions over classes.
@@ -380,9 +376,10 @@ Package Contents
 
    Applies the Sigmoid function element-wise.
 
-   When processing a Gaussian distribution, this layer approximates the
-   output distribution after applying the sigmoid function. The output
-   values are constrained to the range (0, 1).
+   This layer approximates the moments after applying the sigmoid function whose
+   values are constrained to the range (0, 1). This layer relies on a first-order
+   Taylor-series approximation where the activation function is locally
+   linearized at the input expected value.
 
    .. math::
        \text{Sigmoid}(x) = \sigma(x) = \frac{1}{1 + e^{-x}}
@@ -450,7 +447,9 @@ Package Contents
 
    Applies the Softplus function element-wise.
 
-   Softplus is a smooth approximation of the ReLU function.
+   Softplus is a smooth approximation of the ReLU function. This layer relies
+   on a first-order Taylor-series approximation where the activation function
+   is locally linearized at the input expected value.
 
    .. math::
        \text{Softplus}(x) = \log(1 + e^{x})
@@ -482,11 +481,12 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies the Hyperbolic Tangent function element-wise.
+   Applies the Hyperbolic Tangent function.
 
-   When processing a Gaussian distribution, this layer approximates the
-   output distribution after applying the Tanh function. The output
-   values are constrained to the range (-1, 1).
+   This layer approximates the moments after applying the Tanh function whose
+   values are constrained to the range (-1, 1). This layer relies on a first-order
+   Taylor-series approximation where the activation function is locally
+   linearized at the input expected value.
 
    .. math::
        \text{Tanh}(x) = \tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}
@@ -670,6 +670,7 @@ Package Contents
 
 
       Gets the delta variance of the weights (delta_var_w) as a NumPy array.
+      The delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: delta_mu_b
@@ -677,6 +678,7 @@ Package Contents
 
 
       Gets the delta mean of the biases (delta_mu_b) as a NumPy array.
+      This delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: delta_var_b
@@ -684,6 +686,7 @@ Package Contents
 
 
       Gets the delta variance of the biases (delta_var_b) as a NumPy array.
+      This delta corresponds to the amount of change induced by the update step.
 
 
    .. py:property:: num_threads
@@ -712,12 +715,10 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies 2D Batch Normalization to a Gaussian distribution.
+   Applies 2D Batch Normalization.
 
-   Batch Normalization is a technique used to normalize the inputs of a layer
-   by re-centering and re-scaling them. This helps to stabilize and accelerate
-   the training of deep neural networks. This implementation is designed to
-   work with probabilistic inputs (Gaussian distributions).
+   Batch Normalization normalizes the inputs of a layer by re-centering and
+   re-scaling them.
 
    :param num_features: The number of features in the input tensor.
    :type num_features: int
@@ -773,8 +774,7 @@ Package Contents
 
    This layer performs a convolution operation, which is a fundamental building block
    in convolutional neural networks (CNNs). It slides a kernel (or filter) over
-   an input tensor to produce an output tensor. This implementation is designed
-   to work with probabilistic inputs and leverages a C++ backend for performance.
+   an input tensor to produce an output tensor.
 
    :param in_channels: Number of input channels.
    :type in_channels: int
@@ -823,7 +823,7 @@ Package Contents
    .. py:method:: init_weight_bias()
 
       Initializes the learnable weight (kernel) and bias parameters of the convolutional layer.
-      This initialization is delegated to the C++ backend, likely using the 'init_method' specified (e.g., "He").
+      This initialization is delegated to the C++ backend using the 'init_method' specified (e.g., "He").
 
 
 
@@ -834,11 +834,9 @@ Package Contents
 
    Applies a 2D transposed convolution operation (also known as deconvolution).
 
-   This layer performs a transposed convolution, which is often used in tasks
-   like image generation or segmentation to upsample feature maps. It effectively
+   This layer performs a transposed convolution, which is used in tasks
+   like image generation or segmentation to upsample feature maps. It
    reverses the convolution operation, increasing the spatial dimensions of the input.
-   This implementation is designed to work with probabilistic inputs and leverages
-   a C++ backend for performance.
 
    :param in_channels: Number of input channels.
    :type in_channels: int
@@ -893,7 +891,8 @@ Package Contents
 .. py:class:: BaseDeltaStates(size: Optional[int] = None, block_size: Optional[int] = None)
 
    Represents the base delta states, acting as a Python wrapper for the C++ backend.
-   This class manages the change in mean (delta_mu) and change in variance (delta_var).
+   This class manages the change in mean (delta_mu) and change in variance (delta_var)
+   induced by the update step.
 
 
    .. py:property:: delta_mu
@@ -1058,8 +1057,6 @@ Package Contents
 .. py:class:: HRCSoftmax
 
    Hierarchical softmax wrapper from the CPP backend.
-
-   Further details can be found here: https://building-babylon.net/2017/08/01/hierarchical-softmax
 
    .. attribute:: obs
 
@@ -1259,7 +1256,7 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   A stack of different layer derived from BaseLayer
+   A stack of different layers derived from BaseLayer
 
 
    .. py:method:: switch_to_cuda()
@@ -1280,8 +1277,7 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Implements Layer Normalization, a technique often used in neural networks
-   to stabilize the learning process by normalizing the inputs across the
+   Implements Layer Normalization by normalizing the inputs across the
    features dimension. It inherits from BaseLayer.
 
 
@@ -1327,7 +1323,7 @@ Package Contents
 
    .. py:method:: get_layer_name() -> str
 
-      Retrieves the name of the layer (e.g., 'Linear' or 'FullyConnected')
+      Retrieves the name of the layer (e.g., 'Linear')
       from the C++ backend.
 
 
@@ -1345,10 +1341,7 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Implements a **Long Short-Term Memory (LSTM)** layer. LSTMs are designed to model
-   sequential data and overcome the vanishing gradient problem in traditional
-   RNNs by using gates (input, forget, and output) and a cell state.
-   It inherits from BaseLayer.
+   A **Long Short-Term Memory (LSTM)** layer for RNNs. It inherits from BaseLayer.
 
 
    .. py:method:: get_layer_info() -> str
@@ -1379,7 +1372,7 @@ Package Contents
    A utility to compute the error signal (delta states) for the output layer.
 
    This class calculates the difference between the model's predictions and the
-   ground truth observations, which is essential for initiating the backward pass
+   observations, which is essential for performing the backward pass
    to update the model's parameters. It wraps the C++/CUDA backend `cutagi.OutputUpdater`.
 
 
@@ -1475,8 +1468,8 @@ Package Contents
 
    2D Max Pooling Layer.
 
-   This layer performs 2D max pooling operation. It wraps the C++/CUDA backend
-   `cutagi.MaxPool2d`.
+   This layer performs 2D max pooling operation based on the input expected values.
+   It wraps the C++/CUDA backend `cutagi.MaxPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
@@ -1587,7 +1580,7 @@ Package Contents
 
    .. py:method:: __call__(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
 
-      A convenient alias for the forward pass.
+      An alias for the forward pass.
 
       :param mu_x: The mean of the input data.
       :type mu_x: np.ndarray
@@ -1658,7 +1651,8 @@ Package Contents
       :type: int
 
 
-      The number of samples used for Monte Carlo estimation.
+      The number of samples used for Monte Carlo estimation. This is used
+      for debugging purposes
 
 
    .. py:method:: to_device(device: str)
@@ -1726,7 +1720,8 @@ Package Contents
 
       Performs a smoother pass (e.g., Rauch-Tung-Striebel smoother).
 
-      This is typically used in state-space models to refine estimates.
+      This is used with the SLSTM to refine estimates by running backwards
+      through time.
 
       :return: A tuple containing the mean and variance of the smoothed output.
       :rtype: Tuple[np.ndarray, np.ndarray]
@@ -1937,12 +1932,11 @@ Package Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Smoother Linear layer for Recurrent Architectures.
+   Smoother Linear layer for the SLSTM architecture.
 
-   This layer performs a linear transformation ($y = xW^T + b$), specifically designed
-   to be used within LSTMs where a smoothering
-   mechanism might be applied to the hidden states. It wraps the C++/CUDA backend
-   `cutagi.SLinear`.
+   This layer performs a linear transformation (:math:`y = xW^T + b'), specifically designed
+   to be used within SLSTM where a hidden- and cell-state smoothing through time is applied.
+   It wraps the C++/CUDA backend `cutagi.SLinear`.
 
 
    .. py:method:: get_layer_info() -> str
@@ -1970,9 +1964,9 @@ Package Contents
 
    Smoothing Long Short-Term Memory (LSTM) layer.
 
-   This layer is a variation of the standard LSTM, likely incorporating a mechanism
-   for **smoothing** the hidden states or outputs. It's designed for sequence
-   processing tasks. It wraps the C++/CUDA backend `cutagi.SLSTM`.
+   This layer is a variation of the standard LSTM, incorporating a mechanism
+   for **smoothing** the hidden- and cell-states. It wraps the C++/CUDA backend
+   `cutagi.SLSTM`.
 
 
    .. py:method:: get_layer_info() -> str
@@ -1990,3 +1984,6 @@ Package Contents
    .. py:method:: init_weight_bias()
 
       Initializes all the layer's internal weight matrices and bias vectors (for gates and cell) based on the configured method.
+
+
+

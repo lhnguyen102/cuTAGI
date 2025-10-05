@@ -20,7 +20,7 @@ Module Contents
    A utility to compute the error signal (delta states) for the output layer.
 
    This class calculates the difference between the model's predictions and the
-   ground truth observations, which is essential for initiating the backward pass
+   observations, which is essential for performing the backward pass
    to update the model's parameters. It wraps the C++/CUDA backend `cutagi.OutputUpdater`.
 
 
@@ -84,3 +84,5 @@ Module Contents
 
 
       The computational device ('cpu' or 'cuda') the updater is on.
+
+

@@ -22,11 +22,9 @@ Module Contents
 
    Applies a 2D transposed convolution operation (also known as deconvolution).
 
-   This layer performs a transposed convolution, which is often used in tasks
-   like image generation or segmentation to upsample feature maps. It effectively
+   This layer performs a transposed convolution, which is used in tasks
+   like image generation or segmentation to upsample feature maps. It
    reverses the convolution operation, increasing the spatial dimensions of the input.
-   This implementation is designed to work with probabilistic inputs and leverages
-   a C++ backend for performance.
 
    :param in_channels: Number of input channels.
    :type in_channels: int
@@ -75,3 +73,6 @@ Module Contents
    .. py:method:: init_weight_bias()
 
       Initializes the learnable weight and bias parameters of the transposed convolutional layer.
+
+
+

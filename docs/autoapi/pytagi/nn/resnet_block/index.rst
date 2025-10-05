@@ -86,3 +86,5 @@ Module Contents
 
 
       Gets the delta states (error signals) associated with the shortcut layer's output.
+
+

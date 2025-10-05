@@ -10,7 +10,7 @@ networks. TAGI treats all network parameters and hidden units as Gaussian random
 variables and derives closed-form expressions for prior/posterior means,
 variances, and covariances, enabling analytic Bayesian learning without relying
 on gradient descent or backpropagation. A high-level overview about the TAGI
-theory can be found in the :doc:`theory section <api/theory>`.
+theory can be found in the :doc:`theory section <api/theory/index>`.
 
 Getting started
 ---------------
@@ -120,5 +120,5 @@ Related references
    api/tutorials/index
    api/dev_guides
    api/multi_gpu
-   api/theory
+   api/theory/index
    api/about

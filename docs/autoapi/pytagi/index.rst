@@ -90,8 +90,6 @@ Package Contents
 
    Hierarchical softmax wrapper from the CPP backend.
 
-   Further details can be found here: https://building-babylon.net/2017/08/01/hierarchical-softmax
-
    .. attribute:: obs
 
       A fictive observation \in [-1, 1].
@@ -320,7 +318,7 @@ Package Contents
 
       Converts class labels into observations for a binary tree structure.
 
-      This is typically used for hierarchical classification, where each label
+      This is used in the hierarchical classification, where each label
       is mapped to a path in a binary tree, and the observations represent
       the nodes along that path.
 
@@ -527,3 +525,4 @@ Package Contents
 
 
 .. py:data:: __version__
+

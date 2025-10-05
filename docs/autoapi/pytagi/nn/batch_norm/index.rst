@@ -20,12 +20,10 @@ Module Contents
    Bases: :py:obj:`pytagi.nn.base_layer.BaseLayer`
 
 
-   Applies 2D Batch Normalization to a Gaussian distribution.
+   Applies 2D Batch Normalization.
 
-   Batch Normalization is a technique used to normalize the inputs of a layer
-   by re-centering and re-scaling them. This helps to stabilize and accelerate
-   the training of deep neural networks. This implementation is designed to
-   work with probabilistic inputs (Gaussian distributions).
+   Batch Normalization normalizes the inputs of a layer by re-centering and
+   re-scaling them.
 
    :param num_features: The number of features in the input tensor.
    :type num_features: int
@@ -69,3 +67,6 @@ Module Contents
       Initializes the learnable weight (scale/gain) and bias (shift/offset)
       parameters of the batch normalization layer. This operation is
       delegated to the C++ backend.
+
+
+

@@ -46,8 +46,8 @@ Module Contents
 
    2D Max Pooling Layer.
 
-   This layer performs 2D max pooling operation. It wraps the C++/CUDA backend
-   `cutagi.MaxPool2d`.
+   This layer performs 2D max pooling operation based on the input expected values.
+   It wraps the C++/CUDA backend `cutagi.MaxPool2d`.
 
 
    .. py:method:: get_layer_info() -> str
@@ -59,3 +59,6 @@ Module Contents
    .. py:method:: get_layer_name() -> str
 
       Returns the name of the layer (e.g., 'MaxPool2d').
+
+
+
