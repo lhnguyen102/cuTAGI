@@ -21,6 +21,11 @@ extensions = [
     "nbsphinx",
 ]
 
+autoapi_ignore = [
+    "*/pytagi/__version.py",  # Exclude the source file
+    "*/pytagi/__version/*.rst",  # Exclude the generated documentation files
+]
+
 autoapi_type = "python"
 autoapi_dirs = [os.path.abspath("../pytagi")]
 autoapi_add_toctree_entry = False

@@ -32,13 +32,13 @@ Module Contents
       variance is known and provided.
 
       :param output_states: The hidden states (mean and variance) of the model's output layer.
-      :type output_states: BaseHiddenStates
+      :type output_states: pytagi.nn.data_struct.BaseHiddenStates
       :param mu_obs: The mean of the ground truth observations.
       :type mu_obs: np.ndarray
       :param var_obs: The variance of the ground truth observations.
       :type var_obs: np.ndarray
       :param delta_states: The delta states object to be updated with the computed error signal.
-      :type delta_states: BaseDeltaStates
+      :type delta_states: pytagi.nn.data_struct.BaseDeltaStates
 
 
 
@@ -50,7 +50,7 @@ Module Contents
       a sparse set of outputs needs to be updated.
 
       :param output_states: The hidden states of the model's output layer.
-      :type output_states: BaseHiddenStates
+      :type output_states: pytagi.nn.data_struct.BaseHiddenStates
       :param mu_obs: The mean of the ground truth observations.
       :type mu_obs: np.ndarray
       :param var_obs: The variance of the ground truth observations.
@@ -58,7 +58,7 @@ Module Contents
       :param selected_idx: An array of indices specifying which output neurons to update.
       :type selected_idx: np.ndarray
       :param delta_states: The delta states object to be updated with the computed error signal.
-      :type delta_states: BaseDeltaStates
+      :type delta_states: pytagi.nn.data_struct.BaseDeltaStates
 
 
 
@@ -71,11 +71,11 @@ Module Contents
 
       :param output_states: The hidden states of the model's output layer. The model's
                             predicted variance is sourced from here.
-      :type output_states: BaseHiddenStates
+      :type output_states: pytagi.nn.data_struct.BaseHiddenStates
       :param mu_obs: The mean of the ground truth observations.
       :type mu_obs: np.ndarray
       :param delta_states: The delta states object to be updated with the computed error signal.
-      :type delta_states: BaseDeltaStates
+      :type delta_states: pytagi.nn.data_struct.BaseDeltaStates
 
 
 
