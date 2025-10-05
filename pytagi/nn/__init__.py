@@ -18,6 +18,7 @@ from pytagi.nn.conv2d import Conv2d
 from pytagi.nn.convtranspose2d import ConvTranspose2d
 from pytagi.nn.data_struct import BaseDeltaStates, BaseHiddenStates, HRCSoftmax
 from pytagi.nn.ddp import DDPConfig, DDPSequential
+from pytagi.nn.embedding import Embedding
 from pytagi.nn.layer_block import LayerBlock
 from pytagi.nn.layer_norm import LayerNorm
 from pytagi.nn.linear import Linear
