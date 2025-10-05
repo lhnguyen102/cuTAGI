@@ -10,10 +10,19 @@ Submodules
 .. toctree::
    :maxdepth: 1
 
+   /autoapi/pytagi/__version/index
    /autoapi/pytagi/cuda/index
    /autoapi/pytagi/metric/index
    /autoapi/pytagi/nn/index
    /autoapi/pytagi/tagi_utils/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   pytagi.__version__
 
 
 Classes
@@ -489,3 +498,6 @@ Package Contents
    :type curr_iter: int
    :return: The decayed value.
    :rtype: float
+
+
+.. py:data:: __version__

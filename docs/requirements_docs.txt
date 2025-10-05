@@ -1,7 +1,7 @@
 sphinx>=7.0
 sphinx-book-theme>=1.1
 myst-parser>=2.0
-sphinx-autoapi>=3.0
+sphinx-autoapi==3.5.0
 sphinx_autodoc_typehints
 sphinx-copybutton
 nbsphinx
