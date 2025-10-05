@@ -3,10 +3,9 @@
 #include <iostream>
 #include <vector>
 
-#include "activation_fun_cpu.h"
-#include "data_transfer_cpu.h"
-#include "fc_layer_cpu.h"
-#include "struct_var.h"
+// #include "activation_fun_cpu.h"
+// #include "data_transfer_cpu.h"
+// #include "fc_layer_cpu.h"
 
 void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
                std::vector<float> &mu_k, std::vector<float> &var_k, int qkv_pos,
@@ -77,15 +76,15 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k);
 
-void self_attention_forward_cpu(Network &net_prop, NetState &state,
-                                Param &theta, int l);
+// void self_attention_forward_cpu(Network &net_prop, NetState &state,
+//                                 Param &theta, int l);
 
-void update_self_attention_state(Network &net_prop, NetState &state,
-                                 Param &theta, DeltaState &d_state, int k);
+// void update_self_attention_state(Network &net_prop, NetState &state,
+//                                  Param &theta, DeltaState &d_state, int k);
 
-void update_self_attention_state(Network &net_prop, NetState &state,
-                                 Param &theta, DeltaState &d_state, int k);
+// void update_self_attention_state(Network &net_prop, NetState &state,
+//                                  Param &theta, DeltaState &d_state, int k);
 
-void update_self_attention_param(Network &net_prop, Param &theta,
-                                 NetState &state, DeltaState &d_state,
-                                 DeltaParam &d_theta, int k_layer);
+// void update_self_attention_param(Network &net_prop, Param &theta,
+//                                  NetState &state, DeltaState &d_state,
+//                                  DeltaParam &d_theta, int k_layer);
