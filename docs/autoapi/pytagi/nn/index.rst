@@ -1058,36 +1058,12 @@ Package Contents
 
    Hierarchical softmax wrapper from the CPP backend.
 
-   .. attribute:: obs
-
-      A fictive observation \in [-1, 1].
-
-      :type: List[float]
-
-   .. attribute:: idx
-
-      Indices assigned to each label.
-
-      :type: List[int]
-
-   .. attribute:: num_obs
-
-      Number of indices for each label.
-
-      :type: int
-
-   .. attribute:: len
-
-      Length of an observation (e.g., 10 labels -> len(obs) = 11).
-
-      :type: int
-
 
    .. py:property:: obs
       :type: List[float]
 
 
-      Gets or sets the observations for hierarchical softmax.
+      Gets or sets the fictive observation \in [-1, 1].
 
 
    .. py:property:: idx
@@ -1101,14 +1077,14 @@ Package Contents
       :type: int
 
 
-      Gets or sets the number of observations for each label.
+      Gets or sets the number of indices for each label.
 
 
    .. py:property:: len
       :type: int
 
 
-      Gets or sets the length of an observation.
+      Gets or sets the length of an observation (e.g., 10 labels -> len(obs) = 11).
 
 
 .. py:class:: DDPConfig(device_ids: List[int], backend: str = 'nccl', rank: int = 0, world_size: int = 1)

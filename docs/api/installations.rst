@@ -241,7 +241,7 @@ Installation Guide: CMake on macOS
 ----------------------------------
 
 Step 1: Uninstall Previous CMake Versions (Optional)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 

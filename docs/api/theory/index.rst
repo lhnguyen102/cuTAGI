@@ -17,7 +17,7 @@ Having access to the predictive expected values and variances of a neural networ
 .. figure:: ../../_static/mrelu.png
    :width: 70mm
    :align: center
-   :name: mrelu_moments
+   :name: mrelu_moment
 
    Example of input Gaussian distributions being transformed by a ReLU activation function.
 

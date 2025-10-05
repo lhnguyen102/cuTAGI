@@ -219,12 +219,6 @@ class BaseDeltaStates:
 class HRCSoftmax:
     """
     Hierarchical softmax wrapper from the CPP backend.
-
-    Attributes:
-        obs (List[float]): A fictive observation \in [-1, 1].
-        idx (List[int]): Indices assigned to each label.
-        num_obs (int): Number of indices for each label.
-        len (int): Length of an observation (e.g., 10 labels -> len(obs) = 11).
     """
 
     def __init__(self) -> None:
@@ -234,7 +228,7 @@ class HRCSoftmax:
     @property
     def obs(self) -> List[float]:
         """
-        Gets or sets the observations for hierarchical softmax.
+        Gets or sets the fictive observation \in [-1, 1].
         """
         return self._cpp_backend.obs
 
@@ -256,7 +250,7 @@ class HRCSoftmax:
     @property
     def num_obs(self) -> int:
         """
-        Gets or sets the number of observations for each label.
+        Gets or sets the number of indices for each label.
         """
         return self._cpp_backend.num_obs
 
@@ -267,7 +261,7 @@ class HRCSoftmax:
     @property
     def len(self) -> int:
         """
-        Gets or sets the length of an observation.
+        Gets or sets the length of an observation (e.g., 10 labels -> len(obs) = 11).
         """
         return self._cpp_backend.len
 

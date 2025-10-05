@@ -101,7 +101,7 @@ Module Contents
 
 
 
-   .. py:method:: get_labels(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
+   .. py:method:: get_labels(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.data_struct.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
       Predicts class labels from the output layer's activation statistics.
 
@@ -125,7 +125,7 @@ Module Contents
 
 
 
-   .. py:method:: get_errors(ma: numpy.ndarray, Sa: numpy.ndarray, labels: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
+   .. py:method:: get_errors(ma: numpy.ndarray, Sa: numpy.ndarray, labels: numpy.ndarray, hr_softmax: pytagi.nn.data_struct.HRCSoftmax, num_classes: int, batch_size: int) -> Tuple[numpy.ndarray, numpy.ndarray]
 
       Computes the prediction error given the output layer's statistics and true labels.
 
@@ -151,7 +151,7 @@ Module Contents
 
 
 
-   .. py:method:: get_hierarchical_softmax(num_classes: int) -> pytagi.nn.HRCSoftmax
+   .. py:method:: get_hierarchical_softmax(num_classes: int) -> pytagi.nn.data_struct.HRCSoftmax
 
       Constructs a hierarchical softmax structure (binary tree) for classification.
 
@@ -162,7 +162,7 @@ Module Contents
 
 
 
-   .. py:method:: obs_to_label_prob(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.HRCSoftmax, num_classes: int) -> numpy.ndarray
+   .. py:method:: obs_to_label_prob(ma: numpy.ndarray, Sa: numpy.ndarray, hr_softmax: pytagi.nn.data_struct.HRCSoftmax, num_classes: int) -> numpy.ndarray
 
       Converts observation probabilities to label probabilities.
 

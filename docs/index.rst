@@ -1,8 +1,8 @@
 py/cuTAGI's documentation
-====================
+====================================
 
 What is py/cuTAGI?
----------------
+------------------------------------
 
 pyTAGI is a Python frontend for cuTAGI, its high-performance C++/CUDA backend,
 implementing Tractable Approximate Gaussian Inference (TAGI) for deep neural

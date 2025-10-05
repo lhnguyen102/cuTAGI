@@ -3,7 +3,7 @@ from typing import Tuple, Union
 import cutagi
 import numpy as np
 
-from pytagi.nn import HRCSoftmax
+from pytagi.nn.data_struct import HRCSoftmax
 
 
 class Utils:
