@@ -238,5 +238,3 @@ Module Contents
 
 
       Gets or sets the length of an observation.
-
-

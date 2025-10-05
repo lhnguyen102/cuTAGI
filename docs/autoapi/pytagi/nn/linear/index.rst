@@ -46,6 +46,3 @@ Module Contents
       Initializes the layer's parameters—the weight matrix (:math:`W`) and the
       optional bias vector (:math:`b`)—using the specified initialization method
       and gain factors. This task is delegated to the C++ backend.
-
-
-

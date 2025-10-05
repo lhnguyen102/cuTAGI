@@ -454,6 +454,3 @@ Module Contents
 
       :returns: The name of the layer.
       :rtype: str
-
-
-

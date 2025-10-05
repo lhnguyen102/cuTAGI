@@ -43,6 +43,3 @@ Module Contents
       LSTM's gates (input, forget, output) and cell state updates, using
       the specified method and gain factors. This task is delegated to the
       C++ backend.
-
-
-

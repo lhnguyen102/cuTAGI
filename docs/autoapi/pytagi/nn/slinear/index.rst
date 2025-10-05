@@ -42,6 +42,3 @@ Module Contents
    .. py:method:: init_weight_bias()
 
       Initializes the layer's weight matrix and bias vector based on the configured method.
-
-
-

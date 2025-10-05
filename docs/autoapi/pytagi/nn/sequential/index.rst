@@ -382,6 +382,3 @@ Module Contents
       :param states: A dictionary mapping layer indices to a 4-tuple of
                      numpy arrays: (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
       :type states: dict
-
-
-

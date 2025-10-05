@@ -124,5 +124,3 @@ Module Contents
    :type label: np.ndarray
    :return: The classification error rate (proportion of incorrect predictions).
    :rtype: float
-
-

@@ -525,4 +525,3 @@ Package Contents
 
 
 .. py:data:: __version__
-

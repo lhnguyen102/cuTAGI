@@ -59,6 +59,3 @@ Module Contents
    .. py:method:: get_layer_name() -> str
 
       Returns the name of the layer (e.g., 'MaxPool2d').
-
-
-

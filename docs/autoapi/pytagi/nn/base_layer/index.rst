@@ -210,5 +210,3 @@ Module Contents
 
 
       Gets a boolean indicating whether the layer is on the GPU ('cuda') or CPU ('cpu').
-
-

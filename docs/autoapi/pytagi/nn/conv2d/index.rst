@@ -74,6 +74,3 @@ Module Contents
 
       Initializes the learnable weight (kernel) and bias parameters of the convolutional layer.
       This initialization is delegated to the C++ backend using the 'init_method' specified (e.g., "He").
-
-
-

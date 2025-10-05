@@ -67,6 +67,3 @@ Module Contents
       Initializes the learnable weight (scale/gain) and bias (shift/offset)
       parameters of the batch normalization layer. This operation is
       delegated to the C++ backend.
-
-
-

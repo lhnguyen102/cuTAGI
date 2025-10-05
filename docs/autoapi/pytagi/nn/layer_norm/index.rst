@@ -42,6 +42,3 @@ Module Contents
       Initializes the layer's internal parameters, specifically the learnable
       scale (gamma) and, if 'bias' is True, the learnable offset (beta).
       This task is delegated to the C++ backend.
-
-
-

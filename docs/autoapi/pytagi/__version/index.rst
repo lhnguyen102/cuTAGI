@@ -27,4 +27,3 @@ Module Contents
 .. py:data:: VERSION
 
 .. py:data:: __version__
-

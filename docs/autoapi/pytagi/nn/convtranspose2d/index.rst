@@ -73,6 +73,3 @@ Module Contents
    .. py:method:: init_weight_bias()
 
       Initializes the learnable weight and bias parameters of the transposed convolutional layer.
-
-
-

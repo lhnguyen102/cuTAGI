@@ -79,6 +79,51 @@ To ensure your code meets quality standards and passes all Continuous Integratio
 
    .. note:: After installation, the hooks will run automatically on every ``git commit``.
 
+.. rubric:: Locally Compile documentation
+
+To compile the documentation locally, follow these steps:
+
+1. **Install Sphinx and necessary extensions**:
+
+   .. code-block:: sh
+
+      pip install -r docs/requirements_docs.txt
+
+2. **Install pandoc markup converter**:
+
+   - On macOS, you can use Homebrew:
+
+     .. code-block:: sh
+
+        brew install pandoc
+
+   - On Ubuntu/Debian, you can use apt-get:
+
+     .. code-block:: sh
+
+        sudo apt-get install pandoc
+
+3. **Build the documentation**:
+
+   .. code-block:: sh
+
+        sphinx-build -b html docs docs/_build/html
+
+4. **View the documentation**:
+   Open the generated HTML files in your web browser:
+
+   - On macOS, you can use the `open` command:
+
+   .. code-block:: sh
+
+      open docs/_build/html/index.html
+
+   - On Linux, you can use `xdg-open`:
+
+   .. code-block:: sh
+
+      xdg-open docs/_build/html/index.html
+
 .. rubric:: Tips and Tools
 
 **Enable Git Autocomplete on macOS**

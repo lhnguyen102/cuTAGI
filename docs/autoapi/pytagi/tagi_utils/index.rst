@@ -402,6 +402,3 @@ Module Contents
           - **max** (*numpy.ndarray*): The maximum values.
           - **min** (*numpy.ndarray*): The minimum values.
       :rtype: Tuple[numpy.ndarray, numpy.ndarray]
-
-
-
