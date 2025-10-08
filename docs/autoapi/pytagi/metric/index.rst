@@ -33,6 +33,11 @@ Module Contents
    This class provides methods to compute the error rate and get predicted labels
    for a classification model that uses Hierarchical Softmax.
 
+   Initializes the HRCSoftmaxMetric.
+
+   :param num_classes: The total number of classes in the classification problem.
+   :type num_classes: int
+
 
    .. py:method:: error_rate(m_pred: numpy.ndarray, v_pred: numpy.ndarray, label: numpy.ndarray) -> float
 

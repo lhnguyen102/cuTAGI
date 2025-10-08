@@ -22,6 +22,25 @@ Module Contents
 
    A **Long Short-Term Memory (LSTM)** layer for RNNs. It inherits from BaseLayer.
 
+   Initializes the LSTM layer.
+
+   :param input_size: The number of features in the input tensor at each time
+                      step.
+   :param output_size: The size of the hidden state (:math:`h_t`), which is the
+                       number of features in the output tensor at each time
+                       step.
+   :param seq_len: The maximum length of the input sequence. This is often
+                   required for efficient memory allocation in C++/CUDA
+                   backends like cuTAGI.
+   :param bias: If True, the internal gates and cell state updates will include
+                an additive bias vector. Defaults to True.
+   :param gain_weight: Scaling factor applied to the initialized weights
+                       (:math:`W`). Defaults to 1.0.
+   :param gain_bias: Scaling factor applied to the initialized biases
+                     (:math:`b`). Defaults to 1.0.
+   :param init_method: The method used for initializing the weights and
+                       biases (e.g., "He", "Xavier"). Defaults to "He".
+
 
    .. py:method:: get_layer_info() -> str
 

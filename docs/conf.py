@@ -26,6 +26,8 @@ autoapi_dirs = [os.path.abspath("../pytagi")]
 autoapi_add_toctree_entry = False
 autoapi_keep_files = True
 
+autoapi_python_class_content = "both"
+
 napoleon_google_docstring = True
 html_theme = "sphinx_book_theme"
 html_theme_options = {

@@ -44,6 +44,8 @@ Module Contents
    .. image:: ../../../../_static/relu_simplified_gaussian_io.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -80,6 +82,8 @@ Module Contents
 
    .. image:: ../../../../_static/activation_io_sigmoid.png
       :align: center
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -118,6 +122,8 @@ Module Contents
    .. image:: ../../../../_static/activation_io_tanh.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -153,6 +159,8 @@ Module Contents
    .. image:: ../../../../_static/activation_io_mixture_relu.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -186,6 +194,8 @@ Module Contents
    .. image:: ../../../../_static/activation_io_mixture_sigmoid.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -218,6 +228,8 @@ Module Contents
 
    .. image:: ../../../../_static/activation_io_mixture_tanh.png
       :align: center
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -254,6 +266,8 @@ Module Contents
 
    .. image:: ../../../../_static/activation_io_softplus.png
       :align: center
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -298,6 +312,8 @@ Module Contents
    .. image:: ../../../../_static/activation_io_leaky_relu.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -331,6 +347,8 @@ Module Contents
 
    .. math::
        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -369,6 +387,8 @@ Module Contents
        \end{cases}
 
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -404,6 +424,8 @@ Module Contents
    .. math::
        \text{Remax}(x_{i}) = \frac{\text{ReLU}(x_i)}{\sum_j \text{ReLU}(x_j)}
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -437,6 +459,8 @@ Module Contents
 
    .. math::
        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str

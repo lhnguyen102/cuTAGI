@@ -27,6 +27,14 @@ Module Contents
    **shortcut** connection (which adds the input to the main block's output).
    It wraps the C++/CUDA backend `cutagi.ResNetBlock`.
 
+   Initializes the ResNetBlock.
+
+   :param main_block: The primary set of layers in the block (e.g., convolutional layers).
+   :type main_block: Union[BaseLayer, LayerBlock]
+   :param shortcut: The optional shortcut connection, often an identity mapping or a projection.
+                    If None, an identity shortcut is implicitly assumed by the C++ backend.
+   :type shortcut: Union[BaseLayer, LayerBlock], optional
+
 
    .. py:method:: init_shortcut_state() -> None
 

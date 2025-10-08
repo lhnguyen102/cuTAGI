@@ -21,6 +21,8 @@ Module Contents
    This class acts as a Python wrapper for the C++ backend, exposing layer attributes
    and methods for managing layer information, device placement, and parameters.
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: to_cuda()
 

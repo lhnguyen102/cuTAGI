@@ -23,6 +23,16 @@ Module Contents
    Implements Layer Normalization by normalizing the inputs across the
    features dimension. It inherits from BaseLayer.
 
+   Initializes the LayerNorm layer.
+
+   :param normalized_shape: The shape of the input to normalize over (e.g.,
+                            the size of the feature dimension). Expected to be
+                            a list of integers.
+   :param eps: A small value added to the denominator for numerical stability
+               to prevent division by zero. Defaults to 1e-4.
+   :param bias: If True, the layer will use an additive bias (beta) during
+                normalization. Defaults to True.
+
 
    .. py:method:: get_layer_info() -> str
 

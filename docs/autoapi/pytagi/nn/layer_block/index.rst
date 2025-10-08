@@ -22,6 +22,9 @@ Module Contents
 
    A stack of different layers derived from BaseLayer
 
+   Initialize the Sequential model with the given layers.
+   :param layers: A variable number of layers (instances of BaseLayer or derived classes).
+
 
    .. py:method:: switch_to_cuda()
 

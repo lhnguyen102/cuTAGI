@@ -35,6 +35,12 @@ Module Contents
    >>> var_in = np.abs(np.random.randn(1, 10))
    >>> mu_out, var_out = model(mu_in, var_in)
 
+   Initializes the Sequential model with a sequence of layers.
+
+   :param layers: A variable number of layer instances (e.g., Linear, ReLU)
+                  that will be executed in sequence.
+   :type layers: BaseLayer
+
 
    .. py:method:: __call__(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
 

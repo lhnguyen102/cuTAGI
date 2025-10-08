@@ -35,6 +35,8 @@ Module Contents
    :ivar _cpp_backend: An instance of `cutagi.Utils` which provides the
        backend functionalities.
 
+   Initializes the Utils class by creating an instance of the C++ backend.
+
 
    .. py:method:: label_to_obs(labels: numpy.ndarray, num_classes: int) -> Tuple[numpy.ndarray, numpy.ndarray, int]
 
@@ -255,6 +257,11 @@ Module Contents
 
    :param method: The normalization method to use. Currently, this parameter is
        not used in the methods but can be set for context.
+   :type method: str or None, optional
+
+   Initializes the Normalizer.
+
+   :param method: The name of the normalization method (e.g., 'standardize').
    :type method: str or None, optional
 
 

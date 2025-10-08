@@ -23,6 +23,19 @@ Module Contents
    This class holds all the necessary settings for initializing a distributed
    process group.
 
+   Initializes the DDP configuration.
+
+   :param device_ids: A list of GPU device IDs to be used for training.
+   :type device_ids: List[int]
+   :param backend: The distributed backend to use. 'nccl' is recommended for GPUs.
+                   Defaults to "nccl".
+   :type backend: str, optional
+   :param rank: The unique rank of the current process. Defaults to 0.
+   :type rank: int, optional
+   :param world_size: The total number of processes participating in the training.
+                      Defaults to 1.
+   :type world_size: int, optional
+
 
    .. py:property:: device_ids
       :type: List[int]
@@ -58,6 +71,16 @@ Module Contents
 
    This class handles gradient synchronization and parameter updates across multiple
    processes, allowing for scalable training on multiple GPUs.
+
+   Initializes the DDPSequential wrapper.
+
+   :param model: The `Sequential` model to be parallelized.
+   :type model: Sequential
+   :param config: The DDP configuration object.
+   :type config: DDPConfig
+   :param average: If True, gradients are averaged across processes. If False, they are summed.
+                   Defaults to True.
+   :type average: bool, optional
 
 
    .. py:property:: output_z_buffer

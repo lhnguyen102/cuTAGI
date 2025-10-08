@@ -26,6 +26,23 @@ Module Contents
    for **smoothing** the hidden- and cell-states. It wraps the C++/CUDA backend
    `cutagi.SLSTM`.
 
+   Initializes the SLSTM layer.
+
+   :param input_size: The number of expected features in the input $x$.
+   :type input_size: int
+   :param output_size: The number of features in the hidden state $h$ (and the output).
+   :type output_size: int
+   :param seq_len: The maximum sequence length this layer is configured to handle.
+   :type seq_len: int
+   :param bias: If ``True``, use bias weights in the internal linear transformations.
+   :type bias: bool
+   :param gain_weight: A scaling factor applied to the initialized weights.
+   :type gain_weight: float
+   :param gain_bias: A scaling factor applied to the initialized bias terms.
+   :type gain_bias: float
+   :param init_method: The method used for initializing weights and biases (e.g., 'He', 'Xavier').
+   :type init_method: str
+
 
    .. py:method:: get_layer_info() -> str
 

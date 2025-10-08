@@ -54,6 +54,11 @@ Package Contents
    This class provides methods to compute the error rate and get predicted labels
    for a classification model that uses Hierarchical Softmax.
 
+   Initializes the HRCSoftmaxMetric.
+
+   :param num_classes: The total number of classes in the classification problem.
+   :type num_classes: int
+
 
    .. py:method:: error_rate(m_pred: numpy.ndarray, v_pred: numpy.ndarray, label: numpy.ndarray) -> float
 
@@ -89,6 +94,8 @@ Package Contents
 .. py:class:: HRCSoftmax
 
    Hierarchical softmax wrapper from the CPP backend.
+
+   Initializes the HRCSoftmax object.
 
 
    .. py:property:: obs
@@ -128,6 +135,11 @@ Package Contents
 
    :param method: The normalization method to use. Currently, this parameter is
        not used in the methods but can be set for context.
+   :type method: str or None, optional
+
+   Initializes the Normalizer.
+
+   :param method: The name of the normalization method (e.g., 'standardize').
    :type method: str or None, optional
 
 
@@ -288,6 +300,8 @@ Package Contents
 
    :ivar _cpp_backend: An instance of `cutagi.Utils` which provides the
        backend functionalities.
+
+   Initializes the Utils class by creating an instance of the C++ backend.
 
 
    .. py:method:: label_to_obs(labels: numpy.ndarray, num_classes: int) -> Tuple[numpy.ndarray, numpy.ndarray, int]

@@ -23,6 +23,11 @@ Module Contents
    observations, which is essential for performing the backward pass
    to update the model's parameters. It wraps the C++/CUDA backend `cutagi.OutputUpdater`.
 
+   Initializes the OutputUpdater.
+
+   :param model_device: The computational device the model is on (e.g., 'cpu' or 'cuda:0').
+   :type model_device: str
+
 
    .. py:method:: update(output_states: pytagi.nn.data_struct.BaseHiddenStates, mu_obs: numpy.ndarray, var_obs: numpy.ndarray, delta_states: pytagi.nn.data_struct.BaseDeltaStates)
 

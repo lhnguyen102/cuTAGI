@@ -22,6 +22,13 @@ Module Contents
    Represents the base hidden states, acting as a Python wrapper for the C++ backend.
    This class manages the mean (mu_a), variance (var_a), and Jacobian (jcb) of hidden states.
 
+   Initializes the BaseHiddenStates.
+
+   :param size: The size of the hidden states.
+   :type size: Optional[int]
+   :param block_size: The block size for the hidden states.
+   :type block_size: Optional[int]
+
 
    .. py:property:: mu_a
       :type: List[float]
@@ -107,6 +114,13 @@ Module Contents
    This class manages the change in mean (delta_mu) and change in variance (delta_var)
    induced by the update step.
 
+   Initializes the BaseDeltaStates.
+
+   :param size: The size of the delta states.
+   :type size: Optional[int]
+   :param block_size: The block size for the delta states.
+   :type block_size: Optional[int]
+
 
    .. py:property:: delta_mu
       :type: List[float]
@@ -186,6 +200,8 @@ Module Contents
 .. py:class:: HRCSoftmax
 
    Hierarchical softmax wrapper from the CPP backend.
+
+   Initializes the HRCSoftmax object.
 
 
    .. py:property:: obs

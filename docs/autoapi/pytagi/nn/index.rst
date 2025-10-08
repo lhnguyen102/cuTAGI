@@ -97,6 +97,8 @@ Package Contents
    .. math::
        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -133,6 +135,8 @@ Package Contents
            x & \text{if } x \text{ is at an even position}
        \end{cases}
 
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -177,6 +181,8 @@ Package Contents
    .. image:: ../../../../_static/activation_io_leaky_relu.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -212,6 +218,8 @@ Package Contents
    .. image:: ../../../../_static/activation_io_mixture_relu.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -245,6 +253,8 @@ Package Contents
    .. image:: ../../../../_static/activation_io_mixture_sigmoid.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -277,6 +287,8 @@ Package Contents
 
    .. image:: ../../../../_static/activation_io_mixture_tanh.png
       :align: center
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -315,6 +327,8 @@ Package Contents
    .. image:: ../../../../_static/relu_simplified_gaussian_io.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -349,6 +363,8 @@ Package Contents
 
    .. math::
        \text{Remax}(x_{i}) = \frac{\text{ReLU}(x_i)}{\sum_j \text{ReLU}(x_j)}
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -387,6 +403,8 @@ Package Contents
    .. image:: ../../../../_static/activation_io_sigmoid.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -420,6 +438,8 @@ Package Contents
 
    .. math::
        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -456,6 +476,8 @@ Package Contents
 
    .. image:: ../../../../_static/activation_io_softplus.png
       :align: center
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: get_layer_info() -> str
@@ -494,6 +516,8 @@ Package Contents
    .. image:: ../../../../_static/activation_io_tanh.png
       :align: center
 
+   Initializes the BaseLayer with a C++ backend instance.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -518,6 +542,8 @@ Package Contents
    Base layer class providing common functionality and properties for neural network layers.
    This class acts as a Python wrapper for the C++ backend, exposing layer attributes
    and methods for managing layer information, device placement, and parameters.
+
+   Initializes the BaseLayer with a C++ backend instance.
 
 
    .. py:method:: to_cuda()
@@ -735,6 +761,8 @@ Package Contents
    :param gain_bias: Initial value for the bias (shift) parameter. Defaults to 1.0.
    :type gain_bias: float
 
+   Initializes the BatchNorm2d layer.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -801,6 +829,8 @@ Package Contents
    :param init_method: Method used for initializing weights. Defaults to "He".
    :type init_method: str
 
+   Initializes the Conv2d layer.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -863,6 +893,8 @@ Package Contents
    :param init_method: Method used for initializing weights. Defaults to "He".
    :type init_method: str
 
+   Initializes the ConvTranspose2d layer.
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -893,6 +925,13 @@ Package Contents
    Represents the base delta states, acting as a Python wrapper for the C++ backend.
    This class manages the change in mean (delta_mu) and change in variance (delta_var)
    induced by the update step.
+
+   Initializes the BaseDeltaStates.
+
+   :param size: The size of the delta states.
+   :type size: Optional[int]
+   :param block_size: The block size for the delta states.
+   :type block_size: Optional[int]
 
 
    .. py:property:: delta_mu
@@ -974,6 +1013,13 @@ Package Contents
 
    Represents the base hidden states, acting as a Python wrapper for the C++ backend.
    This class manages the mean (mu_a), variance (var_a), and Jacobian (jcb) of hidden states.
+
+   Initializes the BaseHiddenStates.
+
+   :param size: The size of the hidden states.
+   :type size: Optional[int]
+   :param block_size: The block size for the hidden states.
+   :type block_size: Optional[int]
 
 
    .. py:property:: mu_a
@@ -1058,6 +1104,8 @@ Package Contents
 
    Hierarchical softmax wrapper from the CPP backend.
 
+   Initializes the HRCSoftmax object.
+
 
    .. py:property:: obs
       :type: List[float]
@@ -1094,6 +1142,19 @@ Package Contents
    This class holds all the necessary settings for initializing a distributed
    process group.
 
+   Initializes the DDP configuration.
+
+   :param device_ids: A list of GPU device IDs to be used for training.
+   :type device_ids: List[int]
+   :param backend: The distributed backend to use. 'nccl' is recommended for GPUs.
+                   Defaults to "nccl".
+   :type backend: str, optional
+   :param rank: The unique rank of the current process. Defaults to 0.
+   :type rank: int, optional
+   :param world_size: The total number of processes participating in the training.
+                      Defaults to 1.
+   :type world_size: int, optional
+
 
    .. py:property:: device_ids
       :type: List[int]
@@ -1129,6 +1190,16 @@ Package Contents
 
    This class handles gradient synchronization and parameter updates across multiple
    processes, allowing for scalable training on multiple GPUs.
+
+   Initializes the DDPSequential wrapper.
+
+   :param model: The `Sequential` model to be parallelized.
+   :type model: Sequential
+   :param config: The DDP configuration object.
+   :type config: DDPConfig
+   :param average: If True, gradients are averaged across processes. If False, they are summed.
+                   Defaults to True.
+   :type average: bool, optional
 
 
    .. py:property:: output_z_buffer
@@ -1234,6 +1305,9 @@ Package Contents
 
    A stack of different layers derived from BaseLayer
 
+   Initialize the Sequential model with the given layers.
+   :param layers: A variable number of layers (instances of BaseLayer or derived classes).
+
 
    .. py:method:: switch_to_cuda()
 
@@ -1255,6 +1329,16 @@ Package Contents
 
    Implements Layer Normalization by normalizing the inputs across the
    features dimension. It inherits from BaseLayer.
+
+   Initializes the LayerNorm layer.
+
+   :param normalized_shape: The shape of the input to normalize over (e.g.,
+                            the size of the feature dimension). Expected to be
+                            a list of integers.
+   :param eps: A small value added to the denominator for numerical stability
+               to prevent division by zero. Defaults to 1e-4.
+   :param bias: If True, the layer will use an additive bias (beta) during
+                normalization. Defaults to True.
 
 
    .. py:method:: get_layer_info() -> str
@@ -1288,6 +1372,22 @@ Package Contents
    :math:`y = xW^T + b`, where :math:`x` is the input, :math:`W` is the weight matrix,
    and :math:`b` is the optional bias vector. It inherits from BaseLayer.
 
+   Initializes the Linear layer.
+
+   :param input_size: The number of features in the input tensor (the
+                      size of the last dimension).
+   :param output_size: The number of features in the output tensor. This
+                       determines the number of neurons in the layer.
+   :param bias: If True, an additive bias vector 'b' is included in the
+                linear transformation. Defaults to True.
+   :param gain_weight: Scaling factor applied to the initialized weights
+                       (:math:`W`). Defaults to 1.0.
+   :param gain_bias: Scaling factor applied to the initialized biases
+                     (:math:`b`). Defaults to 1.0.
+   :param init_method: The method used for initializing the weights and
+                       biases (e.g., "He", "Xavier", "Normal"). Defaults
+                       to "He".
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -1318,6 +1418,25 @@ Package Contents
 
 
    A **Long Short-Term Memory (LSTM)** layer for RNNs. It inherits from BaseLayer.
+
+   Initializes the LSTM layer.
+
+   :param input_size: The number of features in the input tensor at each time
+                      step.
+   :param output_size: The size of the hidden state (:math:`h_t`), which is the
+                       number of features in the output tensor at each time
+                       step.
+   :param seq_len: The maximum length of the input sequence. This is often
+                   required for efficient memory allocation in C++/CUDA
+                   backends like cuTAGI.
+   :param bias: If True, the internal gates and cell state updates will include
+                an additive bias vector. Defaults to True.
+   :param gain_weight: Scaling factor applied to the initialized weights
+                       (:math:`W`). Defaults to 1.0.
+   :param gain_bias: Scaling factor applied to the initialized biases
+                     (:math:`b`). Defaults to 1.0.
+   :param init_method: The method used for initializing the weights and
+                       biases (e.g., "He", "Xavier"). Defaults to "He".
 
 
    .. py:method:: get_layer_info() -> str
@@ -1350,6 +1469,11 @@ Package Contents
    This class calculates the difference between the model's predictions and the
    observations, which is essential for performing the backward pass
    to update the model's parameters. It wraps the C++/CUDA backend `cutagi.OutputUpdater`.
+
+   Initializes the OutputUpdater.
+
+   :param model_device: The computational device the model is on (e.g., 'cpu' or 'cuda:0').
+   :type model_device: str
 
 
    .. py:method:: update(output_states: pytagi.nn.data_struct.BaseHiddenStates, mu_obs: numpy.ndarray, var_obs: numpy.ndarray, delta_states: pytagi.nn.data_struct.BaseDeltaStates)
@@ -1424,6 +1548,17 @@ Package Contents
    This layer performs 2D average pooling operation. It wraps the C++/CUDA backend
    `cutagi.AvgPool2d`.
 
+   Initializes the AvgPool2d layer.
+
+   :param kernel_size: The size of the pooling window (a single integer for square kernels).
+   :type kernel_size: int
+   :param stride: The stride of the pooling operation. Default is -1, which typically means stride=kernel_size.
+   :type stride: int
+   :param padding: The implicit zero padding added to both sides of the input.
+   :type padding: int
+   :param padding_type: The type of padding to be used (e.g., 0 for zero padding).
+   :type padding_type: int
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -1446,6 +1581,17 @@ Package Contents
 
    This layer performs 2D max pooling operation based on the input expected values.
    It wraps the C++/CUDA backend `cutagi.MaxPool2d`.
+
+   Initializes the MaxPool2d layer.
+
+   :param kernel_size: The size of the pooling window (a single integer for square kernels).
+   :type kernel_size: int
+   :param stride: The stride of the pooling operation. Default is 1.
+   :type stride: int
+   :param padding: The implicit zero padding added to both sides of the input.
+   :type padding: int
+   :param padding_type: The type of padding to be used (e.g., 0 for zero padding).
+   :type padding_type: int
 
 
    .. py:method:: get_layer_info() -> str
@@ -1471,6 +1617,14 @@ Package Contents
    **main block** (which performs the main transformations) and an optional
    **shortcut** connection (which adds the input to the main block's output).
    It wraps the C++/CUDA backend `cutagi.ResNetBlock`.
+
+   Initializes the ResNetBlock.
+
+   :param main_block: The primary set of layers in the block (e.g., convolutional layers).
+   :type main_block: Union[BaseLayer, LayerBlock]
+   :param shortcut: The optional shortcut connection, often an identity mapping or a projection.
+                    If None, an identity shortcut is implicitly assumed by the C++ backend.
+   :type shortcut: Union[BaseLayer, LayerBlock], optional
 
 
    .. py:method:: init_shortcut_state() -> None
@@ -1552,6 +1706,12 @@ Package Contents
    >>> mu_in = np.random.randn(1, 10)
    >>> var_in = np.abs(np.random.randn(1, 10))
    >>> mu_out, var_out = model(mu_in, var_in)
+
+   Initializes the Sequential model with a sequence of layers.
+
+   :param layers: A variable number of layer instances (e.g., Linear, ReLU)
+                  that will be executed in sequence.
+   :type layers: BaseLayer
 
 
    .. py:method:: __call__(mu_x: numpy.ndarray, var_x: numpy.ndarray = None) -> Tuple[numpy.ndarray, numpy.ndarray]
@@ -1914,6 +2074,21 @@ Package Contents
    to be used within SLSTM where a hidden- and cell-state smoothing through time is applied.
    It wraps the C++/CUDA backend `cutagi.SLinear`.
 
+   Initializes the SLinear layer.
+
+   :param input_size: The number of input features.
+   :type input_size: int
+   :param output_size: The number of output features.
+   :type output_size: int
+   :param bias: If ``True``, adds a learnable bias to the output.
+   :type bias: bool
+   :param gain_weight: A scaling factor applied to the initialized weights.
+   :type gain_weight: float
+   :param gain_bias: A scaling factor applied to the initialized bias terms.
+   :type gain_bias: float
+   :param init_method: The method used for initializing weights and biases (e.g., 'He', 'Xavier').
+   :type init_method: str
+
 
    .. py:method:: get_layer_info() -> str
 
@@ -1943,6 +2118,23 @@ Package Contents
    This layer is a variation of the standard LSTM, incorporating a mechanism
    for **smoothing** the hidden- and cell-states. It wraps the C++/CUDA backend
    `cutagi.SLSTM`.
+
+   Initializes the SLSTM layer.
+
+   :param input_size: The number of expected features in the input $x$.
+   :type input_size: int
+   :param output_size: The number of features in the hidden state $h$ (and the output).
+   :type output_size: int
+   :param seq_len: The maximum sequence length this layer is configured to handle.
+   :type seq_len: int
+   :param bias: If ``True``, use bias weights in the internal linear transformations.
+   :type bias: bool
+   :param gain_weight: A scaling factor applied to the initialized weights.
+   :type gain_weight: float
+   :param gain_bias: A scaling factor applied to the initialized bias terms.
+   :type gain_bias: float
+   :param init_method: The method used for initializing weights and biases (e.g., 'He', 'Xavier').
+   :type init_method: str
 
 
    .. py:method:: get_layer_info() -> str

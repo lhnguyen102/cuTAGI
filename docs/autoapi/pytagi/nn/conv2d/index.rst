@@ -51,6 +51,8 @@ Module Contents
    :param init_method: Method used for initializing weights. Defaults to "He".
    :type init_method: str
 
+   Initializes the Conv2d layer.
+
 
    .. py:method:: get_layer_info() -> str
 

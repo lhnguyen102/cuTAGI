@@ -40,6 +40,8 @@ Module Contents
    :param gain_bias: Initial value for the bias (shift) parameter. Defaults to 1.0.
    :type gain_bias: float
 
+   Initializes the BatchNorm2d layer.
+
 
    .. py:method:: get_layer_info() -> str
 
