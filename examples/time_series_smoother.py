@@ -80,9 +80,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         sigma_v = exponential_scheduler(
             curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
         )
-        var_y = np.full(
-            (batch_size * len(output_col),), sigma_v**2, dtype=np.float32
-        )
+        var_y = np.full((batch_size * len(output_col),), sigma_v**2, dtype=np.float32)
         y_train = []
 
         # for x, y in batch_iter:
@@ -170,16 +168,16 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(1),
     )
     plt.legend(
-            loc="upper right",
-            edgecolor="black",
-            fontsize=28,
-            ncol=1,
-            framealpha=0.3,
-            frameon=False,
-        )
+        loc="upper right",
+        edgecolor="black",
+        fontsize=28,
+        ncol=1,
+        framealpha=0.3,
+        frameon=False,
+    )
     plt.xlabel(r"$x$", fontsize=28)
     plt.ylabel(r"$y$", fontsize=28)
-    plt.ylim(-3,3)
+    plt.ylim(-3, 3)
     plt.tick_params(axis="both", which="both", direction="inout", labelsize=28)
     filename = f"saved_results/smoothed_look_back_toy_time_series.png"
     plt.savefig(filename)
@@ -210,9 +208,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     mu_preds = normalizer.unstandardize(
         mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
     )
-    std_preds = normalizer.unstandardize_std(
-        std_preds, train_dtl.x_std[output_col]
-    )
+    std_preds = normalizer.unstandardize_std(std_preds, train_dtl.x_std[output_col])
 
     y_test = normalizer.unstandardize(
         y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
