@@ -55,7 +55,7 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
 /*
  */
 {
-    const float eps = 1e-10f;
+    const float eps = 1e-5f;
     int idx_h, idx_w;
     bool print_clip_z = true;
 

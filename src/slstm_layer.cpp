@@ -94,7 +94,7 @@ void smooth_cell_states(
 /*
  */
 {
-    const float eps = 1e-10f;
+    const float eps = 1e-5f;
     bool print_clip_c = true;
     int current, next;
     for (int i = num_timestep - 2; i >= 0; --i) {
@@ -131,7 +131,7 @@ void smooth_hidden_states(
 /*
  */
 {
-    const float eps = 1e-10f;
+    const float eps = 1e-5f;
     bool print_clip_h = true;
     int current, next, idx_cov;
 

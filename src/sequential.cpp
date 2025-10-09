@@ -879,6 +879,11 @@ Sequential::get_lstm_states(int time_step)
                                        std::vector<float>, std::vector<float>>>
         lstm_states;
 
+    // throw value error if time_step is not -1 or >=0
+    if (time_step < -1) {
+        LOG(LogLevel::ERROR, "Invalid time_step: " + std::to_string(time_step));
+    }
+
     for (size_t i = 0; i < layers.size(); ++i) {
         if (layers[i]->get_layer_type() == LayerType::LSTM ||
             layers[i]->get_layer_type() == LayerType::SLSTM) {
