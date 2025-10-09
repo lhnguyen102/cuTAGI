@@ -10,6 +10,7 @@ Layers
    BatchNorm <../autoapi/pytagi/nn/batch_norm/index>
    Conv2D <../autoapi/pytagi/nn/conv2d/index>
    ConvTranspose2D <../autoapi/pytagi/nn/convtranspose2d/index>
+   Embedding <../autoapi/pytagi/nn/embedding/index>
    Layer Block <../autoapi/pytagi/nn/layer_block/index>
    LayerNorm <../autoapi/pytagi/nn/layer_norm/index>
    Linear <../autoapi/pytagi/nn/linear/index>

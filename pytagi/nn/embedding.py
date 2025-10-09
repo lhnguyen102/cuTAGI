@@ -4,11 +4,12 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class Embedding(BaseLayer):
-    """Embedding layer
+    """
+    Embedding layer
 
     The embedding layer maps discrete categorical indices to continuous vector representations.
 
-     Args:
+    Args:
         num_embeddings (int): The size of the vocabulary (the total number of possible indices).
         embedding_dim (int): The dimensionality of the embedding vectors.
         input_size (int): The size of the input sequence. Defaults to 0.
