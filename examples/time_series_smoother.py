@@ -129,10 +129,9 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         zo_smooth_std = np.array(var_zo_smooth) ** 0.5
         mu_sequence = np.ones(input_seq_len, dtype=np.float32)
 
-        # # Figures for each epoch for debugging
+        # Figures for each epoch for debugging
         # t = np.arange(len(mu_zo_smooth))
         # t_train = np.arange(len(y_train))
-        # plt.switch_backend("Agg")
         # plt.figure()
         # plt.plot(t_train, y_train, color="r")
         # plt.plot(t, mu_zo_smooth, color="b")
@@ -156,7 +155,6 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     # Plot final smoothed values
     t = np.arange(len(mu_zo_smooth))
     t_train = np.arange(len(y_train))
-    plt.switch_backend("Agg")
     plt.figure(figsize=(12, 12))
     plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
     plt.plot(t_train, y_train, color="k", lw=3, label=r"$y_{true}$")
