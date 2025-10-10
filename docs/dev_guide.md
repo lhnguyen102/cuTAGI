@@ -80,7 +80,7 @@ This guide covers detailed instructions on installing both `pytagi` and `cuTAGI`
    python -m examples.classification
    ```
 
-   **Note**: You can develop your own applications using the provided examples (see [python_examples](python_examples)).
+   **Note**: You can develop your own applications using the provided examples (see the [python tutorials](https://tagiml.com/api/tutorials/)).
 
 ### Local Installation
 
