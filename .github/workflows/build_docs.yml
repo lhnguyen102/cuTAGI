@@ -40,6 +40,9 @@ jobs:
         working-directory: docs
         run: sphinx-build -b html . _build/html
 
+      - name: Add CNAME for custom domain
+        run: echo "tagiml.com" > docs/_build/html/CNAME
+
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
