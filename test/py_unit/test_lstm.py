@@ -317,10 +317,16 @@ def smoother_test_runner(
             mu_sequence = mu_sequence[-input_seq_len:]
 
         # Smoother
+        current_states = model.get_lstm_states()
         mu_zo_smooth, _ = model.smoother()
         mu_sequence = mu_zo_smooth[:input_seq_len]
+        last_smoothed_state = model.get_lstm_states(len(mu_zo_smooth) - 1)
 
-    return np.nansum(mses) / np.sum(~np.isnan(mses))
+    return (
+        np.nansum(mses) / np.sum(~np.isnan(mses)),
+        current_states,
+        last_smoothed_state,
+    )
 
 
 class SineSignalTest(unittest.TestCase):
@@ -348,12 +354,156 @@ class SineSignalTest(unittest.TestCase):
             SLSTM(8, 8, 1),
             SLinear(8, 1),
         )
-        mse = smoother_test_runner(
+        mse, _, _ = smoother_test_runner(
             model, input_seq_len=input_seq_len, num_features=num_features
         )
         self.assertLess(
             mse, self.threshold, "Error rate is higher than threshold"
         )
+
+    def test_get_and_set_lstm_states_CPU(self):
+        input_seq_len = 4
+        batch_size = 1
+        model = Sequential(
+            LSTM(input_seq_len, 4, 1),
+            Linear(4, 1),
+        )
+        train_dtl = TimeSeriesDataloader(
+            x_file="data/toy_time_series/x_train_sin_data.csv",
+            date_time_file="data/toy_time_series/train_sin_datetime.csv",
+            output_col=[0],
+            input_seq_len=input_seq_len,
+            output_seq_len=1,
+            num_features=1,
+            stride=1,
+        )
+        model.to_device("cpu")
+        batch_iter = train_dtl.create_data_loader(batch_size, False)
+        x, _ = next(batch_iter)
+
+        model(x)
+
+        raw_states = model.get_lstm_states()
+        self.assertTrue(raw_states, "No LSTM states returned")
+
+        stored_states = {
+            layer_idx: tuple(
+                np.array(component, dtype=np.float32, copy=True)
+                for component in state_tuple
+            )
+            for layer_idx, state_tuple in raw_states.items()
+        }
+
+        states_to_set = {
+            layer_idx: tuple(component.tolist() for component in state_tuple)
+            for layer_idx, state_tuple in stored_states.items()
+        }
+
+        model.reset_lstm_states()
+        model.set_lstm_states(states_to_set)
+        restored_states = model.get_lstm_states()
+
+        self.assertSetEqual(
+            set(stored_states.keys()), set(restored_states.keys())
+        )
+
+        for layer_idx, state_tuple in stored_states.items():
+            restored_tuple = restored_states[layer_idx]
+            for stored_component, restored_component in zip(
+                state_tuple, restored_tuple
+            ):
+                np.testing.assert_allclose(
+                    stored_component,
+                    np.array(restored_component, dtype=np.float32),
+                )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_get_and_set_lstm_states_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
+
+        input_seq_len = 4
+        batch_size = 1
+        model = Sequential(
+            LSTM(input_seq_len, 4, 1),
+            Linear(4, 1),
+        )
+        train_dtl = TimeSeriesDataloader(
+            x_file="data/toy_time_series/x_train_sin_data.csv",
+            date_time_file="data/toy_time_series/train_sin_datetime.csv",
+            output_col=[0],
+            input_seq_len=input_seq_len,
+            output_seq_len=1,
+            num_features=1,
+            stride=1,
+        )
+        model.to_device("cuda")
+        batch_iter = train_dtl.create_data_loader(batch_size, False)
+        x, _ = next(batch_iter)
+
+        model(x)
+
+        raw_states = model.get_lstm_states()
+        self.assertTrue(raw_states, "No LSTM states returned")
+
+        stored_states = {
+            layer_idx: tuple(
+                np.array(component, dtype=np.float32, copy=True)
+                for component in state_tuple
+            )
+            for layer_idx, state_tuple in raw_states.items()
+        }
+
+        states_to_set = {
+            layer_idx: tuple(component.tolist() for component in state_tuple)
+            for layer_idx, state_tuple in stored_states.items()
+        }
+
+        model.reset_lstm_states()
+        model.set_lstm_states(states_to_set)
+        restored_states = model.get_lstm_states()
+
+        self.assertSetEqual(
+            set(stored_states.keys()), set(restored_states.keys())
+        )
+
+        for layer_idx, state_tuple in stored_states.items():
+            restored_tuple = restored_states[layer_idx]
+            for stored_component, restored_component in zip(
+                state_tuple, restored_tuple
+            ):
+                np.testing.assert_allclose(
+                    stored_component,
+                    np.array(restored_component, dtype=np.float32),
+                )
+
+    def test_get_lstm_states_time_step_SLSTM_CPU(self):
+        input_seq_len = 24
+        num_features = 3
+        model = Sequential(
+            SLSTM(num_features + input_seq_len - 1, 8, 1),
+            SLSTM(8, 8, 1),
+            SLinear(8, 1),
+        )
+
+        _, current_states, smoothed_last_states = smoother_test_runner(
+            model, input_seq_len=input_seq_len, num_features=num_features
+        )
+
+        self.assertSetEqual(
+            set(current_states.keys()), set(smoothed_last_states.keys())
+        )
+
+        for layer_idx in current_states:
+            current_tuple = current_states[layer_idx]
+            smoothed_tuple = smoothed_last_states[layer_idx]
+            for current_component, smoothed_component in zip(
+                current_tuple, smoothed_tuple
+            ):
+                np.testing.assert_allclose(
+                    np.array(current_component, dtype=np.float32),
+                    np.array(smoothed_component, dtype=np.float32),
+                )
 
     def test_set_delta_z_CPU(self):
         input_seq_len = 4
