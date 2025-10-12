@@ -224,9 +224,8 @@ out(batch_size, timestep, num_heads, head_size)
 }
 
 void project_output_backward(std::vector<float> &mu_in,
-                             std::vector<float> &var_in, int in_pos,
-                             int out_pos, int batch_size, int num_heads,
-                             int timestep, int head_size,
+                             std::vector<float> &var_in, int batch_size,
+                             int num_heads, int timestep, int head_size,
                              std::vector<float> &mu_out,
                              std::vector<float> &var_out) {
     int out_idx, in_idx;
@@ -235,11 +234,9 @@ void project_output_backward(std::vector<float> &mu_in,
             for (int k = 0; k < timestep; k++) {
                 for (int m = 0; m < head_size; m++) {
                     out_idx = i * timestep * num_heads * head_size +
-                              j * timestep * head_size + k * head_size + m +
-                              out_pos;
+                              j * timestep * head_size + k * head_size + m;
                     in_idx = i * timestep * num_heads * head_size +
-                             k * num_heads * head_size + j * num_heads + m +
-                             in_pos;
+                             k * num_heads * head_size + j * num_heads + m;
                     mu_out[out_idx] = mu_in[in_idx];
                     var_out[out_idx] = var_in[in_idx];
                 }
@@ -250,8 +247,8 @@ void project_output_backward(std::vector<float> &mu_in,
 
 void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_s,
                      std::vector<float> &delta_var_s) {
     float sum_mu, sum_var;
@@ -283,8 +280,8 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
 
 void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_v,
                      std::vector<float> &delta_var_v) {
     float sum_mu, sum_var;
@@ -316,8 +313,9 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
 
 void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var,
+                     std::vector<float> &jcb_att_score, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_q,
                      std::vector<float> &delta_var_q) {
     int idx_q, idx_k, idx_s, block_row, block_col;
@@ -337,9 +335,11 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                                     m;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l;
-                            sum_mu += mu_k[idx_k] * delta_mu[idx_s];
-                            sum_var +=
-                                mu_k[idx_k] * delta_var[idx_s] * mu_k[idx_k];
+                            sum_mu += mu_k[idx_k] * delta_mu[idx_s] *
+                                      jcb_att_score[idx_s];
+                            sum_var += mu_k[idx_k] * delta_var[idx_s] *
+                                       mu_k[idx_k] * jcb_att_score[idx_s] *
+                                       jcb_att_score[idx_s];
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
@@ -355,8 +355,9 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
 
 void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                   int qkv_pos, int att_pos, int batch_size, int num_heads,
-                   int timestep, int head_size, std::vector<float> &delta_mu_k,
+                   std::vector<float> &jcb_att_score, int batch_size,
+                   int num_heads, int timestep, int head_size,
+                   std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k) {
     int idx_q, idx_k, idx_s, block_row, block_col;
     float sum_mu, sum_var;
@@ -375,9 +376,11 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                                     m;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l;
-                            sum_mu += var_k[idx_k] * delta_mu[idx_s];
-                            sum_var +=
-                                var_k[idx_k] * delta_var[idx_s] * var_k[idx_k];
+                            sum_mu += var_k[idx_k] * delta_mu[idx_s] *
+                                      jcb_att_score[idx_s];
+                            sum_var += var_k[idx_k] * delta_var[idx_s] *
+                                       var_k[idx_k] * jcb_att_score[idx_s] *
+                                       jcb_att_score[idx_s];
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
@@ -429,19 +432,6 @@ void AttentionStates::set_size(int batch_size, int num_heads, int timestep,
     mu_out_proj.resize(comp_size, 0.0f);
     var_out_proj.resize(comp_size, 0.0f);
     J_out_proj.resize(comp_size, 0.0f);
-
-    remax.mu_m.resize(num_batch_remax * timestep, 0.0f);
-    remax.var_m.resize(num_batch_remax * timestep, 0.0f);
-    remax.J_m.resize(num_batch_remax * timestep, 0.0f);
-    remax.mu_log.resize(num_batch_remax * timestep, 0.0f);
-    remax.var_log.resize(num_batch_remax * timestep, 0.0f);
-    remax.mu_sum.resize(num_batch_remax, 0.0f);
-    remax.var_sum.resize(num_batch_remax, 0.0f);
-    remax.mu_logsum.resize(num_batch_remax, 0.0f);
-    remax.var_logsum.resize(num_batch_remax, 0.0f);
-    remax.cov_log_logsum.resize(num_batch_remax * timestep, 0.0f);
-    remax.cov_m_a_check.resize(num_batch_remax * timestep, 0.0f);
-    remax.cov_m_a.resize(num_batch_remax * timestep, 0.0f);
 }
 
 AttentionDeltaStates::AttentionDeltaStates() {}
@@ -678,38 +668,40 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
     size_t output_qkv_size =
         this->head_dim * (this->num_heads + 2 * this->num_kv_heads);
 
-    if (state_udapte) {
-        project_output_backward(input_delta_states.delta_mu,
-                                input_delta_states.delta_var, 0, 0, batch_size,
-                                this->num_heads, this->timestep, this->head_dim,
-                                attn_delta_states.delta_mu_buffer,
-                                attn_delta_states.delta_var_buffer);
+    // TODO: need to add Jacobian of the output projection?
+    project_output_backward(
+        input_delta_states.delta_mu, input_delta_states.delta_var, batch_size,
+        this->num_heads, this->timestep, this->head_dim,
+        attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer);
 
+    if (state_udapte) {
         mha_delta_value(attn_states.mu_att_score, attn_states.var_v,
                         attn_delta_states.delta_mu_buffer,
-                        attn_delta_states.delta_var_buffer, qkv_pos, att_pos,
-                        batch_size, this->num_heads, this->timestep,
-                        this->head_dim, attn_delta_states.delta_mu_v,
+                        attn_delta_states.delta_var_buffer, batch_size,
+                        this->num_heads, this->timestep, this->head_dim,
+                        attn_delta_states.delta_mu_v,
                         attn_delta_states.delta_var_v);
 
         mha_delta_score(attn_states.mu_att_score, attn_states.var_att_score,
                         attn_delta_states.delta_mu_buffer,
-                        attn_delta_states.delta_var_buffer, qkv_pos, att_pos,
-                        batch_size, this->num_heads, this->timestep,
-                        this->head_dim, attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_buffer, batch_size,
+                        this->num_heads, this->timestep, this->head_dim,
+                        attn_delta_states.delta_mu_att_score,
                         attn_delta_states.delta_var_att_score);
 
-        mha_delta_query(
-            attn_states.var_q, attn_states.mu_k, attn_delta_states.delta_mu_r,
-            attn_delta_states.delta_var_r, qkv_pos, att_pos, batch_size,
-            num_heads, timestep, this->head_dim, attn_delta_states.delta_mu_q,
-            attn_delta_states.delta_var_q);
+        mha_delta_query(attn_states.var_q, attn_states.mu_k,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.J_mqk, batch_size, num_heads, timestep,
+                        this->head_dim, attn_delta_states.delta_mu_q,
+                        attn_delta_states.delta_var_q);
 
-        mha_delta_key(
-            attn_states.var_k, attn_states.mu_q, attn_delta_states.delta_mu_r,
-            attn_delta_states.delta_var_r, qkv_pos, att_pos, batch_size,
-            num_heads, timestep, this->head_dim, attn_delta_states.delta_mu_k,
-            attn_delta_states.delta_var_k);
+        mha_delta_key(attn_states.var_k, attn_states.mu_q,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.J_mqk,
+                      batch_size, num_heads, timestep, this->head_dim,
+                      attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
 
         cat_intput_projection_components(
             attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q,
@@ -727,34 +719,33 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
             output_delta_states.delta_mu, output_delta_states.delta_var);
     }
 
-    // if (this->param_update) {
-    //     linear_bwd_fc_delta_w_mp(
-    //         this->var_w, attn_states.mu_out_proj,
-    //         input_delta_states.delta_mu, input_delta_states.delta_var,
-    //         this->embed_dim, this->embed_dim, batch_timestep,
-    //         this->num_threads, this->delta_mu_w, this->delta_var_w);
+    if (this->param_update) {
+        linear_bwd_fc_delta_w_mp(
+            this->var_w, attn_states.mu_out_proj, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->embed_dim, this->embed_dim,
+            batch_timestep, this->num_threads, this->delta_mu_w,
+            this->delta_var_w);
 
-    //     linear_bwd_fc_delta_w_mp(
-    //         this->var_w, this->bwd_states->mu_a,
-    //         attn_delta_states.delta_mu_in_proj,
-    //         attn_delta_states.delta_var_in_proj, this->embed_dim,
-    //         3 * this->embed_dim, batch_timestep, this->num_threads,
-    //         this->delta_mu_w, this->delta_var_w);
+        linear_bwd_fc_delta_w_mp(this->var_w, this->bwd_states->mu_a,
+                                 attn_delta_states.delta_mu_in_proj,
+                                 attn_delta_states.delta_var_in_proj,
+                                 this->embed_dim, 3 * this->embed_dim,
+                                 batch_timestep, this->num_threads,
+                                 this->delta_mu_w, this->delta_var_w);
 
-    //     if (this->bias) {
-    //         linear_bwd_fc_delta_b_mp(
-    //             this->var_b, input_delta_states.delta_mu,
-    //             input_delta_states.delta_var, this->embed_dim,
-    //             batch_timestep, this->num_threads, this->delta_mu_b,
-    //             this->delta_var_b);
+        if (this->bias) {
+            linear_bwd_fc_delta_b_mp(
+                this->var_b, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->embed_dim, batch_timestep,
+                this->num_threads, this->delta_mu_b, this->delta_var_b);
 
-    //         linear_bwd_fc_delta_b_mp(
-    //             this->var_b, attn_delta_states.delta_mu_in_proj,
-    //             attn_delta_states.delta_var_in_proj, 3 * this->embed_dim,
-    //             batch_timestep, this->num_threads, this->delta_mu_b,
-    //             this->delta_var_b);
-    //     }
-    // }
+            linear_bwd_fc_delta_b_mp(
+                this->var_b, attn_delta_states.delta_mu_in_proj,
+                attn_delta_states.delta_var_in_proj, 3 * this->embed_dim,
+                batch_timestep, this->num_threads, this->delta_mu_b,
+                this->delta_var_b);
+        }
+    }
 }
 
 #ifdef USE_CUDA
