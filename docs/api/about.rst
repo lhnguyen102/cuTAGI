@@ -6,7 +6,7 @@ About py/cuTAGI
 
 The core developments of py/cuTAGI have been made by Luong-Ha Nguyen, building upon
 the theoretical work done at Polytechnique Montreal in collaboration with James-A. Goulet,
-Bhargab Deka, Van-Dai Vuong, and Miquel Florensa. The project started in 2018 when,
+Bhargob Deka, Van-Dai Vuong, and Miquel Florensa. The project started in 2018 when,
 from our background with large-scale state-space models, we foresaw that it would be
 possible to perform analytical Bayesian inference in neural networks
 (see below our first try at what would become TAGI).
