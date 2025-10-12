@@ -93,23 +93,44 @@ TEST_F(SineSignalTest, LSTMTest_CUDA) {
 
 TEST(LSTMStateTest, GetAndSetStatesCPU) {
     LSTM layer(3, 2, 1);
+    SLSTM slayer(3, 2, 1);
     std::vector<float> mu_h{0.1f, 0.2f};
     std::vector<float> var_h{0.3f, 0.4f};
     std::vector<float> mu_c{0.5f, 0.6f};
     std::vector<float> var_c{0.7f, 0.8f};
 
     layer.set_LSTM_states(mu_h, var_h, mu_c, var_c);
+    slayer.set_LSTM_states(mu_h, var_h, mu_c, var_c);
 
+    // tests on LSTM layer
     auto states = layer.get_LSTM_states();
-    EXPECT_EQ(std::get<0>(states), mu_h);
-    EXPECT_EQ(std::get<1>(states), var_h);
-    EXPECT_EQ(std::get<2>(states), mu_c);
-    EXPECT_EQ(std::get<3>(states), var_c);
+    EXPECT_EQ(std::get<0>(states), mu_h) << "LSTM: mu_h does not match";
+    EXPECT_EQ(std::get<1>(states), var_h) << "LSTM: var_h does not match";
+    EXPECT_EQ(std::get<2>(states), mu_c) << "LSTM: mu_c does not match";
+    EXPECT_EQ(std::get<3>(states), var_c) << "LSTM: var_c does not match";
+    EXPECT_EQ(layer.lstm_states.mu_h_prior, mu_h)
+        << "LSTM: mu_h_prior does not match";
+    EXPECT_EQ(layer.lstm_states.var_h_prior, var_h)
+        << "LSTM: var_h_prior does not match";
+    EXPECT_EQ(layer.lstm_states.mu_c_prior, mu_c)
+        << "LSTM: mu_c_prior does not match";
+    EXPECT_EQ(layer.lstm_states.var_c_prior, var_c)
+        << "LSTM: var_c_prior does not match";
 
-    EXPECT_EQ(layer.lstm_states.mu_h_prev, mu_h);
-    EXPECT_EQ(layer.lstm_states.var_h_prev, var_h);
-    EXPECT_EQ(layer.lstm_states.mu_c_prev, mu_c);
-    EXPECT_EQ(layer.lstm_states.var_c_prev, var_c);
+    // tests on SLSTM layer
+    auto sstates = slayer.get_LSTM_states();
+    EXPECT_EQ(std::get<0>(sstates), mu_h) << "SLSTM: mu_h does not match";
+    EXPECT_EQ(std::get<1>(sstates), var_h) << "SLSTM: var_h does not match";
+    EXPECT_EQ(std::get<2>(sstates), mu_c) << "SLSTM: mu_c does not match";
+    EXPECT_EQ(std::get<3>(sstates), var_c) << "SLSTM: var_c does not match";
+    EXPECT_EQ(slayer.lstm_states.mu_h_prev, mu_h)
+        << "SLSTM: mu_h_prev does not match";
+    EXPECT_EQ(slayer.lstm_states.var_h_prev, var_h)
+        << "SLSTM: var_h_prev does not match";
+    EXPECT_EQ(slayer.lstm_states.mu_c_prev, mu_c)
+        << "SLSTM: mu_c_prev does not match";
+    EXPECT_EQ(slayer.lstm_states.var_c_prev, var_c)
+        << "SLSTM: var_c_prev does not match";
 }
 
 #ifdef USE_CUDA
@@ -138,16 +159,20 @@ TEST(LSTMStateTest, GetAndSetStatesCUDA) {
     std::vector<float> mu_h_out, var_h_out, mu_c_out, var_c_out;
     lstm_cuda->d_get_LSTM_states(mu_h_out, var_h_out, mu_c_out, var_c_out);
 
-    EXPECT_EQ(mu_h_out, mu_h);
-    EXPECT_EQ(var_h_out, var_h);
-    EXPECT_EQ(mu_c_out, mu_c);
-    EXPECT_EQ(var_c_out, var_c);
+    EXPECT_EQ(mu_h_out, mu_h) << "CUDA LSTM: mu_h does not match";
+    EXPECT_EQ(var_h_out, var_h) << "CUDA LSTM: var_h does not match";
+    EXPECT_EQ(mu_c_out, mu_c) << "CUDA LSTM: mu_c does not match";
+    EXPECT_EQ(var_c_out, var_c) << "CUDA LSTM: var_c does not match";
 
     lstm_cuda->lstm_state.to_host();
-    EXPECT_EQ(lstm_cuda->lstm_state.mu_h_prior, mu_h);
-    EXPECT_EQ(lstm_cuda->lstm_state.var_h_prior, var_h);
-    EXPECT_EQ(lstm_cuda->lstm_state.mu_c_prior, mu_c);
-    EXPECT_EQ(lstm_cuda->lstm_state.var_c_prior, var_c);
+    EXPECT_EQ(lstm_cuda->lstm_state.mu_h_prior, mu_h)
+        << "CUDA LSTM: mu_h_prior does not match";
+    EXPECT_EQ(lstm_cuda->lstm_state.var_h_prior, var_h)
+        << "CUDA LSTM: var_h_prior does not match";
+    EXPECT_EQ(lstm_cuda->lstm_state.mu_c_prior, mu_c)
+        << "CUDA LSTM: mu_c_prior does not match";
+    EXPECT_EQ(lstm_cuda->lstm_state.var_c_prior, var_c)
+        << "CUDA LSTM: var_c_prior does not match";
 }
 #endif
 
@@ -195,8 +220,12 @@ TEST(LSTMStateTest, SLSTMGetSmoothedStatesAtTimeStep) {
     ASSERT_NE(it, states_map.end());
 
     const auto& states = it->second;
-    EXPECT_EQ(std::get<0>(states), expected_mu_h);
-    EXPECT_EQ(std::get<1>(states), expected_var_h);
-    EXPECT_EQ(std::get<2>(states), expected_mu_c);
-    EXPECT_EQ(std::get<3>(states), expected_var_c);
+    EXPECT_EQ(std::get<0>(states), expected_mu_h)
+        << "SLSTM: mu_h_smooths at time step does not match";
+    EXPECT_EQ(std::get<1>(states), expected_var_h)
+        << "SLSTM: var_h_smooths at time step does not match";
+    EXPECT_EQ(std::get<2>(states), expected_mu_c)
+        << "SLSTM: mu_c_smooths at time step does not match";
+    EXPECT_EQ(std::get<3>(states), expected_var_c)
+        << "SLSTM: var_c_smooths at time step does not match";
 }
