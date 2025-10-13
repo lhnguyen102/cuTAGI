@@ -49,9 +49,9 @@ embs: [batch_size, num_heads, timestep, head_dim]
 void cat_intput_projection_components(
     std::vector<float> &mu_q, std::vector<float> &var_q,
     std::vector<float> &mu_k, std::vector<float> &var_k,
-    std::vector<float> &mu_v, std::vector<float> &var_v, int qkv_pos,
-    int emb_pos, int batch_size, int num_heads, int timestep, int head_size,
-    std::vector<float> &mu_embs, std::vector<float> &var_embs) {
+    std::vector<float> &mu_v, std::vector<float> &var_v, int batch_size,
+    int num_heads, int timestep, int head_size, std::vector<float> &mu_embs,
+    std::vector<float> &var_embs) {
     int qkv_idx, emb_idx;
     int comp_size = batch_size * num_heads * timestep * head_size;
     for (int i = 0; i < batch_size; i++) {
@@ -59,11 +59,9 @@ void cat_intput_projection_components(
             for (int j = 0; j < num_heads; j++) {
                 for (int m = 0; m < head_size; m++) {
                     qkv_idx = i * batch_size * num_heads * timestep +
-                              j * timestep * head_size + k * head_size + m +
-                              qkv_pos;
+                              j * timestep * head_size + k * head_size + m;
                     emb_idx = i * batch_size * num_heads * timestep +
-                              k * num_heads * head_size + j * head_size + m +
-                              emb_pos;
+                              k * num_heads * head_size + j * head_size + m;
                     mu_embs[emb_idx] = mu_q[qkv_idx];
                     var_embs[emb_idx] = var_q[qkv_idx];
 
@@ -653,16 +651,7 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
     int batch_size = input_delta_states.block_size;
 
     attn_delta_states.set_size(batch_size, num_heads, timestep, head_dim);
-
-    int qkv_pos = 0;
-    int att_pos = 0;
-    int in_proj_pos = 0;
-    int z_pos_out = 0;
-    int z_pos_in = 0;
-    int w_in_proj_pos = 0;
-    int b_in_proj_pos = 0;
     int batch_timestep = batch_size * timestep;
-    int num_batch_remax = batch_size * timestep * num_heads;
 
     size_t input_qkv_size = this->embed_dim;
     size_t output_qkv_size =
@@ -674,43 +663,40 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
         this->num_heads, this->timestep, this->head_dim,
         attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer);
 
+    mha_delta_value(
+        attn_states.mu_att_score, attn_states.var_v,
+        attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer,
+        batch_size, this->num_heads, this->timestep, this->head_dim,
+        attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v);
+
+    mha_delta_score(attn_states.mu_att_score, attn_states.var_att_score,
+                    attn_delta_states.delta_mu_buffer,
+                    attn_delta_states.delta_var_buffer, batch_size,
+                    this->num_heads, this->timestep, this->head_dim,
+                    attn_delta_states.delta_mu_att_score,
+                    attn_delta_states.delta_var_att_score);
+
+    mha_delta_query(attn_states.var_q, attn_states.mu_k,
+                    attn_delta_states.delta_mu_att_score,
+                    attn_delta_states.delta_var_att_score, attn_states.J_mqk,
+                    batch_size, num_heads, timestep, this->head_dim,
+                    attn_delta_states.delta_mu_q,
+                    attn_delta_states.delta_var_q);
+
+    mha_delta_key(attn_states.var_k, attn_states.mu_q,
+                  attn_delta_states.delta_mu_att_score,
+                  attn_delta_states.delta_var_att_score, attn_states.J_mqk,
+                  batch_size, num_heads, timestep, this->head_dim,
+                  attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k);
+
+    cat_intput_projection_components(
+        attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q,
+        attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k,
+        attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v, batch_size,
+        num_heads, timestep, this->head_dim, attn_delta_states.delta_mu_in_proj,
+        attn_delta_states.delta_var_in_proj);
+
     if (state_udapte) {
-        mha_delta_value(attn_states.mu_att_score, attn_states.var_v,
-                        attn_delta_states.delta_mu_buffer,
-                        attn_delta_states.delta_var_buffer, batch_size,
-                        this->num_heads, this->timestep, this->head_dim,
-                        attn_delta_states.delta_mu_v,
-                        attn_delta_states.delta_var_v);
-
-        mha_delta_score(attn_states.mu_att_score, attn_states.var_att_score,
-                        attn_delta_states.delta_mu_buffer,
-                        attn_delta_states.delta_var_buffer, batch_size,
-                        this->num_heads, this->timestep, this->head_dim,
-                        attn_delta_states.delta_mu_att_score,
-                        attn_delta_states.delta_var_att_score);
-
-        mha_delta_query(attn_states.var_q, attn_states.mu_k,
-                        attn_delta_states.delta_mu_att_score,
-                        attn_delta_states.delta_var_att_score,
-                        attn_states.J_mqk, batch_size, num_heads, timestep,
-                        this->head_dim, attn_delta_states.delta_mu_q,
-                        attn_delta_states.delta_var_q);
-
-        mha_delta_key(attn_states.var_k, attn_states.mu_q,
-                      attn_delta_states.delta_mu_att_score,
-                      attn_delta_states.delta_var_att_score, attn_states.J_mqk,
-                      batch_size, num_heads, timestep, this->head_dim,
-                      attn_delta_states.delta_mu_k,
-                      attn_delta_states.delta_var_k);
-
-        cat_intput_projection_components(
-            attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q,
-            attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k,
-            attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v, 0,
-            in_proj_pos, batch_size, num_heads, timestep, this->head_dim,
-            attn_delta_states.delta_mu_in_proj,
-            attn_delta_states.delta_var_in_proj);
-
         linear_bwd_fc_delta_z_mp(
             this->mu_w, this->bwd_states->jcb,
             attn_delta_states.delta_mu_in_proj,
@@ -720,13 +706,7 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
     }
 
     if (this->param_update) {
-        linear_bwd_fc_delta_w_mp(
-            this->var_w, attn_states.mu_out_proj, input_delta_states.delta_mu,
-            input_delta_states.delta_var, this->embed_dim, this->embed_dim,
-            batch_timestep, this->num_threads, this->delta_mu_w,
-            this->delta_var_w);
-
-        linear_bwd_fc_delta_w_mp(this->var_w, this->bwd_states->mu_a,
+        linear_bwd_fc_delta_w_mp(this->var_w, attn_states.mu_out_proj,
                                  attn_delta_states.delta_mu_in_proj,
                                  attn_delta_states.delta_var_in_proj,
                                  this->embed_dim, 3 * this->embed_dim,
@@ -735,13 +715,8 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
 
         if (this->bias) {
             linear_bwd_fc_delta_b_mp(
-                this->var_b, input_delta_states.delta_mu,
-                input_delta_states.delta_var, this->embed_dim, batch_timestep,
-                this->num_threads, this->delta_mu_b, this->delta_var_b);
-
-            linear_bwd_fc_delta_b_mp(
                 this->var_b, attn_delta_states.delta_mu_in_proj,
-                attn_delta_states.delta_var_in_proj, 3 * this->embed_dim,
+                attn_delta_states.delta_var_in_proj, output_qkv_size,
                 batch_timestep, this->num_threads, this->delta_mu_b,
                 this->delta_var_b);
         }
