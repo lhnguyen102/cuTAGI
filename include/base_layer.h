@@ -22,7 +22,7 @@ enum class LayerType {
     LayerBlock,
     ResNetBlock,
     Embedding,
-    SelfAttention
+    MultiheadAttention
 };
 
 class InitArgs {

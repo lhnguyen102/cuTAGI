@@ -112,7 +112,7 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
 
 class Remax;
 
-class SelfAttention : public BaseLayer {
+class MultiheadAttention : public BaseLayer {
    public:
     size_t num_heads;
     size_t num_kv_heads;
@@ -131,17 +131,18 @@ class SelfAttention : public BaseLayer {
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
 
-    SelfAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
-                  bool bias = true, float gain_w = 1.0f, float gain_b = 1.0f,
-                  std::string init_method = "Xavier", int device_idx = 0);
+    MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
+                       bool bias = true, float gain_w = 1.0f,
+                       float gain_b = 1.0f, std::string init_method = "Xavier",
+                       int device_idx = 0);
 
-    ~SelfAttention();
+    ~MultiheadAttention();
 
-    SelfAttention(const SelfAttention &) = delete;
-    SelfAttention &operator=(const SelfAttention &) = delete;
+    MultiheadAttention(const MultiheadAttention &) = delete;
+    MultiheadAttention &operator=(const MultiheadAttention &) = delete;
 
-    SelfAttention(SelfAttention &&) = default;
-    SelfAttention &operator=(SelfAttention &&) = default;
+    MultiheadAttention(MultiheadAttention &&) = default;
+    MultiheadAttention &operator=(MultiheadAttention &&) = default;
 
     virtual std::string get_layer_info() const override;
 

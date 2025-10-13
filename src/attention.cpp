@@ -459,10 +459,10 @@ void AttentionDeltaStates::set_size(int batch_size, int num_heads, int timestep,
     delta_var_in_proj.resize(3 * comp_size, 0.0f);
 }
 
-SelfAttention::SelfAttention(size_t embed_dim, size_t num_heads,
-                             size_t num_kv_heads, bool bias, float gain_w,
-                             float gain_b, std::string init_method,
-                             int device_idx)
+MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
+                                       size_t num_kv_heads, bool bias,
+                                       float gain_w, float gain_b,
+                                       std::string init_method, int device_idx)
     : embed_dim(embed_dim),
       num_heads(num_heads),
       num_kv_heads(num_kv_heads),
@@ -496,21 +496,23 @@ SelfAttention::SelfAttention(size_t embed_dim, size_t num_heads,
     remax_layer = std::make_unique<Remax>();
 }
 
-SelfAttention::~SelfAttention() {}
+MultiheadAttention::~MultiheadAttention() {}
 
-std::string SelfAttention::get_layer_info() const {
+std::string MultiheadAttention::get_layer_info() const {
     return "SelfAttention(heads=" + std::to_string(this->num_heads) +
            ", kv_heads=" + std::to_string(this->num_kv_heads) +
            ", emb_size=" + std::to_string(this->embed_dim) + ")";
 }
 
-std::string SelfAttention::get_layer_name() const { return "SelfAttention"; }
-
-LayerType SelfAttention::get_layer_type() const {
-    return LayerType::SelfAttention;
+std::string MultiheadAttention::get_layer_name() const {
+    return "MultiheadAttention";
 }
 
-void SelfAttention::init_weight_bias() {
+LayerType MultiheadAttention::get_layer_type() const {
+    return LayerType::MultiheadAttention;
+}
+
+void MultiheadAttention::init_weight_bias() {
     int q_input = embed_dim;
     int q_output = num_heads * head_dim;
     int k_input = embed_dim;
@@ -572,9 +574,9 @@ void SelfAttention::init_weight_bias() {
     }
 }
 
-void SelfAttention::forward(BaseHiddenStates &input_states,
-                            BaseHiddenStates &output_states,
-                            BaseTempStates &temp_states) {
+void MultiheadAttention::forward(BaseHiddenStates &input_states,
+                                 BaseHiddenStates &output_states,
+                                 BaseTempStates &temp_states) {
     int batch_size = input_states.block_size;
     this->set_cap_factor_udapte(batch_size);
 
@@ -645,9 +647,10 @@ void SelfAttention::forward(BaseHiddenStates &input_states,
     }
 }
 
-void SelfAttention::backward(BaseDeltaStates &input_delta_states,
-                             BaseDeltaStates &output_delta_states,
-                             BaseTempStates &temp_states, bool state_udapte) {
+void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
+                                  BaseDeltaStates &output_delta_states,
+                                  BaseTempStates &temp_states,
+                                  bool state_udapte) {
     int batch_size = input_delta_states.block_size;
 
     attn_delta_states.set_size(batch_size, num_heads, timestep, head_dim);
@@ -706,10 +709,11 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
     }
 
     if (this->param_update) {
-        linear_bwd_fc_delta_w_mp(this->var_w, attn_states.mu_out_proj,
+        // TODO: mu_out_proj or this->bwd_states->mu_a?
+        linear_bwd_fc_delta_w_mp(this->var_w, this->bwd_states->mu_a,
                                  attn_delta_states.delta_mu_in_proj,
                                  attn_delta_states.delta_var_in_proj,
-                                 this->embed_dim, 3 * this->embed_dim,
+                                 input_qkv_size, output_qkv_size,
                                  batch_timestep, this->num_threads,
                                  this->delta_mu_w, this->delta_var_w);
 
@@ -724,10 +728,11 @@ void SelfAttention::backward(BaseDeltaStates &input_delta_states,
 }
 
 #ifdef USE_CUDA
-std::unique_ptr<BaseLayer> SelfAttention::to_cuda(int device_idx) {
+std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
     this->device = "cuda";
     this->device_idx = device_idx;
-    LOG(LogLevel::ERROR, "CUDA support for SelfAttention not yet implemented");
+    LOG(LogLevel::ERROR,
+        "CUDA support for MultiheadAttention not yet implemented");
     return nullptr;
 }
 #endif
