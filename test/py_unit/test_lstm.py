@@ -317,10 +317,16 @@ def smoother_test_runner(
             mu_sequence = mu_sequence[-input_seq_len:]
 
         # Smoother
+        current_states = model.get_lstm_states()
         mu_zo_smooth, _ = model.smoother()
         mu_sequence = mu_zo_smooth[:input_seq_len]
+        last_smoothed_state = model.get_lstm_states(len(mu_zo_smooth) - 1)
 
-    return np.nansum(mses) / np.sum(~np.isnan(mses))
+    return (
+        np.nansum(mses) / np.sum(~np.isnan(mses)),
+        current_states,
+        last_smoothed_state,
+    )
 
 
 class SineSignalTest(unittest.TestCase):
@@ -348,12 +354,187 @@ class SineSignalTest(unittest.TestCase):
             SLSTM(8, 8, 1),
             SLinear(8, 1),
         )
-        mse = smoother_test_runner(
+        mse, _, _ = smoother_test_runner(
             model, input_seq_len=input_seq_len, num_features=num_features
         )
         self.assertLess(
             mse, self.threshold, "Error rate is higher than threshold"
         )
+
+    def test_get_and_set_lstm_states_CPU(self):
+        input_seq_len = 4
+        model = Sequential(
+            LSTM(input_seq_len, 4, 1),
+            Linear(4, 1),
+        )
+        s_model = Sequential(
+            SLSTM(input_seq_len, 4, 1),
+            SLinear(4, 1),
+        )
+        s_model.num_samples = 1  # since only one step is run
+        model.to_device("cpu")
+        s_model.to_device("cpu")
+
+        # synthesize input x
+        x = np.linspace(0, 1, input_seq_len, dtype=np.float32).reshape(1, -1)
+
+        model(x)
+        s_model(x)
+
+        raw_states = model.get_lstm_states()
+        raw_sstates = s_model.get_lstm_states()
+        self.assertTrue(raw_states, "No LSTM states returned")
+        self.assertTrue(raw_sstates, "No SLSTM states returned")
+
+        stored_states = {
+            layer_idx: tuple(
+                np.array(component, dtype=np.float32, copy=True)
+                for component in state_tuple
+            )
+            for layer_idx, state_tuple in raw_states.items()
+        }
+        stored_sstates = {
+            layer_idx: tuple(
+                np.array(component, dtype=np.float32, copy=True)
+                for component in state_tuple
+            )
+            for layer_idx, state_tuple in raw_sstates.items()
+        }
+
+        states_to_set = {
+            layer_idx: tuple(component.tolist() for component in state_tuple)
+            for layer_idx, state_tuple in stored_states.items()
+        }
+        s_states_to_set = {
+            layer_idx: tuple(component.tolist() for component in state_tuple)
+            for layer_idx, state_tuple in stored_sstates.items()
+        }
+
+        model.reset_lstm_states()
+        s_model.reset_lstm_states()
+        model.set_lstm_states(states_to_set)
+        s_model.set_lstm_states(s_states_to_set)
+        restored_states = model.get_lstm_states()
+        restored_sstates = s_model.get_lstm_states()
+
+        self.assertSetEqual(
+            set(stored_states.keys()), set(restored_states.keys())
+        )
+        self.assertSetEqual(
+            set(stored_sstates.keys()), set(restored_sstates.keys())
+        )
+
+        for layer_idx, state_tuple in stored_states.items():
+            restored_tuple = restored_states[layer_idx]
+            for stored_component, restored_component in zip(
+                state_tuple, restored_tuple
+            ):
+                try:
+                    np.testing.assert_allclose(
+                        stored_component,
+                        np.array(restored_component, dtype=np.float32),
+                    )
+                except AssertionError as e:
+                    self.fail(f"LSTM state mismatch at layer {layer_idx}: {e}")
+        for layer_idx, state_tuple in stored_sstates.items():
+            restored_tuple = restored_sstates[layer_idx]
+            for stored_component, restored_component in zip(
+                state_tuple, restored_tuple
+            ):
+                try:
+                    np.testing.assert_allclose(
+                        stored_component,
+                        np.array(restored_component, dtype=np.float32),
+                    )
+                except AssertionError as e:
+                    self.fail(f"SLSTM state mismatch at layer {layer_idx}: {e}")
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_get_and_set_lstm_states_CUDA(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
+
+        input_seq_len = 4
+        batch_size = 1
+        model = Sequential(
+            LSTM(input_seq_len, 4, 1),
+            Linear(4, 1),
+        )
+        model.to_device("cuda")
+        # synthesize input x
+        x = np.linspace(0, 1, input_seq_len, dtype=np.float32).reshape(1, -1)
+
+        model(x)
+
+        raw_states = model.get_lstm_states()
+        self.assertTrue(raw_states, "No LSTM states returned")
+
+        stored_states = {
+            layer_idx: tuple(
+                np.array(component, dtype=np.float32, copy=True)
+                for component in state_tuple
+            )
+            for layer_idx, state_tuple in raw_states.items()
+        }
+
+        states_to_set = {
+            layer_idx: tuple(component.tolist() for component in state_tuple)
+            for layer_idx, state_tuple in stored_states.items()
+        }
+
+        model.reset_lstm_states()
+        model.set_lstm_states(states_to_set)
+        restored_states = model.get_lstm_states()
+
+        self.assertSetEqual(
+            set(stored_states.keys()), set(restored_states.keys())
+        )
+
+        for layer_idx, state_tuple in stored_states.items():
+            restored_tuple = restored_states[layer_idx]
+            for stored_component, restored_component in zip(
+                state_tuple, restored_tuple
+            ):
+                try:
+                    np.testing.assert_allclose(
+                        stored_component,
+                        np.array(restored_component, dtype=np.float32),
+                    )
+                except AssertionError as e:
+                    self.fail(f"LSTM state mismatch at layer {layer_idx}: {e}")
+
+    def test_get_lstm_states_time_step_SLSTM_CPU(self):
+        input_seq_len = 24
+        num_features = 3
+        model = Sequential(
+            SLSTM(num_features + input_seq_len - 1, 8, 1),
+            SLSTM(8, 8, 1),
+            SLinear(8, 1),
+        )
+
+        _, current_states, smoothed_last_states = smoother_test_runner(
+            model, input_seq_len=input_seq_len, num_features=num_features
+        )
+
+        self.assertSetEqual(
+            set(current_states.keys()), set(smoothed_last_states.keys())
+        )
+
+        for layer_idx in current_states:
+            current_tuple = current_states[layer_idx]
+            smoothed_tuple = smoothed_last_states[layer_idx]
+            for current_component, smoothed_component in zip(
+                current_tuple, smoothed_tuple
+            ):
+                try:
+                    np.testing.assert_allclose(
+                        np.array(current_component, dtype=np.float32),
+                        np.array(smoothed_component, dtype=np.float32),
+                    )
+                except AssertionError as e:
+                    self.fail(
+                        f"SLSTM smoothed state mismatch at layer {layer_idx}: {e}"
+                    )
 
     def test_set_delta_z_CPU(self):
         input_seq_len = 4

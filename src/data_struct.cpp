@@ -94,38 +94,6 @@ void BaseHiddenStates::copy_from(const BaseHiddenStates& source, int num_data)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Base Smoothing Hidden States
-////////////////////////////////////////////////////////////////////////////////
-void SmoothingHiddenStates::set_size(size_t new_size, size_t new_block_size) {
-    // Set the size of BaseHiddenStates variables
-    BaseHiddenStates::set_size(new_size, new_block_size);
-    this->cov_hh.resize(this->size, 0.0f);
-    this->mu_h_prev.resize(this->size * this->size, 0.0f);
-}
-
-//  Override the copy_from method
-void SmoothingHiddenStates::copy_from(const BaseHiddenStates& source,
-                                      int num_data) {
-    BaseHiddenStates::copy_from(source, num_data);
-
-    const SmoothingHiddenStates* source_other =
-        dynamic_cast<const SmoothingHiddenStates*>(&source);
-
-    this->cov_hh = source_other->cov_hh;
-    this->mu_h_prev = source_other->mu_h_prev;
-    this->num_timesteps = source_other->num_timesteps;
-}
-
-//  Override the swap method
-void SmoothingHiddenStates::swap(BaseHiddenStates& other) {
-    SmoothingHiddenStates* smooth_other =
-        dynamic_cast<SmoothingHiddenStates*>(&other);
-    std::swap(this->cov_hh, smooth_other->cov_hh);
-    std::swap(this->mu_h_prev, smooth_other->mu_h_prev);
-    std::swap(this->num_timesteps, smooth_other->num_timesteps);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Base Delta States
 ////////////////////////////////////////////////////////////////////////////////
 BaseDeltaStates::BaseDeltaStates(size_t n, size_t m, int device_idx)
@@ -392,10 +360,6 @@ void SmoothSLinear::set_num_states(size_t num_timesteps)
 void SmoothSLinear::reset_zeros()
 /**/
 {
-    // Resize and reset cov_zo
-    if (cov_zo.size() != num_timesteps) cov_zo.resize(num_timesteps);
-    for (auto& val : cov_zo) val = 0;
-
     // Resize and reset mu_zo_priors
     if (mu_zo_priors.size() != num_timesteps)
         mu_zo_priors.resize(num_timesteps);
@@ -511,13 +475,13 @@ void SmoothSLSTM::reset_zeros()
         var_c_smooths.resize(num_states * num_timesteps);
     for (auto& val : var_c_smooths) val = 0;
 
-    // Resize and reset cov_hc
-    if (cov_hc.size() != num_states * num_timesteps)
-        cov_hc.resize(num_states * num_timesteps);
-    for (auto& val : cov_hc) val = 0;
-
     // Resize and reset cov_cc
     if (cov_cc.size() != num_states * num_timesteps)
         cov_cc.resize(num_states * num_timesteps);
     for (auto& val : cov_cc) val = 0;
+
+    // Resize and reset cov_hh
+    if (cov_hh.size() != num_states * num_states * num_timesteps)
+        cov_hh.resize(num_states * num_states * num_timesteps);
+    for (auto& val : cov_hh) val = 0;
 }

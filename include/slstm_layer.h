@@ -35,4 +35,8 @@ class SLSTM : public LSTM {
                   bool state_udapte = true) override;
 
     void smoother();
+
+    std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
+               std::vector<float>>
+    get_smoothed_lstm_state(int timestep) const;
 };

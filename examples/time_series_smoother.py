@@ -127,31 +127,61 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         # Smoother
         mu_zo_smooth, var_zo_smooth = net.smoother()
         zo_smooth_std = np.array(var_zo_smooth) ** 0.5
-        mu_sequence = mu_zo_smooth[:input_seq_len]
+        mu_sequence = np.ones(input_seq_len, dtype=np.float32)
 
-        # # Figures for each epoch
-        t = np.arange(len(mu_zo_smooth))
-        t_train = np.arange(len(y_train))
-        plt.switch_backend("Agg")
-        plt.figure()
-        plt.plot(t_train, y_train, color="r")
-        plt.plot(t, mu_zo_smooth, color="b")
-        plt.fill_between(
-            t,
-            mu_zo_smooth - zo_smooth_std,
-            mu_zo_smooth + zo_smooth_std,
-            alpha=0.2,
-            label="1 Std Dev",
-        )
-        filename = f"saved_results/smoother/smoother#{epoch}.png"
-        plt.savefig(filename)
-        plt.close()
+        # Figures for each epoch for debugging
+        # t = np.arange(len(mu_zo_smooth))
+        # t_train = np.arange(len(y_train))
+        # plt.figure()
+        # plt.plot(t_train, y_train, color="r")
+        # plt.plot(t, mu_zo_smooth, color="b")
+        # plt.fill_between(
+        #     t,
+        #     mu_zo_smooth - zo_smooth_std,
+        #     mu_zo_smooth + zo_smooth_std,
+        #     alpha=0.2,
+        #     label="1 Std Dev",
+        # )
+        # filename = f"saved_results/smoother#{epoch}.png"
+        # plt.savefig(filename)
+        # plt.close()
 
         # Progress bar
         pbar.set_description(
             f"Epoch {epoch + 1}/{num_epochs}| mse: {np.nansum(mses)/np.sum(~np.isnan(mses)):>7.2f}",
             refresh=True,
         )
+
+    # Plot final smoothed values
+    t = np.arange(len(mu_zo_smooth))
+    t_train = np.arange(len(y_train))
+    plt.figure(figsize=(12, 12))
+    plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
+    plt.plot(t_train, y_train, color="k", lw=3, label=r"$y_{true}$")
+    plt.plot(t, mu_zo_smooth, color="r", lw=3, label=r"$\mathbb{E}[Y^{'}]$")
+    plt.fill_between(
+        t,
+        mu_zo_smooth - zo_smooth_std,
+        mu_zo_smooth + zo_smooth_std,
+        color="r",
+        alpha=0.3,
+        label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(1),
+    )
+    plt.legend(
+        loc="upper right",
+        edgecolor="black",
+        fontsize=28,
+        ncol=1,
+        framealpha=0.3,
+        frameon=False,
+    )
+    plt.xlabel(r"$x$", fontsize=28)
+    plt.ylabel(r"$y$", fontsize=28)
+    plt.ylim(-3, 3)
+    plt.tick_params(axis="both", which="both", direction="inout", labelsize=28)
+    filename = f"saved_results/smoothed_look_back_toy_time_series.png"
+    plt.savefig(filename)
+    plt.close()
 
     # -------------------------------------------------------------------------#
     # Testing

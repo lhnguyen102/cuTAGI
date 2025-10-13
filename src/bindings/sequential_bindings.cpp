@@ -123,20 +123,21 @@ void bind_sequential(pybind11::module_& m) {
                  }
                  return py_norm_mean_var;
              })
-        // New bindings for LSTM states
-        .def("get_lstm_states",
-             [](Sequential& self) {
-                 // Get the C++ unordered_map of states.
-                 auto states = self.get_lstm_states();
-                 // Convert it into a Python dict.
-                 pybind11::dict py_states;
-                 for (const auto& pair : states) {
-                     // Wrap the int key as a pybind11::int_ so it can be used
-                     // in the dict.
-                     py_states[pybind11::int_(pair.first)] = pair.second;
-                 }
-                 return py_states;
-             })
+        .def(
+            "get_lstm_states",
+            [](Sequential& self, int time_step) {
+                // Get the C++ unordered_map of states.
+                auto states = self.get_lstm_states(time_step);
+                // Convert it into a Python dict.
+                pybind11::dict py_states;
+                for (const auto& pair : states) {
+                    // Wrap the int key as a pybind11::int_ so it can be used
+                    // in the dict.
+                    py_states[pybind11::int_(pair.first)] = pair.second;
+                }
+                return py_states;
+            },
+            pybind11::arg("time_step"))
         .def("set_lstm_states", [](Sequential& self, pybind11::dict py_states) {
             // Convert the Python dict to the required unordered_map.
             std::unordered_map<

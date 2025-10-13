@@ -162,7 +162,7 @@ class Sequential {
 
     std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                        std::vector<float>, std::vector<float>>>
-    get_lstm_states() const;
+    get_lstm_states(int time_step) const;
 
     void set_lstm_states(
         const std::unordered_map<

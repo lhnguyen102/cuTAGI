@@ -1503,19 +1503,31 @@ void LSTM::backward(BaseDeltaStates &input_delta_states,
 // retrieve the cell state and hidden state
 std::tuple<std::vector<float>, std::vector<float>, std::vector<float>,
            std::vector<float>>
-LSTM::get_LSTM_states() const {
+LSTM::get_LSTM_states()
+    /*
+     */
+    const {
     return std::make_tuple(lstm_states.mu_h_prior, lstm_states.var_h_prior,
                            lstm_states.mu_c_prior, lstm_states.var_c_prior);
 }
+
 // set the cell state and hidden state
 void LSTM::set_LSTM_states(const std::vector<float> &mu_h,
                            const std::vector<float> &var_h,
                            const std::vector<float> &mu_c,
-                           const std::vector<float> &var_c) {
+                           const std::vector<float> &var_c)
+/*
+ */
+{
     this->lstm_states.mu_h_prior = mu_h;
     this->lstm_states.var_h_prior = var_h;
     this->lstm_states.mu_c_prior = mu_c;
     this->lstm_states.var_c_prior = var_c;
+
+    this->lstm_states.mu_h_prev = mu_h;
+    this->lstm_states.var_h_prev = var_h;
+    this->lstm_states.mu_c_prev = mu_c;
+    this->lstm_states.var_c_prev = var_c;
 }
 
 #ifdef USE_CUDA
@@ -1534,7 +1546,10 @@ std::unique_ptr<BaseLayer> LSTM::to_cuda(int device_idx) {
 }
 #endif
 
-void LSTM::preinit_layer() {
+void LSTM::preinit_layer()
+/*
+ */
+{
     if (this->num_weights == 0) {
         this->get_number_param();
         this->init_weight_bias();

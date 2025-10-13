@@ -7,6 +7,7 @@
 #include "../include/custom_logger.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
+#include "../include/slstm_layer.h"
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 
@@ -168,6 +169,10 @@ void Sequential::init_output_state_buffer()
 {
     if (this->device.compare("cpu") == 0) {
         if (this->layers[0]->get_layer_type() == LayerType::SLSTM) {
+            if (this->num_samples == 0 && this->training) {
+                LOG(LogLevel::ERROR,
+                    "num_samples was not initialized for smoothing.");
+            }
             this->output_z_buffer = std::make_shared<SmoothingHiddenStates>(
                 this->z_buffer_size, this->z_buffer_block_size,
                 this->num_samples);
@@ -410,6 +415,7 @@ std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
  */
 {
     std::vector<float> mu_zo_smooths, var_zo_smooths;
+    std::vector<float> mu_h_smooths_last_slstm, var_h_smooths_lastm_slstm;
     // Hidden layers
     for (auto layer = this->layers.begin(); layer != this->layers.end();
          layer++) {
@@ -417,9 +423,13 @@ std::tuple<std::vector<float>, std::vector<float>> Sequential::smoother()
         if (current_layer->get_layer_type() == LayerType::SLSTM) {
             auto *slstm_layer = dynamic_cast<SLSTM *>(current_layer);
             slstm_layer->smoother();
+            mu_h_smooths_last_slstm = slstm_layer->smooth_states.mu_h_smooths;
+            var_h_smooths_lastm_slstm =
+                slstm_layer->smooth_states.var_h_smooths;
         } else if (current_layer->get_layer_type() == LayerType::SLinear) {
             auto *slinear_layer = dynamic_cast<SLinear *>(current_layer);
-            slinear_layer->smoother();
+            slinear_layer->smoother(mu_h_smooths_last_slstm,
+                                    var_h_smooths_lastm_slstm);
             mu_zo_smooths = slinear_layer->smooth_states.mu_zo_smooths;
             var_zo_smooths = slinear_layer->smooth_states.var_zo_smooths;
         }
@@ -437,18 +447,28 @@ void Sequential::step()
     }
 }
 
-void Sequential::reset_lstm_states()
-/*
- */
-{
-    // Hidden layers
-    for (auto layer = this->layers.begin(); layer != this->layers.end();
-         layer++) {
-        auto *current_layer = layer->get();
-        if (current_layer->get_layer_type() == LayerType::LSTM) {
-            auto *lstm_layer = dynamic_cast<LSTM *>(current_layer);
-            lstm_layer->lstm_states.reset_zeros();
+void Sequential::reset_lstm_states() {
+    /*
+     */
+    for (auto &layer : this->layers) {
+        if (layer->get_layer_type() != LayerType::LSTM) {
+            continue;
         }
+
+        if (this->device == "cpu") {
+            if (auto *lstm = dynamic_cast<LSTM *>(layer.get())) {
+                lstm->lstm_states.reset_zeros();
+            }
+        }
+#ifdef USE_CUDA
+        else if (this->device == "cuda") {
+            if (auto *lstm = dynamic_cast<LSTMCuda *>(layer.get())) {
+                lstm->lstm_state.to_host();
+                lstm->lstm_state.reset_zeros();
+                lstm->lstm_state.to_device();
+            }
+        }
+#endif
     }
 }
 
@@ -811,7 +831,10 @@ Sequential::get_outputs_smoother()
 }
 
 std::tuple<pybind11::array_t<float>, pybind11::array_t<float>>
-Sequential::get_input_states() {
+Sequential::get_input_states()
+/*
+ */
+{
     // Check if input_state_update is enabled
     if (!this->input_state_update) {
         LOG(LogLevel::ERROR, "input_state_update is set to False.");
@@ -848,46 +871,65 @@ Sequential::get_input_states() {
 
 std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                    std::vector<float>, std::vector<float>>>
-Sequential::get_lstm_states() const {
+Sequential::get_lstm_states(int time_step)
+    /*
+     */
+    const {
     std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>,
                                        std::vector<float>, std::vector<float>>>
         lstm_states;
 
+    // throw value error if time_step is not -1 or >=0
+    if (time_step < -1) {
+        LOG(LogLevel::ERROR, "Invalid time_step: " + std::to_string(time_step));
+    }
+
     for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::LSTM) {
+        if (layers[i]->get_layer_type() == LayerType::LSTM ||
+            layers[i]->get_layer_type() == LayerType::SLSTM) {
             if (this->device == "cpu") {
-                LSTM *lstm_layer = dynamic_cast<LSTM *>(layers[i].get());
-                if (lstm_layer) {
-                    // CPU
-                    auto states = lstm_layer->get_LSTM_states();
-                    lstm_states[static_cast<int>(i)] = states;
+                if (auto slstm_layer = dynamic_cast<SLSTM *>(layers[i].get())) {
+                    if (time_step == -1) {
+                        lstm_states[static_cast<int>(i)] =
+                            slstm_layer->get_LSTM_states();
+                    } else {
+                        lstm_states[static_cast<int>(i)] =
+                            slstm_layer->get_smoothed_lstm_state(time_step);
+                    }
+                } else if (auto lstm_layer =
+                               dynamic_cast<LSTM *>(layers[i].get())) {
+                    lstm_states[static_cast<int>(i)] =
+                        lstm_layer->get_LSTM_states();
                 }
-            }
 #ifdef USE_CUDA
-            else if (this->device == "cuda") {
-                LSTMCuda *lstm_cuda = dynamic_cast<LSTMCuda *>(layers[i].get());
-                if (lstm_cuda) {
-                    // CUDA
+            } else if (this->device == "cuda") {
+                if (auto lstm_cuda =
+                        dynamic_cast<LSTMCuda *>(layers[i].get())) {
                     std::vector<float> mu_h, var_h, mu_c, var_c;
                     lstm_cuda->d_get_LSTM_states(mu_h, var_h, mu_c, var_c);
                     lstm_states[static_cast<int>(i)] =
                         std::make_tuple(mu_h, var_h, mu_c, var_c);
                 }
-            }
 #endif
+            }
         }
     }
+
     return lstm_states;
 }
 
 void Sequential::set_lstm_states(
     const std::unordered_map<
         int, std::tuple<std::vector<float>, std::vector<float>,
-                        std::vector<float>, std::vector<float>>> &lstm_states) {
+                        std::vector<float>, std::vector<float>>> &lstm_states)
+/*
+ */
+{
     for (const auto &pair : lstm_states) {
         int layer_idx = pair.first;
         if (layer_idx >= 0 && layer_idx < static_cast<int>(layers.size()) &&
-            layers[layer_idx]->get_layer_type() == LayerType::LSTM) {
+            (layers[layer_idx]->get_layer_type() == LayerType::LSTM ||
+             layers[layer_idx]->get_layer_type() == LayerType::SLSTM)) {
             // Unpack the tuple
             const auto &state_tuple = pair.second;
             const auto &mu_h = std::get<0>(state_tuple);
@@ -897,10 +939,12 @@ void Sequential::set_lstm_states(
 
             // CPU
             if (this->device == "cpu") {
-                LSTM *lstm_layer =
-                    dynamic_cast<LSTM *>(layers[layer_idx].get());
-                if (lstm_layer) {
+                if (auto lstm_layer =
+                        dynamic_cast<LSTM *>(layers[layer_idx].get())) {
                     lstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
+                } else if (auto slstm_layer =
+                               dynamic_cast<SLSTM *>(layers[layer_idx].get())) {
+                    slstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
                 }
             }
 #ifdef USE_CUDA

@@ -389,15 +389,17 @@ class Sequential:
         """
         return self._cpp_backend.get_norm_mean_var()
 
-    def get_lstm_states(self) -> dict:
-        """Gets the states from all LSTM layers.
+    def get_lstm_states(self, time_step: int = -1) -> dict:
+        """Get the LSTM states for all LSTM layers as a dictionary.
 
-        :return: A dictionary where each key is the layer index and the value
-                 is a 4-tuple of numpy arrays:
-                 (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
+        :param time_step: The time step at which to retrieve the smoothed SLSTM states.
+                          If not provided or -1, retrieves the unsmoothed current LSTM states.
+        :type time_step: int, optional
+        :return: A dictionary mapping layer indices to a 4-tuple of
+                       numpy arrays: (mu_h_prior, var_h_prior, mu_c_prior, var_c_prior).
         :rtype: dict
         """
-        return self._cpp_backend.get_lstm_states()
+        return self._cpp_backend.get_lstm_states(time_step)
 
     def set_lstm_states(self, states: dict) -> None:
         """Sets the states for all LSTM layers.
