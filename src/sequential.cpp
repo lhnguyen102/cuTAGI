@@ -271,6 +271,16 @@ std::string Sequential::get_device()
     return this->device;
 }
 
+void product_jacobian(BaseHiddenStates &input_states,
+                      BaseHiddenStates &output_states) {
+    int start_chunk = 0;
+    int end_chunk = output_states.actual_size * output_states.block_size;
+
+    for (int i = start_chunk; i < end_chunk; i++) {
+        output_states.jcb[i] *= input_states.jcb[i];
+    }
+}
+
 void Sequential::forward(const std::vector<float> &mu_x,
                          const std::vector<float> &var_x)
 /*
@@ -313,6 +323,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
 
     // Merge input data to the input buffer
     this->input_z_buffer->set_input_x(mu_x, var_x, batch_size);
+    bool last_layer_activation = false;
 
     // Forward pass for all layers
     for (auto &layer : this->layers) {
@@ -321,8 +332,21 @@ void Sequential::forward(const std::vector<float> &mu_x,
         current_layer->forward(*this->input_z_buffer, *this->output_z_buffer,
                                *this->temp_states);
 
+        if (last_layer_activation &&
+            current_layer->get_layer_type() == LayerType::Activation) {
+            // If previous and current layers are both activation layers,
+            // multiply the jacobian vectors.
+            product_jacobian(*this->input_z_buffer, *this->output_z_buffer);
+        }
+
         // Swap the pointer holding class
         std::swap(this->input_z_buffer, this->output_z_buffer);
+
+        if (current_layer->get_layer_type() == LayerType::Activation) {
+            last_layer_activation = true;
+        } else {
+            last_layer_activation = false;
+        }
     }
 
     // Output buffer is considered as the final output of network

@@ -242,8 +242,9 @@ void bind_exp(pybind11::module_& modo)
 
 void bind_agvi(pybind11::module_& modo) {
     pybind11::class_<AGVI, std::shared_ptr<AGVI>, BaseLayer>(modo, "AGVI")
-        .def(pybind11::init<std::shared_ptr<BaseLayer>, bool, bool>(),
-             pybind11::arg("activation_layer"),
+        .def(pybind11::init<std::shared_ptr<BaseLayer>,
+                            std::shared_ptr<BaseLayer>, bool, bool>(),
+             pybind11::arg("odd_layer"), pybind11::arg("even_layer") = nullptr,
              pybind11::arg_v(
                  "overfit_mu", true,
                  "If true, use a different Jacobian for the mean delta"),
@@ -253,6 +254,10 @@ void bind_agvi(pybind11::module_& modo) {
         .def("get_layer_info", &AGVI::get_layer_info)
         .def("get_layer_name", &AGVI::get_layer_name)
         .def("get_layer_type", &AGVI::get_layer_type)
+        .def("set_overfit_mu", &AGVI::set_overfit_mu)
+        .def("get_overfit_mu", &AGVI::get_overfit_mu)
+        .def("set_agvi", &AGVI::set_agvi)
+        .def("get_agvi", &AGVI::get_agvi)
         .def("forward", &AGVI::forward)
         .def("backward", &AGVI::backward)
         .def("update_weights", &AGVI::update_weights)

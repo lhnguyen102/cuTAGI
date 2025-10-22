@@ -80,15 +80,16 @@ __global__ void agvi_extract_odd_stream_kernel(
 __global__ void agvi_forward_combine_kernel(
     const float *d_input_mu, const float *d_input_var, const float *d_input_jcb,
     const float *d_inner_output_mu, int half_size, float *d_output_mu,
-    float *d_output_var, float *d_output_jcb, bool agvi);
+    float *d_output_var, float *d_output_jcb, float *d_inner_output_jcb,
+    bool agvi);
 
 __global__ void agvi_backward_kernel(
     const float *d_incoming_delta_mu, const float *d_incoming_delta_var,
     const float *d_stored_output_mu_a, const float *d_stored_output_var_a,
     const float *d_stored_inner_mu_a, const float *d_stored_inner_var_a,
-    const float *d_stored_inner_jcb, const float *d_stored_input_var_a,
-    int half_size, float *d_output_delta_mu, float *d_output_delta_var,
-    bool overfit_mu);
+    const float *d_stored_inner_jcb, const float *d_stored_even_var_a,
+    const float *d_stored_even_jcb, int half_size, float *d_output_delta_mu,
+    float *d_output_delta_var, bool overfit_mu);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Relu
@@ -717,14 +718,16 @@ class AGVICuda : public BaseLayerCuda {
     /**
      * @brief Construct a new AGVICuda object.
      *
-     * @param activation_layer A unique_ptr to a CUDA-enabled activation layer
-     * that this AGVI layer will wrap. The AGVICuda
-     * instance takes ownership of this pointer.
+     * @param odd_layer A unique_ptr to a CUDA-enabled activation layer for the
+     * odd stream. The AGVICuda instance takes ownership.
+     * @param even_layer An optional unique_ptr to a CUDA-enabled activation
+     * layer for the even stream. Defaults to an Identity operation.
      * @param overfit_mu If true, uses a different Kalman gain for the mean
      * delta to encourage overfitting.
      * @param agvi If true, uses the AGVI learned noise model. Defaults to true.
      */
-    explicit AGVICuda(std::unique_ptr<BaseLayer> activation_layer,
+    explicit AGVICuda(std::unique_ptr<BaseLayer> odd_layer,
+                      std::unique_ptr<BaseLayer> even_layer = nullptr,
                       bool overfit_mu = true, bool agvi = true);
     ~AGVICuda();
 
@@ -752,24 +755,35 @@ class AGVICuda : public BaseLayerCuda {
 
     std::unique_ptr<BaseLayer> to_host() override;
 
-    // Methods that do nothing for this layer type
+    // Methods that do nothing for this layer type as it has no trainable
+    // parameters
     void allocate_param_delta() override {};
     void update_weights() override {};
     void update_biases() override {};
     void save(std::ofstream &file) override {};
     void load(std::ifstream &file) override {};
 
+    // Runtime configuration setters and getters
+    void set_overfit_mu(bool overfit_mu) { m_overfit_mu = overfit_mu; }
+    bool get_overfit_mu() const { return m_overfit_mu; }
+    void set_agvi(bool agvi) { m_agvi = agvi; }
+    bool get_agvi() const { return m_agvi; }
+
    private:
-    std::unique_ptr<BaseLayer> m_activation_layer;
+    std::unique_ptr<BaseLayer> m_odd_layer;
+    std::unique_ptr<BaseLayer> m_even_layer;
     bool m_overfit_mu;
     bool m_agvi;
 
-    // Stored states for backward pass. These are raw pointers to device memory.
-    const float *d_stored_input_var_a = nullptr;
+    // Pointers to device memory from other states, stored for backward pass.
+    // These do not own the memory.
     const float *d_stored_output_mu_a = nullptr;
     const float *d_stored_output_var_a = nullptr;
 
-    // The full state object for the inner activation's output is stored
-    // to manage its device memory.
-    HiddenStateCuda m_stored_inner_output_states;
+    // The full state objects for intermediate results are stored here to
+    // correctly manage their device memory.
+    HiddenStateCuda
+        m_stored_inner_output_states;  // Output of the odd activation
+    HiddenStateCuda m_stored_even_output_states;  // Output of the (optional)
+                                                  // even activation
 };

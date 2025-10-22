@@ -110,7 +110,8 @@ void agvi_backward_chunk(int start_chunk, int end_chunk,
                          const BaseHiddenStates &stored_output_states,
                          const BaseHiddenStates &stored_inner_output_states,
                          const BaseHiddenStates &stored_input_states,
-                         bool overfit_mu);
+                         const BaseHiddenStates &stored_even_output_states,
+                         bool overfit_mu, bool has_even_layer);
 
 void agvi_backward_mp(int n, unsigned int num_threads,
                       BaseDeltaStates &input_delta_states,
@@ -118,7 +119,8 @@ void agvi_backward_mp(int n, unsigned int num_threads,
                       const BaseHiddenStates &stored_output_states,
                       const BaseHiddenStates &stored_inner_output_states,
                       const BaseHiddenStates &stored_input_states,
-                      bool overfit_mu);
+                      const BaseHiddenStates &stored_even_output_states,
+                      bool overfit_mu, bool has_even_layer);
 
 ////////////////////////////////////////////////////////////////////////////////
 /// ReLU
@@ -779,7 +781,8 @@ class AGVI : public BaseLayer {
      * to encourage overfitting. Defaults to true.
      * @param agvi If true, uses the AGVI learned noise model. Defaults to true.
      */
-    explicit AGVI(std::shared_ptr<BaseLayer> activation_layer,
+    explicit AGVI(std::shared_ptr<BaseLayer> odd_layer,
+                  std::shared_ptr<BaseLayer> even_layer = nullptr,
                   bool overfit_mu = true, bool agvi = true);
 
     ~AGVI();
@@ -813,8 +816,15 @@ class AGVI : public BaseLayer {
     std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
 
+    // Runtime configuration
+    void set_overfit_mu(bool overfit_mu) { m_overfit_mu = overfit_mu; }
+    bool get_overfit_mu() const { return m_overfit_mu; }
+    void set_agvi(bool agvi) { m_agvi = agvi; }
+    bool get_agvi() const { return m_agvi; }
+
    private:
-    std::shared_ptr<BaseLayer> m_activation_layer;
+    std::shared_ptr<BaseLayer> m_odd_layer;
+    std::shared_ptr<BaseLayer> m_even_layer;
     bool m_overfit_mu;
     bool m_agvi;
 
@@ -822,4 +832,5 @@ class AGVI : public BaseLayer {
     BaseHiddenStates m_stored_inner_output_states;
     BaseHiddenStates m_stored_output_states;
     BaseHiddenStates m_stored_input_states;
+    BaseHiddenStates m_stored_even_output_states;
 };

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import cutagi
 
 from pytagi.nn.base_layer import BaseLayer
@@ -206,7 +208,8 @@ class AGVI(BaseLayer):
 
     def __init__(
         self,
-        activation_layer: BaseLayer,
+        odd_layer: BaseLayer,
+        even_layer: Optional[BaseLayer] = None,
         overfit_mu: bool = True,
         agvi: bool = True,
     ):
@@ -214,16 +217,38 @@ class AGVI(BaseLayer):
         Initializes the AGVI layer.
 
         Args:
-            activation_layer: The inner activation layer to be used.
+            odd_layer: Activation for odd-indexed inputs.
+            even_layer: Optional activation for even-indexed inputs (identity if None).
             overfit_mu: If true, uses a different Kalman gain for the mean delta
                         to encourage the mean overfitting. Defaults to True.
         """
-        self._cpp_backend = cutagi.AGVI(
-            activation_layer._cpp_backend, overfit_mu, agvi
-        )
+        if even_layer is None:
+            self._cpp_backend = cutagi.AGVI(
+                odd_layer._cpp_backend, None, overfit_mu, agvi
+            )
+        else:
+            self._cpp_backend = cutagi.AGVI(
+                odd_layer._cpp_backend,
+                even_layer._cpp_backend,
+                overfit_mu,
+                agvi,
+            )
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
 
     def get_layer_name(self) -> str:
         return self._cpp_backend.get_layer_name()
+
+    # Runtime configuration
+    def set_overfit_mu(self, overfit_mu: bool):
+        self._cpp_backend.set_overfit_mu(overfit_mu)
+
+    def get_overfit_mu(self) -> bool:
+        return self._cpp_backend.get_overfit_mu()
+
+    def set_agvi(self, agvi: bool):
+        self._cpp_backend.set_agvi(agvi)
+
+    def get_agvi(self) -> bool:
+        return self._cpp_backend.get_agvi()

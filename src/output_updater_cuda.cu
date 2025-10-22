@@ -1,5 +1,6 @@
 #include "../include/custom_logger.h"
 #include "../include/output_updater_cuda.cuh"
+
 __global__ void update_delta_z_using_indices_cuda(
     float const *mu_a, float const *var_a, float const *jcb, float const *obs,
     float const *var_obs, int const *selected_idx, int n_obs, int n_enc,
@@ -99,7 +100,7 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
             delta_var[obs_col] = zero_pad;
         } else {
             float obs_diff = obs[col] - mu_a_col;
-            delta_mu[obs_col] = tmp_var * obs_diff;
+            delta_mu[obs_col] = tmp_mu * obs_diff;
             delta_var[obs_col] = -tmp_var * jcb_col;
         }
 
