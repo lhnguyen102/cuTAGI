@@ -341,7 +341,7 @@ __global__ void lstm_update_prev_hidden_states(
 
     if (i < num_states) {
         mu_h_prev[i] = mu_h_prior[i] + delta_mu[i] * var_h_prior[i];
-        var_h_prev[i] = (1.0f + delta_mu[i] * var_h_prior[i]) * var_h_prior[i];
+        var_h_prev[i] = (1.0f + delta_var[i] * var_h_prior[i]) * var_h_prior[i];
     }
 }
 
