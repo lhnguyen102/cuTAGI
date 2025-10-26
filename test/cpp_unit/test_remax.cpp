@@ -28,7 +28,6 @@ TEST(RemaxMinimal, CPUvsCUDA) {
         input_var[i] = 0.1f + 0.1f * std::abs(dist(gen));
     }
 
-    // Create input states for CPU
     BaseHiddenStates input_states;
     input_states.mu_a = input_data;
     input_states.var_a = input_var;
@@ -37,7 +36,6 @@ TEST(RemaxMinimal, CPUvsCUDA) {
     input_states.actual_size = input_size;
     input_states.size = batch_size * input_size;
 
-    // Create output states for CPU
     BaseHiddenStates cpu_output_states;
     cpu_output_states.mu_a.resize(batch_size * input_size);
     cpu_output_states.var_a.resize(batch_size * input_size);
@@ -46,15 +44,12 @@ TEST(RemaxMinimal, CPUvsCUDA) {
     cpu_output_states.actual_size = input_size;
     cpu_output_states.size = batch_size * input_size;
 
-    // Create temp states for CPU
     BaseTempStates temp_states;
 
-    // Create CPU Remax layer
     Remax cpu_remax;
     cpu_remax.input_size = input_size;
     cpu_remax.output_size = input_size;
 
-    // Run CPU forward pass
     cpu_remax.forward(input_states, cpu_output_states, temp_states);
 
 #ifdef USE_CUDA

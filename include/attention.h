@@ -10,43 +10,34 @@
 #include "data_struct.h"
 #include "param_init.h"
 
-class AttentionStates {
-   public:
+struct AttentionStates {
     std::vector<float> mu_in_proj, var_in_proj;
     std::vector<float> mu_q, var_q, mu_k, var_k, mu_v, var_v;
-    std::vector<float> mu_qk, var_qk, J_qk;
-    std::vector<float> mu_mqk, var_mqk, J_mqk;
+    std::vector<float> mu_qk, var_qk;
+    std::vector<float> mu_mqk, var_mqk, j_mqk;
     std::vector<float> mu_att_score, var_att_score;
     std::vector<float> mu_sv, var_sv;
-    std::vector<float> mu_out_proj, var_out_proj, J_out_proj;
 
-    AttentionStates();
-    ~AttentionStates() = default;
     void set_size(int batch_size, int num_heads, int timestep, int head_size);
 };
 
-class AttentionDeltaStates {
-   public:
+struct AttentionDeltaStates {
     std::vector<float> delta_mu_buffer, delta_var_buffer;
-    std::vector<float> delta_mu_out_proj, delta_var_out_proj;
     std::vector<float> delta_mu_v, delta_var_v;
     std::vector<float> delta_mu_att_score, delta_var_att_score;
-    std::vector<float> delta_mu_r, delta_var_r;
     std::vector<float> delta_mu_q, delta_var_q;
     std::vector<float> delta_mu_k, delta_var_k;
     std::vector<float> delta_mu_in_proj, delta_var_in_proj;
 
-    AttentionDeltaStates();
-    ~AttentionDeltaStates() = default;
     void set_size(int batch_size, int num_heads, int timestep, int head_size);
 };
 
 void separate_input_projection_components(
-    std::vector<float> &mu_embs, std::vector<float> &var_embs, int emb_pos,
-    int qkv_pos, int batch_size, int num_heads, int timestep, int head_size,
-    std::vector<float> &mu_q, std::vector<float> &var_q,
-    std::vector<float> &mu_k, std::vector<float> &var_k,
-    std::vector<float> &mu_v, std::vector<float> &var_v);
+    std::vector<float> &mu_embs, std::vector<float> &var_embs, int batch_size,
+    int num_heads, int timestep, int head_size, std::vector<float> &mu_q,
+    std::vector<float> &var_q, std::vector<float> &mu_k,
+    std::vector<float> &var_k, std::vector<float> &mu_v,
+    std::vector<float> &var_v);
 
 void cat_intput_projection_components(
     std::vector<float> &mu_q, std::vector<float> &var_q,
@@ -56,7 +47,7 @@ void cat_intput_projection_components(
     std::vector<float> &mu_embs, std::vector<float> &var_embs);
 
 void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
-               std::vector<float> &mu_k, std::vector<float> &var_k, int qkv_pos,
+               std::vector<float> &mu_k, std::vector<float> &var_k,
                int batch_size, int num_heads, int timestep, int head_size,
                std::vector<float> &mu_qk, std::vector<float> &var_qk);
 
@@ -66,14 +57,13 @@ void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
 
 void tagi_4d_matrix_mul(std::vector<float> &mu_a, std::vector<float> &var_a,
                         std::vector<float> &mu_b, std::vector<float> &var_b,
-                        int a_pos, int b_pos, int ab_pos, int N, int C, int H,
-                        int W, int D, std::vector<float> &mu_ab,
-                        std::vector<float> &var_ab);
+                        int N, int C, int H, int W, int D,
+                        std::vector<float> &mu_ab, std::vector<float> &var_ab);
 
 void project_output_forward(std::vector<float> &mu_in,
-                            std::vector<float> &var_in, int in_pos, int out_pos,
-                            int batch_size, int num_heads, int timestep,
-                            int head_size, std::vector<float> &mu_out,
+                            std::vector<float> &var_in, int batch_size,
+                            int num_heads, int timestep, int head_size,
+                            std::vector<float> &mu_out,
                             std::vector<float> &var_out);
 
 void project_output_backward(std::vector<float> &mu_in,
@@ -120,7 +110,6 @@ class MultiheadAttention : public BaseLayer {
     float gain_w;
     float gain_b;
     std::string init_method;
-    size_t timestep;
     size_t head_dim;
     size_t num_reps;
     AttentionStates attn_states;
@@ -130,6 +119,7 @@ class MultiheadAttention : public BaseLayer {
     BaseHiddenStates remax_input;
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
+    size_t timestep;
 
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
                        bool bias = true, float gain_w = 1.0f,

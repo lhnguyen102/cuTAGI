@@ -18,7 +18,7 @@ class BaseHiddenStates {
     std::vector<float> jcb;
     size_t size = 0;         // size of data including buffer
     size_t block_size = 0;   // batch size
-    size_t actual_size = 0;  // actual size of data
+    size_t actual_size = 0;  // input size or output size without batch size
     size_t width = 0, height = 0, depth = 0;
     int device_idx = 0;
 
