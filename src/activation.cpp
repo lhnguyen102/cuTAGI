@@ -486,7 +486,7 @@ void even_exp_mean_var(std::vector<float> const &mu_z,
         } else {
             mu_a[i] = expf(mu_z[i] + 0.5 * var_z[i]);
             var_a[i] = expf(2 * mu_z[i] + var_z[i]) * (expf(var_z[i]) - 1);
-            jcb_a[i] = var_z[i] * mu_a[i];
+            jcb_a[i] = mu_a[i];
         }
     }
 }
