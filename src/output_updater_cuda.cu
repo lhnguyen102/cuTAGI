@@ -92,7 +92,8 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
 
         // Compute updating quantities for the mean of the output
         float tmp = jcb_col / var_sum;
-        if (std::isinf(tmp) || std::isnan(tmp)) {
+        if (std::isinf(tmp) || std::isnan(tmp) || std::isnan(obs[col]) ||
+            std::isinf(obs[col])) {
             delta_mu[obs_col] = zero_pad;
             delta_var[obs_col] = zero_pad;
         } else {
@@ -101,27 +102,39 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
             delta_var[obs_col] = -tmp * jcb_col;
         }
 
-        // Compute the posterior mean and variance for V
-        float mu_v_post = cov_y_v / var_sum * (obs[col] - mu_a_col);
-        float var_v_post = mu_v2 - cov_y_v / var_sum * cov_y_v;
+        if {
+            std::isinf(obs[col]) || std::isnan(obs[col])
+        }
+        {
+            delta_mu[obs_col + 1] = zero_pad;
+            delta_var[obs_col + 1] = zero_pad;
+        }
+        else {
+            // Compute the posterior mean and variance for V
+            float mu_v_post = cov_y_v / var_sum * (obs[col] - mu_a_col);
+            float var_v_post = mu_v2 - cov_y_v / var_sum * cov_y_v;
 
-        // Compute the posterior mean and variance for V2
-        float mu_v2_post = mu_v_post * mu_v_post + var_v_post;
-        float var_v2_post = 2.0f * var_v_post * var_v_post +
-                            4.0f * var_v_post * mu_v_post * mu_v_post;
+            // Compute the posterior mean and variance for V2
+            float mu_v2_post = mu_v_post * mu_v_post + var_v_post;
+            float var_v2_post = 2.0f * var_v_post * var_v_post +
+                                4.0f * var_v_post * mu_v_post * mu_v_post;
 
-        // Compute the posterior mean and variance for V2_bar_tilde
-        float tmp_ratio = var_v2_bar_tilde / var_v2;
-        float mu_v2_bar_tilde_post =
-            mu_v2_bar_tilde + tmp_ratio * (mu_v2_post - mu_v2);
-        float var_v2_bar_tilde_post =
-            var_v2_bar_tilde + tmp_ratio * tmp_ratio * (var_v2_post - var_v2);
+            // Compute the posterior mean and variance for V2_bar_tilde
+            float tmp_ratio = var_v2_bar_tilde / var_v2;
+            float mu_v2_bar_tilde_post =
+                mu_v2_bar_tilde + tmp_ratio * (mu_v2_post - mu_v2);
+            float var_v2_bar_tilde_post =
+                var_v2_bar_tilde +
+                tmp_ratio * tmp_ratio * (var_v2_post - var_v2);
 
-        // Compute update for V2_bar
-        float jv = cov_v2_bar_tilde / var_v2_bar_tilde;
-        delta_mu[obs_col + 1] = jv * (mu_v2_bar_tilde_post - mu_v2_bar_tilde);
-        delta_var[obs_col + 1] =
-            jv * jv * (var_v2_bar_tilde_post - var_v2_bar_tilde);
+            // Compute update for V2_bar
+            float jv = cov_v2_bar_tilde / var_v2_bar_tilde;
+            if (std::isinf(jv) || std::isnan(jv)) jv = 0.0f;
+            delta_mu[obs_col + 1] =
+                jv * (mu_v2_bar_tilde_post - mu_v2_bar_tilde);
+            delta_var[obs_col + 1] =
+                jv * jv * (var_v2_bar_tilde_post - var_v2_bar_tilde);
+        }
     }
 }
 
