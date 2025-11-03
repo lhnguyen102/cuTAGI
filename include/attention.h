@@ -42,9 +42,9 @@ void separate_input_projection_components(
 void cat_intput_projection_components(
     std::vector<float> &mu_q, std::vector<float> &var_q,
     std::vector<float> &mu_k, std::vector<float> &var_k,
-    std::vector<float> &mu_v, std::vector<float> &var_v, int qkv_pos,
-    int emb_pos, int batch_size, int num_heads, int timestep, int head_size,
-    std::vector<float> &mu_embs, std::vector<float> &var_embs);
+    std::vector<float> &mu_v, std::vector<float> &var_v, int batch_size,
+    int num_heads, int timestep, int head_size, std::vector<float> &mu_embs,
+    std::vector<float> &var_embs);
 
 void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
                std::vector<float> &mu_k, std::vector<float> &var_k,
@@ -67,37 +67,38 @@ void project_output_forward(std::vector<float> &mu_in,
                             std::vector<float> &var_out);
 
 void project_output_backward(std::vector<float> &mu_in,
-                             std::vector<float> &var_in, int in_pos,
-                             int out_pos, int batch_size, int num_heads,
-                             int timestep, int head_size,
+                             std::vector<float> &var_in, int batch_size,
+                             int num_heads, int timestep, int head_size,
                              std::vector<float> &mu_out,
                              std::vector<float> &var_out);
 
 void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_s,
                      std::vector<float> &delta_var_s);
 
 void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_v,
                      std::vector<float> &delta_var_v);
 
 void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var, int qkv_pos, int att_pos,
-                     int batch_size, int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var,
+                     std::vector<float> &jcb_att_score, int batch_size,
+                     int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_q,
                      std::vector<float> &delta_var_q);
 
 void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                   int qkv_pos, int att_pos, int batch_size, int num_heads,
-                   int timestep, int head_size, std::vector<float> &delta_mu_k,
+                   std::vector<float> &jcb_att_score, int batch_size,
+                   int num_heads, int timestep, int head_size,
+                   std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k);
 
 class Remax;
@@ -119,7 +120,7 @@ class MultiheadAttention : public BaseLayer {
     BaseHiddenStates remax_input;
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
-    size_t timestep;
+    size_t seq_len = 1;
 
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
                        bool bias = true, float gain_w = 1.0f,

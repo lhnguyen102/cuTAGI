@@ -18,6 +18,9 @@ void separate_input_projection_components(
 /*Separate input projection components into query, key, and value
 
 embs: [batch_size, num_heads, timestep, head_dim]
+q: [batch_size, num_heads, timestep, head_dim]
+k: [batch_size, num_heads, timestep, head_dim]
+v: [batch_size, num_heads, timestep, head_dim]
 */
 {
     int comp_idx, emb_idx;
@@ -49,16 +52,24 @@ void cat_intput_projection_components(
     std::vector<float> &mu_k, std::vector<float> &var_k,
     std::vector<float> &mu_v, std::vector<float> &var_v, int batch_size,
     int num_heads, int timestep, int head_size, std::vector<float> &mu_embs,
-    std::vector<float> &var_embs) {
+    std::vector<float> &var_embs)
+/*Concatenate query, key, and value vectors into a single vector
+
+q: [batch_size, num_heads, timestep, head_dim]
+k: [batch_size, num_heads, timestep, head_dim]
+v: [batch_size, num_heads, timestep, head_dim]
+embs: [batch_size, num_heads, timestep, head_dim]
+*/
+{
     int qkv_idx, emb_idx;
     int comp_size = batch_size * num_heads * timestep * head_size;
     for (int i = 0; i < batch_size; i++) {
         for (int k = 0; k < timestep; k++) {
             for (int j = 0; j < num_heads; j++) {
                 for (int m = 0; m < head_size; m++) {
-                    qkv_idx = i * batch_size * num_heads * timestep +
+                    qkv_idx = i * num_heads * timestep * head_size +
                               j * timestep * head_size + k * head_size + m;
-                    emb_idx = i * batch_size * num_heads * timestep +
+                    emb_idx = i * num_heads * timestep * head_size +
                               k * num_heads * head_size + j * head_size + m;
                     mu_embs[emb_idx] = mu_q[qkv_idx];
                     var_embs[emb_idx] = var_q[qkv_idx];
@@ -117,7 +128,7 @@ qk: [batch_size, num_heads, timestep, timestep]
 void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
                     int batch_size, int num_heads, int timestep, int head_size,
                     std::vector<float> &mu_mqk, std::vector<float> &var_mqk)
-/*Mask query key matrix to esure we are not attending to future timesteps
+/*Mask query key matrix to ensure we are not attending to future timesteps
 
 qk: [batch_size, num_heads, timestep, timestep]
 mqk: [batch_size, num_heads, timestep, timestep]
@@ -203,7 +214,7 @@ out(batch_size, timestep, num_heads, head_size)
             for (int j = 0; j < num_heads; j++) {
                 for (int m = 0; m < head_size; m++) {
                     out_idx = i * timestep * num_heads * head_size +
-                              k * num_heads * head_size + j * num_heads + m;
+                              k * num_heads * head_size + j * head_size + m;
                     in_idx = i * timestep * num_heads * head_size +
                              j * timestep * head_size + k * head_size + m;
                     mu_out[out_idx] = mu_in[in_idx];
@@ -218,7 +229,12 @@ void project_output_backward(std::vector<float> &mu_in,
                              std::vector<float> &var_in, int batch_size,
                              int num_heads, int timestep, int head_size,
                              std::vector<float> &mu_out,
-                             std::vector<float> &var_out) {
+                             std::vector<float> &var_out)
+/*
+in(batch_size, timestep, num_heads, head_size) ->
+out(batch_size, num_heads, timestep, head_size)
+*/
+{
     int out_idx, in_idx;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
@@ -227,7 +243,7 @@ void project_output_backward(std::vector<float> &mu_in,
                     out_idx = i * timestep * num_heads * head_size +
                               j * timestep * head_size + k * head_size + m;
                     in_idx = i * timestep * num_heads * head_size +
-                             k * num_heads * head_size + j * num_heads + m;
+                             k * num_heads * head_size + j * head_size + m;
                     mu_out[out_idx] = mu_in[in_idx];
                     var_out[out_idx] = var_in[in_idx];
                 }
@@ -560,44 +576,45 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     this->set_cap_factor_udapte(batch_size);
 
     // TODO: double check with LSTM layer
-    if (this->input_size * this->timestep != input_states.actual_size) {
-        this->timestep = input_states.actual_size / this->input_size;
+    if (this->input_size * this->seq_len != input_states.actual_size) {
+        this->seq_len = input_states.actual_size / this->input_size;
     }
 
-    attn_states.set_size(batch_size, num_heads, timestep, head_dim);
+    attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
 
     // query, key, value
     size_t input_qkv_size = this->embed_dim;
     size_t output_qkv_size =
         this->head_dim * (this->num_heads + 2 * this->num_kv_heads);
-    linear_fwd_mean_var_mp(this->mu_w, this->var_w, this->mu_b, this->var_b,
-                           input_states.mu_a, input_states.var_a,
-                           input_qkv_size, output_qkv_size,
-                           batch_size * timestep, this->bias, this->num_threads,
-                           attn_states.mu_in_proj, attn_states.var_in_proj);
+    linear_fwd_mean_var_mp(
+        this->mu_w, this->var_w, this->mu_b, this->var_b, input_states.mu_a,
+        input_states.var_a, input_qkv_size, output_qkv_size,
+        batch_size * this->seq_len, this->bias, this->num_threads,
+        attn_states.mu_in_proj, attn_states.var_in_proj);
 
     separate_input_projection_components(
         attn_states.mu_in_proj, attn_states.var_in_proj, batch_size, num_heads,
-        timestep, head_dim, attn_states.mu_q, attn_states.var_q,
+        this->seq_len, head_dim, attn_states.mu_q, attn_states.var_q,
         attn_states.mu_k, attn_states.var_k, attn_states.mu_v,
         attn_states.var_v);
 
     query_key(attn_states.mu_q, attn_states.var_q, attn_states.mu_k,
-              attn_states.var_k, batch_size, num_heads, timestep, head_dim,
+              attn_states.var_k, batch_size, num_heads, this->seq_len, head_dim,
               attn_states.mu_qk, attn_states.var_qk);
 
     mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size, num_heads,
-                   timestep, head_dim, attn_states.mu_mqk, attn_states.var_mqk);
+                   this->seq_len, head_dim, attn_states.mu_mqk,
+                   attn_states.var_mqk);
 
     // Apply Remax (probabilistic softmax) on masked query-key product
-    int qk_size = batch_size * num_heads * timestep * timestep;
+    int qk_size = batch_size * num_heads * this->seq_len * this->seq_len;
     remax_input.mu_a = attn_states.mu_mqk;
     remax_input.var_a = attn_states.var_mqk;
-    remax_input.block_size = batch_size * this->timestep * this->num_heads;
-    remax_input.actual_size = this->timestep;
+    remax_input.block_size = batch_size * this->seq_len * this->num_heads;
+    remax_input.actual_size = this->seq_len;
 
     remax_output.set_size(qk_size,
-                          batch_size * this->timestep * this->num_heads);
+                          batch_size * this->seq_len * this->num_heads);
 
     remax_layer->forward(remax_input, remax_output, remax_temp);
 
@@ -607,18 +624,18 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
 
     tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
                        attn_states.mu_v, attn_states.var_v, batch_size,
-                       num_heads, timestep, head_dim, timestep,
+                       num_heads, this->seq_len, head_dim, this->seq_len,
                        attn_states.mu_sv, attn_states.var_sv);
 
     project_output_forward(attn_states.mu_sv, attn_states.var_sv, batch_size,
-                           num_heads, timestep, head_dim, output_states.mu_a,
-                           output_states.var_a);
+                           num_heads, this->seq_len, head_dim,
+                           output_states.mu_a, output_states.var_a);
 
     output_states.width = this->out_width;
     output_states.height = this->out_height;
     output_states.depth = this->out_channels;
     output_states.block_size = batch_size;
-    output_states.actual_size = this->output_size * this->timestep;
+    output_states.actual_size = this->output_size * this->seq_len;
 
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
@@ -631,8 +648,8 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                                   bool state_udapte) {
     int batch_size = input_delta_states.block_size;
 
-    attn_delta_states.set_size(batch_size, num_heads, timestep, head_dim);
-    int batch_timestep = batch_size * timestep;
+    attn_delta_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
+    int batch_seq_len = batch_size * this->seq_len;
 
     size_t input_qkv_size = this->embed_dim;
     size_t output_qkv_size =
@@ -641,40 +658,41 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
     // TODO: need to add Jacobian of the output projection?
     project_output_backward(
         input_delta_states.delta_mu, input_delta_states.delta_var, batch_size,
-        this->num_heads, this->timestep, this->head_dim,
+        this->num_heads, this->seq_len, this->head_dim,
         attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer);
 
     mha_delta_value(
         attn_states.mu_att_score, attn_states.var_v,
         attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer,
-        batch_size, this->num_heads, this->timestep, this->head_dim,
+        batch_size, this->num_heads, this->seq_len, this->head_dim,
         attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v);
 
     mha_delta_score(attn_states.mu_att_score, attn_states.var_att_score,
                     attn_delta_states.delta_mu_buffer,
                     attn_delta_states.delta_var_buffer, batch_size,
-                    this->num_heads, this->timestep, this->head_dim,
+                    this->num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
 
     mha_delta_query(attn_states.var_q, attn_states.mu_k,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score, attn_states.j_mqk,
-                    batch_size, num_heads, timestep, this->head_dim,
+                    batch_size, num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_q,
                     attn_delta_states.delta_var_q);
 
     mha_delta_key(attn_states.var_k, attn_states.mu_q,
                   attn_delta_states.delta_mu_att_score,
                   attn_delta_states.delta_var_att_score, attn_states.j_mqk,
-                  batch_size, num_heads, timestep, this->head_dim,
+                  batch_size, num_heads, this->seq_len, this->head_dim,
                   attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k);
 
     cat_intput_projection_components(
         attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q,
         attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k,
         attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v, batch_size,
-        num_heads, timestep, this->head_dim, attn_delta_states.delta_mu_in_proj,
+        num_heads, this->seq_len, this->head_dim,
+        attn_delta_states.delta_mu_in_proj,
         attn_delta_states.delta_var_in_proj);
 
     if (state_udapte) {
@@ -682,7 +700,7 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
             this->mu_w, this->bwd_states->jcb,
             attn_delta_states.delta_mu_in_proj,
             attn_delta_states.delta_var_in_proj, input_qkv_size,
-            output_qkv_size, batch_timestep, this->num_threads,
+            output_qkv_size, batch_seq_len, this->num_threads,
             output_delta_states.delta_mu, output_delta_states.delta_var);
     }
 
@@ -691,15 +709,15 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
         linear_bwd_fc_delta_w_mp(this->var_w, this->bwd_states->mu_a,
                                  attn_delta_states.delta_mu_in_proj,
                                  attn_delta_states.delta_var_in_proj,
-                                 input_qkv_size, output_qkv_size,
-                                 batch_timestep, this->num_threads,
-                                 this->delta_mu_w, this->delta_var_w);
+                                 input_qkv_size, output_qkv_size, batch_seq_len,
+                                 this->num_threads, this->delta_mu_w,
+                                 this->delta_var_w);
 
         if (this->bias) {
             linear_bwd_fc_delta_b_mp(
                 this->var_b, attn_delta_states.delta_mu_in_proj,
                 attn_delta_states.delta_var_in_proj, output_qkv_size,
-                batch_timestep, this->num_threads, this->delta_mu_b,
+                batch_seq_len, this->num_threads, this->delta_mu_b,
                 this->delta_var_b);
         }
     }
