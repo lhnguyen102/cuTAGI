@@ -1,9 +1,9 @@
 #include "../include/custom_logger.h"
 #include "../include/output_updater_cuda.cuh"
 __global__ void update_delta_z_using_indices_cuda(
-    float const *mu_a, float const *var_a, float const *jcb, float const *obs,
-    float const *var_obs, int const *selected_idx, int n_obs, int n_enc,
-    int size, float *delta_mu, float *delta_var)
+    float const* mu_a, float const* var_a, float const* jcb, float const* obs,
+    float const* var_obs, int const* selected_idx, int n_obs, int n_enc,
+    int size, float* delta_mu, float* delta_var)
 /* Update output layer based on selected indices.
  */
 {
@@ -24,10 +24,10 @@ __global__ void update_delta_z_using_indices_cuda(
         }
     }
 }
-__global__ void update_delta_z_cuda(float const *mu_a, float const *var_a,
-                                    float const *jcb, float const *obs,
-                                    float const *var_obs, int size,
-                                    float *delta_mu, float *delta_var) {
+__global__ void update_delta_z_cuda(float const* mu_a, float const* var_a,
+                                    float const* jcb, float const* obs,
+                                    float const* var_obs, int size,
+                                    float* delta_mu, float* delta_var) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float zero_pad = 0;
     float tmp = 0;
@@ -43,11 +43,11 @@ __global__ void update_delta_z_cuda(float const *mu_a, float const *var_a,
     }
 }
 
-__global__ void update_delta_z_cuda_heteros(float const *mu_a,
-                                            float const *var_a,
-                                            float const *jcb, float const *obs,
-                                            int size, float *delta_mu,
-                                            float *delta_var) {
+__global__ void update_delta_z_cuda_heteros(float const* mu_a,
+                                            float const* var_a,
+                                            float const* jcb, float const* obs,
+                                            int size, float* delta_mu,
+                                            float* delta_var) {
     /*
     Compute delta hidden states for output layer with learned heteroscedastic
     noise. This function receives a vector of observations and the twice
@@ -102,14 +102,10 @@ __global__ void update_delta_z_cuda_heteros(float const *mu_a,
             delta_var[obs_col] = -tmp * jcb_col;
         }
 
-        if {
-            std::isinf(obs[col]) || std::isnan(obs[col])
-        }
-        {
+        if (std::isinf(obs[col]) || std::isnan(obs[col])) {
             delta_mu[obs_col + 1] = zero_pad;
             delta_var[obs_col + 1] = zero_pad;
-        }
-        else {
+        } else {
             // Compute the posterior mean and variance for V
             float mu_v_post = cov_y_v / var_sum * (obs[col] - mu_a_col);
             float var_v_post = mu_v2 - cov_y_v / var_sum * cov_y_v;
@@ -147,18 +143,18 @@ void OutputUpdaterCuda::set_num_cuda_threads(unsigned int num_threads) {
     this->num_cuda_threads = num_threads;
 }
 
-void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
-                                              BaseObservation &obs,
-                                              BaseDeltaStates &delta_states)
+void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates& output_states,
+                                              BaseObservation& obs,
+                                              BaseDeltaStates& delta_states)
 /*
  */
 {
     // Cast to cuda object
-    HiddenStateCuda *cu_output_states =
-        dynamic_cast<HiddenStateCuda *>(&output_states);
-    ObservationCuda *cu_obs = dynamic_cast<ObservationCuda *>(&obs);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
+    HiddenStateCuda* cu_output_states =
+        dynamic_cast<HiddenStateCuda*>(&output_states);
+    ObservationCuda* cu_obs = dynamic_cast<ObservationCuda*>(&obs);
+    DeltaStateCuda* cu_delta_states =
+        dynamic_cast<DeltaStateCuda*>(&delta_states);
 
     if (cu_obs->d_mu_obs == nullptr) {
         cu_obs->allocate_memory();
@@ -181,17 +177,17 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates &output_states,
 }
 
 void OutputUpdaterCuda::update_selected_output_delta_z(
-    BaseHiddenStates &output_states, BaseObservation &obs,
-    BaseDeltaStates &delta_states)
+    BaseHiddenStates& output_states, BaseObservation& obs,
+    BaseDeltaStates& delta_states)
 /*
  */
 {
     // Cast to cuda object
-    HiddenStateCuda *cu_output_states =
-        dynamic_cast<HiddenStateCuda *>(&output_states);
-    ObservationCuda *cu_obs = dynamic_cast<ObservationCuda *>(&obs);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
+    HiddenStateCuda* cu_output_states =
+        dynamic_cast<HiddenStateCuda*>(&output_states);
+    ObservationCuda* cu_obs = dynamic_cast<ObservationCuda*>(&obs);
+    DeltaStateCuda* cu_delta_states =
+        dynamic_cast<DeltaStateCuda*>(&delta_states);
 
     if (cu_obs->d_mu_obs == nullptr) {
         cu_obs->allocate_memory();
@@ -227,17 +223,17 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
 }
 
 void OutputUpdaterCuda::update_output_delta_z_heteros(
-    BaseHiddenStates &output_states, BaseObservation &obs,
-    BaseDeltaStates &delta_states)
+    BaseHiddenStates& output_states, BaseObservation& obs,
+    BaseDeltaStates& delta_states)
 /*
  */
 {
     // Cast to cuda object
-    HiddenStateCuda *cu_output_states =
-        dynamic_cast<HiddenStateCuda *>(&output_states);
-    ObservationCuda *cu_obs = dynamic_cast<ObservationCuda *>(&obs);
-    DeltaStateCuda *cu_delta_states =
-        dynamic_cast<DeltaStateCuda *>(&delta_states);
+    HiddenStateCuda* cu_output_states =
+        dynamic_cast<HiddenStateCuda*>(&output_states);
+    ObservationCuda* cu_obs = dynamic_cast<ObservationCuda*>(&obs);
+    DeltaStateCuda* cu_delta_states =
+        dynamic_cast<DeltaStateCuda*>(&delta_states);
 
     if (cu_obs->d_mu_obs == nullptr) {
         cu_obs->allocate_memory();
