@@ -186,7 +186,6 @@ TEST_F(AttentionHelpersTest, MaskQueryKey) {
     int timestep = 3;
     int head_size = 2;
 
-    // Initialize with uniform values
     std::vector<float> mu_qk(timestep * timestep, 1.0f);
     std::vector<float> var_qk(timestep * timestep, 0.1f);
 
@@ -196,20 +195,29 @@ TEST_F(AttentionHelpersTest, MaskQueryKey) {
     mask_query_key(mu_qk, var_qk, batch_size, num_heads, timestep, head_size,
                    mu_mqk, var_mqk);
 
-    float scale = std::sqrt(static_cast<float>(head_size));
+    EXPECT_NEAR(mu_mqk[0 * timestep + 0], 1.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
 
-    EXPECT_NEAR(mu_mqk[0 * timestep + 0], 1.0f / scale, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[1 * timestep + 0], 1.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[1 * timestep + 1], 1.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
 
-    EXPECT_NEAR(mu_mqk[1 * timestep + 0], 2.0f / scale, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[1 * timestep + 1], 2.0f / scale, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[2 * timestep + 0], 1.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[2 * timestep + 1], 1.0f, TOLERANCE);
+    EXPECT_NEAR(mu_mqk[2 * timestep + 2], 1.0f, TOLERANCE);
 
-    EXPECT_NEAR(mu_mqk[2 * timestep + 0], 3.0f / scale, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 1], 3.0f / scale, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 2], 3.0f / scale, TOLERANCE);
+    EXPECT_NEAR(var_mqk[0 * timestep + 0], 0.1f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
 
-    for (int i = 0; i < timestep * timestep; i++) {
-        EXPECT_GE(var_mqk[i], 0.0f);
-    }
+    EXPECT_NEAR(var_mqk[1 * timestep + 0], 0.1f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[1 * timestep + 1], 0.1f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
+
+    EXPECT_NEAR(var_mqk[2 * timestep + 0], 0.1f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[2 * timestep + 1], 0.1f, TOLERANCE);
+    EXPECT_NEAR(var_mqk[2 * timestep + 2], 0.1f, TOLERANCE);
 }
 
 TEST_F(AttentionHelpersTest, Tagi4DMatrixMul) {
