@@ -5,11 +5,11 @@
 #include "../include/output_updater_cuda.cuh"
 #endif
 
-void compute_delta_z_output(std::vector<float> &mu_a, std::vector<float> &var_a,
-                            std::vector<float> &jcb, std::vector<float> &obs,
-                            std::vector<float> &var_obs, int start_chunk,
-                            int end_chunk, std::vector<float> &delta_mu,
-                            std::vector<float> &delta_var)
+void compute_delta_z_output(std::vector<float>& mu_a, std::vector<float>& var_a,
+                            std::vector<float>& jcb, std::vector<float>& obs,
+                            std::vector<float>& var_obs, int start_chunk,
+                            int end_chunk, std::vector<float>& delta_mu,
+                            std::vector<float>& delta_var)
 /*
  */
 {
@@ -28,13 +28,13 @@ void compute_delta_z_output(std::vector<float> &mu_a, std::vector<float> &var_a,
     }
 }
 
-void compute_delta_z_output_mp(std::vector<float> &mu_a,
-                               std::vector<float> &var_a,
-                               std::vector<float> &jcb, std::vector<float> &obs,
-                               std::vector<float> &var_v, int n,
+void compute_delta_z_output_mp(std::vector<float>& mu_a,
+                               std::vector<float>& var_a,
+                               std::vector<float>& jcb, std::vector<float>& obs,
+                               std::vector<float>& var_v, int n,
                                unsigned int num_threads,
-                               std::vector<float> &delta_mu,
-                               std::vector<float> &delta_var)
+                               std::vector<float>& delta_mu,
+                               std::vector<float>& delta_var)
 /*
  */
 {
@@ -65,11 +65,11 @@ void compute_delta_z_output_mp(std::vector<float> &mu_a,
 }
 
 void compute_selected_delta_z_output(
-    std::vector<float> &mu_a, std::vector<float> &var_a,
-    std::vector<float> &jcb, std::vector<float> &obs,
-    std::vector<float> &var_obs, std::vector<int> &selected_idx, int n_obs,
-    int n_enc, int start_chunk, int end_chunk, std::vector<float> &delta_mu,
-    std::vector<float> &delta_var)
+    std::vector<float>& mu_a, std::vector<float>& var_a,
+    std::vector<float>& jcb, std::vector<float>& obs,
+    std::vector<float>& var_obs, std::vector<int>& selected_idx, int n_obs,
+    int n_enc, int start_chunk, int end_chunk, std::vector<float>& delta_mu,
+    std::vector<float>& delta_var)
 /*
 It computes the selected delta hidden states for output layer e.g., hierarchical
 binary tree for classification task.
@@ -93,11 +93,11 @@ binary tree for classification task.
 }
 
 void compute_selected_delta_z_output_mp(
-    std::vector<float> &mu_a, std::vector<float> &var_a,
-    std::vector<float> &jcb, std::vector<float> &obs,
-    std::vector<float> &var_obs, std::vector<int> &selected_idx, int n_obs,
-    int n_enc, int n, unsigned int num_threads, std::vector<float> &delta_mu,
-    std::vector<float> &delta_var)
+    std::vector<float>& mu_a, std::vector<float>& var_a,
+    std::vector<float>& jcb, std::vector<float>& obs,
+    std::vector<float>& var_obs, std::vector<int>& selected_idx, int n_obs,
+    int n_enc, int n, unsigned int num_threads, std::vector<float>& delta_mu,
+    std::vector<float>& delta_var)
 /*
  */
 {
@@ -128,11 +128,11 @@ void compute_selected_delta_z_output_mp(
     }
 }
 
-void compute_delta_z_heteros(std::vector<float> &mu_a,
-                             std::vector<float> &var_a, std::vector<float> &jcb,
-                             std::vector<float> &obs, int start_chunk,
-                             int end_chunk, std::vector<float> &delta_mu,
-                             std::vector<float> &delta_var)
+void compute_delta_z_heteros(std::vector<float>& mu_a,
+                             std::vector<float>& var_a, std::vector<float>& jcb,
+                             std::vector<float>& obs, int start_chunk,
+                             int end_chunk, std::vector<float>& delta_mu,
+                             std::vector<float>& delta_var)
 /*
 Compute delta hidden states for output layer with learned heteroscedastic
 noise. This function receives a vector of observations and the twice output
@@ -186,7 +186,8 @@ Args:
 
         // Compute updating quantities for the mean of the output
         float tmp = jcb_col / var_sum;
-        if (std::isinf(tmp) || std::isnan(tmp)) {
+        if (std::isinf(tmp) || std::isnan(tmp) || std::isinf(obs[col / 2]) ||
+            std::isnan(obs[col / 2])) {
             delta_mu[col] = zero_pad;
             delta_var[col] = zero_pad;
         } else {
@@ -195,36 +196,44 @@ Args:
             delta_var[col] = -tmp * jcb_col;
         }
 
-        // Compute the posterior mean and variance for V
-        float mu_V_pos = cov_y_V / var_sum * (obs[col / 2] - mu_a_col);
-        float var_V_pos = mu_V2 - cov_y_V / var_sum * cov_y_V;
+        if (std::isinf(obs[col / 2]) || std::isnan(obs[col / 2])) {
+            delta_mu[col + 1] = zero_pad;
+            delta_var[col + 1] = zero_pad;
+        } else {
+            // Compute the posterior mean and variance for V
+            float mu_V_pos = cov_y_V / var_sum * (obs[col / 2] - mu_a_col);
+            float var_V_pos = mu_V2 - cov_y_V / var_sum * cov_y_V;
 
-        // Compute the posterior mean and variance for V2
-        float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
-        float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
-                           4.0f * var_V_pos * mu_V_pos * mu_V_pos;
+            // Compute the posterior mean and variance for V2
+            float mu_V2_pos = mu_V_pos * mu_V_pos + var_V_pos;
+            float var_V2_pos = 2.0f * var_V_pos * var_V_pos +
+                               4.0f * var_V_pos * mu_V_pos * mu_V_pos;
 
-        // Compute the posterior mean and variance for V2_bar_tilde
-        float k = var_V2_bar_tilde / var_V2;
-        float mu_V2_bar_tilde_pos = mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
-        float var_V2_bar_tilde_pos =
-            var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
+            // Compute the posterior mean and variance for V2_bar_tilde
+            float k = var_V2_bar_tilde / var_V2;
+            float mu_V2_bar_tilde_pos =
+                mu_V2_bar_tilde + k * (mu_V2_pos - mu_V2);
+            float var_V2_bar_tilde_pos =
+                var_V2_bar_tilde + k * k * (var_V2_pos - var_V2);
 
-        // Compute deltas for V2_bar
-        float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
-        delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
-        delta_var[col + 1] =
-            Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
+            // Compute deltas for V2_bar
+            float Jv = cov_V2_bar_tilde / var_V2_bar_tilde;
+            if (isinf(Jv) || isnan(Jv)) Jv = 0.0f;
+
+            delta_mu[col + 1] = Jv * (mu_V2_bar_tilde_pos - mu_V2_bar_tilde);
+            delta_var[col + 1] =
+                Jv * Jv * (var_V2_bar_tilde_pos - var_V2_bar_tilde);
+        }
     }
 }
 
-void compute_delta_z_heteros_mp(std::vector<float> &mu_a,
-                                std::vector<float> &var_a,
-                                std::vector<float> &jcb,
-                                std::vector<float> &obs, int n,
+void compute_delta_z_heteros_mp(std::vector<float>& mu_a,
+                                std::vector<float>& var_a,
+                                std::vector<float>& jcb,
+                                std::vector<float>& obs, int n,
                                 unsigned int num_threads,
-                                std::vector<float> &delta_mu,
-                                std::vector<float> &delta_var)
+                                std::vector<float>& delta_mu,
+                                std::vector<float>& delta_var)
 /*
  */
 {
@@ -260,9 +269,9 @@ void compute_delta_z_heteros_mp(std::vector<float> &mu_a,
 BaseOutputUpdater::BaseOutputUpdater() {}
 BaseOutputUpdater::~BaseOutputUpdater() {}
 
-void BaseOutputUpdater::update_output_delta_z(BaseHiddenStates &output_states,
-                                              BaseObservation &obs,
-                                              BaseDeltaStates &delta_states)
+void BaseOutputUpdater::update_output_delta_z(BaseHiddenStates& output_states,
+                                              BaseObservation& obs,
+                                              BaseDeltaStates& delta_states)
 /*
  */
 {
@@ -278,8 +287,8 @@ void BaseOutputUpdater::update_output_delta_z(BaseHiddenStates &output_states,
 }
 
 void BaseOutputUpdater::update_selected_output_delta_z(
-    BaseHiddenStates &output_states, BaseObservation &obs,
-    BaseDeltaStates &delta_states)
+    BaseHiddenStates& output_states, BaseObservation& obs,
+    BaseDeltaStates& delta_states)
 /*
  */
 {
@@ -297,8 +306,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
 }
 
 void BaseOutputUpdater::update_output_delta_z_heteros(
-    BaseHiddenStates &output_states, BaseObservation &obs,
-    BaseDeltaStates &delta_states)
+    BaseHiddenStates& output_states, BaseObservation& obs,
+    BaseDeltaStates& delta_states)
 /*
  */
 {
@@ -340,10 +349,10 @@ OutputUpdater::OutputUpdater() {}
 
 OutputUpdater::~OutputUpdater() {}
 
-void OutputUpdater::update(BaseHiddenStates &output_states,
-                           std::vector<float> &mu_obs,
-                           std::vector<float> &var_obs,
-                           BaseDeltaStates &delta_states)
+void OutputUpdater::update(BaseHiddenStates& output_states,
+                           std::vector<float>& mu_obs,
+                           std::vector<float>& var_obs,
+                           BaseDeltaStates& delta_states)
 /*
  */
 {
@@ -356,11 +365,11 @@ void OutputUpdater::update(BaseHiddenStates &output_states,
                                          delta_states);
 }
 
-void OutputUpdater::update_using_indices(BaseHiddenStates &output_states,
-                                         std::vector<float> &mu_obs,
-                                         std::vector<float> &var_obs,
-                                         std::vector<int> &selected_idx,
-                                         BaseDeltaStates &delta_states)
+void OutputUpdater::update_using_indices(BaseHiddenStates& output_states,
+                                         std::vector<float>& mu_obs,
+                                         std::vector<float>& var_obs,
+                                         std::vector<int>& selected_idx,
+                                         BaseDeltaStates& delta_states)
 /*
  */
 {
@@ -376,9 +385,9 @@ void OutputUpdater::update_using_indices(BaseHiddenStates &output_states,
                                                   delta_states);
 }
 
-void OutputUpdater::update_heteros(BaseHiddenStates &output_states,
-                                   std::vector<float> &mu_obs,
-                                   BaseDeltaStates &delta_states)
+void OutputUpdater::update_heteros(BaseHiddenStates& output_states,
+                                   std::vector<float>& mu_obs,
+                                   BaseDeltaStates& delta_states)
 /*
  */
 {

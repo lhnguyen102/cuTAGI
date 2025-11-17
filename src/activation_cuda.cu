@@ -331,7 +331,7 @@ __global__ void even_exp_mean_var_cuda(float const *mu_z, float const *var_z,
             mu_a[col] = expf(mu_z[col] + 0.5f * var_z[col]);
             var_a[col] =
                 expf(2.0f * mu_z[col] + var_z[col]) * (expf(var_z[col]) - 1.0f);
-            jcb_a[col] = var_z[col] * mu_a[col];
+            jcb_a[col] = mu_a[col];
         }
     }
 }
