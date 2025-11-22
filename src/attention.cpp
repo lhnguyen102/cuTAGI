@@ -367,18 +367,22 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                     sum_var = 0.0f;
                     for (int l = 0; l < timestep; l++) {
                         if (l <= k) {
-                            idx_k = i * num_heads * timestep * head_size +
-                                    j * timestep * head_size + l * head_size +
-                                    m;
+                            // idx_k = i * num_heads * timestep * head_size +
+                            //         j * timestep * head_size + l * head_size
+                            //         + m;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l;
 
-                            // TODO: do we need var_k[idx_k] here?
-                            sum_mu += var_k[idx_k] * delta_mu[idx_s] *
-                                      jcb_att_score[idx_s];
-                            sum_var += var_k[idx_k] * delta_var[idx_s] *
-                                       var_k[idx_k] * jcb_att_score[idx_s] *
-                                       jcb_att_score[idx_s];
+                            // // TODO: do we need var_k[idx_k] here?
+                            // sum_mu += var_k[idx_k] * delta_mu[idx_s] *
+                            //           jcb_att_score[idx_s];
+                            // sum_var += var_k[idx_k] * delta_var[idx_s] *
+                            //            var_k[idx_k] * jcb_att_score[idx_s] *
+                            //            jcb_att_score[idx_s];
+
+                            sum_mu += delta_mu[idx_s] * jcb_att_score[idx_s];
+                            sum_var += delta_var[idx_s] *
+                                       powf(jcb_att_score[idx_s], 2);
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +

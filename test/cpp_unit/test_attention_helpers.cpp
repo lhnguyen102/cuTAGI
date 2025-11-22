@@ -296,8 +296,6 @@ TEST_F(AttentionHelpersTest, ProjectOutputForwardBackwardAreInverses) {
 }
 
 TEST_F(AttentionHelpersTest, AttentionValueDelta) {
-    // Forward: output = attention_scores @ values
-    // Backward: delta_scores, delta_values from delta_output
     int batch_size = 1;
     int num_heads = 1;
     int timestep = 2;
@@ -335,4 +333,71 @@ TEST_F(AttentionHelpersTest, AttentionValueDelta) {
     float sum_delta_v = 0.0f;
     for (auto val : delta_mu_v) sum_delta_v += std::abs(val);
     EXPECT_GT(sum_delta_v, 0.0f);
+}
+
+TEST_F(AttentionHelpersTest, AttentionQueryKeyDelta) {
+    int batch_size = 1;
+    int num_heads = 2;
+    int timestep = 3;
+    int head_size = 4;
+
+    std::vector<float> mu_q(batch_size * num_heads * timestep * head_size);
+    std::vector<float> var_q(batch_size * num_heads * timestep * head_size);
+    std::vector<float> mu_k(batch_size * num_heads * timestep * head_size);
+    std::vector<float> var_k(batch_size * num_heads * timestep * head_size);
+
+    fill_random(mu_q);
+    fill_random(var_q);
+    fill_random(mu_k);
+    fill_random(var_k);
+
+    for (auto& val : var_q) val = std::abs(val) + 0.1f;
+    for (auto& val : var_k) val = std::abs(val) + 0.1f;
+
+    std::vector<float> delta_mu_att_score(batch_size * num_heads * timestep *
+                                          timestep);
+    std::vector<float> delta_var_att_score(batch_size * num_heads * timestep *
+                                           timestep);
+    std::vector<float> jcb_att_score(batch_size * num_heads * timestep *
+                                     timestep);
+
+    fill_random(delta_mu_att_score);
+    fill_random(delta_var_att_score);
+    fill_random(jcb_att_score);
+
+    for (auto& val : delta_var_att_score) val = std::abs(val);
+
+    std::vector<float> delta_mu_q(batch_size * num_heads * timestep *
+                                  head_size);
+    std::vector<float> delta_var_q(batch_size * num_heads * timestep *
+                                   head_size);
+
+    mha_delta_query(var_q, mu_k, delta_mu_att_score, delta_var_att_score,
+                    jcb_att_score, batch_size, num_heads, timestep, head_size,
+                    delta_mu_q, delta_var_q);
+
+    float sum_delta_q = 0.0f;
+    for (auto val : delta_mu_q) sum_delta_q += std::abs(val);
+    EXPECT_GT(sum_delta_q, 0.0f);
+
+    for (size_t i = 0; i < delta_var_q.size(); i++) {
+        EXPECT_GE(delta_var_q[i], 0.0f);
+    }
+
+    std::vector<float> delta_mu_k(batch_size * num_heads * timestep *
+                                  head_size);
+    std::vector<float> delta_var_k(batch_size * num_heads * timestep *
+                                   head_size);
+
+    mha_delta_key(var_k, mu_q, delta_mu_att_score, delta_var_att_score,
+                  jcb_att_score, batch_size, num_heads, timestep, head_size,
+                  delta_mu_k, delta_var_k);
+
+    float sum_delta_k = 0.0f;
+    for (auto val : delta_mu_k) sum_delta_k += std::abs(val);
+    EXPECT_GT(sum_delta_k, 0.0f);
+
+    for (size_t i = 0; i < delta_var_k.size(); i++) {
+        EXPECT_GE(delta_var_k[i], 0.0f);
+    }
 }
