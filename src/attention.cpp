@@ -245,8 +245,7 @@ out(batch_size, num_heads, timestep, head_size)
     }
 }
 
-void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
-                     std::vector<float> &delta_mu,
+void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_s,
@@ -270,16 +269,15 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
                     }
                     idx_s = i * num_heads * timestep * timestep +
                             j * timestep * timestep + k * timestep + l;
-                    delta_mu_s[idx_s] = sum_mu / var_s[idx_s];
-                    delta_var_s[idx_s] = sum_var / powf(var_s[idx_s], 2);
+                    delta_mu_s[idx_s] = sum_mu;
+                    delta_var_s[idx_s] = sum_var;
                 }
             }
         }
     }
 }
 
-void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
-                     std::vector<float> &delta_mu,
+void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_v,
@@ -303,8 +301,8 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
                     }
                     idx_v = i * num_heads * timestep * head_size +
                             j * timestep * head_size + k * head_size + m;
-                    delta_mu_v[idx_v] = sum_mu / var_v[idx_v];
-                    delta_var_v[idx_v] = sum_var / powf(var_v[idx_v], 2);
+                    delta_mu_v[idx_v] = sum_mu;
+                    delta_var_v[idx_v] = sum_var;
                 }
             }
         }
@@ -313,12 +311,11 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
 
 void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var,
-                     std::vector<float> &jcb_att_score, int batch_size,
-                     int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, std::vector<float> &jcb_mqk,
+                     int batch_size, int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_q,
                      std::vector<float> &delta_var_q) {
-    int idx_q, idx_k, idx_s, block_row, block_col;
+    int idx_q, idx_k, idx_s;
     float sum_mu, sum_var;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
@@ -333,11 +330,11 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                                     m;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l;
-                            sum_mu += mu_k[idx_k] * delta_mu[idx_s] *
-                                      jcb_att_score[idx_s];
+                            sum_mu +=
+                                mu_k[idx_k] * delta_mu[idx_s] * jcb_mqk[idx_s];
                             sum_var += mu_k[idx_k] * delta_var[idx_s] *
-                                       mu_k[idx_k] * jcb_att_score[idx_s] *
-                                       jcb_att_score[idx_s];
+                                       mu_k[idx_k] * jcb_mqk[idx_s] *
+                                       jcb_mqk[idx_s];
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
@@ -353,11 +350,10 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
 
 void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                   std::vector<float> &jcb_att_score, int batch_size,
-                   int num_heads, int timestep, int head_size,
-                   std::vector<float> &delta_mu_k,
+                   std::vector<float> &jcb_mqk, int batch_size, int num_heads,
+                   int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k) {
-    int idx_q, idx_k, idx_s, block_row, block_col;
+    int idx_q, idx_s;
     float sum_mu, sum_var;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
@@ -367,22 +363,12 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                     sum_var = 0.0f;
                     for (int l = 0; l < timestep; l++) {
                         if (l <= k) {
-                            // idx_k = i * num_heads * timestep * head_size +
-                            //         j * timestep * head_size + l * head_size
-                            //         + m;
                             idx_s = i * num_heads * timestep * timestep +
                                     j * timestep * timestep + k * timestep + l;
 
-                            // // TODO: do we need var_k[idx_k] here?
-                            // sum_mu += var_k[idx_k] * delta_mu[idx_s] *
-                            //           jcb_att_score[idx_s];
-                            // sum_var += var_k[idx_k] * delta_var[idx_s] *
-                            //            var_k[idx_k] * jcb_att_score[idx_s] *
-                            //            jcb_att_score[idx_s];
-
-                            sum_mu += delta_mu[idx_s] * jcb_att_score[idx_s];
-                            sum_var += delta_var[idx_s] *
-                                       powf(jcb_att_score[idx_s], 2);
+                            sum_mu += delta_mu[idx_s] * jcb_mqk[idx_s];
+                            sum_var +=
+                                delta_var[idx_s] * powf(jcb_mqk[idx_s], 2);
                         }
                     }
                     idx_q = i * num_heads * timestep * head_size +
@@ -390,8 +376,8 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
 
                     delta_mu_k[idx_q] =
                         sum_mu * mu_q[idx_q] / powf(num_heads, 0.5);
-                    delta_var_k[idx_q] = mu_q[idx_q] * sum_var * mu_q[idx_q] /
-                                         num_heads / powf(var_k[idx_q], 2);
+                    delta_var_k[idx_q] =
+                        mu_q[idx_q] * sum_var * mu_q[idx_q] / num_heads;
                 }
             }
         }
@@ -650,20 +636,18 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
     size_t output_qkv_size =
         this->head_dim * (this->num_heads + 2 * this->num_kv_heads);
 
-    // TODO: need to add Jacobian of the output projection?
     project_output_backward(
         input_delta_states.delta_mu, input_delta_states.delta_var, batch_size,
         this->num_heads, this->seq_len, this->head_dim,
         attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer);
 
-    mha_delta_value(
-        attn_states.mu_att_score, attn_states.var_v,
-        attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer,
-        batch_size, this->num_heads, this->seq_len, this->head_dim,
-        attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v);
+    mha_delta_value(attn_states.mu_att_score, attn_delta_states.delta_mu_buffer,
+                    attn_delta_states.delta_var_buffer, batch_size,
+                    this->num_heads, this->seq_len, this->head_dim,
+                    attn_delta_states.delta_mu_v,
+                    attn_delta_states.delta_var_v);
 
-    mha_delta_score(attn_states.mu_att_score, attn_states.var_att_score,
-                    attn_delta_states.delta_mu_buffer,
+    mha_delta_score(attn_states.mu_att_score, attn_delta_states.delta_mu_buffer,
                     attn_delta_states.delta_var_buffer, batch_size,
                     this->num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_att_score,

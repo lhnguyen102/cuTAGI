@@ -72,15 +72,13 @@ void project_output_backward(std::vector<float> &mu_in,
                              std::vector<float> &mu_out,
                              std::vector<float> &var_out);
 
-void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &var_s,
-                     std::vector<float> &delta_mu,
+void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_s,
                      std::vector<float> &delta_var_s);
 
-void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
-                     std::vector<float> &delta_mu,
+void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_v,
@@ -88,17 +86,15 @@ void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &var_v,
 
 void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                      std::vector<float> &delta_mu,
-                     std::vector<float> &delta_var,
-                     std::vector<float> &jcb_att_score, int batch_size,
-                     int num_heads, int timestep, int head_size,
+                     std::vector<float> &delta_var, std::vector<float> &jcb_mqk,
+                     int batch_size, int num_heads, int timestep, int head_size,
                      std::vector<float> &delta_mu_q,
                      std::vector<float> &delta_var_q);
 
 void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    std::vector<float> &delta_mu, std::vector<float> &delta_var,
-                   std::vector<float> &jcb_att_score, int batch_size,
-                   int num_heads, int timestep, int head_size,
-                   std::vector<float> &delta_mu_k,
+                   std::vector<float> &jcb_mqk, int batch_size, int num_heads,
+                   int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k);
 
 class Remax;

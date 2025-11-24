@@ -313,18 +313,16 @@ TEST_F(AttentionHelpersTest, AttentionValueDelta) {
     std::vector<float> delta_mu_scores(timestep * timestep);
     std::vector<float> delta_var_scores(timestep * timestep);
 
-    mha_delta_score(mu_v, var_att_scores, delta_mu_out, delta_var_out,
-                    batch_size, num_heads, timestep, head_size, delta_mu_scores,
-                    delta_var_scores);
+    mha_delta_score(mu_v, delta_mu_out, delta_var_out, batch_size, num_heads,
+                    timestep, head_size, delta_mu_scores, delta_var_scores);
 
     std::vector<float> delta_mu_v(batch_size * num_heads * timestep *
                                   head_size);
     std::vector<float> delta_var_v(batch_size * num_heads * timestep *
                                    head_size);
 
-    mha_delta_value(mu_att_scores, var_v, delta_mu_out, delta_var_out,
-                    batch_size, num_heads, timestep, head_size, delta_mu_v,
-                    delta_var_v);
+    mha_delta_value(mu_att_scores, delta_mu_out, delta_var_out, batch_size,
+                    num_heads, timestep, head_size, delta_mu_v, delta_var_v);
 
     float sum_delta_scores = 0.0f;
     for (auto val : delta_mu_scores) sum_delta_scores += std::abs(val);
