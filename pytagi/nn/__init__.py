@@ -22,6 +22,7 @@ from pytagi.nn.activation import (
     Softplus,
     Tanh,
 )
+from pytagi.nn.attention import MultiheadAttention
 from pytagi.nn.base_layer import BaseLayer
 from pytagi.nn.batch_norm import BatchNorm2d
 from pytagi.nn.conv2d import Conv2d

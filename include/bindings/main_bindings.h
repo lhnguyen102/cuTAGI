@@ -4,6 +4,7 @@
 #include <pybind11/stl.h>
 
 #include "activation_bindings.h"
+#include "attention_bindings.h"
 #include "base_layer_bindings.h"
 #include "base_output_updater_bindings.h"
 #include "conv2d_layer_bindings.h"
