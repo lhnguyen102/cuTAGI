@@ -146,7 +146,7 @@ class MultiheadAttention : public BaseLayer {
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
                        bool bias = true, float gain_w = 1.0f,
                        float gain_b = 1.0f, std::string init_method = "Xavier",
-                       bool use_rope = false, float rope_theta = 10000.0f,
+                       bool use_rope = true, float rope_theta = 10000.0f,
                        size_t max_seq_len = 2048, int device_idx = 0);
 
     ~MultiheadAttention();

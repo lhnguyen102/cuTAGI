@@ -7,7 +7,6 @@
 
 #include "custom_logger.h"
 #include "data_struct.h"
-
 enum class LayerType {
     Base,
     Linear,
@@ -22,7 +21,7 @@ enum class LayerType {
     LayerBlock,
     ResNetBlock,
     Embedding,
-    MultiheadAttention
+    MultiheadAttention,
 };
 
 class InitArgs {
