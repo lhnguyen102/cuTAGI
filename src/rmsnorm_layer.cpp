@@ -57,7 +57,6 @@ void rmsnorm_fwd_mean_var(const std::vector<float> &mu_w,
 // RMS Norm's backward
 ////////////////////////////////////////////////////////////////////////////////
 void rmsnorm_bwd_delta_z(const std::vector<float> &mu_w,
-                         const std::vector<float> &jcb,
                          const std::vector<float> &rms_ra,
                          const std::vector<float> &delta_mu_out,
                          const std::vector<float> &delta_var_out, float epsilon,
@@ -70,7 +69,7 @@ void rmsnorm_bwd_delta_z(const std::vector<float> &mu_w,
     for (int row = start_chunk; row < end_chunk; row++) {
         float inv_rms = 1.0f / std::sqrt(rms_ra[row] + epsilon);
         for (int col = 0; col < ni; col++) {
-            float tmp = inv_rms * mu_w[col] * jcb[col + row * ni];
+            float tmp = inv_rms * mu_w[col];
 
             delta_mu[col + row * ni] = tmp * delta_mu_out[col + row * ni];
             delta_var[col + row * ni] =
@@ -79,8 +78,7 @@ void rmsnorm_bwd_delta_z(const std::vector<float> &mu_w,
     }
 }
 
-void rmsnorm_bwd_delta_w(const std::vector<float> &var_w,
-                         const std::vector<float> &mu_a,
+void rmsnorm_bwd_delta_w(const std::vector<float> &mu_a,
                          const std::vector<float> &rms_ra,
                          const std::vector<float> &delta_mu_out,
                          const std::vector<float> &delta_var_out, float epsilon,
@@ -95,7 +93,7 @@ void rmsnorm_bwd_delta_w(const std::vector<float> &var_w,
         float sum_var = 0.0f;
         for (int row = 0; row < batch_size; row++) {
             float inv_rms = 1.0f / std::sqrt(rms_ra[row] + epsilon);
-            float tmp = inv_rms * mu_a[col + row * ni] * var_w[col];
+            float tmp = inv_rms * mu_a[col + row * ni];
 
             sum_mu += tmp * delta_mu_out[col + row * ni];
             sum_var += tmp * delta_var_out[col + row * ni] * tmp;
@@ -170,7 +168,6 @@ void rmsnorm_fwd_mean_var_mp(
 }
 
 void rmsnorm_bwd_delta_z_mp(const std::vector<float> &mu_w,
-                            const std::vector<float> &jcb,
                             const std::vector<float> &rms_ra,
                             const std::vector<float> &delta_mu_out,
                             const std::vector<float> &delta_var_out,
@@ -190,9 +187,9 @@ void rmsnorm_bwd_delta_z_mp(const std::vector<float> &mu_w,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_w, &jcb, &rms_ra, &delta_mu_out,
-                              &delta_var_out, &delta_mu, &delta_var] {
-            rmsnorm_bwd_delta_z(mu_w, jcb, rms_ra, delta_mu_out, delta_var_out,
+        threads.emplace_back([=, &mu_w, &rms_ra, &delta_mu_out, &delta_var_out,
+                              &delta_mu, &delta_var] {
+            rmsnorm_bwd_delta_z(mu_w, rms_ra, delta_mu_out, delta_var_out,
                                 epsilon, ni, start_chunk, end_chunk, delta_mu,
                                 delta_var);
         });
@@ -205,12 +202,14 @@ void rmsnorm_bwd_delta_z_mp(const std::vector<float> &mu_w,
     }
 }
 
-void rmsnorm_bwd_delta_w_mp(
-    const std::vector<float> &var_w, const std::vector<float> &mu_a,
-    const std::vector<float> &rms_ra, const std::vector<float> &delta_mu_out,
-    const std::vector<float> &delta_var_out, float epsilon, int ni,
-    int batch_size, const int num_threads, std::vector<float> &delta_mu_w,
-    std::vector<float> &delta_var_w)
+void rmsnorm_bwd_delta_w_mp(const std::vector<float> &mu_a,
+                            const std::vector<float> &rms_ra,
+                            const std::vector<float> &delta_mu_out,
+                            const std::vector<float> &delta_var_out,
+                            float epsilon, int ni, int batch_size,
+                            const int num_threads,
+                            std::vector<float> &delta_mu_w,
+                            std::vector<float> &delta_var_w)
 /*
  */
 {
@@ -224,11 +223,11 @@ void rmsnorm_bwd_delta_w_mp(
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &var_w, &mu_a, &rms_ra, &delta_mu_out,
-                              &delta_var_out, &delta_mu_w, &delta_var_w] {
-            rmsnorm_bwd_delta_w(
-                var_w, mu_a, rms_ra, delta_mu_out, delta_var_out, epsilon, ni,
-                batch_size, start_chunk, end_chunk, delta_mu_w, delta_var_w);
+        threads.emplace_back([=, &mu_a, &rms_ra, &delta_mu_out, &delta_var_out,
+                              &delta_mu_w, &delta_var_w] {
+            rmsnorm_bwd_delta_w(mu_a, rms_ra, delta_mu_out, delta_var_out,
+                                epsilon, ni, batch_size, start_chunk, end_chunk,
+                                delta_mu_w, delta_var_w);
         });
     }
 
@@ -337,7 +336,6 @@ void RMSNorm::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
     if (this->_batch_size != batch_size) {
         this->_batch_size = batch_size;
-        this->set_cap_factor_udapte(batch_size);
         this->allocate_running_rms();
     }
 
@@ -382,28 +380,28 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
     if (state_udapte) {
         if (this->num_threads <= 1) {
             rmsnorm_bwd_delta_z(
-                this->mu_w, this->bwd_states->jcb, this->rms_ra,
-                input_delta_states.delta_mu, input_delta_states.delta_var,
-                this->epsilon, this->input_size, 0, batch_size,
-                output_delta_states.delta_mu, output_delta_states.delta_var);
+                this->mu_w, this->rms_ra, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->epsilon, this->input_size,
+                0, batch_size, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
         } else {
             rmsnorm_bwd_delta_z_mp(
-                this->mu_w, this->bwd_states->jcb, this->rms_ra,
-                input_delta_states.delta_mu, input_delta_states.delta_var,
-                this->epsilon, this->input_size, batch_size, this->num_threads,
-                output_delta_states.delta_mu, output_delta_states.delta_var);
+                this->mu_w, this->rms_ra, input_delta_states.delta_mu,
+                input_delta_states.delta_var, this->epsilon, this->input_size,
+                batch_size, this->num_threads, output_delta_states.delta_mu,
+                output_delta_states.delta_var);
         }
     }
     if (this->param_update) {
         if (this->num_threads <= 1) {
             rmsnorm_bwd_delta_w(
-                this->var_w, this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, batch_size, 0,
                 this->input_size, this->delta_mu_w, this->delta_var_w);
         } else {
             rmsnorm_bwd_delta_w_mp(
-                this->var_w, this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, batch_size, this->num_threads,
                 this->delta_mu_w, this->delta_var_w);

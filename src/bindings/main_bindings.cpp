@@ -26,6 +26,7 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_maxpool2d_layer(modo);
     bind_layernorm_layer(modo);
     bind_batchnorm_layer(modo);
+    bind_rmsnorm_layer(modo);
     bind_lstm_layer(modo);
     bind_slstm_layer(modo);
     bind_attention_layer(modo);
