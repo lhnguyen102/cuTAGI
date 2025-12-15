@@ -3,3 +3,4 @@
 
 void bind_layernorm_layer(pybind11::module_& modo);
 void bind_batchnorm_layer(pybind11::module_& modo);
+void bind_rmsnorm_layer(pybind11::module_& modo);

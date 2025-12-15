@@ -13,6 +13,7 @@
 struct AttentionStates {
     std::vector<float> mu_in_proj, var_in_proj;
     std::vector<float> mu_q, var_q, mu_k, var_k, mu_v, var_v;
+    std::vector<float> mu_q_rope, var_q_rope, mu_k_rope, var_k_rope;
     std::vector<float> mu_qk, var_qk;
     std::vector<float> mu_mqk, var_mqk, j_mqk;
     std::vector<float> mu_att_score, var_att_score;
@@ -27,6 +28,8 @@ struct AttentionDeltaStates {
     std::vector<float> delta_mu_att_score, delta_var_att_score;
     std::vector<float> delta_mu_q, delta_var_q;
     std::vector<float> delta_mu_k, delta_var_k;
+    std::vector<float> delta_mu_q_rope, delta_var_q_rope;
+    std::vector<float> delta_mu_k_rope, delta_var_k_rope;
     std::vector<float> delta_mu_in_proj, delta_var_in_proj;
 
     void set_size(int batch_size, int num_heads, int timestep, int head_size);
@@ -97,6 +100,22 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k);
 
+void generate_rope_cache(int max_seq_len, int head_dim, float theta,
+                         std::vector<float> &cos_cache,
+                         std::vector<float> &sin_cache);
+
+void apply_rope(std::vector<float> &mu_in, std::vector<float> &var_in,
+                std::vector<float> &cos_cache, std::vector<float> &sin_cache,
+                int batch_size, int num_heads, int timestep, int head_dim,
+                std::vector<float> &mu_out, std::vector<float> &var_out);
+
+void rope_backward(std::vector<float> &delta_mu_in,
+                   std::vector<float> &delta_var_in,
+                   std::vector<float> &cos_cache, std::vector<float> &sin_cache,
+                   int batch_size, int num_heads, int timestep, int head_dim,
+                   std::vector<float> &delta_mu_out,
+                   std::vector<float> &delta_var_out);
+
 class Remax;
 
 class MultiheadAttention : public BaseLayer {
@@ -118,10 +137,17 @@ class MultiheadAttention : public BaseLayer {
     BaseTempStates remax_temp;
     size_t seq_len = 1;
 
+    bool use_rope;
+    float rope_theta;
+    size_t max_seq_len;
+    std::vector<float> cos_cache;
+    std::vector<float> sin_cache;
+
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
                        bool bias = true, float gain_w = 1.0f,
                        float gain_b = 1.0f, std::string init_method = "Xavier",
-                       int device_idx = 0);
+                       bool use_rope = true, float rope_theta = 10000.0f,
+                       size_t max_seq_len = 2048, int device_idx = 0);
 
     ~MultiheadAttention();
 

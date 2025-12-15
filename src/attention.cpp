@@ -384,6 +384,101 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
     }
 }
 
+void generate_rope_cache(int max_seq_len, int head_dim, float theta,
+                         std::vector<float> &cos_cache,
+                         std::vector<float> &sin_cache) {
+    int half_dim = head_dim / 2;
+    cos_cache.resize(max_seq_len * half_dim);
+    sin_cache.resize(max_seq_len * half_dim);
+
+    for (int pos = 0; pos < max_seq_len; pos++) {
+        for (int i = 0; i < half_dim; i++) {
+            float freq = 1.0f / powf(theta, (2.0f * i) / head_dim);
+            float angle = pos * freq;
+            int idx = pos * half_dim + i;
+            cos_cache[idx] = cosf(angle);
+            sin_cache[idx] = sinf(angle);
+        }
+    }
+}
+
+void apply_rope(std::vector<float> &mu_in, std::vector<float> &var_in,
+                std::vector<float> &cos_cache, std::vector<float> &sin_cache,
+                int batch_size, int num_heads, int timestep, int head_dim,
+                std::vector<float> &mu_out, std::vector<float> &var_out) {
+    int half_dim = head_dim / 2;
+    int idx_in, idx_cache;
+    float mu_x1, mu_x2, var_x1, var_x2, cos_val, sin_val;
+
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int t = 0; t < timestep; t++) {
+                for (int d = 0; d < half_dim; d++) {
+                    idx_in = i * num_heads * timestep * head_dim +
+                             j * timestep * head_dim + t * head_dim + 2 * d;
+                    idx_cache = t * half_dim + d;
+
+                    mu_x1 = mu_in[idx_in];
+                    mu_x2 = mu_in[idx_in + 1];
+                    var_x1 = var_in[idx_in];
+                    var_x2 = var_in[idx_in + 1];
+
+                    cos_val = cos_cache[idx_cache];
+                    sin_val = sin_cache[idx_cache];
+
+                    mu_out[idx_in] = mu_x1 * cos_val - mu_x2 * sin_val;
+                    mu_out[idx_in + 1] = mu_x1 * sin_val + mu_x2 * cos_val;
+
+                    var_out[idx_in] =
+                        var_x1 * cos_val * cos_val + var_x2 * sin_val * sin_val;
+                    var_out[idx_in + 1] =
+                        var_x1 * sin_val * sin_val + var_x2 * cos_val * cos_val;
+                }
+            }
+        }
+    }
+}
+
+void rope_backward(std::vector<float> &delta_mu_in,
+                   std::vector<float> &delta_var_in,
+                   std::vector<float> &cos_cache, std::vector<float> &sin_cache,
+                   int batch_size, int num_heads, int timestep, int head_dim,
+                   std::vector<float> &delta_mu_out,
+                   std::vector<float> &delta_var_out) {
+    int half_dim = head_dim / 2;
+    int idx_in, idx_cache;
+    float dmu_y1, dmu_y2, dvar_y1, dvar_y2, cos_val, sin_val;
+
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int t = 0; t < timestep; t++) {
+                for (int d = 0; d < half_dim; d++) {
+                    idx_in = i * num_heads * timestep * head_dim +
+                             j * timestep * head_dim + t * head_dim + 2 * d;
+                    idx_cache = t * half_dim + d;
+
+                    dmu_y1 = delta_mu_in[idx_in];
+                    dmu_y2 = delta_mu_in[idx_in + 1];
+                    dvar_y1 = delta_var_in[idx_in];
+                    dvar_y2 = delta_var_in[idx_in + 1];
+
+                    cos_val = cos_cache[idx_cache];
+                    sin_val = sin_cache[idx_cache];
+
+                    delta_mu_out[idx_in] = dmu_y1 * cos_val + dmu_y2 * sin_val;
+                    delta_mu_out[idx_in + 1] =
+                        -dmu_y1 * sin_val + dmu_y2 * cos_val;
+
+                    delta_var_out[idx_in] = dvar_y1 * cos_val * cos_val +
+                                            dvar_y2 * sin_val * sin_val;
+                    delta_var_out[idx_in + 1] = dvar_y1 * sin_val * sin_val +
+                                                dvar_y2 * cos_val * cos_val;
+                }
+            }
+        }
+    }
+}
+
 void AttentionStates::set_size(int batch_size, int num_heads, int timestep,
                                int head_size) {
     int num_embs = num_heads * head_size;
@@ -400,6 +495,11 @@ void AttentionStates::set_size(int batch_size, int num_heads, int timestep,
     var_k.resize(comp_size, 0.0f);
     mu_v.resize(comp_size, 0.0f);
     var_v.resize(comp_size, 0.0f);
+
+    mu_q_rope.resize(comp_size, 0.0f);
+    var_q_rope.resize(comp_size, 0.0f);
+    mu_k_rope.resize(comp_size, 0.0f);
+    var_k_rope.resize(comp_size, 0.0f);
 
     mu_qk.resize(qk_size, 0.0f);
     var_qk.resize(qk_size, 0.0f);
@@ -431,6 +531,10 @@ void AttentionDeltaStates::set_size(int batch_size, int num_heads, int timestep,
     delta_var_q.resize(comp_size, 0.0f);
     delta_mu_k.resize(comp_size, 0.0f);
     delta_var_k.resize(comp_size, 0.0f);
+    delta_mu_q_rope.resize(comp_size, 0.0f);
+    delta_var_q_rope.resize(comp_size, 0.0f);
+    delta_mu_k_rope.resize(comp_size, 0.0f);
+    delta_var_k_rope.resize(comp_size, 0.0f);
     delta_mu_in_proj.resize(3 * comp_size, 0.0f);
     delta_var_in_proj.resize(3 * comp_size, 0.0f);
 }
@@ -438,13 +542,18 @@ void AttentionDeltaStates::set_size(int batch_size, int num_heads, int timestep,
 MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
                                        size_t num_kv_heads, bool bias,
                                        float gain_w, float gain_b,
-                                       std::string init_method, int device_idx)
+                                       std::string init_method, bool use_rope,
+                                       float rope_theta, size_t max_seq_len,
+                                       int device_idx)
     : embed_dim(embed_dim),
       num_heads(num_heads),
       num_kv_heads(num_kv_heads),
       gain_w(gain_w),
       gain_b(gain_b),
-      init_method(init_method) {
+      init_method(init_method),
+      use_rope(use_rope),
+      rope_theta(rope_theta),
+      max_seq_len(max_seq_len) {
     this->input_size = embed_dim;
     this->output_size = this->embed_dim;
     this->head_dim = embed_dim / num_heads;
@@ -470,6 +579,11 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
     }
 
     remax_layer = std::make_unique<Remax>();
+
+    if (this->use_rope) {
+        generate_rope_cache(this->max_seq_len, this->head_dim, this->rope_theta,
+                            this->cos_cache, this->sin_cache);
+    }
 }
 
 MultiheadAttention::~MultiheadAttention() {}
@@ -579,9 +693,24 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
         attn_states.mu_k, attn_states.var_k, attn_states.mu_v,
         attn_states.var_v);
 
-    query_key(attn_states.mu_q, attn_states.var_q, attn_states.mu_k,
-              attn_states.var_k, batch_size, num_heads, this->seq_len, head_dim,
-              attn_states.mu_qk, attn_states.var_qk);
+    if (this->use_rope) {
+        apply_rope(attn_states.mu_q, attn_states.var_q, this->cos_cache,
+                   this->sin_cache, batch_size, num_heads, this->seq_len,
+                   head_dim, attn_states.mu_q_rope, attn_states.var_q_rope);
+
+        apply_rope(attn_states.mu_k, attn_states.var_k, this->cos_cache,
+                   this->sin_cache, batch_size, num_heads, this->seq_len,
+                   head_dim, attn_states.mu_k_rope, attn_states.var_k_rope);
+
+        query_key(attn_states.mu_q_rope, attn_states.var_q_rope,
+                  attn_states.mu_k_rope, attn_states.var_k_rope, batch_size,
+                  num_heads, this->seq_len, head_dim, attn_states.mu_qk,
+                  attn_states.var_qk);
+    } else {
+        query_key(attn_states.mu_q, attn_states.var_q, attn_states.mu_k,
+                  attn_states.var_k, batch_size, num_heads, this->seq_len,
+                  head_dim, attn_states.mu_qk, attn_states.var_qk);
+    }
 
     mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size, num_heads,
                    this->seq_len, head_dim, attn_states.mu_mqk,
@@ -653,18 +782,47 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
 
-    mha_delta_query(attn_states.var_q, attn_states.mu_k,
-                    attn_delta_states.delta_mu_att_score,
-                    attn_delta_states.delta_var_att_score, attn_states.j_mqk,
-                    batch_size, num_heads, this->seq_len, this->head_dim,
-                    attn_delta_states.delta_mu_q,
-                    attn_delta_states.delta_var_q);
+    if (this->use_rope) {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k_rope,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
+                        this->head_dim, attn_delta_states.delta_mu_q_rope,
+                        attn_delta_states.delta_var_q_rope);
 
-    mha_delta_key(attn_states.var_k, attn_states.mu_q,
-                  attn_delta_states.delta_mu_att_score,
-                  attn_delta_states.delta_var_att_score, attn_states.j_mqk,
-                  batch_size, num_heads, this->seq_len, this->head_dim,
-                  attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k);
+        mha_delta_key(attn_states.var_k, attn_states.mu_q_rope,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
+                      batch_size, num_heads, this->seq_len, this->head_dim,
+                      attn_delta_states.delta_mu_k_rope,
+                      attn_delta_states.delta_var_k_rope);
+
+        rope_backward(attn_delta_states.delta_mu_q_rope,
+                      attn_delta_states.delta_var_q_rope, this->cos_cache,
+                      this->sin_cache, batch_size, num_heads, this->seq_len,
+                      this->head_dim, attn_delta_states.delta_mu_q,
+                      attn_delta_states.delta_var_q);
+
+        rope_backward(attn_delta_states.delta_mu_k_rope,
+                      attn_delta_states.delta_var_k_rope, this->cos_cache,
+                      this->sin_cache, batch_size, num_heads, this->seq_len,
+                      this->head_dim, attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
+    } else {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
+                        this->head_dim, attn_delta_states.delta_mu_q,
+                        attn_delta_states.delta_var_q);
+
+        mha_delta_key(attn_states.var_k, attn_states.mu_q,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
+                      batch_size, num_heads, this->seq_len, this->head_dim,
+                      attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
+    }
 
     cat_intput_projection_components(
         attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q,

@@ -5,6 +5,7 @@
 
 #include "../include/batchnorm_layer.h"
 #include "../include/layernorm_layer.h"
+#include "../include/rmsnorm_layer.h"
 
 void bind_layernorm_layer(pybind11::module_& modo)
 /*
@@ -39,5 +40,22 @@ void bind_batchnorm_layer(pybind11::module_& modo)
         .def("forward", &BatchNorm2d::forward)
         .def("backward", &BatchNorm2d::backward)
         .def("init_weight_bias", &BatchNorm2d::init_weight_bias);
+    ;
+}
+
+void bind_rmsnorm_layer(pybind11::module_& modo)
+/*
+ */
+{
+    pybind11::class_<RMSNorm, std::shared_ptr<RMSNorm>, BaseLayer>(modo,
+                                                                   "RMSNorm")
+        .def(pybind11::init<const std::vector<int>, float, int>(),
+             pybind11::arg("normalized_shape"), pybind11::arg("eps") = 1e-6,
+             pybind11::arg("device_idx") = 0)
+        .def("get_layer_info", &RMSNorm::get_layer_info)
+        .def("get_layer_name", &RMSNorm::get_layer_name)
+        .def("forward", &RMSNorm::forward)
+        .def("backward", &RMSNorm::backward)
+        .def("init_weight_bias", &RMSNorm::init_weight_bias);
     ;
 }
