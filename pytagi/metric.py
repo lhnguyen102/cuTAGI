@@ -80,6 +80,21 @@ def mse(prediction: np.ndarray, observation: np.ndarray) -> float:
     """
     return np.nanmean((prediction - observation) ** 2)
 
+def se(prediction: np.ndarray, observation: np.ndarray) -> float:
+    """Calculates the Mean Squared Error (MSE).
+
+    MSE measures the average of the squares of the errors, i.e., the average
+    squared difference between the estimated and the observed values.
+
+    :param prediction: The predicted values.
+    :type prediction: np.ndarray
+    :param observation: The actual (observed) values.
+    :type observation: np.ndarray
+    :return: The mean squared error.
+    :rtype: float
+    """
+    return np.sum((prediction - observation) ** 2)
+
 
 def log_likelihood(
     prediction: np.ndarray, observation: np.ndarray, std: np.ndarray
@@ -101,7 +116,29 @@ def log_likelihood(
     log_lik = -0.5 * np.log(2 * np.pi * (std**2)) - 0.5 * (
         ((observation - prediction) / std) ** 2
     )
-    return np.nanmean(log_lik)
+    return np.nansum(log_lik)
+
+def marg_likelihood(
+    prediction: np.ndarray, observation: np.ndarray, std: np.ndarray
+) -> float:
+    """Computes the log-likelihood.
+
+    This function assumes the likelihood of the observation given the prediction
+    is a Gaussian distribution with a given standard deviation.
+
+    :param prediction: The predicted mean of the distribution.
+    :type prediction: np.ndarray
+    :param observation: The observed data points.
+    :type observation: np.ndarray
+    :param std: The standard deviation of the distribution.
+    :type std: np.ndarray
+    :return: The average log-likelihood value.
+    :rtype: float
+    """
+    log_lik = -0.5 * np.log(2 * np.pi * (std**2)) - 0.5 * (
+        ((observation - prediction) / std) ** 2
+    )
+    return np.exp(log_lik)
 
 
 def rmse(prediction: np.ndarray, observation: np.ndarray) -> float:
