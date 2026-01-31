@@ -101,7 +101,7 @@ def log_likelihood(
     log_lik = -0.5 * np.log(2 * np.pi * (std**2)) - 0.5 * (
         ((observation - prediction) / std) ** 2
     )
-    return np.nanmean(log_lik)
+    return np.nansum(log_lik)
 
 
 def rmse(prediction: np.ndarray, observation: np.ndarray) -> float:
