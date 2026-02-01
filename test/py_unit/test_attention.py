@@ -25,6 +25,7 @@ class TestMultiheadAttention(unittest.TestCase):
                 embed_dim=embed_dim,
                 num_heads=num_heads,
                 num_kv_heads=num_heads,
+                seq_len=seq_len,
                 bias=False,
                 gain_weight=1.0,
                 gain_bias=1.0,

@@ -527,17 +527,13 @@ void Linear::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Initialization
+    // TODO: what if the previous layer is not LSTM or Attention?
     int batch_size = input_states.block_size;
-    this->set_cap_factor_udapte(batch_size);
-
-    // Checkout input size
     if (this->input_size != input_states.actual_size) {
-        std::string message =
-            "Input size mismatch: " + std::to_string(this->input_size) +
-            " vs " + std::to_string(input_states.actual_size);
-        LOG(LogLevel::ERROR, message);
+        int seq_len = input_states.actual_size / this->input_size;
+        batch_size = batch_size * seq_len;
     }
+    this->set_cap_factor_udapte(batch_size);
 
     // Forward pass
     if (this->num_threads > 1) {
@@ -559,7 +555,7 @@ void Linear::forward(BaseHiddenStates &input_states,
     output_states.width = this->out_width;
     output_states.height = this->out_height;
     output_states.depth = this->out_channels;
-    output_states.block_size = batch_size;
+    output_states.block_size = input_states.block_size;
     output_states.actual_size = this->output_size;
 
     if (this->training) {

@@ -16,10 +16,14 @@ class MultiheadAttention(BaseLayer):
         embed_dim: int,
         num_heads: int,
         num_kv_heads: int = None,
+        seq_len: int = 1,
         bias: bool = True,
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
         init_method: str = "Xavier",
+        use_rope: bool = True,
+        rope_theta: float = 10000.0,
+        max_seq_len: int = 2048,
     ):
         """
         Initializes the MultiheadAttention layer.
@@ -44,19 +48,27 @@ class MultiheadAttention(BaseLayer):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.num_kv_heads = num_kv_heads
+        self.seq_len = seq_len
         self.bias = bias
         self.gain_weight = gain_weight
         self.gain_bias = gain_bias
         self.init_method = init_method
+        self.use_rope = use_rope
+        self.rope_theta = rope_theta
+        self.max_seq_len = max_seq_len
 
         self._cpp_backend = cutagi.MultiheadAttention(
             embed_dim,
             num_heads,
             num_kv_heads,
+            seq_len,
             bias,
             gain_weight,
             gain_bias,
             init_method,
+            use_rope,
+            rope_theta,
+            max_seq_len,
         )
 
     def get_layer_info(self) -> str:

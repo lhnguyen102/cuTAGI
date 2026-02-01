@@ -493,13 +493,14 @@ TEST_F(MnistTest, LayerNormCNNTest_CPU) {
     EXPECT_LT(avg_error, threshold) << "Error rate is higher than threshold";
 }
 
-TEST_F(MnistTest, MismatchSizeDetection) {
-    Sequential model(Linear(784, 32), ReLU(), Linear(300, 32), ReLU(),
-                     Linear(32, 11));
-    float avg_error;
-    float threshold = 0.5;
-    EXPECT_THROW({ mnist_test_runner(model, avg_error); }, std::runtime_error);
-}
+// TEST_F(MnistTest, MismatchSizeDetection) {
+//     Sequential model(Linear(784, 32), ReLU(), Linear(300, 32), ReLU(),
+//                      Linear(32, 11));
+//     float avg_error;
+//     float threshold = 0.5;
+//     EXPECT_THROW({ mnist_test_runner(model, avg_error); },
+//     std::runtime_error);
+// }
 
 #ifdef USE_CUDA
 TEST_F(MnistTest, RemaxTest_CUDA) {

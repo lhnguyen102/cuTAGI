@@ -39,7 +39,8 @@ TEST(AttentionForward, BasicForwardPass) {
 
     BaseTempStates temp_states;
 
-    MultiheadAttention attn_layer(embed_dim, num_heads, num_heads, false);
+    MultiheadAttention attn_layer(embed_dim, num_heads, num_heads, seq_len,
+                                  false);
     attn_layer.training = true;
 
     attn_layer.forward(input_states, output_states, temp_states);
@@ -114,7 +115,8 @@ TEST(AttentionBackward, BasicBackwardPass) {
 
     BaseTempStates temp_states;
 
-    MultiheadAttention attn_layer(embed_dim, num_heads, num_heads, false);
+    MultiheadAttention attn_layer(embed_dim, num_heads, num_heads, seq_len,
+                                  false);
     attn_layer.seq_len = seq_len;
     attn_layer.training = true;
     attn_layer.param_update = true;

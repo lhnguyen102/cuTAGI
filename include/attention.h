@@ -135,7 +135,7 @@ class MultiheadAttention : public BaseLayer {
     BaseHiddenStates remax_input;
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
-    size_t seq_len = 1;
+    size_t seq_len;
 
     bool use_rope;
     float rope_theta;
@@ -144,10 +144,11 @@ class MultiheadAttention : public BaseLayer {
     std::vector<float> sin_cache;
 
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
-                       bool bias = true, float gain_w = 1.0f,
-                       float gain_b = 1.0f, std::string init_method = "Xavier",
-                       bool use_rope = true, float rope_theta = 10000.0f,
-                       size_t max_seq_len = 2048, int device_idx = 0);
+                       size_t seq_len_ = 1, bool bias = true,
+                       float gain_w = 1.0f, float gain_b = 1.0f,
+                       std::string init_method = "Xavier", bool use_rope = true,
+                       float rope_theta = 10000.0f, size_t max_seq_len = 2048,
+                       int device_idx = 0);
 
     ~MultiheadAttention();
 
