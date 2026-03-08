@@ -227,7 +227,7 @@ class BaseLSTMStates {
                                 int device_idx_ = 0);
     virtual std::string get_name() const { return "BaseLSTMStates"; };
     void reset_zeros();
-    void reset_prev_states();
+    virtual void reset_prev_states();
 };
 
 // Smoother for linear layer

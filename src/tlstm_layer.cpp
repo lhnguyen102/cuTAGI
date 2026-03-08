@@ -11,6 +11,10 @@
 #include "../include/lstm_layer.h"
 #include "../include/param_init.h"
 
+#ifdef USE_CUDA
+#include "../include/tlstm_layer_cuda.cuh"
+#endif
+
 template <typename Fn>
 void parallel_for(int total, unsigned int num_threads, Fn &&fn) {
     if (num_threads <= 1) {
@@ -357,21 +361,16 @@ void tlstm_delta_mean_var_b(
     }
 }
 
-void tlstm_update_hidden_state_posterior(
-    std::vector<float> &mu_h_prior, std::vector<float> &var_h_prior,
-    std::vector<float> &delta_mu, std::vector<float> &delta_var, int start_idx,
-    int end_idx, int seq_len, int no, bool last_step,
-    std::vector<float> &mu_h_prev, std::vector<float> &var_h_prev) {
-    for (int idx = start_idx; idx < end_idx; idx++) {
-        int batch_idx = idx / no;
-        int output_idx = idx % no;
-        int dst = idx;
-        int src = last_step ? dst
-                            : batch_idx * seq_len * no + (seq_len - 1) * no +
-                                  output_idx;
-        mu_h_prev[dst] = mu_h_prior[dst] + delta_mu[src] * var_h_prior[dst];
-        var_h_prev[dst] =
-            (1.0f + delta_var[src] * var_h_prior[dst]) * var_h_prior[dst];
+void tlstm_update_hidden_state_posterior(std::vector<float> &mu_h_prior,
+                                         std::vector<float> &var_h_prior,
+                                         std::vector<float> &delta_mu,
+                                         std::vector<float> &delta_var,
+                                         int start_idx, int end_idx,
+                                         std::vector<float> &mu_h_prev,
+                                         std::vector<float> &var_h_prev) {
+    for (int i = start_idx; i < end_idx; i++) {
+        mu_h_prev[i] = mu_h_prior[i] + delta_mu[i] * var_h_prior[i];
+        var_h_prev[i] = (1.0f + delta_var[i] * var_h_prior[i]) * var_h_prior[i];
     }
 }
 
@@ -379,17 +378,12 @@ void tlstm_update_cell_state_posterior(
     std::vector<float> &mu_c_prior, std::vector<float> &var_c_prior,
     std::vector<float> &jcb_ca, std::vector<float> &mu_o_ga,
     std::vector<float> &delta_mu, std::vector<float> &delta_var, int start_idx,
-    int end_idx, int seq_len, int no, bool last_step,
-    std::vector<float> &mu_c_prev, std::vector<float> &var_c_prev) {
-    for (int idx = start_idx; idx < end_idx; idx++) {
-        int batch_idx = idx / no;
-        int output_idx = idx % no;
-        int dst = idx;
-        int ts = batch_idx * seq_len * no + (seq_len - 1) * no + output_idx;
-        int src = last_step ? dst : ts;
-        float tmp = var_c_prior[dst] * jcb_ca[ts] * mu_o_ga[ts];
-        mu_c_prev[dst] = mu_c_prior[dst] + tmp * delta_mu[src];
-        var_c_prev[dst] = var_c_prior[dst] + tmp * delta_var[src] * tmp;
+    int end_idx, std::vector<float> &mu_c_prev,
+    std::vector<float> &var_c_prev) {
+    for (int i = start_idx; i < end_idx; i++) {
+        float tmp = var_c_prior[i] * jcb_ca[i] * mu_o_ga[i];
+        mu_c_prev[i] = mu_c_prior[i] + tmp * delta_mu[i];
+        var_c_prev[i] = var_c_prior[i] + tmp * delta_var[i] * tmp;
     }
 }
 
@@ -503,20 +497,11 @@ void TLSTM::forward(BaseHiddenStates &input_states,
 
     int end_chunk = no * batch_size;
     if (seq_len == 1 && batch_size == 1) {
-        for (int b = 0; b < batch_size; b++) {
-            for (int z = 0; z < no; z++) {
-                int prior_idx = b * no + z;
-                int prev_idx = b * seq_len * no + z;
-                lstm_states.mu_h_prev[prev_idx] =
-                    lstm_states.mu_h_prior[prior_idx];
-                lstm_states.var_h_prev[prev_idx] =
-                    lstm_states.var_h_prior[prior_idx];
-                lstm_states.mu_c_prev[prev_idx] =
-                    lstm_states.mu_c_prior[prior_idx];
-                lstm_states.var_c_prev[prev_idx] =
-                    lstm_states.var_c_prior[prior_idx];
-            }
-        }
+        lstm_states.mu_h_prev = lstm_states.mu_h_prior;
+        lstm_states.var_h_prev = lstm_states.var_h_prior;
+        lstm_states.mu_c_prev = lstm_states.mu_c_prior;
+        lstm_states.var_c_prev = lstm_states.var_c_prior;
+
     } else {
         lstm_states.reset_prev_states();
     }
@@ -714,16 +699,14 @@ void TLSTM::backward(BaseDeltaStates &input_delta_states,
         parallel_for(total_prior, this->num_threads, [&](int s, int e) {
             tlstm_update_hidden_state_posterior(
                 this->lstm_states.mu_h_prior, this->lstm_states.var_h_prior,
-                delta_rec_mu, delta_rec_var, s, e, seq_len, no,
-                this->last_timestep, this->lstm_states.mu_h_prior,
+                delta_rec_mu, delta_rec_var, s, e, this->lstm_states.mu_h_prior,
                 this->lstm_states.var_h_prior);
         });
         parallel_for(total_prior, this->num_threads, [&](int s, int e) {
             tlstm_update_cell_state_posterior(
                 this->lstm_states.mu_c_prior, this->lstm_states.var_c_prior,
                 this->lstm_states.jcb_ca, this->lstm_states.mu_o_ga,
-                delta_rec_mu, delta_rec_var, s, e, seq_len, no,
-                this->last_timestep, this->lstm_states.mu_c_prior,
+                delta_rec_mu, delta_rec_var, s, e, this->lstm_states.mu_c_prior,
                 this->lstm_states.var_c_prior);
         });
     }
@@ -896,3 +879,19 @@ void TLSTM::preinit_layer() {
         this->allocate_param_delta();
     }
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> TLSTM::to_cuda(int device_idx) {
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    auto cuda_layer = std::make_unique<TLSTMCuda>(
+        this->input_size, this->output_size, this->last_timestep, this->seq_len,
+        this->bias, this->gain_w, this->gain_b, this->init_method,
+        this->device_idx);
+
+    auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
+    base_cuda->copy_params_from(*this);
+
+    return cuda_layer;
+}
+#endif

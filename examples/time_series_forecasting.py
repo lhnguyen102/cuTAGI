@@ -60,8 +60,8 @@ def main(num_epochs: int = 100, batch_size: int = 16, sigma_v: float = 1.0):
         TLSTM(8, 8, True, input_seq_len),
         Linear(8, 1),
     )
-    # net.to_device("cuda")
-    net.set_threads(1)  # multi-processing is slow on a small net
+    net.to_device("cuda")
+    # net.set_threads(1)  # multi-processing is slow on a small net
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#

@@ -709,6 +709,16 @@ void LSTMStateCuda::set_num_states(size_t num_states, size_t num_inputs,
     this->allocate_memory();
 }
 
+void LSTMStateCuda::reset_prev_states()
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+    cudaMemset(d_mu_h_prev, 0, this->num_states * sizeof(float));
+    cudaMemset(d_var_h_prev, 0, this->num_states * sizeof(float));
+    cudaMemset(d_mu_c_prev, 0, this->num_states * sizeof(float));
+    cudaMemset(d_var_c_prev, 0, this->num_states * sizeof(float));
+}
 void LSTMStateCuda::allocate_memory()
 /*
  */
