@@ -7,7 +7,6 @@
 #include "../../include/sequential.h"
 #include "../../include/slinear_layer.h"
 #include "../../include/slstm_layer.h"
-#include "../../include/tlstm_layer.h"
 #include "test_utils.h"
 #ifdef USE_CUDA
 #include "../../include/lstm_layer_cuda.cuh"
@@ -24,8 +23,8 @@ class SineSignalTest : public ::testing::Test {
 
 TEST_F(SineSignalTest, LSTMTest_CPU) {
     int input_seq_len = 4;
-    Sequential model(TLSTM(1, 8, false, input_seq_len),
-                     TLSTM(8, 8, true, input_seq_len), Linear(8, 1));
+    Sequential model(LSTM(1, 8, false, input_seq_len),
+                     LSTM(8, 8, true, input_seq_len), Linear(8, 1));
     model.set_threads(2);
     float avg_error;
     float log_lik;

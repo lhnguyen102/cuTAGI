@@ -29,7 +29,6 @@ PYBIND11_MODULE(cutagi, modo) {
     bind_rmsnorm_layer(modo);
     bind_lstm_layer(modo);
     bind_slstm_layer(modo);
-    bind_tlstm_layer(modo);
     bind_attention_layer(modo);
     bind_layer_block(modo);
     bind_resnet_block(modo);

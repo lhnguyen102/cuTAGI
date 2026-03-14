@@ -14,7 +14,6 @@
 #include "output_layer_update_cpu.h"
 #include "slinear_layer.h"
 #include "slstm_layer.h"
-#include "tlstm_layer.h"
 #ifdef USE_CUDA
 #include "data_struct_cuda.cuh"
 #include "lstm_layer_cuda.cuh"

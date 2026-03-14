@@ -22,7 +22,6 @@ enum class LayerType {
     ResNetBlock,
     Embedding,
     MultiheadAttention,
-    TLSTM,
 };
 
 class InitArgs {

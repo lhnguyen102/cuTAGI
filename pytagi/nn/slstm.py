@@ -15,7 +15,8 @@ class SLSTM(BaseLayer):
         self,
         input_size: int,
         output_size: int,
-        seq_len: int,
+        last_timestep: bool = False,
+        seq_len: int = 1,
         bias: bool = True,
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
@@ -50,6 +51,7 @@ class SLSTM(BaseLayer):
         self._cpp_backend = cutagi.SLSTM(
             input_size,
             output_size,
+            last_timestep,
             seq_len,
             bias,
             gain_weight,

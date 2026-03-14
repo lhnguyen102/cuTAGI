@@ -517,16 +517,13 @@ void Sequential::reset_lstm_states() {
     /*
      */
     for (auto &layer : this->layers) {
-        if (layer->get_layer_type() != LayerType::LSTM &&
-            layer->get_layer_type() != LayerType::TLSTM) {
+        if (layer->get_layer_type() != LayerType::LSTM) {
             continue;
         }
 
         if (this->device == "cpu") {
             if (auto *lstm = dynamic_cast<LSTM *>(layer.get())) {
                 lstm->lstm_states.reset_zeros();
-            } else if (auto *tlstm = dynamic_cast<TLSTM *>(layer.get())) {
-                tlstm->lstm_states.reset_zeros();
             }
         }
 #ifdef USE_CUDA
@@ -960,8 +957,7 @@ Sequential::get_lstm_states(int time_step)
 
     for (size_t i = 0; i < layers.size(); ++i) {
         if (layers[i]->get_layer_type() == LayerType::LSTM ||
-            layers[i]->get_layer_type() == LayerType::SLSTM ||
-            layers[i]->get_layer_type() == LayerType::TLSTM) {
+            layers[i]->get_layer_type() == LayerType::SLSTM) {
             if (this->device == "cpu") {
                 if (auto slstm_layer = dynamic_cast<SLSTM *>(layers[i].get())) {
                     if (time_step == -1) {
@@ -975,10 +971,6 @@ Sequential::get_lstm_states(int time_step)
                                dynamic_cast<LSTM *>(layers[i].get())) {
                     lstm_states[static_cast<int>(i)] =
                         lstm_layer->get_LSTM_states();
-                } else if (auto tlstm_layer =
-                               dynamic_cast<TLSTM *>(layers[i].get())) {
-                    lstm_states[static_cast<int>(i)] =
-                        tlstm_layer->get_LSTM_states();
                 }
 #ifdef USE_CUDA
             } else if (this->device == "cuda") {
@@ -1028,8 +1020,7 @@ void Sequential::set_lstm_states(
         int layer_idx = pair.first;
         if (layer_idx >= 0 && layer_idx < static_cast<int>(layers.size()) &&
             (layers[layer_idx]->get_layer_type() == LayerType::LSTM ||
-             layers[layer_idx]->get_layer_type() == LayerType::SLSTM ||
-             layers[layer_idx]->get_layer_type() == LayerType::TLSTM)) {
+             layers[layer_idx]->get_layer_type() == LayerType::SLSTM)) {
             // Unpack the tuple
             const auto &state_tuple = pair.second;
             const auto &mu_h = std::get<0>(state_tuple);
@@ -1045,9 +1036,6 @@ void Sequential::set_lstm_states(
                 } else if (auto slstm_layer =
                                dynamic_cast<SLSTM *>(layers[layer_idx].get())) {
                     slstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
-                } else if (auto tlstm_layer =
-                               dynamic_cast<TLSTM *>(layers[layer_idx].get())) {
-                    tlstm_layer->set_LSTM_states(mu_h, var_h, mu_c, var_c);
                 }
             }
 #ifdef USE_CUDA

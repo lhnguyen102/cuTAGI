@@ -86,6 +86,10 @@ EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim,
 
 EmbeddingCuda::~EmbeddingCuda() {}
 
+int EmbeddingCuda::get_max_num_states() {
+    return this->input_size * this->embedding_dim;
+}
+
 std::string EmbeddingCuda::get_layer_info() const {
     return "Embedding(" + std::to_string(this->num_embeddings) + "->" +
            std::to_string(this->embedding_dim) + ")";

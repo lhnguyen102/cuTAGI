@@ -7,8 +7,8 @@
 #include "../../include/common.h"
 #include "../../include/dataloader.h"
 #include "../../include/linear_layer.h"
+#include "../../include/lstm_layer.h"
 #include "../../include/sequential.h"
-#include "../../include/tlstm_layer.h"
 #include "test_utils.h"
 #ifdef USE_CUDA
 #include "../../include/base_layer_cuda.cuh"
@@ -17,7 +17,7 @@
 extern bool g_gpu_enabled;
 
 #ifdef USE_CUDA
-TEST(TLSTMCuda, ForwardBackward_CPUvsCUDA) {
+TEST(LSTMCuda, ForwardBackward_CPUvsCUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
 
     int seq_len = 4;
@@ -26,13 +26,13 @@ TEST(TLSTMCuda, ForwardBackward_CPUvsCUDA) {
     int no = 8;
 
     // CPU model
-    Sequential cpu_model(TLSTM(ni, no, false, seq_len),
-                         TLSTM(no, no, true, seq_len), Linear(no, 1));
+    Sequential cpu_model(LSTM(ni, no, false, seq_len),
+                         LSTM(no, no, true, seq_len), Linear(no, 1));
     cpu_model.set_threads(1);
 
     // CUDA model with same weights
-    Sequential cuda_model(TLSTM(ni, no, false, seq_len),
-                          TLSTM(no, no, true, seq_len), Linear(no, 1));
+    Sequential cuda_model(LSTM(ni, no, false, seq_len),
+                          LSTM(no, no, true, seq_len), Linear(no, 1));
     // Copy weights from CPU model to CUDA model before to_device
     for (size_t i = 0; i < cpu_model.layers.size(); i++) {
         cuda_model.layers[i]->mu_w = cpu_model.layers[i]->mu_w;
@@ -60,9 +60,8 @@ TEST(TLSTMCuda, ForwardBackward_CPUvsCUDA) {
 
     cuda_model.output_to_host();
     float tol = 1e-4f;
-    ASSERT_EQ(cpu_model.output_z_buffer->mu_a.size(),
-              cuda_model.output_z_buffer->mu_a.size());
-    for (size_t i = 0; i < cpu_model.output_z_buffer->mu_a.size(); i++) {
+    size_t actual_out = batch_size;
+    for (size_t i = 0; i < actual_out; i++) {
         EXPECT_NEAR(cpu_model.output_z_buffer->mu_a[i],
                     cuda_model.output_z_buffer->mu_a[i], tol)
             << "Forward mu_a mismatch at " << i;

@@ -83,6 +83,7 @@ def set_delta_z_test_runner(
         x, y = next(batch_iter)
 
         # Feed forward
+        x = x.reshape(batch_size, input_seq_len, num_features)
         m_pred, _ = model(x)
 
         # Test set_delta_z function:
@@ -126,11 +127,12 @@ def lstm_user_output_updater_test_runner(
     # Training
     var_y = np.full((batch_size * len(output_col),), 0.02**2, dtype=np.float32)
 
-    for _ in np.arange(2):
+    for _ in np.arange(4):
         mses = []
         batch_iter = train_dtl.create_data_loader(batch_size, False)
         for x, y in batch_iter:
             # Feed forward
+            x = x.reshape(batch_size, input_seq_len, num_features)
             m_pred, _ = model(x)
 
             delta_mu, delta_var = user_output_updater(
@@ -190,13 +192,14 @@ def lstm_test_runner(
 
     # -------------------------------------------------------------------------#
     # Training
-    var_y = np.full((batch_size * len(output_col),), 0.02**2, dtype=np.float32)
+    var_y = np.full((batch_size * len(output_col),), 0.5**2, dtype=np.float32)
 
-    for _ in np.arange(2):
+    for _ in np.arange(4):
         mses = []
         batch_iter = train_dtl.create_data_loader(batch_size, False)
         for x, y in batch_iter:
             # Feed forward
+            x = x.reshape(batch_size, input_seq_len, num_features)
             m_pred, _ = model(x)
 
             # Update output layer
@@ -337,9 +340,9 @@ class SineSignalTest(unittest.TestCase):
     def test_lstm_CPU(self):
         input_seq_len = 4
         model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
+            LSTM(1, 8, seq_len=input_seq_len),
+            LSTM(8, 8, last_timestep=True, seq_len=input_seq_len),
+            Linear(8, 1),
         )
         mse = lstm_test_runner(model, input_seq_len=input_seq_len)
         self.assertLess(
@@ -364,11 +367,11 @@ class SineSignalTest(unittest.TestCase):
     def test_get_and_set_lstm_states_CPU(self):
         input_seq_len = 4
         model = Sequential(
-            LSTM(input_seq_len, 4, 1),
+            LSTM(input_seq_len, 4, last_timestep=True),
             Linear(4, 1),
         )
         s_model = Sequential(
-            SLSTM(input_seq_len, 4, 1),
+            SLSTM(input_seq_len, 4),
             SLinear(4, 1),
         )
         s_model.num_samples = 1  # since only one step is run
@@ -457,7 +460,7 @@ class SineSignalTest(unittest.TestCase):
         input_seq_len = 4
         batch_size = 1
         model = Sequential(
-            LSTM(input_seq_len, 4, 1),
+            LSTM(input_seq_len, 4, last_timestep=True, seq_len=input_seq_len),
             Linear(4, 1),
         )
         model.to_device("cuda")
@@ -539,9 +542,9 @@ class SineSignalTest(unittest.TestCase):
     def test_set_delta_z_CPU(self):
         input_seq_len = 4
         model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
+            LSTM(1, 8, seq_len=input_seq_len),
+            LSTM(8, 8, last_timestep=True, seq_len=input_seq_len),
+            Linear(8, 1),
         )
         same_delta_z = set_delta_z_test_runner(
             model, input_seq_len=input_seq_len
@@ -554,9 +557,9 @@ class SineSignalTest(unittest.TestCase):
             self.skipTest("CUDA is not available")
         input_seq_len = 4
         model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
+            LSTM(1, 8, seq_len=input_seq_len),
+            LSTM(8, 8, last_timestep=True, seq_len=input_seq_len),
+            Linear(8, 1),
         )
         mse = lstm_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True
@@ -571,9 +574,9 @@ class SineSignalTest(unittest.TestCase):
             self.skipTest("CUDA is not available")
         input_seq_len = 4
         model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
+            LSTM(1, 8, seq_len=input_seq_len),
+            LSTM(8, 8, last_timestep=True, seq_len=input_seq_len),
+            Linear(8, 1),
         )
         mse = lstm_user_output_updater_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True
@@ -588,9 +591,9 @@ class SineSignalTest(unittest.TestCase):
             self.skipTest("CUDA is not available")
         input_seq_len = 4
         model = Sequential(
-            LSTM(1, 8, input_seq_len),
-            LSTM(8, 8, input_seq_len),
-            Linear(8 * input_seq_len, 1),
+            LSTM(1, 8, seq_len=input_seq_len),
+            LSTM(8, 8, last_timestep=True, seq_len=input_seq_len),
+            Linear(8, 1),
         )
         same_delta_z = set_delta_z_test_runner(
             model, input_seq_len=input_seq_len, use_cuda=True

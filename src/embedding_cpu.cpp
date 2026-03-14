@@ -133,6 +133,10 @@ Embedding::Embedding(int num_embeddings, int embedding_dim, int input_size,
 
 Embedding::~Embedding() {}
 
+int Embedding::get_max_num_states() {
+    return this->input_size * this->embedding_dim;
+}
+
 std::string Embedding::get_layer_info() const {
     std::string info = "Embedding(";
     info += std::to_string(this->num_embeddings) + "->" +

@@ -243,9 +243,9 @@ TEST_F(LSTMDDPTest, LSTM_NCCL) {
                             std::to_string(world_size) + " starting test");
 
     int input_seq_len = 4;
-    auto model = std::make_shared<Sequential>(LSTM(1, 8, input_seq_len),
-                                              LSTM(8, 8, input_seq_len),
-                                              Linear(8 * input_seq_len, 1));
+    auto model = std::make_shared<Sequential>(LSTM(1, 8, false, input_seq_len),
+                                              LSTM(8, 8, true, input_seq_len),
+                                              Linear(8, 1));
 
     // Configure distributed training
     std::vector<int> device_ids;

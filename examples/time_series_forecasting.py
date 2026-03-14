@@ -18,7 +18,7 @@ import pytagi.metric as metric
 from examples.data_loader import TimeSeriesDataloader
 from pytagi import Normalizer as normalizer
 from pytagi import exponential_scheduler
-from pytagi.nn import LSTM, TLSTM, Linear, OutputUpdater, Sequential
+from pytagi.nn import LSTM, Linear, OutputUpdater, Sequential
 
 
 def main(num_epochs: int = 100, batch_size: int = 16, sigma_v: float = 1.0):
@@ -56,8 +56,8 @@ def main(num_epochs: int = 100, batch_size: int = 16, sigma_v: float = 1.0):
 
     # Network
     net = Sequential(
-        TLSTM(1, 8, False, input_seq_len),
-        TLSTM(8, 8, True, input_seq_len),
+        LSTM(1, 8, False, input_seq_len),
+        LSTM(8, 8, True, input_seq_len),
         Linear(8, 1),
     )
     net.to_device("cuda")

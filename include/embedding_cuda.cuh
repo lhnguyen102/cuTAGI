@@ -42,6 +42,8 @@ class EmbeddingCuda : public BaseLayerCuda {
     EmbeddingCuda(EmbeddingCuda &&) = default;
     EmbeddingCuda &operator=(EmbeddingCuda &&) = default;
 
+    int get_max_num_states() override;
+
     std::string get_layer_info() const override;
 
     std::string get_layer_name() const override;

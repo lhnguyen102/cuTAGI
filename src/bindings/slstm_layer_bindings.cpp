@@ -10,11 +10,11 @@ void bind_slstm_layer(pybind11::module_& modo)
  */
 {
     pybind11::class_<SLSTM, std::shared_ptr<SLSTM>, BaseLayer>(modo, "SLSTM")
-        .def(pybind11::init<size_t, size_t, int, bool, float, float,
+        .def(pybind11::init<size_t, size_t, bool, int, bool, float, float,
                             std::string, int>(),
              pybind11::arg("input_size"), pybind11::arg("output_size"),
-             pybind11::arg("seq_len"), pybind11::arg("bias"),
-             pybind11::arg("gain_weight") = 1.0f,
+             pybind11::arg("last_timestep") = false, pybind11::arg("seq_len"),
+             pybind11::arg("bias"), pybind11::arg("gain_weight") = 1.0f,
              pybind11::arg("gain_bias") = 1.0f, pybind11::arg("method") = "He",
              pybind11::arg("device_idx") = 0)
         .def("get_layer_info", &SLSTM::get_layer_info)

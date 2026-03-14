@@ -4,45 +4,25 @@ from pytagi.nn.base_layer import BaseLayer
 
 
 class LSTM(BaseLayer):
-    """
-    A **Long Short-Term Memory (LSTM)** layer for RNNs. It inherits from BaseLayer.
-    """
+    """A temporal LSTM layer that processes sequences with an explicit
+    time loop, correctly propagating hidden states between timesteps."""
 
     def __init__(
         self,
         input_size: int,
         output_size: int,
-        seq_len: int,
+        last_timestep: bool = False,
+        seq_len: int = 1,
         bias: bool = True,
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
         init_method: str = "He",
     ):
-        """
-        Initializes the LSTM layer.
-
-        Args:
-            input_size: The number of features in the input tensor at each time
-                        step.
-            output_size: The size of the hidden state (:math:`h_t`), which is the
-                         number of features in the output tensor at each time
-                         step.
-            seq_len: The maximum length of the input sequence. This is often
-                     required for efficient memory allocation in C++/CUDA
-                     backends like cuTAGI.
-            bias: If True, the internal gates and cell state updates will include
-                  an additive bias vector. Defaults to True.
-            gain_weight: Scaling factor applied to the initialized weights
-                         (:math:`W`). Defaults to 1.0.
-            gain_bias: Scaling factor applied to the initialized biases
-                       (:math:`b`). Defaults to 1.0.
-            init_method: The method used for initializing the weights and
-                         biases (e.g., "He", "Xavier"). Defaults to "He".
-        """
         super().__init__()
 
         self.input_size = input_size
         self.output_size = output_size
+        self.last_timestep = last_timestep
         self.seq_len = seq_len
         self.bias = bias
         self.gain_weight = gain_weight
@@ -52,6 +32,7 @@ class LSTM(BaseLayer):
         self._cpp_backend = cutagi.LSTM(
             input_size,
             output_size,
+            last_timestep,
             seq_len,
             bias,
             gain_weight,
@@ -60,24 +41,10 @@ class LSTM(BaseLayer):
         )
 
     def get_layer_info(self) -> str:
-        """
-        Retrieves a descriptive string containing information about the layer's
-        configuration (e.g., input/output size, sequence length) from the
-        C++ backend.
-        """
         return self._cpp_backend.get_layer_info()
 
     def get_layer_name(self) -> str:
-        """
-        Retrieves the name of the layer (e.g., 'LSTM') from the C++ backend.
-        """
         return self._cpp_backend.get_layer_name()
 
     def init_weight_bias(self):
-        """
-        Initializes the various weight matrices and bias vectors used by the
-        LSTM's gates (input, forget, output) and cell state updates, using
-        the specified method and gain factors. This task is delegated to the
-        C++ backend.
-        """
         self._cpp_backend.init_weight_bias()

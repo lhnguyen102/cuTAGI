@@ -51,6 +51,8 @@ class Embedding : public BaseLayer {
     Embedding(Embedding &&) = default;
     Embedding &operator=(Embedding &&) = default;
 
+    int get_max_num_states() override;
+
     virtual std::string get_layer_info() const override;
 
     virtual std::string get_layer_name() const override;

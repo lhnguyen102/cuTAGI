@@ -41,4 +41,3 @@ from pytagi.nn.rms_norm import RMSNorm
 from pytagi.nn.sequential import Sequential
 from pytagi.nn.slinear import SLinear
 from pytagi.nn.slstm import SLSTM
-from pytagi.nn.tlstm import TLSTM
