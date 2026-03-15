@@ -20,10 +20,11 @@ class MultiheadAttention(BaseLayer):
         bias: bool = True,
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
-        init_method: str = "Xavier",
-        use_rope: bool = True,
+        init_method: str = "He",
+        pos_emb: str = "rope",
         rope_theta: float = 10000.0,
         max_seq_len: int = 2048,
+        use_causal_mask: bool = True,
     ):
         """
         Initializes the MultiheadAttention layer.
@@ -39,6 +40,12 @@ class MultiheadAttention(BaseLayer):
             gain_bias: Scaling factor applied to initialized biases. Defaults to 1.0.
             init_method: The method used for initializing weights and biases
                         (e.g., "Xavier", "He"). Defaults to "Xavier".
+            pos_emb: Positional embedding method. Options: "rope" (rotary),
+                     "sinusoidal" (Attention Is All You Need), or "" (none).
+            rope_theta: Base frequency for RoPE. Only used when pos_emb="rope".
+            max_seq_len: Maximum sequence length for positional encoding cache.
+            use_causal_mask: If True, apply causal (lower-triangular) mask to
+                            prevent attending to future positions. Defaults to True.
         """
         super().__init__()
 
@@ -53,9 +60,10 @@ class MultiheadAttention(BaseLayer):
         self.gain_weight = gain_weight
         self.gain_bias = gain_bias
         self.init_method = init_method
-        self.use_rope = use_rope
+        self.pos_emb = pos_emb
         self.rope_theta = rope_theta
         self.max_seq_len = max_seq_len
+        self.use_causal_mask = use_causal_mask
 
         self._cpp_backend = cutagi.MultiheadAttention(
             embed_dim,
@@ -66,9 +74,10 @@ class MultiheadAttention(BaseLayer):
             gain_weight,
             gain_bias,
             init_method,
-            use_rope,
+            pos_emb,
             rope_theta,
             max_seq_len,
+            use_causal_mask,
         )
 
     def get_layer_info(self) -> str:

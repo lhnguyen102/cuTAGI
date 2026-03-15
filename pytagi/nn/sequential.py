@@ -414,8 +414,8 @@ class Sequential:
         """Gets attention scores from all MultiheadAttention layers.
 
         :return: A dictionary mapping layer indices to a 2-tuple of
-                 lists: (mu_att_score, var_att_score). Each has shape
-                 [batch_size * num_heads * seq_len * seq_len] (flattened).
+                 numpy arrays: (mu_att_score, var_att_score). Each has shape
+                 [batch_size, num_heads, seq_len, seq_len].
         :rtype: dict
         """
         return self._cpp_backend.get_attention_scores()

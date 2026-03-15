@@ -42,11 +42,10 @@ void rmsnorm_fwd_mean_var(const std::vector<float> &mu_w,
         for (int col = 0; col < ni; col++) {  // hidden node
             int index = col + row * ni;
             float normalized_mu = mu_a[index] * inv_rms;
-            float normalized_var = var_a[index] * inv_rms_sq;
 
             mu_z[index] = normalized_mu * mu_w[col];
             var_z[index] =
-                normalized_var *
+                inv_rms_sq *
                 (var_a[index] * (var_w[col] + mu_w[col] * mu_w[col]) +
                  var_w[col] * mu_a[index] * mu_a[index]);
         }

@@ -79,7 +79,9 @@ void bwd_emb(std::vector<float> &ma, std::vector<float> &var_w,
                 delta_mu_w[cat_idx * embedding_dim + k] +=
                     delta_mu[out_idx + k] * var_w[cat_idx * embedding_dim + k];
                 delta_var_w[cat_idx * embedding_dim + k] +=
-                    delta_var[out_idx + k] * var_w[cat_idx * embedding_dim + k];
+                    delta_var[out_idx + k] *
+                    var_w[cat_idx * embedding_dim + k] *
+                    var_w[cat_idx * embedding_dim + k];
             }
         }
     }

@@ -138,15 +138,7 @@ void bind_sequential(pybind11::module_& m) {
                 return py_states;
             },
             pybind11::arg("time_step"))
-        .def("get_attention_scores",
-             [](Sequential& self) {
-                 auto scores = self.get_attention_scores();
-                 pybind11::dict py_scores;
-                 for (const auto& pair : scores) {
-                     py_scores[pybind11::int_(pair.first)] = pair.second;
-                 }
-                 return py_scores;
-             })
+        .def("get_attention_scores", &Sequential::get_attention_scores_py)
         .def("set_lstm_states", [](Sequential& self, pybind11::dict py_states) {
             // Convert the Python dict to the required unordered_map.
             std::unordered_map<

@@ -1009,6 +1009,35 @@ Sequential::get_attention_scores() const {
     return scores;
 }
 
+pybind11::dict Sequential::get_attention_scores_py() const {
+    pybind11::dict py_scores;
+
+    for (size_t i = 0; i < layers.size(); ++i) {
+        if (layers[i]->get_layer_type() == LayerType::MultiheadAttention) {
+            auto *attn_layer =
+                dynamic_cast<MultiheadAttention *>(layers[i].get());
+            if (attn_layer) {
+                int num_heads = attn_layer->num_heads;
+                int seq_len = attn_layer->seq_len;
+                int batch_size = attn_layer->attn_states.mu_att_score.size() /
+                                 (num_heads * seq_len * seq_len);
+
+                std::vector<ssize_t> shape = {batch_size, num_heads, seq_len,
+                                              seq_len};
+                auto mu_arr = pybind11::array_t<float>(
+                    shape, attn_layer->attn_states.mu_att_score.data());
+                auto var_arr = pybind11::array_t<float>(
+                    shape, attn_layer->attn_states.var_att_score.data());
+
+                py_scores[pybind11::int_(static_cast<int>(i))] =
+                    pybind11::make_tuple(mu_arr, var_arr);
+            }
+        }
+    }
+
+    return py_scores;
+}
+
 void Sequential::set_lstm_states(
     const std::unordered_map<
         int, std::tuple<std::vector<float>, std::vector<float>,

@@ -172,6 +172,8 @@ class Sequential {
     std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
     get_attention_scores() const;
 
+    pybind11::dict get_attention_scores_py() const;
+
     void set_lstm_states(
         const std::unordered_map<
             int, std::tuple<std::vector<float>, std::vector<float>,

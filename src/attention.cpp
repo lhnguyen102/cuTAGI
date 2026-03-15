@@ -9,38 +9,76 @@
 // #include "../include/attention_cuda.cuh"
 // #endif
 
+void deterministic_softmax(std::vector<float> &mu_in,
+                           std::vector<float> &var_in, int num_rows,
+                           int row_size, std::vector<float> &mu_out,
+                           std::vector<float> &var_out,
+                           std::vector<float> &jcb) {
+    for (int r = 0; r < num_rows; r++) {
+        int offset = r * row_size;
+
+        float max_val = mu_in[offset];
+        for (int c = 1; c < row_size; c++) {
+            max_val = std::max(max_val, mu_in[offset + c]);
+        }
+
+        float sum_exp = 0.0f;
+        for (int c = 0; c < row_size; c++) {
+            mu_out[offset + c] = expf(mu_in[offset + c] - max_val);
+            sum_exp += mu_out[offset + c];
+        }
+
+        for (int c = 0; c < row_size; c++) {
+            mu_out[offset + c] /= sum_exp;
+            var_out[offset + c] = 0.0f;
+            // Jacobian: d(softmax_i)/d(z_i) = s_i * (1 - s_i)
+            jcb[offset + c] = mu_out[offset + c] * (1.0f - mu_out[offset + c]);
+        }
+    }
+}
+
 void separate_input_projection_components(
     std::vector<float> &mu_embs, std::vector<float> &var_embs, int batch_size,
     int num_heads, int timestep, int head_dim, std::vector<float> &mu_q,
     std::vector<float> &var_q, std::vector<float> &mu_k,
     std::vector<float> &var_k, std::vector<float> &mu_v,
     std::vector<float> &var_v)
-/*Separate input projection components into query, key, and value
+/*Separate input projection components into query, key, and value.
 
-embs: [batch_size, num_heads, timestep, head_dim]
+The linear layer outputs (batch_size * timestep, 3 * num_heads * head_dim)
+in row-major order, so for each token the layout is [Q(C) | K(C) | V(C)]
+where C = num_heads * head_dim.
+
+embs: [batch_size * timestep, 3 * num_heads * head_dim]
 q: [batch_size, num_heads, timestep, head_dim]
 k: [batch_size, num_heads, timestep, head_dim]
 v: [batch_size, num_heads, timestep, head_dim]
 */
 {
-    int comp_idx, emb_idx;
-    int comp_size = batch_size * num_heads * timestep * head_dim;
+    int comp_idx, emb_idx_q, emb_idx_k, emb_idx_v;
+    int emb_size = num_heads * head_dim;
+    int row_size = 3 * emb_size;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
                 for (int m = 0; m < head_dim; m++) {
                     comp_idx = i * num_heads * timestep * head_dim +
                                j * timestep * head_dim + k * head_dim + m;
-                    emb_idx = i * num_heads * timestep * head_dim +
-                              k * num_heads * head_dim + j * head_dim + m;
-                    mu_q[comp_idx] = mu_embs[emb_idx];
-                    var_q[comp_idx] = var_embs[emb_idx];
+                    int token_idx = i * timestep + k;
+                    int head_offset = j * head_dim + m;
+                    emb_idx_q = token_idx * row_size + head_offset;
+                    emb_idx_k = token_idx * row_size + emb_size + head_offset;
+                    emb_idx_v =
+                        token_idx * row_size + 2 * emb_size + head_offset;
 
-                    mu_k[comp_idx] = mu_embs[emb_idx + comp_size];
-                    var_k[comp_idx] = var_embs[emb_idx + comp_size];
+                    mu_q[comp_idx] = mu_embs[emb_idx_q];
+                    var_q[comp_idx] = var_embs[emb_idx_q];
 
-                    mu_v[comp_idx] = mu_embs[emb_idx + 2 * comp_size];
-                    var_v[comp_idx] = var_embs[emb_idx + 2 * comp_size];
+                    mu_k[comp_idx] = mu_embs[emb_idx_k];
+                    var_k[comp_idx] = var_embs[emb_idx_k];
+
+                    mu_v[comp_idx] = mu_embs[emb_idx_v];
+                    var_v[comp_idx] = var_embs[emb_idx_v];
                 }
             }
         }
@@ -53,32 +91,41 @@ void cat_intput_projection_components(
     std::vector<float> &mu_v, std::vector<float> &var_v, int batch_size,
     int num_heads, int timestep, int head_size, std::vector<float> &mu_embs,
     std::vector<float> &var_embs)
-/*Concatenate query, key, and value vectors into a single vector
+/*Concatenate query, key, and value vectors back into linear layer layout.
+
+The output must match the linear layer's (batch_size * timestep, 3*C) layout
+where each token row is [Q(C) | K(C) | V(C)] and C = num_heads * head_size.
 
 q: [batch_size, num_heads, timestep, head_dim]
 k: [batch_size, num_heads, timestep, head_dim]
 v: [batch_size, num_heads, timestep, head_dim]
-embs: [batch_size, num_heads, timestep, head_dim]
+embs: [batch_size * timestep, 3 * num_heads * head_size]
 */
 {
-    int qkv_idx, emb_idx;
-    int comp_size = batch_size * num_heads * timestep * head_size;
+    int qkv_idx, emb_idx_q, emb_idx_k, emb_idx_v;
+    int emb_size = num_heads * head_size;
+    int row_size = 3 * emb_size;
     for (int i = 0; i < batch_size; i++) {
         for (int k = 0; k < timestep; k++) {
             for (int j = 0; j < num_heads; j++) {
                 for (int m = 0; m < head_size; m++) {
                     qkv_idx = i * num_heads * timestep * head_size +
                               j * timestep * head_size + k * head_size + m;
-                    emb_idx = i * num_heads * timestep * head_size +
-                              k * num_heads * head_size + j * head_size + m;
-                    mu_embs[emb_idx] = mu_q[qkv_idx];
-                    var_embs[emb_idx] = var_q[qkv_idx];
+                    int token_idx = i * timestep + k;
+                    int head_offset = j * head_size + m;
+                    emb_idx_q = token_idx * row_size + head_offset;
+                    emb_idx_k = token_idx * row_size + emb_size + head_offset;
+                    emb_idx_v =
+                        token_idx * row_size + 2 * emb_size + head_offset;
 
-                    mu_embs[emb_idx + comp_size] = mu_k[qkv_idx];
-                    var_embs[emb_idx + comp_size] = var_k[qkv_idx];
+                    mu_embs[emb_idx_q] = mu_q[qkv_idx];
+                    var_embs[emb_idx_q] = var_q[qkv_idx];
 
-                    mu_embs[emb_idx + 2 * comp_size] = mu_v[qkv_idx];
-                    var_embs[emb_idx + 2 * comp_size] = var_v[qkv_idx];
+                    mu_embs[emb_idx_k] = mu_k[qkv_idx];
+                    var_embs[emb_idx_k] = var_k[qkv_idx];
+
+                    mu_embs[emb_idx_v] = mu_v[qkv_idx];
+                    var_embs[emb_idx_v] = var_v[qkv_idx];
                 }
             }
         }
@@ -98,6 +145,7 @@ qk: [batch_size, num_heads, timestep, timestep]
 {
     int idx_q, idx_k, idx_qk;
     float sum_mu, sum_var;
+    float scale = 1.0f / sqrtf(static_cast<float>(head_size));
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
@@ -117,8 +165,8 @@ qk: [batch_size, num_heads, timestep, timestep]
                     }
                     idx_qk = i * num_heads * timestep * timestep +
                              j * timestep * timestep + k * timestep + l;
-                    mu_qk[idx_qk] = sum_mu;
-                    var_qk[idx_qk] = sum_var;
+                    mu_qk[idx_qk] = sum_mu * scale;
+                    var_qk[idx_qk] = sum_var * scale * scale;
                 }
             }
         }
@@ -317,6 +365,7 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                      std::vector<float> &delta_var_q) {
     int idx_q, idx_k, idx_s;
     float sum_mu, sum_var;
+    float scale = 1.0f / sqrtf(static_cast<float>(head_size));
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int m = 0; m < head_size; m++) {
@@ -324,24 +373,21 @@ void mha_delta_query(std::vector<float> &var_q, std::vector<float> &mu_k,
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
                     for (int l = 0; l < timestep; l++) {
-                        if (l <= k) {
-                            idx_k = i * num_heads * timestep * head_size +
-                                    j * timestep * head_size + l * head_size +
-                                    m;
-                            idx_s = i * num_heads * timestep * timestep +
-                                    j * timestep * timestep + k * timestep + l;
-                            sum_mu +=
-                                mu_k[idx_k] * delta_mu[idx_s] * jcb_mqk[idx_s];
-                            sum_var += mu_k[idx_k] * delta_var[idx_s] *
-                                       mu_k[idx_k] * jcb_mqk[idx_s] *
-                                       jcb_mqk[idx_s];
-                        }
+                        idx_k = i * num_heads * timestep * head_size +
+                                j * timestep * head_size + l * head_size + m;
+                        idx_s = i * num_heads * timestep * timestep +
+                                j * timestep * timestep + k * timestep + l;
+                        sum_mu +=
+                            mu_k[idx_k] * delta_mu[idx_s] * jcb_mqk[idx_s];
+                        sum_var += mu_k[idx_k] * delta_var[idx_s] *
+                                   mu_k[idx_k] * jcb_mqk[idx_s] *
+                                   jcb_mqk[idx_s];
                     }
                     idx_q = i * num_heads * timestep * head_size +
                             j * timestep * head_size + m + k * head_size;
 
-                    delta_mu_q[idx_q] = sum_mu / powf(num_heads, 0.5);
-                    delta_var_q[idx_q] = sum_var / num_heads;
+                    delta_mu_q[idx_q] = sum_mu * scale;
+                    delta_var_q[idx_q] = sum_var * scale * scale;
                 }
             }
         }
@@ -353,31 +399,32 @@ void mha_delta_key(std::vector<float> &var_k, std::vector<float> &mu_q,
                    std::vector<float> &jcb_mqk, int batch_size, int num_heads,
                    int timestep, int head_size, std::vector<float> &delta_mu_k,
                    std::vector<float> &delta_var_k) {
-    int idx_q, idx_s;
+    int idx_q, idx_s, idx_k;
     float sum_mu, sum_var;
+    float scale = 1.0f / sqrtf(static_cast<float>(head_size));
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int m = 0; m < head_size; m++) {
                 for (int k = 0; k < timestep; k++) {
                     sum_mu = 0.0f;
                     sum_var = 0.0f;
-                    for (int l = 0; l < timestep; l++) {
-                        if (l <= k) {
-                            idx_s = i * num_heads * timestep * timestep +
-                                    j * timestep * timestep + k * timestep + l;
+                    for (int p = 0; p < timestep; p++) {
+                        idx_s = i * num_heads * timestep * timestep +
+                                j * timestep * timestep + p * timestep + k;
+                        idx_q = i * num_heads * timestep * head_size +
+                                j * timestep * head_size + p * head_size + m;
 
-                            sum_mu += delta_mu[idx_s] * jcb_mqk[idx_s];
-                            sum_var +=
-                                delta_var[idx_s] * powf(jcb_mqk[idx_s], 2);
-                        }
+                        sum_mu +=
+                            mu_q[idx_q] * delta_mu[idx_s] * jcb_mqk[idx_s];
+                        sum_var += mu_q[idx_q] * delta_var[idx_s] *
+                                   mu_q[idx_q] * jcb_mqk[idx_s] *
+                                   jcb_mqk[idx_s];
                     }
-                    idx_q = i * num_heads * timestep * head_size +
-                            j * timestep * head_size + m + k * head_size;
+                    idx_k = i * num_heads * timestep * head_size +
+                            j * timestep * head_size + k * head_size + m;
 
-                    delta_mu_k[idx_q] =
-                        sum_mu * mu_q[idx_q] / powf(num_heads, 0.5);
-                    delta_var_k[idx_q] =
-                        mu_q[idx_q] * sum_var * mu_q[idx_q] / num_heads;
+                    delta_mu_k[idx_k] = sum_mu * scale;
+                    delta_var_k[idx_k] = sum_var * scale * scale;
                 }
             }
         }
@@ -479,6 +526,44 @@ void rope_backward(std::vector<float> &delta_mu_in,
     }
 }
 
+void generate_sinusoidal_pe_cache(int max_seq_len, int head_dim,
+                                  std::vector<float> &pe_cache) {
+    pe_cache.resize(max_seq_len * head_dim);
+
+    for (int pos = 0; pos < max_seq_len; pos++) {
+        for (int i = 0; i < head_dim; i++) {
+            float freq = 1.0f / powf(10000.0f, (2.0f * (i / 2)) / head_dim);
+            float angle = pos * freq;
+            int idx = pos * head_dim + i;
+            pe_cache[idx] = (i % 2 == 0) ? sinf(angle) : cosf(angle);
+        }
+    }
+}
+
+void apply_positional_encoding(std::vector<float> &mu_in,
+                               std::vector<float> &var_in,
+                               std::vector<float> &pe_cache, int batch_size,
+                               int num_heads, int timestep, int head_dim,
+                               std::vector<float> &mu_out,
+                               std::vector<float> &var_out) {
+    int idx_in, idx_cache;
+
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int t = 0; t < timestep; t++) {
+                for (int d = 0; d < head_dim; d++) {
+                    idx_in = i * num_heads * timestep * head_dim +
+                             j * timestep * head_dim + t * head_dim + d;
+                    idx_cache = t * head_dim + d;
+
+                    mu_out[idx_in] = mu_in[idx_in] + pe_cache[idx_cache];
+                    var_out[idx_in] = var_in[idx_in];
+                }
+            }
+        }
+    }
+}
+
 void AttentionStates::set_size(int batch_size, int num_heads, int timestep,
                                int head_size) {
     int num_embs = num_heads * head_size;
@@ -496,10 +581,10 @@ void AttentionStates::set_size(int batch_size, int num_heads, int timestep,
     mu_v.resize(comp_size, 0.0f);
     var_v.resize(comp_size, 0.0f);
 
-    mu_q_rope.resize(comp_size, 0.0f);
-    var_q_rope.resize(comp_size, 0.0f);
-    mu_k_rope.resize(comp_size, 0.0f);
-    var_k_rope.resize(comp_size, 0.0f);
+    mu_q_pe.resize(comp_size, 0.0f);
+    var_q_pe.resize(comp_size, 0.0f);
+    mu_k_pe.resize(comp_size, 0.0f);
+    var_k_pe.resize(comp_size, 0.0f);
 
     mu_qk.resize(qk_size, 0.0f);
     var_qk.resize(qk_size, 0.0f);
@@ -531,10 +616,10 @@ void AttentionDeltaStates::set_size(int batch_size, int num_heads, int timestep,
     delta_var_q.resize(comp_size, 0.0f);
     delta_mu_k.resize(comp_size, 0.0f);
     delta_var_k.resize(comp_size, 0.0f);
-    delta_mu_q_rope.resize(comp_size, 0.0f);
-    delta_var_q_rope.resize(comp_size, 0.0f);
-    delta_mu_k_rope.resize(comp_size, 0.0f);
-    delta_var_k_rope.resize(comp_size, 0.0f);
+    delta_mu_q_pe.resize(comp_size, 0.0f);
+    delta_var_q_pe.resize(comp_size, 0.0f);
+    delta_mu_k_pe.resize(comp_size, 0.0f);
+    delta_var_k_pe.resize(comp_size, 0.0f);
     delta_mu_in_proj.resize(3 * comp_size, 0.0f);
     delta_var_in_proj.resize(3 * comp_size, 0.0f);
 }
@@ -542,8 +627,9 @@ void AttentionDeltaStates::set_size(int batch_size, int num_heads, int timestep,
 MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
                                        size_t num_kv_heads, size_t seq_len_,
                                        bool bias, float gain_w, float gain_b,
-                                       std::string init_method, bool use_rope,
-                                       float rope_theta, size_t max_seq_len,
+                                       std::string init_method,
+                                       std::string pos_emb, float rope_theta,
+                                       size_t max_seq_len, bool use_causal_mask,
                                        int device_idx)
     : embed_dim(embed_dim),
       num_heads(num_heads),
@@ -551,9 +637,10 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
       gain_w(gain_w),
       gain_b(gain_b),
       init_method(init_method),
-      use_rope(use_rope),
+      pos_emb(pos_emb),
       rope_theta(rope_theta),
-      max_seq_len(max_seq_len) {
+      max_seq_len(max_seq_len),
+      use_causal_mask(use_causal_mask) {
     this->input_size = embed_dim;
     this->output_size = this->embed_dim;
     this->seq_len = seq_len_;
@@ -581,9 +668,12 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
 
     remax_layer = std::make_unique<Remax>();
 
-    if (this->use_rope) {
+    if (this->pos_emb == "rope") {
         generate_rope_cache(this->max_seq_len, this->head_dim, this->rope_theta,
                             this->cos_cache, this->sin_cache);
+    } else if (this->pos_emb == "sinusoidal") {
+        generate_sinusoidal_pe_cache(this->max_seq_len, this->head_dim,
+                                     this->pe_cache);
     }
 }
 
@@ -690,17 +780,32 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
         attn_states.mu_k, attn_states.var_k, attn_states.mu_v,
         attn_states.var_v);
 
-    if (this->use_rope) {
+    if (this->pos_emb == "rope") {
         apply_rope(attn_states.mu_q, attn_states.var_q, this->cos_cache,
                    this->sin_cache, batch_size, num_heads, this->seq_len,
-                   head_dim, attn_states.mu_q_rope, attn_states.var_q_rope);
+                   head_dim, attn_states.mu_q_pe, attn_states.var_q_pe);
 
         apply_rope(attn_states.mu_k, attn_states.var_k, this->cos_cache,
                    this->sin_cache, batch_size, num_heads, this->seq_len,
-                   head_dim, attn_states.mu_k_rope, attn_states.var_k_rope);
+                   head_dim, attn_states.mu_k_pe, attn_states.var_k_pe);
 
-        query_key(attn_states.mu_q_rope, attn_states.var_q_rope,
-                  attn_states.mu_k_rope, attn_states.var_k_rope, batch_size,
+        query_key(attn_states.mu_q_pe, attn_states.var_q_pe,
+                  attn_states.mu_k_pe, attn_states.var_k_pe, batch_size,
+                  num_heads, this->seq_len, head_dim, attn_states.mu_qk,
+                  attn_states.var_qk);
+    } else if (this->pos_emb == "sinusoidal") {
+        apply_positional_encoding(attn_states.mu_q, attn_states.var_q,
+                                  this->pe_cache, batch_size, num_heads,
+                                  this->seq_len, head_dim, attn_states.mu_q_pe,
+                                  attn_states.var_q_pe);
+
+        apply_positional_encoding(attn_states.mu_k, attn_states.var_k,
+                                  this->pe_cache, batch_size, num_heads,
+                                  this->seq_len, head_dim, attn_states.mu_k_pe,
+                                  attn_states.var_k_pe);
+
+        query_key(attn_states.mu_q_pe, attn_states.var_q_pe,
+                  attn_states.mu_k_pe, attn_states.var_k_pe, batch_size,
                   num_heads, this->seq_len, head_dim, attn_states.mu_qk,
                   attn_states.var_qk);
     } else {
@@ -709,14 +814,18 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
                   head_dim, attn_states.mu_qk, attn_states.var_qk);
     }
 
-    mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size, num_heads,
-                   this->seq_len, head_dim, attn_states.mu_mqk,
-                   attn_states.var_mqk);
+    if (this->use_causal_mask) {
+        mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size,
+                       num_heads, this->seq_len, head_dim, attn_states.mu_mqk,
+                       attn_states.var_mqk);
+    }
 
-    // Apply Remax (probabilistic softmax) on masked query-key product
+    // Apply Remax (probabilistic softmax) on query-key product
     int qk_size = batch_size * num_heads * this->seq_len * this->seq_len;
-    remax_input.mu_a = attn_states.mu_mqk;
-    remax_input.var_a = attn_states.var_mqk;
+    remax_input.mu_a =
+        this->use_causal_mask ? attn_states.mu_mqk : attn_states.mu_qk;
+    remax_input.var_a =
+        this->use_causal_mask ? attn_states.var_mqk : attn_states.var_qk;
     remax_input.block_size = batch_size * this->seq_len * this->num_heads;
     remax_input.actual_size = this->seq_len;
 
@@ -774,37 +883,59 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                     attn_delta_states.delta_mu_v,
                     attn_delta_states.delta_var_v);
 
-    mha_delta_score(attn_states.mu_att_score, attn_delta_states.delta_mu_buffer,
+    mha_delta_score(attn_states.mu_v, attn_delta_states.delta_mu_buffer,
                     attn_delta_states.delta_var_buffer, batch_size,
                     this->num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
 
-    if (this->use_rope) {
-        mha_delta_query(attn_states.var_q, attn_states.mu_k_rope,
+    if (this->use_causal_mask) {
+        mask_query_key(attn_delta_states.delta_mu_att_score,
+                       attn_delta_states.delta_var_att_score, batch_size,
+                       num_heads, this->seq_len, this->head_dim,
+                       attn_delta_states.delta_mu_att_score,
+                       attn_delta_states.delta_var_att_score);
+    }
+
+    if (this->pos_emb == "rope") {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
                         attn_delta_states.delta_mu_att_score,
                         attn_delta_states.delta_var_att_score,
                         attn_states.j_mqk, batch_size, num_heads, this->seq_len,
-                        this->head_dim, attn_delta_states.delta_mu_q_rope,
-                        attn_delta_states.delta_var_q_rope);
+                        this->head_dim, attn_delta_states.delta_mu_q_pe,
+                        attn_delta_states.delta_var_q_pe);
 
-        mha_delta_key(attn_states.var_k, attn_states.mu_q_rope,
+        mha_delta_key(attn_states.var_k, attn_states.mu_q_pe,
                       attn_delta_states.delta_mu_att_score,
                       attn_delta_states.delta_var_att_score, attn_states.j_mqk,
                       batch_size, num_heads, this->seq_len, this->head_dim,
-                      attn_delta_states.delta_mu_k_rope,
-                      attn_delta_states.delta_var_k_rope);
+                      attn_delta_states.delta_mu_k_pe,
+                      attn_delta_states.delta_var_k_pe);
 
-        rope_backward(attn_delta_states.delta_mu_q_rope,
-                      attn_delta_states.delta_var_q_rope, this->cos_cache,
+        rope_backward(attn_delta_states.delta_mu_q_pe,
+                      attn_delta_states.delta_var_q_pe, this->cos_cache,
                       this->sin_cache, batch_size, num_heads, this->seq_len,
                       this->head_dim, attn_delta_states.delta_mu_q,
                       attn_delta_states.delta_var_q);
 
-        rope_backward(attn_delta_states.delta_mu_k_rope,
-                      attn_delta_states.delta_var_k_rope, this->cos_cache,
+        rope_backward(attn_delta_states.delta_mu_k_pe,
+                      attn_delta_states.delta_var_k_pe, this->cos_cache,
                       this->sin_cache, batch_size, num_heads, this->seq_len,
                       this->head_dim, attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
+    } else if (this->pos_emb == "sinusoidal") {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
+                        this->head_dim, attn_delta_states.delta_mu_q,
+                        attn_delta_states.delta_var_q);
+
+        mha_delta_key(attn_states.var_k, attn_states.mu_q_pe,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
+                      batch_size, num_heads, this->seq_len, this->head_dim,
+                      attn_delta_states.delta_mu_k,
                       attn_delta_states.delta_var_k);
     } else {
         mha_delta_query(attn_states.var_q, attn_states.mu_k,

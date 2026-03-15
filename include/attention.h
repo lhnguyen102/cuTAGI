@@ -13,7 +13,7 @@
 struct AttentionStates {
     std::vector<float> mu_in_proj, var_in_proj;
     std::vector<float> mu_q, var_q, mu_k, var_k, mu_v, var_v;
-    std::vector<float> mu_q_rope, var_q_rope, mu_k_rope, var_k_rope;
+    std::vector<float> mu_q_pe, var_q_pe, mu_k_pe, var_k_pe;
     std::vector<float> mu_qk, var_qk;
     std::vector<float> mu_mqk, var_mqk, j_mqk;
     std::vector<float> mu_att_score, var_att_score;
@@ -28,8 +28,8 @@ struct AttentionDeltaStates {
     std::vector<float> delta_mu_att_score, delta_var_att_score;
     std::vector<float> delta_mu_q, delta_var_q;
     std::vector<float> delta_mu_k, delta_var_k;
-    std::vector<float> delta_mu_q_rope, delta_var_q_rope;
-    std::vector<float> delta_mu_k_rope, delta_var_k_rope;
+    std::vector<float> delta_mu_q_pe, delta_var_q_pe;
+    std::vector<float> delta_mu_k_pe, delta_var_k_pe;
     std::vector<float> delta_mu_in_proj, delta_var_in_proj;
 
     void set_size(int batch_size, int num_heads, int timestep, int head_size);
@@ -104,6 +104,16 @@ void generate_rope_cache(int max_seq_len, int head_dim, float theta,
                          std::vector<float> &cos_cache,
                          std::vector<float> &sin_cache);
 
+void generate_sinusoidal_pe_cache(int max_seq_len, int head_dim,
+                                  std::vector<float> &pe_cache);
+
+void apply_positional_encoding(std::vector<float> &mu_in,
+                               std::vector<float> &var_in,
+                               std::vector<float> &pe_cache, int batch_size,
+                               int num_heads, int timestep, int head_dim,
+                               std::vector<float> &mu_out,
+                               std::vector<float> &var_out);
+
 void apply_rope(std::vector<float> &mu_in, std::vector<float> &var_in,
                 std::vector<float> &cos_cache, std::vector<float> &sin_cache,
                 int batch_size, int num_heads, int timestep, int head_dim,
@@ -136,18 +146,21 @@ class MultiheadAttention : public BaseLayer {
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
 
-    bool use_rope;
+    std::string pos_emb;
     float rope_theta;
     size_t max_seq_len;
+    bool use_causal_mask;
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
+    std::vector<float> pe_cache;
 
     MultiheadAttention(size_t embed_dim, size_t num_heads, size_t num_kv_heads,
                        size_t seq_len_ = 1, bool bias = true,
                        float gain_w = 1.0f, float gain_b = 1.0f,
-                       std::string init_method = "Xavier", bool use_rope = true,
+                       std::string init_method = "Xavier",
+                       std::string pos_emb = "rope",
                        float rope_theta = 10000.0f, size_t max_seq_len = 2048,
-                       int device_idx = 0);
+                       bool use_causal_mask = true, int device_idx = 0);
 
     ~MultiheadAttention();
 
