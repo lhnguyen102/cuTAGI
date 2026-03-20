@@ -23,8 +23,8 @@ void lstm_cov_input_cell_states(std::vector<float> &var_ha,
                                 std::vector<float> &mu_w,
                                 std::vector<float> &jcb_i_ga,
                                 std::vector<float> &jcb_c_ga, int w_pos_i,
-                                int w_pos_c, int ni, int no, int batch_size,
-                                int seq_len, int time_step,
+                                int w_pos_c, int ni, int no, int start_idx,
+                                int end_idx, int seq_len, int time_step,
                                 std::vector<float> &cov_i_c);
 
 void lstm_cell_state_mean_var(
@@ -32,8 +32,9 @@ void lstm_cell_state_mean_var(
     std::vector<float> &mu_i_ga, std::vector<float> &var_i_ga,
     std::vector<float> &mu_c_ga, std::vector<float> &var_c_ga,
     std::vector<float> &mu_c_prev, std::vector<float> &var_c_prev,
-    std::vector<float> &cov_i_c, int no, int batch_size, int seq_len,
-    int time_step, std::vector<float> &mu_c, std::vector<float> &var_c);
+    std::vector<float> &cov_i_c, int no, int start_idx, int end_idx,
+    int seq_len, int time_step, std::vector<float> &mu_c,
+    std::vector<float> &var_c);
 
 void lstm_cov_output_tanh_cell_states(
     std::vector<float> &mu_w, std::vector<float> &var_ha,
@@ -41,14 +42,17 @@ void lstm_cov_output_tanh_cell_states(
     std::vector<float> &jcb_f_ga, std::vector<float> &mu_i_ga,
     std::vector<float> &jcb_i_ga, std::vector<float> &mu_c_ga,
     std::vector<float> &jcb_c_ga, std::vector<float> &jcb_o_ga, int w_pos_f,
-    int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no, int batch_size,
-    int seq_len, int time_step, std::vector<float> &cov_tanh_c);
+    int w_pos_i, int w_pos_c, int w_pos_o, int ni, int no, int start_idx,
+    int end_idx, int seq_len, int time_step, std::vector<float> &cov_tanh_c);
 
-void lstm_hidden_state_mean_var(
-    std::vector<float> &mu_o_ga, std::vector<float> &var_o_ga,
-    std::vector<float> &mu_ca, std::vector<float> &var_ca,
-    std::vector<float> &cov_o_tanh_c, int no, int batch_size, int seq_len,
-    int time_step, std::vector<float> &mu_z, std::vector<float> &var_z);
+void lstm_hidden_state_mean_var(std::vector<float> &mu_o_ga,
+                                std::vector<float> &var_o_ga,
+                                std::vector<float> &mu_ca,
+                                std::vector<float> &var_ca,
+                                std::vector<float> &cov_o_tanh_c, int no,
+                                int start_idx, int end_idx, int seq_len,
+                                int time_step, std::vector<float> &mu_z,
+                                std::vector<float> &var_z);
 
 // Backward functions
 void lstm_delta_mean_var_z(std::vector<float> &mw, std::vector<float> &Jf_ga,
@@ -60,8 +64,8 @@ void lstm_delta_mean_var_z(std::vector<float> &mw, std::vector<float> &Jf_ga,
                            std::vector<float> &delta_mu_out,
                            std::vector<float> &delta_var_out, int w_pos_f,
                            int w_pos_i, int w_pos_c, int w_pos_o, int no,
-                           int ni, int batch_size, int seq_len, int time_step,
-                           std::vector<float> &delta_mu,
+                           int ni, int start_idx, int end_idx, int seq_len,
+                           int time_step, std::vector<float> &delta_mu,
                            std::vector<float> &delta_var);
 
 void lstm_delta_mean_var_w(
@@ -70,13 +74,14 @@ void lstm_delta_mean_var_w(
     std::vector<float> &mc_ga, std::vector<float> &Jc_ga,
     std::vector<float> &mo_ga, std::vector<float> &Jo_ga,
     std::vector<float> &mc_prev, std::vector<float> &mca,
-    std::vector<float> &Jc, std::vector<float> &delta_m,
-    std::vector<float> &delta_S, int w_pos_f, int w_pos_i, int w_pos_c,
-    int w_pos_o, int no, int ni, int batch_size, int seq_len, int time_step,
-    std::vector<float> &sum_mu_w_f, std::vector<float> &sum_var_w_f,
-    std::vector<float> &sum_mu_w_i, std::vector<float> &sum_var_w_i,
-    std::vector<float> &sum_mu_w_c, std::vector<float> &sum_var_w_c,
-    std::vector<float> &sum_mu_w_o, std::vector<float> &sum_var_w_o);
+    std::vector<float> &Jc, std::vector<float> &delta_mu,
+    std::vector<float> &delta_var, int w_pos_f, int w_pos_i, int w_pos_c,
+    int w_pos_o, int no, int ni, int start_idx, int end_idx, int batch_size,
+    int seq_len, int time_step, std::vector<float> &sum_mu_w_f,
+    std::vector<float> &sum_var_w_f, std::vector<float> &sum_mu_w_i,
+    std::vector<float> &sum_var_w_i, std::vector<float> &sum_mu_w_c,
+    std::vector<float> &sum_var_w_c, std::vector<float> &sum_mu_w_o,
+    std::vector<float> &sum_var_w_o);
 
 void lstm_delta_mean_var_b(
     std::vector<float> &Jf_ga, std::vector<float> &mi_ga,
@@ -84,12 +89,12 @@ void lstm_delta_mean_var_b(
     std::vector<float> &Jc_ga, std::vector<float> &mo_ga,
     std::vector<float> &Jo_ga, std::vector<float> &mc_prev,
     std::vector<float> &mca, std::vector<float> &Jc,
-    std::vector<float> &delta_m, std::vector<float> &delta_S, int no,
-    int batch_size, int seq_len, int time_step, std::vector<float> &sum_mu_b_f,
-    std::vector<float> &sum_var_b_f, std::vector<float> &sum_mu_b_i,
-    std::vector<float> &sum_var_b_i, std::vector<float> &sum_mu_b_c,
-    std::vector<float> &sum_var_b_c, std::vector<float> &sum_mu_b_o,
-    std::vector<float> &sum_var_b_o);
+    std::vector<float> &delta_mu, std::vector<float> &delta_var, int no,
+    int start_idx, int end_idx, int batch_size, int seq_len, int time_step,
+    std::vector<float> &sum_mu_b_f, std::vector<float> &sum_var_b_f,
+    std::vector<float> &sum_mu_b_i, std::vector<float> &sum_var_b_i,
+    std::vector<float> &sum_mu_b_c, std::vector<float> &sum_var_b_c,
+    std::vector<float> &sum_mu_b_o, std::vector<float> &sum_var_b_o);
 
 void lstm_update_hidden_state_posterior(
     std::vector<float> &mu_h_prior, std::vector<float> &var_h_prior,
@@ -101,6 +106,16 @@ void lstm_update_cell_state_posterior(
     std::vector<float> &jcb_ca, std::vector<float> &mu_o_ga,
     std::vector<float> &delta_mu, std::vector<float> &delta_var, int start_idx,
     int end_idx, std::vector<float> &mu_c_prev, std::vector<float> &var_c_prev);
+
+void lstm_sigmoid_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                        int start_idx, int end_idx, int seq_len, int no,
+                        int time_step, std::vector<float> &mu_a,
+                        std::vector<float> &jcb, std::vector<float> &var_a);
+
+void lstm_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
+                        int start_idx, int end_idx, int seq_len, int no,
+                        int time_step, std::vector<float> &mu_a,
+                        std::vector<float> &jcb, std::vector<float> &var_a);
 
 class LSTM : public BaseLayer {
    public:

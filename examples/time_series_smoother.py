@@ -55,8 +55,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
     # Network
     net = Sequential(
-        SLSTM(num_features + input_seq_len - 1, 40, 1),
-        SLSTM(40, 40, 1),
+        SLSTM(num_features + input_seq_len - 1, 40, False, 1),
+        SLSTM(40, 40, False, 1),
         SLinear(40, 1),
     )
 
