@@ -1,3 +1,12 @@
+# Temporary import. It will be removed in the final vserion
+import os
+import sys
+
+# Add the 'build' directory to sys.path in one line
+sys.path.append(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "build"))
+)
+
 from typing import Optional
 
 import fire
@@ -13,43 +22,112 @@ from pytagi import exponential_scheduler
 from pytagi.nn import SLSTM, OutputUpdater, Sequential, SLinear
 
 
-def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
-    """Run training for time-series forecasting model"""
+def main(num_epochs: int = 100, batch_size: int = 1, sigma_v: float = 1, ts_run: int = 81):
     # Dataset
     output_col = [0]
-    num_features = 1
+    num_features = 2
     input_seq_len = 20
     output_seq_len = 1
     seq_stride = 1
-    # Number of observations before training time to be inferred. These
-    # obervations are nan in training data.
-    infer_window_len = 48
 
-    train_dtl = TimeSeriesDataloader(
-        x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
-        date_time_file="data/toy_time_series_smoother/x_train_sin_smoother_datetime.csv",
-        output_col=output_col,
-        input_seq_len=input_seq_len,
-        output_seq_len=output_seq_len,
-        num_features=num_features,
-        stride=seq_stride,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
-    )
-    test_dtl = TimeSeriesDataloader(
-        x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
-        date_time_file="data/toy_time_series_smoother/x_test_sin_smoother_datetime.csv",
-        output_col=output_col,
-        input_seq_len=input_seq_len,
-        output_seq_len=output_seq_len,
-        num_features=num_features,
-        stride=seq_stride,
-        x_mean=train_dtl.x_mean,
-        x_std=train_dtl.x_std,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
-    )
+    data_file_train = "./data/hq/train100/split_train_values.csv"
+    data_file_val = "./data/hq/split_val_values.csv"
+    data_file_test = "./data/hq/split_test_values.csv"
+    data_time_train = "./data/hq/train100/split_train_datetimes.csv"
+    data_time_val = "./data/hq/split_val_datetimes.csv"
+    data_time_test = "./data/hq/split_test_datetimes.csv"
 
+    # cols= range(112)
+    # cols= [1]
+    cols = [ts_run] 
+    df_train = pd.read_csv(data_file_train, skiprows=1, delimiter=",", header=None, usecols=cols)
+    df_val = pd.read_csv(data_file_val, skiprows=1, delimiter=",", header=None, usecols=cols)
+    df_test = pd.read_csv(data_file_test, skiprows=1, delimiter=",", header=None, usecols=cols)
+    df_train_time = pd.read_csv(data_time_train, skiprows=1, delimiter=",", header=None, usecols=cols)
+    df_val_time = pd.read_csv(data_time_val, skiprows=1, delimiter=",", header=None, usecols=cols)
+    df_test_time = pd.read_csv(data_time_test, skiprows=1, delimiter=",", header=None, usecols=cols)
+
+    # plt.plot(df_train.values)
+    # plt.show()
+
+    num_ts = df_train.shape[1]
+    ts_list = np.random.permutation(num_ts)
+    num_iter = int(np.ceil(num_ts/batch_size))
+    time_covariates=["week_of_year"]
+    mse_optim = 1e10
+    epoch_optim = 0
+    patience = 5
+    infer_window_len = 80+52*2
+    
+    # # Data loader
+    train_dtl_dict = {}
+    val_dtl_dict = {}
+    test_dtl_dict ={}
+
+    for ts in range(num_ts):
+        df_train_temp = df_train.iloc[:,[ts]]
+        df_train_temp.index = pd.to_datetime(df_train_time.iloc[:, ts])
+        last_idx = df_train_temp.iloc[:, 0].last_valid_index()
+        df_train_temp = df_train_temp.loc[:last_idx]
+        obs_infer = df_train_temp.values[:infer_window_len+input_seq_len].copy()
+        df_train_temp.values[:infer_window_len+input_seq_len] = np.nan
+
+        num_remove = 52 - input_seq_len
+        df_val_temp = df_val.iloc[num_remove:,[ts]]
+        df_val_temp.index = pd.to_datetime(df_val_time.iloc[num_remove:, ts])
+        last_idx = df_val_temp.iloc[:, 0].last_valid_index()
+        df_val_temp = df_val_temp.loc[:last_idx]
+
+        df_test_temp = df_test.iloc[num_remove:,[ts]]
+        df_test_temp.index = pd.to_datetime(df_test_time.iloc[num_remove:, ts])
+        last_idx = df_test_temp.iloc[:, 0].last_valid_index()
+        df_test_temp = df_test_temp.loc[:last_idx]
+
+        train_dtl_dict[ts] = TimeSeriesDataloader(
+            x_file="",
+            date_time_file="",
+            output_col=output_col,
+            input_seq_len=input_seq_len,
+            output_seq_len=output_seq_len,
+            num_features=num_features,
+            time_covariates =time_covariates,
+            keep_last_time_cov=True,
+            stride=seq_stride,
+            df = df_train_temp,
+        )
+
+        val_dtl_dict[ts] = TimeSeriesDataloader(
+            x_file="",
+            date_time_file="",
+            output_col=output_col,
+            input_seq_len=input_seq_len,
+            output_seq_len=output_seq_len,
+            num_features=num_features,
+            stride=seq_stride,
+            df = df_val_temp,
+            x_mean=train_dtl_dict[ts].x_mean,
+            x_std=train_dtl_dict[ts].x_std,
+            time_covariates =time_covariates,
+            keep_last_time_cov=True,
+        )
+
+        test_dtl_dict[ts] = TimeSeriesDataloader(
+            x_file="",
+            date_time_file="",
+
+            output_col=output_col,
+            input_seq_len=input_seq_len,
+            output_seq_len=output_seq_len,
+            num_features=num_features,
+            stride=seq_stride,
+            df = df_test_temp,
+            x_mean=train_dtl_dict[ts].x_mean,
+            x_std=train_dtl_dict[ts].x_std,
+            time_covariates =time_covariates,
+            keep_last_time_cov=True,
+        )
+
+        obs_infer = normalizer.standardize(data=obs_infer, mu=train_dtl_dict[ts].x_mean[0], std=train_dtl_dict[ts].x_std[0])
     # Viz
     viz = PredictionViz(task_name="forecasting", data_name="sin_signal")
 
@@ -62,7 +140,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
     # net.to_device("cuda")
     net.set_threads(1)  # multi-processing is slow on a small net
-    net.num_samples = train_dtl.dataset["value"][0].shape[0]
+    net.num_samples = train_dtl_dict[ts].dataset["value"][0].shape[0]
     out_updater = OutputUpdater(net.device)
 
     # -------------------------------------------------------------------------#
@@ -73,7 +151,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     pbar = tqdm(range(num_epochs), desc="Training Progress")
 
     for epoch in pbar:
-        batch_iter = train_dtl.create_data_loader(batch_size, shuffle=False)
+        batch_iter = train_dtl_dict[ts].create_data_loader(batch_size, shuffle=False)
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
@@ -84,15 +162,13 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         )
         y_train = []
 
-        # for x, y in batch_iter:
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
-            if idx_sample < 72:
+            if idx_sample < input_seq_len + infer_window_len:
                 x = replace_with_prediction(x, mu_sequence)
 
             x = np.nan_to_num(x, nan=0.0)
-
             # Feed forward
             m_pred, _ = net(x)
 
@@ -110,12 +186,12 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
             # Training metric
             pred = normalizer.unstandardize(
                 m_pred,
-                train_dtl.x_mean[output_col],
-                train_dtl.x_std[output_col],
+                train_dtl_dict[ts].x_mean[output_col],
+                train_dtl_dict[ts].x_std[output_col],
             )
             y_train.append(y)
             obs = normalizer.unstandardize(
-                y, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+                y, train_dtl_dict[ts].x_mean[output_col], train_dtl_dict[ts].x_std[output_col]
             )
 
             mse = metric.mse(pred, obs)
@@ -131,23 +207,30 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         zo_smooth_std = np.array(var_zo_smooth) ** 0.5
         mu_sequence = np.ones(input_seq_len, dtype=np.float32)
         # mu_sequence = mu_zo_smooth[:input_seq_len]
+        # mu_sequence = np.random.rand(input_seq_len)
 
         # Figures for each epoch for debugging
-        t = np.arange(len(mu_zo_smooth))
-        t_train = np.arange(len(y_train))
-        plt.figure()
-        plt.plot(t_train, y_train, color="r")
-        plt.plot(t, mu_zo_smooth, color="b")
-        plt.fill_between(
-            t,
-            mu_zo_smooth - zo_smooth_std,
-            mu_zo_smooth + zo_smooth_std,
-            alpha=0.2,
-            label="1 Std Dev",
-        )
-        filename = f"saved_results/smoother#{epoch}.png"
-        plt.savefig(filename)
-        plt.close()
+        # t = np.arange(len(mu_zo_smooth))
+        # t_train = np.arange(len(y_train))
+        # t_infer_len = np.arange(infer_window_len)
+        # plt.figure()
+        # plt.plot(t_train, y_train, color="r", label=r"$y_{true}$")
+        # plt.plot(t, mu_zo_smooth, color="b", label=r"pred")
+        # plt.plot(t_infer_len,obs_infer[input_seq_len:], color="r")
+        # plt.fill_between(
+        #     t,
+        #     mu_zo_smooth - zo_smooth_std,
+        #     mu_zo_smooth + zo_smooth_std,
+        #     alpha=0.2,
+        #     label="1 Std Dev",
+        #     color="b",
+        # )
+        # plt.axvline(x=infer_window_len, color='k', linestyle='--')
+        # plt.xlim(0, infer_window_len)
+        # plt.legend()
+        # filename = f"saved_results/hq_smoother#{epoch}.png"
+        # plt.savefig(filename)
+        # plt.close()
 
         # Progress bar
         pbar.set_description(
@@ -158,12 +241,13 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     # Plot final smoothed values
     t = np.arange(len(mu_zo_smooth))
     t_train = np.arange(len(y_train))
+    t_infer_len = np.arange(infer_window_len)
     plt.figure(figsize=(12, 8))
     plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
     plt.plot(t_train, y_train, color="r", label=r"$y_{true}$")
     plt.plot(t, mu_zo_smooth, color="b", label=r"smooth")
-    # plt.plot(t_infer_len, obs_infer[input_seq_len:], color="r")
-    plt.axvline(x=72-input_seq_len, color='k', linestyle='--')
+    plt.plot(t_infer_len,obs_infer[input_seq_len:], color="r")
+    plt.axvline(x=infer_window_len, color='k', linestyle='--')
     plt.fill_between(
         t,
         mu_zo_smooth - zo_smooth_std,
@@ -183,13 +267,13 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     plt.ylim(-3, 3)
     plt.tick_params(axis="both", which="both", direction="inout", labelsize=28)
     plt.legend()
-    filename = f"saved_results/smoothed_look_back_toy_time_series.png"
+    filename = f"saved_results/smooth_infer_hq_ts{ts_run}.png"
     plt.savefig(filename)
     plt.close()
 
     # -------------------------------------------------------------------------#
     # Testing
-    test_batch_iter = test_dtl.create_data_loader(batch_size, shuffle=False)
+    test_batch_iter = val_dtl_dict[ts].create_data_loader(batch_size, shuffle=False)
     mu_preds = []
     var_preds = []
     y_test = []
@@ -198,6 +282,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     net.set_lstm_states(lstm_states)
     for x, y in test_batch_iter:
         # Predicion
+        x = np.nan_to_num(x, nan=0.0)
         m_pred, v_pred = net(x)
 
         mu_preds.extend(m_pred)
@@ -211,14 +296,14 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     x_test = np.array(x_test)
 
     mu_preds = normalizer.unstandardize(
-        mu_preds, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+        mu_preds, train_dtl_dict[ts].x_mean[output_col], train_dtl_dict[ts].x_std[output_col]
     )
     std_preds = normalizer.unstandardize_std(
-        std_preds, train_dtl.x_std[output_col]
+        std_preds, train_dtl_dict[ts].x_std[output_col]
     )
 
     y_test = normalizer.unstandardize(
-        y_test, train_dtl.x_mean[output_col], train_dtl.x_std[output_col]
+        y_test, train_dtl_dict[ts].x_mean[output_col], train_dtl_dict[ts].x_std[output_col]
     )
 
     # Compute log-likelihood
@@ -229,7 +314,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
     # Visualization
     viz.plot_predictions(
-        x_test=test_dtl.dataset["date_time"][: len(y_test)],
+        x_test=val_dtl_dict[ts].dataset["date_time"][: len(y_test)],
         y_test=y_test,
         y_pred=mu_preds,
         sy_pred=std_preds,

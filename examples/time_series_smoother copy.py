@@ -17,8 +17,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 1
-    input_seq_len = 20
+    num_features = 2
+    input_seq_len = 10
     output_seq_len = 1
     seq_stride = 1
     # Number of observations before training time to be inferred. These
@@ -33,8 +33,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         output_seq_len=output_seq_len,
         num_features=num_features,
         stride=seq_stride,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day"],
+        keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -46,8 +46,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day"],
+        keep_last_time_cov=True,
     )
 
     # Viz
@@ -88,11 +88,10 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
-            if idx_sample < 72:
+            if idx_sample < 71:
                 x = replace_with_prediction(x, mu_sequence)
 
             x = np.nan_to_num(x, nan=0.0)
-
             # Feed forward
             m_pred, _ = net(x)
 
