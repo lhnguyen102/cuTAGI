@@ -531,11 +531,11 @@ void generate_sinusoidal_pe_cache(int max_seq_len, int head_dim,
     pe_cache.resize(max_seq_len * head_dim);
 
     for (int pos = 0; pos < max_seq_len; pos++) {
-        for (int i = 0; i < head_dim; i++) {
-            float freq = 1.0f / powf(10000.0f, (2.0f * (i / 2)) / head_dim);
+        for (int d = 0; d < head_dim; d++) {
+            float freq = 1.0f / powf(10000.0f, (2.0f * (d / 2)) / head_dim);
             float angle = pos * freq;
-            int idx = pos * head_dim + i;
-            pe_cache[idx] = (i % 2 == 0) ? sinf(angle) : cosf(angle);
+            int idx = pos * head_dim + d;
+            pe_cache[idx] = (d % 2 == 0) ? sinf(angle) : cosf(angle);
         }
     }
 }
@@ -672,6 +672,7 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
         generate_rope_cache(this->max_seq_len, this->head_dim, this->rope_theta,
                             this->cos_cache, this->sin_cache);
     } else if (this->pos_emb == "sinusoidal") {
+        this->pe_cache.resize(this->max_seq_len * this->head_dim, 0.0f);
         generate_sinusoidal_pe_cache(this->max_seq_len, this->head_dim,
                                      this->pe_cache);
     }
@@ -922,20 +923,6 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                       attn_delta_states.delta_var_k_pe, this->cos_cache,
                       this->sin_cache, batch_size, num_heads, this->seq_len,
                       this->head_dim, attn_delta_states.delta_mu_k,
-                      attn_delta_states.delta_var_k);
-    } else if (this->pos_emb == "sinusoidal") {
-        mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
-                        attn_delta_states.delta_mu_att_score,
-                        attn_delta_states.delta_var_att_score,
-                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
-                        this->head_dim, attn_delta_states.delta_mu_q,
-                        attn_delta_states.delta_var_q);
-
-        mha_delta_key(attn_states.var_k, attn_states.mu_q_pe,
-                      attn_delta_states.delta_mu_att_score,
-                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
-                      batch_size, num_heads, this->seq_len, this->head_dim,
-                      attn_delta_states.delta_mu_k,
                       attn_delta_states.delta_var_k);
     } else {
         mha_delta_query(attn_states.var_q, attn_states.mu_k,

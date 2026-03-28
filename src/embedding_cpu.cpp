@@ -185,12 +185,13 @@ void Embedding::backward(BaseDeltaStates &input_delta_states,
                          BaseTempStates &temp_states, bool state_udapte) {
     int batch_size = input_delta_states.block_size;
 
-    if (this->param_update) {
-        bwd_emb(this->bwd_states->mu_a, this->var_w,
-                input_delta_states.delta_mu, input_delta_states.delta_var,
-                this->embedding_dim, this->input_size, batch_size,
-                this->padding_idx, this->delta_mu_w, this->delta_var_w);
-    }
+    // reset delta_mu_w and delta_var_w
+    std::fill(this->delta_mu_w.begin(), this->delta_mu_w.end(), 0.0f);
+    std::fill(this->delta_var_w.begin(), this->delta_var_w.end(), 0.0f);
+
+    bwd_emb(this->bwd_states->mu_a, this->var_w, input_delta_states.delta_mu,
+            input_delta_states.delta_var, this->embedding_dim, this->input_size,
+            batch_size, this->padding_idx, this->delta_mu_w, this->delta_var_w);
 }
 
 #ifdef USE_CUDA

@@ -81,6 +81,7 @@ class RoPEEncoderBlock(nn.Module):
 
         q = self.rope(q)
         k = self.rope(k)
+        v = self.rope(v)
 
         scale = self.head_dim**-0.5
         attn_weights = (q @ k.transpose(-2, -1)) * scale
@@ -90,8 +91,7 @@ class RoPEEncoderBlock(nn.Module):
         attn_weights = attn_weights.softmax(dim=-1)
 
         attn_out = (attn_weights @ v).transpose(1, 2).reshape(B, S, -1)
-        x = x + attn_out
-        x = x + self.ff(x)
+        x = self.ff(attn_out)
         return x, attn_weights
 
 
@@ -113,7 +113,7 @@ class ReversePredictor(nn.Module):
                 RoPEEncoderBlock(
                     embed_dim,
                     num_heads,
-                    2 * embed_dim,
+                    embed_dim,
                     dropout,
                     use_causal_mask,
                 )
@@ -121,7 +121,6 @@ class ReversePredictor(nn.Module):
             ]
         )
         self.output_net = nn.Sequential(
-            nn.RMSNorm(embed_dim),
             nn.Linear(embed_dim, vocab_size),
         )
 
@@ -160,23 +159,33 @@ class EncoderBlock(nn.Module):
         use_causal_mask: bool = False,
     ):
         super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = model_dim // num_heads
         self.use_causal_mask = use_causal_mask
-        self.attn = nn.MultiheadAttention(
-            model_dim, num_heads, dropout=dropout, batch_first=True
-        )
+        self.W_qkv = nn.Linear(model_dim, 3 * model_dim, bias=False)
         self.ff = nn.Linear(model_dim, model_dim)
 
     def forward(self, x):
-        S = x.shape[1]
-        attn_mask = None
+        B, S, _ = x.shape
+        qkv = self.W_qkv(x)
+        q, k, v = qkv.chunk(3, dim=-1)
+
+        q = q.view(B, S, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, S, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, S, self.num_heads, self.head_dim).transpose(1, 2)
+
+        scale = self.head_dim**-0.5
+        attn_weights = (q @ k.transpose(-2, -1)) * scale
+
         if self.use_causal_mask:
-            attn_mask = torch.triu(
+            mask = torch.triu(
                 torch.full((S, S), float("-inf"), device=x.device), diagonal=1
             )
-        attn_out, attn_weights = self.attn(
-            x, x, x, attn_mask=attn_mask, average_attn_weights=False
-        )
-        x = self.ff(x) + attn_out
+            attn_weights = attn_weights + mask
+        attn_weights = attn_weights.softmax(dim=-1)
+
+        attn_out = (attn_weights @ v).transpose(1, 2).reshape(B, S, -1)
+        x = self.ff(attn_out)
         return x, attn_weights
 
 
@@ -199,7 +208,7 @@ class TransformerPredictor(nn.Module):
                 EncoderBlock(
                     model_dim,
                     num_heads,
-                    2 * model_dim,
+                    model_dim,
                     dropout,
                     use_causal_mask,
                 )
@@ -207,7 +216,6 @@ class TransformerPredictor(nn.Module):
             ]
         )
         self.output_net = nn.Sequential(
-            nn.RMSNorm(model_dim),
             nn.Linear(model_dim, vocab_size),
         )
 
@@ -256,13 +264,13 @@ def plot_attention_maps(input_data, attn_maps, idx=0):
 
 def main(
     num_epochs: int = 50,
-    batch_size: int = 16,
+    batch_size: int = 64,
     seq_len: int = 5,
     vocab_size: int = 8,
     embed_dim: int = 32,
     num_heads: int = 1,
     num_layers: int = 1,
-    lr: float = 1e-3,
+    lr: float = 1e-2,
     dropout: float = 0.0,
     steps_per_epoch: int = 100,
     arch: str = "positional",
@@ -273,23 +281,23 @@ def main(
 
     if arch == "positional":
         model = TransformerPredictor(
-            vocab_size,
-            embed_dim,
-            num_heads,
-            num_layers,
-            seq_len,
-            dropout,
-            use_causal_mask,
+            vocab_size=vocab_size,
+            model_dim=embed_dim,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            seq_len=seq_len,
+            dropout=dropout,
+            use_causal_mask=use_causal_mask,
         ).to(device)
     else:
         model = ReversePredictor(
-            vocab_size,
-            embed_dim,
-            num_heads,
-            seq_len,
-            num_layers,
-            dropout,
-            use_causal_mask,
+            vocab_size=vocab_size,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            seq_len=seq_len,
+            num_layers=num_layers,
+            dropout=dropout,
+            use_causal_mask=use_causal_mask,
         ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
@@ -319,7 +327,8 @@ def main(
         )
 
     model.eval()
-    x_test, y_test = task.next_batch(batch_size)
+    test_batch_size = 100
+    x_test, y_test = task.next_batch(test_batch_size)
     x_test, y_test = x_test.to(device), y_test.to(device)
     with torch.no_grad():
         logits, attn_weights = model(x_test)
@@ -329,8 +338,8 @@ def main(
     y_np = y_test.cpu().numpy()
     pred_np = predicted.cpu().numpy()
 
-    num_show = min(5, batch_size)
-    print(f"\nTest Results (showing {num_show} of {batch_size}):")
+    num_show = min(5, test_batch_size)
+    print(f"\nTest Results (showing {num_show} of {test_batch_size}):")
     for i in range(num_show):
         print(f"  Input:      {x_np[i].tolist()}")
         print(f"  Target:     {y_np[i].tolist()}")

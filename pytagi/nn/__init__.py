@@ -36,6 +36,7 @@ from pytagi.nn.linear import Linear
 from pytagi.nn.lstm import LSTM
 from pytagi.nn.output_updater import OutputUpdater
 from pytagi.nn.pooling import AvgPool2d, MaxPool2d
+from pytagi.nn.positional_encoding import PositionalEncoding
 from pytagi.nn.resnet_block import ResNetBlock
 from pytagi.nn.rms_norm import RMSNorm
 from pytagi.nn.sequential import Sequential

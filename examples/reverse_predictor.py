@@ -17,9 +17,11 @@ import pytagi
 from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import (
     Embedding,
+    LayerNorm,
     Linear,
     MultiheadAttention,
     OutputUpdater,
+    PositionalEncoding,
     ReLU,
     RMSNorm,
     Sequential,
@@ -93,12 +95,12 @@ def plot_attention_maps(input_data, attn_maps, idx=0):
 
 def main(
     num_epochs: int = 50,
-    batch_size: int = 2,
+    batch_size: int = 1,
     seq_len: int = 5,
     vocab_size: int = 8,
     embed_dim: int = 32,
     num_heads: int = 1,
-    sigma_v: float = 2.0,
+    sigma_v: float = 0.2,
     steps_per_epoch: int = 100,
     no_attn: bool = False,
 ):
@@ -117,14 +119,17 @@ def main(
         )
     else:
         net = Sequential(
-            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.1),
+            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=1.0),
+            PositionalEncoding(embed_dim),
             MultiheadAttention(
-                embed_dim,
-                num_heads,
-                num_heads,
+                embed_dim=embed_dim,
+                num_heads=num_heads,
                 seq_len=seq_len,
                 bias=False,
-                pos_emb="rope",
+                gain_weight=1.0,
+                gain_bias=1.0,
+                init_method="He",
+                pos_emb="",
                 use_causal_mask=False,
             ),
             Linear(embed_dim, hrc_class_len),
@@ -169,18 +174,19 @@ def main(
             f"Epoch {epoch + 1}/{num_epochs} | error: {avg_error * 100:.2f}%"
         )
 
-    x_test, y_test = task.next_batch(batch_size)
+    test_batch_size = 100
+    x_test, y_test = task.next_batch(test_batch_size)
     net.eval()
     m_pred, v_pred = net(x_test)
     predicted = metric.get_predicted_labels(m_pred, v_pred)
 
-    x_test = x_test.reshape(batch_size, seq_len, -1)
+    x_test = x_test.reshape(test_batch_size, seq_len, -1)
     x_display = x_test.squeeze(-1).astype(int)
-    y_test = y_test.reshape(batch_size, seq_len)
-    predicted = predicted.reshape(batch_size, seq_len)
+    y_test = y_test.reshape(test_batch_size, seq_len)
+    predicted = predicted.reshape(test_batch_size, seq_len)
 
-    num_show = min(5, batch_size)
-    print(f"\nTest Results (showing {num_show} of {batch_size}):")
+    num_show = min(5, test_batch_size)
+    print(f"\nTest Results (showing {num_show} of {test_batch_size}):")
     for i in range(num_show):
         print(f"  Input:      {x_display[i].tolist()}")
         print(f"  Target:     {y_test[i].tolist()}")

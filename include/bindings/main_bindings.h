@@ -17,6 +17,7 @@
 #include "lstm_layer_bindings.h"
 #include "norm_layer_bindings.h"
 #include "pooling_layer_bindings.h"
+#include "positional_encoding_bindings.h"
 #include "resnet_block_bindings.h"
 #include "sequential_bindings.h"
 #include "slinear_layer_bindings.h"

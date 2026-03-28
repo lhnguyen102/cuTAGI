@@ -294,7 +294,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
 {
     int start_chunk = 0;
     int end_chunk = obs.size;
-    int n_enc = obs.idx_size / output_states.block_size;
+    int effective_batch = output_states.block_size * output_states.seq_len;
+    int n_enc = obs.idx_size / effective_batch;
     int n_obs = output_states.actual_size;
 
     delta_states.reset_zeros();
@@ -378,9 +379,13 @@ void OutputUpdater::update_using_indices(BaseHiddenStates& output_states,
     if (this->obs->size != mu_obs.size()) {
         this->obs->block_size = output_states.block_size;
         this->obs->size = mu_obs.size();
-        this->obs->actual_size = mu_obs.size() / output_states.block_size;
+        this->obs->actual_size =
+            mu_obs.size() / (output_states.block_size * output_states.seq_len);
         this->obs->idx_size = selected_idx.size();
     }
+    delta_states.block_size = output_states.block_size;
+    delta_states.seq_len = output_states.seq_len;
+
     this->updater->update_selected_output_delta_z(output_states, *this->obs,
                                                   delta_states);
 }
