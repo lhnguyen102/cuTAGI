@@ -27,7 +27,8 @@ void fwd_emb(std::vector<float> &ma, std::vector<float> &mu_w,
 void bwd_emb(std::vector<float> &ma, std::vector<float> &var_w,
              std::vector<float> &delta_mu, std::vector<float> &delta_var,
              int embedding_dim, int num_inputs, int batch_size, int padding_idx,
-             std::vector<float> &delta_mu_w, std::vector<float> &delta_var_w);
+             int num_embeddings, std::vector<float> &delta_mu_w,
+             std::vector<float> &delta_var_w);
 
 int calculate_embedding_size(int num_categories);
 

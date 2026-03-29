@@ -11,7 +11,9 @@ PositionalEncoding::PositionalEncoding(int embed_dim, size_t max_seq_len)
     pe_cache.resize(max_seq_len * embed_dim);
     for (int pos = 0; pos < (int)max_seq_len; pos++) {
         for (int d = 0; d < embed_dim; d++) {
-            float freq = 1.0f / powf(10000.0f, (2.0f * (d / 2)) / embed_dim);
+            float freq =
+                1.0f / powf(10000.0f, (2.0f * (static_cast<float>(d) / 2)) /
+                                          static_cast<float>(embed_dim));
             float angle = pos * freq;
             int idx = pos * embed_dim + d;
             pe_cache[idx] = (d % 2 == 0) ? sinf(angle) : cosf(angle);

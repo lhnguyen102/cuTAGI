@@ -438,9 +438,10 @@ void generate_rope_cache(int max_seq_len, int head_dim, float theta,
     cos_cache.resize(max_seq_len * half_dim);
     sin_cache.resize(max_seq_len * half_dim);
 
+    float log_theta = -logf(theta) / head_dim;
     for (int pos = 0; pos < max_seq_len; pos++) {
         for (int i = 0; i < half_dim; i++) {
-            float freq = 1.0f / powf(theta, (2.0f * i) / head_dim);
+            float freq = expf((2.0f * i) * log_theta);
             float angle = pos * freq;
             int idx = pos * half_dim + i;
             cos_cache[idx] = cosf(angle);
@@ -520,44 +521,6 @@ void rope_backward(std::vector<float> &delta_mu_in,
                                             dvar_y2 * sin_val * sin_val;
                     delta_var_out[idx_in + 1] = dvar_y1 * sin_val * sin_val +
                                                 dvar_y2 * cos_val * cos_val;
-                }
-            }
-        }
-    }
-}
-
-void generate_sinusoidal_pe_cache(int max_seq_len, int head_dim,
-                                  std::vector<float> &pe_cache) {
-    pe_cache.resize(max_seq_len * head_dim);
-
-    for (int pos = 0; pos < max_seq_len; pos++) {
-        for (int d = 0; d < head_dim; d++) {
-            float freq = 1.0f / powf(10000.0f, (2.0f * (d / 2)) / head_dim);
-            float angle = pos * freq;
-            int idx = pos * head_dim + d;
-            pe_cache[idx] = (d % 2 == 0) ? sinf(angle) : cosf(angle);
-        }
-    }
-}
-
-void apply_positional_encoding(std::vector<float> &mu_in,
-                               std::vector<float> &var_in,
-                               std::vector<float> &pe_cache, int batch_size,
-                               int num_heads, int timestep, int head_dim,
-                               std::vector<float> &mu_out,
-                               std::vector<float> &var_out) {
-    int idx_in, idx_cache;
-
-    for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < num_heads; j++) {
-            for (int t = 0; t < timestep; t++) {
-                for (int d = 0; d < head_dim; d++) {
-                    idx_in = i * num_heads * timestep * head_dim +
-                             j * timestep * head_dim + t * head_dim + d;
-                    idx_cache = t * head_dim + d;
-
-                    mu_out[idx_in] = mu_in[idx_in] + pe_cache[idx_cache];
-                    var_out[idx_in] = var_in[idx_in];
                 }
             }
         }
@@ -671,10 +634,6 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
     if (this->pos_emb == "rope") {
         generate_rope_cache(this->max_seq_len, this->head_dim, this->rope_theta,
                             this->cos_cache, this->sin_cache);
-    } else if (this->pos_emb == "sinusoidal") {
-        this->pe_cache.resize(this->max_seq_len * this->head_dim, 0.0f);
-        generate_sinusoidal_pe_cache(this->max_seq_len, this->head_dim,
-                                     this->pe_cache);
     }
 }
 
@@ -695,65 +654,12 @@ LayerType MultiheadAttention::get_layer_type() const {
 }
 
 void MultiheadAttention::init_weight_bias() {
-    int q_input = embed_dim;
-    int q_output = num_heads * head_dim;
-    int k_input = embed_dim;
-    int k_output = num_kv_heads * head_dim;
-    int v_input = embed_dim;
-    int v_output = num_kv_heads * head_dim;
+    int qkv_output = (num_heads + 2 * num_kv_heads) * head_dim;
 
-    int q_weights = q_input * q_output;
-    int k_weights = k_input * k_output;
-    int v_weights = v_input * v_output;
-
-    int q_biases = this->bias ? q_output : 0;
-    int k_biases = this->bias ? k_output : 0;
-    int v_biases = this->bias ? v_output : 0;
-
-    std::vector<float> mu_w_q, var_w_q, mu_b_q, var_b_q;
-    std::vector<float> mu_w_k, var_w_k, mu_b_k, var_b_k;
-    std::vector<float> mu_w_v, var_w_v, mu_b_v, var_b_v;
-    std::vector<float> mu_w_o, var_w_o, mu_b_o, var_b_o;
-
-    std::tie(mu_w_q, var_w_q, mu_b_q, var_b_q) =
+    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
         init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                q_input, q_output, q_weights, q_biases);
-
-    std::tie(mu_w_k, var_w_k, mu_b_k, var_b_k) =
-        init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                k_input, k_output, k_weights, k_biases);
-
-    std::tie(mu_w_v, var_w_v, mu_b_v, var_b_v) =
-        init_weight_bias_linear(this->init_method, this->gain_w, this->gain_b,
-                                v_input, v_output, v_weights, v_biases);
-
-    this->mu_w.resize(this->num_weights);
-    this->var_w.resize(this->num_weights);
-    this->mu_b.resize(this->num_biases);
-    this->var_b.resize(this->num_biases);
-
-    std::copy(mu_w_q.begin(), mu_w_q.end(), this->mu_w.begin());
-    std::copy(mu_w_k.begin(), mu_w_k.end(), this->mu_w.begin() + q_weights);
-    std::copy(mu_w_v.begin(), mu_w_v.end(),
-              this->mu_w.begin() + q_weights + k_weights);
-
-    std::copy(var_w_q.begin(), var_w_q.end(), this->var_w.begin());
-    std::copy(var_w_k.begin(), var_w_k.end(), this->var_w.begin() + q_weights);
-    std::copy(var_w_v.begin(), var_w_v.end(),
-              this->var_w.begin() + q_weights + k_weights);
-
-    if (this->bias) {
-        std::copy(mu_b_q.begin(), mu_b_q.end(), this->mu_b.begin());
-        std::copy(mu_b_k.begin(), mu_b_k.end(), this->mu_b.begin() + q_biases);
-        std::copy(mu_b_v.begin(), mu_b_v.end(),
-                  this->mu_b.begin() + q_biases + k_biases);
-
-        std::copy(var_b_q.begin(), var_b_q.end(), this->var_b.begin());
-        std::copy(var_b_k.begin(), var_b_k.end(),
-                  this->var_b.begin() + q_biases);
-        std::copy(var_b_v.begin(), var_b_v.end(),
-                  this->var_b.begin() + q_biases + k_biases);
-    }
+                                this->embed_dim, qkv_output, this->num_weights,
+                                this->num_biases);
 }
 
 void MultiheadAttention::forward(BaseHiddenStates &input_states,
@@ -761,7 +667,7 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
                                  BaseTempStates &temp_states) {
     // TODO: check it is correct for 2 consecutive attention layers
     int batch_size = input_states.block_size;
-    this->set_cap_factor_udapte(batch_size);
+    this->set_cap_factor_udapte(batch_size * this->seq_len);
 
     attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
 
@@ -789,21 +695,6 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
         apply_rope(attn_states.mu_k, attn_states.var_k, this->cos_cache,
                    this->sin_cache, batch_size, num_heads, this->seq_len,
                    head_dim, attn_states.mu_k_pe, attn_states.var_k_pe);
-
-        query_key(attn_states.mu_q_pe, attn_states.var_q_pe,
-                  attn_states.mu_k_pe, attn_states.var_k_pe, batch_size,
-                  num_heads, this->seq_len, head_dim, attn_states.mu_qk,
-                  attn_states.var_qk);
-    } else if (this->pos_emb == "sinusoidal") {
-        apply_positional_encoding(attn_states.mu_q, attn_states.var_q,
-                                  this->pe_cache, batch_size, num_heads,
-                                  this->seq_len, head_dim, attn_states.mu_q_pe,
-                                  attn_states.var_q_pe);
-
-        apply_positional_encoding(attn_states.mu_k, attn_states.var_k,
-                                  this->pe_cache, batch_size, num_heads,
-                                  this->seq_len, head_dim, attn_states.mu_k_pe,
-                                  attn_states.var_k_pe);
 
         query_key(attn_states.mu_q_pe, attn_states.var_q_pe,
                   attn_states.mu_k_pe, attn_states.var_k_pe, batch_size,

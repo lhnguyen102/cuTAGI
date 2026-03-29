@@ -185,7 +185,6 @@ void Embedding::backward(BaseDeltaStates &input_delta_states,
                          BaseTempStates &temp_states, bool state_udapte) {
     int batch_size = input_delta_states.block_size;
 
-    // reset delta_mu_w and delta_var_w
     std::fill(this->delta_mu_w.begin(), this->delta_mu_w.end(), 0.0f);
     std::fill(this->delta_var_w.begin(), this->delta_var_w.end(), 0.0f);
 

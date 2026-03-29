@@ -328,7 +328,7 @@ void RMSNorm::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
     int seq_len = input_states.seq_len;
     int effective_batch = batch_size * seq_len;
-    this->set_cap_factor_udapte(effective_batch);
+    // this->set_cap_factor_udapte(effective_batch);
 
     if (this->_batch_size != effective_batch) {
         this->_batch_size = effective_batch;

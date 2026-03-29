@@ -100,7 +100,9 @@ def main(
     vocab_size: int = 8,
     embed_dim: int = 32,
     num_heads: int = 1,
-    sigma_v: float = 0.2,
+    sigma_v: float = 0.5,
+    sigma_v_min: float = 0.3,
+    decay_factor: float = 1.0,
     steps_per_epoch: int = 100,
     no_attn: bool = False,
 ):
@@ -114,7 +116,7 @@ def main(
 
     if no_attn:
         net = Sequential(
-            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.1),
+            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=1.0),
             Linear(embed_dim, hrc_class_len),
         )
     else:
@@ -126,7 +128,7 @@ def main(
                 num_heads=num_heads,
                 seq_len=seq_len,
                 bias=False,
-                gain_weight=1.0,
+                gain_weight=0.5,
                 gain_bias=1.0,
                 init_method="He",
                 pos_emb="",
@@ -135,16 +137,16 @@ def main(
             Linear(embed_dim, hrc_class_len),
         )
 
-    var_y = np.full(
-        (batch_size * seq_len * hrc.num_obs,),
-        sigma_v**2,
-        dtype=np.float32,
-    )
-
     out_updater = OutputUpdater(net.device)
+    current_sigma_v = sigma_v
 
     pbar = tqdm(range(num_epochs), desc="Training")
     for epoch in pbar:
+        var_y = np.full(
+            (batch_size * seq_len * hrc.num_obs,),
+            current_sigma_v**2,
+            dtype=np.float32,
+        )
         net.train()
         error_rates = []
         for _ in range(steps_per_epoch):
@@ -170,11 +172,12 @@ def main(
             error_rates.append(error_rate)
 
         avg_error = sum(error_rates[-100:]) / min(len(error_rates), 100)
+        current_sigma_v = max(sigma_v_min, current_sigma_v * decay_factor)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | error: {avg_error * 100:.2f}%"
+            f"Epoch {epoch + 1}/{num_epochs} | error: {avg_error * 100:.2f}% | sigma_v: {current_sigma_v:.3f}"
         )
 
-    test_batch_size = 100
+    test_batch_size = 256
     x_test, y_test = task.next_batch(test_batch_size)
     net.eval()
     m_pred, v_pred = net(x_test)
