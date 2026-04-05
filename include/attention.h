@@ -127,6 +127,7 @@ void rope_backward(std::vector<float> &delta_mu_in,
                    std::vector<float> &delta_var_out);
 
 class Remax;
+class Softmax;
 
 class MultiheadAttention : public BaseLayer {
    public:
@@ -141,7 +142,8 @@ class MultiheadAttention : public BaseLayer {
     AttentionStates attn_states;
     AttentionDeltaStates attn_delta_states;
 
-    std::unique_ptr<Remax> remax_layer;
+    std::unique_ptr<Remax> remax_layer;      // [REMAX]
+    std::unique_ptr<Softmax> softmax_layer;  // [SOFTMAX]
     BaseHiddenStates remax_input;
     BaseHiddenStates remax_output;
     BaseTempStates remax_temp;
@@ -186,6 +188,93 @@ class MultiheadAttention : public BaseLayer {
                           BaseDeltaStates &output_delta_states,
                           BaseTempStates &temp_states,
                           bool state_udapte = true) override;
+
+    using BaseLayer::to_cuda;
+
+#ifdef USE_CUDA
+    std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
+#endif
+};
+
+class MultiheadAttentionV2 : public BaseLayer {
+   public:
+    size_t num_heads;
+    size_t num_kv_heads;
+    size_t embed_dim;
+    float gain_w;
+    float gain_b;
+    std::string init_method;
+    size_t head_dim;
+    size_t num_reps;
+    AttentionStates attn_states;
+    AttentionDeltaStates attn_delta_states;
+
+    // Separate Q, K, V projection weights
+    std::vector<float> mu_w_q, var_w_q, mu_w_k, var_w_k, mu_w_v, var_w_v;
+    std::vector<float> delta_mu_w_q, delta_var_w_q;
+    std::vector<float> delta_mu_w_k, delta_var_w_k;
+    std::vector<float> delta_mu_w_v, delta_var_w_v;
+    // Separate biases
+    std::vector<float> mu_b_q, var_b_q, mu_b_k, var_b_k, mu_b_v, var_b_v;
+    std::vector<float> delta_mu_b_q, delta_var_b_q;
+    std::vector<float> delta_mu_b_k, delta_var_b_k;
+    std::vector<float> delta_mu_b_v, delta_var_b_v;
+
+    size_t num_weights_q, num_weights_k, num_weights_v;
+    size_t num_biases_q, num_biases_k, num_biases_v;
+    size_t q_output_size, k_output_size, v_output_size;
+
+    std::unique_ptr<Remax> remax_layer;
+    BaseHiddenStates remax_input;
+    BaseHiddenStates remax_output;
+    BaseTempStates remax_temp;
+
+    std::string pos_emb;
+    float rope_theta;
+    size_t max_seq_len;
+    bool use_causal_mask;
+    std::vector<float> cos_cache;
+    std::vector<float> sin_cache;
+
+    // Buffers for reshaping Q/K/V linear outputs
+    std::vector<float> mu_q_proj, var_q_proj;
+    std::vector<float> mu_k_proj, var_k_proj;
+    std::vector<float> mu_v_proj, var_v_proj;
+
+    MultiheadAttentionV2(size_t embed_dim, size_t num_heads,
+                         size_t num_kv_heads, size_t seq_len_ = 1,
+                         bool bias = true, float gain_w = 1.0f,
+                         float gain_b = 1.0f,
+                         std::string init_method = "Xavier",
+                         std::string pos_emb = "rope",
+                         float rope_theta = 10000.0f, size_t max_seq_len = 2048,
+                         bool use_causal_mask = true, int device_idx = 0);
+
+    ~MultiheadAttentionV2();
+
+    MultiheadAttentionV2(const MultiheadAttentionV2 &) = delete;
+    MultiheadAttentionV2 &operator=(const MultiheadAttentionV2 &) = delete;
+
+    MultiheadAttentionV2(MultiheadAttentionV2 &&) = default;
+    MultiheadAttentionV2 &operator=(MultiheadAttentionV2 &&) = default;
+
+    std::string get_layer_info() const override;
+    std::string get_layer_name() const override;
+    LayerType get_layer_type() const override;
+
+    void init_weight_bias() override;
+    void allocate_param_delta() override;
+    void update_weights() override;
+    void update_biases() override;
+
+    void forward(BaseHiddenStates &input_states,
+                 BaseHiddenStates &output_states,
+                 BaseTempStates &temp_states) override;
+
+    void backward(BaseDeltaStates &input_delta_states,
+                  BaseDeltaStates &output_delta_states,
+                  BaseTempStates &temp_states,
+                  bool state_udapte = true) override;
 
     using BaseLayer::to_cuda;
 

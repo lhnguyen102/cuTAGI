@@ -100,3 +100,64 @@ class MultiheadAttention(BaseLayer):
         This task is delegated to the C++ backend.
         """
         self._cpp_backend.init_weight_bias()
+
+
+class MultiheadAttentionV2(BaseLayer):
+    """Multi-head Attention with separate Q, K, V projections."""
+
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        num_kv_heads: int = None,
+        seq_len: int = 1,
+        bias: bool = True,
+        gain_weight: float = 1.0,
+        gain_bias: float = 1.0,
+        init_method: str = "He",
+        pos_emb: str = "rope",
+        rope_theta: float = 10000.0,
+        max_seq_len: int = 2048,
+        use_causal_mask: bool = True,
+    ):
+        super().__init__()
+
+        if num_kv_heads is None:
+            num_kv_heads = num_heads
+
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.num_kv_heads = num_kv_heads
+        self.seq_len = seq_len
+        self.bias = bias
+        self.gain_weight = gain_weight
+        self.gain_bias = gain_bias
+        self.init_method = init_method
+        self.pos_emb = pos_emb
+        self.rope_theta = rope_theta
+        self.max_seq_len = max_seq_len
+        self.use_causal_mask = use_causal_mask
+
+        self._cpp_backend = cutagi.MultiheadAttentionV2(
+            embed_dim,
+            num_heads,
+            num_kv_heads,
+            seq_len,
+            bias,
+            gain_weight,
+            gain_bias,
+            init_method,
+            pos_emb,
+            rope_theta,
+            max_seq_len,
+            use_causal_mask,
+        )
+
+    def get_layer_info(self) -> str:
+        return self._cpp_backend.get_layer_info()
+
+    def get_layer_name(self) -> str:
+        return self._cpp_backend.get_layer_name()
+
+    def init_weight_bias(self):
+        self._cpp_backend.init_weight_bias()

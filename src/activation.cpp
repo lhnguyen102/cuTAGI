@@ -465,8 +465,7 @@ void softmax_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
             mu_a[idx + j] = mu_a[idx + j] / sum;
             jcb[idx + j] = mu_a[idx + j] * (1 - mu_a[idx + j]);
             // TODO: double check on covariance formulation
-            var_a[idx + j] =
-                jcb[idx + j] * (var_z[idx + j] + max_v) * jcb[idx + j];
+            var_a[idx + j] = jcb[idx + j] * (var_z[idx + j]) * jcb[idx + j];
         }
     }
 }
@@ -1033,7 +1032,7 @@ void Softmax::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int batch_size = input_states.block_size * input_states.seq_len;
     softmax_mean_var(input_states.mu_a, input_states.var_a,
-                     input_states.block_size, batch_size, output_states.mu_a,
+                     input_states.actual_size, batch_size, output_states.mu_a,
                      output_states.jcb, output_states.var_a);
 
     this->input_size = input_states.actual_size;

@@ -2,6 +2,7 @@
 
 #include "../include/common.h"
 #include "../include/custom_logger.h"
+#include "../include/param_init.h"
 
 #ifdef USE_CUDA
 #include "../include/embedding_cuda.cuh"
@@ -15,7 +16,7 @@ std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
     std::vector<float> mu_emb;
     std::vector<float> var_emb;
 
-    std::mt19937 gen(seed ? *seed : std::random_device{}());
+    std::mt19937 &gen = SeedManager::get_instance().get_engine();
 
     std::normal_distribution<float> norm_dist(0.0f, scale);
 

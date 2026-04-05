@@ -1002,6 +1002,14 @@ Sequential::get_attention_scores() const {
                 scores[static_cast<int>(i)] =
                     std::make_tuple(attn_layer->attn_states.mu_att_score,
                                     attn_layer->attn_states.var_att_score);
+                continue;
+            }
+            auto *attn_v2 =
+                dynamic_cast<MultiheadAttentionV2 *>(layers[i].get());
+            if (attn_v2) {
+                scores[static_cast<int>(i)] =
+                    std::make_tuple(attn_v2->attn_states.mu_att_score,
+                                    attn_v2->attn_states.var_att_score);
             }
         }
     }
@@ -1028,6 +1036,25 @@ pybind11::dict Sequential::get_attention_scores_py() const {
                     shape, attn_layer->attn_states.mu_att_score.data());
                 auto var_arr = pybind11::array_t<float>(
                     shape, attn_layer->attn_states.var_att_score.data());
+
+                py_scores[pybind11::int_(static_cast<int>(i))] =
+                    pybind11::make_tuple(mu_arr, var_arr);
+                continue;
+            }
+            auto *attn_v2 =
+                dynamic_cast<MultiheadAttentionV2 *>(layers[i].get());
+            if (attn_v2) {
+                int num_heads = attn_v2->num_heads;
+                int seq_len = attn_v2->seq_len;
+                int batch_size = attn_v2->attn_states.mu_att_score.size() /
+                                 (num_heads * seq_len * seq_len);
+
+                std::vector<ssize_t> shape = {batch_size, num_heads, seq_len,
+                                              seq_len};
+                auto mu_arr = pybind11::array_t<float>(
+                    shape, attn_v2->attn_states.mu_att_score.data());
+                auto var_arr = pybind11::array_t<float>(
+                    shape, attn_v2->attn_states.var_att_score.data());
 
                 py_scores[pybind11::int_(static_cast<int>(i))] =
                     pybind11::make_tuple(mu_arr, var_arr);

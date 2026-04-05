@@ -20,6 +20,7 @@ from pytagi.nn import (
     LayerNorm,
     Linear,
     MultiheadAttention,
+    MultiheadAttentionV2,
     OutputUpdater,
     PositionalEncoding,
     ReLU,
@@ -95,12 +96,12 @@ def plot_attention_maps(input_data, attn_maps, idx=0):
 
 def main(
     num_epochs: int = 50,
-    batch_size: int = 1,
+    batch_size: int = 64,
     seq_len: int = 5,
     vocab_size: int = 8,
     embed_dim: int = 32,
     num_heads: int = 1,
-    sigma_v: float = 0.5,
+    sigma_v: float = 4.0,
     sigma_v_min: float = 0.3,
     decay_factor: float = 1.0,
     steps_per_epoch: int = 100,
@@ -121,19 +122,20 @@ def main(
         )
     else:
         net = Sequential(
-            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=1.0),
+            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.1),
             PositionalEncoding(embed_dim),
             MultiheadAttention(
                 embed_dim=embed_dim,
                 num_heads=num_heads,
                 seq_len=seq_len,
                 bias=False,
-                gain_weight=0.5,
-                gain_bias=1.0,
+                gain_weight=0.1,
+                gain_bias=0.5,
                 init_method="He",
                 pos_emb="",
                 use_causal_mask=False,
             ),
+            LayerNorm([embed_dim]),
             Linear(embed_dim, hrc_class_len),
         )
 

@@ -6,3 +6,4 @@
 #include "../attention.h"
 
 void bind_attention_layer(pybind11::module_& modo);
+// MultiheadAttentionV2 is bound inside bind_attention_layer

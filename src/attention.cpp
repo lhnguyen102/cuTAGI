@@ -9,34 +9,6 @@
 // #include "../include/attention_cuda.cuh"
 // #endif
 
-void deterministic_softmax(std::vector<float> &mu_in,
-                           std::vector<float> &var_in, int num_rows,
-                           int row_size, std::vector<float> &mu_out,
-                           std::vector<float> &var_out,
-                           std::vector<float> &jcb) {
-    for (int r = 0; r < num_rows; r++) {
-        int offset = r * row_size;
-
-        float max_val = mu_in[offset];
-        for (int c = 1; c < row_size; c++) {
-            max_val = std::max(max_val, mu_in[offset + c]);
-        }
-
-        float sum_exp = 0.0f;
-        for (int c = 0; c < row_size; c++) {
-            mu_out[offset + c] = expf(mu_in[offset + c] - max_val);
-            sum_exp += mu_out[offset + c];
-        }
-
-        for (int c = 0; c < row_size; c++) {
-            mu_out[offset + c] /= sum_exp;
-            var_out[offset + c] = 0.0f;
-            // Jacobian: d(softmax_i)/d(z_i) = s_i * (1 - s_i)
-            jcb[offset + c] = mu_out[offset + c] * (1.0f - mu_out[offset + c]);
-        }
-    }
-}
-
 void separate_input_projection_components(
     std::vector<float> &mu_embs, std::vector<float> &var_embs, int batch_size,
     int num_heads, int timestep, int head_dim, std::vector<float> &mu_q,
@@ -671,6 +643,18 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
 
     attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
 
+    // // Diagnostic: input to QKV projection
+    // {
+    //     int total = batch_size * this->seq_len * this->embed_dim;
+    //     float s_mu = 0.0f, s_var = 0.0f;
+    //     for (int i = 0; i < total; i++) {
+    //         s_mu += fabsf(input_states.mu_a[i]);
+    //         s_var += fabsf(input_states.var_a[i]);
+    //     }
+    //     std::cout << "  V1 input mu: mean_abs=" << s_mu / total
+    //               << "  var: mean_abs=" << s_var / total << std::endl;
+    // }
+
     // query, key, value
     size_t input_qkv_size = this->embed_dim;
     size_t output_qkv_size =
@@ -729,6 +713,49 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     attn_states.mu_att_score = remax_output.mu_a;
     attn_states.var_att_score = remax_output.var_a;
     attn_states.j_mqk = remax_output.jcb;
+
+    // // Diagnostic: V1 combined projection norms
+    // {
+    //     auto mean_abs = [](const std::vector<float> &v, int start, int n) {
+    //         float s = 0.0f;
+    //         for (int i = start; i < start + n; i++) s += fabsf(v[i]);
+    //         return s / n;
+    //     };
+    //     int comp_size = batch_size * num_heads * this->seq_len * head_dim;
+    //     int q_rows = this->num_heads * this->head_dim;
+    //     int k_rows = this->num_kv_heads * this->head_dim;
+    //     int v_rows = this->num_kv_heads * this->head_dim;
+    //     int in_dim = this->embed_dim;
+    //     int q_start = 0;
+    //     int k_start = q_rows * in_dim;
+    //     int v_start = (q_rows + k_rows) * in_dim;
+    //     std::cout << "--- AttentionV1 diagnostics ---" << std::endl;
+    //     std::cout << "  W_Q mu: mean_abs=" << mean_abs(this->mu_w, q_start,
+    //     q_rows * in_dim)
+    //               << "  var: mean_abs=" << mean_abs(this->var_w, q_start,
+    //               q_rows * in_dim) << std::endl;
+    //     std::cout << "  W_K mu: mean_abs=" << mean_abs(this->mu_w, k_start,
+    //     k_rows * in_dim)
+    //               << "  var: mean_abs=" << mean_abs(this->var_w, k_start,
+    //               k_rows * in_dim) << std::endl;
+    //     std::cout << "  W_V mu: mean_abs=" << mean_abs(this->mu_w, v_start,
+    //     v_rows * in_dim)
+    //               << "  var: mean_abs=" << mean_abs(this->var_w, v_start,
+    //               v_rows * in_dim) << std::endl;
+    //     std::cout << "  Q mu: mean_abs=" << mean_abs(attn_states.mu_q, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_q, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "  K mu: mean_abs=" << mean_abs(attn_states.mu_k, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_k, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "  V mu: mean_abs=" << mean_abs(attn_states.mu_v, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_v, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "---" << std::endl;
+    // }
 
     tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
                        attn_states.mu_v, attn_states.var_v, batch_size,
@@ -873,6 +900,543 @@ std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
     this->device_idx = device_idx;
     LOG(LogLevel::ERROR,
         "CUDA support for MultiheadAttention not yet implemented");
+    return nullptr;
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+// MultiheadAttentionV2 — Separate Q, K, V projections
+////////////////////////////////////////////////////////////////////////////////
+
+// Reshape linear output [batch*seq_len, num_heads*head_dim] to
+// [batch, num_heads, seq_len, head_dim]
+static void reshape_proj_to_heads(std::vector<float> &mu_proj,
+                                  std::vector<float> &var_proj, int batch_size,
+                                  int num_heads, int seq_len, int head_dim,
+                                  std::vector<float> &mu_out,
+                                  std::vector<float> &var_out) {
+    int emb_size = num_heads * head_dim;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < seq_len; k++) {
+                for (int m = 0; m < head_dim; m++) {
+                    int comp_idx = i * num_heads * seq_len * head_dim +
+                                   j * seq_len * head_dim + k * head_dim + m;
+                    int token_idx = i * seq_len + k;
+                    int proj_idx = token_idx * emb_size + j * head_dim + m;
+                    mu_out[comp_idx] = mu_proj[proj_idx];
+                    var_out[comp_idx] = var_proj[proj_idx];
+                }
+            }
+        }
+    }
+}
+
+// Reshape [batch, num_heads, seq_len, head_dim] back to
+// [batch*seq_len, num_heads*head_dim]
+static void reshape_heads_to_proj(std::vector<float> &mu_heads,
+                                  std::vector<float> &var_heads, int batch_size,
+                                  int num_heads, int seq_len, int head_dim,
+                                  std::vector<float> &mu_out,
+                                  std::vector<float> &var_out) {
+    int emb_size = num_heads * head_dim;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < seq_len; k++) {
+                for (int m = 0; m < head_dim; m++) {
+                    int comp_idx = i * num_heads * seq_len * head_dim +
+                                   j * seq_len * head_dim + k * head_dim + m;
+                    int token_idx = i * seq_len + k;
+                    int proj_idx = token_idx * emb_size + j * head_dim + m;
+                    mu_out[proj_idx] = mu_heads[comp_idx];
+                    var_out[proj_idx] = var_heads[comp_idx];
+                }
+            }
+        }
+    }
+}
+
+static void capped_update(std::vector<float> &mu, std::vector<float> &var,
+                          std::vector<float> &delta_mu,
+                          std::vector<float> &delta_var, float cap_factor) {
+    for (size_t i = 0; i < mu.size(); i++) {
+        float delta_mu_sign = (delta_mu[i] > 0) - (delta_mu[i] < 0);
+        float delta_var_sign = (delta_var[i] > 0) - (delta_var[i] < 0);
+        float delta_bar = powf(var[i], 0.5f) / cap_factor;
+
+        mu[i] += delta_mu_sign * std::min(std::abs(delta_mu[i]), delta_bar);
+        var[i] += delta_var_sign * std::min(std::abs(delta_var[i]), delta_bar);
+        if (var[i] <= 0.0f) {
+            var[i] = 1E-5f;
+        }
+    }
+}
+
+MultiheadAttentionV2::MultiheadAttentionV2(
+    size_t embed_dim, size_t num_heads, size_t num_kv_heads, size_t seq_len_,
+    bool bias, float gain_w, float gain_b, std::string init_method,
+    std::string pos_emb, float rope_theta, size_t max_seq_len,
+    bool use_causal_mask, int device_idx)
+    : embed_dim(embed_dim),
+      num_heads(num_heads),
+      num_kv_heads(num_kv_heads),
+      gain_w(gain_w),
+      gain_b(gain_b),
+      init_method(init_method),
+      pos_emb(pos_emb),
+      rope_theta(rope_theta),
+      max_seq_len(max_seq_len),
+      use_causal_mask(use_causal_mask) {
+    this->input_size = embed_dim;
+    this->output_size = embed_dim;
+    this->seq_len = seq_len_;
+    this->head_dim = embed_dim / num_heads;
+    this->bias = bias;
+    this->device_idx = device_idx;
+
+    q_output_size = num_heads * this->head_dim;
+    k_output_size = num_kv_heads * this->head_dim;
+    v_output_size = num_kv_heads * this->head_dim;
+
+    num_weights_q = embed_dim * q_output_size;
+    num_weights_k = embed_dim * k_output_size;
+    num_weights_v = embed_dim * v_output_size;
+
+    num_biases_q = 0;
+    num_biases_k = 0;
+    num_biases_v = 0;
+    if (this->bias) {
+        num_biases_q = q_output_size;
+        num_biases_k = k_output_size;
+        num_biases_v = v_output_size;
+    }
+
+    // BaseLayer num_weights/num_biases set to 0 — we manage our own
+    this->num_weights = 0;
+    this->num_biases = 0;
+
+    if (this->device.compare("cpu") == 0) {
+        this->init_weight_bias();
+    }
+
+    if (this->training && this->device.compare("cpu") == 0) {
+        this->allocate_param_delta();
+    }
+
+    remax_layer = std::make_unique<Remax>();
+
+    if (this->pos_emb == "rope") {
+        generate_rope_cache(this->max_seq_len, this->head_dim, this->rope_theta,
+                            this->cos_cache, this->sin_cache);
+    }
+}
+
+MultiheadAttentionV2::~MultiheadAttentionV2() {}
+
+std::string MultiheadAttentionV2::get_layer_info() const {
+    return "SelfAttentionV2(heads=" + std::to_string(this->num_heads) +
+           ", kv_heads=" + std::to_string(this->num_kv_heads) +
+           ", emb_size=" + std::to_string(this->embed_dim) + ")";
+}
+
+std::string MultiheadAttentionV2::get_layer_name() const {
+    return "MultiheadAttentionV2";
+}
+
+LayerType MultiheadAttentionV2::get_layer_type() const {
+    return LayerType::MultiheadAttention;
+}
+
+void MultiheadAttentionV2::init_weight_bias() {
+    auto init_q = init_weight_bias_linear(
+        this->init_method, this->gain_w, this->gain_b, this->embed_dim,
+        q_output_size, num_weights_q, num_biases_q);
+    mu_w_q = std::get<0>(init_q);
+    var_w_q = std::get<1>(init_q);
+    mu_b_q = std::get<2>(init_q);
+    var_b_q = std::get<3>(init_q);
+
+    auto init_k = init_weight_bias_linear(
+        this->init_method, this->gain_w, this->gain_b, this->embed_dim,
+        k_output_size, num_weights_k, num_biases_k);
+    mu_w_k = std::get<0>(init_k);
+    var_w_k = std::get<1>(init_k);
+    mu_b_k = std::get<2>(init_k);
+    var_b_k = std::get<3>(init_k);
+
+    auto init_v = init_weight_bias_linear(
+        this->init_method, this->gain_w, this->gain_b, this->embed_dim,
+        v_output_size, num_weights_v, num_biases_v);
+    mu_w_v = std::get<0>(init_v);
+    var_w_v = std::get<1>(init_v);
+    mu_b_v = std::get<2>(init_v);
+    var_b_v = std::get<3>(init_v);
+}
+
+void MultiheadAttentionV2::allocate_param_delta() {
+    delta_mu_w_q.resize(num_weights_q, 0.0f);
+    delta_var_w_q.resize(num_weights_q, 0.0f);
+    delta_mu_w_k.resize(num_weights_k, 0.0f);
+    delta_var_w_k.resize(num_weights_k, 0.0f);
+    delta_mu_w_v.resize(num_weights_v, 0.0f);
+    delta_var_w_v.resize(num_weights_v, 0.0f);
+
+    delta_mu_b_q.resize(num_biases_q, 0.0f);
+    delta_var_b_q.resize(num_biases_q, 0.0f);
+    delta_mu_b_k.resize(num_biases_k, 0.0f);
+    delta_var_b_k.resize(num_biases_k, 0.0f);
+    delta_mu_b_v.resize(num_biases_v, 0.0f);
+    delta_var_b_v.resize(num_biases_v, 0.0f);
+}
+
+void MultiheadAttentionV2::update_weights() {
+    capped_update(mu_w_q, var_w_q, delta_mu_w_q, delta_var_w_q,
+                  this->cap_factor_update);
+    capped_update(mu_w_k, var_w_k, delta_mu_w_k, delta_var_w_k,
+                  this->cap_factor_update);
+    capped_update(mu_w_v, var_w_v, delta_mu_w_v, delta_var_w_v,
+                  this->cap_factor_update);
+}
+
+void MultiheadAttentionV2::update_biases() {
+    if (this->bias) {
+        capped_update(mu_b_q, var_b_q, delta_mu_b_q, delta_var_b_q,
+                      this->cap_factor_update);
+        capped_update(mu_b_k, var_b_k, delta_mu_b_k, delta_var_b_k,
+                      this->cap_factor_update);
+        capped_update(mu_b_v, var_b_v, delta_mu_b_v, delta_var_b_v,
+                      this->cap_factor_update);
+    }
+}
+
+void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
+                                   BaseHiddenStates &output_states,
+                                   BaseTempStates &temp_states) {
+    int batch_size = input_states.block_size;
+    this->set_cap_factor_udapte(batch_size * this->seq_len);
+    int batch_seq = batch_size * this->seq_len;
+
+    attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
+
+    // Resize projection buffers
+    int q_proj_size = batch_seq * q_output_size;
+    int k_proj_size = batch_seq * k_output_size;
+    int v_proj_size = batch_seq * v_output_size;
+    mu_q_proj.resize(q_proj_size);
+    var_q_proj.resize(q_proj_size);
+    mu_k_proj.resize(k_proj_size);
+    var_k_proj.resize(k_proj_size);
+    mu_v_proj.resize(v_proj_size);
+    var_v_proj.resize(v_proj_size);
+
+    // // Diagnostic: input to Q/K/V projections
+    // {
+    //     int total = batch_seq * this->embed_dim;
+    //     float s_mu = 0.0f, s_var = 0.0f;
+    //     for (int i = 0; i < total; i++) {
+    //         s_mu += fabsf(input_states.mu_a[i]);
+    //         s_var += fabsf(input_states.var_a[i]);
+    //     }
+    //     std::cout << "  V2 input mu: mean_abs=" << s_mu / total
+    //               << "  var: mean_abs=" << s_var / total << std::endl;
+    // }
+
+    // Separate Q, K, V linear projections
+    linear_fwd_mean_var_mp(mu_w_q, var_w_q, mu_b_q, var_b_q, input_states.mu_a,
+                           input_states.var_a, this->embed_dim, q_output_size,
+                           batch_seq, this->bias, this->num_threads, mu_q_proj,
+                           var_q_proj);
+
+    linear_fwd_mean_var_mp(mu_w_k, var_w_k, mu_b_k, var_b_k, input_states.mu_a,
+                           input_states.var_a, this->embed_dim, k_output_size,
+                           batch_seq, this->bias, this->num_threads, mu_k_proj,
+                           var_k_proj);
+
+    linear_fwd_mean_var_mp(mu_w_v, var_w_v, mu_b_v, var_b_v, input_states.mu_a,
+                           input_states.var_a, this->embed_dim, v_output_size,
+                           batch_seq, this->bias, this->num_threads, mu_v_proj,
+                           var_v_proj);
+
+    // Reshape to [batch, heads, seq_len, head_dim]
+    reshape_proj_to_heads(mu_q_proj, var_q_proj, batch_size, num_heads,
+                          this->seq_len, head_dim, attn_states.mu_q,
+                          attn_states.var_q);
+    reshape_proj_to_heads(mu_k_proj, var_k_proj, batch_size, num_heads,
+                          this->seq_len, head_dim, attn_states.mu_k,
+                          attn_states.var_k);
+    reshape_proj_to_heads(mu_v_proj, var_v_proj, batch_size, num_heads,
+                          this->seq_len, head_dim, attn_states.mu_v,
+                          attn_states.var_v);
+
+    if (this->pos_emb == "rope") {
+        apply_rope(attn_states.mu_q, attn_states.var_q, this->cos_cache,
+                   this->sin_cache, batch_size, num_heads, this->seq_len,
+                   head_dim, attn_states.mu_q_pe, attn_states.var_q_pe);
+
+        apply_rope(attn_states.mu_k, attn_states.var_k, this->cos_cache,
+                   this->sin_cache, batch_size, num_heads, this->seq_len,
+                   head_dim, attn_states.mu_k_pe, attn_states.var_k_pe);
+
+        query_key(attn_states.mu_q_pe, attn_states.var_q_pe,
+                  attn_states.mu_k_pe, attn_states.var_k_pe, batch_size,
+                  num_heads, this->seq_len, head_dim, attn_states.mu_qk,
+                  attn_states.var_qk);
+    } else {
+        query_key(attn_states.mu_q, attn_states.var_q, attn_states.mu_k,
+                  attn_states.var_k, batch_size, num_heads, this->seq_len,
+                  head_dim, attn_states.mu_qk, attn_states.var_qk);
+    }
+
+    if (this->use_causal_mask) {
+        mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size,
+                       num_heads, this->seq_len, head_dim, attn_states.mu_mqk,
+                       attn_states.var_mqk);
+    }
+
+    // Apply Remax on query-key product
+    int qk_size = batch_size * num_heads * this->seq_len * this->seq_len;
+    remax_input.mu_a =
+        this->use_causal_mask ? attn_states.mu_mqk : attn_states.mu_qk;
+    remax_input.var_a =
+        this->use_causal_mask ? attn_states.var_mqk : attn_states.var_qk;
+    remax_input.block_size = batch_size * this->seq_len * this->num_heads;
+    remax_input.actual_size = this->seq_len;
+
+    remax_output.set_size(qk_size,
+                          batch_size * this->seq_len * this->num_heads);
+
+    remax_layer->forward(remax_input, remax_output, remax_temp);
+
+    attn_states.mu_att_score = remax_output.mu_a;
+    attn_states.var_att_score = remax_output.var_a;
+    attn_states.j_mqk = remax_output.jcb;
+
+    // // Diagnostic: V2 separate projection norms
+    // {
+    //     auto mean_abs = [](const std::vector<float> &v, int start, int n) {
+    //         float s = 0.0f;
+    //         for (int i = start; i < start + n; i++) s += fabsf(v[i]);
+    //         return s / n;
+    //     };
+    //     int comp_size = batch_size * num_heads * this->seq_len * head_dim;
+    //     std::cout << "--- AttentionV2 diagnostics ---" << std::endl;
+    //     std::cout << "  W_Q mu: mean_abs=" << mean_abs(mu_w_q, 0,
+    //     mu_w_q.size())
+    //               << "  var: mean_abs=" << mean_abs(var_w_q, 0,
+    //               var_w_q.size()) << std::endl;
+    //     std::cout << "  W_K mu: mean_abs=" << mean_abs(mu_w_k, 0,
+    //     mu_w_k.size())
+    //               << "  var: mean_abs=" << mean_abs(var_w_k, 0,
+    //               var_w_k.size()) << std::endl;
+    //     std::cout << "  W_V mu: mean_abs=" << mean_abs(mu_w_v, 0,
+    //     mu_w_v.size())
+    //               << "  var: mean_abs=" << mean_abs(var_w_v, 0,
+    //               var_w_v.size()) << std::endl;
+    //     std::cout << "  Q mu: mean_abs=" << mean_abs(attn_states.mu_q, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_q, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "  K mu: mean_abs=" << mean_abs(attn_states.mu_k, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_k, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "  V mu: mean_abs=" << mean_abs(attn_states.mu_v, 0,
+    //     comp_size)
+    //               << "  var: mean_abs=" << mean_abs(attn_states.var_v, 0,
+    //               comp_size) << std::endl;
+    //     std::cout << "---" << std::endl;
+    // }
+
+    tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
+                       attn_states.mu_v, attn_states.var_v, batch_size,
+                       num_heads, this->seq_len, head_dim, this->seq_len,
+                       attn_states.mu_sv, attn_states.var_sv);
+
+    project_output_forward(attn_states.mu_sv, attn_states.var_sv, batch_size,
+                           num_heads, this->seq_len, head_dim,
+                           output_states.mu_a, output_states.var_a);
+
+    output_states.width = this->out_width;
+    output_states.height = this->out_height;
+    output_states.depth = this->out_channels;
+    output_states.block_size = batch_size;
+    output_states.seq_len = this->seq_len;
+    output_states.actual_size = this->output_size;
+
+    if (this->training) {
+        this->storing_states_for_training(input_states, output_states);
+    }
+}
+
+void MultiheadAttentionV2::backward(BaseDeltaStates &input_delta_states,
+                                    BaseDeltaStates &output_delta_states,
+                                    BaseTempStates &temp_states,
+                                    bool state_udapte) {
+    int batch_size = input_delta_states.block_size;
+    attn_delta_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
+    int batch_seq = batch_size * this->seq_len;
+
+    project_output_backward(
+        input_delta_states.delta_mu, input_delta_states.delta_var, batch_size,
+        this->num_heads, this->seq_len, this->head_dim,
+        attn_delta_states.delta_mu_buffer, attn_delta_states.delta_var_buffer);
+
+    mha_delta_value(attn_states.mu_att_score, attn_delta_states.delta_mu_buffer,
+                    attn_delta_states.delta_var_buffer, batch_size,
+                    this->num_heads, this->seq_len, this->head_dim,
+                    attn_delta_states.delta_mu_v,
+                    attn_delta_states.delta_var_v);
+
+    mha_delta_score(attn_states.mu_v, attn_delta_states.delta_mu_buffer,
+                    attn_delta_states.delta_var_buffer, batch_size,
+                    this->num_heads, this->seq_len, this->head_dim,
+                    attn_delta_states.delta_mu_att_score,
+                    attn_delta_states.delta_var_att_score);
+
+    if (this->use_causal_mask) {
+        mask_query_key(attn_delta_states.delta_mu_att_score,
+                       attn_delta_states.delta_var_att_score, batch_size,
+                       num_heads, this->seq_len, this->head_dim,
+                       attn_delta_states.delta_mu_att_score,
+                       attn_delta_states.delta_var_att_score);
+    }
+
+    if (this->pos_emb == "rope") {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
+                        this->head_dim, attn_delta_states.delta_mu_q_pe,
+                        attn_delta_states.delta_var_q_pe);
+
+        mha_delta_key(attn_states.var_k, attn_states.mu_q_pe,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
+                      batch_size, num_heads, this->seq_len, this->head_dim,
+                      attn_delta_states.delta_mu_k_pe,
+                      attn_delta_states.delta_var_k_pe);
+
+        rope_backward(attn_delta_states.delta_mu_q_pe,
+                      attn_delta_states.delta_var_q_pe, this->cos_cache,
+                      this->sin_cache, batch_size, num_heads, this->seq_len,
+                      this->head_dim, attn_delta_states.delta_mu_q,
+                      attn_delta_states.delta_var_q);
+
+        rope_backward(attn_delta_states.delta_mu_k_pe,
+                      attn_delta_states.delta_var_k_pe, this->cos_cache,
+                      this->sin_cache, batch_size, num_heads, this->seq_len,
+                      this->head_dim, attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
+    } else {
+        mha_delta_query(attn_states.var_q, attn_states.mu_k,
+                        attn_delta_states.delta_mu_att_score,
+                        attn_delta_states.delta_var_att_score,
+                        attn_states.j_mqk, batch_size, num_heads, this->seq_len,
+                        this->head_dim, attn_delta_states.delta_mu_q,
+                        attn_delta_states.delta_var_q);
+
+        mha_delta_key(attn_states.var_k, attn_states.mu_q,
+                      attn_delta_states.delta_mu_att_score,
+                      attn_delta_states.delta_var_att_score, attn_states.j_mqk,
+                      batch_size, num_heads, this->seq_len, this->head_dim,
+                      attn_delta_states.delta_mu_k,
+                      attn_delta_states.delta_var_k);
+    }
+
+    // Reshape Q/K/V deltas from [batch, heads, seq, hd] to [batch*seq,
+    // heads*hd]
+    int q_proj_size = batch_seq * q_output_size;
+    int k_proj_size = batch_seq * k_output_size;
+    int v_proj_size = batch_seq * v_output_size;
+
+    std::vector<float> delta_mu_q_proj(q_proj_size);
+    std::vector<float> delta_var_q_proj(q_proj_size);
+    std::vector<float> delta_mu_k_proj(k_proj_size);
+    std::vector<float> delta_var_k_proj(k_proj_size);
+    std::vector<float> delta_mu_v_proj(v_proj_size);
+    std::vector<float> delta_var_v_proj(v_proj_size);
+
+    reshape_heads_to_proj(
+        attn_delta_states.delta_mu_q, attn_delta_states.delta_var_q, batch_size,
+        num_heads, this->seq_len, head_dim, delta_mu_q_proj, delta_var_q_proj);
+    reshape_heads_to_proj(
+        attn_delta_states.delta_mu_k, attn_delta_states.delta_var_k, batch_size,
+        num_heads, this->seq_len, head_dim, delta_mu_k_proj, delta_var_k_proj);
+    reshape_heads_to_proj(
+        attn_delta_states.delta_mu_v, attn_delta_states.delta_var_v, batch_size,
+        num_heads, this->seq_len, head_dim, delta_mu_v_proj, delta_var_v_proj);
+
+    if (state_udapte) {
+        // Compute delta_z for each projection and sum them
+        int input_size = this->embed_dim;
+        int out_size = batch_seq * input_size;
+
+        std::vector<float> delta_mu_z_q(out_size, 0.0f);
+        std::vector<float> delta_var_z_q(out_size, 0.0f);
+        std::vector<float> delta_mu_z_k(out_size, 0.0f);
+        std::vector<float> delta_var_z_k(out_size, 0.0f);
+        std::vector<float> delta_mu_z_v(out_size, 0.0f);
+        std::vector<float> delta_var_z_v(out_size, 0.0f);
+
+        linear_bwd_fc_delta_z_mp(mu_w_q, this->bwd_states->jcb, delta_mu_q_proj,
+                                 delta_var_q_proj, input_size, q_output_size,
+                                 batch_seq, this->num_threads, delta_mu_z_q,
+                                 delta_var_z_q);
+
+        linear_bwd_fc_delta_z_mp(mu_w_k, this->bwd_states->jcb, delta_mu_k_proj,
+                                 delta_var_k_proj, input_size, k_output_size,
+                                 batch_seq, this->num_threads, delta_mu_z_k,
+                                 delta_var_z_k);
+
+        linear_bwd_fc_delta_z_mp(mu_w_v, this->bwd_states->jcb, delta_mu_v_proj,
+                                 delta_var_v_proj, input_size, v_output_size,
+                                 batch_seq, this->num_threads, delta_mu_z_v,
+                                 delta_var_z_v);
+
+        for (int i = 0; i < out_size; i++) {
+            output_delta_states.delta_mu[i] =
+                delta_mu_z_q[i] + delta_mu_z_k[i] + delta_mu_z_v[i];
+            output_delta_states.delta_var[i] =
+                delta_var_z_q[i] + delta_var_z_k[i] + delta_var_z_v[i];
+        }
+    }
+
+    if (this->param_update) {
+        linear_bwd_fc_delta_w_mp(
+            var_w_q, this->bwd_states->mu_a, delta_mu_q_proj, delta_var_q_proj,
+            this->embed_dim, q_output_size, batch_seq, this->num_threads,
+            delta_mu_w_q, delta_var_w_q);
+
+        linear_bwd_fc_delta_w_mp(
+            var_w_k, this->bwd_states->mu_a, delta_mu_k_proj, delta_var_k_proj,
+            this->embed_dim, k_output_size, batch_seq, this->num_threads,
+            delta_mu_w_k, delta_var_w_k);
+
+        linear_bwd_fc_delta_w_mp(
+            var_w_v, this->bwd_states->mu_a, delta_mu_v_proj, delta_var_v_proj,
+            this->embed_dim, v_output_size, batch_seq, this->num_threads,
+            delta_mu_w_v, delta_var_w_v);
+
+        if (this->bias) {
+            linear_bwd_fc_delta_b_mp(
+                var_b_q, delta_mu_q_proj, delta_var_q_proj, q_output_size,
+                batch_seq, this->num_threads, delta_mu_b_q, delta_var_b_q);
+            linear_bwd_fc_delta_b_mp(
+                var_b_k, delta_mu_k_proj, delta_var_k_proj, k_output_size,
+                batch_seq, this->num_threads, delta_mu_b_k, delta_var_b_k);
+            linear_bwd_fc_delta_b_mp(
+                var_b_v, delta_mu_v_proj, delta_var_v_proj, v_output_size,
+                batch_seq, this->num_threads, delta_mu_b_v, delta_var_b_v);
+        }
+    }
+}
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> MultiheadAttentionV2::to_cuda(int device_idx) {
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    LOG(LogLevel::ERROR,
+        "CUDA support for MultiheadAttentionV2 not yet implemented");
     return nullptr;
 }
 #endif
