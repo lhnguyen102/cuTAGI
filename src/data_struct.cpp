@@ -357,18 +357,20 @@ void BaseLSTMStates::reset_prev_states()
 // Smoother for Slinear layer
 ////////////////////////////////////////////////////////////////////////////////
 SmoothSLinear::SmoothSLinear() {}
-SmoothSLinear::SmoothSLinear(size_t num_timesteps)
-    : num_timesteps(num_timesteps)
+SmoothSLinear::SmoothSLinear(size_t num_states, size_t num_timesteps)
+    : num_states(num_states),
+      num_timesteps(num_timesteps)
 /*
  */
 {
     this->reset_zeros();
 }
 
-void SmoothSLinear::set_num_states(size_t num_timesteps)
+void SmoothSLinear::set_num_states(size_t num_states, size_t num_timesteps)
 /*
  */
 {
+    this->num_states = num_states;
     this->num_timesteps = num_timesteps;
     this->reset_zeros();
 }
@@ -377,32 +379,33 @@ void SmoothSLinear::reset_zeros()
 /**/
 {
     // Resize and reset mu_zo_priors
-    if (mu_zo_priors.size() != num_timesteps)
-        mu_zo_priors.resize(num_timesteps);
+    if (mu_zo_priors.size() != num_states * num_timesteps)
+        mu_zo_priors.resize(num_states * num_timesteps);
     for (auto& val : mu_zo_priors) val = 0;
 
     // Resize and reset var_zo_priors
-    if (var_zo_priors.size() != num_timesteps)
-        var_zo_priors.resize(num_timesteps);
+    if (var_zo_priors.size() != num_states * num_timesteps)
+        var_zo_priors.resize(num_states * num_timesteps);
     for (auto& val : var_zo_priors) val = 0;
 
     // Resize and reset mu_zo_posts
-    if (mu_zo_posts.size() != num_timesteps) mu_zo_posts.resize(num_timesteps);
+    if (mu_zo_posts.size() != num_states * num_timesteps) 
+        mu_zo_posts.resize(num_states * num_timesteps);
     for (auto& val : mu_zo_posts) val = 0;
 
     // Resize and reset var_zo_posts
-    if (var_zo_posts.size() != num_timesteps)
-        var_zo_posts.resize(num_timesteps);
+    if (var_zo_posts.size() != num_states * num_timesteps)
+        var_zo_posts.resize(num_states * num_timesteps);
     for (auto& val : var_zo_posts) val = 0;
 
     // Resize and reset mu_zo_smooths
-    if (mu_zo_smooths.size() != num_timesteps)
-        mu_zo_smooths.resize(num_timesteps);
+    if (mu_zo_smooths.size() != num_states * num_timesteps)
+        mu_zo_smooths.resize(num_states * num_timesteps);
     for (auto& val : mu_zo_smooths) val = 0;
 
     // Resize and reset var_zo_smooths
-    if (var_zo_smooths.size() != num_timesteps)
-        var_zo_smooths.resize(num_timesteps);
+    if (var_zo_smooths.size() != num_states * num_timesteps)
+        var_zo_smooths.resize(num_states * num_timesteps);
     for (auto& val : var_zo_smooths) val = 0;
 }
 

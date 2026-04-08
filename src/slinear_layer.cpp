@@ -30,7 +30,7 @@ LayerType SLinear::get_layer_type() const
     return LayerType::SLinear;
 }
 
-void linear_update_hidden_states(int time_step, std::vector<float> &mu_a_prior,
+void save_posteriors_smoother(int num_states, int time_step, std::vector<float> &mu_a_prior,
                                  std::vector<float> &var_a_prior,
                                  std::vector<float> &delta_mu,
                                  std::vector<float> &delta_var,
@@ -39,10 +39,12 @@ void linear_update_hidden_states(int time_step, std::vector<float> &mu_a_prior,
 /*
  */
 {
-    mu_a_post[time_step] =
-        mu_a_prior[time_step] + delta_mu[0] * var_a_prior[time_step];
-    var_a_post[time_step] =
-        (1.0f + delta_var[0] * var_a_prior[time_step]) * var_a_prior[time_step];
+    for (int i = 0 ; i < num_states; i++) { 
+        mu_a_post[time_step * num_states + i] =
+            mu_a_prior[time_step * num_states + i] + delta_mu[i] * var_a_prior[time_step * num_states + i];
+        var_a_post[time_step] =
+            (1.0f + delta_var[i] * var_a_prior[time_step * num_states + i]) * var_a_prior[time_step * num_states + i];
+    }
 }
 
 void smooth_zo(int num_timestep, int input_size, int output_size,
@@ -60,11 +62,11 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
     bool print_clip_z = true;
 
     for (int i = num_timestep - 1; i >= 0; i--) {
-        for (int k = 0; k <= output_size - 1; ++k) {
+        for (int k = 0; k < output_size; k++) {
             float mu_zo = 0.0f;
             float var_zo = 0.0f;
-            for (int j = 0; j <= input_size - 1; ++j) {
-                idx_h = i * input_size + k * output_size + j;
+            for (int j = 0; j < input_size - 1; j++) {
+                idx_h = i * input_size + j;
                 idx_w = k * output_size + j;
                 mu_zo += mu_h_smooths_prev_slstm[idx_h] * mu_w[idx_w];
                 var_zo += var_h_smooths_prev_slstm[idx_h] * var_w[idx_w] +
@@ -73,16 +75,16 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
                           var_w[idx_w] * mu_h_smooths_prev_slstm[idx_h] *
                               mu_h_smooths_prev_slstm[idx_h];
             }
-            mu_zo_smooths[i] = mu_zo + mu_b[k];
-            var_zo_smooths[i] = var_zo + var_b[k];
-            if (var_zo_smooths[i] < 0 && print_clip_z) {
+            mu_zo_smooths[i * output_size + k] = mu_zo + mu_b[k];
+            var_zo_smooths[i * output_size + k] = var_zo + var_b[k];
+            if (var_zo_smooths[i * output_size + k] < 0 && print_clip_z) {
                 LOG(LogLevel::WARNING,
                     "Negative variance clipped for z output at SLinear at time "
                     "step " +
                         std::to_string(i));
                 print_clip_z = false;
             }
-            var_zo_smooths[i] = var_zo_smooths[i] < 0 ? eps : var_zo_smooths[i];
+            var_zo_smooths[i * output_size + k] = var_zo_smooths[i * output_size + k] < 0 ? eps : var_zo_smooths[i * output_size + k];
         }
     }
 }
@@ -112,7 +114,7 @@ void SLinear::forward(BaseHiddenStates &input_states,
 
     if (this->smooth_states.num_timesteps !=
         smooth_input_states->num_timesteps) {
-        this->smooth_states.set_num_states(smooth_input_states->num_timesteps);
+        this->smooth_states.set_num_states(this->output_size, smooth_input_states->num_timesteps);
     }
 
     // Forward pass
@@ -143,10 +145,12 @@ void SLinear::forward(BaseHiddenStates &input_states,
 
     // save z_output prior for smoothing
     if (this->training) {
-        this->smooth_states.mu_zo_priors[this->time_step] =
-            smooth_output_states->mu_a[0];
-        this->smooth_states.var_zo_priors[this->time_step] =
-            smooth_output_states->var_a[0];
+        for (int i = 0 ; i < this->output_size; i++) { 
+            this->smooth_states.mu_zo_priors[this->time_step * this->output_size + i] =
+                smooth_output_states->mu_a[i];
+            this->smooth_states.var_zo_priors[this->time_step * this->output_size + i] =
+                smooth_output_states->var_a[i];
+        }
     }
 
     if (this->training) {
@@ -184,8 +188,8 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
 
-        linear_update_hidden_states(
-            this->time_step, this->smooth_states.mu_zo_priors,
+        save_posteriors_smoother(
+            this->output_size, this->time_step, this->smooth_states.mu_zo_priors,
             this->smooth_states.var_zo_priors, input_delta_states.delta_mu,
             input_delta_states.delta_var, this->smooth_states.mu_zo_posts,
             this->smooth_states.var_zo_posts);

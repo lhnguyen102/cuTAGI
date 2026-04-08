@@ -890,13 +890,24 @@ Sequential::get_outputs_smoother()
  */
 {
     auto last_layer = dynamic_cast<SLinear *>(this->layers.back().get());
-    auto py_mu_zo_smooths = pybind11::array_t<float>(
-        last_layer->smooth_states.mu_zo_smooths.size(),
-        last_layer->smooth_states.mu_zo_smooths.data());
+            
+    int total_size = last_layer->smooth_states.mu_zo_smooths.size();
+    int num_output = last_layer->output_size;
+    int num_timestep = total_size / num_output;
 
-    auto py_var_zo_smooths = pybind11::array_t<float>(
-        last_layer->smooth_states.var_zo_smooths.size(),
-        last_layer->smooth_states.var_zo_smooths.data());
+    pybind11::array_t<float> py_mu_zo_smooths({num_output, num_timestep});
+    pybind11::array_t<float> py_var_zo_smooths({num_output, num_timestep});
+    auto mu_buf = py_mu_zo_smooths.mutable_unchecked<2>();
+    auto var_buf = py_var_zo_smooths.mutable_unchecked<2>();
+    const float* mu_zo = last_layer->smooth_states.mu_zo_smooths.data();
+    const float* var_zo = last_layer->smooth_states.var_zo_smooths.data();
+
+    for (int i = 0; i < num_timestep; i++) {
+        for (int j = 0; j < num_output; j++) {
+            mu_buf(j, i) = mu_zo[i * num_output + j];
+            var_buf(j, i) = var_zo[i * num_output + j];
+        }
+    }
 
     return {py_mu_zo_smooths, py_var_zo_smooths};
 }

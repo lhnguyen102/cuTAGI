@@ -17,13 +17,10 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 1
-    input_seq_len = 20
+    num_features = 2
+    input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
-    # Number of observations before training time to be inferred. These
-    # obervations are nan in training data.
-    infer_window_len = 48
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
@@ -33,8 +30,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         output_seq_len=output_seq_len,
         num_features=num_features,
         stride=seq_stride,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day"],
+        keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_test_sin_smoother.csv",
@@ -46,8 +43,8 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        # time_covariates=["hour_of_day"],
-        # keep_last_time_cov=True,
+        time_covariates=["hour_of_day"],
+        keep_last_time_cov=True,
     )
 
     # Viz
@@ -84,7 +81,6 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         )
         y_train = []
 
-        # for x, y in batch_iter:
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
@@ -128,26 +124,26 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         # Smoother
         lstm_states = net.get_lstm_states()
         mu_zo_smooth, var_zo_smooth = net.smoother()
-        zo_smooth_std = np.array(var_zo_smooth) ** 0.5
-        mu_sequence = np.ones(input_seq_len, dtype=np.float32)
-        # mu_sequence = mu_zo_smooth[:input_seq_len]
+        mu_zo_smooth = mu_zo_smooth.flatten()
+        zo_smooth_std = np.array(var_zo_smooth.flatten()) ** 0.5
+        mu_sequence = np.zeros(input_seq_len, dtype=np.float32)
 
-        # Figures for each epoch for debugging
-        t = np.arange(len(mu_zo_smooth))
-        t_train = np.arange(len(y_train))
-        plt.figure()
-        plt.plot(t_train, y_train, color="r")
-        plt.plot(t, mu_zo_smooth, color="b")
-        plt.fill_between(
-            t,
-            mu_zo_smooth - zo_smooth_std,
-            mu_zo_smooth + zo_smooth_std,
-            alpha=0.2,
-            label="1 Std Dev",
-        )
-        filename = f"saved_results/smoother#{epoch}.png"
-        plt.savefig(filename)
-        plt.close()
+        # # Figures for each epoch for debugging
+        # t = np.arange(len(mu_zo_smooth))
+        # t_train = np.arange(len(y_train))
+        # plt.figure()
+        # plt.plot(t_train, y_train, color="r")
+        # plt.plot(t, mu_zo_smooth, color="b")
+        # plt.fill_between(
+        #     t,
+        #     mu_zo_smooth - zo_smooth_std,
+        #     mu_zo_smooth + zo_smooth_std,
+        #     alpha=0.2,
+        #     label="1 Std Dev",
+        # )
+        # filename = f"saved_results/smoother#{epoch}.png"
+        # plt.savefig(filename)
+        # plt.close()
 
         # Progress bar
         pbar.set_description(
@@ -162,7 +158,6 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
     plt.plot(t_train, y_train, color="r", label=r"$y_{true}$")
     plt.plot(t, mu_zo_smooth, color="b", label=r"smooth")
-    # plt.plot(t_infer_len, obs_infer[input_seq_len:], color="r")
     plt.axvline(x=72-input_seq_len, color='k', linestyle='--')
     plt.fill_between(
         t,

@@ -279,7 +279,7 @@ def smoother_test_runner(
     for _ in np.arange(2):
         batch_iter = train_dtl.create_data_loader(batch_size, shuffle=False)
         y_train = []
-        # for x, y in batch_iter:
+
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
@@ -322,6 +322,7 @@ def smoother_test_runner(
         # Smoother
         current_states = model.get_lstm_states()
         mu_zo_smooth, _ = model.smoother()
+        mu_zo_smooth = mu_zo_smooth.flatten()
         mu_sequence = mu_zo_smooth[:input_seq_len]
         last_smoothed_state = model.get_lstm_states(len(mu_zo_smooth) - 1)
 
