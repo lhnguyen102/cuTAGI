@@ -282,8 +282,8 @@ void SLSTM::forward(BaseHiddenStates &input_states,
             smooth_input_states.mu_a, lstm_states.mu_h_prev, ni, no, batch_size,
             seq_len, t, lstm_states.mu_ha);
         lstm_cat_activations_and_prev_states(
-            smooth_input_states.var_a, lstm_states.var_h_prev, ni, no, batch_size,
-            seq_len, t, lstm_states.var_ha);
+            smooth_input_states.var_a, lstm_states.var_h_prev, ni, no,
+            batch_size, seq_len, t, lstm_states.var_ha);
 
         // Forget gate
         parallel_for(end_chunk, this->num_threads, [&](int s, int e) {
@@ -406,8 +406,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
             int src = b * seq_len * no + (seq_len - 1) * no;
             int dst = b * no;
             for (int z = 0; z < no; z++) {
-                lstm_states.mu_h_prior[dst + z] = smooth_output_states.mu_a[src + z];
-                lstm_states.var_h_prior[dst + z] = smooth_output_states.var_a[src + z];
+                lstm_states.mu_h_prior[dst + z] =
+                    smooth_output_states.mu_a[src + z];
+                lstm_states.var_h_prior[dst + z] =
+                    smooth_output_states.var_a[src + z];
                 lstm_states.mu_c_prior[dst + z] = lstm_states.mu_c[src + z];
                 lstm_states.var_c_prior[dst + z] = lstm_states.var_c[src + z];
             }
@@ -419,8 +421,10 @@ void SLSTM::forward(BaseHiddenStates &input_states,
             int src = b * seq_len * no + (seq_len - 1) * no;
             int dst = b * no;
             for (int z = 0; z < no; z++) {
-                smooth_output_states.mu_a[dst + z] = smooth_output_states.mu_a[src + z];
-                smooth_output_states.var_a[dst + z] = smooth_output_states.var_a[src + z];
+                smooth_output_states.mu_a[dst + z] =
+                    smooth_output_states.mu_a[src + z];
+                smooth_output_states.var_a[dst + z] =
+                    smooth_output_states.var_a[src + z];
             }
         }
         smooth_output_states.seq_len = 1;
@@ -452,8 +456,8 @@ void SLSTM::forward(BaseHiddenStates &input_states,
 }
 
 void SLSTM::backward(BaseDeltaStates &input_delta_states,
-                    BaseDeltaStates &output_delta_states,
-                    BaseTempStates &temp_states, bool state_udapte) {
+                     BaseDeltaStates &output_delta_states,
+                     BaseTempStates &temp_states, bool state_udapte) {
     int batch_size = input_delta_states.block_size;
     int seq_len = this->seq_len;
     int ni = this->input_size;

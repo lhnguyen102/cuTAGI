@@ -302,6 +302,7 @@ class MnistOneHotDataloader(DataloaderBase):
 
         return dataset
 
+
 class TimeSeriesDataloader:
     """Data loader for time series"""
 
@@ -376,11 +377,15 @@ class TimeSeriesDataloader:
         if self.df is False:
             x = self.load_data_from_csv(self.x_file)
             if self.ts_idx is not None:
-                x = x[:, self.ts_idx : self.ts_idx + 1]  # choose time series column
+                x = x[
+                    :, self.ts_idx : self.ts_idx + 1
+                ]  # choose time series column
             date_time = self.load_data_from_csv(self.date_time_file)
         else:
             x = self.df.values
-            date_time = np.array(self.df.index, dtype="datetime64").reshape(-1,1)
+            date_time = np.array(self.df.index, dtype="datetime64").reshape(
+                -1, 1
+            )
 
         # Add time covariates
         if self.time_covariates is not None:

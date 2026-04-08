@@ -108,9 +108,9 @@ void lstm_update_cell_state_posterior(
     int end_idx, std::vector<float> &mu_c_prev, std::vector<float> &var_c_prev);
 
 void lstm_sigmoid_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
-                        int start_idx, int end_idx, int seq_len, int no,
-                        int time_step, std::vector<float> &mu_a,
-                        std::vector<float> &jcb, std::vector<float> &var_a);
+                           int start_idx, int end_idx, int seq_len, int no,
+                           int time_step, std::vector<float> &mu_a,
+                           std::vector<float> &jcb, std::vector<float> &var_a);
 
 void lstm_tanh_mean_var(std::vector<float> &mu_z, std::vector<float> &var_z,
                         int start_idx, int end_idx, int seq_len, int no,

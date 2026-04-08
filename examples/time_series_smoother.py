@@ -158,7 +158,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
     plt.plot(t_train, y_train, color="r", label=r"$y_{true}$")
     plt.plot(t, mu_zo_smooth, color="b", label=r"smooth")
-    plt.axvline(x=72-input_seq_len, color='k', linestyle='--')
+    plt.axvline(x=72 - input_seq_len, color="k", linestyle="--")
     plt.fill_between(
         t,
         mu_zo_smooth - zo_smooth_std,

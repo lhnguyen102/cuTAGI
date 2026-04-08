@@ -389,7 +389,7 @@ void SmoothSLinear::reset_zeros()
     for (auto& val : var_zo_priors) val = 0;
 
     // Resize and reset mu_zo_posts
-    if (mu_zo_posts.size() != num_states * num_timesteps) 
+    if (mu_zo_posts.size() != num_states * num_timesteps)
         mu_zo_posts.resize(num_states * num_timesteps);
     for (auto& val : mu_zo_posts) val = 0;
 

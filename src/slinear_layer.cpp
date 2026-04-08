@@ -30,20 +30,23 @@ LayerType SLinear::get_layer_type() const
     return LayerType::SLinear;
 }
 
-void save_posteriors_smoother(int num_states, int time_step, std::vector<float> &mu_a_prior,
-                                 std::vector<float> &var_a_prior,
-                                 std::vector<float> &delta_mu,
-                                 std::vector<float> &delta_var,
-                                 std::vector<float> &mu_a_post,
-                                 std::vector<float> &var_a_post)
+void save_posteriors_smoother(int num_states, int time_step,
+                              std::vector<float> &mu_a_prior,
+                              std::vector<float> &var_a_prior,
+                              std::vector<float> &delta_mu,
+                              std::vector<float> &delta_var,
+                              std::vector<float> &mu_a_post,
+                              std::vector<float> &var_a_post)
 /*
  */
 {
-    for (int i = 0 ; i < num_states; i++) { 
+    for (int i = 0; i < num_states; i++) {
         mu_a_post[time_step * num_states + i] =
-            mu_a_prior[time_step * num_states + i] + delta_mu[i] * var_a_prior[time_step * num_states + i];
+            mu_a_prior[time_step * num_states + i] +
+            delta_mu[i] * var_a_prior[time_step * num_states + i];
         var_a_post[time_step] =
-            (1.0f + delta_var[i] * var_a_prior[time_step * num_states + i]) * var_a_prior[time_step * num_states + i];
+            (1.0f + delta_var[i] * var_a_prior[time_step * num_states + i]) *
+            var_a_prior[time_step * num_states + i];
     }
 }
 
@@ -84,7 +87,10 @@ void smooth_zo(int num_timestep, int input_size, int output_size,
                         std::to_string(i));
                 print_clip_z = false;
             }
-            var_zo_smooths[i * output_size + k] = var_zo_smooths[i * output_size + k] < 0 ? eps : var_zo_smooths[i * output_size + k];
+            var_zo_smooths[i * output_size + k] =
+                var_zo_smooths[i * output_size + k] < 0
+                    ? eps
+                    : var_zo_smooths[i * output_size + k];
         }
     }
 }
@@ -114,7 +120,8 @@ void SLinear::forward(BaseHiddenStates &input_states,
 
     if (this->smooth_states.num_timesteps !=
         smooth_input_states->num_timesteps) {
-        this->smooth_states.set_num_states(this->output_size, smooth_input_states->num_timesteps);
+        this->smooth_states.set_num_states(this->output_size,
+                                           smooth_input_states->num_timesteps);
     }
 
     // Forward pass
@@ -145,10 +152,12 @@ void SLinear::forward(BaseHiddenStates &input_states,
 
     // save z_output prior for smoothing
     if (this->training) {
-        for (int i = 0 ; i < this->output_size; i++) { 
-            this->smooth_states.mu_zo_priors[this->time_step * this->output_size + i] =
+        for (int i = 0; i < this->output_size; i++) {
+            this->smooth_states
+                .mu_zo_priors[this->time_step * this->output_size + i] =
                 smooth_output_states->mu_a[i];
-            this->smooth_states.var_zo_priors[this->time_step * this->output_size + i] =
+            this->smooth_states
+                .var_zo_priors[this->time_step * this->output_size + i] =
                 smooth_output_states->var_a[i];
         }
     }
@@ -189,10 +198,10 @@ void SLinear::backward(BaseDeltaStates &input_delta_states,
         }
 
         save_posteriors_smoother(
-            this->output_size, this->time_step, this->smooth_states.mu_zo_priors,
-            this->smooth_states.var_zo_priors, input_delta_states.delta_mu,
-            input_delta_states.delta_var, this->smooth_states.mu_zo_posts,
-            this->smooth_states.var_zo_posts);
+            this->output_size, this->time_step,
+            this->smooth_states.mu_zo_priors, this->smooth_states.var_zo_priors,
+            input_delta_states.delta_mu, input_delta_states.delta_var,
+            this->smooth_states.mu_zo_posts, this->smooth_states.var_zo_posts);
     }
 
     // Update values for weights & biases
