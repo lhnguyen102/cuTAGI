@@ -158,13 +158,13 @@ void layernorm_bwd_delta_w(
         float sum_var = 0.0f;
         for (int row = 0; row < batch_size; row++) {
             float tmp = (1.0f / std::sqrt(var_ra[row] + epsilon)) *
-                        (mu_a[col + row * ni] - mu_ra[row]) * var_w[col];
+                        (mu_a[col + row * ni] - mu_ra[row]);
 
             sum_mu += tmp * delta_mu_out[col + row * ni];
             sum_var += tmp * delta_var_out[col + row * ni] * tmp;
         }
-        delta_mu_w[col] = sum_mu;
-        delta_var_w[col] = sum_var;
+        delta_mu_w[col] = sum_mu * var_w[col];
+        delta_var_w[col] = sum_var * var_w[col] * var_w[col];
     }
 }
 

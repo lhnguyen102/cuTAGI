@@ -11,10 +11,11 @@ class RMSNorm : public BaseLayer {
     std::vector<int> normalized_shape;
     std::vector<float> rms_ra;
     float epsilon;
+    float gain_w;
     int _batch_size = 0;
 
     RMSNorm(const std::vector<int> &normalized_shape, float eps = 1e-6,
-            int device_idx = 0);
+            float gain_w = 1.0f, int device_idx = 0);
     ~RMSNorm();
 
     RMSNorm(const RMSNorm &) = delete;

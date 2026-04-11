@@ -11,7 +11,12 @@ class RMSNorm(BaseLayer):
     the inputs using the RMS statistic. It inherits from BaseLayer.
     """
 
-    def __init__(self, normalized_shape: List[int], eps: float = 1e-6):
+    def __init__(
+        self,
+        normalized_shape: List[int],
+        eps: float = 1e-6,
+        gain_w: float = 1.0,
+    ):
         """
         Initializes the RMSNorm layer.
 
@@ -21,11 +26,14 @@ class RMSNorm(BaseLayer):
                               a list of integers.
             eps: A small value added to the denominator for numerical stability
                  to prevent division by zero. Defaults to 1e-6.
+            gain_w: Gain factor for weight variance initialization.
+                    Defaults to 1.0.
         """
         self.normalized_shape = normalized_shape
         self.eps = eps
+        self.gain_w = gain_w
 
-        self._cpp_backend = cutagi.RMSNorm(normalized_shape, eps)
+        self._cpp_backend = cutagi.RMSNorm(normalized_shape, eps, gain_w)
 
     def get_layer_info(self) -> str:
         """
