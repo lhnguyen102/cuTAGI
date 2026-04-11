@@ -99,7 +99,7 @@ def main(
     batch_size: int = 64,
     seq_len: int = 5,
     vocab_size: int = 8,
-    embed_dim: int = 64,
+    embed_dim: int = 32,
     num_heads: int = 1,
     sigma_v: float = 3.5,
     sigma_v_min: float = 0.3,
