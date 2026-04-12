@@ -17,13 +17,10 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     """Run training for time-series forecasting model"""
     # Dataset
     output_col = [0]
-    num_features = 3
+    num_features = 2
     input_seq_len = 24
     output_seq_len = 1
     seq_stride = 1
-    # Number of observations before training time to be inferred. These
-    # obervations are nan in training data.
-    infer_window_len = 48
 
     train_dtl = TimeSeriesDataloader(
         x_file="data/toy_time_series_smoother/x_train_sin_smoother.csv",
@@ -33,7 +30,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         output_seq_len=output_seq_len,
         num_features=num_features,
         stride=seq_stride,
-        time_covariates=["hour_of_day", "day_of_week"],
+        time_covariates=["hour_of_day"],
         keep_last_time_cov=True,
     )
     test_dtl = TimeSeriesDataloader(
@@ -46,7 +43,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         stride=seq_stride,
         x_mean=train_dtl.x_mean,
         x_std=train_dtl.x_std,
-        time_covariates=["hour_of_day", "day_of_week"],
+        time_covariates=["hour_of_day"],
         keep_last_time_cov=True,
     )
 
@@ -55,14 +52,13 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
     # Network
     net = Sequential(
-        SLSTM(num_features + input_seq_len - 1, 40, 1),
-        SLSTM(40, 40, 1),
+        SLSTM(num_features + input_seq_len - 1, 40, False, 1),
+        SLSTM(40, 40, True, 1),
         SLinear(40, 1),
     )
 
     # net.to_device("cuda")
     net.set_threads(1)  # multi-processing is slow on a small net
-    net.input_state_update = True
     net.num_samples = train_dtl.dataset["value"][0].shape[0]
     out_updater = OutputUpdater(net.device)
 
@@ -78,19 +74,20 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
 
         # Decaying observation's variance
         sigma_v = exponential_scheduler(
-            curr_v=sigma_v, min_v=0.3, decaying_factor=0.99, curr_iter=epoch
+            curr_v=sigma_v, min_v=0.1, decaying_factor=0.99, curr_iter=epoch
         )
         var_y = np.full(
             (batch_size * len(output_col),), sigma_v**2, dtype=np.float32
         )
         y_train = []
 
-        # for x, y in batch_iter:
         for idx_sample, (x, y) in enumerate(batch_iter):
 
             # replace nan in input x by the lstm_prediction:
-            if idx_sample < input_seq_len + infer_window_len:
+            if idx_sample < 72:
                 x = replace_with_prediction(x, mu_sequence)
+
+            x = np.nan_to_num(x, nan=0.0)
 
             # Feed forward
             m_pred, _ = net(x)
@@ -125,11 +122,13 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
             mu_sequence = mu_sequence[-input_seq_len:]
 
         # Smoother
+        lstm_states = net.get_lstm_states()
         mu_zo_smooth, var_zo_smooth = net.smoother()
-        zo_smooth_std = np.array(var_zo_smooth) ** 0.5
-        mu_sequence = np.ones(input_seq_len, dtype=np.float32)
+        mu_zo_smooth = mu_zo_smooth.flatten()
+        zo_smooth_std = np.array(var_zo_smooth.flatten()) ** 0.5
+        mu_sequence = np.zeros(input_seq_len, dtype=np.float32)
 
-        # Figures for each epoch for debugging
+        # # Figures for each epoch for debugging
         # t = np.arange(len(mu_zo_smooth))
         # t_train = np.arange(len(y_train))
         # plt.figure()
@@ -155,17 +154,18 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     # Plot final smoothed values
     t = np.arange(len(mu_zo_smooth))
     t_train = np.arange(len(y_train))
-    plt.figure(figsize=(12, 12))
+    plt.figure(figsize=(12, 8))
     plt.title("Smoothed SLSTM Output", fontsize=1.1 * 28, fontweight="bold")
-    plt.plot(t_train, y_train, color="k", lw=3, label=r"$y_{true}$")
-    plt.plot(t, mu_zo_smooth, color="r", lw=3, label=r"$\mathbb{E}[Y^{'}]$")
+    plt.plot(t_train, y_train, color="r", label=r"$y_{true}$")
+    plt.plot(t, mu_zo_smooth, color="b", label=r"smooth")
+    plt.axvline(x=72 - input_seq_len, color="k", linestyle="--")
     plt.fill_between(
         t,
         mu_zo_smooth - zo_smooth_std,
         mu_zo_smooth + zo_smooth_std,
-        color="r",
+        color="b",
         alpha=0.3,
-        label=r"$\mathbb{{E}}[Y^{{'}}]\pm{}\sigma$".format(1),
+        label="1 Std Dev",
     )
     plt.legend(
         loc="upper right",
@@ -175,10 +175,9 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
         framealpha=0.3,
         frameon=False,
     )
-    plt.xlabel(r"$x$", fontsize=28)
-    plt.ylabel(r"$y$", fontsize=28)
     plt.ylim(-3, 3)
     plt.tick_params(axis="both", which="both", direction="inout", labelsize=28)
+    plt.legend()
     filename = f"saved_results/smoothed_look_back_toy_time_series.png"
     plt.savefig(filename)
     plt.close()
@@ -191,6 +190,7 @@ def main(num_epochs: int = 50, batch_size: int = 1, sigma_v: float = 1):
     y_test = []
     x_test = []
 
+    net.set_lstm_states(lstm_states)
     for x, y in test_batch_iter:
         # Predicion
         m_pred, v_pred = net(x)

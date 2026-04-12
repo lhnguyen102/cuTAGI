@@ -23,13 +23,6 @@ class SLSTM : public LSTM {
 
     LayerType get_layer_type() const override;
 
-    void prepare_input_smooth(SmoothingHiddenStates &input_state);
-
-    void forget_gate(int batch_size);
-    void input_gate(int batch_size);
-    void cell_state_gate(int batch_size);
-    void output_gate(int batch_size);
-
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,
                  BaseTempStates &temp_states) override;

@@ -233,14 +233,15 @@ class BaseLSTMStates {
 // Smoother for linear layer
 class SmoothSLinear {
    public:
+    size_t num_states;
     size_t num_timesteps = 0;
     std::vector<float> mu_zo_priors, var_zo_priors, mu_zo_posts, var_zo_posts,
         mu_zo_smooths, var_zo_smooths;
 
-    SmoothSLinear(size_t num_timesteps);
+    SmoothSLinear(size_t num_states, size_t num_timesteps);
     SmoothSLinear();
     ~SmoothSLinear() = default;
-    virtual void set_num_states(size_t num_timesteps);
+    virtual void set_num_states(size_t num_states, size_t num_timesteps);
     virtual std::string get_name() const { return "SmoothSLinear"; };
     void reset_zeros();
 };
