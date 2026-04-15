@@ -643,18 +643,6 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
 
     attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
 
-    // // Diagnostic: input to QKV projection
-    // {
-    //     int total = batch_size * this->seq_len * this->embed_dim;
-    //     float s_mu = 0.0f, s_var = 0.0f;
-    //     for (int i = 0; i < total; i++) {
-    //         s_mu += fabsf(input_states.mu_a[i]);
-    //         s_var += fabsf(input_states.var_a[i]);
-    //     }
-    //     std::cout << "  V1 input mu: mean_abs=" << s_mu / total
-    //               << "  var: mean_abs=" << s_var / total << std::endl;
-    // }
-
     // query, key, value
     size_t input_qkv_size = this->embed_dim;
     size_t output_qkv_size =
@@ -713,49 +701,6 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     attn_states.mu_att_score = remax_output.mu_a;
     attn_states.var_att_score = remax_output.var_a;
     attn_states.j_mqk = remax_output.jcb;
-
-    // // Diagnostic: V1 combined projection norms
-    // {
-    //     auto mean_abs = [](const std::vector<float> &v, int start, int n) {
-    //         float s = 0.0f;
-    //         for (int i = start; i < start + n; i++) s += fabsf(v[i]);
-    //         return s / n;
-    //     };
-    //     int comp_size = batch_size * num_heads * this->seq_len * head_dim;
-    //     int q_rows = this->num_heads * this->head_dim;
-    //     int k_rows = this->num_kv_heads * this->head_dim;
-    //     int v_rows = this->num_kv_heads * this->head_dim;
-    //     int in_dim = this->embed_dim;
-    //     int q_start = 0;
-    //     int k_start = q_rows * in_dim;
-    //     int v_start = (q_rows + k_rows) * in_dim;
-    //     std::cout << "--- AttentionV1 diagnostics ---" << std::endl;
-    //     std::cout << "  W_Q mu: mean_abs=" << mean_abs(this->mu_w, q_start,
-    //     q_rows * in_dim)
-    //               << "  var: mean_abs=" << mean_abs(this->var_w, q_start,
-    //               q_rows * in_dim) << std::endl;
-    //     std::cout << "  W_K mu: mean_abs=" << mean_abs(this->mu_w, k_start,
-    //     k_rows * in_dim)
-    //               << "  var: mean_abs=" << mean_abs(this->var_w, k_start,
-    //               k_rows * in_dim) << std::endl;
-    //     std::cout << "  W_V mu: mean_abs=" << mean_abs(this->mu_w, v_start,
-    //     v_rows * in_dim)
-    //               << "  var: mean_abs=" << mean_abs(this->var_w, v_start,
-    //               v_rows * in_dim) << std::endl;
-    //     std::cout << "  Q mu: mean_abs=" << mean_abs(attn_states.mu_q, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_q, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "  K mu: mean_abs=" << mean_abs(attn_states.mu_k, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_k, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "  V mu: mean_abs=" << mean_abs(attn_states.mu_v, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_v, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "---" << std::endl;
-    // }
 
     tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
                        attn_states.mu_v, attn_states.var_v, batch_size,
@@ -1129,18 +1074,6 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     mu_v_proj.resize(v_proj_size);
     var_v_proj.resize(v_proj_size);
 
-    // // Diagnostic: input to Q/K/V projections
-    // {
-    //     int total = batch_seq * this->embed_dim;
-    //     float s_mu = 0.0f, s_var = 0.0f;
-    //     for (int i = 0; i < total; i++) {
-    //         s_mu += fabsf(input_states.mu_a[i]);
-    //         s_var += fabsf(input_states.var_a[i]);
-    //     }
-    //     std::cout << "  V2 input mu: mean_abs=" << s_mu / total
-    //               << "  var: mean_abs=" << s_var / total << std::endl;
-    // }
-
     // Separate Q, K, V linear projections
     linear_fwd_mean_var_mp(mu_w_q, var_w_q, mu_b_q, var_b_q, input_states.mu_a,
                            input_states.var_a, this->embed_dim, q_output_size,
@@ -1210,42 +1143,6 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     attn_states.mu_att_score = remax_output.mu_a;
     attn_states.var_att_score = remax_output.var_a;
     attn_states.j_mqk = remax_output.jcb;
-
-    // // Diagnostic: V2 separate projection norms
-    // {
-    //     auto mean_abs = [](const std::vector<float> &v, int start, int n) {
-    //         float s = 0.0f;
-    //         for (int i = start; i < start + n; i++) s += fabsf(v[i]);
-    //         return s / n;
-    //     };
-    //     int comp_size = batch_size * num_heads * this->seq_len * head_dim;
-    //     std::cout << "--- AttentionV2 diagnostics ---" << std::endl;
-    //     std::cout << "  W_Q mu: mean_abs=" << mean_abs(mu_w_q, 0,
-    //     mu_w_q.size())
-    //               << "  var: mean_abs=" << mean_abs(var_w_q, 0,
-    //               var_w_q.size()) << std::endl;
-    //     std::cout << "  W_K mu: mean_abs=" << mean_abs(mu_w_k, 0,
-    //     mu_w_k.size())
-    //               << "  var: mean_abs=" << mean_abs(var_w_k, 0,
-    //               var_w_k.size()) << std::endl;
-    //     std::cout << "  W_V mu: mean_abs=" << mean_abs(mu_w_v, 0,
-    //     mu_w_v.size())
-    //               << "  var: mean_abs=" << mean_abs(var_w_v, 0,
-    //               var_w_v.size()) << std::endl;
-    //     std::cout << "  Q mu: mean_abs=" << mean_abs(attn_states.mu_q, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_q, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "  K mu: mean_abs=" << mean_abs(attn_states.mu_k, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_k, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "  V mu: mean_abs=" << mean_abs(attn_states.mu_v, 0,
-    //     comp_size)
-    //               << "  var: mean_abs=" << mean_abs(attn_states.var_v, 0,
-    //               comp_size) << std::endl;
-    //     std::cout << "---" << std::endl;
-    // }
 
     tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
                        attn_states.mu_v, attn_states.var_v, batch_size,

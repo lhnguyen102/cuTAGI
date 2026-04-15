@@ -31,6 +31,7 @@ from pytagi.nn import (
 np.random.seed(42)
 
 torch.manual_seed(42)
+pytagi.manual_seed(42)
 
 
 class ReverseDataset:
@@ -97,11 +98,11 @@ def plot_attention_maps(input_data, attn_maps, idx=0):
 def main(
     num_epochs: int = 50,
     batch_size: int = 64,
-    seq_len: int = 5,
+    seq_len: int = 8,
     vocab_size: int = 8,
     embed_dim: int = 32,
     num_heads: int = 1,
-    sigma_v: float = 3.5,
+    sigma_v: float = 4.5,
     sigma_v_min: float = 0.3,
     decay_factor: float = 1.0,
     steps_per_epoch: int = 100,

@@ -18,6 +18,9 @@ data/mnist/
 data/MNIST/
 data/traffic
 data/imagenet
+data/translation/
+data/shakespeare/
+
 test_model/
 wandb/
 saved_results/param_viz
@@ -34,6 +37,7 @@ saved_results/param_viz
 CLAUDE.md
 ai_context
 .claude
+coderef/
 
 
 !test/data/*.csv
