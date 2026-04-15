@@ -78,7 +78,8 @@ def mnist_test_runner(
         error_rates.append(error_rate)
 
     # Averaged error
-    avg_error_rate = sum(error_rates[-100:]) / 100.0
+    recent_error_rates = error_rates[-100:]
+    avg_error_rate = sum(recent_error_rates) / len(recent_error_rates)
 
     return avg_error_rate
 

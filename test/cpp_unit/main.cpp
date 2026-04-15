@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
         std::string arg = argv[i];
         if (arg == "--cpu") {
             g_gpu_enabled = false;
-            std::cout << "GPU mode enabled.\n";
+            std::cout << "CPU-only mode enabled.\n";
         }
     }
 
