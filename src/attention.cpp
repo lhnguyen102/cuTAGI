@@ -1,9 +1,125 @@
 #include "../include/attention.h"
 
+#include <cstdio>
+
 #include "../include/activation.h"
 #include "../include/common.h"
 #include "../include/custom_logger.h"
 #include "../include/linear_layer.h"
+
+static void causal_mask_pre_remax(const std::vector<float> &mu_qk,
+                                  const std::vector<float> &var_qk,
+                                  int batch_size, int num_heads, int timestep,
+                                  std::vector<float> &mu_mqk,
+                                  std::vector<float> &var_mqk) {
+    constexpr float MASK_MU = -1e4f;
+    constexpr float MASK_VAR = 1e-4f;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < timestep; k++) {
+                for (int l = 0; l < timestep; l++) {
+                    int idx = i * num_heads * timestep * timestep +
+                              j * timestep * timestep + k * timestep + l;
+                    if (l <= k) {
+                        mu_mqk[idx] = mu_qk[idx];
+                        var_mqk[idx] = var_qk[idx];
+                    } else {
+                        mu_mqk[idx] = MASK_MU;
+                        var_mqk[idx] = MASK_VAR;
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void causal_mask_post_remax(std::vector<float> &mu_att,
+                                   std::vector<float> &var_att,
+                                   std::vector<float> &jcb, int batch_size,
+                                   int num_heads, int timestep) {
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < timestep; k++) {
+                for (int l = k + 1; l < timestep; l++) {
+                    int idx = i * num_heads * timestep * timestep +
+                              j * timestep * timestep + k * timestep + l;
+                    mu_att[idx] = 0.0f;
+                    var_att[idx] = 0.0f;
+                    jcb[idx] = 0.0f;
+                }
+            }
+        }
+    }
+}
+
+static void print_magnitude_stats(const char *name,
+                                  const std::vector<float> &mu,
+                                  const std::vector<float> &var) {
+    if (mu.empty()) {
+        std::printf("[attn-diag] %s: empty\n", name);
+        return;
+    }
+    float mu_sum = 0.0f, mu_sq_sum = 0.0f;
+    float mu_abs_sum = 0.0f, mu_abs_max = 0.0f;
+    float var_sum = 0.0f, var_max = 0.0f;
+    for (size_t i = 0; i < mu.size(); i++) {
+        float m = mu[i];
+        mu_sum += m;
+        mu_sq_sum += m * m;
+        float a = std::fabs(m);
+        mu_abs_sum += a;
+        if (a > mu_abs_max) mu_abs_max = a;
+        float v = var[i];
+        var_sum += v;
+        if (v > var_max) var_max = v;
+    }
+    size_t n = mu.size();
+    float mu_mean = mu_sum / n;
+    float mu_std = std::sqrt(std::max(0.0f, mu_sq_sum / n - mu_mean * mu_mean));
+    std::printf(
+        "[attn-diag] %-10s n=%zu  mu mean=%.4e std=%.4e  |mu| mean=%.4e "
+        "max=%.4e  var mean=%.4e max=%.4e\n",
+        name, n, mu_mean, mu_std, mu_abs_sum / n, mu_abs_max, var_sum / n,
+        var_max);
+}
+
+static void print_magnitude_stats_causal(const char *name,
+                                         const std::vector<float> &mu,
+                                         const std::vector<float> &var,
+                                         int batch_size, int num_heads,
+                                         int timestep) {
+    float mu_sum = 0.0f, mu_sq_sum = 0.0f;
+    float mu_abs_sum = 0.0f, mu_abs_max = 0.0f;
+    float var_sum = 0.0f, var_max = 0.0f;
+    size_t n = 0;
+    for (int i = 0; i < batch_size; i++) {
+        for (int j = 0; j < num_heads; j++) {
+            for (int k = 0; k < timestep; k++) {
+                for (int l = 0; l <= k; l++) {
+                    int idx = i * num_heads * timestep * timestep +
+                              j * timestep * timestep + k * timestep + l;
+                    float m = mu[idx];
+                    mu_sum += m;
+                    mu_sq_sum += m * m;
+                    float a = std::fabs(m);
+                    mu_abs_sum += a;
+                    if (a > mu_abs_max) mu_abs_max = a;
+                    float v = var[idx];
+                    var_sum += v;
+                    if (v > var_max) var_max = v;
+                    n++;
+                }
+            }
+        }
+    }
+    float mu_mean = mu_sum / n;
+    float mu_std = std::sqrt(std::max(0.0f, mu_sq_sum / n - mu_mean * mu_mean));
+    std::printf(
+        "[attn-diag] %-10s n=%zu  mu mean=%.4e std=%.4e  |mu| mean=%.4e "
+        "max=%.4e  var mean=%.4e max=%.4e\n",
+        name, n, mu_mean, mu_std, mu_abs_sum / n, mu_abs_max, var_sum / n,
+        var_max);
+}
 
 // #ifdef USE_CUDA
 // #include "../include/attention_cuda.cuh"
@@ -679,9 +795,9 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     }
 
     if (this->use_causal_mask) {
-        mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size,
-                       num_heads, this->seq_len, head_dim, attn_states.mu_mqk,
-                       attn_states.var_mqk);
+        causal_mask_pre_remax(attn_states.mu_qk, attn_states.var_qk, batch_size,
+                              num_heads, this->seq_len, attn_states.mu_mqk,
+                              attn_states.var_mqk);
     }
 
     // Apply Remax (probabilistic softmax) on query-key product
@@ -696,11 +812,59 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     remax_output.set_size(qk_size,
                           batch_size * this->seq_len * this->num_heads);
 
+    if (this->debug) {
+        std::printf("[attn-diag] MHA pre-remax (rope=%s, mask=%d)\n",
+                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+        print_magnitude_stats("W_qkv", this->mu_w, this->var_w);
+        if (this->bias) {
+            print_magnitude_stats("b_qkv", this->mu_b, this->var_b);
+        }
+        if (this->pos_emb == "rope") {
+            print_magnitude_stats("Q(rope)", attn_states.mu_q_pe,
+                                  attn_states.var_q_pe);
+            print_magnitude_stats("K(rope)", attn_states.mu_k_pe,
+                                  attn_states.var_k_pe);
+        } else {
+            print_magnitude_stats("Q", attn_states.mu_q, attn_states.var_q);
+            print_magnitude_stats("K", attn_states.mu_k, attn_states.var_k);
+        }
+        print_magnitude_stats("V", attn_states.mu_v, attn_states.var_v);
+        if (this->use_causal_mask) {
+            print_magnitude_stats_causal("QK", remax_input.mu_a,
+                                         remax_input.var_a, batch_size,
+                                         num_heads, this->seq_len);
+        } else {
+            print_magnitude_stats("QK", remax_input.mu_a, remax_input.var_a);
+        }
+    }
+
     remax_layer->forward(remax_input, remax_output, remax_temp);
+
+    if (this->use_causal_mask) {
+        causal_mask_post_remax(remax_output.mu_a, remax_output.var_a,
+                               remax_output.jcb, batch_size, num_heads,
+                               this->seq_len);
+    }
 
     attn_states.mu_att_score = remax_output.mu_a;
     attn_states.var_att_score = remax_output.var_a;
     attn_states.j_mqk = remax_output.jcb;
+
+    if (this->debug) {
+        if (this->use_causal_mask) {
+            print_magnitude_stats_causal("att_score", attn_states.mu_att_score,
+                                         attn_states.var_att_score, batch_size,
+                                         num_heads, this->seq_len);
+            print_magnitude_stats_causal("j_mqk", attn_states.j_mqk,
+                                         attn_states.j_mqk, batch_size,
+                                         num_heads, this->seq_len);
+        } else {
+            print_magnitude_stats("att_score", attn_states.mu_att_score,
+                                  attn_states.var_att_score);
+            print_magnitude_stats("j_mqk", attn_states.j_mqk,
+                                  attn_states.j_mqk);
+        }
+    }
 
     tagi_4d_matrix_mul(attn_states.mu_att_score, attn_states.var_att_score,
                        attn_states.mu_v, attn_states.var_v, batch_size,
@@ -752,14 +916,6 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                     this->num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
-
-    if (this->use_causal_mask) {
-        mask_query_key(attn_delta_states.delta_mu_att_score,
-                       attn_delta_states.delta_var_att_score, batch_size,
-                       num_heads, this->seq_len, this->head_dim,
-                       attn_delta_states.delta_mu_att_score,
-                       attn_delta_states.delta_var_att_score);
-    }
 
     if (this->pos_emb == "rope") {
         mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
@@ -1121,9 +1277,9 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     }
 
     if (this->use_causal_mask) {
-        mask_query_key(attn_states.mu_qk, attn_states.var_qk, batch_size,
-                       num_heads, this->seq_len, head_dim, attn_states.mu_mqk,
-                       attn_states.var_mqk);
+        causal_mask_pre_remax(attn_states.mu_qk, attn_states.var_qk, batch_size,
+                              num_heads, this->seq_len, attn_states.mu_mqk,
+                              attn_states.var_mqk);
     }
 
     // Apply Remax on query-key product
@@ -1138,7 +1294,58 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     remax_output.set_size(qk_size,
                           batch_size * this->seq_len * this->num_heads);
 
+    if (this->debug) {
+        std::printf("[attn-diag] MHAv2 pre-remax (rope=%s, mask=%d)\n",
+                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+        print_magnitude_stats("W_q", mu_w_q, var_w_q);
+        print_magnitude_stats("W_k", mu_w_k, var_w_k);
+        print_magnitude_stats("W_v", mu_w_v, var_w_v);
+        if (this->bias) {
+            print_magnitude_stats("b_q", mu_b_q, var_b_q);
+            print_magnitude_stats("b_k", mu_b_k, var_b_k);
+            print_magnitude_stats("b_v", mu_b_v, var_b_v);
+        }
+        if (this->pos_emb == "rope") {
+            print_magnitude_stats("Q(rope)", attn_states.mu_q_pe,
+                                  attn_states.var_q_pe);
+            print_magnitude_stats("K(rope)", attn_states.mu_k_pe,
+                                  attn_states.var_k_pe);
+        } else {
+            print_magnitude_stats("Q", attn_states.mu_q, attn_states.var_q);
+            print_magnitude_stats("K", attn_states.mu_k, attn_states.var_k);
+        }
+        print_magnitude_stats("V", attn_states.mu_v, attn_states.var_v);
+        if (this->use_causal_mask) {
+            print_magnitude_stats_causal("QK", remax_input.mu_a,
+                                         remax_input.var_a, batch_size,
+                                         num_heads, this->seq_len);
+        } else {
+            print_magnitude_stats("QK", remax_input.mu_a, remax_input.var_a);
+        }
+    }
+
     remax_layer->forward(remax_input, remax_output, remax_temp);
+
+    if (this->use_causal_mask) {
+        causal_mask_post_remax(remax_output.mu_a, remax_output.var_a,
+                               remax_output.jcb, batch_size, num_heads,
+                               this->seq_len);
+    }
+
+    if (this->debug) {
+        if (this->use_causal_mask) {
+            print_magnitude_stats_causal("att_score", remax_output.mu_a,
+                                         remax_output.var_a, batch_size,
+                                         num_heads, this->seq_len);
+            print_magnitude_stats_causal("j_mqk", remax_output.jcb,
+                                         remax_output.jcb, batch_size,
+                                         num_heads, this->seq_len);
+        } else {
+            print_magnitude_stats("att_score", remax_output.mu_a,
+                                  remax_output.var_a);
+            print_magnitude_stats("j_mqk", remax_output.jcb, remax_output.jcb);
+        }
+    }
 
     attn_states.mu_att_score = remax_output.mu_a;
     attn_states.var_att_score = remax_output.var_a;
@@ -1189,14 +1396,6 @@ void MultiheadAttentionV2::backward(BaseDeltaStates &input_delta_states,
                     this->num_heads, this->seq_len, this->head_dim,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
-
-    if (this->use_causal_mask) {
-        mask_query_key(attn_delta_states.delta_mu_att_score,
-                       attn_delta_states.delta_var_att_score, batch_size,
-                       num_heads, this->seq_len, this->head_dim,
-                       attn_delta_states.delta_mu_att_score,
-                       attn_delta_states.delta_var_att_score);
-    }
 
     if (this->pos_emb == "rope") {
         mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,

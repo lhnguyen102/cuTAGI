@@ -145,7 +145,6 @@ class Utils:
         ma: np.ndarray,
         Sa: np.ndarray,
         labels: np.ndarray,
-        hr_softmax: HRCSoftmax,
         num_classes: int,
         batch_size: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -160,8 +159,6 @@ class Utils:
         :type Sa: numpy.ndarray
         :param labels: The ground truth labels for the dataset.
         :type labels: numpy.ndarray
-        :param hr_softmax: An initialized hierarchical softmax structure.
-        :type hr_softmax: pytagi.nn.HRCSoftmax
         :param num_classes: The total number of classes.
         :type num_classes: int
         :param batch_size: The number of samples in a batch.
@@ -173,7 +170,7 @@ class Utils:
         """
 
         pred, prob = self._cpp_backend.get_error_wrapper(
-            ma, Sa, labels, hr_softmax, num_classes, batch_size
+            ma, Sa, labels, num_classes, batch_size
         )
 
         return pred, prob

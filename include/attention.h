@@ -152,6 +152,7 @@ class MultiheadAttention : public BaseLayer {
     float rope_theta;
     size_t max_seq_len;
     bool use_causal_mask;
+    bool debug = false;
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
     std::vector<float> pe_cache;
@@ -233,6 +234,7 @@ class MultiheadAttentionV2 : public BaseLayer {
     float rope_theta;
     size_t max_seq_len;
     bool use_causal_mask;
+    bool debug = false;
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
 

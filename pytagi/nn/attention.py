@@ -25,6 +25,7 @@ class MultiheadAttention(BaseLayer):
         rope_theta: float = 10000.0,
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
+        debug: bool = False,
     ):
         """
         Initializes the MultiheadAttention layer.
@@ -79,6 +80,7 @@ class MultiheadAttention(BaseLayer):
             max_seq_len,
             use_causal_mask,
         )
+        self._cpp_backend.debug = debug
 
     def get_layer_info(self) -> str:
         """
@@ -101,6 +103,14 @@ class MultiheadAttention(BaseLayer):
         """
         self._cpp_backend.init_weight_bias()
 
+    @property
+    def debug(self) -> bool:
+        return self._cpp_backend.debug
+
+    @debug.setter
+    def debug(self, value: bool):
+        self._cpp_backend.debug = value
+
 
 class MultiheadAttentionV2(BaseLayer):
     """Multi-head Attention with separate Q, K, V projections."""
@@ -119,6 +129,7 @@ class MultiheadAttentionV2(BaseLayer):
         rope_theta: float = 10000.0,
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
+        debug: bool = False,
     ):
         super().__init__()
 
@@ -152,6 +163,7 @@ class MultiheadAttentionV2(BaseLayer):
             max_seq_len,
             use_causal_mask,
         )
+        self._cpp_backend.debug = debug
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -161,3 +173,11 @@ class MultiheadAttentionV2(BaseLayer):
 
     def init_weight_bias(self):
         self._cpp_backend.init_weight_bias()
+
+    @property
+    def debug(self) -> bool:
+        return self._cpp_backend.debug
+
+    @debug.setter
+    def debug(self, value: bool):
+        self._cpp_backend.debug = value
