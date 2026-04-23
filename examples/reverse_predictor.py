@@ -96,8 +96,8 @@ def plot_attention_maps(input_data, attn_maps, idx=0):
 
 
 def main(
-    num_epochs: int = 50,
-    batch_size: int = 64,
+    num_epochs: int = 20,
+    batch_size: int = 128,
     seq_len: int = 8,
     vocab_size: int = 8,
     embed_dim: int = 32,
@@ -125,7 +125,7 @@ def main(
         net = Sequential(
             Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.25),
             PositionalEncoding(embed_dim),
-            MultiheadAttentionV2(
+            MultiheadAttention(
                 embed_dim=embed_dim,
                 num_heads=num_heads,
                 seq_len=seq_len,
@@ -139,6 +139,8 @@ def main(
             RMSNorm([embed_dim]),
             Linear(embed_dim, hrc_class_len),
         )
+
+    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
     current_sigma_v = sigma_v

@@ -239,8 +239,6 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         dynamic_cast<HiddenStateCuda *>(&input_states);
     HiddenStateCuda *cu_output_states =
         dynamic_cast<HiddenStateCuda *>(&output_states);
-    // TempStateCuda *cu_temp_states = dynamic_cast<TempStateCuda
-    // *>(&temp_states);
 
     // Checkout input size
     if (this->input_size != input_states.actual_size) {
@@ -302,6 +300,8 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
         linear_state_backward_cuda(
             cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
             this->d_mu_w, this->input_size, this->output_size, effective_batch);
+        // TODO: why we need this ad-hoc seq_len update?
+        cu_output_delta_states->seq_len = seq_len;
     }
 
     if (this->param_update) {

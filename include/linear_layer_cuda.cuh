@@ -51,6 +51,28 @@ __global__ void linear_bwd_delta_b(float const *var_b,
                                    int batch_size, float *delta_mu_b,
                                    float *delta_var_b);
 
+// Launcher helpers — exposed so other CUDA layers (e.g. attention) can reuse
+// the tuned linear forward/backward kernels without duplicating launcher logic.
+void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
+                         HiddenStateCuda *&cu_output_states,
+                         const float *d_mu_w, const float *d_var_w,
+                         const float *d_mu_b, const float *d_var_b,
+                         size_t input_size, size_t output_size, int batch_size,
+                         bool bias);
+
+void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
+                                DeltaStateCuda *&cu_output_delta_states,
+                                BackwardStateCuda *&cu_next_bwd_states,
+                                const float *d_mu_w, size_t input_size,
+                                size_t output_size, int batch_size);
+
+void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
+                                 DeltaStateCuda *&cu_output_delta_states,
+                                 BackwardStateCuda *&cu_next_bwd_states,
+                                 const float *d_var_w, size_t input_size,
+                                 size_t output_size, int batch_size,
+                                 float *d_delta_mu_w, float *d_delta_var_w);
+
 class LinearCuda : public BaseLayerCuda {
    public:
     float gain_w;

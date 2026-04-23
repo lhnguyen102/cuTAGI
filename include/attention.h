@@ -10,6 +10,14 @@
 #include "data_struct.h"
 #include "param_init.h"
 
+struct AttentionScores {
+    int batch_size = 0;
+    int num_heads = 0;
+    int timestep = 0;
+    std::vector<float> mu;
+    std::vector<float> var;
+};
+
 struct AttentionStates {
     std::vector<float> mu_in_proj, var_in_proj;
     std::vector<float> mu_q, var_q, mu_k, var_k, mu_v, var_v;
@@ -35,6 +43,15 @@ struct AttentionDeltaStates {
     void set_size(int batch_size, int num_heads, int timestep, int head_size);
 };
 
+// Diagnostic helpers shared between CPU and CUDA forward paths.
+void print_magnitude_stats(const char *name, const std::vector<float> &mu,
+                           const std::vector<float> &var);
+
+void print_magnitude_stats_causal(const char *name,
+                                  const std::vector<float> &mu,
+                                  const std::vector<float> &var, int batch_size,
+                                  int num_heads, int timestep);
+
 void separate_input_projection_components(
     std::vector<float> &mu_embs, std::vector<float> &var_embs, int batch_size,
     int num_heads, int timestep, int head_size, std::vector<float> &mu_q,
@@ -53,10 +70,6 @@ void query_key(std::vector<float> &mu_q, std::vector<float> &var_q,
                std::vector<float> &mu_k, std::vector<float> &var_k,
                int batch_size, int num_heads, int timestep, int head_size,
                std::vector<float> &mu_qk, std::vector<float> &var_qk);
-
-void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
-                    int batch_size, int num_heads, int timestep, int head_size,
-                    std::vector<float> &mu_mqk, std::vector<float> &var_mqk);
 
 void tagi_4d_matrix_mul(std::vector<float> &mu_a, std::vector<float> &var_a,
                         std::vector<float> &mu_b, std::vector<float> &var_b,
@@ -195,6 +208,8 @@ class MultiheadAttention : public BaseLayer {
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
+
+    AttentionScores get_attention_scores();
 };
 
 class MultiheadAttentionV2 : public BaseLayer {
@@ -283,4 +298,6 @@ class MultiheadAttentionV2 : public BaseLayer {
 #ifdef USE_CUDA
     std::unique_ptr<BaseLayer> to_cuda(int device_idx = 0) override;
 #endif
+
+    AttentionScores get_attention_scores();
 };

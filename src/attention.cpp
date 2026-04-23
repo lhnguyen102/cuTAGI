@@ -6,6 +6,9 @@
 #include "../include/common.h"
 #include "../include/custom_logger.h"
 #include "../include/linear_layer.h"
+#ifdef USE_CUDA
+#include "../include/attention_cuda.cuh"
+#endif
 
 static void causal_mask_pre_remax(const std::vector<float> &mu_qk,
                                   const std::vector<float> &var_qk,
@@ -52,9 +55,8 @@ static void causal_mask_post_remax(std::vector<float> &mu_att,
     }
 }
 
-static void print_magnitude_stats(const char *name,
-                                  const std::vector<float> &mu,
-                                  const std::vector<float> &var) {
+void print_magnitude_stats(const char *name, const std::vector<float> &mu,
+                           const std::vector<float> &var) {
     if (mu.empty()) {
         std::printf("[attn-diag] %s: empty\n", name);
         return;
@@ -83,11 +85,10 @@ static void print_magnitude_stats(const char *name,
         var_max);
 }
 
-static void print_magnitude_stats_causal(const char *name,
-                                         const std::vector<float> &mu,
-                                         const std::vector<float> &var,
-                                         int batch_size, int num_heads,
-                                         int timestep) {
+void print_magnitude_stats_causal(const char *name,
+                                  const std::vector<float> &mu,
+                                  const std::vector<float> &var, int batch_size,
+                                  int num_heads, int timestep) {
     float mu_sum = 0.0f, mu_sq_sum = 0.0f;
     float mu_abs_sum = 0.0f, mu_abs_max = 0.0f;
     float var_sum = 0.0f, var_max = 0.0f;
@@ -120,10 +121,6 @@ static void print_magnitude_stats_causal(const char *name,
         name, n, mu_mean, mu_std, mu_abs_sum / n, mu_abs_max, var_sum / n,
         var_max);
 }
-
-// #ifdef USE_CUDA
-// #include "../include/attention_cuda.cuh"
-// #endif
 
 void separate_input_projection_components(
     std::vector<float> &mu_embs, std::vector<float> &var_embs, int batch_size,
@@ -255,35 +252,6 @@ qk: [batch_size, num_heads, timestep, timestep]
                              j * timestep * timestep + k * timestep + l;
                     mu_qk[idx_qk] = sum_mu * scale;
                     var_qk[idx_qk] = sum_var * scale * scale;
-                }
-            }
-        }
-    }
-}
-
-void mask_query_key(std::vector<float> &mu_qk, std::vector<float> &var_qk,
-                    int batch_size, int num_heads, int timestep, int head_size,
-                    std::vector<float> &mu_mqk, std::vector<float> &var_mqk)
-/*Mask query key matrix to ensure we are not attending to future timesteps
-
-qk: [batch_size, num_heads, timestep, timestep]
-mqk: [batch_size, num_heads, timestep, timestep]
-*/
-{
-    int idx_qk;
-    for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < num_heads; j++) {
-            for (int k = 0; k < timestep; k++) {
-                for (int l = 0; l < timestep; l++) {
-                    idx_qk = i * num_heads * timestep * timestep +
-                             j * timestep * timestep + k * timestep + l;
-                    if (l <= k) {
-                        mu_mqk[idx_qk] = mu_qk[idx_qk];
-                        var_mqk[idx_qk] = var_qk[idx_qk];
-                    } else {
-                        mu_mqk[idx_qk] = 0.0f;
-                        var_mqk[idx_qk] = 0.0f;
-                    }
                 }
             }
         }
@@ -995,13 +963,30 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
+AttentionScores MultiheadAttention::get_attention_scores() {
+    AttentionScores s;
+    s.num_heads = (int)this->num_heads;
+    s.timestep = (int)this->seq_len;
+    int per_batch = s.num_heads * s.timestep * s.timestep;
+    if (per_batch <= 0) return s;
+    s.batch_size = (int)(attn_states.mu_att_score.size() / per_batch);
+    s.mu = attn_states.mu_att_score;
+    s.var = attn_states.var_att_score;
+    return s;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
     this->device = "cuda";
     this->device_idx = device_idx;
-    LOG(LogLevel::ERROR,
-        "CUDA support for MultiheadAttention not yet implemented");
-    return nullptr;
+    auto cuda_layer = std::make_unique<MultiheadAttentionCuda>(
+        this->embed_dim, this->num_heads, this->num_kv_heads, this->seq_len,
+        this->bias, this->gain_w, this->gain_b, this->init_method,
+        this->pos_emb, this->rope_theta, this->max_seq_len,
+        this->use_causal_mask, device_idx);
+    auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
+    base_cuda->copy_params_from(*this);
+    return cuda_layer;
 }
 #endif
 
@@ -1527,12 +1512,28 @@ void MultiheadAttentionV2::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
+AttentionScores MultiheadAttentionV2::get_attention_scores() {
+    AttentionScores s;
+    s.num_heads = (int)this->num_heads;
+    s.timestep = (int)this->seq_len;
+    int per_batch = s.num_heads * s.timestep * s.timestep;
+    if (per_batch <= 0) return s;
+    s.batch_size = (int)(attn_states.mu_att_score.size() / per_batch);
+    s.mu = attn_states.mu_att_score;
+    s.var = attn_states.var_att_score;
+    return s;
+}
+
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> MultiheadAttentionV2::to_cuda(int device_idx) {
     this->device = "cuda";
     this->device_idx = device_idx;
-    LOG(LogLevel::ERROR,
-        "CUDA support for MultiheadAttentionV2 not yet implemented");
-    return nullptr;
+    auto cuda_layer = std::make_unique<MultiheadAttentionV2Cuda>(
+        this->embed_dim, this->num_heads, this->num_kv_heads, this->seq_len,
+        this->bias, this->gain_w, this->gain_b, this->init_method,
+        this->pos_emb, this->rope_theta, this->max_seq_len,
+        this->use_causal_mask, device_idx);
+    cuda_layer->copy_v2_params_from(*this);
+    return cuda_layer;
 }
 #endif

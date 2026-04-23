@@ -6,6 +6,10 @@
 #include "../include/custom_logger.h"
 #include "../include/param_init.h"
 
+#ifdef USE_CUDA
+#include "../include/rmsnorm_layer_cuda.cuh"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// CPU kernels for RMS Norm
 ////////////////////////////////////////////////////////////////////////////////
@@ -411,8 +415,12 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> RMSNorm::to_cuda(int device_idx) {
-    std::string message = "CUDA version of RMSNorm is not implemented yet";
-    LOG(LogLevel::ERROR, message);
-    return nullptr;
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    auto cuda_layer = std::make_unique<RMSNormCuda>(
+        this->normalized_shape, this->epsilon, this->gain_w, device_idx);
+    auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
+    base_cuda->copy_params_from(*this);
+    return cuda_layer;
 }
 #endif

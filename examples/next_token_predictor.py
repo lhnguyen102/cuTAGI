@@ -145,15 +145,15 @@ class CharDataset:
 
 
 def main(
-    num_epochs: int = 1,
+    num_epochs: int = 20,
     batch_size: int = 16,
-    seq_len: int = 128,
-    embed_dim: int = 128,
+    seq_len: int = 32,
+    embed_dim: int = 256,
     num_heads: int = 4,
     num_layers: int = 1,
-    ffn_hidden: int = 128,
+    ffn_hidden: int = 256,
     steps_per_epoch: int = 100,
-    sigma_v: float = 10.5,
+    sigma_v: float = 8.5,
     sigma_v_min: float = 0.3,
     decay_factor: float = 0.99,
     max_new_tokens: int = 200,
@@ -169,7 +169,7 @@ def main(
     hrc = utils.get_hierarchical_softmax(vocab_size)
 
     layers = [
-        Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.15),
+        Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.25),
         PositionalEncoding(embed_dim),
     ]
     for _ in range(num_layers):
@@ -180,11 +180,11 @@ def main(
                     num_heads=num_heads,
                     seq_len=seq_len,
                     bias=False,
-                    gain_weight=0.25,
+                    gain_weight=0.5,
                     gain_bias=0.5,
                     init_method="He",
                     pos_emb="",
-                    debug=False,
+                    debug=True,
                     use_causal_mask=True,
                 ),
                 RMSNorm([embed_dim]),
@@ -196,6 +196,7 @@ def main(
         )
     layers.append(Linear(embed_dim, hrc.len))
     net = Sequential(*layers)
+    # net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
     current_sigma_v = sigma_v

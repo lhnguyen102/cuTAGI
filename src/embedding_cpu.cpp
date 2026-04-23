@@ -119,6 +119,7 @@ Embedding::Embedding(int num_embeddings, int embedding_dim, int input_size,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+    this->bias = false;
 
     if (input_size > 0) {
         this->input_size = input_size;

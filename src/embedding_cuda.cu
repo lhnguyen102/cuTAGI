@@ -1,3 +1,4 @@
+#include "../include/cuda_error_checking.cuh"
 #include "../include/custom_logger.h"
 #include "../include/embedding_cpu.h"
 #include "../include/embedding_cuda.cuh"
@@ -53,11 +54,12 @@ __global__ void embedding_bwd_delta_w(const float *mu_a, const float *var_w,
 
             for (int k = 0; k < embedding_dim; k++) {
                 int emb_idx = cat_idx * embedding_dim + k;
-                float grad_mu = delta_mu[out_idx + k] * var_w[emb_idx];
-                float grad_var = delta_var[out_idx + k] * var_w[emb_idx];
+                float var_w_val = var_w[emb_idx];
+                float tmp_mu = delta_mu[out_idx + k] * var_w_val;
+                float tmp_var = delta_var[out_idx + k] * var_w_val * var_w_val;
 
-                atomicAdd(&delta_mu_w[emb_idx], grad_mu);
-                atomicAdd(&delta_var_w[emb_idx], grad_var);
+                atomicAdd(&delta_mu_w[emb_idx], tmp_mu);
+                atomicAdd(&delta_var_w[emb_idx], tmp_var);
             }
         }
     }
@@ -73,6 +75,8 @@ EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+    this->bias = false;  // Embedding has no bias; prevents update_biases from
+                         // launching <<<0, threads>>> in Sequential::step().
 
     if (input_size > 0) {
         this->input_size = input_size;
@@ -124,6 +128,8 @@ void EmbeddingCuda::forward(BaseHiddenStates &input_states,
     this->set_cap_factor_udapte(batch_size);
 
     int total_threads = batch_size * this->input_size;
+    if (total_threads <= 0) return;
+
     constexpr int NUM_THREADS = 256;
     int num_blocks = (total_threads + NUM_THREADS - 1) / NUM_THREADS;
 
@@ -131,6 +137,7 @@ void EmbeddingCuda::forward(BaseHiddenStates &input_states,
         cu_input_states->d_mu_a, this->d_mu_w, this->d_var_w,
         this->embedding_dim, this->input_size, batch_size, this->padding_idx,
         cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    CHECK_LAST_CUDA_ERROR();
 
     cu_output_states->width = this->out_width;
     cu_output_states->height = this->out_height;
@@ -156,10 +163,12 @@ void EmbeddingCuda::backward(BaseDeltaStates &input_delta_states,
     int batch_size = input_delta_states.block_size;
 
     if (this->param_update) {
+        int total_threads = batch_size * this->input_size;
+        if (total_threads <= 0) return;
+
         cudaMemset(this->d_delta_mu_w, 0, this->num_weights * sizeof(float));
         cudaMemset(this->d_delta_var_w, 0, this->num_weights * sizeof(float));
 
-        int total_threads = batch_size * this->input_size;
         constexpr int NUM_THREADS = 256;
         int num_blocks = (total_threads + NUM_THREADS - 1) / NUM_THREADS;
 
@@ -169,6 +178,7 @@ void EmbeddingCuda::backward(BaseDeltaStates &input_delta_states,
             cu_input_delta_states->d_delta_var, this->embedding_dim,
             this->input_size, batch_size, this->padding_idx, this->d_delta_mu_w,
             this->d_delta_var_w);
+        CHECK_LAST_CUDA_ERROR();
     }
 }
 

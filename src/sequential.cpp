@@ -12,6 +12,7 @@
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 
+#include "../include/attention_cuda.cuh"
 #include "../include/base_layer_cuda.cuh"
 #include "../include/batchnorm_layer_cuda.cuh"
 #include "../include/resnet_block_cuda.cuh"
@@ -1020,46 +1021,33 @@ Sequential::get_attention_scores() const {
 pybind11::dict Sequential::get_attention_scores_py() const {
     pybind11::dict py_scores;
 
+    auto emit = [&](size_t i, const AttentionScores &s) {
+        if (s.batch_size <= 0 || s.mu.empty()) return;
+        std::vector<ssize_t> shape = {s.batch_size, s.num_heads, s.timestep,
+                                      s.timestep};
+        py_scores[pybind11::int_(static_cast<int>(i))] =
+            pybind11::make_tuple(pybind11::array_t<float>(shape, s.mu.data()),
+                                 pybind11::array_t<float>(shape, s.var.data()));
+    };
+
     for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::MultiheadAttention) {
-            auto *attn_layer =
-                dynamic_cast<MultiheadAttention *>(layers[i].get());
-            if (attn_layer) {
-                int num_heads = attn_layer->num_heads;
-                int seq_len = attn_layer->seq_len;
-                int batch_size = attn_layer->attn_states.mu_att_score.size() /
-                                 (num_heads * seq_len * seq_len);
-
-                std::vector<ssize_t> shape = {batch_size, num_heads, seq_len,
-                                              seq_len};
-                auto mu_arr = pybind11::array_t<float>(
-                    shape, attn_layer->attn_states.mu_att_score.data());
-                auto var_arr = pybind11::array_t<float>(
-                    shape, attn_layer->attn_states.var_att_score.data());
-
-                py_scores[pybind11::int_(static_cast<int>(i))] =
-                    pybind11::make_tuple(mu_arr, var_arr);
-                continue;
-            }
-            auto *attn_v2 =
-                dynamic_cast<MultiheadAttentionV2 *>(layers[i].get());
-            if (attn_v2) {
-                int num_heads = attn_v2->num_heads;
-                int seq_len = attn_v2->seq_len;
-                int batch_size = attn_v2->attn_states.mu_att_score.size() /
-                                 (num_heads * seq_len * seq_len);
-
-                std::vector<ssize_t> shape = {batch_size, num_heads, seq_len,
-                                              seq_len};
-                auto mu_arr = pybind11::array_t<float>(
-                    shape, attn_v2->attn_states.mu_att_score.data());
-                auto var_arr = pybind11::array_t<float>(
-                    shape, attn_v2->attn_states.var_att_score.data());
-
-                py_scores[pybind11::int_(static_cast<int>(i))] =
-                    pybind11::make_tuple(mu_arr, var_arr);
-            }
+        if (layers[i]->get_layer_type() != LayerType::MultiheadAttention) {
+            continue;
         }
+        auto *raw = layers[i].get();
+
+        if (auto *l = dynamic_cast<MultiheadAttention *>(raw)) {
+            emit(i, l->get_attention_scores());
+        } else if (auto *l = dynamic_cast<MultiheadAttentionV2 *>(raw)) {
+            emit(i, l->get_attention_scores());
+        }
+#ifdef USE_CUDA
+        else if (auto *l = dynamic_cast<MultiheadAttentionCuda *>(raw)) {
+            emit(i, l->get_attention_scores());
+        } else if (auto *l = dynamic_cast<MultiheadAttentionV2Cuda *>(raw)) {
+            emit(i, l->get_attention_scores());
+        }
+#endif
     }
 
     return py_scores;

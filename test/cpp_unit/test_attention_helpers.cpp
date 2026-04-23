@@ -45,14 +45,19 @@ TEST_F(AttentionHelpersTest, SeparateInputProjectionComponents) {
     std::vector<float> mu_embs(3 * comp_size, 0.0f);
     std::vector<float> var_embs(3 * comp_size, 0.0f);
 
-    // Set distinct values in each of the three sections (Q, K, V)
-    for (int i = 0; i < comp_size; i++) {
-        mu_embs[i] = 1.0f;                  // Q section
-        mu_embs[i + comp_size] = 2.0f;      // K section
-        mu_embs[i + 2 * comp_size] = 3.0f;  // V section
-        var_embs[i] = 0.1f;
-        var_embs[i + comp_size] = 0.2f;
-        var_embs[i + 2 * comp_size] = 0.3f;
+    // Per-token interleaved layout [Q(C) | K(C) | V(C)] with C = num_heads *
+    // head_dim, matching how separate_input_projection_components reads embs.
+    int emb_size = num_heads * head_dim;
+    int row_size = 3 * emb_size;
+    for (int token = 0; token < batch_size * timestep; token++) {
+        for (int c = 0; c < emb_size; c++) {
+            mu_embs[token * row_size + c] = 1.0f;
+            mu_embs[token * row_size + emb_size + c] = 2.0f;
+            mu_embs[token * row_size + 2 * emb_size + c] = 3.0f;
+            var_embs[token * row_size + c] = 0.1f;
+            var_embs[token * row_size + emb_size + c] = 0.2f;
+            var_embs[token * row_size + 2 * emb_size + c] = 0.3f;
+        }
     }
 
     std::vector<float> mu_q(comp_size), var_q(comp_size);
@@ -170,54 +175,16 @@ TEST_F(AttentionHelpersTest, QueryKey) {
     query_key(mu_q, var_q, mu_k, var_k, batch_size, num_heads, timestep,
               head_size, mu_qk, var_qk);
 
-    EXPECT_NEAR(mu_qk[0], 1.0f, TOLERANCE);  // q0 · k0 = 1
-    EXPECT_NEAR(mu_qk[1], 0.0f, TOLERANCE);  // q0 · k1 = 0
-    EXPECT_NEAR(mu_qk[2], 0.0f, TOLERANCE);  // q1 · k0 = 0
-    EXPECT_NEAR(mu_qk[3], 1.0f, TOLERANCE);  // q1 · k1 = 1
+    // query_key scales the dot-product by 1/sqrt(head_size).
+    float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+    EXPECT_NEAR(mu_qk[0], 1.0f * scale, TOLERANCE);  // q0 · k0 = 1
+    EXPECT_NEAR(mu_qk[1], 0.0f, TOLERANCE);          // q0 · k1 = 0
+    EXPECT_NEAR(mu_qk[2], 0.0f, TOLERANCE);          // q1 · k0 = 0
+    EXPECT_NEAR(mu_qk[3], 1.0f * scale, TOLERANCE);  // q1 · k1 = 1
 
     for (size_t i = 0; i < var_qk.size(); i++) {
         EXPECT_GE(var_qk[i], 0.0f);
     }
-}
-
-TEST_F(AttentionHelpersTest, MaskQueryKey) {
-    int batch_size = 1;
-    int num_heads = 1;
-    int timestep = 3;
-    int head_size = 2;
-
-    std::vector<float> mu_qk(timestep * timestep, 1.0f);
-    std::vector<float> var_qk(timestep * timestep, 0.1f);
-
-    std::vector<float> mu_mqk(timestep * timestep);
-    std::vector<float> var_mqk(timestep * timestep);
-
-    mask_query_key(mu_qk, var_qk, batch_size, num_heads, timestep, head_size,
-                   mu_mqk, var_mqk);
-
-    EXPECT_NEAR(mu_mqk[0 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(mu_mqk[1 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[1 * timestep + 1], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(mu_mqk[2 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 1], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 2], 1.0f, TOLERANCE);
-
-    EXPECT_NEAR(var_mqk[0 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(var_mqk[1 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[1 * timestep + 1], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(var_mqk[2 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[2 * timestep + 1], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[2 * timestep + 2], 0.1f, TOLERANCE);
 }
 
 TEST_F(AttentionHelpersTest, Tagi4DMatrixMul) {

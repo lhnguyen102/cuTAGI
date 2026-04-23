@@ -3,6 +3,10 @@
 #include <cmath>
 #include <string>
 
+#ifdef USE_CUDA
+#include "../include/positional_encoding_cuda.cuh"
+#endif
+
 PositionalEncoding::PositionalEncoding(int embed_dim, size_t max_seq_len)
     : embed_dim(embed_dim), max_seq_len(max_seq_len) {
     this->num_weights = 0;
@@ -66,3 +70,12 @@ void PositionalEncoding::forward(BaseHiddenStates &input_states,
     output_states.actual_size = actual_size;
     output_states.seq_len = seq_len;
 }
+
+#ifdef USE_CUDA
+std::unique_ptr<BaseLayer> PositionalEncoding::to_cuda(int device_idx) {
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    return std::make_unique<PositionalEncodingCuda>(
+        this->embed_dim, this->max_seq_len, device_idx);
+}
+#endif
