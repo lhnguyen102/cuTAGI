@@ -1,6 +1,9 @@
 #include <cuda.h>
 
+#include "../include/attention.h"
+#include "../include/attention_cuda.cuh"
 #include "../include/custom_logger.h"
+#include "../include/layer_block.h"
 #include "../include/resnet_block.h"
 #include "../include/resnet_block_cuda.cuh"
 
@@ -99,8 +102,12 @@ void ResNetBlockCuda::compute_input_output_size(const InitArgs &args)
     this->out_height = this->main_block->out_height;
     this->out_width = this->main_block->out_width;
 
-    this->input_size = this->in_width * this->in_width * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
+    int spatial_in = this->in_width * this->in_height * this->in_channels;
+    int spatial_out = this->out_width * this->out_height * this->out_channels;
+    this->input_size =
+        spatial_in > 0 ? spatial_in : this->main_block->input_size;
+    this->output_size =
+        spatial_out > 0 ? spatial_out : this->main_block->output_size;
 }
 
 void ResNetBlockCuda::init_shortcut_state()
@@ -253,7 +260,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     this->input_z->copy_from(input_states, this->input_size * effective_batch);
     this->main_block->forward(input_states, output_states, temp_states);
 
-    int num_states = output_states.block_size * this->output_size;
+    int num_states = effective_batch * this->output_size;
     constexpr unsigned int THREADS = 256;
     unsigned int grid_size = (num_states + THREADS - 1) / THREADS;
     HiddenStateCuda *cu_output_states =
@@ -311,7 +318,7 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
     int effective_batch = batch_size * seq_len;
     // Make a copy of delta input used later for residual connection
     this->input_delta_z->copy_from(input_delta_states,
-                                   this->output_size * batch_size);
+                                   this->output_size * effective_batch);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
@@ -349,6 +356,7 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
             cu_output_delta_states->d_delta_mu,
             cu_output_delta_states->d_delta_var);
     }
+    cu_output_delta_states->seq_len = seq_len;
 }
 
 void ResNetBlockCuda::update_weights()
@@ -438,6 +446,23 @@ void ResNetBlockCuda::preinit_layer() {
     if (this->shortcut != nullptr) {
         this->shortcut->preinit_layer();
     }
+}
+
+std::vector<AttentionScores> ResNetBlockCuda::get_attention_scores() {
+    std::vector<AttentionScores> result;
+    BaseLayer *raw = this->main_block.get();
+    if (auto *l = dynamic_cast<MultiheadAttention *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<MultiheadAttentionV2 *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<MultiheadAttentionCuda *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<MultiheadAttentionV2Cuda *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<LayerBlock *>(raw)) {
+        result = l->get_attention_scores();
+    }
+    return result;
 }
 
 // DEBUG

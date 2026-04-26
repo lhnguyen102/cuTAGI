@@ -3,6 +3,7 @@
 #include <cmath>
 #include <thread>
 
+#include "../include/attention.h"
 #include "../include/custom_logger.h"
 #include "../include/param_init.h"
 
@@ -310,12 +311,13 @@ void RMSNorm::init_weight_bias()
  */
 {
     int num_features = this->normalized_shape[0];
-    this->num_weights = this->normalized_shape[0];
+    this->num_weights = num_features;
     this->num_biases = 0;
-    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
-        init_weight_bias_norm("", this->gain_w, 1.0f, num_features,
-                              num_features, this->num_weights,
-                              this->num_biases);
+    float prior_var = this->gain_w * this->gain_w * 1e-4f;
+    this->mu_w.assign(num_features, 1.0f);
+    this->var_w.assign(num_features, prior_var);
+    this->mu_b.clear();
+    this->var_b.clear();
 }
 
 void RMSNorm::allocate_running_rms()
@@ -333,7 +335,7 @@ void RMSNorm::forward(BaseHiddenStates &input_states,
     int batch_size = input_states.block_size;
     int seq_len = input_states.seq_len;
     int effective_batch = batch_size * seq_len;
-    // this->set_cap_factor_udapte(effective_batch);
+    this->set_cap_factor_udapte(effective_batch);
 
     if (this->_batch_size != effective_batch) {
         this->_batch_size = effective_batch;
@@ -369,6 +371,18 @@ void RMSNorm::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
+
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[rmsn-diag] forward step=%d (ni=%d, eff_batch=%d)\n",
+                    this->_debug_step, (int)this->input_size, effective_batch);
+        print_magnitude_stats("gain", this->mu_w, this->var_w);
+        print_magnitude_stats("rms_ra", this->rms_ra, this->rms_ra);
+        print_magnitude_stats("in", input_states.mu_a, input_states.var_a);
+        print_magnitude_stats("out", output_states.mu_a, output_states.var_a);
+    }
+    this->_debug_step++;
 }
 
 void RMSNorm::backward(BaseDeltaStates &input_delta_states,
@@ -411,6 +425,23 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
                 this->num_threads, this->delta_mu_w, this->delta_var_w);
         }
     }
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[rmsn-diag] backward step=%d (ni=%d, eff_batch=%d)\n",
+                    prev_step, (int)this->input_size, effective_batch);
+        print_magnitude_stats("d_in", input_delta_states.delta_mu,
+                              input_delta_states.delta_var);
+        if (state_udapte) {
+            print_magnitude_stats("d_out", output_delta_states.delta_mu,
+                                  output_delta_states.delta_var);
+        }
+        if (this->param_update) {
+            print_magnitude_stats("dW", this->delta_mu_w, this->delta_var_w);
+        }
+    }
 }
 
 #ifdef USE_CUDA
@@ -419,6 +450,8 @@ std::unique_ptr<BaseLayer> RMSNorm::to_cuda(int device_idx) {
     this->device_idx = device_idx;
     auto cuda_layer = std::make_unique<RMSNormCuda>(
         this->normalized_shape, this->epsilon, this->gain_w, device_idx);
+    cuda_layer->debug = this->debug;
+    cuda_layer->debug_interval = this->debug_interval;
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);
     return cuda_layer;

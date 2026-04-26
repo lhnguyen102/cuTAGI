@@ -1,8 +1,11 @@
 
 #include "../include/resnet_block.h"
 
+#include "../include/attention.h"
 #include "../include/custom_logger.h"
+#include "../include/layer_block.h"
 #ifdef USE_CUDA
+#include "../include/attention_cuda.cuh"
 #include "../include/resnet_block_cuda.cuh"
 #endif
 
@@ -107,8 +110,12 @@ void ResNetBlock::compute_input_output_size(const InitArgs &args)
     this->out_height = this->main_block->out_height;
     this->out_width = this->main_block->out_width;
 
-    this->input_size = this->in_width * this->in_width * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
+    int spatial_in = this->in_width * this->in_height * this->in_channels;
+    int spatial_out = this->out_width * this->out_height * this->out_channels;
+    this->input_size =
+        spatial_in > 0 ? spatial_in : this->main_block->input_size;
+    this->output_size =
+        spatial_out > 0 ? spatial_out : this->main_block->output_size;
 }
 
 void ResNetBlock::init_shortcut_state()
@@ -207,7 +214,7 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     }
     // Store jacobian matrix for backward pass
     if (this->training) {
-        int act_size = input_states.actual_size * input_states.block_size;
+        int act_size = input_states.actual_size * effective_batch;
         if (this->bwd_states->size != act_size) {
             this->allocate_bwd_vector(act_size);
         }
@@ -218,7 +225,7 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     this->input_z->copy_from(input_states, this->input_size * effective_batch);
 
     this->main_block->forward(input_states, output_states, temp_states);
-    int num_states = output_states.block_size * this->output_size;
+    int num_states = effective_batch * this->output_size;
 
     // Shortcut
     if (this->shortcut != nullptr) {
@@ -253,14 +260,16 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
                            BaseTempStates &temp_states, bool state_update)
 /**/
 {
+    int effective_batch =
+        input_delta_states.block_size * input_delta_states.seq_len;
     // Make a copy of delta input used later for residual connection
-    this->input_delta_z->copy_from(
-        input_delta_states, this->output_size * input_delta_states.block_size);
+    this->input_delta_z->copy_from(input_delta_states,
+                                   this->output_size * effective_batch);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
 
-    int num_states = output_delta_states.block_size * this->input_size;
+    int num_states = effective_batch * this->input_size;
 
     if (this->shortcut != nullptr) {
         this->shortcut->backward(*this->input_delta_z,
@@ -277,6 +286,7 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
             this->bwd_states->jcb, num_states, output_delta_states.delta_mu,
             output_delta_states.delta_var);
     }
+    output_delta_states.seq_len = input_delta_states.seq_len;
 }
 
 void ResNetBlock::update_weights()
@@ -372,6 +382,27 @@ void ResNetBlock::preinit_layer() {
     if (this->shortcut != nullptr) {
         this->shortcut->preinit_layer();
     }
+}
+
+std::vector<AttentionScores> ResNetBlock::get_attention_scores() {
+    std::vector<AttentionScores> result;
+    BaseLayer *raw = this->main_block.get();
+    if (auto *l = dynamic_cast<MultiheadAttention *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<MultiheadAttentionV2 *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    }
+#ifdef USE_CUDA
+    else if (auto *l = dynamic_cast<MultiheadAttentionCuda *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    } else if (auto *l = dynamic_cast<MultiheadAttentionV2Cuda *>(raw)) {
+        result.push_back(l->get_attention_scores());
+    }
+#endif
+    else if (auto *l = dynamic_cast<LayerBlock *>(raw)) {
+        result = l->get_attention_scores();
+    }
+    return result;
 }
 
 // DEBUG

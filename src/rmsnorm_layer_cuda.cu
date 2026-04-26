@@ -1,3 +1,4 @@
+#include "../include/attention.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/data_struct_cuda.cuh"
 #include "../include/param_init.h"
@@ -42,10 +43,11 @@ void RMSNormCuda::init_weight_bias() {
     this->num_weights = num_features;
     this->num_biases = 0;
 
-    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
-        init_weight_bias_norm("", this->gain_w, 1.0f, num_features,
-                              num_features, this->num_weights,
-                              this->num_biases);
+    float prior_var = this->gain_w * this->gain_w * 1e-4f;
+    this->mu_w.assign(num_features, 1.0f);
+    this->var_w.assign(num_features, prior_var);
+    this->mu_b.clear();
+    this->var_b.clear();
 
     this->allocate_param_memory();
     this->params_to_device();
@@ -77,6 +79,8 @@ void RMSNormCuda::forward(BaseHiddenStates &input_states,
     int effective_batch = batch_size * seq_len;
     int ni = (int)this->input_size;
 
+    this->set_cap_factor_udapte(effective_batch);
+
     if (effective_batch <= 0 || ni <= 0) return;
 
     if (this->_batch_size != effective_batch) {
@@ -103,6 +107,39 @@ void RMSNormCuda::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->store_states_for_training_cuda(*cu_in, *cu_out);
     }
+
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        cudaSetDevice(this->device_idx);
+        std::vector<float> h_mu_w(ni), h_var_w(ni);
+        std::vector<float> h_rms(effective_batch);
+        std::vector<float> h_in_mu(effective_batch * ni),
+            h_in_var(effective_batch * ni);
+        std::vector<float> h_out_mu(effective_batch * ni),
+            h_out_var(effective_batch * ni);
+        cudaMemcpy(h_mu_w.data(), this->d_mu_w, ni * sizeof(float),
+                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_var_w.data(), this->d_var_w, ni * sizeof(float),
+                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_rms.data(), this->d_rms_ra,
+                   effective_batch * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_in_mu.data(), cu_in->d_mu_a,
+                   h_in_mu.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_in_var.data(), cu_in->d_var_a,
+                   h_in_var.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_out_mu.data(), cu_out->d_mu_a,
+                   h_out_mu.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_out_var.data(), cu_out->d_var_a,
+                   h_out_var.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        std::printf("[rmsn-diag] forward step=%d (ni=%d, eff_batch=%d)\n",
+                    this->_debug_step, ni, effective_batch);
+        print_magnitude_stats("gain", h_mu_w, h_var_w);
+        print_magnitude_stats("rms_ra", h_rms, h_rms);
+        print_magnitude_stats("in", h_in_mu, h_in_var);
+        print_magnitude_stats("out", h_out_mu, h_out_var);
+    }
+    this->_debug_step++;
 }
 
 void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
@@ -137,6 +174,38 @@ void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
             this->d_delta_mu_w, this->d_delta_var_w);
     }
     CHECK_LAST_CUDA_ERROR();
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        cudaSetDevice(this->device_idx);
+        size_t total = (size_t)effective_batch * ni;
+        std::vector<float> h_in_dmu(total), h_in_dvar(total);
+        cudaMemcpy(h_in_dmu.data(), cu_in_delta->d_delta_mu,
+                   total * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_in_dvar.data(), cu_in_delta->d_delta_var,
+                   total * sizeof(float), cudaMemcpyDeviceToHost);
+        std::printf("[rmsn-diag] backward step=%d (ni=%d, eff_batch=%d)\n",
+                    prev_step, ni, effective_batch);
+        print_magnitude_stats("d_in", h_in_dmu, h_in_dvar);
+        if (state_udapte) {
+            std::vector<float> h_out_dmu(total), h_out_dvar(total);
+            cudaMemcpy(h_out_dmu.data(), cu_out_delta->d_delta_mu,
+                       total * sizeof(float), cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_out_dvar.data(), cu_out_delta->d_delta_var,
+                       total * sizeof(float), cudaMemcpyDeviceToHost);
+            print_magnitude_stats("d_out", h_out_dmu, h_out_dvar);
+        }
+        if (this->param_update) {
+            std::vector<float> h_dW_mu(ni), h_dW_var(ni);
+            cudaMemcpy(h_dW_mu.data(), this->d_delta_mu_w, ni * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_dW_var.data(), this->d_delta_var_w, ni * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            print_magnitude_stats("dW", h_dW_mu, h_dW_var);
+        }
+    }
 }
 
 std::unique_ptr<BaseLayer> RMSNormCuda::to_host() {

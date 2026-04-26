@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "attention.h"
 #include "base_layer.h"
 #include "data_struct.h"
 
@@ -106,6 +107,8 @@ class LayerBlock : public BaseLayer {
 #endif
 
     void preinit_layer() override;
+
+    std::vector<AttentionScores> get_attention_scores();
 
     // DEBUG
     std::tuple<std::vector<std::vector<float>>, std::vector<std::vector<float>>,

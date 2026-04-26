@@ -98,6 +98,8 @@ class MultiheadAttentionCuda : public BaseLayerCuda {
     size_t max_seq_len;
     bool use_causal_mask;
     bool debug = false;
+    int debug_interval = 1;
+    int _debug_step = 0;
 
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
@@ -198,6 +200,8 @@ class MultiheadAttentionV2Cuda : public BaseLayerCuda {
     size_t max_seq_len;
     bool use_causal_mask;
     bool debug = false;
+    int debug_interval = 1;
+    int _debug_step = 0;
 
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
@@ -238,6 +242,10 @@ class MultiheadAttentionV2Cuda : public BaseLayerCuda {
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
+
+    ParameterMap get_parameters_as_map(std::string suffix = "") override;
+    void load_parameters_from_map(const ParameterMap &param_map,
+                                  const std::string &suffix) override;
 
     std::unique_ptr<BaseLayer> to_host() override;
 

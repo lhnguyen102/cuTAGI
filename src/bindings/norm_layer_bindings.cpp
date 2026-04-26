@@ -56,6 +56,8 @@ void bind_rmsnorm_layer(pybind11::module_& modo)
         .def("get_layer_name", &RMSNorm::get_layer_name)
         .def("forward", &RMSNorm::forward)
         .def("backward", &RMSNorm::backward)
-        .def("init_weight_bias", &RMSNorm::init_weight_bias);
+        .def("init_weight_bias", &RMSNorm::init_weight_bias)
+        .def_readwrite("debug", &RMSNorm::debug)
+        .def_readwrite("debug_interval", &RMSNorm::debug_interval);
     ;
 }

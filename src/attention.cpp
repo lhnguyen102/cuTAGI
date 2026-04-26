@@ -15,8 +15,8 @@ static void causal_mask_pre_remax(const std::vector<float> &mu_qk,
                                   int batch_size, int num_heads, int timestep,
                                   std::vector<float> &mu_mqk,
                                   std::vector<float> &var_mqk) {
-    constexpr float MASK_MU = -1e4f;
-    constexpr float MASK_VAR = 1e-4f;
+    constexpr float MASK_MU = -1e8f;
+    constexpr float MASK_VAR = 1e-6f;
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < num_heads; j++) {
             for (int k = 0; k < timestep; k++) {
@@ -780,9 +780,12 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     remax_output.set_size(qk_size,
                           batch_size * this->seq_len * this->num_heads);
 
-    if (this->debug) {
-        std::printf("[attn-diag] MHA pre-remax (rope=%s, mask=%d)\n",
-                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[attn-diag] MHA forward step=%d (rope=%s, mask=%d)\n",
+                    this->_debug_step, this->pos_emb.c_str(),
+                    (int)this->use_causal_mask);
         print_magnitude_stats("W_qkv", this->mu_w, this->var_w);
         if (this->bias) {
             print_magnitude_stats("b_qkv", this->mu_b, this->var_b);
@@ -818,7 +821,7 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     attn_states.var_att_score = remax_output.var_a;
     attn_states.j_mqk = remax_output.jcb;
 
-    if (this->debug) {
+    if (fire) {
         if (this->use_causal_mask) {
             print_magnitude_stats_causal("att_score", attn_states.mu_att_score,
                                          attn_states.var_att_score, batch_size,
@@ -853,6 +856,7 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
+    this->_debug_step++;
 }
 
 void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
@@ -984,6 +988,8 @@ std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
         this->bias, this->gain_w, this->gain_b, this->init_method,
         this->pos_emb, this->rope_theta, this->max_seq_len,
         this->use_causal_mask, device_idx);
+    cuda_layer->debug = this->debug;
+    cuda_layer->debug_interval = this->debug_interval;
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);
     return cuda_layer;
@@ -1195,6 +1201,69 @@ void MultiheadAttentionV2::update_biases() {
     }
 }
 
+ParameterMap MultiheadAttentionV2::get_parameters_as_map(std::string suffix) {
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    auto concat3 = [](const std::vector<float> &a, const std::vector<float> &b,
+                      const std::vector<float> &c) {
+        std::vector<float> r;
+        r.reserve(a.size() + b.size() + c.size());
+        r.insert(r.end(), a.begin(), a.end());
+        r.insert(r.end(), b.begin(), b.end());
+        r.insert(r.end(), c.begin(), c.end());
+        return r;
+    };
+
+    std::vector<float> mu_b_all, var_b_all;
+    if (this->bias) {
+        mu_b_all = concat3(mu_b_q, mu_b_k, mu_b_v);
+        var_b_all = concat3(var_b_q, var_b_k, var_b_v);
+    }
+
+    ParameterTuple parameters = std::make_tuple(
+        concat3(mu_w_q, mu_w_k, mu_w_v), concat3(var_w_q, var_w_k, var_w_v),
+        std::move(mu_b_all), std::move(var_b_all));
+
+    return {{key, parameters}};
+}
+
+void MultiheadAttentionV2::load_parameters_from_map(
+    const ParameterMap &param_map, const std::string &suffix) {
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    auto it = param_map.find(key);
+    if (it == param_map.end()) {
+        LOG(LogLevel::ERROR, "Key " + key + " not found in parameter map.");
+        return;
+    }
+
+    const auto &params = it->second;
+    auto split3 = [](const std::vector<float> &src, std::vector<float> &q,
+                     std::vector<float> &k, std::vector<float> &v, size_t nq,
+                     size_t nk, size_t nv) {
+        q.assign(src.begin(), src.begin() + nq);
+        k.assign(src.begin() + nq, src.begin() + nq + nk);
+        v.assign(src.begin() + nq + nk, src.begin() + nq + nk + nv);
+    };
+
+    split3(std::get<0>(params), mu_w_q, mu_w_k, mu_w_v, num_weights_q,
+           num_weights_k, num_weights_v);
+    split3(std::get<1>(params), var_w_q, var_w_k, var_w_v, num_weights_q,
+           num_weights_k, num_weights_v);
+    if (this->bias) {
+        split3(std::get<2>(params), mu_b_q, mu_b_k, mu_b_v, num_biases_q,
+               num_biases_k, num_biases_v);
+        split3(std::get<3>(params), var_b_q, var_b_k, var_b_v, num_biases_q,
+               num_biases_k, num_biases_v);
+    }
+}
+
 void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
                                    BaseHiddenStates &output_states,
                                    BaseTempStates &temp_states) {
@@ -1279,9 +1348,12 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     remax_output.set_size(qk_size,
                           batch_size * this->seq_len * this->num_heads);
 
-    if (this->debug) {
-        std::printf("[attn-diag] MHAv2 pre-remax (rope=%s, mask=%d)\n",
-                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[attn-diag] MHAv2 forward step=%d (rope=%s, mask=%d)\n",
+                    this->_debug_step, this->pos_emb.c_str(),
+                    (int)this->use_causal_mask);
         print_magnitude_stats("W_q", mu_w_q, var_w_q);
         print_magnitude_stats("W_k", mu_w_k, var_w_k);
         print_magnitude_stats("W_v", mu_w_v, var_w_v);
@@ -1317,7 +1389,7 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
                                this->seq_len);
     }
 
-    if (this->debug) {
+    if (fire) {
         if (this->use_causal_mask) {
             print_magnitude_stats_causal("att_score", remax_output.mu_a,
                                          remax_output.var_a, batch_size,
@@ -1355,6 +1427,7 @@ void MultiheadAttentionV2::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
+    this->_debug_step++;
 }
 
 void MultiheadAttentionV2::backward(BaseDeltaStates &input_delta_states,
@@ -1533,6 +1606,8 @@ std::unique_ptr<BaseLayer> MultiheadAttentionV2::to_cuda(int device_idx) {
         this->bias, this->gain_w, this->gain_b, this->init_method,
         this->pos_emb, this->rope_theta, this->max_seq_len,
         this->use_causal_mask, device_idx);
+    cuda_layer->debug = this->debug;
+    cuda_layer->debug_interval = this->debug_interval;
     cuda_layer->copy_v2_params_from(*this);
     return cuda_layer;
 }

@@ -26,6 +26,7 @@ class MultiheadAttention(BaseLayer):
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
         debug: bool = False,
+        debug_interval: int = 1,
     ):
         """
         Initializes the MultiheadAttention layer.
@@ -81,6 +82,7 @@ class MultiheadAttention(BaseLayer):
             use_causal_mask,
         )
         self._cpp_backend.debug = debug
+        self._cpp_backend.debug_interval = debug_interval
 
     def get_layer_info(self) -> str:
         """
@@ -111,6 +113,14 @@ class MultiheadAttention(BaseLayer):
     def debug(self, value: bool):
         self._cpp_backend.debug = value
 
+    @property
+    def debug_interval(self) -> int:
+        return self._cpp_backend.debug_interval
+
+    @debug_interval.setter
+    def debug_interval(self, value: int):
+        self._cpp_backend.debug_interval = value
+
 
 class MultiheadAttentionV2(BaseLayer):
     """Multi-head Attention with separate Q, K, V projections."""
@@ -130,6 +140,7 @@ class MultiheadAttentionV2(BaseLayer):
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
         debug: bool = False,
+        debug_interval: int = 1,
     ):
         super().__init__()
 
@@ -164,6 +175,7 @@ class MultiheadAttentionV2(BaseLayer):
             use_causal_mask,
         )
         self._cpp_backend.debug = debug
+        self._cpp_backend.debug_interval = debug_interval
 
     def get_layer_info(self) -> str:
         return self._cpp_backend.get_layer_info()
@@ -181,3 +193,11 @@ class MultiheadAttentionV2(BaseLayer):
     @debug.setter
     def debug(self, value: bool):
         self._cpp_backend.debug = value
+
+    @property
+    def debug_interval(self) -> int:
+        return self._cpp_backend.debug_interval
+
+    @debug_interval.setter
+    def debug_interval(self, value: int):
+        self._cpp_backend.debug_interval = value

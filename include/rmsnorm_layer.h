@@ -13,6 +13,9 @@ class RMSNorm : public BaseLayer {
     float epsilon;
     float gain_w;
     int _batch_size = 0;
+    bool debug = false;
+    int debug_interval = 1;
+    int _debug_step = 0;
 
     RMSNorm(const std::vector<int> &normalized_shape, float eps = 1e-6,
             float gain_w = 1.0f, int device_idx = 0);

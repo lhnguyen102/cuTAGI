@@ -16,6 +16,8 @@ class RMSNorm(BaseLayer):
         normalized_shape: List[int],
         eps: float = 1e-6,
         gain_w: float = 1.0,
+        debug: bool = False,
+        debug_interval: int = 1,
     ):
         """
         Initializes the RMSNorm layer.
@@ -34,6 +36,24 @@ class RMSNorm(BaseLayer):
         self.gain_w = gain_w
 
         self._cpp_backend = cutagi.RMSNorm(normalized_shape, eps, gain_w)
+        self._cpp_backend.debug = debug
+        self._cpp_backend.debug_interval = debug_interval
+
+    @property
+    def debug(self) -> bool:
+        return self._cpp_backend.debug
+
+    @debug.setter
+    def debug(self, value: bool):
+        self._cpp_backend.debug = value
+
+    @property
+    def debug_interval(self) -> int:
+        return self._cpp_backend.debug_interval
+
+    @debug_interval.setter
+    def debug_interval(self, value: int):
+        self._cpp_backend.debug_interval = value
 
     def get_layer_info(self) -> str:
         """

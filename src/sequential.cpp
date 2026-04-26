@@ -1020,34 +1020,43 @@ Sequential::get_attention_scores() const {
 
 pybind11::dict Sequential::get_attention_scores_py() const {
     pybind11::dict py_scores;
+    int counter = 0;
 
-    auto emit = [&](size_t i, const AttentionScores &s) {
+    auto emit = [&](const AttentionScores &s) {
         if (s.batch_size <= 0 || s.mu.empty()) return;
         std::vector<ssize_t> shape = {s.batch_size, s.num_heads, s.timestep,
                                       s.timestep};
-        py_scores[pybind11::int_(static_cast<int>(i))] =
+        py_scores[pybind11::int_(counter++)] =
             pybind11::make_tuple(pybind11::array_t<float>(shape, s.mu.data()),
                                  pybind11::array_t<float>(shape, s.var.data()));
     };
 
     for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() != LayerType::MultiheadAttention) {
-            continue;
-        }
         auto *raw = layers[i].get();
 
         if (auto *l = dynamic_cast<MultiheadAttention *>(raw)) {
-            emit(i, l->get_attention_scores());
+            emit(l->get_attention_scores());
         } else if (auto *l = dynamic_cast<MultiheadAttentionV2 *>(raw)) {
-            emit(i, l->get_attention_scores());
+            emit(l->get_attention_scores());
         }
 #ifdef USE_CUDA
         else if (auto *l = dynamic_cast<MultiheadAttentionCuda *>(raw)) {
-            emit(i, l->get_attention_scores());
+            emit(l->get_attention_scores());
         } else if (auto *l = dynamic_cast<MultiheadAttentionV2Cuda *>(raw)) {
-            emit(i, l->get_attention_scores());
+            emit(l->get_attention_scores());
         }
 #endif
+        else if (auto *l = dynamic_cast<ResNetBlock *>(raw)) {
+            for (const auto &s : l->get_attention_scores()) emit(s);
+        }
+#ifdef USE_CUDA
+        else if (auto *l = dynamic_cast<ResNetBlockCuda *>(raw)) {
+            for (const auto &s : l->get_attention_scores()) emit(s);
+        }
+#endif
+        else if (auto *l = dynamic_cast<LayerBlock *>(raw)) {
+            for (const auto &s : l->get_attention_scores()) emit(s);
+        }
     }
 
     return py_scores;

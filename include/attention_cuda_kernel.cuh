@@ -105,8 +105,8 @@ __global__ void apply_causal_mask_pre_remax_kernel(float *mu, float *var,
                                                    int batch_size,
                                                    int num_heads,
                                                    int timestep) {
-    constexpr float MASK_MU = -1e4f;
-    constexpr float MASK_VAR = 1e-4f;
+    constexpr float MASK_MU = -1e8f;
+    constexpr float MASK_VAR = 1e-6f;
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = batch_size * num_heads * timestep * timestep;
     if (idx >= total) return;
@@ -409,10 +409,6 @@ __global__ void rope_backward_kernel(
     delta_var_out[in_idx] = dvar_y1 * cv * cv + dvar_y2 * sv * sv;
     delta_var_out[in_idx + 1] = dvar_y1 * sv * sv + dvar_y2 * cv * cv;
 }
-
-// ---------------------------------------------------------------------------
-// V2 helpers
-// ---------------------------------------------------------------------------
 
 // [batch_size*timestep, num_heads*head_dim] ->
 // [batch_size, num_heads, timestep, head_dim].

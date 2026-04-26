@@ -5,6 +5,7 @@
 #include "../include/attention_cuda.cuh"
 #include "../include/attention_cuda_kernel.cuh"
 #include "../include/cuda_error_checking.cuh"
+#include "../include/custom_logger.h"
 #include "../include/linear_layer_cuda.cuh"
 #include "../include/param_init.h"
 
@@ -357,9 +358,12 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
     }
 
     // Optional debug stats (matches CPU path: D2H + reuse of CPU printers).
-    if (this->debug) {
-        std::printf("[attn-diag] MHACuda pre-remax (rope=%s, mask=%d)\n",
-                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[attn-diag] MHACuda forward step=%d (rope=%s, mask=%d)\n",
+                    this->_debug_step, this->pos_emb.c_str(),
+                    (int)this->use_causal_mask);
         std::vector<float> h_mu, h_var;
         d2h(h_mu, this->d_mu_w, this->num_weights);
         d2h(h_var, this->d_var_w, this->num_weights);
@@ -415,7 +419,7 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
     copy_remax_output(remax_output, attn_states.d_mu_att_score,
                       attn_states.d_var_att_score, attn_states.d_j_mqk, qk);
 
-    if (this->debug) {
+    if (fire) {
         std::vector<float> h_mu, h_var;
         d2h(h_mu, attn_states.d_mu_att_score, qk);
         d2h(h_var, attn_states.d_var_att_score, qk);
@@ -457,6 +461,7 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->store_states_for_training_cuda(*cu_in, *cu_out);
     }
+    this->_debug_step++;
 }
 
 void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
@@ -1004,9 +1009,13 @@ void MultiheadAttentionV2Cuda::forward(BaseHiddenStates &input_states,
             timestep);
     }
 
-    if (this->debug) {
-        std::printf("[attn-diag] MHAv2Cuda pre-remax (rope=%s, mask=%d)\n",
-                    this->pos_emb.c_str(), (int)this->use_causal_mask);
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf(
+            "[attn-diag] MHAv2Cuda forward step=%d (rope=%s, mask=%d)\n",
+            this->_debug_step, this->pos_emb.c_str(),
+            (int)this->use_causal_mask);
         std::vector<float> h_mu, h_var;
         d2h(h_mu, d_mu_w_q, num_weights_q);
         d2h(h_var, d_var_w_q, num_weights_q);
@@ -1091,6 +1100,7 @@ void MultiheadAttentionV2Cuda::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->store_states_for_training_cuda(*cu_in, *cu_out);
     }
+    this->_debug_step++;
 }
 
 void MultiheadAttentionV2Cuda::backward(BaseDeltaStates &input_delta_states,
@@ -1314,6 +1324,74 @@ std::unique_ptr<BaseLayer> MultiheadAttentionV2Cuda::to_host() {
     host->mu_b_v = this->mu_b_v;
     host->var_b_v = this->var_b_v;
     return host;
+}
+
+ParameterMap MultiheadAttentionV2Cuda::get_parameters_as_map(
+    std::string suffix) {
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    this->params_to_host();
+
+    auto concat3 = [](const std::vector<float> &a, const std::vector<float> &b,
+                      const std::vector<float> &c) {
+        std::vector<float> r;
+        r.reserve(a.size() + b.size() + c.size());
+        r.insert(r.end(), a.begin(), a.end());
+        r.insert(r.end(), b.begin(), b.end());
+        r.insert(r.end(), c.begin(), c.end());
+        return r;
+    };
+
+    std::vector<float> mu_b_all, var_b_all;
+    if (this->bias) {
+        mu_b_all = concat3(mu_b_q, mu_b_k, mu_b_v);
+        var_b_all = concat3(var_b_q, var_b_k, var_b_v);
+    }
+
+    ParameterTuple parameters = std::make_tuple(
+        concat3(mu_w_q, mu_w_k, mu_w_v), concat3(var_w_q, var_w_k, var_w_v),
+        std::move(mu_b_all), std::move(var_b_all));
+
+    return {{key, parameters}};
+}
+
+void MultiheadAttentionV2Cuda::load_parameters_from_map(
+    const ParameterMap &param_map, const std::string &suffix) {
+    std::string key = this->get_layer_name();
+    if (!suffix.empty()) {
+        key += "." + suffix;
+    }
+
+    auto it = param_map.find(key);
+    if (it == param_map.end()) {
+        LOG(LogLevel::ERROR, "Key " + key + " not found in parameter map.");
+        return;
+    }
+
+    const auto &params = it->second;
+    auto split3 = [](const std::vector<float> &src, std::vector<float> &q,
+                     std::vector<float> &k, std::vector<float> &v, size_t nq,
+                     size_t nk, size_t nv) {
+        q.assign(src.begin(), src.begin() + nq);
+        k.assign(src.begin() + nq, src.begin() + nq + nk);
+        v.assign(src.begin() + nq + nk, src.begin() + nq + nk + nv);
+    };
+
+    split3(std::get<0>(params), mu_w_q, mu_w_k, mu_w_v, num_weights_q,
+           num_weights_k, num_weights_v);
+    split3(std::get<1>(params), var_w_q, var_w_k, var_w_v, num_weights_q,
+           num_weights_k, num_weights_v);
+    if (this->bias) {
+        split3(std::get<2>(params), mu_b_q, mu_b_k, mu_b_v, num_biases_q,
+               num_biases_k, num_biases_v);
+        split3(std::get<3>(params), var_b_q, var_b_k, var_b_v, num_biases_q,
+               num_biases_k, num_biases_v);
+    }
+
+    this->params_to_device();
 }
 
 AttentionScores MultiheadAttentionV2Cuda::get_attention_scores() {

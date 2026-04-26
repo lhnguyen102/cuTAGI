@@ -14,18 +14,22 @@ import pytagi
 from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import (
     Embedding,
+    LayerBlock,
+    LayerNorm,
     Linear,
+    MixtureReLU,
     MultiheadAttention,
     MultiheadAttentionV2,
     OutputUpdater,
     PositionalEncoding,
     ReLU,
+    ResNetBlock,
     RMSNorm,
     Sequential,
 )
 
-np.random.seed(42)
-pytagi.manual_seed(42)
+np.random.seed(44)
+pytagi.manual_seed(44)
 
 DATA_PATH = os.path.join(
     os.path.dirname(__file__), "..", "data", "shakespeare", "input.txt"
@@ -144,19 +148,82 @@ class CharDataset:
         return x, y
 
 
+def build_mingpt(
+    vocab_size: int,
+    seq_len: int,
+    embed_dim: int,
+    num_heads: int,
+    num_layers: int,
+    ffn_hidden: int,
+    output_size: int,
+    debug: bool = False,
+    debug_interval: int = 200,
+) -> Sequential:
+
+    layers = [
+        Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.15),
+    ]
+    for li in range(num_layers):
+        # Only print diagnostics from the first transformer block to keep
+        # the log readable.
+        first = li == 0
+        layers.append(
+            ResNetBlock(
+                LayerBlock(
+                    # RMSNorm([embed_dim]),
+                    MultiheadAttention(
+                        embed_dim=embed_dim,
+                        num_heads=num_heads,
+                        seq_len=seq_len,
+                        bias=False,
+                        gain_weight=0.5,
+                        gain_bias=1.0,
+                        init_method="He",
+                        pos_emb="rope",
+                        debug=debug and first,
+                        debug_interval=debug_interval,
+                        use_causal_mask=True,
+                    ),
+                )
+            )
+        )
+        layers.append(
+            ResNetBlock(
+                LayerBlock(
+                    RMSNorm(
+                        [embed_dim],
+                        debug=debug and first,
+                        debug_interval=debug_interval,
+                    ),
+                    Linear(embed_dim, ffn_hidden, bias=False),
+                    ReLU(),
+                    Linear(ffn_hidden, embed_dim, bias=False),
+                )
+            )
+        )
+    layers.append(
+        RMSNorm([embed_dim], debug=debug, debug_interval=debug_interval)
+    )
+    layers.append(Linear(embed_dim, output_size))
+    return Sequential(*layers)
+
+
 def main(
-    num_epochs: int = 20,
-    batch_size: int = 16,
-    seq_len: int = 32,
-    embed_dim: int = 256,
+    num_epochs: int = 100,
+    batch_size: int = 32,
+    seq_len: int = 128,
+    embed_dim: int = 128,
     num_heads: int = 4,
     num_layers: int = 1,
     ffn_hidden: int = 256,
-    steps_per_epoch: int = 100,
-    sigma_v: float = 8.5,
+    steps_per_epoch: int = 200,
+    sigma_v: float = 8.0,
     sigma_v_min: float = 0.3,
-    decay_factor: float = 0.99,
+    decay_factor: float = 0.995,
     max_new_tokens: int = 200,
+    network: str = "mingpt",
+    debug: bool = False,
+    debug_interval: int = 200,
 ):
     """Train a character-level next-token predictor (TAGI) on Shakespeare text."""
     text = open(DATA_PATH, "r").read()
@@ -168,35 +235,48 @@ def main(
     metric = HRCSoftmaxMetric(num_classes=vocab_size)
     hrc = utils.get_hierarchical_softmax(vocab_size)
 
-    layers = [
-        Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.25),
-        PositionalEncoding(embed_dim),
-    ]
-    for _ in range(num_layers):
-        layers.extend(
-            [
-                MultiheadAttention(
-                    embed_dim=embed_dim,
-                    num_heads=num_heads,
-                    seq_len=seq_len,
-                    bias=False,
-                    gain_weight=0.5,
-                    gain_bias=0.5,
-                    init_method="He",
-                    pos_emb="",
-                    debug=True,
-                    use_causal_mask=True,
-                ),
-                RMSNorm([embed_dim]),
-                Linear(embed_dim, ffn_hidden),
-                ReLU(),
-                Linear(ffn_hidden, embed_dim),
-                RMSNorm([embed_dim]),
-            ]
+    if network == "mingpt":
+        net = build_mingpt(
+            vocab_size=vocab_size,
+            seq_len=seq_len,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            ffn_hidden=ffn_hidden,
+            output_size=hrc.len,
+            debug=debug,
+            debug_interval=debug_interval,
         )
-    layers.append(Linear(embed_dim, hrc.len))
-    net = Sequential(*layers)
-    # net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
+    else:
+        layers = [
+            Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.15),
+        ]
+        for _ in range(num_layers):
+            layers.extend(
+                [
+                    MultiheadAttention(
+                        embed_dim=embed_dim,
+                        num_heads=num_heads,
+                        seq_len=seq_len,
+                        bias=False,
+                        gain_weight=0.25,
+                        gain_bias=1.0,
+                        init_method="He",
+                        pos_emb="rope",
+                        debug=False,
+                        use_causal_mask=True,
+                    ),
+                    RMSNorm([embed_dim]),
+                    Linear(embed_dim, ffn_hidden),
+                    ReLU(),
+                    Linear(ffn_hidden, embed_dim),
+                    ReLU(),
+                    RMSNorm([embed_dim]),
+                ]
+            )
+        layers.append(Linear(embed_dim, hrc.len))
+        net = Sequential(*layers)
+    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
     current_sigma_v = sigma_v

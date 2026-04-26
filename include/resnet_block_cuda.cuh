@@ -140,4 +140,6 @@ class ResNetBlockCuda : public BaseLayerCuda {
 
     std::unique_ptr<BaseLayer> to_host() override;
     void preinit_layer() override;
+
+    std::vector<AttentionScores> get_attention_scores();
 };

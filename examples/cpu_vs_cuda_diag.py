@@ -32,8 +32,10 @@ from pytagi.nn import (
     Embedding,
     Linear,
     MultiheadAttention,
+    MultiheadAttentionV2,
     OutputUpdater,
     PositionalEncoding,
+    ReLU,
     RMSNorm,
     Sequential,
 )
@@ -47,6 +49,7 @@ def build_model(
     hrc_class_len,
     use_causal_mask,
     num_layers,
+    ffn_hidden,
 ):
     layers = [
         Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.15),
@@ -66,8 +69,9 @@ def build_model(
                     pos_emb="",
                     use_causal_mask=use_causal_mask,
                 ),
-                RMSNorm([embed_dim]),
-                Linear(embed_dim, embed_dim),
+                Linear(embed_dim, ffn_hidden),
+                ReLU(),
+                Linear(ffn_hidden, embed_dim),
             ]
         )
     layers.append(Linear(embed_dim, hrc_class_len))
@@ -133,7 +137,7 @@ def sync_weights(src_cpu_net, dst_cpu_net):
 
 
 def main(
-    steps: int = 4,
+    steps: int = 2,
     batch_size: int = 16,
     seq_len: int = 28,
     vocab_size: int = 65,
@@ -141,7 +145,8 @@ def main(
     num_heads: int = 4,
     num_layers: int = 1,
     use_causal_mask: bool = True,
-    sigma_v: float = 4.5,
+    sigma_v: float = 2.5,
+    ffn_hidden: int = 256,
     seed: int = 42,
 ):
     pytagi.manual_seed(seed)
@@ -159,6 +164,7 @@ def main(
         hrc.len,
         use_causal_mask,
         num_layers,
+        ffn_hidden,
     )
     cuda_net = build_model(
         vocab_size,
@@ -168,6 +174,7 @@ def main(
         hrc.len,
         use_causal_mask,
         num_layers,
+        ffn_hidden,
     )
 
     # Both still on CPU here so layer names match -> state_dict copy works.
@@ -197,7 +204,7 @@ def main(
         for net, updater in ((cpu_net, cpu_updater), (cuda_net, cuda_updater)):
             net.train()
             m_pred, v_pred = net(x)
-            print(f"m_pred: {m_pred[:10]}")
+            print(f"m_pred: {m_pred[:100]}")
             y_obs, y_idx, _ = utils.label_to_obs(
                 labels=labels, num_classes=vocab_size
             )

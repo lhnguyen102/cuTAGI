@@ -213,14 +213,14 @@ def visualize_attention(model, dataset, prompt, device, last_k=32, top_k=10):
 
 def main(
     num_epochs: int = 20,
-    batch_size: int = 64,
-    seq_len: int = 128,
+    batch_size: int = 32,
+    seq_len: int = 64,
     embed_dim: int = 128,
     num_heads: int = 4,
-    num_layers: int = 4,
+    num_layers: int = 1,
     ffn_hidden: int = 512,
     steps_per_epoch: int = 200,
-    lr: float = 3e-4,
+    lr: float = 3e-3,
     max_new_tokens: int = 200,
 ):
     """Train a character-level GPT on Shakespeare text."""

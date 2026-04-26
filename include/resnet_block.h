@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "attention.h"
 #include "base_layer.h"
 #include "data_struct.h"
 #include "layer_block.h"
@@ -139,4 +140,6 @@ class ResNetBlock : public BaseLayer {
 #endif
 
     void preinit_layer() override;
+
+    std::vector<AttentionScores> get_attention_scores();
 };
