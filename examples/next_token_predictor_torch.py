@@ -127,6 +127,133 @@ class GPT(nn.Module):
         return idx
 
 
+def build_rope_cache(seq_len, head_dim, theta=10000.0, device=None):
+    """Mirror generate_rope_cache in src/attention.cpp."""
+    half_dim = head_dim // 2
+    log_theta = -float(np.log(theta)) / head_dim
+    i = torch.arange(half_dim, device=device, dtype=torch.float32)
+    freqs = torch.exp(2.0 * i * log_theta)
+    pos = torch.arange(seq_len, device=device, dtype=torch.float32)
+    angles = pos.unsqueeze(1) * freqs.unsqueeze(0)
+    return torch.cos(angles), torch.sin(angles)
+
+
+def apply_rope(x, cos_cache, sin_cache):
+    """Paired-adjacent RoPE matching apply_rope in src/attention.cpp:
+    out[..., 2d]   = x1*cos - x2*sin
+    out[..., 2d+1] = x1*sin + x2*cos
+    x has shape (B, H, T, D)."""
+    T = x.size(-2)
+    x1 = x[..., 0::2]
+    x2 = x[..., 1::2]
+    cos = cos_cache[:T].unsqueeze(0).unsqueeze(0)
+    sin = sin_cache[:T].unsqueeze(0).unsqueeze(0)
+    out = torch.empty_like(x)
+    out[..., 0::2] = x1 * cos - x2 * sin
+    out[..., 1::2] = x1 * sin + x2 * cos
+    return out
+
+
+class RopeCausalSelfAttention(nn.Module):
+    def __init__(self, embed_dim, num_heads, seq_len, rope_theta=10000.0):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+        assert self.head_dim % 2 == 0, "head_dim must be even for RoPE"
+        self.c_attn = nn.Linear(embed_dim, 3 * embed_dim)
+        self.c_proj = nn.Linear(embed_dim, embed_dim)
+        self.register_buffer(
+            "mask",
+            torch.tril(torch.ones(seq_len, seq_len)).view(
+                1, 1, seq_len, seq_len
+            ),
+        )
+        cos, sin = build_rope_cache(seq_len, self.head_dim, rope_theta)
+        self.register_buffer("rope_cos", cos)
+        self.register_buffer("rope_sin", sin)
+
+    def forward(self, x):
+        B, T, C = x.size()
+        q, k, v = self.c_attn(x).split(C, dim=2)
+        q = q.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+
+        q = apply_rope(q, self.rope_cos, self.rope_sin)
+        k = apply_rope(k, self.rope_cos, self.rope_sin)
+
+        att = (q @ k.transpose(-2, -1)) * (self.head_dim**-0.5)
+        att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float("-inf"))
+        att = torch.softmax(att, dim=-1)
+        self.last_attn = att.detach()
+        y = (att @ v).transpose(1, 2).contiguous().view(B, T, C)
+        return self.c_proj(y)
+
+
+class RopeBlock(nn.Module):
+    def __init__(
+        self, embed_dim, num_heads, ffn_hidden, seq_len, rope_theta=10000.0
+    ):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(embed_dim)
+        self.attn = RopeCausalSelfAttention(
+            embed_dim, num_heads, seq_len, rope_theta
+        )
+        self.ln2 = nn.LayerNorm(embed_dim)
+        self.ffn = nn.Sequential(
+            nn.Linear(embed_dim, ffn_hidden),
+            nn.ReLU(),
+            nn.Linear(ffn_hidden, embed_dim),
+        )
+
+    def forward(self, x):
+        x = x + self.attn(self.ln1(x))
+        x = x + self.ffn(self.ln2(x))
+        return x
+
+
+class GPTRope(nn.Module):
+    def __init__(
+        self,
+        vocab_size,
+        embed_dim,
+        num_heads,
+        num_layers,
+        ffn_hidden,
+        seq_len,
+        rope_theta=10000.0,
+    ):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
+        self.blocks = nn.ModuleList(
+            [
+                RopeBlock(embed_dim, num_heads, ffn_hidden, seq_len, rope_theta)
+                for _ in range(num_layers)
+            ]
+        )
+        self.ln_f = nn.LayerNorm(embed_dim)
+        self.lm_head = nn.Linear(embed_dim, vocab_size)
+        self.seq_len = seq_len
+
+    def forward(self, idx):
+        x = self.embedding(idx)
+        for block in self.blocks:
+            x = block(x)
+        x = self.ln_f(x)
+        return self.lm_head(x)
+
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens, temperature=1.0):
+        for _ in range(max_new_tokens):
+            context = idx[:, -self.seq_len :]
+            logits = self(context)
+            logits = logits[:, -1] / temperature
+            probs = torch.softmax(logits, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat([idx, next_token], dim=1)
+        return idx
+
+
 def visualize_attention(model, dataset, prompt, device, last_k=32, top_k=10):
     """Show which prior characters the model attends to when guessing the
     next character after `prompt`: (1) bar chart per layer/head of the
@@ -212,7 +339,7 @@ def visualize_attention(model, dataset, prompt, device, last_k=32, top_k=10):
 
 
 def main(
-    num_epochs: int = 20,
+    num_epochs: int = 50,
     batch_size: int = 32,
     seq_len: int = 64,
     embed_dim: int = 128,
@@ -222,6 +349,8 @@ def main(
     steps_per_epoch: int = 200,
     lr: float = 3e-3,
     max_new_tokens: int = 200,
+    model_type: str = "rope",
+    rope_theta: float = 10000.0,
 ):
     """Train a character-level GPT on Shakespeare text."""
     text = open(DATA_PATH).read()
@@ -229,14 +358,30 @@ def main(
     print(f"Data: {len(text)} chars, {dataset.vocab_size} unique")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = GPT(
-        dataset.vocab_size,
-        embed_dim,
-        num_heads,
-        num_layers,
-        ffn_hidden,
-        seq_len,
-    ).to(device)
+    if model_type == "gpt":
+        model = GPT(
+            dataset.vocab_size,
+            embed_dim,
+            num_heads,
+            num_layers,
+            ffn_hidden,
+            seq_len,
+        ).to(device)
+    elif model_type == "rope":
+        model = GPTRope(
+            dataset.vocab_size,
+            embed_dim,
+            num_heads,
+            num_layers,
+            ffn_hidden,
+            seq_len,
+            rope_theta,
+        ).to(device)
+    else:
+        raise ValueError(
+            f"Unknown model_type {model_type!r}; expected 'gpt' or 'rope'"
+        )
+    print(f"Model: {model_type}")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
@@ -265,16 +410,17 @@ def main(
         )
 
     model.eval()
-    prompt = (
-        "First Citizen:\nBefore we proceed any further, hear me speak.\n"
-        "\nAll:\nSpeak, speak.\n\nFirst Citi"
-    )
+    prompt = text[:seq_len]
+    assert len(prompt) == seq_len
     x = torch.tensor(
         [[dataset.stoi[c] for c in prompt]], dtype=torch.long, device=device
     )
     generated = model.generate(x, max_new_tokens)
-    output = "".join([dataset.itos[i] for i in generated[0].tolist()])
-    print(f"\n{output}")
+    gen_ids = generated[0].tolist()
+    new_text = "".join([dataset.itos[i] for i in gen_ids[len(prompt) :]])
+    print(f"\n--- prompt ---\n{prompt}")
+    print(f"--- continuation ---\n\033[31m{new_text}\033[0m")
+    print(f"--- full ---\n{prompt}\033[31m{new_text}\033[0m")
 
     visualize_attention(model, dataset, prompt, device)
 

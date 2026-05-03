@@ -28,8 +28,8 @@ from pytagi.nn import (
     Sequential,
 )
 
-np.random.seed(44)
-pytagi.manual_seed(44)
+np.random.seed(42)
+pytagi.manual_seed(42)
 
 DATA_PATH = os.path.join(
     os.path.dirname(__file__), "..", "data", "shakespeare", "input.txt"
@@ -40,6 +40,7 @@ def cross_entropy(
     prob: np.ndarray, labels: np.ndarray, num_classes: int
 ) -> float:
     prob = np.asarray(prob).reshape(len(labels), num_classes)
+    prob = prob / prob.sum(axis=1, keepdims=True)
     p_true = prob[np.arange(len(labels)), labels]
     return float(-np.log(np.clip(p_true, 1e-9, 1.0)).mean())
 
@@ -163,6 +164,7 @@ def build_mingpt(
     layers = [
         Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.15),
     ]
+    gain_w_rms = 5.0
     for li in range(num_layers):
         # Only print diagnostics from the first transformer block to keep
         # the log readable.
@@ -170,13 +172,18 @@ def build_mingpt(
         layers.append(
             ResNetBlock(
                 LayerBlock(
-                    # RMSNorm([embed_dim]),
+                    RMSNorm(
+                        [embed_dim],
+                        debug=debug and first,
+                        debug_interval=debug_interval,
+                        gain_w=gain_w_rms,
+                    ),
                     MultiheadAttention(
                         embed_dim=embed_dim,
                         num_heads=num_heads,
                         seq_len=seq_len,
                         bias=False,
-                        gain_weight=0.5,
+                        gain_weight=0.25,
                         gain_bias=1.0,
                         init_method="He",
                         pos_emb="rope",
@@ -194,6 +201,7 @@ def build_mingpt(
                         [embed_dim],
                         debug=debug and first,
                         debug_interval=debug_interval,
+                        gain_w=gain_w_rms,
                     ),
                     Linear(embed_dim, ffn_hidden, bias=False),
                     ReLU(),
@@ -202,25 +210,32 @@ def build_mingpt(
             )
         )
     layers.append(
-        RMSNorm([embed_dim], debug=debug, debug_interval=debug_interval)
+        RMSNorm(
+            [embed_dim],
+            debug=debug,
+            debug_interval=debug_interval,
+            gain_w=gain_w_rms,
+        )
     )
     layers.append(Linear(embed_dim, output_size))
+
     return Sequential(*layers)
 
 
 def main(
-    num_epochs: int = 100,
+    num_epochs: int = 50,
     batch_size: int = 32,
-    seq_len: int = 128,
-    embed_dim: int = 128,
+    seq_len: int = 64,
+    embed_dim: int = 256,
     num_heads: int = 4,
     num_layers: int = 1,
-    ffn_hidden: int = 256,
+    ffn_hidden: int = 512,
     steps_per_epoch: int = 200,
-    sigma_v: float = 8.0,
+    sigma_v: float = 10.0,
     sigma_v_min: float = 0.3,
     decay_factor: float = 0.995,
     max_new_tokens: int = 200,
+    gen_sigma_v: float = 0.3,
     network: str = "mingpt",
     debug: bool = False,
     debug_interval: int = 200,
@@ -324,26 +339,29 @@ def main(
 
     # Generation
     net.eval()
-    prompt = (
-        "First Citizen:\nBefore we proceed any further, hear me speak.\n"
-        "\nAll:\nSpeak, speak.\n\nFirst Citi"
-    )
+    prompt = text[:seq_len]
+    assert len(prompt) == seq_len
     prompt_ids = [dataset.stoi[c] for c in prompt]
     generated = list(prompt_ids)
     for _ in range(max_new_tokens):
         context = generated[-seq_len:]
-        x = np.array(context, dtype=np.float32).reshape(1, len(context), 1)
-        if x.shape[1] < seq_len:
-            pad = np.zeros((1, seq_len - x.shape[1], 1), dtype=np.float32)
-            x = np.concatenate([pad, x], axis=1)
+        x = np.array(context, dtype=np.float32).reshape(1, seq_len, 1)
         m_pred, v_pred = net(x)
-        pred = metric.get_predicted_labels(m_pred, v_pred)
-        pred = pred.reshape(seq_len)
-        next_token = int(pred[-1])
+        m_last = np.asarray(m_pred).reshape(seq_len, hrc.len)[-1]
+        v_last = np.asarray(v_pred).reshape(seq_len, hrc.len)[-1]
+        v_last = v_last + gen_sigma_v**2
+        probs = np.asarray(
+            utils.obs_to_label_prob(m_last, v_last, hrc, vocab_size)
+        ).reshape(-1)
+        probs = probs / probs.sum()
+        next_token = int(np.random.choice(vocab_size, p=probs))
         generated.append(next_token)
 
-    output = "".join([dataset.itos[i] for i in generated])
-    print(f"\n{output}")
+    new_tokens = generated[len(prompt_ids) :]
+    new_text = "".join([dataset.itos[i] for i in new_tokens])
+    print(f"\n--- prompt ---\n{prompt}")
+    print(f"--- continuation ---\n\033[31m{new_text}\033[0m")
+    print(f"--- full ---\n{prompt}\033[31m{new_text}\033[0m")
 
     visualize_attention(net, dataset, prompt, seq_len)
 

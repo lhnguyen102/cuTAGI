@@ -313,7 +313,7 @@ void RMSNorm::init_weight_bias()
     int num_features = this->normalized_shape[0];
     this->num_weights = num_features;
     this->num_biases = 0;
-    float prior_var = this->gain_w * this->gain_w * 1e-4f;
+    float prior_var = powf((1.0f / float(num_features)) * this->gain_w, 2);
     this->mu_w.assign(num_features, 1.0f);
     this->var_w.assign(num_features, prior_var);
     this->mu_b.clear();
@@ -409,6 +409,7 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
                 effective_batch, this->num_threads,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
+        output_delta_states.seq_len = seq_len;
     }
     if (this->param_update) {
         if (this->num_threads <= 1) {
@@ -442,6 +443,13 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
             print_magnitude_stats("dW", this->delta_mu_w, this->delta_var_w);
         }
     }
+}
+
+void RMSNorm::update_weights()
+/*
+ */
+{
+    this->raw_update_weights();
 }
 
 #ifdef USE_CUDA

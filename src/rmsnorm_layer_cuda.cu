@@ -43,7 +43,7 @@ void RMSNormCuda::init_weight_bias() {
     this->num_weights = num_features;
     this->num_biases = 0;
 
-    float prior_var = this->gain_w * this->gain_w * 1e-4f;
+    float prior_var = powf(1.0f / float(num_features) * this->gain_w, 2);
     this->mu_w.assign(num_features, 1.0f);
     this->var_w.assign(num_features, prior_var);
     this->mu_b.clear();
@@ -165,6 +165,8 @@ void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
             this->d_mu_w, d_rms_ra, cu_in_delta->d_delta_mu,
             cu_in_delta->d_delta_var, this->epsilon, ni, effective_batch,
             cu_out_delta->d_delta_mu, cu_out_delta->d_delta_var);
+
+        cu_out_delta->seq_len = seq_len;
     }
 
     if (this->param_update) {
@@ -207,6 +209,8 @@ void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
         }
     }
 }
+
+void RMSNormCuda::update_weights() { this->raw_update_weights(); }
 
 std::unique_ptr<BaseLayer> RMSNormCuda::to_host() {
     auto host = std::make_unique<RMSNorm>(this->normalized_shape, this->epsilon,

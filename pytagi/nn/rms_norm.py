@@ -14,7 +14,7 @@ class RMSNorm(BaseLayer):
     def __init__(
         self,
         normalized_shape: List[int],
-        eps: float = 1e-6,
+        eps: float = 1e-5,
         gain_w: float = 1.0,
         debug: bool = False,
         debug_interval: int = 1,

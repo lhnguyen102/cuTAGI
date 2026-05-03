@@ -22,7 +22,7 @@ class RMSNormCuda : public BaseLayerCuda {
     int debug_interval = 1;
     int _debug_step = 0;
 
-    RMSNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-6f,
+    RMSNormCuda(const std::vector<int> &normalized_shape, float eps = 1e-5f,
                 float gain_w = 1.0f, int device_idx = 0);
     ~RMSNormCuda();
 
@@ -45,6 +45,8 @@ class RMSNormCuda : public BaseLayerCuda {
                   BaseDeltaStates &output_delta_states,
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
+
+    void update_weights() override;
 
     std::unique_ptr<BaseLayer> to_host() override;
 

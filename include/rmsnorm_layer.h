@@ -44,6 +44,8 @@ class RMSNorm : public BaseLayer {
                   BaseTempStates &temp_states,
                   bool state_udapte = true) override;
 
+    void update_weights() override;
+
     using BaseLayer::to_cuda;
 
 #ifdef USE_CUDA

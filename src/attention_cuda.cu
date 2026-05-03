@@ -151,10 +151,6 @@ constexpr int THREADS = 256;
 
 inline int blocks_for(int total) { return (total + THREADS - 1) / THREADS; }
 
-// HiddenStateCuda::set_size is safe; DeltaStateCuda::set_size assumes the
-// buffers are already allocated (it calls cudaMemset before cudaMalloc on the
-// growth path). We use this helper to bypass that and allocate from null
-// safely when the layer first sees a given shape.
 inline void ensure_delta_size(DeltaStateCuda &d, size_t new_size,
                               size_t block_size) {
     if (new_size > d.size) {
@@ -175,14 +171,12 @@ inline void ensure_delta_size(DeltaStateCuda &d, size_t new_size,
     d.actual_size = new_size / block_size;
 }
 
-// Copy a fixed-size float buffer host<->device
 inline void d2h(std::vector<float> &dst, const float *src, size_t n) {
     dst.resize(n);
     cudaMemcpy(dst.data(), src, n * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 // Copy three buffers (d_mu_a, d_var_a, d_jcb) D2D between two HiddenStateCuda.
-// Used to copy remax_output -> attn_states.att_score / j_mqk.
 inline void copy_remax_output(HiddenStateCuda &src, float *dst_mu,
                               float *dst_var, float *dst_jcb, size_t n) {
     cudaMemcpy(dst_mu, src.d_mu_a, n * sizeof(float), cudaMemcpyDeviceToDevice);
