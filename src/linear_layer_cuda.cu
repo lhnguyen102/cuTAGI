@@ -1,10 +1,18 @@
 #include <cstdint>
 
+#include "../include/attention.h"
 #include "../include/config.h"
 #include "../include/custom_logger.h"
 #include "../include/linear_cuda_kernel.cuh"
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
+
+namespace {
+inline void d2h_lin(std::vector<float> &dst, const float *src, size_t n) {
+    dst.resize(n);
+    cudaMemcpy(dst.data(), src, n * sizeof(float), cudaMemcpyDeviceToHost);
+}
+}  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 // Fully Connected Layer
@@ -271,6 +279,31 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         this->store_states_for_training_cuda(*cu_input_states,
                                              *cu_output_states);
     }
+
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::vector<float> h_mu, h_var;
+        size_t n_io = (size_t)effective_batch * this->input_size;
+        size_t n_out = (size_t)effective_batch * this->output_size;
+        std::printf("[lin-diag] LinearCuda forward step=%d (in=%zu, out=%zu)\n",
+                    this->_debug_step, this->input_size, this->output_size);
+        d2h_lin(h_mu, this->d_mu_w, this->num_weights);
+        d2h_lin(h_var, this->d_var_w, this->num_weights);
+        print_magnitude_stats("W", h_mu, h_var);
+        if (this->bias) {
+            d2h_lin(h_mu, this->d_mu_b, this->num_biases);
+            d2h_lin(h_var, this->d_var_b, this->num_biases);
+            print_magnitude_stats("b", h_mu, h_var);
+        }
+        d2h_lin(h_mu, cu_input_states->d_mu_a, n_io);
+        d2h_lin(h_var, cu_input_states->d_var_a, n_io);
+        print_magnitude_stats("in", h_mu, h_var);
+        d2h_lin(h_mu, cu_output_states->d_mu_a, n_out);
+        d2h_lin(h_var, cu_output_states->d_var_a, n_out);
+        print_magnitude_stats("out", h_mu, h_var);
+    }
+    this->_debug_step++;
 }
 
 void LinearCuda::backward(BaseDeltaStates &input_delta_states,
@@ -320,6 +353,34 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
                 cu_input_delta_states->d_delta_var, this->input_size,
                 this->output_size, effective_batch, this->d_delta_mu_b,
                 this->d_delta_var_b);
+        }
+    }
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::vector<float> h_mu, h_var;
+        size_t n_in = (size_t)effective_batch * this->output_size;
+        size_t n_out = (size_t)effective_batch * this->input_size;
+        std::printf(
+            "[lin-diag] LinearCuda backward step=%d (in=%zu, out=%zu)\n",
+            prev_step, this->input_size, this->output_size);
+        d2h_lin(h_mu, this->d_delta_mu_w, this->num_weights);
+        d2h_lin(h_var, this->d_delta_var_w, this->num_weights);
+        print_magnitude_stats("dW", h_mu, h_var);
+        if (this->bias) {
+            d2h_lin(h_mu, this->d_delta_mu_b, this->num_biases);
+            d2h_lin(h_var, this->d_delta_var_b, this->num_biases);
+            print_magnitude_stats("db", h_mu, h_var);
+        }
+        d2h_lin(h_mu, cu_input_delta_states->d_delta_mu, n_in);
+        d2h_lin(h_var, cu_input_delta_states->d_delta_var, n_in);
+        print_magnitude_stats("d_in", h_mu, h_var);
+        if (state_udapte) {
+            d2h_lin(h_mu, cu_output_delta_states->d_delta_mu, n_out);
+            d2h_lin(h_var, cu_output_delta_states->d_delta_var, n_out);
+            print_magnitude_stats("d_out", h_mu, h_var);
         }
     }
 }

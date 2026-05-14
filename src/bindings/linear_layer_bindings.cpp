@@ -16,6 +16,8 @@ void bind_linear_layer(pybind11::module_& modo)
         .def_readwrite("gain_w", &Linear::gain_w)
         .def_readwrite("gain_b", &Linear::gain_b)
         .def_readwrite("init_method", &Linear::init_method)
+        .def_readwrite("debug", &Linear::debug)
+        .def_readwrite("debug_interval", &Linear::debug_interval)
         .def("init_weight_bias", &Linear::init_weight_bias)
         .def("forward", &Linear::forward)
         .def("state_backward", &Linear::backward);

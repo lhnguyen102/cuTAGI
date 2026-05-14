@@ -822,6 +822,9 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
     attn_states.j_mqk = remax_output.jcb;
 
     if (fire) {
+        print_magnitude_stats("remax.M", remax_layer->mu_m, remax_layer->var_m);
+        print_magnitude_stats("remax.logM", remax_layer->mu_log_m,
+                              remax_layer->var_log_m);
         if (this->use_causal_mask) {
             print_magnitude_stats_causal("att_score", attn_states.mu_att_score,
                                          attn_states.var_att_score, batch_size,
@@ -964,6 +967,16 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                 batch_seq_len, this->num_threads, this->delta_mu_b,
                 this->delta_var_b);
         }
+    }
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[attn-diag] MHA backward step=%d\n", prev_step);
+        print_magnitude_stats("dW_qkv", this->delta_mu_w, this->delta_var_w);
+        print_magnitude_stats("d_in_proj", attn_delta_states.delta_mu_in_proj,
+                              attn_delta_states.delta_var_in_proj);
     }
 }
 

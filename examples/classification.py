@@ -13,7 +13,7 @@ from tqdm import tqdm
 import pytagi
 from examples.data_loader import MnistDataLoader
 from examples.param_stat_table import ParamStatTable, WandBLogger
-from pytagi import HRCSoftmaxMetric
+from pytagi import HRCSoftmaxMetric, Utils
 from pytagi.nn import (
     AvgPool2d,
     BatchNorm2d,
@@ -116,6 +116,7 @@ def main(
 
     # Visual tool
     param_stat = ParamStatTable()
+    utils = Utils()
 
     if is_tracking:
         wandb_logger = WandBLogger(
@@ -201,6 +202,13 @@ def main(
             error_rate = metric.error_rate(m_pred, v_pred, label)
             error_rates.append(error_rate)
 
+            # # Get probability
+            # _, prob = utils.get_errors(
+            #     m_pred, v_pred, label, metric.num_classes, batch_size
+            # )
+            # prob_2d = np.asarray(prob).reshape(batch_size, metric.num_classes)
+            # print(prob_2d.sum(axis=1))
+
         # Averaged error
         avg_error_rate = sum(error_rates[-100:])
 
@@ -223,6 +231,13 @@ def main(
             pred = metric.get_predicted_labels(m_pred, v_pred)
             correct += np.sum(pred == label)
             num_samples += len(label)
+
+            # # Get probability
+            # _, prob = utils.get_errors(
+            #     m_pred, v_pred, label, metric.num_classes, batch_size
+            # )
+            # prob_2d = np.asarray(prob).reshape(batch_size, metric.num_classes)
+            # print(prob_2d.sum(axis=1))
 
         test_error_rate = (1.0 - correct / num_samples) * 100
         pbar.set_description(

@@ -1,9 +1,33 @@
 #include "../include/base_output_updater.h"
 
+#include "../include/attention.h"
 #include "../include/custom_logger.h"
 #ifdef USE_CUDA
+#include "../include/data_struct_cuda.cuh"
 #include "../include/output_updater_cuda.cuh"
 #endif
+
+namespace {
+void compute_kalman_diagnostics(
+    const std::vector<float>& mu_a, const std::vector<float>& var_a,
+    const std::vector<float>& mu_obs, const std::vector<float>& var_obs,
+    const std::vector<int>& selected_idx, int n_obs, int n_enc,
+    std::vector<float>& mu_a_sel, std::vector<float>& var_a_sel,
+    std::vector<float>& residual, std::vector<float>& denom) {
+    int n = selected_idx.size();
+    mu_a_sel.resize(n);
+    var_a_sel.resize(n);
+    residual.resize(n);
+    denom.resize(n);
+    for (int col = 0; col < n; col++) {
+        int idx = selected_idx[col] + (col / n_enc) * n_obs - 1;
+        mu_a_sel[col] = mu_a[idx];
+        var_a_sel[col] = var_a[idx];
+        residual[col] = mu_obs[col] - mu_a[idx];
+        denom[col] = var_a[idx] + var_obs[col];
+    }
+}
+}  // namespace
 
 void compute_delta_z_output(std::vector<float>& mu_a, std::vector<float>& var_a,
                             std::vector<float>& jcb, std::vector<float>& obs,
@@ -360,7 +384,8 @@ void OutputUpdater::update(BaseHiddenStates& output_states,
     this->obs->set_obs(mu_obs, var_obs);
     this->obs->block_size = output_states.block_size;
     this->obs->size = mu_obs.size();
-    this->obs->actual_size = mu_obs.size() / output_states.block_size;
+    this->obs->actual_size =
+        mu_obs.size() / (output_states.block_size * output_states.seq_len);
 
     this->updater->update_output_delta_z(output_states, *this->obs,
                                          delta_states);
@@ -388,6 +413,54 @@ void OutputUpdater::update_using_indices(BaseHiddenStates& output_states,
 
     this->updater->update_selected_output_delta_z(output_states, *this->obs,
                                                   delta_states);
+
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        int n_obs_per_token = output_states.actual_size;
+        int eff_batch = output_states.block_size * output_states.seq_len;
+        int n_enc = selected_idx.size() / eff_batch;
+        std::vector<float> h_mu_a, h_var_a, h_dmu, h_dvar;
+        const std::vector<float>* p_mu_a = &output_states.mu_a;
+        const std::vector<float>* p_var_a = &output_states.var_a;
+        const std::vector<float>* p_dmu = &delta_states.delta_mu;
+        const std::vector<float>* p_dvar = &delta_states.delta_var;
+#ifdef USE_CUDA
+        if (this->device == "cuda") {
+            size_t n_a = (size_t)eff_batch * n_obs_per_token;
+            auto* cu_o = dynamic_cast<HiddenStateCuda*>(&output_states);
+            auto* cu_d = dynamic_cast<DeltaStateCuda*>(&delta_states);
+            h_mu_a.resize(n_a);
+            h_var_a.resize(n_a);
+            h_dmu.resize(n_a);
+            h_dvar.resize(n_a);
+            cudaMemcpy(h_mu_a.data(), cu_o->d_mu_a, n_a * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_var_a.data(), cu_o->d_var_a, n_a * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_dmu.data(), cu_d->d_delta_mu, n_a * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_dvar.data(), cu_d->d_delta_var, n_a * sizeof(float),
+                       cudaMemcpyDeviceToHost);
+            p_mu_a = &h_mu_a;
+            p_var_a = &h_var_a;
+            p_dmu = &h_dmu;
+            p_dvar = &h_dvar;
+        }
+#endif
+        std::vector<float> mu_a_sel, var_a_sel, residual, denom;
+        compute_kalman_diagnostics(*p_mu_a, *p_var_a, mu_obs, var_obs,
+                                   selected_idx, n_obs_per_token, n_enc,
+                                   mu_a_sel, var_a_sel, residual, denom);
+        std::printf("[out-diag] OutputUpdater step=%d (n_obs=%d, n_enc=%d)\n",
+                    this->_debug_step, n_obs_per_token, n_enc);
+        print_magnitude_stats("mu_a[idx]", mu_a_sel, var_a_sel);
+        print_magnitude_stats("obs", mu_obs, var_obs);
+        print_magnitude_stats("y-mu_a", residual, residual);
+        print_magnitude_stats("denom", denom, denom);
+        print_magnitude_stats("delta_mu", *p_dmu, *p_dvar);
+    }
+    this->_debug_step++;
 }
 
 void OutputUpdater::update_heteros(BaseHiddenStates& output_states,

@@ -415,6 +415,12 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
 
     if (fire) {
         std::vector<float> h_mu, h_var;
+        d2h(h_mu, remax_layer->d_mu_m, qk);
+        d2h(h_var, remax_layer->d_var_m, qk);
+        print_magnitude_stats("remax.M", h_mu, h_var);
+        d2h(h_mu, remax_layer->d_mu_log_m, qk);
+        d2h(h_var, remax_layer->d_var_log_m, qk);
+        print_magnitude_stats("remax.logM", h_mu, h_var);
         d2h(h_mu, attn_states.d_mu_att_score, qk);
         d2h(h_var, attn_states.d_var_att_score, qk);
         if (this->use_causal_mask) {
@@ -583,6 +589,22 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
                 this->d_delta_var_b);
         }
     }
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::vector<float> h_mu, h_var;
+        std::printf("[attn-diag] MHACuda backward step=%d\n", prev_step);
+        d2h(h_mu, this->d_delta_mu_w, this->num_weights);
+        d2h(h_var, this->d_delta_var_w, this->num_weights);
+        print_magnitude_stats("dW_qkv", h_mu, h_var);
+        d2h(h_mu, d_in_proj_buffer.d_delta_mu, (size_t)batch_seq * qkv_output);
+        d2h(h_var, d_in_proj_buffer.d_delta_var,
+            (size_t)batch_seq * qkv_output);
+        print_magnitude_stats("d_in_proj", h_mu, h_var);
+    }
+
     CHECK_LAST_CUDA_ERROR();
 }
 

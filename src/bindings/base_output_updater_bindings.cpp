@@ -23,5 +23,7 @@ void bind_output_updater(pybind11::module_& modo)
              pybind11::arg("output_states"), pybind11::arg("mu_obs"),
              pybind11::arg("delta_states"),
              "Updates the output given heteroscedastic noise.")
-        .def_readwrite("device", &OutputUpdater::device);
+        .def_readwrite("device", &OutputUpdater::device)
+        .def_readwrite("debug", &OutputUpdater::debug)
+        .def_readwrite("debug_interval", &OutputUpdater::debug_interval);
 }

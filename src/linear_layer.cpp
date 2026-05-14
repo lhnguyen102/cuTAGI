@@ -1,5 +1,6 @@
 #include "../include/linear_layer.h"
 
+#include "../include/attention.h"
 #include "../include/common.h"
 #include "../include/custom_logger.h"
 
@@ -560,6 +561,18 @@ void Linear::forward(BaseHiddenStates &input_states,
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
+
+    bool fire = this->debug &&
+                (this->_debug_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[lin-diag] Linear forward step=%d (in=%zu, out=%zu)\n",
+                    this->_debug_step, this->input_size, this->output_size);
+        print_magnitude_stats("W", this->mu_w, this->var_w);
+        if (this->bias) print_magnitude_stats("b", this->mu_b, this->var_b);
+        print_magnitude_stats("in", input_states.mu_a, input_states.var_a);
+        print_magnitude_stats("out", output_states.mu_a, output_states.var_a);
+    }
+    this->_debug_step++;
 }
 
 void Linear::backward(BaseDeltaStates &input_delta_states,
@@ -624,6 +637,23 @@ void Linear::backward(BaseDeltaStates &input_delta_states,
             }
         }
     }
+
+    int prev_step = this->_debug_step - 1;
+    bool fire = this->debug && prev_step >= 0 &&
+                (prev_step % std::max(1, this->debug_interval) == 0);
+    if (fire) {
+        std::printf("[lin-diag] Linear backward step=%d (in=%zu, out=%zu)\n",
+                    prev_step, this->input_size, this->output_size);
+        print_magnitude_stats("dW", this->delta_mu_w, this->delta_var_w);
+        if (this->bias)
+            print_magnitude_stats("db", this->delta_mu_b, this->delta_var_b);
+        print_magnitude_stats("d_in", input_delta_states.delta_mu,
+                              input_delta_states.delta_var);
+        if (state_udapte) {
+            print_magnitude_stats("d_out", output_delta_states.delta_mu,
+                                  output_delta_states.delta_var);
+        }
+    }
 }
 
 #ifdef USE_CUDA
@@ -633,6 +663,8 @@ std::unique_ptr<BaseLayer> Linear::to_cuda(int device_idx) {
     auto cuda_layer = std::make_unique<LinearCuda>(
         this->input_size, this->output_size, this->bias, this->gain_w,
         this->gain_b, this->init_method, this->device_idx);
+    cuda_layer->debug = this->debug;
+    cuda_layer->debug_interval = this->debug_interval;
 
     // Move params from this->layer to cuda_layer
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
