@@ -207,6 +207,12 @@ def build_mingpt(
                     ),
                     ffn_lin1,
                     ReLU(),
+                    Linear(ffn_hidden, ffn_hidden, bias=False),
+                    ReLU(),
+                    Linear(ffn_hidden, ffn_hidden, bias=False),
+                    ReLU(),
+                    Linear(ffn_hidden, ffn_hidden, bias=False),
+                    ReLU(),
                     ffn_lin2,
                 )
             )
@@ -228,17 +234,17 @@ def build_mingpt(
 
 
 def main(
-    num_epochs: int = 40,
+    num_epochs: int = 400,
     batch_size: int = 32,
     seq_len: int = 64,
     embed_dim: int = 256,
     num_heads: int = 4,
     num_layers: int = 1,
-    ffn_hidden: int = 512,
+    ffn_hidden: int = 2048,
     steps_per_epoch: int = 200,
     sigma_v: float = 10.0,
-    sigma_v_min: float = 8.0,
-    decay_factor: float = 0.95,
+    sigma_v_min: float = 2.0,
+    decay_factor: float = 0.96,
     max_new_tokens: int = 200,
     gen_sigma_v: float = 0.3,
     network: str = "mingpt",

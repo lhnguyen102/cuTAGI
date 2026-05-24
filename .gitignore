@@ -20,6 +20,8 @@ data/traffic
 data/imagenet
 data/translation/
 data/shakespeare/
+logs/
+scripts/sync_to_server.sh
 
 test_model/
 wandb/

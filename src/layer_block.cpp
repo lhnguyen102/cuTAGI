@@ -156,24 +156,19 @@ void LayerBlock::forward(BaseHiddenStates &input_states,
 /*
  */
 {
-    // Cast input and outputs objects to pointers for  an efficient loop
-    // swapping. It avoids swapping each members in their objects
     BaseHiddenStates *casted_input_states =
         dynamic_cast<BaseHiddenStates *>(&input_states);
     BaseHiddenStates *casted_output_states =
         dynamic_cast<BaseHiddenStates *>(&output_states);
 
-    // Forward pass for all layers
     int batch_size = input_states.block_size;
     int seq_len = input_states.seq_len;
     int num_layers = this->layers.size();
 
     for (int i = 0; i < num_layers; ++i) {
         auto *current_layer = this->layers[i].get();
-
         current_layer->forward(*casted_input_states, *casted_output_states,
                                temp_states);
-
         std::swap(casted_input_states, casted_output_states);
     }
 
@@ -196,29 +191,23 @@ void LayerBlock::backward(BaseDeltaStates &input_delta_states,
 /*
  */
 {
-    // Hidden layers
     for (auto layer = this->layers.rbegin(); layer != this->layers.rend() - 1;
          ++layer) {
         auto *current_layer = layer->get();
-
-        // Backward pass for hidden states
         current_layer->backward(input_delta_states, output_delta_states,
                                 temp_states);
-
-        // Pass new input data for next iteration
         if (current_layer->get_layer_type() != LayerType::Activation) {
             input_delta_states.swap(output_delta_states);
         }
     }
 
-    // State update for input layer
-    if (state_update && this->layers.size() > 1) {
+    if (state_update) {
         this->layers[0]->backward(input_delta_states, output_delta_states,
                                   temp_states, state_update);
     }
 
     if (this->layers[0]->get_layer_type() == LayerType::Activation ||
-        !state_update || this->layers.size() == 1) {
+        !state_update) {
         output_delta_states.swap(input_delta_states);
     }
     output_delta_states.seq_len = input_delta_states.seq_len;

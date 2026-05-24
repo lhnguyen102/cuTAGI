@@ -19,6 +19,8 @@ class Linear(BaseLayer):
         gain_weight: float = 1.0,
         gain_bias: float = 1.0,
         init_method: str = "He",
+        debug: bool = False,
+        debug_interval: int = 200,
     ):
         """
         Initializes the Linear layer.
@@ -37,6 +39,10 @@ class Linear(BaseLayer):
             init_method: The method used for initializing the weights and
                          biases (e.g., "He", "Xavier", "Normal"). Defaults
                          to "He".
+            debug: If True, enable C++ debug prints for this layer's
+                   forward/backward. Defaults to False.
+            debug_interval: How often (in steps) to print debug info when
+                            `debug=True`. Defaults to 200.
         """
         super().__init__()
 
@@ -50,6 +56,8 @@ class Linear(BaseLayer):
         self._cpp_backend = cutagi.Linear(
             input_size, output_size, bias, gain_weight, gain_bias, init_method
         )
+        self._cpp_backend.debug = debug
+        self._cpp_backend.debug_interval = debug_interval
 
     def get_layer_info(self) -> str:
         """
