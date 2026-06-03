@@ -1,5 +1,6 @@
 #include "../include/embedding_cpu.h"
 
+#include "../include/attention.h"
 #include "../include/common.h"
 #include "../include/custom_logger.h"
 #include "../include/param_init.h"
@@ -177,6 +178,14 @@ void Embedding::forward(BaseHiddenStates &input_states,
     output_states.seq_len = this->input_size;
     output_states.actual_size = this->output_size;
 
+    if (this->debug &&
+        this->_debug_step % std::max(1, this->debug_interval) == 0) {
+        std::printf("[emb-diag] Embedding forward step=%d\n",
+                    this->_debug_step);
+        print_magnitude_stats("emb_table", this->mu_w, this->var_w);
+    }
+    this->_debug_step++;
+
     if (this->training) {
         this->storing_states_for_training(input_states, output_states);
     }
@@ -202,6 +211,8 @@ std::unique_ptr<BaseLayer> Embedding::to_cuda(int device_idx) {
     auto cuda_layer = std::make_unique<EmbeddingCuda>(
         this->num_embeddings, this->embedding_dim, this->input_size,
         this->scale, this->padding_idx, this->device_idx);
+    cuda_layer->debug = this->debug;
+    cuda_layer->debug_interval = this->debug_interval;
 
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);

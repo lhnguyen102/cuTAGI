@@ -47,6 +47,10 @@ class BaseLayer {
     float cap_factor_update = 1.0f;
     int neg_var_w_counter = 0;
     int device_idx = 0;
+    // Prior pull-back: nudge mu_w toward prior_mu by prior_pull each update
+    // (Bayesian weight-decay analogue). Disabled when prior_pull == 0.
+    float prior_pull = 0.0f;
+    float prior_mu = 0.0f;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;

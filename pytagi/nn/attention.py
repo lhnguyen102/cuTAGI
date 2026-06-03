@@ -25,6 +25,7 @@ class MultiheadAttention(BaseLayer):
         rope_theta: float = 10000.0,
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
+        prior_pull: float = 0.0,
         debug: bool = False,
         debug_interval: int = 1,
     ):
@@ -83,6 +84,7 @@ class MultiheadAttention(BaseLayer):
         )
         self._cpp_backend.debug = debug
         self._cpp_backend.debug_interval = debug_interval
+        self._cpp_backend.prior_pull = prior_pull  # prior_mu = 0 for W_qkv
 
     def get_layer_info(self) -> str:
         """

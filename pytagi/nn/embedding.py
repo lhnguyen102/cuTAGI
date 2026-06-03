@@ -25,6 +25,8 @@ class Embedding(BaseLayer):
         input_size: int = 0,
         scale: float = 1.0,
         padding_idx: int = -1,
+        debug: bool = False,
+        debug_interval: int = 1,
     ):
         """Initializes the Embedding layer."""
         super().__init__()
@@ -37,6 +39,8 @@ class Embedding(BaseLayer):
         self._cpp_backend = cutagi.Embedding(
             num_embeddings, embedding_dim, input_size, scale, padding_idx
         )
+        self._cpp_backend.debug = debug
+        self._cpp_backend.debug_interval = debug_interval
 
     def get_layer_info(self) -> str:
         """

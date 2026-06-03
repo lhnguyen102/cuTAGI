@@ -13,6 +13,8 @@ void bind_embedding(pybind11::module_& modo) {
         .def_readwrite("num_embeddings", &Embedding::num_embeddings)
         .def_readwrite("scale", &Embedding::scale)
         .def_readwrite("padding_idx", &Embedding::padding_idx)
+        .def_readwrite("debug", &Embedding::debug)
+        .def_readwrite("debug_interval", &Embedding::debug_interval)
         .def("init_weight_bias", &Embedding::init_weight_bias)
         .def("forward", &Embedding::forward)
         .def("state_backward", &Embedding::backward);

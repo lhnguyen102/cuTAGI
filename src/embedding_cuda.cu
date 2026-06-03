@@ -1,3 +1,4 @@
+#include "../include/attention.h"
 #include "../include/cuda_error_checking.cuh"
 #include "../include/custom_logger.h"
 #include "../include/embedding_cpu.h"
@@ -145,6 +146,19 @@ void EmbeddingCuda::forward(BaseHiddenStates &input_states,
     output_states.block_size = batch_size;
     output_states.seq_len = this->input_size;
     output_states.actual_size = this->output_size;
+
+    if (this->debug &&
+        this->_debug_step % std::max(1, this->debug_interval) == 0) {
+        std::printf("[emb-diag] EmbeddingCuda forward step=%d\n",
+                    this->_debug_step);
+        std::vector<float> h_mu(this->num_weights), h_var(this->num_weights);
+        cudaMemcpy(h_mu.data(), this->d_mu_w, this->num_weights * sizeof(float),
+                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_var.data(), this->d_var_w,
+                   this->num_weights * sizeof(float), cudaMemcpyDeviceToHost);
+        print_magnitude_stats("emb_table", h_mu, h_var);
+    }
+    this->_debug_step++;
 
     if (this->training) {
         this->store_states_for_training_cuda(*cu_input_states,

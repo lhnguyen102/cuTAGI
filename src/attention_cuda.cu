@@ -872,6 +872,7 @@ void MultiheadAttentionV2Cuda::params_to_host() {
 __global__ void device_weight_update(float const *delta_mu_w,
                                      float const *delta_var_w,
                                      float cap_factor_udapte, size_t size,
+                                     float prior_pull, float prior_mu,
                                      float *mu_w, float *var_w,
                                      int *negative_var_count);
 __global__ void device_bias_update(float const *delta_mu_b,
@@ -883,12 +884,15 @@ namespace {
 inline void capped_update_param(float *d_mu, float *d_var,
                                 const float *d_delta_mu,
                                 const float *d_delta_var, size_t n,
-                                float cap_factor, int *d_neg_count, bool is_w) {
+                                float cap_factor, int *d_neg_count, bool is_w,
+                                float prior_pull = 0.0f,
+                                float prior_mu = 0.0f) {
     constexpr int THR = 256;
     unsigned int blk = (n + THR - 1) / THR;
     if (is_w) {
         device_weight_update<<<blk, THR>>>(d_delta_mu, d_delta_var, cap_factor,
-                                           n, d_mu, d_var, d_neg_count);
+                                           n, prior_pull, prior_mu, d_mu, d_var,
+                                           d_neg_count);
     } else {
         device_bias_update<<<blk, THR>>>(d_delta_mu, d_delta_var, cap_factor, n,
                                          d_mu, d_var);

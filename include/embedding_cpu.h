@@ -38,6 +38,9 @@ class Embedding : public BaseLayer {
     int num_embeddings;
     float scale;
     int padding_idx;
+    bool debug = false;
+    int debug_interval = 1;
+    int _debug_step = 0;
 
     Embedding(int num_embeddings, int embedding_dim, int input_size,
               float scale = 1.0f, int padding_idx = -1, int device_idx = 0);

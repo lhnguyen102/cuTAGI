@@ -16,6 +16,7 @@ class RMSNorm(BaseLayer):
         normalized_shape: List[int],
         eps: float = 1e-5,
         gain_w: float = 1.0,
+        prior_pull: float = 0.0,
         debug: bool = False,
         debug_interval: int = 1,
     ):
@@ -38,6 +39,8 @@ class RMSNorm(BaseLayer):
         self._cpp_backend = cutagi.RMSNorm(normalized_shape, eps, gain_w)
         self._cpp_backend.debug = debug
         self._cpp_backend.debug_interval = debug_interval
+        self._cpp_backend.prior_pull = prior_pull
+        self._cpp_backend.prior_mu = 1.0  # RMSNorm gain prior is 1.0
 
     @property
     def debug(self) -> bool:

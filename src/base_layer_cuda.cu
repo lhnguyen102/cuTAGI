@@ -56,6 +56,7 @@ __global__ void device_raw_bias_update(float const *delta_mu_b,
 __global__ void device_weight_update(float const *delta_mu_w,
                                      float const *delta_var_w,
                                      float cap_factor_udapte, size_t size,
+                                     float prior_pull, float prior_mu,
                                      float *mu_w, float *var_w,
                                      int *negative_var_count)
 /*
@@ -71,6 +72,9 @@ __global__ void device_weight_update(float const *delta_mu_w,
         delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
 
         mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
+        if (prior_pull > 0.0f) {
+            mu_w[col] += prior_pull * (prior_mu - mu_w[col]);
+        }
         var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
         if (var_w[col] <= 0.0f) {
             var_w[col] = 1E-5f;
@@ -176,7 +180,8 @@ void BaseLayerCuda::update_weights()
 
     device_weight_update<<<blocks, num_add_threads>>>(
         this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
-        this->num_weights, this->d_mu_w, this->d_var_w, this->d_neg_var_count);
+        this->num_weights, this->prior_pull, this->prior_mu, this->d_mu_w,
+        this->d_var_w, this->d_neg_var_count);
 
     err = cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count,
                      sizeof(int), cudaMemcpyDeviceToHost);
@@ -493,6 +498,8 @@ void BaseLayerCuda::copy_params_from(const BaseLayer &source) {
     this->var_w = source.var_w;
     this->mu_b = source.mu_b;
     this->var_b = source.var_b;
+    this->prior_pull = source.prior_pull;
+    this->prior_mu = source.prior_mu;
 
     this->params_to_device();
 }

@@ -129,6 +129,10 @@ void BaseLayer::update_weights()
 
         this->mu_w[i] +=
             delta_mu_sign * std::min(std::abs(delta_mu_w[i]), delta_bar);
+        if (this->prior_pull > 0.0f) {
+            this->mu_w[i] +=
+                this->prior_pull * (this->prior_mu - this->mu_w[i]);
+        }
         this->var_w[i] +=
             delta_var_sign * std::min(std::abs(delta_var_w[i]), delta_bar);
         if (var_w[i] <= 0.0f) {
