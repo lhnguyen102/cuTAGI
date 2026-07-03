@@ -51,7 +51,7 @@ jobs:
           activate-environment: cuda-install
 
       - name: Install CUDA Toolkit
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: conda install -y cuda -c nvidia/label/cuda-${{ matrix.cuda }}
 
       - name: Install NCCL
@@ -62,13 +62,13 @@ jobs:
           sudo apt install -y libnccl2=${{ matrix.nccl }}-1+cuda${{ matrix.cuda_nccl }} libnccl-dev=${{ matrix.nccl }}-1+cuda${{ matrix.cuda_nccl }}
 
       - name: Install build dependencies (setuptools, wheel)
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
-          pip install --upgrade pip
-          pip install setuptools==75.3.0 wheel==0.44.0 ninja==1.11.1.1
+          python -m pip install --upgrade pip
+          python -m pip install setuptools==75.5.0 wheel==0.44.0 ninja==1.11.1.2
 
       - name: Build wheels
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: python setup.py bdist_wheel --plat-name=manylinux2014_x86_64
 
       - uses: actions/upload-artifact@v4
