@@ -3,6 +3,27 @@ import cutagi
 from pytagi.nn.base_layer import BaseLayer
 
 
+def _validate_attention_config(
+    embed_dim: int, num_heads: int, num_kv_heads: int, pos_emb: str
+):
+    """Reject configurations the C++/CUDA attention kernels do not support."""
+    if num_kv_heads != num_heads:
+        raise ValueError(
+            "Grouped-query attention is not supported: num_kv_heads "
+            f"({num_kv_heads}) must equal num_heads ({num_heads})"
+        )
+    if embed_dim % num_heads != 0:
+        raise ValueError(
+            f"embed_dim ({embed_dim}) must be divisible by num_heads "
+            f"({num_heads})"
+        )
+    if pos_emb == "rope" and (embed_dim // num_heads) % 2 != 0:
+        raise ValueError(
+            f"RoPE requires an even head_dim: got {embed_dim // num_heads} "
+            f"(embed_dim={embed_dim}, num_heads={num_heads})"
+        )
+
+
 class MultiheadAttention(BaseLayer):
     """
     Implements a **Multi-head Attention layer** with uncertainty quantification.
@@ -26,6 +47,7 @@ class MultiheadAttention(BaseLayer):
         max_seq_len: int = 2048,
         use_causal_mask: bool = True,
         prior_pull: float = 0.0,
+        center_score_delta: bool = False,
         debug: bool = False,
         debug_interval: int = 1,
     ):
@@ -54,6 +76,7 @@ class MultiheadAttention(BaseLayer):
 
         if num_kv_heads is None:
             num_kv_heads = num_heads
+        _validate_attention_config(embed_dim, num_heads, num_kv_heads, pos_emb)
 
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -85,6 +108,7 @@ class MultiheadAttention(BaseLayer):
         self._cpp_backend.debug = debug
         self._cpp_backend.debug_interval = debug_interval
         self._cpp_backend.prior_pull = prior_pull  # prior_mu = 0 for W_qkv
+        self._cpp_backend.center_score_delta = center_score_delta
 
     def get_layer_info(self) -> str:
         """
@@ -148,6 +172,7 @@ class MultiheadAttentionV2(BaseLayer):
 
         if num_kv_heads is None:
             num_kv_heads = num_heads
+        _validate_attention_config(embed_dim, num_heads, num_kv_heads, pos_emb)
 
         self.embed_dim = embed_dim
         self.num_heads = num_heads

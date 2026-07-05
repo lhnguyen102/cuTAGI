@@ -248,6 +248,22 @@ __global__ void mha_delta_score_kernel(const float *mu_v, const float *delta_mu,
     delta_var_s[idx] = sum_var;
 }
 
+// Remax cross-covariance correction: d[q,k] -= sum_l a[q,l] * d[q,l] per row.
+__global__ void center_delta_score_kernel(const float *mu_att,
+                                          float *delta_mu_s, int num_rows,
+                                          int timestep) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= num_rows) return;
+    int base = row * timestep;
+    float sum = 0.0f;
+    for (int k = 0; k < timestep; k++) {
+        sum += mu_att[base + k] * delta_mu_s[base + k];
+    }
+    for (int k = 0; k < timestep; k++) {
+        delta_mu_s[base + k] -= sum;
+    }
+}
+
 __global__ void mha_delta_value_kernel(const float *mu_s, const float *delta_mu,
                                        const float *delta_var, int batch_size,
                                        int num_heads, int timestep,

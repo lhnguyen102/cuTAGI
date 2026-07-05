@@ -510,6 +510,13 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
         head_dim, attn_delta_states.d_delta_mu_att_score,
         attn_delta_states.d_delta_var_att_score);
 
+    if (this->center_score_delta) {
+        int num_rows = batch_size * num_heads * timestep;
+        center_delta_score_kernel<<<blocks_for(num_rows), THREADS>>>(
+            attn_states.d_mu_att_score, attn_delta_states.d_delta_mu_att_score,
+            num_rows, timestep);
+    }
+
     // delta_q, delta_k (rope or non-rope path).
     if (need_pe) {
         mha_delta_query_kernel<<<blocks_for((int)comp), THREADS>>>(

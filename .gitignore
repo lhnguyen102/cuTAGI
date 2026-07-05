@@ -20,8 +20,11 @@ data/traffic
 data/imagenet
 data/translation/
 data/shakespeare/
+data/openwebtext/
+data/fineweb/*.bin
 logs/
 scripts/sync_to_server.sh
+ckpt/
 
 test_model/
 wandb/

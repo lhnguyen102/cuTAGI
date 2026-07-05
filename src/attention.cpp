@@ -892,6 +892,22 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
 
+    if (this->center_score_delta) {
+        int timestep = (int)this->seq_len;
+        int num_rows = batch_size * (int)this->num_heads * timestep;
+        for (int r = 0; r < num_rows; r++) {
+            int base = r * timestep;
+            float sum = 0.0f;
+            for (int k = 0; k < timestep; k++) {
+                sum += attn_states.mu_att_score[base + k] *
+                       attn_delta_states.delta_mu_att_score[base + k];
+            }
+            for (int k = 0; k < timestep; k++) {
+                attn_delta_states.delta_mu_att_score[base + k] -= sum;
+            }
+        }
+    }
+
     if (this->pos_emb == "rope") {
         mha_delta_query(attn_states.var_q, attn_states.mu_k_pe,
                         attn_delta_states.delta_mu_att_score,
@@ -1003,6 +1019,7 @@ std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
         this->use_causal_mask, device_idx);
     cuda_layer->debug = this->debug;
     cuda_layer->debug_interval = this->debug_interval;
+    cuda_layer->center_score_delta = this->center_score_delta;
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);
     return cuda_layer;

@@ -168,6 +168,7 @@ class MultiheadAttention : public BaseLayer {
     bool debug = false;
     int debug_interval = 1;
     int _debug_step = 0;
+    bool center_score_delta = false;
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
     std::vector<float> pe_cache;

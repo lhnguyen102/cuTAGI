@@ -23,6 +23,8 @@ void bind_attention_layer(pybind11::module_& modo) {
         .def_readwrite("init_method", &MultiheadAttention::init_method)
         .def_readwrite("debug", &MultiheadAttention::debug)
         .def_readwrite("debug_interval", &MultiheadAttention::debug_interval)
+        .def_readwrite("center_score_delta",
+                       &MultiheadAttention::center_score_delta)
         .def("init_weight_bias", &MultiheadAttention::init_weight_bias)
         .def("forward", &MultiheadAttention::forward)
         .def("state_backward", &MultiheadAttention::backward);
