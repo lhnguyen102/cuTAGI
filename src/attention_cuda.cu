@@ -886,6 +886,7 @@ __global__ void device_bias_update(float const *delta_mu_b,
                                    float const *delta_var_b,
                                    float cap_factor_udapte, size_t size,
                                    float *mu_b, float *var_b);
+__global__ void device_var_decay(float shrink, size_t size, float *var_w);
 
 namespace {
 inline void capped_update_param(float *d_mu, float *d_var,
@@ -924,6 +925,24 @@ void MultiheadAttentionV2Cuda::update_weights() {
                         this->d_neg_var_count, true);
     cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count, sizeof(int),
                cudaMemcpyDeviceToHost);
+    CHECK_LAST_CUDA_ERROR();
+}
+
+void MultiheadAttentionV2Cuda::apply_var_decay() {
+    float shrink = this->next_var_decay_factor();
+    if (shrink == 1.0f) {
+        return;
+    }
+    cudaSetDevice(this->device_idx);
+    constexpr int THR = 256;
+    const std::pair<float *, size_t> tensors[] = {{d_var_w_q, num_weights_q},
+                                                  {d_var_w_k, num_weights_k},
+                                                  {d_var_w_v, num_weights_v}};
+    for (const auto &t : tensors) {
+        if (t.second == 0) continue;
+        unsigned int blk = (t.second + THR - 1) / THR;
+        device_var_decay<<<blk, THR>>>(shrink, t.second, t.first);
+    }
     CHECK_LAST_CUDA_ERROR();
 }
 

@@ -48,6 +48,8 @@ class BaseLayerCuda : public BaseLayer {
 
     void raw_update_biases() override;
 
+    void apply_var_decay() override;
+
     virtual void set_cuda_threads(int);
 
     virtual std::unique_ptr<BaseLayer> to_host();

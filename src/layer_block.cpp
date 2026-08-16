@@ -222,6 +222,24 @@ void LayerBlock::update_weights()
     }
 }
 
+void LayerBlock::set_var_decay(float tau)
+/*
+ */
+{
+    for (const auto &layer : this->layers) {
+        layer->set_var_decay(tau);
+    }
+}
+
+void LayerBlock::apply_var_decay()
+/*
+ */
+{
+    for (const auto &layer : this->layers) {
+        layer->apply_var_decay();
+    }
+}
+
 void LayerBlock::update_biases()
 /*
  */

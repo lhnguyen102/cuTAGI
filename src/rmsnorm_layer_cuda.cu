@@ -210,7 +210,7 @@ void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
     }
 }
 
-void RMSNormCuda::update_weights() { this->raw_update_weights(); }
+void RMSNormCuda::update_weights() { BaseLayerCuda::update_weights(); }
 
 std::unique_ptr<BaseLayer> RMSNormCuda::to_host() {
     auto host = std::make_unique<RMSNorm>(this->normalized_shape, this->epsilon,

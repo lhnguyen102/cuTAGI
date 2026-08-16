@@ -1220,6 +1220,18 @@ void MultiheadAttentionV2::update_weights() {
                   this->cap_factor_update);
 }
 
+void MultiheadAttentionV2::apply_var_decay() {
+    float shrink = this->next_var_decay_factor();
+    if (shrink == 1.0f) {
+        return;
+    }
+    for (auto *v : {&var_w_q, &var_w_k, &var_w_v}) {
+        for (int i = 0; i < v->size(); i++) {
+            (*v)[i] *= shrink;
+        }
+    }
+}
+
 void MultiheadAttentionV2::update_biases() {
     if (this->bias) {
         capped_update(mu_b_q, var_b_q, delta_mu_b_q, delta_var_b_q,

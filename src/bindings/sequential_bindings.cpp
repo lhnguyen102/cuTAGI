@@ -46,6 +46,9 @@ void bind_sequential(pybind11::module_& m) {
         .def("params_to_host", &Sequential::params_to_host)
         .def("params_to_device", &Sequential::params_to_device)
         .def("set_threads", &Sequential::set_threads)
+        .def("set_var_decay", &Sequential::set_var_decay, pybind11::arg("tau"),
+             pybind11::arg("skip_output_layer") = true,
+             pybind11::arg("skip_first_layer") = false)
         .def("train", &Sequential::train)
         .def("eval", &Sequential::eval)
         .def("forward", &Sequential::forward_py)

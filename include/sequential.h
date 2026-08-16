@@ -112,6 +112,9 @@ class Sequential {
 
     void step();
 
+    void set_var_decay(float tau, bool skip_output_layer = true,
+                       bool skip_first_layer = false);
+
     void reset_lstm_states();
 
     // Utility function to get layer stack info

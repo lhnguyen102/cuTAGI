@@ -449,7 +449,7 @@ void RMSNorm::update_weights()
 /*
  */
 {
-    this->raw_update_weights();
+    BaseLayer::update_weights();
 }
 
 #ifdef USE_CUDA

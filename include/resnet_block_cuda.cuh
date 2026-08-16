@@ -120,6 +120,10 @@ class ResNetBlockCuda : public BaseLayerCuda {
                   bool state_update = true) override;
 
     void update_weights() override;
+
+    void set_var_decay(float tau) override;
+
+    void apply_var_decay() override;
     void update_biases() override;
 
     void save(std::ofstream &file) override;

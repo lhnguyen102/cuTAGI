@@ -45,20 +45,21 @@ def get_batch(split: str, batch_size: int, seq_len: int):
 
 
 def sampled_metrics(utils, hrc, m_pred, v_pred, labels, obs_scale, num_samples):
+    """CE loss and error rate on a random subset of positions. Computing the
+    full 50k-class probability for every position is too expensive."""
     n = len(labels)
     m = np.asarray(m_pred).reshape(n, hrc.len) / obs_scale
     v = np.asarray(v_pred).reshape(n, hrc.len) / (obs_scale**2)
     idx = np.random.choice(n, size=min(num_samples, n), replace=False)
-    ce, correct, prob_sum = 0.0, 0, 0.0
+    ce, correct = 0.0, 0
     for i in idx:
         probs = np.asarray(
             utils.obs_to_label_prob(m[i], v[i], hrc, VOCAB_SIZE)
         ).reshape(-1)
-        prob_sum += float(probs.sum())
         probs = probs / probs.sum()
         ce -= np.log(max(probs[labels[i]], 1e-9))
         correct += int(np.argmax(probs) == labels[i])
-    return ce / len(idx), 1.0 - correct / len(idx), prob_sum / len(idx)
+    return ce / len(idx), 1.0 - correct / len(idx)
 
 
 def build_mingpt(
@@ -73,7 +74,6 @@ def build_mingpt(
     gain_w_rms: float = 5.0,
     embed_scale: float = 0.15,
     prior_pull: float = 0.0,
-    center_score_delta: bool = False,
     debug: bool = False,
     debug_interval: int = 200,
 ) -> Sequential:
@@ -105,11 +105,11 @@ def build_mingpt(
                         seq_len=seq_len,
                         bias=False,
                         gain_weight=qkv_gain,
+                        gain_bias=1.0,
                         init_method="He",
                         pos_emb="rope",
                         use_causal_mask=True,
                         prior_pull=prior_pull,
-                        center_score_delta=center_score_delta,
                         debug=debug,
                         debug_interval=debug_interval,
                     ),
@@ -172,25 +172,22 @@ def build_mingpt(
 
 
 def main(
-    seq_len: int = 64,
+    seq_len: int = 128,
     embed_dim: int = 768,
     num_heads: int = 8,
-    num_layers: int = 4,
-    ffn_hidden: int = 1024,
-    max_iters: int = 100_000,
-    batch_size: int = 16,
+    num_layers: int = 1,
+    ffn_hidden: int = 2048,
+    max_iters: int = 200_000,
+    batch_size: int = 8,
     sigma_v: float = 10.0,
-    sigma_v_min: float = 4.0,
+    sigma_v_min: float = 2.0,
     decay_factor: float = 0.95,
     decay_interval: int = 200,
-    obs_scale: float = 3.0,
-    qkv_gain: float = 1.0,
-    gain_w_rms: float = 1.0,
+    obs_scale: float = 2.0,
+    qkv_gain: float = 0.25,
+    gain_w_rms: float = 5.0,
     embed_scale: float = 0.15,
-    prior_pull: float = 0.0,
-    var_decay_tau: float = 0.0,
-    var_decay_skip_embedding: bool = False,
-    center_score_delta: bool = True,
+    prior_pull: float = 0.0005,
     eval_interval: int = 2000,
     eval_iters: int = 50,
     log_interval: int = 50,
@@ -199,7 +196,7 @@ def main(
     init_from: str = "scratch",
     eval_only: bool = False,
     max_new_tokens: int = 200,
-    debug: bool = True,
+    debug: bool = False,
     debug_interval: int = 50,
 ):
     """Train a TAGI GPT-2 on FineWeb (BPE token level)."""
@@ -225,15 +222,10 @@ def main(
         gain_w_rms=gain_w_rms,
         embed_scale=embed_scale,
         prior_pull=prior_pull,
-        center_score_delta=center_score_delta,
         debug=debug,
         debug_interval=debug_interval,
     )
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
-    if var_decay_tau > 0.0:
-        net.set_var_decay(
-            var_decay_tau, skip_first_layer=var_decay_skip_embedding
-        )
 
     os.makedirs(out_dir, exist_ok=True)
     ckpt_path = os.path.join(out_dir, "ckpt.bin")
@@ -242,8 +234,6 @@ def main(
         net.load(ckpt_path)
 
     out_updater = OutputUpdater(net.device)
-    out_updater._cpp_backend.debug = debug
-    out_updater._cpp_backend.debug_interval = debug_interval
     current_sigma_v = sigma_v
     var_y = np.full(
         (batch_size * seq_len * hrc.num_obs,),
@@ -253,30 +243,28 @@ def main(
 
     def estimate_loss():
         net.eval()
-        ces, errs, psums = [], [], []
+        ces, errs = [], []
         for _ in range(eval_iters):
             x, labels = get_batch("val", batch_size, seq_len)
             m_pred, v_pred = net(x)
-            ce, err, psum = sampled_metrics(
+            ce, err = sampled_metrics(
                 utils, hrc, m_pred, v_pred, labels, obs_scale, metric_samples
             )
             ces.append(ce)
             errs.append(err)
-            psums.append(psum)
         net.train()
-        return float(np.mean(ces)), float(np.mean(errs)), float(np.mean(psums))
+        return float(np.mean(ces)), float(np.mean(errs))
 
     best_val_loss = float("inf")
     losses = []
     error_rates = []
-    prob_sums = []
     pbar = tqdm(range(max_iters + 1), desc="Training")
     for iter_num in pbar:
         if iter_num % eval_interval == 0:
-            val_ce, val_err, val_psum = estimate_loss()
+            val_ce, val_err = estimate_loss()
             tqdm.write(
                 f"step {iter_num}: val ce {val_ce:.4f}, "
-                f"val error {val_err * 100:.2f}%, val psum {val_psum:.3f}"
+                f"val error {val_err * 100:.2f}%"
             )
             if val_ce < best_val_loss and iter_num > 0:
                 best_val_loss = val_ce
@@ -307,19 +295,16 @@ def main(
             var_y[:] = current_sigma_v**2
 
         if iter_num % log_interval == 0:
-            ce, err, psum = sampled_metrics(
+            ce, err = sampled_metrics(
                 utils, hrc, m_pred, v_pred, labels, obs_scale, metric_samples
             )
             losses.append(ce)
             error_rates.append(err)
-            prob_sums.append(psum)
             avg_loss = sum(losses[-100:]) / min(len(losses), 100)
             avg_error = sum(error_rates[-100:]) / min(len(error_rates), 100)
-            avg_psum = sum(prob_sums[-100:]) / min(len(prob_sums), 100)
             pbar.set_description(
                 f"Iter {iter_num}/{max_iters} | ce_loss: {avg_loss:.4f} | "
-                f"error: {avg_error * 100:.2f}% | psum: {avg_psum:.3f} | "
-                f"sigma_v: {current_sigma_v:.3f}"
+                f"error: {avg_error * 100:.2f}% | sigma_v: {current_sigma_v:.3f}"
             )
 
     # Generation sample

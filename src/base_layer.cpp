@@ -188,7 +188,44 @@ Returns:
         this->cap_factor_update = 2.0f;
     }
     if (batch_size >= 256) {
-        this->cap_factor_update = 3.0f;
+        // Trust region sigma/N per step. sigma/3 (former default) detonated
+        // ~3.9k; sigma/50 survived 8k at sigma_v_min=4 but detonated ~6k at
+        // sigma_v_min=3. Cap is selective (update bulk sits ~100x below the
+        // bound, only the bilinear Q/K drift rides it), so tightening buys
+        // fuse cheaply: 3 -> 50 cost 0.07 CE for 2x+ fuse. See
+        // ai_context/2026-08-02_torch_vs_tagi_attention_stability.md.
+        this->cap_factor_update = 50.0f;
+    }
+}
+
+void BaseLayer::set_var_decay(float tau)
+/*Set the timescale of the posterior variance decay.*/
+{
+    this->var_decay_tau = tau;
+    this->n_var_decay = 0;
+}
+
+float BaseLayer::next_var_decay_factor()
+/*Per-step multiplier realizing var_w(n) = var_w(0) / (1 + n / tau).*/
+{
+    if (this->var_decay_tau <= 0.0f) {
+        return 1.0f;
+    }
+    float n = static_cast<float>(this->n_var_decay);
+    this->n_var_decay++;
+    return (this->var_decay_tau + n) / (this->var_decay_tau + n + 1.0f);
+}
+
+void BaseLayer::apply_var_decay()
+/*
+ */
+{
+    float shrink = this->next_var_decay_factor();
+    if (shrink == 1.0f) {
+        return;
+    }
+    for (int i = 0; i < this->var_w.size(); i++) {
+        this->var_w[i] *= shrink;
     }
 }
 

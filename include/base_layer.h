@@ -44,13 +44,22 @@ class BaseLayer {
     size_t seq_len = 1;
     bool bias = true;
     bool param_update = true;
-    float cap_factor_update = 1.0f;
+    // Trust region: |delta_mu| per step is capped at sqrt(var)/cap_factor.
+    // 1.0 (one full prior std per step) never engages in practice and lets
+    // the bilinear attention delta loop run away; 50 mirrors the per-step
+    // budget of Adam at lr 3e-4 with sigma_init ~ 0.036.
+    float cap_factor_update = 50.0f;
     int neg_var_w_counter = 0;
     int device_idx = 0;
     // Prior pull-back: nudge mu_w toward prior_mu by prior_pull each update
     // (Bayesian weight-decay analogue). Disabled when prior_pull == 0.
     float prior_pull = 0.0f;
     float prior_mu = 0.0f;
+    // Posterior variance decay var_w(n) = var_w(0) / (1 + n / tau), applied as
+    // a per-step multiplier. Supplies the contraction that the backward pass
+    // delivers only to the output layer. Disabled when var_decay_tau == 0.
+    float var_decay_tau = 0.0f;
+    int n_var_decay = 0;
 
     std::vector<float> mu_w;
     std::vector<float> var_w;
@@ -116,6 +125,14 @@ class BaseLayer {
     virtual void raw_update_biases();
 
     virtual void set_cap_factor_udapte(int batch_size);
+
+    virtual void set_var_decay(float tau);
+
+    virtual void apply_var_decay();
+
+    // Returns the per-step multiplier and advances the observation counter.
+    // Returns 1.0 when the decay is disabled.
+    float next_var_decay_factor();
 
     virtual void set_threads(int num);
 

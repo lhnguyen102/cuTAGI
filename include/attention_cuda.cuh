@@ -234,6 +234,7 @@ class MultiheadAttentionV2Cuda : public BaseLayerCuda {
     void params_to_host() override;
     void update_weights() override;
     void update_biases() override;
+    void apply_var_decay() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

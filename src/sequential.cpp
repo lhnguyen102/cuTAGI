@@ -511,6 +511,30 @@ void Sequential::step()
     for (const auto &layer : this->layers) {
         layer->update_weights();
         layer->update_biases();
+        layer->apply_var_decay();
+    }
+}
+
+void Sequential::set_var_decay(float tau, bool skip_output_layer,
+                               bool skip_first_layer)
+/*Enable posterior variance decay var_w(n) = var_w(0) / (1 + n / tau).
+
+The backward pass only contracts the variance of the output layer, so the
+hidden layers keep updating at their prior Kalman gain forever. This supplies
+the missing contraction. The output layer is skipped by default because its
+own contraction already works. The first layer (the embedding in a
+transformer) can also be skipped: it is the largest learner in the model and
+is not part of the Q/K loop.
+*/
+{
+    for (size_t i = 0; i < this->layers.size(); i++) {
+        if (skip_output_layer && i + 1 == this->layers.size()) {
+            continue;
+        }
+        if (skip_first_layer && i == 0) {
+            continue;
+        }
+        this->layers[i]->set_var_decay(tau);
     }
 }
 

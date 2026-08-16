@@ -1138,7 +1138,12 @@ void compute_remax_mean_var(const std::vector<float> &mu_log_m,
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
             mu_a[i * hidden_size + j] = tmp_mu_norm;
-            var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
+            // Bound for a [0,1] variable: var <= mu*(1-mu). The lognormal
+            // ratio approximation violates it near saturation, which keeps
+            // the Kalman gain of saturated entries from vanishing.
+            var_a[i * hidden_size + j] =
+                std::min(var_a[i * hidden_size + j] * tmp_mu_norm * tmp_mu_norm,
+                         tmp_mu_norm * (1.0f - tmp_mu_norm));
         }
     }
 }

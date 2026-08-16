@@ -369,6 +369,26 @@ void ResNetBlockCuda::update_weights()
     }
 }
 
+void ResNetBlockCuda::set_var_decay(float tau)
+/*
+ */
+{
+    this->main_block->set_var_decay(tau);
+    if (this->shortcut != nullptr) {
+        this->shortcut->set_var_decay(tau);
+    }
+}
+
+void ResNetBlockCuda::apply_var_decay()
+/*
+ */
+{
+    this->main_block->apply_var_decay();
+    if (this->shortcut != nullptr) {
+        this->shortcut->apply_var_decay();
+    }
+}
+
 void ResNetBlockCuda::update_biases()
 /*
  */

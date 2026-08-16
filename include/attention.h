@@ -288,6 +288,7 @@ class MultiheadAttentionV2 : public BaseLayer {
     void allocate_param_delta() override;
     void update_weights() override;
     void update_biases() override;
+    void apply_var_decay() override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

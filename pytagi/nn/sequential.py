@@ -185,6 +185,25 @@ class Sequential:
         """Moves the model parameters from the CUDA device to the host (CPU)."""
         self._cpp_backend.params_to_host()
 
+    def set_var_decay(
+        self,
+        tau: float,
+        skip_output_layer: bool = True,
+        skip_first_layer: bool = False,
+    ):
+        """Enables posterior variance decay var_w(n) = var_w(0) / (1 + n / tau).
+
+        :param tau: Decay timescale in update steps. 0 disables the decay.
+        :type tau: float
+        :param skip_output_layer: Leave the last layer to its own contraction.
+        :type skip_output_layer: bool
+        :param skip_first_layer: Leave the first layer (embedding) undecayed.
+        :type skip_first_layer: bool
+        """
+        self._cpp_backend.set_var_decay(
+            tau, skip_output_layer, skip_first_layer
+        )
+
     def set_threads(self, num_threads: int):
         """Sets the number of CPU threads to use for computation.
 
