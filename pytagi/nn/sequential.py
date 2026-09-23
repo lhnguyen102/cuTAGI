@@ -155,16 +155,16 @@ class Sequential:
 
     @property
     def num_samples(self) -> int:
-        """The number of samples used for Monte Carlo estimation. This is used
-        for debugging purposes"""
+        """Maximum number of timesteps allocated for state smoothing."""
         return self._cpp_backend.num_samples
 
     @num_samples.setter
     def num_samples(self, value: int):
-        """Sets the number of samples for Monte Carlo estimation. This is used
-        for debugging purposes
+        """Sets the maximum number of timesteps allocated for state smoothing.
 
-        :param value: The number of samples.
+        The smoother may process fewer timesteps than this capacity.
+
+        :param value: The smoothing-buffer capacity.
         :type value: int
         """
         self._cpp_backend.num_samples = value
