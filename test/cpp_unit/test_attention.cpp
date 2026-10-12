@@ -73,6 +73,11 @@ TEST(AttentionForward, BasicForwardPass) {
                     int idx = i * num_heads * seq_len * seq_len +
                               j * seq_len * seq_len + k * seq_len + l;
                     sum += attn_layer.attn_states.mu_att_score[idx];
+                    if (l > k) {
+                        EXPECT_EQ(attn_layer.attn_states.mu_att_score[idx],
+                                  0.0f)
+                            << "Causal mask leaks future position " << idx;
+                    }
                     EXPECT_FALSE(
                         std::isnan(attn_layer.attn_states.mu_att_score[idx]))
                         << "Attention score contains NaN at index " << idx;
@@ -163,4 +168,41 @@ TEST(AttentionBackward, BasicBackwardPass) {
         EXPECT_FALSE(std::isnan(attn_layer.delta_var_w[i]))
             << "Weight delta var contains NaN at index " << i;
     }
+}
+
+TEST(AttentionConfig, RejectsUnsupportedConfigurations) {
+    // embed_dim not divisible by num_heads
+    EXPECT_THROW(MultiheadAttention(10, 4, 4), std::invalid_argument);
+    // grouped-query attention
+    EXPECT_THROW(MultiheadAttention(8, 2, 1), std::invalid_argument);
+    // RoPE rotates pairs of dimensions: head_dim 3 is odd
+    EXPECT_THROW(
+        MultiheadAttention(6, 2, 2, 1, true, 1.0f, 1.0f, "Xavier", true),
+        std::invalid_argument);
+    // RoPE cache shorter than the sequence
+    EXPECT_THROW(MultiheadAttention(8, 2, 2, 16, true, 1.0f, 1.0f, "Xavier",
+                                    true, 10000.0f, 8),
+                 std::invalid_argument);
+}
+
+TEST(AttentionConfig, AcceptsOddHeadDimAndLongSequenceWithoutRope) {
+    EXPECT_NO_THROW(MultiheadAttention(6, 2, 2, 16, true, 1.0f, 1.0f, "Xavier",
+                                       false, 10000.0f, 8));
+}
+
+TEST(AttentionParameters, MapRoundTripRestoresParameters) {
+    MultiheadAttention source(8, 2, 2, 4);
+    MultiheadAttention target(8, 2, 2, 4);
+    target.mu_w.assign(target.mu_w.size(), 0.0f);
+    target.var_w.assign(target.var_w.size(), 0.0f);
+    target.mu_b.assign(target.mu_b.size(), 0.0f);
+    target.var_b.assign(target.var_b.size(), 0.0f);
+
+    target.load_parameters_from_map(source.get_parameters_as_map("attn"),
+                                    "attn");
+
+    EXPECT_EQ(target.mu_w, source.mu_w);
+    EXPECT_EQ(target.var_w, source.var_w);
+    EXPECT_EQ(target.mu_b, source.mu_b);
+    EXPECT_EQ(target.var_b, source.var_b);
 }
