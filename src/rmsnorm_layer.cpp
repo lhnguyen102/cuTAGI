@@ -4,7 +4,10 @@
 #include <thread>
 
 #include "../include/custom_logger.h"
-#include "../include/param_init.h"
+
+#ifdef USE_CUDA
+#include "../include/rmsnorm_layer_cuda.cuh"
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CPU kernels for RMS Norm
@@ -256,9 +259,10 @@ std::tuple<int, int> get_number_params_rms_norm(
 }
 
 RMSNorm::RMSNorm(const std::vector<int> &normalized_shape, float eps,
-                 int device_idx)
+                 float gain_w, int device_idx)
     : normalized_shape(normalized_shape),
-      epsilon(eps)
+      epsilon(eps),
+      gain_w(gain_w)
 /*
  */
 {
@@ -301,15 +305,16 @@ LayerType RMSNorm::get_layer_type() const
 }
 
 void RMSNorm::init_weight_bias()
-/*
+/* Gain prior: mu_w = 1, var_w = (gain_w / num_features)^2. Unlike the
+gain_w^2 / fan_in convention of other layers, the variance shrinks with the
+square of the width.
  */
 {
-    int num_features = this->normalized_shape[0];
     this->num_weights = this->normalized_shape[0];
     this->num_biases = 0;
-    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
-        init_weight_bias_norm("", 1.0f, 1.0f, num_features, num_features,
-                              this->num_weights, this->num_biases);
+    float prior_var_w = powf(this->gain_w / this->num_weights, 2);
+    this->mu_w.assign(this->num_weights, 1.0f);
+    this->var_w.assign(this->num_weights, prior_var_w);
 }
 
 void RMSNorm::allocate_running_rms()
@@ -389,6 +394,7 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
                 effective_batch, this->num_threads,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
+        output_delta_states.seq_len = seq_len;
     }
     if (this->param_update) {
         if (this->num_threads <= 1) {
@@ -409,8 +415,11 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> RMSNorm::to_cuda(int device_idx) {
-    std::string message = "CUDA version of RMSNorm is not implemented yet";
-    LOG(LogLevel::ERROR, message);
-    return nullptr;
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    auto cuda_layer = std::make_unique<RMSNormCuda>(
+        this->normalized_shape, this->epsilon, this->gain_w, device_idx);
+    cuda_layer->copy_params_from(*this);
+    return cuda_layer;
 }
 #endif
