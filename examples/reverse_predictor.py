@@ -6,6 +6,7 @@ sys.path.append(
 )
 
 import fire
+import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
@@ -16,9 +17,13 @@ from pytagi.nn import (
     Linear,
     MultiheadAttention,
     OutputUpdater,
+    PositionalEncoding,
     RMSNorm,
     Sequential,
 )
+
+np.random.seed(42)
+pytagi.manual_seed(42)
 
 
 class ReverseDataset:
@@ -35,14 +40,50 @@ class ReverseDataset:
         return x, y.reshape(-1).astype(np.int32)
 
 
+def plot_attention_maps(input_data, attn_maps, idx=0):
+    if input_data is not None:
+        input_data = input_data[idx]
+    else:
+        input_data = np.arange(attn_maps[0][idx].shape[-1])
+    attn_maps = [m[idx] for m in attn_maps]
+
+    num_heads = attn_maps[0].shape[0]
+    num_layers = len(attn_maps)
+    seq_len = input_data.shape[0]
+    fig_size = 4 if num_heads == 1 else 3
+    fig, ax = plt.subplots(
+        num_layers,
+        num_heads,
+        figsize=(num_heads * fig_size, num_layers * fig_size),
+    )
+    if num_layers == 1:
+        ax = [ax]
+    if num_heads == 1:
+        ax = [[a] for a in ax]
+    for row in range(num_layers):
+        for column in range(num_heads):
+            ax[row][column].imshow(
+                attn_maps[row][column], origin="lower", vmin=0
+            )
+            ax[row][column].set_xticks(list(range(seq_len)))
+            ax[row][column].set_xticklabels(input_data.tolist())
+            ax[row][column].set_yticks(list(range(seq_len)))
+            ax[row][column].set_yticklabels(input_data.tolist())
+            ax[row][column].set_title(f"Layer {row + 1}, Head {column + 1}")
+    fig.subplots_adjust(hspace=0.5)
+    plt.show()
+
+
 def main(
-    num_epochs: int = 50,
-    batch_size: int = 2,
-    seq_len: int = 5,
+    num_epochs: int = 20,
+    batch_size: int = 128,
+    seq_len: int = 8,
     vocab_size: int = 8,
-    embed_dim: int = 64,
-    num_heads: int = 4,
-    sigma_v: float = 1.0,
+    embed_dim: int = 32,
+    num_heads: int = 1,
+    sigma_v: float = 4.5,
+    sigma_v_min: float = 0.3,
+    decay_factor: float = 1.0,
     steps_per_epoch: int = 100,
 ):
     """Train a TAGI attention model on the sequence reversal task."""
@@ -54,38 +95,44 @@ def main(
     hrc_class_len = hrc.len
 
     net = Sequential(
-        Embedding(vocab_size, embed_dim, input_size=seq_len),
+        Embedding(vocab_size, embed_dim, input_size=seq_len, scale=0.25),
+        PositionalEncoding(embed_dim),
         MultiheadAttention(
-            embed_dim,
-            num_heads,
-            num_heads,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
             seq_len=seq_len,
             bias=False,
-            init_method="Xavier",
+            gain_weight=0.25,
+            gain_bias=0.5,
+            init_method="He",
+            use_rope=False,
+            use_causal_mask=False,
         ),
         RMSNorm([embed_dim]),
         Linear(embed_dim, hrc_class_len),
     )
 
-    var_y = np.full(
-        (batch_size * seq_len * hrc.num_obs,),
-        sigma_v**2,
-        dtype=np.float32,
-    )
+    net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
 
     out_updater = OutputUpdater(net.device)
+    current_sigma_v = sigma_v
 
     pbar = tqdm(range(num_epochs), desc="Training")
     for epoch in pbar:
+        var_y = np.full(
+            (batch_size * seq_len * hrc.num_obs,),
+            current_sigma_v**2,
+            dtype=np.float32,
+        )
         net.train()
         error_rates = []
         for _ in range(steps_per_epoch):
-            x, y = task.next_batch(batch_size)
+
+            x, labels = task.next_batch(batch_size)
             m_pred, v_pred = net(x)
-            attention_scores = net.get_attention_scores()
 
             y_obs, y_idx, _ = utils.label_to_obs(
-                labels=y, num_classes=vocab_size
+                labels=labels, num_classes=vocab_size
             )
             out_updater.update_using_indices(
                 output_states=net.output_z_buffer,
@@ -97,34 +144,41 @@ def main(
 
             net.backward()
             net.step()
-
-            error_rate = metric.error_rate(m_pred, v_pred, y)
+            error_rate = metric.error_rate(m_pred, v_pred, labels)
             error_rates.append(error_rate)
 
         avg_error = sum(error_rates[-100:]) / min(len(error_rates), 100)
+        current_sigma_v = max(sigma_v_min, current_sigma_v * decay_factor)
         pbar.set_description(
-            f"Epoch {epoch + 1}/{num_epochs} | error: {avg_error * 100:.2f}%"
+            f"Epoch {epoch + 1}/{num_epochs} | error: {avg_error * 100:.2f}% | sigma_v: {current_sigma_v:.3f}"
         )
 
-    x_test, y_test = task.next_batch(batch_size)
+    test_batch_size = 256
+    x_test, y_test = task.next_batch(test_batch_size)
     net.eval()
     m_pred, v_pred = net(x_test)
     predicted = metric.get_predicted_labels(m_pred, v_pred)
 
-    x_test = x_test.reshape(batch_size, seq_len).astype(int)
-    y_test = y_test.reshape(batch_size, seq_len)
-    predicted = predicted.reshape(batch_size, seq_len)
+    x_test = x_test.reshape(test_batch_size, seq_len, -1)
+    x_display = x_test.squeeze(-1).astype(int)
+    y_test = y_test.reshape(test_batch_size, seq_len)
+    predicted = predicted.reshape(test_batch_size, seq_len)
 
-    num_show = min(5, batch_size)
-    print(f"\nTest Results (showing {num_show} of {batch_size}):")
+    num_show = min(5, test_batch_size)
+    print(f"\nTest Results (showing {num_show} of {test_batch_size}):")
     for i in range(num_show):
-        print(f"  Input:      {x_test[i].tolist()}")
+        print(f"  Input:      {x_display[i].tolist()}")
         print(f"  Target:     {y_test[i].tolist()}")
         print(f"  Prediction: {predicted[i].tolist()}")
         print()
 
     accuracy = np.mean(predicted == y_test)
     print(f"Test accuracy: {accuracy:.2%}")
+
+    attention_scores = net.get_attention_scores()
+    plot_attention_maps(
+        x_display, [s.mu_att for s in attention_scores.values()]
+    )
 
 
 if __name__ == "__main__":
