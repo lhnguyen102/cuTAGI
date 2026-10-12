@@ -60,6 +60,15 @@ class TestRMSNorm(unittest.TestCase):
         self.assertFalse(np.any(np.isnan(m_pred)))
         self.assertFalse(np.any(np.isnan(v_pred)))
 
+    def test_gain_w_sets_prior_weight_variance(self):
+        num_features = 8
+        model = Sequential(RMSNorm(normalized_shape=[num_features], gain_w=2.0))
+
+        mu_w, var_w, _, _ = model.parameters()[0]
+
+        np.testing.assert_allclose(mu_w, 1.0)
+        np.testing.assert_allclose(var_w, (2.0 / num_features) ** 2, rtol=1e-6)
+
     def test_default_eps_is_one_e_minus_six(self):
         layer = RMSNorm(normalized_shape=[4])
         self.assertAlmostEqual(layer.eps, 1e-6)
