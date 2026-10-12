@@ -411,11 +411,15 @@ class Sequential:
         self._cpp_backend.set_lstm_states(states)
 
     def get_attention_scores(self) -> dict:
-        """Gets attention scores from all MultiheadAttention layers.
+        """Gets the attention scores of the last forward pass.
 
-        :return: A dictionary mapping layer indices to a 2-tuple of
-                 lists: (mu_att_score, var_att_score). Each has shape
-                 [batch_size * num_heads * seq_len * seq_len] (flattened).
+        :return: A dictionary mapping 0, 1, ... to the AttentionScores of
+                 each MultiheadAttention layer, in depth-first forward order
+                 (layers inside LayerBlock and ResNetBlock included). Each
+                 AttentionScores holds mu_qk, var_qk (QK^T / sqrt(head_dim),
+                 before the causal mask and Remax) and mu_att, var_att (Remax
+                 output after the mask), all numpy arrays of shape
+                 [batch_size, num_heads, seq_len, seq_len].
         :rtype: dict
         """
         return self._cpp_backend.get_attention_scores()

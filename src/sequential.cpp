@@ -6,12 +6,14 @@
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/custom_logger.h"
+#include "../include/layer_block.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
 #include "../include/slstm_layer.h"
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 
+#include "../include/attention_cuda.cuh"
 #include "../include/base_layer_cuda.cuh"
 #include "../include/batchnorm_layer_cuda.cuh"
 #include "../include/resnet_block_cuda.cuh"
@@ -1000,23 +1002,40 @@ Sequential::get_lstm_states(int time_step)
     return lstm_states;
 }
 
-std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
-Sequential::get_attention_scores() const {
-    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
-        scores;
-
-    for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::MultiheadAttention) {
-            auto *attn_layer =
-                dynamic_cast<MultiheadAttention *>(layers[i].get());
-            if (attn_layer) {
-                scores[static_cast<int>(i)] =
-                    std::make_tuple(attn_layer->attn_states.mu_att_score,
-                                    attn_layer->attn_states.var_att_score);
-            }
+namespace {
+void collect_attention_scores(BaseLayer *layer,
+                              std::vector<AttentionScores> &scores)
+/*Depth-first walk through container layers, appending the scores of every
+attention layer in forward order.
+ */
+{
+    if (layer == nullptr) return;
+    if (auto *attn = dynamic_cast<MultiheadAttention *>(layer)) {
+        scores.push_back(attn->get_attention_scores());
+    } else if (auto *block = dynamic_cast<LayerBlock *>(layer)) {
+        for (auto &child : block->layers) {
+            collect_attention_scores(child.get(), scores);
         }
+    } else if (auto *resnet = dynamic_cast<ResNetBlock *>(layer)) {
+        collect_attention_scores(resnet->main_block.get(), scores);
+        collect_attention_scores(resnet->shortcut.get(), scores);
     }
+#ifdef USE_CUDA
+    else if (auto *attn = dynamic_cast<MultiheadAttentionCuda *>(layer)) {
+        scores.push_back(attn->get_attention_scores());
+    } else if (auto *resnet = dynamic_cast<ResNetBlockCuda *>(layer)) {
+        collect_attention_scores(resnet->main_block.get(), scores);
+        collect_attention_scores(resnet->shortcut.get(), scores);
+    }
+#endif
+}
+}  // namespace
 
+std::vector<AttentionScores> Sequential::get_attention_scores() const {
+    std::vector<AttentionScores> scores;
+    for (const auto &layer : this->layers) {
+        collect_attention_scores(layer.get(), scores);
+    }
     return scores;
 }
 

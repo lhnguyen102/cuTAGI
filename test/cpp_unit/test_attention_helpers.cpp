@@ -45,14 +45,19 @@ TEST_F(AttentionHelpersTest, SeparateInputProjectionComponents) {
     std::vector<float> mu_embs(3 * comp_size, 0.0f);
     std::vector<float> var_embs(3 * comp_size, 0.0f);
 
-    // Set distinct values in each of the three sections (Q, K, V)
-    for (int i = 0; i < comp_size; i++) {
-        mu_embs[i] = 1.0f;                  // Q section
-        mu_embs[i + comp_size] = 2.0f;      // K section
-        mu_embs[i + 2 * comp_size] = 3.0f;  // V section
-        var_embs[i] = 0.1f;
-        var_embs[i + comp_size] = 0.2f;
-        var_embs[i + 2 * comp_size] = 0.3f;
+    // The linear layer writes one row per token: [Q(E) | K(E) | V(E)] with
+    // E = num_heads * head_dim.
+    int emb_size = num_heads * head_dim;
+    int row_size = 3 * emb_size;
+    for (int token = 0; token < batch_size * timestep; token++) {
+        for (int c = 0; c < emb_size; c++) {
+            mu_embs[token * row_size + c] = 1.0f;
+            mu_embs[token * row_size + emb_size + c] = 2.0f;
+            mu_embs[token * row_size + 2 * emb_size + c] = 3.0f;
+            var_embs[token * row_size + c] = 0.1f;
+            var_embs[token * row_size + emb_size + c] = 0.2f;
+            var_embs[token * row_size + 2 * emb_size + c] = 0.3f;
+        }
     }
 
     std::vector<float> mu_q(comp_size), var_q(comp_size);
@@ -170,54 +175,58 @@ TEST_F(AttentionHelpersTest, QueryKey) {
     query_key(mu_q, var_q, mu_k, var_k, batch_size, num_heads, timestep,
               head_size, mu_qk, var_qk);
 
-    EXPECT_NEAR(mu_qk[0], 1.0f, TOLERANCE);  // q0 · k0 = 1
-    EXPECT_NEAR(mu_qk[1], 0.0f, TOLERANCE);  // q0 · k1 = 0
-    EXPECT_NEAR(mu_qk[2], 0.0f, TOLERANCE);  // q1 · k0 = 0
-    EXPECT_NEAR(mu_qk[3], 1.0f, TOLERANCE);  // q1 · k1 = 1
+    // Scores are scaled by 1/sqrt(head_size) = 1/sqrt(3).
+    float scale = 1.0f / std::sqrt(3.0f);
+    EXPECT_NEAR(mu_qk[0], scale, TOLERANCE);  // q0 · k0 = 1
+    EXPECT_NEAR(mu_qk[1], 0.0f, TOLERANCE);   // q0 · k1 = 0
+    EXPECT_NEAR(mu_qk[2], 0.0f, TOLERANCE);   // q1 · k0 = 0
+    EXPECT_NEAR(mu_qk[3], scale, TOLERANCE);  // q1 · k1 = 1
 
     for (size_t i = 0; i < var_qk.size(); i++) {
         EXPECT_GE(var_qk[i], 0.0f);
     }
 }
 
-TEST_F(AttentionHelpersTest, MaskQueryKey) {
-    int batch_size = 1;
-    int num_heads = 1;
+TEST_F(AttentionHelpersTest, CausalMaskPreRemaxPushesFutureToMaskValue) {
     int timestep = 3;
-    int head_size = 2;
-
     std::vector<float> mu_qk(timestep * timestep, 1.0f);
     std::vector<float> var_qk(timestep * timestep, 0.1f);
-
     std::vector<float> mu_mqk(timestep * timestep);
     std::vector<float> var_mqk(timestep * timestep);
 
-    mask_query_key(mu_qk, var_qk, batch_size, num_heads, timestep, head_size,
-                   mu_mqk, var_mqk);
+    causal_mask_pre_remax(mu_qk, var_qk, 1, 1, timestep, mu_mqk, var_mqk);
 
-    EXPECT_NEAR(mu_mqk[0 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
+    for (int query = 0; query < timestep; query++) {
+        for (int key = 0; key < timestep; key++) {
+            int idx = query * timestep + key;
+            if (key <= query) {
+                EXPECT_FLOAT_EQ(mu_mqk[idx], 1.0f);
+                EXPECT_FLOAT_EQ(var_mqk[idx], 0.1f);
+            } else {
+                EXPECT_FLOAT_EQ(mu_mqk[idx], ATTENTION_MASK_MU);
+                EXPECT_FLOAT_EQ(var_mqk[idx], ATTENTION_MASK_VAR);
+            }
+        }
+    }
+}
 
-    EXPECT_NEAR(mu_mqk[1 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[1 * timestep + 1], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
+TEST_F(AttentionHelpersTest, CausalMaskPostRemaxZeroesFuture) {
+    int timestep = 3;
+    std::vector<float> mu_att(timestep * timestep, 0.3f);
+    std::vector<float> var_att(timestep * timestep, 0.1f);
+    std::vector<float> jcb(timestep * timestep, 0.2f);
 
-    EXPECT_NEAR(mu_mqk[2 * timestep + 0], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 1], 1.0f, TOLERANCE);
-    EXPECT_NEAR(mu_mqk[2 * timestep + 2], 1.0f, TOLERANCE);
+    causal_mask_post_remax(mu_att, var_att, jcb, 1, 1, timestep);
 
-    EXPECT_NEAR(var_mqk[0 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[0 * timestep + 1], 0.0f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[0 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(var_mqk[1 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[1 * timestep + 1], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[1 * timestep + 2], 0.0f, TOLERANCE);
-
-    EXPECT_NEAR(var_mqk[2 * timestep + 0], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[2 * timestep + 1], 0.1f, TOLERANCE);
-    EXPECT_NEAR(var_mqk[2 * timestep + 2], 0.1f, TOLERANCE);
+    for (int query = 0; query < timestep; query++) {
+        for (int key = 0; key < timestep; key++) {
+            int idx = query * timestep + key;
+            float expected = key <= query ? 1.0f : 0.0f;
+            EXPECT_FLOAT_EQ(mu_att[idx], 0.3f * expected);
+            EXPECT_FLOAT_EQ(var_att[idx], 0.1f * expected);
+            EXPECT_FLOAT_EQ(jcb[idx], 0.2f * expected);
+        }
+    }
 }
 
 TEST_F(AttentionHelpersTest, Tagi4DMatrixMul) {
@@ -398,4 +407,95 @@ TEST_F(AttentionHelpersTest, AttentionQueryKeyDelta) {
     for (size_t i = 0; i < delta_var_k.size(); i++) {
         EXPECT_GE(delta_var_k[i], 0.0f);
     }
+}
+
+TEST_F(AttentionHelpersTest, DeltaQueryKeyScaleBySqrtHeadDim) {
+    // One token, one head, head_size 4: the score delta reaches q and k
+    // through the 1/sqrt(head_size) = 1/2 factor of the forward pass.
+    int head_size = 4;
+    std::vector<float> mu_q = {1.0f, 2.0f, 3.0f, 4.0f};
+    std::vector<float> mu_k = {-1.0f, 0.5f, 2.0f, 1.0f};
+    std::vector<float> var_unused(head_size, 0.0f);
+    std::vector<float> delta_mu_s = {2.0f};
+    std::vector<float> delta_var_s = {4.0f};
+    std::vector<float> jcb = {1.0f};
+
+    std::vector<float> delta_mu_q(head_size), delta_var_q(head_size);
+    mha_delta_query(var_unused, mu_k, delta_mu_s, delta_var_s, jcb, 1, 1, 1,
+                    head_size, delta_mu_q, delta_var_q);
+    std::vector<float> delta_mu_k(head_size), delta_var_k(head_size);
+    mha_delta_key(var_unused, mu_q, delta_mu_s, delta_var_s, jcb, 1, 1, 1,
+                  head_size, delta_mu_k, delta_var_k);
+
+    std::vector<float> expected_mu_q = {-1.0f, 0.5f, 2.0f, 1.0f};
+    std::vector<float> expected_var_q = {1.0f, 0.25f, 4.0f, 1.0f};
+    std::vector<float> expected_mu_k = {1.0f, 2.0f, 3.0f, 4.0f};
+    std::vector<float> expected_var_k = {1.0f, 4.0f, 9.0f, 16.0f};
+    EXPECT_TRUE(vectors_equal(delta_mu_q, expected_mu_q));
+    EXPECT_TRUE(vectors_equal(delta_var_q, expected_var_q));
+    EXPECT_TRUE(vectors_equal(delta_mu_k, expected_mu_k));
+    EXPECT_TRUE(vectors_equal(delta_var_k, expected_var_k));
+}
+
+TEST_F(AttentionHelpersTest, DeltaQueryKeySumOverScoreRowsAndColumns) {
+    // Two tokens, head_size 1, no mask. Score s[p][k] = q[p] * k[k], so
+    // delta_q[p] sums row p of the score delta and delta_k[k] sums column k.
+    std::vector<float> mu_q = {2.0f, 3.0f};
+    std::vector<float> mu_k = {2.0f, 3.0f};
+    std::vector<float> var_unused(2, 0.0f);
+    std::vector<float> delta_mu_s = {1.0f, 4.0f, 5.0f, 7.0f};
+    std::vector<float> delta_var_s = {1.0f, 4.0f, 5.0f, 7.0f};
+    std::vector<float> jcb(4, 1.0f);
+
+    std::vector<float> delta_mu_q(2), delta_var_q(2);
+    mha_delta_query(var_unused, mu_k, delta_mu_s, delta_var_s, jcb, 1, 1, 2, 1,
+                    delta_mu_q, delta_var_q);
+    std::vector<float> delta_mu_k(2), delta_var_k(2);
+    mha_delta_key(var_unused, mu_q, delta_mu_s, delta_var_s, jcb, 1, 1, 2, 1,
+                  delta_mu_k, delta_var_k);
+
+    // delta_q[0] = 2*1 + 3*4, delta_q[1] = 2*5 + 3*7
+    EXPECT_TRUE(vectors_equal(delta_mu_q, {14.0f, 31.0f}));
+    // var: 4*1 + 9*4, 4*5 + 9*7
+    EXPECT_TRUE(vectors_equal(delta_var_q, {40.0f, 83.0f}));
+    // delta_k[0] = 2*1 + 3*5, delta_k[1] = 2*4 + 3*7
+    EXPECT_TRUE(vectors_equal(delta_mu_k, {17.0f, 29.0f}));
+    // var: 4*1 + 9*5, 4*4 + 9*7
+    EXPECT_TRUE(vectors_equal(delta_var_k, {49.0f, 79.0f}));
+}
+
+TEST(AttentionLayerBackward, ScoreDeltaUsesValues) {
+    // One token, one head, head_dim 1: out = att * v with att = 1, so the
+    // score delta is v * delta_out and its variance v^2 * delta_var_out.
+    MultiheadAttention attn(1, 1, 1, 1, false, 1.0f, 1.0f, "Xavier", false);
+    attn.training = true;
+    attn.mu_w = {0.5f, -0.7f, 3.0f};
+    attn.var_w = {0.01f, 0.01f, 0.01f};
+
+    BaseHiddenStates input_states;
+    input_states.mu_a = {2.0f};
+    input_states.var_a = {0.1f};
+    input_states.jcb = {1.0f};
+    input_states.block_size = 1;
+    input_states.actual_size = 1;
+    BaseHiddenStates output_states;
+    output_states.mu_a.resize(1);
+    output_states.var_a.resize(1);
+    output_states.jcb.resize(1);
+    BaseTempStates temp_states;
+    attn.forward(input_states, output_states, temp_states);
+
+    BaseDeltaStates input_delta_states;
+    input_delta_states.delta_mu = {0.5f};
+    input_delta_states.delta_var = {0.2f};
+    input_delta_states.block_size = 1;
+    BaseDeltaStates output_delta_states;
+    output_delta_states.delta_mu.resize(1);
+    output_delta_states.delta_var.resize(1);
+    attn.backward(input_delta_states, output_delta_states, temp_states);
+
+    float mu_v = attn.attn_states.mu_v[0];
+    EXPECT_FLOAT_EQ(mu_v, 6.0f);
+    EXPECT_FLOAT_EQ(attn.attn_delta_states.delta_mu_att_score[0], 3.0f);
+    EXPECT_FLOAT_EQ(attn.attn_delta_states.delta_var_att_score[0], 7.2f);
 }

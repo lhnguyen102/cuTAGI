@@ -8,6 +8,7 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "../include/attention.h"
 #include "../include/base_layer.h"
 #include "../include/data_struct.h"
 #include "../include/sequential.h"
@@ -142,8 +143,8 @@ void bind_sequential(pybind11::module_& m) {
              [](Sequential& self) {
                  auto scores = self.get_attention_scores();
                  pybind11::dict py_scores;
-                 for (const auto& pair : scores) {
-                     py_scores[pybind11::int_(pair.first)] = pair.second;
+                 for (size_t i = 0; i < scores.size(); i++) {
+                     py_scores[pybind11::int_(i)] = scores[i];
                  }
                  return py_scores;
              })
