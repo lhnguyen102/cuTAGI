@@ -302,6 +302,7 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
         linear_state_backward_cuda(
             cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
             this->d_mu_w, this->input_size, this->output_size, effective_batch);
+        cu_output_delta_states->seq_len = seq_len;
     }
 
     if (this->param_update) {

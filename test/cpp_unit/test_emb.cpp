@@ -8,8 +8,11 @@
 #include <random>
 #include <vector>
 
+#include "../../include/base_output_updater.h"
 #include "../../include/data_struct.h"
 #include "../../include/embedding_cpu.h"
+#include "../../include/linear_layer.h"
+#include "../../include/sequential.h"
 
 #ifdef USE_CUDA
 #include "../../include/embedding_cuda.cuh"
@@ -507,5 +510,114 @@ TEST(EmbeddingTest, EmbeddingClassForward_CUDA) {
 TEST(EmbeddingTest, EmbeddingClassBackward_CUDA) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     EXPECT_TRUE(test_embedding_class_backward_cuda());
+}
+#endif
+
+namespace {
+
+// One token picks embedding row 1. var_w = 0.25 and delta = 1, so the Kalman
+// update gives delta_mu_w = var_w = 0.25 and delta_var_w = var_w^2 = 0.0625.
+struct SingleTokenEmbedding {
+    int num_embeddings = 3, embedding_dim = 2;
+    Embedding layer{num_embeddings, embedding_dim, 1};
+    BaseHiddenStates input_states{1, 1, 0};
+    BaseHiddenStates output_states{2, 1, 0};
+    BaseDeltaStates input_delta_states, output_delta_states;
+    BaseTempStates temp_states;
+
+    SingleTokenEmbedding() {
+        layer.training = true;
+        layer.param_update = true;
+        layer.var_w.assign(layer.var_w.size(), 0.25f);
+        input_states.mu_a[0] = 1.0f;
+        input_states.actual_size = 1;
+        input_states.block_size = 1;
+        layer.forward(input_states, output_states, temp_states);
+        input_delta_states.delta_mu.assign(embedding_dim, 1.0f);
+        input_delta_states.delta_var.assign(embedding_dim, 1.0f);
+        input_delta_states.block_size = 1;
+    }
+
+    void backward() {
+        layer.backward(input_delta_states, output_delta_states, temp_states,
+                       false);
+    }
+
+    void expect_row_one_deltas() {
+        for (int k = 0; k < embedding_dim; k++) {
+            int idx = 1 * embedding_dim + k;
+            EXPECT_NEAR(layer.delta_mu_w[idx], 0.25f, 1e-6f) << k;
+            EXPECT_NEAR(layer.delta_var_w[idx], 0.0625f, 1e-6f) << k;
+        }
+    }
+};
+
+}  // namespace
+
+TEST(EmbeddingTest, WeightDeltaVarianceScalesWithVarWSquared) {
+    SingleTokenEmbedding emb;
+    emb.backward();
+    emb.expect_row_one_deltas();
+}
+
+TEST(EmbeddingTest, RepeatedBackwardDoesNotAccumulate) {
+    SingleTokenEmbedding emb;
+    emb.backward();
+    emb.backward();
+    emb.expect_row_one_deltas();
+}
+
+#ifdef USE_CUDA
+TEST(EmbeddingTest, WeightDeltaVarianceScalesWithVarWSquared_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    int num_embeddings = 3, embedding_dim = 2;
+    Embedding cpu_layer(num_embeddings, embedding_dim, 1);
+    cpu_layer.var_w.assign(cpu_layer.var_w.size(), 0.25f);
+    auto cuda_layer = cpu_layer.to_cuda(0);
+    auto &layer = dynamic_cast<EmbeddingCuda &>(*cuda_layer);
+    layer.training = true;
+    layer.param_update = true;
+    layer.allocate_param_delta();
+
+    HiddenStateCuda input_states(1, 1, 0);
+    std::vector<float> token = {1.0f}, token_var = {0.0f};
+    input_states.set_input_x(token, token_var, 1);
+    HiddenStateCuda output_states(embedding_dim, 1, 0);
+    output_states.allocate_memory();
+    BaseTempStates temp_states;
+    layer.forward(input_states, output_states, temp_states);
+
+    DeltaStateCuda input_delta_states(embedding_dim, 1, 0);
+    input_delta_states.delta_mu.assign(embedding_dim, 1.0f);
+    input_delta_states.delta_var.assign(embedding_dim, 1.0f);
+    input_delta_states.allocate_memory();
+    input_delta_states.to_device();
+    DeltaStateCuda output_delta_states(1, 1, 0);
+    output_delta_states.allocate_memory();
+    layer.backward(input_delta_states, output_delta_states, temp_states, false);
+    layer.delta_params_to_host();
+
+    for (int k = 0; k < embedding_dim; k++) {
+        int idx = 1 * embedding_dim + k;
+        EXPECT_NEAR(layer.delta_mu_w[idx], 0.25f, 1e-6f) << k;
+        EXPECT_NEAR(layer.delta_var_w[idx], 0.0625f, 1e-6f) << k;
+    }
+}
+#endif
+
+#ifdef USE_CUDA
+TEST(EmbeddingTest, TrainingStepInSequential_CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    Sequential model(Embedding(3, 2, 1), Linear(2, 1));
+    model.to_device("cuda");
+    std::vector<float> tokens = {0.0f, 2.0f}, tokens_var(2, 0.0f);
+    std::vector<float> y = {1.0f, -1.0f}, var_y(2, 0.01f);
+    OutputUpdater output_updater(model.device);
+
+    model.forward(tokens, tokens_var, {2, 1});
+    output_updater.update(*model.output_z_buffer, y, var_y,
+                          *model.input_delta_z_buffer);
+    model.backward();
+    EXPECT_NO_THROW(model.step());
 }
 #endif

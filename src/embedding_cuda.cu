@@ -54,7 +54,8 @@ __global__ void embedding_bwd_delta_w(const float *mu_a, const float *var_w,
             for (int k = 0; k < embedding_dim; k++) {
                 int emb_idx = cat_idx * embedding_dim + k;
                 float grad_mu = delta_mu[out_idx + k] * var_w[emb_idx];
-                float grad_var = delta_var[out_idx + k] * var_w[emb_idx];
+                float grad_var =
+                    delta_var[out_idx + k] * var_w[emb_idx] * var_w[emb_idx];
 
                 atomicAdd(&delta_mu_w[emb_idx], grad_mu);
                 atomicAdd(&delta_var_w[emb_idx], grad_var);
@@ -73,6 +74,7 @@ EmbeddingCuda::EmbeddingCuda(int num_embeddings, int embedding_dim,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+    this->bias = false;
 
     if (input_size > 0) {
         this->input_size = input_size;

@@ -60,6 +60,10 @@ class TestRMSNorm(unittest.TestCase):
         self.assertFalse(np.any(np.isnan(m_pred)))
         self.assertFalse(np.any(np.isnan(v_pred)))
 
+    def test_default_eps_is_one_e_minus_six(self):
+        layer = RMSNorm(normalized_shape=[4])
+        self.assertAlmostEqual(layer.eps, 1e-6)
+
 
 if __name__ == "__main__":
     unittest.main()
