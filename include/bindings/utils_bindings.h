@@ -36,10 +36,10 @@ class Utils {
 
     HRCSoftmax hierarchical_softmax_wrapper(int num_classes);
 
-    std::vector<float> obs_to_label_prob_wrapper(std::vector<float> &mz,
-                                                 std::vector<float> &Sz,
-                                                 HRCSoftmax &hs,
-                                                 int num_classes);
+    std::vector<float> obs_to_label_prob_wrapper(
+        std::vector<float> &mz, std::vector<float> &Sz, HRCSoftmax &hs,
+        int num_classes, const std::vector<float> &level_scale,
+        const std::vector<float> &level_offset);
     std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
     get_error_wrapper(std::vector<float> &mz, std::vector<float> &Sz,
                       std::vector<int> &labels, int n_classes, int B);

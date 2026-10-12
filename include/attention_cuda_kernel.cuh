@@ -251,6 +251,21 @@ __global__ void mha_delta_score_kernel(const float *mu_v, const float *delta_mu,
     delta_var_s[idx] = sum_var;
 }
 
+// Device version of center_delta_score, one thread per score row.
+__global__ void center_delta_score_kernel(const float *mu_att, int num_rows,
+                                          int timestep, float *delta_mu_score) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= num_rows) return;
+    int base = row * timestep;
+    float weighted_mean = 0.0f;
+    for (int j = 0; j < timestep; j++) {
+        weighted_mean += mu_att[base + j] * delta_mu_score[base + j];
+    }
+    for (int j = 0; j < timestep; j++) {
+        delta_mu_score[base + j] -= weighted_mean;
+    }
+}
+
 __global__ void mha_delta_value_kernel(const float *mu_s, const float *delta_mu,
                                        const float *delta_var, int batch_size,
                                        int num_heads, int timestep,

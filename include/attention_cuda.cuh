@@ -92,6 +92,7 @@ class MultiheadAttentionCuda : public BaseLayerCuda {
     float rope_theta;
     size_t max_seq_len;
     bool use_causal_mask;
+    bool center_score_delta;
     float *d_cos_cache = nullptr, *d_sin_cache = nullptr;
 
     MultiheadAttentionCuda(size_t embed_dim, size_t num_heads,
@@ -101,7 +102,8 @@ class MultiheadAttentionCuda : public BaseLayerCuda {
                            std::string init_method = "Xavier",
                            bool use_rope = true, float rope_theta = 10000.0f,
                            size_t max_seq_len = 2048,
-                           bool use_causal_mask = true, int device_idx = 0);
+                           bool use_causal_mask = true,
+                           bool center_score_delta = false, int device_idx = 0);
 
     ~MultiheadAttentionCuda();
 

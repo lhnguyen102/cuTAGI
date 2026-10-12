@@ -110,6 +110,13 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &delta_mu,
                      std::vector<float> &delta_mu_s,
                      std::vector<float> &delta_var_s);
 
+// Subtract from each score-delta row its attention-weighted mean,
+// d[i,j] -= sum_l att[i,l] * d[i,l], so the delta carries no component along
+// the Remax constraint sum_j att[i,j] = 1.
+void center_delta_score(const std::vector<float> &mu_att, int batch_size,
+                        int num_heads, int timestep,
+                        std::vector<float> &delta_mu_score);
+
 void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
@@ -169,6 +176,7 @@ class MultiheadAttention : public BaseLayer {
     float rope_theta;
     size_t max_seq_len;
     bool use_causal_mask;
+    bool center_score_delta;
     std::vector<float> cos_cache;
     std::vector<float> sin_cache;
 
@@ -177,7 +185,8 @@ class MultiheadAttention : public BaseLayer {
                        float gain_w = 1.0f, float gain_b = 1.0f,
                        std::string init_method = "Xavier", bool use_rope = true,
                        float rope_theta = 10000.0f, size_t max_seq_len = 2048,
-                       bool use_causal_mask = true, int device_idx = 0);
+                       bool use_causal_mask = true,
+                       bool center_score_delta = false, int device_idx = 0);
 
     ~MultiheadAttention();
 

@@ -86,11 +86,12 @@ HRCSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
 
     return hs;
 }
-std::vector<float> Utils::obs_to_label_prob_wrapper(std::vector<float> &mz,
-                                                    std::vector<float> &Sz,
-                                                    HRCSoftmax &hs,
-                                                    int num_classes) {
-    auto prob = obs_to_class(mz, Sz, hs, num_classes);
+std::vector<float> Utils::obs_to_label_prob_wrapper(
+    std::vector<float> &mz, std::vector<float> &Sz, HRCSoftmax &hs,
+    int num_classes, const std::vector<float> &level_scale,
+    const std::vector<float> &level_offset) {
+    auto prob =
+        obs_to_class(mz, Sz, hs, num_classes, level_scale, level_offset);
     return prob;
 }
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
@@ -152,7 +153,11 @@ void bind_utils(pybind11::module_ &m) {
              pybind11::arg("num"))
         .def("load_cifar_dataset_wrapper", &Utils::load_cifar_dataset_wrapper)
         .def("get_labels_wrapper", &Utils::get_labels_wrapper)
-        .def("obs_to_label_prob_wrapper", &Utils::obs_to_label_prob_wrapper)
+        .def("obs_to_label_prob_wrapper", &Utils::obs_to_label_prob_wrapper,
+             pybind11::arg("mz"), pybind11::arg("Sz"), pybind11::arg("hs"),
+             pybind11::arg("num_classes"),
+             pybind11::arg("level_scale") = std::vector<float>{},
+             pybind11::arg("level_offset") = std::vector<float>{})
         .def("get_error_wrapper", &Utils::get_error_wrapper)
         .def("create_rolling_window_wrapper",
              &Utils::create_rolling_window_wrapper)

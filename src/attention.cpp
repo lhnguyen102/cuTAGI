@@ -350,6 +350,26 @@ void mha_delta_score(std::vector<float> &mu_v, std::vector<float> &delta_mu,
     }
 }
 
+void center_delta_score(const std::vector<float> &mu_att, int batch_size,
+                        int num_heads, int timestep,
+                        std::vector<float> &delta_mu_score)
+/*
+att, delta_score: [batch_size, num_heads, timestep, timestep]
+*/
+{
+    int num_rows = batch_size * num_heads * timestep;
+    for (int row = 0; row < num_rows; row++) {
+        int base = row * timestep;
+        float weighted_mean = 0.0f;
+        for (int j = 0; j < timestep; j++) {
+            weighted_mean += mu_att[base + j] * delta_mu_score[base + j];
+        }
+        for (int j = 0; j < timestep; j++) {
+            delta_mu_score[base + j] -= weighted_mean;
+        }
+    }
+}
+
 void mha_delta_value(std::vector<float> &mu_s, std::vector<float> &delta_mu,
                      std::vector<float> &delta_var, int batch_size,
                      int num_heads, int timestep, int head_size,
@@ -616,7 +636,8 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
                                        bool bias, float gain_w, float gain_b,
                                        std::string init_method, bool use_rope,
                                        float rope_theta, size_t max_seq_len,
-                                       bool use_causal_mask, int device_idx)
+                                       bool use_causal_mask,
+                                       bool center_score_delta, int device_idx)
     : embed_dim(embed_dim),
       num_heads(num_heads),
       num_kv_heads(num_kv_heads),
@@ -626,7 +647,8 @@ MultiheadAttention::MultiheadAttention(size_t embed_dim, size_t num_heads,
       use_rope(use_rope),
       rope_theta(rope_theta),
       max_seq_len(max_seq_len),
-      use_causal_mask(use_causal_mask) {
+      use_causal_mask(use_causal_mask),
+      center_score_delta(center_score_delta) {
     check_attention_config(embed_dim, num_heads, num_kv_heads, seq_len_,
                            use_rope, max_seq_len);
     this->input_size = embed_dim;
@@ -813,6 +835,12 @@ void MultiheadAttention::backward(BaseDeltaStates &input_delta_states,
                     attn_delta_states.delta_mu_att_score,
                     attn_delta_states.delta_var_att_score);
 
+    if (this->center_score_delta) {
+        center_delta_score(attn_states.mu_att_score, batch_size,
+                           this->num_heads, this->seq_len,
+                           attn_delta_states.delta_mu_att_score);
+    }
+
     if (this->use_rope) {
         mha_delta_query(attn_states.var_q, attn_states.mu_k_rope,
                         attn_delta_states.delta_mu_att_score,
@@ -913,7 +941,7 @@ std::unique_ptr<BaseLayer> MultiheadAttention::to_cuda(int device_idx) {
         this->embed_dim, this->num_heads, this->num_kv_heads, this->seq_len,
         this->bias, this->gain_w, this->gain_b, this->init_method,
         this->use_rope, this->rope_theta, this->max_seq_len,
-        this->use_causal_mask, device_idx);
+        this->use_causal_mask, this->center_score_delta, device_idx);
     auto base_cuda = dynamic_cast<BaseLayerCuda *>(cuda_layer.get());
     base_cuda->copy_params_from(*this);
     return cuda_layer;

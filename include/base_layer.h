@@ -45,6 +45,15 @@ class BaseLayer {
     bool bias = true;
     bool param_update = true;
     float cap_factor_update = 1.0f;
+    // Trust-region clip |delta_mu| <= sqrt(var) / cap. When > 0 it replaces
+    // the batch-size heuristic of set_cap_factor_udapte.
+    float fixed_cap_factor = 0.0f;
+    // Posterior variance decay var_w(n) = var_w(0) / (1 + n / tau), frozen
+    // once var_w(n) / var_w(0) reaches var_decay_min_gain. Off when tau == 0;
+    // no floor when min_gain == 0.
+    float var_decay_tau = 0.0f;
+    float var_decay_min_gain = 0.0f;
+    int n_var_decay = 0;
     int neg_var_w_counter = 0;
     int device_idx = 0;
 
@@ -112,6 +121,13 @@ class BaseLayer {
     virtual void raw_update_biases();
 
     virtual void set_cap_factor_udapte(int batch_size);
+
+    void set_var_decay(float tau, float min_gain = 0.0f);
+
+    // Returns the per-step var_w multiplier and advances n_var_decay.
+    float next_var_decay_factor();
+
+    virtual void apply_var_decay();
 
     virtual void set_threads(int num);
 

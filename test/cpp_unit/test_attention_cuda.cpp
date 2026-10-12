@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <memory>
 #include <random>
 #include <vector>
 
@@ -12,8 +14,6 @@
 
 extern bool g_gpu_enabled;
 
-#ifdef USE_CUDA
-
 namespace {
 struct AttnConfig {
     int batch_size = 16;
@@ -23,6 +23,7 @@ struct AttnConfig {
     bool bias = true;
     bool use_rope;
     bool use_causal_mask;
+    bool center_score_delta = false;
 };
 
 struct AttnInputs {
@@ -80,6 +81,59 @@ void fill_cpu_states(const AttnInputs &in, const AttnConfig &cfg,
     d_out.seq_len = cfg.seq_len;
 }
 
+std::unique_ptr<MultiheadAttention> make_cpu_layer(const AttnConfig &cfg) {
+    auto cpu = std::make_unique<MultiheadAttention>(
+        cfg.embed_dim, cfg.num_heads, /*num_kv_heads=*/cfg.num_heads,
+        cfg.seq_len, cfg.bias, /*gain_w=*/1.0f, /*gain_b=*/1.0f,
+        /*init_method=*/"Xavier", cfg.use_rope,
+        /*rope_theta=*/10000.0f, /*max_seq_len=*/cfg.seq_len,
+        cfg.use_causal_mask, cfg.center_score_delta);
+    cpu->training = true;
+    cpu->param_update = true;
+    cpu->set_threads(1);
+    return cpu;
+}
+
+}  // namespace
+
+TEST(MultiheadAttention, CenterScoreDeltaZeroesAttentionWeightedRowSum) {
+    AttnConfig cfg;
+    cfg.batch_size = 2;
+    cfg.seq_len = 16;
+    cfg.embed_dim = 16;
+    cfg.use_rope = true;
+    cfg.use_causal_mask = true;
+    cfg.center_score_delta = true;
+    AttnInputs in = make_inputs(cfg, /*seed=*/7);
+    auto cpu = make_cpu_layer(cfg);
+
+    BaseHiddenStates h_in, h_out;
+    BaseDeltaStates d_in, d_out;
+    BaseTempStates h_temp;
+    fill_cpu_states(in, cfg, h_in, h_out, d_in, d_out);
+    cpu->forward(h_in, h_out, h_temp);
+    cpu->backward(d_in, d_out, h_temp, /*state_udapte=*/true);
+
+    const auto &att = cpu->attn_states.mu_att_score;
+    const auto &delta = cpu->attn_delta_states.delta_mu_att_score;
+    int timestep = cfg.seq_len;
+    int num_rows = cfg.batch_size * cfg.num_heads * timestep;
+    for (int row = 0; row < num_rows; row++) {
+        float weighted_sum = 0.0f, max_abs_delta = 0.0f;
+        for (int j = 0; j < timestep; j++) {
+            weighted_sum += att[row * timestep + j] * delta[row * timestep + j];
+            max_abs_delta =
+                std::max(max_abs_delta, std::abs(delta[row * timestep + j]));
+        }
+        EXPECT_LT(std::abs(weighted_sum), 1e-3f * max_abs_delta)
+            << "row " << row;
+    }
+}
+
+#ifdef USE_CUDA
+
+namespace {
+
 void fill_cuda_states(const AttnInputs &in, const AttnConfig &cfg,
                       HiddenStateCuda &h_in, HiddenStateCuda &h_out,
                       DeltaStateCuda &d_in, DeltaStateCuda &d_out) {
@@ -118,15 +172,7 @@ void run_mha_compare(const AttnConfig &cfg) {
     AttnInputs in = make_inputs(cfg, /*seed=*/123);
 
     // CPU layer (initializes its own weights).
-    auto cpu = std::make_unique<MultiheadAttention>(
-        cfg.embed_dim, cfg.num_heads, /*num_kv_heads=*/cfg.num_heads,
-        cfg.seq_len, cfg.bias, /*gain_w=*/1.0f, /*gain_b=*/1.0f,
-        /*init_method=*/"Xavier", cfg.use_rope,
-        /*rope_theta=*/10000.0f, /*max_seq_len=*/cfg.seq_len,
-        cfg.use_causal_mask);
-    cpu->training = true;
-    cpu->param_update = true;
-    cpu->set_threads(1);
+    auto cpu = make_cpu_layer(cfg);
 
     BaseHiddenStates h_in, h_out;
     BaseDeltaStates d_in, d_out;
@@ -209,6 +255,28 @@ TEST(MultiheadAttentionCuda, Rope_CausalMask) {
     cfg.use_rope = true;
     cfg.use_causal_mask = true;
     run_mha_compare(cfg);
+}
+
+TEST(MultiheadAttentionCuda, Rope_CausalMask_CenterScoreDelta) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    AttnConfig cfg;
+    cfg.use_rope = true;
+    cfg.use_causal_mask = true;
+    cfg.center_score_delta = true;
+    run_mha_compare(cfg);
+}
+
+TEST(MultiheadAttentionCuda, ToHostKeepsCenterScoreDelta) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    AttnConfig cfg;
+    cfg.use_rope = true;
+    cfg.use_causal_mask = true;
+    cfg.center_score_delta = true;
+    auto cuda_layer = make_cpu_layer(cfg)->to_cuda(0);
+    auto host = dynamic_cast<BaseLayerCuda *>(cuda_layer.get())->to_host();
+    auto *attn = dynamic_cast<MultiheadAttention *>(host.get());
+    ASSERT_NE(attn, nullptr);
+    EXPECT_TRUE(attn->center_score_delta);
 }
 
 #endif  // USE_CUDA
