@@ -294,7 +294,8 @@ void BaseOutputUpdater::update_selected_output_delta_z(
 {
     int start_chunk = 0;
     int end_chunk = obs.size;
-    int n_enc = obs.idx_size / output_states.block_size;
+    int num_tokens = output_states.block_size * output_states.seq_len;
+    int n_enc = obs.idx_size / num_tokens;
     int n_obs = output_states.actual_size;
 
     delta_states.reset_zeros();
@@ -349,6 +350,14 @@ OutputUpdater::OutputUpdater() {}
 
 OutputUpdater::~OutputUpdater() {}
 
+// Layers read the token count of the delta from block_size * seq_len, so it
+// must match the output it was computed from.
+static void match_token_shape(const BaseHiddenStates& output_states,
+                              BaseDeltaStates& delta_states) {
+    delta_states.block_size = output_states.block_size;
+    delta_states.seq_len = output_states.seq_len;
+}
+
 void OutputUpdater::update(BaseHiddenStates& output_states,
                            std::vector<float>& mu_obs,
                            std::vector<float>& var_obs,
@@ -361,6 +370,7 @@ void OutputUpdater::update(BaseHiddenStates& output_states,
     this->obs->size = mu_obs.size();
     this->obs->actual_size = mu_obs.size() / output_states.block_size;
 
+    match_token_shape(output_states, delta_states);
     this->updater->update_output_delta_z(output_states, *this->obs,
                                          delta_states);
 }
@@ -381,6 +391,7 @@ void OutputUpdater::update_using_indices(BaseHiddenStates& output_states,
         this->obs->actual_size = mu_obs.size() / output_states.block_size;
         this->obs->idx_size = selected_idx.size();
     }
+    match_token_shape(output_states, delta_states);
     this->updater->update_selected_output_delta_z(output_states, *this->obs,
                                                   delta_states);
 }
@@ -398,6 +409,7 @@ void OutputUpdater::update_heteros(BaseHiddenStates& output_states,
     this->obs->size = mu_obs.size();
     this->obs->actual_size = mu_obs.size() / output_states.block_size;
 
+    match_token_shape(output_states, delta_states);
     this->updater->update_output_delta_z_heteros(output_states, *this->obs,
                                                  delta_states);
 }

@@ -79,7 +79,9 @@ void bwd_emb(std::vector<float> &ma, std::vector<float> &var_w,
                 delta_mu_w[cat_idx * embedding_dim + k] +=
                     delta_mu[out_idx + k] * var_w[cat_idx * embedding_dim + k];
                 delta_var_w[cat_idx * embedding_dim + k] +=
-                    delta_var[out_idx + k] * var_w[cat_idx * embedding_dim + k];
+                    delta_var[out_idx + k] *
+                    var_w[cat_idx * embedding_dim + k] *
+                    var_w[cat_idx * embedding_dim + k];
             }
         }
     }
@@ -116,6 +118,7 @@ Embedding::Embedding(int num_embeddings, int embedding_dim, int input_size,
     this->device_idx = device_idx;
     this->num_weights = num_embeddings * embedding_dim;
     this->num_biases = 0;
+    this->bias = false;
 
     if (input_size > 0) {
         this->input_size = input_size;
@@ -184,6 +187,8 @@ void Embedding::backward(BaseDeltaStates &input_delta_states,
     int batch_size = input_delta_states.block_size;
 
     if (this->param_update) {
+        std::fill(this->delta_mu_w.begin(), this->delta_mu_w.end(), 0.0f);
+        std::fill(this->delta_var_w.begin(), this->delta_var_w.end(), 0.0f);
         bwd_emb(this->bwd_states->mu_a, this->var_w,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->embedding_dim, this->input_size, batch_size,

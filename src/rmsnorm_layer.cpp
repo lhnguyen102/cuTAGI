@@ -18,8 +18,8 @@ void rmsnorm_stat_rms(const std::vector<float> &mu_a,
     for (int col = start_chunk; col < end_chunk; col++) {  // batch size
         float sum = 0.0f;
         for (int i = 0; i < ni; i++) {  // hidden node
-            float mu_sq = mu_a[col * ni + i] * mu_a[col * ni + i];
-            sum += mu_sq;
+            sum +=
+                mu_a[col * ni + i] * mu_a[col * ni + i] + var_a[col * ni + i];
         }
         rms_ra[col] = sum / ni;
     }
@@ -42,11 +42,10 @@ void rmsnorm_fwd_mean_var(const std::vector<float> &mu_w,
         for (int col = 0; col < ni; col++) {  // hidden node
             int index = col + row * ni;
             float normalized_mu = mu_a[index] * inv_rms;
-            float normalized_var = var_a[index] * inv_rms_sq;
 
             mu_z[index] = normalized_mu * mu_w[col];
             var_z[index] =
-                normalized_var *
+                inv_rms_sq *
                 (var_a[index] * (var_w[col] + mu_w[col] * mu_w[col]) +
                  var_w[col] * mu_a[index] * mu_a[index]);
         }
@@ -79,6 +78,7 @@ void rmsnorm_bwd_delta_z(const std::vector<float> &mu_w,
 }
 
 void rmsnorm_bwd_delta_w(const std::vector<float> &mu_a,
+                         const std::vector<float> &var_w,
                          const std::vector<float> &rms_ra,
                          const std::vector<float> &delta_mu_out,
                          const std::vector<float> &delta_var_out, float epsilon,
@@ -98,8 +98,8 @@ void rmsnorm_bwd_delta_w(const std::vector<float> &mu_a,
             sum_mu += tmp * delta_mu_out[col + row * ni];
             sum_var += tmp * delta_var_out[col + row * ni] * tmp;
         }
-        delta_mu_w[col] = sum_mu;
-        delta_var_w[col] = sum_var;
+        delta_mu_w[col] = sum_mu * var_w[col];
+        delta_var_w[col] = sum_var * var_w[col] * var_w[col];
     }
 }
 
@@ -202,14 +202,12 @@ void rmsnorm_bwd_delta_z_mp(const std::vector<float> &mu_w,
     }
 }
 
-void rmsnorm_bwd_delta_w_mp(const std::vector<float> &mu_a,
-                            const std::vector<float> &rms_ra,
-                            const std::vector<float> &delta_mu_out,
-                            const std::vector<float> &delta_var_out,
-                            float epsilon, int ni, int batch_size,
-                            const int num_threads,
-                            std::vector<float> &delta_mu_w,
-                            std::vector<float> &delta_var_w)
+void rmsnorm_bwd_delta_w_mp(
+    const std::vector<float> &mu_a, const std::vector<float> &var_w,
+    const std::vector<float> &rms_ra, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, float epsilon, int ni,
+    int batch_size, const int num_threads, std::vector<float> &delta_mu_w,
+    std::vector<float> &delta_var_w)
 /*
  */
 {
@@ -223,11 +221,11 @@ void rmsnorm_bwd_delta_w_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &rms_ra, &delta_mu_out, &delta_var_out,
-                              &delta_mu_w, &delta_var_w] {
-            rmsnorm_bwd_delta_w(mu_a, rms_ra, delta_mu_out, delta_var_out,
-                                epsilon, ni, batch_size, start_chunk, end_chunk,
-                                delta_mu_w, delta_var_w);
+        threads.emplace_back([=, &mu_a, &var_w, &rms_ra, &delta_mu_out,
+                              &delta_var_out, &delta_mu_w, &delta_var_w] {
+            rmsnorm_bwd_delta_w(
+                mu_a, var_w, rms_ra, delta_mu_out, delta_var_out, epsilon, ni,
+                batch_size, start_chunk, end_chunk, delta_mu_w, delta_var_w);
         });
     }
 
@@ -395,13 +393,13 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
     if (this->param_update) {
         if (this->num_threads <= 1) {
             rmsnorm_bwd_delta_w(
-                this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->var_w, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, effective_batch, 0,
                 this->input_size, this->delta_mu_w, this->delta_var_w);
         } else {
             rmsnorm_bwd_delta_w_mp(
-                this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->var_w, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, effective_batch,
                 this->num_threads, this->delta_mu_w, this->delta_var_w);

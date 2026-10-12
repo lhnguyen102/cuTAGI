@@ -139,3 +139,73 @@ TEST(RemaxMinimal, CPUvsCUDA) {
             << "Output jcb mismatch at index " << i;
     }
 }
+
+namespace {
+
+// A probability in [0, 1] with mean mu has variance at most mu * (1 - mu).
+void expect_remax_var_bounded(const std::vector<float> &mu_a,
+                              const std::vector<float> &var_a) {
+    for (size_t i = 0; i < mu_a.size(); ++i) {
+        EXPECT_LE(var_a[i], mu_a[i] * (1.0f - mu_a[i]) + 1e-6f)
+            << "index " << i << " mu " << mu_a[i];
+    }
+}
+
+// First row of a causal attention score: one live logit, the rest masked
+// (mu = -1e8, var = 1e-6). Remax saturates to mu ~ 1 on the live entry.
+const int masked_batch_size = 2, masked_hidden_size = 4;
+const std::vector<float> masked_row_mu = {0.0f, -1e8f, -1e8f, -1e8f,
+                                          0.0f, -1e8f, -1e8f, -1e8f};
+const std::vector<float> masked_row_var = {0.01f, 1e-6f, 1e-6f, 1e-6f,
+                                           10.0f, 1e-6f, 1e-6f, 1e-6f};
+
+}  // namespace
+
+TEST(RemaxVarianceBound, CPU) {
+    BaseHiddenStates input_states, output_states;
+    input_states.mu_a = masked_row_mu;
+    input_states.var_a = masked_row_var;
+    input_states.jcb.assign(masked_row_mu.size(), 1.0f);
+    input_states.block_size = masked_batch_size;
+    input_states.actual_size = masked_hidden_size;
+    input_states.size = masked_row_mu.size();
+    output_states.mu_a.resize(masked_row_mu.size());
+    output_states.var_a.resize(masked_row_mu.size());
+    output_states.jcb.resize(masked_row_mu.size());
+    output_states.block_size = masked_batch_size;
+    output_states.actual_size = masked_hidden_size;
+    output_states.size = masked_row_mu.size();
+    BaseTempStates temp_states;
+
+    Remax remax;
+    remax.input_size = masked_hidden_size;
+    remax.output_size = masked_hidden_size;
+    remax.forward(input_states, output_states, temp_states);
+
+    expect_remax_var_bounded(output_states.mu_a, output_states.var_a);
+}
+
+#ifdef USE_CUDA
+TEST(RemaxVarianceBound, CUDA) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    HiddenStateCuda input_states(masked_row_mu.size(), masked_batch_size);
+    input_states.mu_a = masked_row_mu;
+    input_states.var_a = masked_row_var;
+    input_states.jcb.assign(masked_row_mu.size(), 1.0f);
+    input_states.block_size = masked_batch_size;
+    input_states.actual_size = masked_hidden_size;
+    input_states.to_device();
+    HiddenStateCuda output_states(masked_row_mu.size(), masked_batch_size);
+    output_states.block_size = masked_batch_size;
+    output_states.actual_size = masked_hidden_size;
+    BaseTempStates temp_states;
+
+    RemaxCuda remax;
+    remax.input_size = masked_hidden_size;
+    remax.output_size = masked_hidden_size;
+    remax.forward(input_states, output_states, temp_states);
+    output_states.to_host();
+
+    expect_remax_var_bounded(output_states.mu_a, output_states.var_a);
+}
+#endif

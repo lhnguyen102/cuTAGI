@@ -210,7 +210,8 @@ void OutputUpdaterCuda::update_selected_output_delta_z(
 
     // Kernel
     int num_states = cu_obs->idx_size;
-    int num_enc = cu_obs->idx_size / cu_obs->block_size;
+    int num_tokens = cu_output_states->block_size * cu_output_states->seq_len;
+    int num_enc = cu_obs->idx_size / num_tokens;
     int num_outputs = cu_output_states->actual_size;
     unsigned int blocks =
         (num_states + this->num_cuda_threads - 1) / this->num_cuda_threads;
