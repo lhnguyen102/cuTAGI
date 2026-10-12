@@ -14,7 +14,9 @@
 
 HRCSoftmax class_to_obs(int n_classes);
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
-                                HRCSoftmax &hs, int n_classes);
+                                HRCSoftmax &hs, int n_classes,
+                                const std::vector<float> &level_scale = {},
+                                const std::vector<float> &level_offset = {});
 
 std::tuple<std::vector<int>, std::vector<float>> get_error(
     std::vector<float> &mz, std::vector<float> &Sz, std::vector<int> &labels,

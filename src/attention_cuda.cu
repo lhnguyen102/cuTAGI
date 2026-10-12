@@ -134,7 +134,7 @@ MultiheadAttentionCuda::MultiheadAttentionCuda(
     size_t embed_dim, size_t num_heads, size_t num_kv_heads, size_t seq_len_,
     bool bias, float gain_w, float gain_b, std::string init_method,
     bool use_rope, float rope_theta, size_t max_seq_len, bool use_causal_mask,
-    int device_idx)
+    bool center_score_delta, int device_idx)
     : embed_dim(embed_dim),
       num_heads(num_heads),
       num_kv_heads(num_kv_heads),
@@ -144,7 +144,8 @@ MultiheadAttentionCuda::MultiheadAttentionCuda(
       use_rope(use_rope),
       rope_theta(rope_theta),
       max_seq_len(max_seq_len),
-      use_causal_mask(use_causal_mask) {
+      use_causal_mask(use_causal_mask),
+      center_score_delta(center_score_delta) {
     check_attention_config(embed_dim, num_heads, num_kv_heads, seq_len_,
                            use_rope, max_seq_len);
     this->input_size = embed_dim;
@@ -347,6 +348,13 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
         head_dim, attn_delta_states.d_delta_mu_att_score,
         attn_delta_states.d_delta_var_att_score);
 
+    if (this->center_score_delta) {
+        int num_rows = batch_size * num_heads * timestep;
+        center_delta_score_kernel<<<blocks_for(num_rows), THREADS>>>(
+            attn_states.d_mu_att_score, num_rows, timestep,
+            attn_delta_states.d_delta_mu_att_score);
+    }
+
     float *mu_q = attn_states.d_mu_q, *mu_k = attn_states.d_mu_k;
     float *delta_mu_q = attn_delta_states.d_delta_mu_q;
     float *delta_var_q = attn_delta_states.d_delta_var_q;
@@ -418,7 +426,7 @@ std::unique_ptr<BaseLayer> MultiheadAttentionCuda::to_host() {
         this->embed_dim, this->num_heads, this->num_kv_heads, this->seq_len,
         this->bias, this->gain_w, this->gain_b, this->init_method,
         this->use_rope, this->rope_theta, this->max_seq_len,
-        this->use_causal_mask, this->device_idx);
+        this->use_causal_mask, this->center_score_delta, this->device_idx);
     host->mu_w = this->mu_w;
     host->var_w = this->var_w;
     host->mu_b = this->mu_b;

@@ -342,6 +342,27 @@ TEST_F(AttentionHelpersTest, AttentionValueDelta) {
     EXPECT_GT(sum_delta_v, 0.0f);
 }
 
+TEST_F(AttentionHelpersTest, CenterDeltaScoreSubtractsAttentionWeightedMean) {
+    int batch_size = 1;
+    int num_heads = 1;
+    int timestep = 3;
+
+    // One row per query; each row of weights sums to 1.
+    std::vector<float> mu_att = {0.5f,  0.3f,  0.2f,  //
+                                 1.0f,  0.0f,  0.0f,  //
+                                 0.25f, 0.25f, 0.5f};
+    std::vector<float> delta_mu_score = {1.0f, 2.0f,  4.0f,  //
+                                         3.0f, -1.0f, 5.0f,  //
+                                         4.0f, 0.0f,  -2.0f};
+
+    center_delta_score(mu_att, batch_size, num_heads, timestep, delta_mu_score);
+
+    std::vector<float> expected = {-0.9f, 0.1f,  2.1f,  //
+                                   0.0f,  -4.0f, 2.0f,  //
+                                   4.0f,  0.0f,  -2.0f};
+    EXPECT_TRUE(vectors_equal(delta_mu_score, expected));
+}
+
 TEST_F(AttentionHelpersTest, AttentionQueryKeyDelta) {
     int batch_size = 1;
     int num_heads = 2;

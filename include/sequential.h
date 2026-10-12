@@ -114,6 +114,10 @@ class Sequential {
 
     void step();
 
+    void set_cap_factor(float cap_factor);
+
+    void set_var_decay(float tau, float min_gain = 0.0f);
+
     void reset_lstm_states();
 
     // Utility function to get layer stack info

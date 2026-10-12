@@ -185,6 +185,29 @@ class Sequential:
         """Moves the model parameters from the CUDA device to the host (CPU)."""
         self._cpp_backend.params_to_host()
 
+    def set_cap_factor(self, cap_factor: float):
+        """Clips every parameter update to |delta_mu| <= sqrt(var) / cap_factor,
+        replacing the batch-size heuristic. Applies to the current layers, so
+        call it after to_device.
+
+        :param cap_factor: Trust-region divisor, e.g. 50.
+        :type cap_factor: float
+        """
+        self._cpp_backend.set_cap_factor(cap_factor)
+
+    def set_var_decay(self, tau: float, min_gain: float = 0.0):
+        """Decays the weight variance of every layer except the last one as
+        var_w(n) = var_w(0) / (1 + n / tau), n = number of steps. Applies to the
+        current layers, so call it after to_device. save/load keep n.
+
+        :param tau: Decay timescale in steps. 0 disables the decay.
+        :type tau: float
+        :param min_gain: The decay stops once var_w(n) / var_w(0) reaches
+            min_gain. 0 means no floor.
+        :type min_gain: float
+        """
+        self._cpp_backend.set_var_decay(tau, min_gain)
+
     def set_threads(self, num_threads: int):
         """Sets the number of CPU threads to use for computation.
 
