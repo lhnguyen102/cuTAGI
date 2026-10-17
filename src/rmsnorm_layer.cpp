@@ -4,7 +4,10 @@
 #include <thread>
 
 #include "../include/custom_logger.h"
-#include "../include/param_init.h"
+
+#ifdef USE_CUDA
+#include "../include/rmsnorm_layer_cuda.cuh"
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CPU kernels for RMS Norm
@@ -18,8 +21,8 @@ void rmsnorm_stat_rms(const std::vector<float> &mu_a,
     for (int col = start_chunk; col < end_chunk; col++) {  // batch size
         float sum = 0.0f;
         for (int i = 0; i < ni; i++) {  // hidden node
-            float mu_sq = mu_a[col * ni + i] * mu_a[col * ni + i];
-            sum += mu_sq;
+            sum +=
+                mu_a[col * ni + i] * mu_a[col * ni + i] + var_a[col * ni + i];
         }
         rms_ra[col] = sum / ni;
     }
@@ -42,11 +45,10 @@ void rmsnorm_fwd_mean_var(const std::vector<float> &mu_w,
         for (int col = 0; col < ni; col++) {  // hidden node
             int index = col + row * ni;
             float normalized_mu = mu_a[index] * inv_rms;
-            float normalized_var = var_a[index] * inv_rms_sq;
 
             mu_z[index] = normalized_mu * mu_w[col];
             var_z[index] =
-                normalized_var *
+                inv_rms_sq *
                 (var_a[index] * (var_w[col] + mu_w[col] * mu_w[col]) +
                  var_w[col] * mu_a[index] * mu_a[index]);
         }
@@ -79,6 +81,7 @@ void rmsnorm_bwd_delta_z(const std::vector<float> &mu_w,
 }
 
 void rmsnorm_bwd_delta_w(const std::vector<float> &mu_a,
+                         const std::vector<float> &var_w,
                          const std::vector<float> &rms_ra,
                          const std::vector<float> &delta_mu_out,
                          const std::vector<float> &delta_var_out, float epsilon,
@@ -98,8 +101,8 @@ void rmsnorm_bwd_delta_w(const std::vector<float> &mu_a,
             sum_mu += tmp * delta_mu_out[col + row * ni];
             sum_var += tmp * delta_var_out[col + row * ni] * tmp;
         }
-        delta_mu_w[col] = sum_mu;
-        delta_var_w[col] = sum_var;
+        delta_mu_w[col] = sum_mu * var_w[col];
+        delta_var_w[col] = sum_var * var_w[col] * var_w[col];
     }
 }
 
@@ -202,14 +205,12 @@ void rmsnorm_bwd_delta_z_mp(const std::vector<float> &mu_w,
     }
 }
 
-void rmsnorm_bwd_delta_w_mp(const std::vector<float> &mu_a,
-                            const std::vector<float> &rms_ra,
-                            const std::vector<float> &delta_mu_out,
-                            const std::vector<float> &delta_var_out,
-                            float epsilon, int ni, int batch_size,
-                            const int num_threads,
-                            std::vector<float> &delta_mu_w,
-                            std::vector<float> &delta_var_w)
+void rmsnorm_bwd_delta_w_mp(
+    const std::vector<float> &mu_a, const std::vector<float> &var_w,
+    const std::vector<float> &rms_ra, const std::vector<float> &delta_mu_out,
+    const std::vector<float> &delta_var_out, float epsilon, int ni,
+    int batch_size, const int num_threads, std::vector<float> &delta_mu_w,
+    std::vector<float> &delta_var_w)
 /*
  */
 {
@@ -223,11 +224,11 @@ void rmsnorm_bwd_delta_w_mp(const std::vector<float> &mu_a,
         int start_chunk = i * n_per_thread + std::min(i, extra);
         int end_chunk = start_chunk + n_per_thread + (i < extra ? 1 : 0);
 
-        threads.emplace_back([=, &mu_a, &rms_ra, &delta_mu_out, &delta_var_out,
-                              &delta_mu_w, &delta_var_w] {
-            rmsnorm_bwd_delta_w(mu_a, rms_ra, delta_mu_out, delta_var_out,
-                                epsilon, ni, batch_size, start_chunk, end_chunk,
-                                delta_mu_w, delta_var_w);
+        threads.emplace_back([=, &mu_a, &var_w, &rms_ra, &delta_mu_out,
+                              &delta_var_out, &delta_mu_w, &delta_var_w] {
+            rmsnorm_bwd_delta_w(
+                mu_a, var_w, rms_ra, delta_mu_out, delta_var_out, epsilon, ni,
+                batch_size, start_chunk, end_chunk, delta_mu_w, delta_var_w);
         });
     }
 
@@ -258,9 +259,10 @@ std::tuple<int, int> get_number_params_rms_norm(
 }
 
 RMSNorm::RMSNorm(const std::vector<int> &normalized_shape, float eps,
-                 int device_idx)
+                 float gain_w, int device_idx)
     : normalized_shape(normalized_shape),
-      epsilon(eps)
+      epsilon(eps),
+      gain_w(gain_w)
 /*
  */
 {
@@ -303,15 +305,16 @@ LayerType RMSNorm::get_layer_type() const
 }
 
 void RMSNorm::init_weight_bias()
-/*
+/* Gain prior: mu_w = 1, var_w = (gain_w / num_features)^2. Unlike the
+gain_w^2 / fan_in convention of other layers, the variance shrinks with the
+square of the width.
  */
 {
-    int num_features = this->normalized_shape[0];
     this->num_weights = this->normalized_shape[0];
     this->num_biases = 0;
-    std::tie(this->mu_w, this->var_w, this->mu_b, this->var_b) =
-        init_weight_bias_norm("", 1.0f, 1.0f, num_features, num_features,
-                              this->num_weights, this->num_biases);
+    float prior_var_w = powf(this->gain_w / this->num_weights, 2);
+    this->mu_w.assign(this->num_weights, 1.0f);
+    this->var_w.assign(this->num_weights, prior_var_w);
 }
 
 void RMSNorm::allocate_running_rms()
@@ -391,17 +394,18 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
                 effective_batch, this->num_threads,
                 output_delta_states.delta_mu, output_delta_states.delta_var);
         }
+        output_delta_states.seq_len = seq_len;
     }
     if (this->param_update) {
         if (this->num_threads <= 1) {
             rmsnorm_bwd_delta_w(
-                this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->var_w, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, effective_batch, 0,
                 this->input_size, this->delta_mu_w, this->delta_var_w);
         } else {
             rmsnorm_bwd_delta_w_mp(
-                this->bwd_states->mu_a, this->rms_ra,
+                this->bwd_states->mu_a, this->var_w, this->rms_ra,
                 input_delta_states.delta_mu, input_delta_states.delta_var,
                 this->epsilon, this->input_size, effective_batch,
                 this->num_threads, this->delta_mu_w, this->delta_var_w);
@@ -411,8 +415,11 @@ void RMSNorm::backward(BaseDeltaStates &input_delta_states,
 
 #ifdef USE_CUDA
 std::unique_ptr<BaseLayer> RMSNorm::to_cuda(int device_idx) {
-    std::string message = "CUDA version of RMSNorm is not implemented yet";
-    LOG(LogLevel::ERROR, message);
-    return nullptr;
+    this->device = "cuda";
+    this->device_idx = device_idx;
+    auto cuda_layer = std::make_unique<RMSNormCuda>(
+        this->normalized_shape, this->epsilon, this->gain_w, device_idx);
+    cuda_layer->copy_params_from(*this);
+    return cuda_layer;
 }
 #endif

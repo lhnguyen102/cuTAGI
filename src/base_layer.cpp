@@ -176,6 +176,10 @@ Returns:
     cap_factor: Cap factor
 */
 {
+    if (this->fixed_cap_factor > 0.0f) {
+        this->cap_factor_update = this->fixed_cap_factor;
+        return;
+    }
     // TODO: Heuristic values!!
     if (batch_size == 1) {
         this->cap_factor_update = 0.1f;
@@ -185,6 +189,42 @@ Returns:
     }
     if (batch_size >= 256) {
         this->cap_factor_update = 3.0f;
+    }
+}
+
+void BaseLayer::set_var_decay(float tau, float min_gain)
+/*n_var_decay is kept so a model loaded from a checkpoint resumes its decay.*/
+{
+    this->var_decay_tau = tau;
+    this->var_decay_min_gain = min_gain;
+}
+
+float BaseLayer::next_var_decay_factor()
+/*Per-step multiplier (tau + n) / (tau + n + 1), whose product over n steps is
+tau / (tau + n) = 1 / (1 + n / tau).
+*/
+{
+    if (this->var_decay_tau <= 0.0f) {
+        return 1.0f;
+    }
+    float n = static_cast<float>(this->n_var_decay);
+    float gain = this->var_decay_tau / (this->var_decay_tau + n);
+    if (gain <= this->var_decay_min_gain) {
+        return 1.0f;
+    }
+    this->n_var_decay++;
+    return (this->var_decay_tau + n) / (this->var_decay_tau + n + 1.0f);
+}
+
+void BaseLayer::apply_var_decay()
+/**/
+{
+    float factor = this->next_var_decay_factor();
+    if (factor == 1.0f) {
+        return;
+    }
+    for (auto &v_w : this->var_w) {
+        v_w *= factor;
     }
 }
 

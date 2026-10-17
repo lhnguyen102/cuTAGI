@@ -107,8 +107,12 @@ void ResNetBlock::compute_input_output_size(const InitArgs &args)
     this->out_height = this->main_block->out_height;
     this->out_width = this->main_block->out_width;
 
-    this->input_size = this->in_width * this->in_width * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
+    int spatial_in = this->in_width * this->in_height * this->in_channels;
+    int spatial_out = this->out_width * this->out_height * this->out_channels;
+    this->input_size =
+        spatial_in > 0 ? spatial_in : this->main_block->input_size;
+    this->output_size =
+        spatial_out > 0 ? spatial_out : this->main_block->output_size;
 }
 
 void ResNetBlock::init_shortcut_state()
@@ -207,7 +211,7 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     }
     // Store jacobian matrix for backward pass
     if (this->training) {
-        int act_size = input_states.actual_size * input_states.block_size;
+        int act_size = input_states.actual_size * effective_batch;
         if (this->bwd_states->size != act_size) {
             this->allocate_bwd_vector(act_size);
         }
@@ -218,7 +222,7 @@ void ResNetBlock::forward(BaseHiddenStates &input_states,
     this->input_z->copy_from(input_states, this->input_size * effective_batch);
 
     this->main_block->forward(input_states, output_states, temp_states);
-    int num_states = output_states.block_size * this->output_size;
+    int num_states = effective_batch * this->output_size;
 
     // Shortcut
     if (this->shortcut != nullptr) {
@@ -254,13 +258,13 @@ void ResNetBlock::backward(BaseDeltaStates &input_delta_states,
 /**/
 {
     // Make a copy of delta input used later for residual connection
-    this->input_delta_z->copy_from(
-        input_delta_states, this->output_size * input_delta_states.block_size);
+    this->input_delta_z->copy_from(input_delta_states,
+                                   this->output_size * this->_batch_size);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);
 
-    int num_states = output_delta_states.block_size * this->input_size;
+    int num_states = this->_batch_size * this->input_size;
 
     if (this->shortcut != nullptr) {
         this->shortcut->backward(*this->input_delta_z,

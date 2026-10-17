@@ -24,6 +24,8 @@ class MultiheadAttention(BaseLayer):
         use_rope: bool = True,
         rope_theta: float = 10000.0,
         max_seq_len: int = 2048,
+        use_causal_mask: bool = True,
+        center_score_delta: bool = False,
     ):
         """
         Initializes the MultiheadAttention layer.
@@ -39,6 +41,15 @@ class MultiheadAttention(BaseLayer):
             gain_bias: Scaling factor applied to initialized biases. Defaults to 1.0.
             init_method: The method used for initializing weights and biases
                         (e.g., "Xavier", "He"). Defaults to "Xavier".
+            use_rope: If True, apply rotary positional embedding to Q and K.
+                      Requires an even head_dim and seq_len <= max_seq_len.
+            rope_theta: Base frequency of the rotary embedding.
+            max_seq_len: Number of positions in the rotary embedding cache.
+            use_causal_mask: If True, each position attends only to itself and
+                             earlier positions. Defaults to True.
+            center_score_delta: If True, subtract from each row of the
+                                attention-score delta its attention-weighted
+                                mean in the backward pass. Defaults to False.
         """
         super().__init__()
 
@@ -56,6 +67,8 @@ class MultiheadAttention(BaseLayer):
         self.use_rope = use_rope
         self.rope_theta = rope_theta
         self.max_seq_len = max_seq_len
+        self.use_causal_mask = use_causal_mask
+        self.center_score_delta = center_score_delta
 
         self._cpp_backend = cutagi.MultiheadAttention(
             embed_dim,
@@ -69,6 +82,8 @@ class MultiheadAttention(BaseLayer):
             use_rope,
             rope_theta,
             max_seq_len,
+            use_causal_mask,
+            center_score_delta,
         )
 
     def get_layer_info(self) -> str:

@@ -316,9 +316,9 @@ void DeltaStateCuda::set_size(size_t new_size, size_t new_block_size)
     if (new_size > this->size) {
         cudaDeviceSynchronize();
         this->size = new_size;
-        this->reset_zeros();
         this->deallocate_memory();
         this->allocate_memory();
+        this->reset_zeros();
     }
     this->block_size = new_block_size;
     this->actual_size = new_size / new_block_size;

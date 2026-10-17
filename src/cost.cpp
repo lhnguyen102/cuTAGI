@@ -148,7 +148,9 @@ HRCSoftmax class_to_obs(int n_classes)
 // }
 
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
-                                HRCSoftmax &hs, int n_classes)
+                                HRCSoftmax &hs, int n_classes,
+                                const std::vector<float> &level_scale,
+                                const std::vector<float> &level_offset)
 /*
  * Convert observation to classes.
  *
@@ -157,6 +159,8 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
  *    Sz: Variance of hidden states of the output layer
  *    hs: Hierarchical softmax output
  *    n_classes: Number of classes
+ *    level_scale, level_offset: Readout calibration P(node) = Phi(s * z + b),
+ *        one (s, b) per tree level. Empty leaves the readout uncalibrated.
  *
  * Returns:
  *    P: Probability of the class
@@ -168,9 +172,24 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
     std::vector<float> P_obs(hs.n_obs * n_classes);
     float alpha = 3;
 
+    // Column c of hs.idx holds the level-c node on each class's path.
+    std::vector<int> node_level(hs.len, 0);
+    for (int r = 0; r < n_classes; r++) {
+        for (int c = 0; c < hs.n_obs; c++) {
+            node_level[hs.idx[r * hs.n_obs + c] - 1] = c;
+        }
+    }
+
     // Compute probability for each observation
     for (int i = 0; i < hs.len; i++) {
-        P_z[i] = normcdf_cpu(mz[i] / pow(pow(1 / alpha, 2) + Sz[i], 0.5));
+        float z = mz[i] / pow(pow(1 / alpha, 2) + Sz[i], 0.5);
+        if (!level_scale.empty()) {
+            z *= level_scale[node_level[i]];
+        }
+        if (!level_offset.empty()) {
+            z += level_offset[node_level[i]];
+        }
+        P_z[i] = normcdf_cpu(z);
     }
 
     // Compute probability for the class

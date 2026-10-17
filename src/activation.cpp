@@ -1033,7 +1033,7 @@ void Softmax::forward(BaseHiddenStates &input_states,
     // TODO: replace this function by the multiprocessing one
     int batch_size = input_states.block_size * input_states.seq_len;
     softmax_mean_var(input_states.mu_a, input_states.var_a,
-                     input_states.block_size, batch_size, output_states.mu_a,
+                     input_states.actual_size, batch_size, output_states.mu_a,
                      output_states.jcb, output_states.var_a);
 
     this->input_size = input_states.actual_size;
@@ -1139,7 +1139,9 @@ void compute_remax_mean_var(const std::vector<float> &mu_log_m,
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu_norm = mu_a[i * hidden_size + j] / sum_mu;
             mu_a[i * hidden_size + j] = tmp_mu_norm;
-            var_a[i * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
+            var_a[i * hidden_size + j] =
+                std::min(var_a[i * hidden_size + j] * tmp_mu_norm * tmp_mu_norm,
+                         tmp_mu_norm * (1.0f - tmp_mu_norm));
         }
     }
 }
@@ -1436,8 +1438,8 @@ void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
 {
     int batch_size = input_states.block_size;
     int hidden_size = input_states.actual_size;
-    int effective_batch = batch_size * seq_len;
-    if (this->batch_size_ != batch_size) {
+    int effective_batch = batch_size * input_states.seq_len;
+    if (this->batch_size_ != effective_batch) {
         this->batch_size_ = effective_batch;
         this->mu_e_sum.resize(effective_batch, 0.0f);
         this->var_e_sum.resize(effective_batch, 0.0f);
@@ -1450,7 +1452,7 @@ void ClosedFormSoftmax::forward(BaseHiddenStates &input_states,
     }
 
     compute_mean_var_exp_sum(input_states.mu_a, input_states.var_a, hidden_size,
-                             batch_size, this->mu_e_sum, this->var_e_sum);
+                             effective_batch, this->mu_e_sum, this->var_e_sum);
     to_log(this->mu_e_sum, this->var_e_sum, 1, effective_batch,
            this->mu_log_e_sum, this->var_log_e_sum);
 

@@ -372,9 +372,9 @@ __global__ void compute_mean_var_sum_cuda(float const *mu_m, float const *var_m,
             sum_mu += mu_m[row * hidden_size + i];
             sum_var += var_m[row * hidden_size + i];
         }
+        mu_sum[row] = sum_mu;
+        var_sum[row] = sum_var;
     }
-    mu_sum[row] = sum_mu;
-    var_sum[row] = sum_var;
 }
 
 __global__ void compute_cov_log_m_mt_cuda(float const *mu_m, float const *var_m,
@@ -417,7 +417,9 @@ __global__ void compute_remax_mean_var_cuda(
         for (int j = 0; j < hidden_size; j++) {
             float tmp_mu_norm = mu_a[row * hidden_size + j] / sum_mu;
             mu_a[row * hidden_size + j] = tmp_mu_norm;
-            var_a[row * hidden_size + j] *= tmp_mu_norm * tmp_mu_norm;
+            var_a[row * hidden_size + j] =
+                fminf(var_a[row * hidden_size + j] * tmp_mu_norm * tmp_mu_norm,
+                      tmp_mu_norm * (1.0f - tmp_mu_norm));
         }
     }
 }
@@ -527,9 +529,11 @@ void ReLUCuda::forward(BaseHiddenStates &input_states,
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+    cu_output_states->seq_len = cu_input_states->seq_len;
 
     constexpr unsigned int THREADS = 256;
-    int num_states = input_states.actual_size * input_states.block_size;
+    int num_states = input_states.actual_size * input_states.block_size *
+                     input_states.seq_len;
     unsigned int blocks = (num_states + THREADS - 1) / THREADS;
 
     relu_mean_var_cuda<<<blocks, THREADS>>>(
@@ -1512,32 +1516,33 @@ void ClosedFormSoftmaxCuda::forward(BaseHiddenStates &input_states,
     HiddenStateCuda *cu_output_states =
         dynamic_cast<HiddenStateCuda *>(&output_states);
 
-    int batch_size = input_states.block_size;
+    int effective_batch = input_states.block_size * input_states.seq_len;
     int hidden_size = input_states.actual_size;
-    if (this->batch_size_ != batch_size) {
-        this->batch_size_ = batch_size;
+    if (this->batch_size_ != effective_batch) {
+        this->batch_size_ = effective_batch;
         this->deallocate_memory();
-        this->allocate_memory(hidden_size, batch_size);
+        this->allocate_memory(hidden_size, effective_batch);
     }
     constexpr int THREADS = 256;
-    unsigned int blocks = (batch_size + THREADS - 1) / THREADS;
+    unsigned int blocks = (effective_batch + THREADS - 1) / THREADS;
 
     // Compute mean and variance of softmax's denominator sum[exp(z)]
     compute_mean_var_exp_sum_cuda<<<blocks, THREADS>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, hidden_size,
-        batch_size, this->d_mu_e_sum, this->d_var_e_sum);
+        effective_batch, this->d_mu_e_sum, this->d_var_e_sum);
 
     // Transform to log space
     dim3 dim_grid_log(1, blocks);
     dim3 dim_block_log(1, THREADS);
     to_log_cuda<<<dim_grid_log, dim_block_log>>>(
-        this->d_mu_e_sum, this->d_var_e_sum, 1, batch_size,
+        this->d_mu_e_sum, this->d_var_e_sum, 1, effective_batch,
         this->d_mu_log_e_sum, this->d_var_log_e_sum);
 
     // Compute mean and variance of log[softmax(z)]
     constexpr int THREADS_BATCH = 16;
     constexpr int THREADS_HIDDEN = 16;
-    const int batch_blocks = (batch_size + THREADS_BATCH - 1) / THREADS_BATCH;
+    const int batch_blocks =
+        (effective_batch + THREADS_BATCH - 1) / THREADS_BATCH;
     const int hidden_blocks =
         (hidden_size + THREADS_HIDDEN - 1) / THREADS_HIDDEN;
     dim3 dim_grid_a(hidden_blocks, batch_blocks);
@@ -1545,12 +1550,13 @@ void ClosedFormSoftmaxCuda::forward(BaseHiddenStates &input_states,
     compute_mean_var_log_a_cuda<<<dim_grid_a, dim_block_a>>>(
         cu_input_states->d_mu_a, cu_input_states->d_var_a, this->d_mu_log_e_sum,
         this->d_var_log_e_sum, this->d_mu_e_sum, this->d_var_e_sum, hidden_size,
-        batch_size, this->d_mu_log_a, this->d_var_log_a, this->d_cov_log_a_z);
+        effective_batch, this->d_mu_log_a, this->d_var_log_a,
+        this->d_cov_log_a_z);
 
     // Compute mean and variance of softmax(z)
     compute_cfsoftmax_mean_var_cuda<<<dim_grid_a, dim_block_a>>>(
         this->d_mu_log_a, this->d_var_log_a, this->d_cov_log_a_z,
-        cu_input_states->d_var_a, hidden_size, batch_size,
+        cu_input_states->d_var_a, hidden_size, effective_batch,
         cu_output_states->d_mu_a, cu_output_states->d_var_a,
         cu_output_states->d_jcb);
 
@@ -1561,6 +1567,7 @@ void ClosedFormSoftmaxCuda::forward(BaseHiddenStates &input_states,
 
     cu_output_states->block_size = cu_input_states->block_size;
     cu_output_states->actual_size = cu_input_states->actual_size;
+    cu_output_states->seq_len = cu_input_states->seq_len;
 }
 
 std::unique_ptr<BaseLayer> ClosedFormSoftmaxCuda::to_host()

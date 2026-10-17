@@ -137,3 +137,69 @@ TEST(RMSNormBackward, BasicBackwardPass) {
             << "Weight delta var contains NaN at index " << i;
     }
 }
+
+namespace {
+
+// One row, mu_a = [1, -1, 1, -1], var_a = 1, mu_w = 1, var_w = 0.25.
+// E[x^2] = mu_a^2 + var_a = 2, so the normalizer is 1 / sqrt(2).
+struct HandRow {
+    BaseHiddenStates input_states, output_states;
+    BaseTempStates temp_states;
+    RMSNorm layer{{4}, 0.0f};
+
+    HandRow() {
+        input_states.mu_a = {1.0f, -1.0f, 1.0f, -1.0f};
+        input_states.var_a.assign(4, 1.0f);
+        input_states.jcb.assign(4, 1.0f);
+        input_states.block_size = 1;
+        input_states.actual_size = 4;
+        input_states.size = 4;
+        output_states.mu_a.resize(4);
+        output_states.var_a.resize(4);
+        output_states.jcb.resize(4);
+        layer.training = true;
+        layer.param_update = true;
+        layer.mu_w.assign(4, 1.0f);
+        layer.var_w.assign(4, 0.25f);
+        layer.forward(input_states, output_states, temp_states);
+    }
+};
+
+}  // namespace
+
+TEST(RMSNormForward, MatchesHandComputedMoments) {
+    HandRow row;
+    const float inv_sqrt2 = 0.70710678f;
+    for (int i = 0; i < 4; i++) {
+        float sign = (i % 2 == 0) ? 1.0f : -1.0f;
+        EXPECT_NEAR(row.output_states.mu_a[i], sign * inv_sqrt2, 1e-5f) << i;
+        // (1/2) * (var_a * (var_w + mu_w^2) + var_w * mu_a^2) = 0.75
+        EXPECT_NEAR(row.output_states.var_a[i], 0.75f, 1e-5f) << i;
+    }
+}
+
+TEST(RMSNormBackward, WeightDeltaMatchesHandComputed) {
+    HandRow row;
+    BaseDeltaStates input_delta_states, output_delta_states;
+    input_delta_states.delta_mu.assign(4, 1.0f);
+    input_delta_states.delta_var.assign(4, 1.0f);
+    input_delta_states.block_size = 1;
+    input_delta_states.actual_size = 4;
+    output_delta_states.delta_mu.resize(4);
+    output_delta_states.delta_var.resize(4);
+    output_delta_states.block_size = 1;
+    output_delta_states.actual_size = 4;
+
+    row.layer.backward(input_delta_states, output_delta_states, row.temp_states,
+                       true);
+
+    const float inv_sqrt2 = 0.70710678f;
+    for (int i = 0; i < 4; i++) {
+        float sign = (i % 2 == 0) ? 1.0f : -1.0f;
+        // delta_mu_w = var_w * (mu_a / rms) * delta_mu = 0.25 * (+-1/sqrt(2))
+        EXPECT_NEAR(row.layer.delta_mu_w[i], sign * 0.25f * inv_sqrt2, 1e-5f)
+            << i;
+        // delta_var_w = var_w^2 * (mu_a / rms)^2 * delta_var = 0.0625 * 0.5
+        EXPECT_NEAR(row.layer.delta_var_w[i], 0.03125f, 1e-6f) << i;
+    }
+}

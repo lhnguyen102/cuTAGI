@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import cutagi
 import numpy as np
@@ -145,7 +145,6 @@ class Utils:
         ma: np.ndarray,
         Sa: np.ndarray,
         labels: np.ndarray,
-        hr_softmax: HRCSoftmax,
         num_classes: int,
         batch_size: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -160,8 +159,6 @@ class Utils:
         :type Sa: numpy.ndarray
         :param labels: The ground truth labels for the dataset.
         :type labels: numpy.ndarray
-        :param hr_softmax: An initialized hierarchical softmax structure.
-        :type hr_softmax: pytagi.nn.HRCSoftmax
         :param num_classes: The total number of classes.
         :type num_classes: int
         :param batch_size: The number of samples in a batch.
@@ -173,7 +170,7 @@ class Utils:
         """
 
         pred, prob = self._cpp_backend.get_error_wrapper(
-            ma, Sa, labels, hr_softmax, num_classes, batch_size
+            ma, Sa, labels, num_classes, batch_size
         )
 
         return pred, prob
@@ -196,6 +193,8 @@ class Utils:
         Sa: np.ndarray,
         hr_softmax: HRCSoftmax,
         num_classes: int,
+        level_scale: Optional[np.ndarray] = None,
+        level_offset: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Converts observation probabilities to label probabilities.
 
@@ -210,12 +209,21 @@ class Utils:
         :type hr_softmax: pytagi.nn.HRCSoftmax
         :param num_classes: The total number of classes.
         :type num_classes: int
+        :param level_scale: Readout calibration scale s, one per tree level:
+            each node probability becomes Phi(s * z + b). None leaves the
+            readout uncalibrated.
+        :type level_scale: numpy.ndarray, optional
+        :param level_offset: Readout calibration offset b, one per tree level.
+            None means b = 0.
+        :type level_offset: numpy.ndarray, optional
         :return: An array of probabilities for each class label.
         :rtype: numpy.ndarray
         """
 
+        level_scale = [] if level_scale is None else level_scale
+        level_offset = [] if level_offset is None else level_offset
         prob = self._cpp_backend.obs_to_label_prob_wrapper(
-            ma, Sa, hr_softmax, num_classes
+            ma, Sa, hr_softmax, num_classes, level_scale, level_offset
         )
 
         return np.array(prob)

@@ -99,8 +99,12 @@ void ResNetBlockCuda::compute_input_output_size(const InitArgs &args)
     this->out_height = this->main_block->out_height;
     this->out_width = this->main_block->out_width;
 
-    this->input_size = this->in_width * this->in_width * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
+    int spatial_in = this->in_width * this->in_height * this->in_channels;
+    int spatial_out = this->out_width * this->out_height * this->out_channels;
+    this->input_size =
+        spatial_in > 0 ? spatial_in : this->main_block->input_size;
+    this->output_size =
+        spatial_out > 0 ? spatial_out : this->main_block->output_size;
 }
 
 void ResNetBlockCuda::init_shortcut_state()
@@ -253,7 +257,7 @@ void ResNetBlockCuda::forward(BaseHiddenStates &input_states,
     this->input_z->copy_from(input_states, this->input_size * effective_batch);
     this->main_block->forward(input_states, output_states, temp_states);
 
-    int num_states = output_states.block_size * this->output_size;
+    int num_states = effective_batch * this->output_size;
     constexpr unsigned int THREADS = 256;
     unsigned int grid_size = (num_states + THREADS - 1) / THREADS;
     HiddenStateCuda *cu_output_states =
@@ -306,12 +310,10 @@ void ResNetBlockCuda::backward(BaseDeltaStates &input_delta_states,
                                BaseTempStates &temp_states, bool state_update)
 /**/
 {
-    int batch_size = input_delta_states.block_size;
-    int seq_len = input_delta_states.seq_len;
-    int effective_batch = batch_size * seq_len;
+    int effective_batch = this->_batch_size;
     // Make a copy of delta input used later for residual connection
     this->input_delta_z->copy_from(input_delta_states,
-                                   this->output_size * batch_size);
+                                   this->output_size * effective_batch);
 
     this->main_block->backward(input_delta_states, output_delta_states,
                                temp_states, state_update);

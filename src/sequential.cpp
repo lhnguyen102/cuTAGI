@@ -6,19 +6,50 @@
 #include "../include/config.h"
 #include "../include/conv2d_layer.h"
 #include "../include/custom_logger.h"
+#include "../include/layer_block.h"
 #include "../include/pooling_layer.h"
 #include "../include/resnet_block.h"
 #include "../include/slstm_layer.h"
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 
+#include "../include/attention_cuda.cuh"
 #include "../include/base_layer_cuda.cuh"
 #include "../include/batchnorm_layer_cuda.cuh"
 #include "../include/resnet_block_cuda.cuh"
 #endif
+#include <functional>
 #include <memory>
 
 #include "../include/cuda_utils.h"
+
+namespace {
+void for_each_leaf_layer(BaseLayer *layer,
+                         const std::function<void(BaseLayer &)> &fn)
+/*Depth-first walk through container layers in forward order, calling fn on
+every layer that is not a container.
+ */
+{
+    if (layer == nullptr) return;
+    if (auto *block = dynamic_cast<LayerBlock *>(layer)) {
+        for (auto &child : block->layers) {
+            for_each_leaf_layer(child.get(), fn);
+        }
+    } else if (auto *resnet = dynamic_cast<ResNetBlock *>(layer)) {
+        for_each_leaf_layer(resnet->main_block.get(), fn);
+        for_each_leaf_layer(resnet->shortcut.get(), fn);
+    }
+#ifdef USE_CUDA
+    else if (auto *resnet = dynamic_cast<ResNetBlockCuda *>(layer)) {
+        for_each_leaf_layer(resnet->main_block.get(), fn);
+        for_each_leaf_layer(resnet->shortcut.get(), fn);
+    }
+#endif
+    else {
+        fn(*layer);
+    }
+}
+}  // namespace
 
 // Sequential::Sequential() {}
 Sequential::~Sequential() { this->valid_ = false; }
@@ -510,6 +541,37 @@ void Sequential::step()
     for (const auto &layer : this->layers) {
         layer->update_weights();
         layer->update_biases();
+        for_each_leaf_layer(layer.get(),
+                            [](BaseLayer &leaf) { leaf.apply_var_decay(); });
+    }
+}
+
+void Sequential::set_var_decay(float tau, float min_gain)
+/*Posterior variance decay var_w(n) = var_w(0) / (1 + n / tau) on every layer
+except the output layer, frozen once var_w(n) / var_w(0) reaches min_gain. The
+backward pass already contracts the output layer's variance; the hidden layers
+otherwise keep their prior Kalman gain. Applies to the current layers, so call
+it after to_device.
+*/
+{
+    for (size_t i = 0; i + 1 < this->layers.size(); i++) {
+        for_each_leaf_layer(this->layers[i].get(),
+                            [tau, min_gain](BaseLayer &leaf) {
+                                leaf.set_var_decay(tau, min_gain);
+                            });
+    }
+}
+
+void Sequential::set_cap_factor(float cap_factor)
+/*Trust-region clip |delta_mu| <= sqrt(var) / cap_factor on every parameter,
+replacing the batch-size heuristic. Applies to the current layers, so call it
+after to_device.
+*/
+{
+    for (const auto &layer : this->layers) {
+        for_each_leaf_layer(layer.get(), [cap_factor](BaseLayer &leaf) {
+            leaf.fixed_cap_factor = cap_factor;
+        });
     }
 }
 
@@ -653,6 +715,13 @@ void Sequential::save(const std::string &filename)
     for (const auto &layer : layers) {
         layer->save(file);
     }
+    // Trailer after the parameters, so files without it still load.
+    for (const auto &layer : layers) {
+        for_each_leaf_layer(layer.get(), [&file](BaseLayer &leaf) {
+            file.write(reinterpret_cast<const char *>(&leaf.n_var_decay),
+                       sizeof(leaf.n_var_decay));
+        });
+    }
     file.close();
 }
 
@@ -671,6 +740,14 @@ void Sequential::load(const std::string &filename)
 
     for (auto &layer : layers) {
         layer->load(file);
+    }
+    if (file.peek() != std::ifstream::traits_type::eof()) {
+        for (auto &layer : layers) {
+            for_each_leaf_layer(layer.get(), [&file](BaseLayer &leaf) {
+                file.read(reinterpret_cast<char *>(&leaf.n_var_decay),
+                          sizeof(leaf.n_var_decay));
+            });
+        }
     }
     file.close();
 }
@@ -1000,23 +1077,21 @@ Sequential::get_lstm_states(int time_step)
     return lstm_states;
 }
 
-std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
-Sequential::get_attention_scores() const {
-    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
-        scores;
-
-    for (size_t i = 0; i < layers.size(); ++i) {
-        if (layers[i]->get_layer_type() == LayerType::MultiheadAttention) {
-            auto *attn_layer =
-                dynamic_cast<MultiheadAttention *>(layers[i].get());
-            if (attn_layer) {
-                scores[static_cast<int>(i)] =
-                    std::make_tuple(attn_layer->attn_states.mu_att_score,
-                                    attn_layer->attn_states.var_att_score);
+std::vector<AttentionScores> Sequential::get_attention_scores() const {
+    std::vector<AttentionScores> scores;
+    for (const auto &layer : this->layers) {
+        for_each_leaf_layer(layer.get(), [&scores](BaseLayer &leaf) {
+            if (auto *attn = dynamic_cast<MultiheadAttention *>(&leaf)) {
+                scores.push_back(attn->get_attention_scores());
             }
-        }
+#ifdef USE_CUDA
+            else if (auto *attn =
+                         dynamic_cast<MultiheadAttentionCuda *>(&leaf)) {
+                scores.push_back(attn->get_attention_scores());
+            }
+#endif
+        });
     }
-
     return scores;
 }
 
