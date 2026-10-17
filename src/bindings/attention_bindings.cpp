@@ -3,8 +3,8 @@
 namespace {
 pybind11::array_t<float> scores_to_numpy(const AttentionScores& scores,
                                          const std::vector<float>& values) {
-    std::vector<ssize_t> shape = {scores.batch_size, scores.num_heads,
-                                  scores.timestep, scores.timestep};
+    std::vector<pybind11::ssize_t> shape = {scores.batch_size, scores.num_heads,
+                                            scores.timestep, scores.timestep};
     return pybind11::array_t<float>(shape, values.data());
 }
 }  // namespace
