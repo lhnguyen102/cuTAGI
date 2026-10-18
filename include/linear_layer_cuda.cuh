@@ -112,7 +112,42 @@ class LinearCuda : public BaseLayerCuda {
 
     std::unique_ptr<BaseLayer> to_host() override;
 
+    void set_output_indices(const std::vector<int> &unit_idx,
+                            int n_obs) override;
+
+    void update_weights() override;
+
+    void update_biases() override;
+
    protected:
     using BaseLayerCuda::allocate_param_memory;
     using BaseLayerCuda::params_to_device;
+
+   private:
+    // Sparse readout: 0-based path units [tokens, n_obs] for the next forward.
+    int *d_output_idx = nullptr;
+    int output_idx_capacity = 0;
+    int num_output_idx = 0;
+    int n_obs = 0;
+    bool output_idx_set = false;
+    bool sparse_pass = false;
+    // Pairs (token, k) stably sorted by unit; one segment per touched unit.
+    int *d_pair_id = nullptr;
+    int *d_sorted_unit = nullptr;
+    int *d_sorted_pair = nullptr;
+    int *d_touched_unit = nullptr;
+    int *d_segment_count = nullptr;
+    int *d_segment_offset = nullptr;
+    int *d_num_touched = nullptr;
+    void *d_sort_temp = nullptr;
+    size_t sort_temp_bytes = 0;
+    int num_touched = 0;
+
+    void sparse_forward(HiddenStateCuda &input_states,
+                        HiddenStateCuda &output_states, int num_tokens);
+    void sparse_backward(DeltaStateCuda &input_delta_states,
+                         DeltaStateCuda &output_delta_states,
+                         BackwardStateCuda &bwd_states, int num_tokens,
+                         bool state_udapte);
+    void group_pairs_by_unit();
 };

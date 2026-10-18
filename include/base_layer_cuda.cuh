@@ -77,4 +77,7 @@ class BaseLayerCuda : public BaseLayer {
     virtual void allocate_param_memory();
     virtual void store_states_for_training_cuda(HiddenStateCuda &input_states,
                                                 HiddenStateCuda &output_states);
+    // Same update as update_weights / update_biases, on the listed rows only.
+    void update_weight_rows(const int *d_rows, int num_rows, size_t row_size);
+    void update_bias_rows(const int *d_rows, int num_rows);
 };

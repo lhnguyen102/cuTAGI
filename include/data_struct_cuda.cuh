@@ -26,6 +26,7 @@ class HiddenStateCuda : public BaseHiddenStates {
     void to_device();
     void chunks_to_device(const size_t chunk_size);
     void to_host();
+    void to_host(size_t num_data);
     void set_size(size_t size, size_t block_size) override;
     void copy_from(const BaseHiddenStates &source, int num_data = -1) override;
 

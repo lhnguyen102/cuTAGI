@@ -110,16 +110,18 @@ void HiddenStateCuda::chunks_to_device(const size_t chunk_size)
                cudaMemcpyHostToDevice);
 }
 
-void HiddenStateCuda::to_host()
+void HiddenStateCuda::to_host() { this->to_host(this->mu_a.size()); }
+
+void HiddenStateCuda::to_host(size_t num_data)
 /*
  */
 {
     cudaSetDevice(this->device_idx);
-    cudaMemcpy(this->mu_a.data(), this->d_mu_a,
-               this->mu_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->var_a.data(), this->d_var_a,
-               this->var_a.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(this->jcb.data(), this->d_jcb, this->jcb.size() * sizeof(float),
+    cudaMemcpy(this->mu_a.data(), this->d_mu_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->var_a.data(), this->d_var_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->jcb.data(), this->d_jcb, num_data * sizeof(float),
                cudaMemcpyDeviceToHost);
 }
 

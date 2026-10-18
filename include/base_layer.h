@@ -110,6 +110,10 @@ class BaseLayer {
                           BaseTempStates &temp_states,
                           bool state_udapte = true);
 
+    // 1-based path units per token, consumed by the next forward.
+    virtual void set_output_indices(const std::vector<int> &unit_idx,
+                                    int n_obs);
+
     virtual void allocate_param_delta();
 
     virtual void update_weights();

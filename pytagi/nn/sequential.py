@@ -259,6 +259,23 @@ class Sequential:
         """Performs a single step of inference to update the parameters."""
         self._cpp_backend.step()
 
+    def set_output_indices(self, unit_idx: np.ndarray, n_obs: int):
+        """Restricts the readout to the path units of the next forward.
+
+        The next forward computes only the n_obs listed units per token, so
+        its outputs have shape (tokens * n_obs,), and the following backward
+        and step touch only those readout rows. The results are bit-equal to
+        the dense path. The indices apply to one forward; the one after it is
+        dense again. CUDA only, last layer must be a Linear.
+
+        :param unit_idx: 1-based unit ids, shape (tokens * n_obs,), as
+            returned by Utils.label_to_obs.
+        :type unit_idx: np.ndarray
+        :param n_obs: Units per token.
+        :type n_obs: int
+        """
+        self._cpp_backend.set_output_indices(unit_idx, n_obs)
+
     def reset_lstm_states(self):
         """Resets the hidden and cell states of all LSTM layers in the model."""
         self._cpp_backend.reset_lstm_states()

@@ -162,8 +162,12 @@ void OutputUpdaterCuda::update_output_delta_z(BaseHiddenStates& output_states,
 
     cu_obs->to_device();
 
-    // Reset delta to zero
-    cu_delta_states->reset_zeros();
+    // Only the region the next backward reads: tokens x actual_size.
+    size_t num_delta = cu_output_states->block_size *
+                       cu_output_states->seq_len *
+                       cu_output_states->actual_size;
+    cudaMemset(cu_delta_states->d_delta_mu, 0, num_delta * sizeof(float));
+    cudaMemset(cu_delta_states->d_delta_var, 0, num_delta * sizeof(float));
 
     // Kernel
     int THREADS_PER_BLOCK = 256;

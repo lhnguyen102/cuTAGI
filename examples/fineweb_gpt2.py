@@ -365,19 +365,32 @@ def main(
                 break
 
         x, labels = get_batch("train", batch_size, seq_len)
-        m_pred, v_pred = net(x)
         y_obs, y_idx, _ = utils.label_to_obs(
             labels=labels, num_classes=VOCAB_SIZE
         )
         if obs_scale != 1.0:
             y_obs = np.asarray(y_obs, dtype=np.float32) * obs_scale
-        out_updater.update_using_indices(
-            output_states=net.output_z_buffer,
-            mu_obs=y_obs,
-            var_obs=var_y,
-            selected_idx=y_idx,
-            delta_states=net.input_delta_z_buffer,
-        )
+        # Metric iterations need the full vocabulary; every other step only
+        # computes and updates the path units (bit-equal, see ADR 0001).
+        metric_iteration = iter_num % log_interval == 0
+        if not metric_iteration:
+            net.set_output_indices(y_idx, hrc.num_obs)
+        m_pred, v_pred = net(x)
+        if metric_iteration:
+            out_updater.update_using_indices(
+                output_states=net.output_z_buffer,
+                mu_obs=y_obs,
+                var_obs=var_y,
+                selected_idx=y_idx,
+                delta_states=net.input_delta_z_buffer,
+            )
+        else:
+            out_updater.update(
+                output_states=net.output_z_buffer,
+                mu_obs=y_obs,
+                var_obs=var_y,
+                delta_states=net.input_delta_z_buffer,
+            )
         net.backward()
         net.step()
 
@@ -390,7 +403,7 @@ def main(
             current_sigma_v = max(sigma_v_min, current_sigma_v * decay_factor)
             var_y[:] = current_sigma_v**2
 
-        if iter_num % log_interval == 0:
+        if metric_iteration:
             ce, err, psum, ce_raw = sampled_metrics(
                 utils,
                 hrc,

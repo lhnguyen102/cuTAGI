@@ -114,6 +114,8 @@ class Sequential {
 
     void step();
 
+    void set_output_indices(const std::vector<int>& unit_idx, int n_obs);
+
     void set_cap_factor(float cap_factor);
 
     void set_var_decay(float tau, float min_gain = 0.0f);

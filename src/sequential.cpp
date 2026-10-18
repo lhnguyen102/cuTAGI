@@ -546,6 +546,13 @@ void Sequential::step()
     }
 }
 
+void Sequential::set_output_indices(const std::vector<int> &unit_idx, int n_obs)
+/*
+ */
+{
+    this->layers.back()->set_output_indices(unit_idx, n_obs);
+}
+
 void Sequential::set_var_decay(float tau, float min_gain)
 /*Decay var_w(n) = var_w(0) / (1 + n / tau), floored at min_gain * var_w(0), on
 every weighted layer except the last one (the output layer, already contracted
@@ -608,7 +615,9 @@ void Sequential::output_to_host() {
     if (this->device.compare("cuda") == 0) {
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get());
-        cu_output_states->to_host();
+        cu_output_states->to_host(cu_output_states->block_size *
+                                  cu_output_states->seq_len *
+                                  cu_output_states->actual_size);
     }
 #endif
 }
@@ -948,7 +957,7 @@ Sequential::get_outputs()
     }
     int batch_size =
         this->output_z_buffer->block_size * this->output_z_buffer->seq_len;
-    int num_outputs = this->layers.back()->output_size;
+    int num_outputs = this->output_z_buffer->actual_size;
     std::vector<float> mu_a_output(batch_size * num_outputs);
     std::vector<float> var_a_output(batch_size * num_outputs);
 

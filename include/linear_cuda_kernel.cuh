@@ -1517,3 +1517,154 @@ __global__ void linear_bwd_delta_b(float const *var_b,
                                                var_b[col * output_size + row];
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Sparse readout: only the path units of each token
+////////////////////////////////////////////////////////////////////////////////
+constexpr int SPARSE_READOUT_MAX_OBS = 64;
+
+// Bit-equal to the dense kernels: one accumulator per output element, fma over
+// the input in ascending order. V4_VAR selects the variance rounding of
+// linear_fwd_mean_var_v4, otherwise that of v3.
+template <bool V4_VAR>
+__global__ void linear_sparse_fwd(const float *mu_w, const float *var_w,
+                                  const float *mu_b, const float *var_b,
+                                  const float *mu_a, const float *var_a,
+                                  const int *unit_idx, size_t input_size,
+                                  int n_obs, int num_pairs, bool bias,
+                                  float *mu_z, float *var_z)
+/*
+ */
+{
+    int p = blockIdx.x * blockDim.x + threadIdx.x;
+    if (p >= num_pairs) return;
+    int token = p / n_obs;
+    int unit = unit_idx[p];
+    const float *w_mu = mu_w + unit * input_size;
+    const float *w_var = var_w + unit * input_size;
+    const float *a_mu = mu_a + token * input_size;
+    const float *a_var = var_a + token * input_size;
+
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    for (size_t j = 0; j < input_size; j++) {
+        float mu_w_tmp = w_mu[j];
+        float var_w_tmp = w_var[j];
+        float mu_a_tmp = a_mu[j];
+        float var_a_tmp = a_var[j];
+        sum_mu = __fmaf_rn(mu_w_tmp, mu_a_tmp, sum_mu);
+        if (V4_VAR) {
+            sum_var += __fmaf_rn(mu_w_tmp * mu_w_tmp + var_w_tmp, var_a_tmp,
+                                 mu_a_tmp * mu_a_tmp * var_w_tmp);
+        } else {
+            sum_var =
+                __fmaf_rn(mu_w_tmp * mu_w_tmp + var_w_tmp, var_a_tmp,
+                          __fmaf_rn(var_w_tmp, mu_a_tmp * mu_a_tmp, sum_var));
+        }
+    }
+    mu_z[p] = bias ? sum_mu + mu_b[unit] : sum_mu;
+    var_z[p] = bias ? sum_var + var_b[unit] : sum_var;
+}
+
+// The dense kernels sum over output units in ascending unit order, so the
+// token's path units are sorted by unit before the chain.
+__global__ void linear_sparse_bwd_delta_z(
+    const float *mu_w, const float *jcb, const float *delta_mu_out,
+    const float *delta_var_out, const int *unit_idx, size_t input_size,
+    int n_obs, float *delta_mu_in, float *delta_var_in)
+/*
+ */
+{
+    __shared__ int s_unit[SPARSE_READOUT_MAX_OBS];
+    __shared__ float s_delta_mu[SPARSE_READOUT_MAX_OBS];
+    __shared__ float s_delta_var[SPARSE_READOUT_MAX_OBS];
+
+    int token = blockIdx.y;
+    if (threadIdx.x == 0) {
+        for (int k = 0; k < n_obs; k++) {
+            int p = token * n_obs + k;
+            int u = unit_idx[p];
+            float dm = delta_mu_out[p];
+            float dv = delta_var_out[p];
+            int i = k;
+            while (i > 0 && s_unit[i - 1] > u) {
+                s_unit[i] = s_unit[i - 1];
+                s_delta_mu[i] = s_delta_mu[i - 1];
+                s_delta_var[i] = s_delta_var[i - 1];
+                i--;
+            }
+            s_unit[i] = u;
+            s_delta_mu[i] = dm;
+            s_delta_var[i] = dv;
+        }
+    }
+    __syncthreads();
+
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    if (j >= input_size) return;
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    for (int k = 0; k < n_obs; k++) {
+        float w = mu_w[s_unit[k] * input_size + j];
+        sum_mu = __fmaf_rn(w, s_delta_mu[k], sum_mu);
+        sum_var = __fmaf_rn(w * w, s_delta_var[k], sum_var);
+    }
+    size_t out = token * input_size + j;
+    float jcb_val = jcb[out];
+    delta_mu_in[out] = __fmul_rn(sum_mu, jcb_val);
+    delta_var_in[out] = __fmul_rn(jcb_val * jcb_val, sum_var);
+}
+
+// One block per touched unit; sorted_pair[offset..offset+count) lists the
+// (token, k) pairs of that unit in ascending token order, matching the dense
+// sum over the batch.
+__global__ void linear_sparse_bwd_delta_w(
+    const float *var_w, const float *mu_a, const float *delta_mu_out,
+    const float *delta_var_out, const int *touched_unit,
+    const int *segment_offset, const int *segment_count, const int *sorted_pair,
+    size_t input_size, int n_obs, float *delta_mu_w, float *delta_var_w)
+/*
+ */
+{
+    int unit = touched_unit[blockIdx.x];
+    int begin = segment_offset[blockIdx.x];
+    int end = begin + segment_count[blockIdx.x];
+    for (int j = threadIdx.x; j < input_size; j += blockDim.x) {
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int s = begin; s < end; s++) {
+            int p = sorted_pair[s];
+            float a = mu_a[(p / n_obs) * input_size + j];
+            sum_mu = __fmaf_rn(a, delta_mu_out[p], sum_mu);
+            sum_var = __fmaf_rn(a * a, delta_var_out[p], sum_var);
+        }
+        size_t w = unit * input_size + j;
+        float var_w_tmp = var_w[w];
+        delta_mu_w[w] = __fmul_rn(sum_mu, var_w_tmp);
+        delta_var_w[w] = __fmul_rn(var_w_tmp * var_w_tmp, sum_var);
+    }
+}
+
+__global__ void linear_sparse_bwd_delta_b(
+    const float *var_b, const float *delta_mu_out, const float *delta_var_out,
+    const int *touched_unit, const int *segment_offset,
+    const int *segment_count, const int *sorted_pair, int num_touched,
+    float *delta_mu_b, float *delta_var_b)
+/*
+ */
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= num_touched) return;
+    int unit = touched_unit[i];
+    int begin = segment_offset[i];
+    int end = begin + segment_count[i];
+    float sum_mu = 0.0f;
+    float sum_var = 0.0f;
+    for (int s = begin; s < end; s++) {
+        int p = sorted_pair[s];
+        sum_mu += delta_mu_out[p];
+        sum_var += delta_var_out[p];
+    }
+    delta_mu_b[unit] = sum_mu * var_b[unit];
+    delta_var_b[unit] = sum_var * var_b[unit] * var_b[unit];
+}
