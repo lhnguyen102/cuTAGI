@@ -16,8 +16,7 @@ struct EmbeddingProp {
 };
 
 std::tuple<std::vector<float>, std::vector<float>> initialize_embedding_values(
-    int num_embeddings, int embedding_dim, float scale,
-    unsigned int *seed = nullptr);
+    int num_embeddings, int embedding_dim, float scale);
 
 void fwd_emb(std::vector<float> &ma, std::vector<float> &mu_w,
              std::vector<float> &var_w, int embedding_dim, int num_inputs,

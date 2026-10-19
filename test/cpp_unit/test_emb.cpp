@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../../include/base_output_updater.h"
+#include "../../include/common.h"
 #include "../../include/data_struct.h"
 #include "../../include/embedding_cpu.h"
 #include "../../include/linear_layer.h"
@@ -553,6 +554,17 @@ struct SingleTokenEmbedding {
 };
 
 }  // namespace
+
+TEST(EmbeddingTest, InitFollowsManualSeed) {
+    manual_seed(7);
+    Embedding first(16, 4, 1);
+    manual_seed(7);
+    Embedding same_seed(16, 4, 1);
+    manual_seed(8);
+    Embedding other_seed(16, 4, 1);
+    EXPECT_EQ(first.mu_w, same_seed.mu_w);
+    EXPECT_NE(first.mu_w, other_seed.mu_w);
+}
 
 TEST(EmbeddingTest, WeightDeltaVarianceScalesWithVarWSquared) {
     SingleTokenEmbedding emb;
