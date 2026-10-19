@@ -16,8 +16,10 @@ tree level. Only these units are observed for that token.
 _Avoid_: target nodes, selected indices, observed units
 
 **Touched rows**:
-The readout rows that receive a non-zero delta in one training step: the union
-of all tokens' path units in the batch.
+The weight rows that receive a non-zero delta in one training step. For the
+readout, the union of all tokens' path units in the batch; for the embedding,
+the distinct non-padding tokens in the batch. The step updates only those rows;
+the embedding backward writes only those delta rows and leaves the rest stale.
 
 **Dense path**:
 Training in which the readout computes, ships and updates every vocabulary

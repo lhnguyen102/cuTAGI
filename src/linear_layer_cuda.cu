@@ -1,6 +1,4 @@
-#include <algorithm>
 #include <cstdint>
-#include <cub/cub.cuh>
 
 #include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
@@ -201,18 +199,6 @@ LinearCuda::LinearCuda(size_t ip_size, size_t op_size, bool bias,
     }
 }
 
-LinearCuda::~LinearCuda() {
-    cudaFree(this->d_output_idx);
-    cudaFree(this->d_pair_id);
-    cudaFree(this->d_sorted_unit);
-    cudaFree(this->d_sorted_pair);
-    cudaFree(this->d_touched_unit);
-    cudaFree(this->d_segment_count);
-    cudaFree(this->d_segment_offset);
-    cudaFree(this->d_num_touched);
-    cudaFree(this->d_sort_temp);
-}
-
 std::string LinearCuda::get_layer_info() const
 /*
  */
@@ -387,40 +373,8 @@ void LinearCuda::set_output_indices(const std::vector<int> &unit_idx, int n_obs)
 
     cudaSetDevice(this->device_idx);
     int num = static_cast<int>(unit_idx.size());
-    if (num > this->output_idx_capacity) {
-        for (int **buf :
-             {&this->d_output_idx, &this->d_pair_id, &this->d_sorted_unit,
-              &this->d_sorted_pair, &this->d_touched_unit,
-              &this->d_segment_count, &this->d_segment_offset}) {
-            cudaFree(*buf);
-            CHECK_CUDA_ERROR(cudaMalloc((void **)buf, num * sizeof(int)));
-        }
-        if (this->d_num_touched == nullptr) {
-            CHECK_CUDA_ERROR(
-                cudaMalloc((void **)&this->d_num_touched, sizeof(int)));
-        }
-        std::vector<int> iota(num);
-        for (int i = 0; i < num; i++) iota[i] = i;
-        cudaMemcpy(this->d_pair_id, iota.data(), num * sizeof(int),
-                   cudaMemcpyHostToDevice);
-
-        size_t sort_bytes = 0, encode_bytes = 0, scan_bytes = 0;
-        cub::DeviceRadixSort::SortPairs(nullptr, sort_bytes, this->d_output_idx,
-                                        this->d_sorted_unit, this->d_pair_id,
-                                        this->d_sorted_pair, num);
-        cub::DeviceRunLengthEncode::Encode(
-            nullptr, encode_bytes, this->d_sorted_unit, this->d_touched_unit,
-            this->d_segment_count, this->d_num_touched, num);
-        cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes,
-                                      this->d_segment_count,
-                                      this->d_segment_offset, num);
-        this->sort_temp_bytes =
-            std::max(sort_bytes, std::max(encode_bytes, scan_bytes));
-        cudaFree(this->d_sort_temp);
-        CHECK_CUDA_ERROR(cudaMalloc(&this->d_sort_temp, this->sort_temp_bytes));
-        this->output_idx_capacity = num;
-    }
-    cudaMemcpy(this->d_output_idx, zero_based.data(), num * sizeof(int),
+    this->segments.reserve(num);
+    cudaMemcpy(this->segments.d_row, zero_based.data(), num * sizeof(int),
                cudaMemcpyHostToDevice);
     this->num_output_idx = num;
     this->n_obs = n_obs;
@@ -444,34 +398,16 @@ void LinearCuda::sparse_forward(HiddenStateCuda &input_states,
     if (linear_fwd_uses_v4(this->input_size, this->output_size)) {
         linear_sparse_fwd<true><<<blocks, THREADS>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            input_states.d_mu_a, input_states.d_var_a, this->d_output_idx,
+            input_states.d_mu_a, input_states.d_var_a, this->segments.d_row,
             this->input_size, this->n_obs, this->num_output_idx, this->bias,
             output_states.d_mu_a, output_states.d_var_a);
     } else {
         linear_sparse_fwd<false><<<blocks, THREADS>>>(
             this->d_mu_w, this->d_var_w, this->d_mu_b, this->d_var_b,
-            input_states.d_mu_a, input_states.d_var_a, this->d_output_idx,
+            input_states.d_mu_a, input_states.d_var_a, this->segments.d_row,
             this->input_size, this->n_obs, this->num_output_idx, this->bias,
             output_states.d_mu_a, output_states.d_var_a);
     }
-}
-
-void LinearCuda::group_pairs_by_unit()
-/*
- */
-{
-    int num = this->num_output_idx;
-    cub::DeviceRadixSort::SortPairs(this->d_sort_temp, this->sort_temp_bytes,
-                                    this->d_output_idx, this->d_sorted_unit,
-                                    this->d_pair_id, this->d_sorted_pair, num);
-    cub::DeviceRunLengthEncode::Encode(
-        this->d_sort_temp, this->sort_temp_bytes, this->d_sorted_unit,
-        this->d_touched_unit, this->d_segment_count, this->d_num_touched, num);
-    cub::DeviceScan::ExclusiveSum(this->d_sort_temp, this->sort_temp_bytes,
-                                  this->d_segment_count, this->d_segment_offset,
-                                  num);
-    cudaMemcpy(&this->num_touched, this->d_num_touched, sizeof(int),
-               cudaMemcpyDeviceToHost);
 }
 
 void LinearCuda::sparse_backward(DeltaStateCuda &input_delta_states,
@@ -486,24 +422,24 @@ void LinearCuda::sparse_backward(DeltaStateCuda &input_delta_states,
         dim3 grid((this->input_size + THREADS - 1) / THREADS, num_tokens);
         linear_sparse_bwd_delta_z<<<grid, THREADS>>>(
             this->d_mu_w, bwd_states.d_jcb, input_delta_states.d_delta_mu,
-            input_delta_states.d_delta_var, this->d_output_idx,
+            input_delta_states.d_delta_var, this->segments.d_row,
             this->input_size, this->n_obs, output_delta_states.d_delta_mu,
             output_delta_states.d_delta_var);
         output_delta_states.seq_len = input_delta_states.seq_len;
     }
 
     if (this->param_update) {
-        this->group_pairs_by_unit();
+        this->segments.group(this->num_output_idx);
         cudaMemsetAsync(this->d_delta_mu_w, 0,
                         this->num_weights * sizeof(float));
         cudaMemsetAsync(this->d_delta_var_w, 0,
                         this->num_weights * sizeof(float));
-        linear_sparse_bwd_delta_w<<<this->num_touched, 256>>>(
+        linear_sparse_bwd_delta_w<<<this->segments.num_touched, 256>>>(
             this->d_var_w, bwd_states.d_mu_a, input_delta_states.d_delta_mu,
-            input_delta_states.d_delta_var, this->d_touched_unit,
-            this->d_segment_offset, this->d_segment_count, this->d_sorted_pair,
-            this->input_size, this->n_obs, this->d_delta_mu_w,
-            this->d_delta_var_w);
+            input_delta_states.d_delta_var, this->segments.d_touched_row,
+            this->segments.d_segment_offset, this->segments.d_segment_count,
+            this->segments.d_sorted_item, this->input_size, this->n_obs,
+            this->d_delta_mu_w, this->d_delta_var_w);
 
         if (this->bias) {
             cudaMemsetAsync(this->d_delta_mu_b, 0,
@@ -511,13 +447,14 @@ void LinearCuda::sparse_backward(DeltaStateCuda &input_delta_states,
             cudaMemsetAsync(this->d_delta_var_b, 0,
                             this->num_biases * sizeof(float));
             constexpr unsigned int THREADS = 256;
-            unsigned int blocks = (this->num_touched + THREADS - 1) / THREADS;
+            unsigned int blocks =
+                (this->segments.num_touched + THREADS - 1) / THREADS;
             linear_sparse_bwd_delta_b<<<blocks, THREADS>>>(
                 this->d_var_b, input_delta_states.d_delta_mu,
-                input_delta_states.d_delta_var, this->d_touched_unit,
-                this->d_segment_offset, this->d_segment_count,
-                this->d_sorted_pair, this->num_touched, this->d_delta_mu_b,
-                this->d_delta_var_b);
+                input_delta_states.d_delta_var, this->segments.d_touched_row,
+                this->segments.d_segment_offset, this->segments.d_segment_count,
+                this->segments.d_sorted_item, this->segments.num_touched,
+                this->d_delta_mu_b, this->d_delta_var_b);
         }
     }
 }
@@ -527,8 +464,8 @@ void LinearCuda::update_weights()
  */
 {
     if (this->sparse_pass) {
-        this->update_weight_rows(this->d_touched_unit, this->num_touched,
-                                 this->input_size);
+        this->update_weight_rows(this->segments.d_touched_row,
+                                 this->segments.num_touched, this->input_size);
     } else {
         BaseLayerCuda::update_weights();
     }
@@ -539,7 +476,8 @@ void LinearCuda::update_biases()
  */
 {
     if (this->sparse_pass) {
-        this->update_bias_rows(this->d_touched_unit, this->num_touched);
+        this->update_bias_rows(this->segments.d_touched_row,
+                               this->segments.num_touched);
     } else {
         BaseLayerCuda::update_biases();
     }

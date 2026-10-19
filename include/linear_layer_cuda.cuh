@@ -11,6 +11,7 @@
 #include "base_layer_cuda.cuh"
 #include "data_struct.h"
 #include "param_init.h"
+#include "row_segments.cuh"
 
 __global__ void linear_fwd_mean_var(float const *mu_w, float const *var_w,
                                     float const *mu_b, float const *var_b,
@@ -83,8 +84,6 @@ class LinearCuda : public BaseLayerCuda {
                float gain_weight = 1.0f, float gain_bias = 1.0f,
                std::string method = "He", int device_idx = 0);
 
-    ~LinearCuda();
-
     // Delete copy constructor and copy assignment
     LinearCuda(const LinearCuda &) = delete;
     LinearCuda &operator=(const LinearCuda &) = delete;
@@ -124,24 +123,13 @@ class LinearCuda : public BaseLayerCuda {
     using BaseLayerCuda::params_to_device;
 
    private:
-    // Sparse readout: 0-based path units [tokens, n_obs] for the next forward.
-    int *d_output_idx = nullptr;
-    int output_idx_capacity = 0;
+    // Sparse readout: 0-based path units [tokens, n_obs] for the next forward
+    // live in segments.d_row; backward groups the (token, k) pairs by unit.
+    RowSegments segments;
     int num_output_idx = 0;
     int n_obs = 0;
     bool output_idx_set = false;
     bool sparse_pass = false;
-    // Pairs (token, k) stably sorted by unit; one segment per touched unit.
-    int *d_pair_id = nullptr;
-    int *d_sorted_unit = nullptr;
-    int *d_sorted_pair = nullptr;
-    int *d_touched_unit = nullptr;
-    int *d_segment_count = nullptr;
-    int *d_segment_offset = nullptr;
-    int *d_num_touched = nullptr;
-    void *d_sort_temp = nullptr;
-    size_t sort_temp_bytes = 0;
-    int num_touched = 0;
 
     void sparse_forward(HiddenStateCuda &input_states,
                         HiddenStateCuda &output_states, int num_tokens);
@@ -149,5 +137,4 @@ class LinearCuda : public BaseLayerCuda {
                          DeltaStateCuda &output_delta_states,
                          BackwardStateCuda &bwd_states, int num_tokens,
                          bool state_udapte);
-    void group_pairs_by_unit();
 };
