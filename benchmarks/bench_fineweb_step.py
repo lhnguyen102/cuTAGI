@@ -131,6 +131,7 @@ def time_metric_paths(net, utils, hrc, batch_size, seq_len, reps):
             obs_scale,
             DEFAULTS["metric_samples"],
             calib,
+            device=net.device,
         )
         timer.mark("eval_sampled_metrics")
         timer.stop("eval_batch")

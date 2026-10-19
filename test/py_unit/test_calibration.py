@@ -62,6 +62,44 @@ class TestReadoutCalibration(unittest.TestCase):
         )
         np.testing.assert_allclose(prob, np.full(self.num_classes, 1 / 8))
 
+    def test_batch_rows_match_single_rows(self):
+        rows = 3
+        rng = np.random.default_rng(1)
+        ma = rng.normal(size=(rows, self.hrc.len)).astype(np.float32)
+        Sa = rng.uniform(0.1, 1.0, size=(rows, self.hrc.len)).astype(np.float32)
+
+        prob = self.utils.obs_to_label_prob(ma, Sa, self.hrc, self.num_classes)
+
+        self.assertEqual(prob.shape, (rows, self.num_classes))
+        for r in range(rows):
+            np.testing.assert_array_equal(
+                prob[r],
+                self.utils.obs_to_label_prob(
+                    ma[r], Sa[r], self.hrc, self.num_classes
+                ),
+            )
+
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_cuda_batch_matches_cpu(self):
+        rows = 5
+        rng = np.random.default_rng(2)
+        ma = 2.0 * rng.normal(size=(rows, self.hrc.len)).astype(np.float32)
+        Sa = rng.uniform(0.1, 1.0, size=(rows, self.hrc.len)).astype(np.float32)
+        calibration = dict(
+            level_scale=np.linspace(0.5, 1.5, self.num_levels),
+            level_offset=np.linspace(-0.3, 0.3, self.num_levels),
+        )
+        for kwargs in ({}, calibration):
+            cpu = self.utils.obs_to_label_prob(
+                ma, Sa, self.hrc, self.num_classes, **kwargs
+            )
+            cuda = self.utils.obs_to_label_prob(
+                ma, Sa, self.hrc, self.num_classes, device="cuda", **kwargs
+            )
+            # Nodes near saturation make |P_z - 1| an ulp-level quantity on
+            # both devices, so tiny class probabilities only agree absolutely.
+            np.testing.assert_allclose(cuda, cpu, rtol=1e-6, atol=2e-7)
+
     def test_offset_acts_on_its_level_only(self):
         # Level 0 is the root split: Phi(10) ~ 1 sends all mass to one half,
         # deeper levels at Phi(0) = 0.5 split it evenly over 4 classes.

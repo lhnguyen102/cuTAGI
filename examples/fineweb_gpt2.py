@@ -51,31 +51,32 @@ def sampled_metrics(
     obs_scale,
     num_samples,
     calib=None,
+    device="cpu",
 ):
     n = len(labels)
-    m = np.asarray(m_pred).reshape(n, hrc.len) / obs_scale
-    v = np.asarray(v_pred).reshape(n, hrc.len) / (obs_scale**2)
     idx = np.random.choice(n, size=min(num_samples, n), replace=False)
-    ce, ce_raw, correct, prob_sum = 0.0, 0.0, 0, 0.0
-    scale, offset = calib if calib is not None else (None, None)
-    for i in idx:
-        raw = np.asarray(
-            utils.obs_to_label_prob(m[i], v[i], hrc, VOCAB_SIZE)
-        ).reshape(-1)
-        ce_raw -= np.log(max(raw[labels[i]] / raw.sum(), 1e-9))
-        probs = raw
-        if calib is not None:
-            probs = np.asarray(
-                utils.obs_to_label_prob(
-                    m[i], v[i], hrc, VOCAB_SIZE, scale, offset
-                )
-            ).reshape(-1)
-        prob_sum += float(probs.sum())
-        probs = probs / probs.sum()
-        ce -= np.log(max(probs[labels[i]], 1e-9))
-        correct += int(np.argmax(probs) == labels[i])
-    k = len(idx)
-    return ce / k, 1.0 - correct / k, prob_sum / k, ce_raw / k
+    m = m_pred.reshape(n, hrc.len)[idx] / obs_scale
+    v = v_pred.reshape(n, hrc.len)[idx] / (obs_scale**2)
+    y = labels[idx]
+    rows = np.arange(len(idx))
+    raw = utils.obs_to_label_prob(m, v, hrc, VOCAB_SIZE, device=device).astype(
+        np.float64
+    )
+    probs = raw
+    if calib is not None:
+        probs = utils.obs_to_label_prob(
+            m, v, hrc, VOCAB_SIZE, calib[0], calib[1], device=device
+        ).astype(np.float64)
+    ce_raw = -np.log(np.maximum(raw[rows, y] / raw.sum(axis=1), 1e-9))
+    prob_sum = probs.sum(axis=1)
+    ce = -np.log(np.maximum(probs[rows, y] / prob_sum, 1e-9))
+    err = 1.0 - np.mean(probs.argmax(axis=1) == y)
+    return (
+        float(ce.mean()),
+        float(err),
+        float(prob_sum.mean()),
+        float(ce_raw.mean()),
+    )
 
 
 def _phi(x):
@@ -320,6 +321,7 @@ def main(
                 obs_scale,
                 metric_samples,
                 calib,
+                device=net.device,
             )
             ces.append(ce)
             errs.append(err)
@@ -414,6 +416,7 @@ def main(
                 obs_scale,
                 metric_samples,
                 calib,
+                device=net.device,
             )
             losses.append(ce)
             error_rates.append(err)

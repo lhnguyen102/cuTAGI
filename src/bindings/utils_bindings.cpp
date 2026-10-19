@@ -1,5 +1,9 @@
 #include "../include/bindings/utils_bindings.h"
 
+#ifdef USE_CUDA
+#include "../include/cost_cuda.cuh"
+#endif
+
 Utils::Utils() {};
 Utils::~Utils() {};
 std::tuple<std::vector<float>, std::vector<int>, int>
@@ -86,12 +90,43 @@ HRCSoftmax Utils::hierarchical_softmax_wrapper(int num_classes) {
 
     return hs;
 }
-std::vector<float> Utils::obs_to_label_prob_wrapper(
-    std::vector<float> &mz, std::vector<float> &Sz, HRCSoftmax &hs,
-    int num_classes, const std::vector<float> &level_scale,
-    const std::vector<float> &level_offset) {
-    auto prob =
-        obs_to_class(mz, Sz, hs, num_classes, level_scale, level_offset);
+pybind11::array_t<float> Utils::obs_to_label_prob_wrapper(
+    pybind11::array_t<float,
+                      pybind11::array::c_style | pybind11::array::forcecast>
+        mz,
+    pybind11::array_t<float,
+                      pybind11::array::c_style | pybind11::array::forcecast>
+        Sz,
+    HRCSoftmax &hs, int num_classes, const std::vector<float> &level_scale,
+    const std::vector<float> &level_offset, const std::string &device) {
+    if (mz.size() % hs.len != 0 || Sz.size() != mz.size()) {
+        throw std::invalid_argument(
+            "obs_to_label_prob: mz and Sz must hold rows x " +
+            std::to_string(hs.len) + " values");
+    }
+    int rows = mz.size() / hs.len;
+    pybind11::array_t<float> prob(static_cast<size_t>(rows) * num_classes);
+    if (device == "cuda") {
+#ifdef USE_CUDA
+        obs_to_class_cuda(mz.data(), Sz.data(), rows, hs, num_classes,
+                          level_scale, level_offset, prob.mutable_data());
+        return prob;
+#else
+        throw std::invalid_argument(
+            "obs_to_label_prob: device cuda is not available");
+#endif
+    }
+    std::vector<float> row_mz(hs.len), row_Sz(hs.len);
+    for (int r = 0; r < rows; r++) {
+        std::copy(mz.data() + r * hs.len, mz.data() + (r + 1) * hs.len,
+                  row_mz.begin());
+        std::copy(Sz.data() + r * hs.len, Sz.data() + (r + 1) * hs.len,
+                  row_Sz.begin());
+        auto row_prob = obs_to_class(row_mz, row_Sz, hs, num_classes,
+                                     level_scale, level_offset);
+        std::copy(row_prob.begin(), row_prob.end(),
+                  prob.mutable_data() + static_cast<size_t>(r) * num_classes);
+    }
     return prob;
 }
 std::tuple<pybind11::array_t<int>, pybind11::array_t<float>>
@@ -157,7 +192,8 @@ void bind_utils(pybind11::module_ &m) {
              pybind11::arg("mz"), pybind11::arg("Sz"), pybind11::arg("hs"),
              pybind11::arg("num_classes"),
              pybind11::arg("level_scale") = std::vector<float>{},
-             pybind11::arg("level_offset") = std::vector<float>{})
+             pybind11::arg("level_offset") = std::vector<float>{},
+             pybind11::arg("device") = "cpu")
         .def("get_error_wrapper", &Utils::get_error_wrapper)
         .def("create_rolling_window_wrapper",
              &Utils::create_rolling_window_wrapper)

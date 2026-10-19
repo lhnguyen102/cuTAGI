@@ -202,15 +202,18 @@ class Utils:
         num_classes: int,
         level_scale: Optional[np.ndarray] = None,
         level_offset: Optional[np.ndarray] = None,
+        device: str = "cpu",
     ) -> np.ndarray:
         """Converts observation probabilities to label probabilities.
 
         This function takes the output statistics of a model (mean and variance) and
         uses the hierarchical softmax structure to compute the probability of each class label.
 
-        :param ma: The mean of the activation units for the output layer.
+        :param ma: The mean of the activation units for the output layer,
+            shape (len,) for one row or (rows, len) for a batch.
         :type ma: numpy.ndarray
-        :param Sa: The variance of the activation units for the output layer.
+        :param Sa: The variance of the activation units for the output layer,
+            same shape as ma.
         :type Sa: numpy.ndarray
         :param hr_softmax: An initialized hierarchical softmax structure.
         :type hr_softmax: pytagi.nn.HRCSoftmax
@@ -223,17 +226,22 @@ class Utils:
         :param level_offset: Readout calibration offset b, one per tree level.
             None means b = 0.
         :type level_offset: numpy.ndarray, optional
-        :return: An array of probabilities for each class label.
+        :param device: "cpu" or "cuda". The CUDA path scores all rows in one
+            kernel launch.
+        :type device: str
+        :return: Probabilities for each class label, shape (num_classes,) or
+            (rows, num_classes) following ma.
         :rtype: numpy.ndarray
         """
 
         level_scale = [] if level_scale is None else level_scale
         level_offset = [] if level_offset is None else level_offset
+        ma = np.asarray(ma)
         prob = self._cpp_backend.obs_to_label_prob_wrapper(
-            ma, Sa, hr_softmax, num_classes, level_scale, level_offset
+            ma, Sa, hr_softmax, num_classes, level_scale, level_offset, device
         )
 
-        return np.array(prob)
+        return prob.reshape(ma.shape[:-1] + (num_classes,))
 
     def create_rolling_window(
         self,
