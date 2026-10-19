@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../../include/linear_layer.h"
+#include "test_utils.h"
 
 #ifdef USE_CUDA
 #include "../../include/data_struct_cuda.cuh"
@@ -122,15 +123,6 @@ struct ReadoutFixture {
         layer->backward(delta_in, delta_out, temp, true);
     }
 };
-
-void expect_bit_equal(const std::vector<float> &a, const std::vector<float> &b,
-                      const char *name) {
-    ASSERT_EQ(a.size(), b.size()) << name;
-    for (size_t i = 0; i < a.size(); i++) {
-        ASSERT_EQ(std::memcmp(&a[i], &b[i], sizeof(float)), 0)
-            << name << " differs at " << i << ": " << a[i] << " vs " << b[i];
-    }
-}
 
 void expect_sparse_forward_matches_dense(const ReadoutConfig &cfg) {
     ReadoutCase c(cfg);

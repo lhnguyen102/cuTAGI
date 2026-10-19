@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../../include/attention.h"
+#include "test_utils.h"
 
 #ifdef USE_CUDA
 #include "../../include/attention_cuda.cuh"
@@ -289,24 +290,6 @@ std::vector<float> device_vec(const float *d_src, size_t n) {
     return h_dst;
 }
 
-void expect_close(const std::vector<float> &a, const std::vector<float> &b,
-                  const char *name) {
-    ASSERT_EQ(a.size(), b.size()) << name;
-    for (size_t i = 0; i < a.size(); i++) {
-        float tol = 1e-5f * std::max(std::abs(a[i]), std::abs(b[i])) + 1e-6f;
-        ASSERT_NEAR(a[i], b[i], tol) << name << " mismatch at index " << i;
-    }
-}
-
-void expect_bit_equal(const std::vector<float> &a, const std::vector<float> &b,
-                      const char *name) {
-    ASSERT_EQ(a.size(), b.size()) << name;
-    for (size_t i = 0; i < a.size(); i++) {
-        ASSERT_EQ(std::memcmp(&a[i], &b[i], sizeof(float)), 0)
-            << name << " differs at " << i << ": " << a[i] << " vs " << b[i];
-    }
-}
-
 constexpr int SCORE_STAGE_HEADS = 8;
 
 struct ScoreStageCase {
@@ -327,7 +310,7 @@ std::vector<ScoreStageCase> score_stage_cases() {
     std::vector<ScoreStageCase> cases;
     for (int batch_size : {1, 16})
         for (int seq_len : {1, 64, 65})
-            for (int head_dim : {96, 64, 32})
+            for (int head_dim : {96, 64, 48, 32})
                 for (bool use_rope : {false, true})
                     for (bool use_causal_mask : {false, true})
                         for (bool center_score_delta : {false, true})
@@ -371,6 +354,7 @@ ScoreStageIO read_score_stage_io(const MultiheadAttentionCuda &layer,
 }
 
 struct ScoreStageRun {
+    ScoreStageCase c;
     AttnConfig cfg;
     AttnInputs in;
     std::unique_ptr<BaseLayer> layer;
@@ -379,7 +363,7 @@ struct ScoreStageRun {
     std::unique_ptr<DeltaStateCuda> cu_din, cu_dout;
     BaseTempStates cu_temp;
 
-    explicit ScoreStageRun(const ScoreStageCase &c) {
+    explicit ScoreStageRun(const ScoreStageCase &c) : c(c) {
         cfg.batch_size = c.batch_size;
         cfg.seq_len = c.seq_len;
         cfg.embed_dim = SCORE_STAGE_HEADS * c.head_dim;
@@ -399,7 +383,7 @@ struct ScoreStageRun {
         fill_cuda_states(in, cfg, *cu_in, *cu_out, *cu_din, *cu_dout);
     }
 
-    ScoreStageIO forward_backward(const ScoreStageCase &c) {
+    ScoreStageIO forward_backward() {
         attn->forward(*cu_in, *cu_out, cu_temp);
         attn->backward(*cu_din, *cu_dout, cu_temp, /*state_udapte=*/true);
         return read_score_stage_io(*attn, c);
@@ -413,7 +397,7 @@ TEST(MultiheadAttentionCuda, ScoresMatchCPUStageFunction) {
     for (const ScoreStageCase &c : score_stage_cases()) {
         SCOPED_TRACE(c.str());
         ScoreStageRun run(c);
-        ScoreStageIO io = run.forward_backward(c);
+        ScoreStageIO io = run.forward_backward();
         std::vector<float> mu_qk(io.mu_qk.size()), var_qk(io.var_qk.size());
         query_key(io.mu_q, io.var_q, io.mu_k, io.var_k, c.batch_size,
                   SCORE_STAGE_HEADS, c.seq_len, c.head_dim, mu_qk, var_qk);
@@ -427,7 +411,7 @@ TEST(MultiheadAttentionCuda, DeltaScoresMatchCPUStageFunction) {
     for (const ScoreStageCase &c : score_stage_cases()) {
         SCOPED_TRACE(c.str());
         ScoreStageRun run(c);
-        ScoreStageIO io = run.forward_backward(c);
+        ScoreStageIO io = run.forward_backward();
         std::vector<float> delta_mu_s(io.delta_mu_s.size());
         std::vector<float> delta_var_s(io.delta_var_s.size());
         mha_delta_score(io.mu_v, io.delta_mu, io.delta_var, c.batch_size,
@@ -447,8 +431,8 @@ TEST(MultiheadAttentionCuda, ScoreStagesAreDeterministic) {
     for (const ScoreStageCase &c : score_stage_cases()) {
         SCOPED_TRACE(c.str());
         ScoreStageRun run(c);
-        ScoreStageIO first = run.forward_backward(c);
-        ScoreStageIO second = run.forward_backward(c);
+        ScoreStageIO first = run.forward_backward();
+        ScoreStageIO second = run.forward_backward();
         expect_bit_equal(first.mu_qk, second.mu_qk, "mu_qk");
         expect_bit_equal(first.var_qk, second.var_qk, "var_qk");
         expect_bit_equal(first.delta_mu_s, second.delta_mu_s, "delta_mu_s");
