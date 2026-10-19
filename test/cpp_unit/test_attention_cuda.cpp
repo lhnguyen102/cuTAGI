@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <random>
+#include <string>
 #include <vector>
 
 #include "../../include/attention.h"
@@ -277,6 +279,181 @@ TEST(MultiheadAttentionCuda, ToHostKeepsCenterScoreDelta) {
     auto *attn = dynamic_cast<MultiheadAttention *>(host.get());
     ASSERT_NE(attn, nullptr);
     EXPECT_TRUE(attn->center_score_delta);
+}
+
+namespace {
+
+std::vector<float> device_vec(const float *d_src, size_t n) {
+    std::vector<float> h_dst(n);
+    cudaMemcpy(h_dst.data(), d_src, n * sizeof(float), cudaMemcpyDeviceToHost);
+    return h_dst;
+}
+
+void expect_close(const std::vector<float> &a, const std::vector<float> &b,
+                  const char *name) {
+    ASSERT_EQ(a.size(), b.size()) << name;
+    for (size_t i = 0; i < a.size(); i++) {
+        float tol = 1e-5f * std::max(std::abs(a[i]), std::abs(b[i])) + 1e-6f;
+        ASSERT_NEAR(a[i], b[i], tol) << name << " mismatch at index " << i;
+    }
+}
+
+void expect_bit_equal(const std::vector<float> &a, const std::vector<float> &b,
+                      const char *name) {
+    ASSERT_EQ(a.size(), b.size()) << name;
+    for (size_t i = 0; i < a.size(); i++) {
+        ASSERT_EQ(std::memcmp(&a[i], &b[i], sizeof(float)), 0)
+            << name << " differs at " << i << ": " << a[i] << " vs " << b[i];
+    }
+}
+
+constexpr int SCORE_STAGE_HEADS = 8;
+
+struct ScoreStageCase {
+    int batch_size, seq_len, head_dim;
+    bool use_rope, use_causal_mask, center_score_delta;
+
+    std::string str() const {
+        return "B=" + std::to_string(batch_size) +
+               " T=" + std::to_string(seq_len) +
+               " head_dim=" + std::to_string(head_dim) +
+               " rope=" + std::to_string(use_rope) +
+               " mask=" + std::to_string(use_causal_mask) +
+               " center=" + std::to_string(center_score_delta);
+    }
+};
+
+std::vector<ScoreStageCase> score_stage_cases() {
+    std::vector<ScoreStageCase> cases;
+    for (int batch_size : {1, 16})
+        for (int seq_len : {1, 64, 65})
+            for (int head_dim : {96, 64, 32})
+                for (bool use_rope : {false, true})
+                    for (bool use_causal_mask : {false, true})
+                        for (bool center_score_delta : {false, true})
+                            cases.push_back({batch_size, seq_len, head_dim,
+                                             use_rope, use_causal_mask,
+                                             center_score_delta});
+    return cases;
+}
+
+// Host copies of what the CUDA score stages read and wrote during one
+// forward + backward of MultiheadAttentionCuda.
+struct ScoreStageIO {
+    std::vector<float> mu_q, var_q, mu_k, var_k;
+    std::vector<float> mu_qk, var_qk;
+    std::vector<float> mu_att, mu_v, delta_mu, delta_var;
+    std::vector<float> delta_mu_s, delta_var_s;
+};
+
+ScoreStageIO read_score_stage_io(const MultiheadAttentionCuda &layer,
+                                 const ScoreStageCase &c) {
+    size_t comp_size =
+        (size_t)c.batch_size * SCORE_STAGE_HEADS * c.seq_len * c.head_dim;
+    size_t qk_size =
+        (size_t)c.batch_size * SCORE_STAGE_HEADS * c.seq_len * c.seq_len;
+    const AttentionStatesCuda &s = layer.attn_states;
+    const AttentionDeltaStatesCuda &d = layer.attn_delta_states;
+    ScoreStageIO io;
+    io.mu_q = device_vec(c.use_rope ? s.d_mu_q_rope : s.d_mu_q, comp_size);
+    io.var_q = device_vec(c.use_rope ? s.d_var_q_rope : s.d_var_q, comp_size);
+    io.mu_k = device_vec(c.use_rope ? s.d_mu_k_rope : s.d_mu_k, comp_size);
+    io.var_k = device_vec(c.use_rope ? s.d_var_k_rope : s.d_var_k, comp_size);
+    io.mu_qk = device_vec(s.d_mu_qk, qk_size);
+    io.var_qk = device_vec(s.d_var_qk, qk_size);
+    io.mu_att = device_vec(s.d_mu_att_score, qk_size);
+    io.mu_v = device_vec(s.d_mu_v, comp_size);
+    io.delta_mu = device_vec(d.d_delta_mu_buffer, comp_size);
+    io.delta_var = device_vec(d.d_delta_var_buffer, comp_size);
+    io.delta_mu_s = device_vec(d.d_delta_mu_att_score, qk_size);
+    io.delta_var_s = device_vec(d.d_delta_var_att_score, qk_size);
+    return io;
+}
+
+struct ScoreStageRun {
+    AttnConfig cfg;
+    AttnInputs in;
+    std::unique_ptr<BaseLayer> layer;
+    MultiheadAttentionCuda *attn = nullptr;
+    std::unique_ptr<HiddenStateCuda> cu_in, cu_out;
+    std::unique_ptr<DeltaStateCuda> cu_din, cu_dout;
+    BaseTempStates cu_temp;
+
+    explicit ScoreStageRun(const ScoreStageCase &c) {
+        cfg.batch_size = c.batch_size;
+        cfg.seq_len = c.seq_len;
+        cfg.embed_dim = SCORE_STAGE_HEADS * c.head_dim;
+        cfg.num_heads = SCORE_STAGE_HEADS;
+        cfg.use_rope = c.use_rope;
+        cfg.use_causal_mask = c.use_causal_mask;
+        cfg.center_score_delta = c.center_score_delta;
+        in = make_inputs(cfg, /*seed=*/321);
+        layer = make_cpu_layer(cfg)->to_cuda(0);
+        attn = dynamic_cast<MultiheadAttentionCuda *>(layer.get());
+        attn->training = true;
+        attn->param_update = true;
+        cu_in = std::make_unique<HiddenStateCuda>(in.total, cfg.batch_size);
+        cu_out = std::make_unique<HiddenStateCuda>(in.total, cfg.batch_size);
+        cu_din = std::make_unique<DeltaStateCuda>(in.total, cfg.batch_size);
+        cu_dout = std::make_unique<DeltaStateCuda>(in.total, cfg.batch_size);
+        fill_cuda_states(in, cfg, *cu_in, *cu_out, *cu_din, *cu_dout);
+    }
+
+    ScoreStageIO forward_backward(const ScoreStageCase &c) {
+        attn->forward(*cu_in, *cu_out, cu_temp);
+        attn->backward(*cu_din, *cu_dout, cu_temp, /*state_udapte=*/true);
+        return read_score_stage_io(*attn, c);
+    }
+};
+
+}  // namespace
+
+TEST(MultiheadAttentionCuda, ScoresMatchCPUStageFunction) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    for (const ScoreStageCase &c : score_stage_cases()) {
+        SCOPED_TRACE(c.str());
+        ScoreStageRun run(c);
+        ScoreStageIO io = run.forward_backward(c);
+        std::vector<float> mu_qk(io.mu_qk.size()), var_qk(io.var_qk.size());
+        query_key(io.mu_q, io.var_q, io.mu_k, io.var_k, c.batch_size,
+                  SCORE_STAGE_HEADS, c.seq_len, c.head_dim, mu_qk, var_qk);
+        expect_close(mu_qk, io.mu_qk, "mu_qk");
+        expect_close(var_qk, io.var_qk, "var_qk");
+    }
+}
+
+TEST(MultiheadAttentionCuda, DeltaScoresMatchCPUStageFunction) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    for (const ScoreStageCase &c : score_stage_cases()) {
+        SCOPED_TRACE(c.str());
+        ScoreStageRun run(c);
+        ScoreStageIO io = run.forward_backward(c);
+        std::vector<float> delta_mu_s(io.delta_mu_s.size());
+        std::vector<float> delta_var_s(io.delta_var_s.size());
+        mha_delta_score(io.mu_v, io.delta_mu, io.delta_var, c.batch_size,
+                        SCORE_STAGE_HEADS, c.seq_len, c.head_dim, delta_mu_s,
+                        delta_var_s);
+        if (c.center_score_delta) {
+            center_delta_score(io.mu_att, c.batch_size, SCORE_STAGE_HEADS,
+                               c.seq_len, delta_mu_s);
+        }
+        expect_close(delta_mu_s, io.delta_mu_s, "delta_mu_s");
+        expect_close(delta_var_s, io.delta_var_s, "delta_var_s");
+    }
+}
+
+TEST(MultiheadAttentionCuda, ScoreStagesAreDeterministic) {
+    if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
+    for (const ScoreStageCase &c : score_stage_cases()) {
+        SCOPED_TRACE(c.str());
+        ScoreStageRun run(c);
+        ScoreStageIO first = run.forward_backward(c);
+        ScoreStageIO second = run.forward_backward(c);
+        expect_bit_equal(first.mu_qk, second.mu_qk, "mu_qk");
+        expect_bit_equal(first.var_qk, second.var_qk, "var_qk");
+        expect_bit_equal(first.delta_mu_s, second.delta_mu_s, "delta_mu_s");
+        expect_bit_equal(first.delta_var_s, second.delta_var_s, "delta_var_s");
+    }
 }
 
 #endif  // USE_CUDA

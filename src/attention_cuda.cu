@@ -11,6 +11,13 @@ constexpr int THREADS = 256;
 
 inline int blocks_for(size_t total) { return (total + THREADS - 1) / THREADS; }
 
+// Grid of query_key_kernel and mha_delta_score_kernel: one SCORE_TILE x
+// SCORE_TILE score tile per block, one (batch, head) per z.
+inline dim3 score_tile_grid(int batch_size, int num_heads, int timestep) {
+    int tiles = (timestep + SCORE_TILE - 1) / SCORE_TILE;
+    return dim3(tiles, tiles, batch_size * num_heads);
+}
+
 inline void alloc_pair(float **d_mu, float **d_var, size_t n) {
     CHECK_CUDA_ERROR(cudaMalloc((void **)d_mu, n * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc((void **)d_var, n * sizeof(float)));
@@ -258,7 +265,8 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
         var_k = attn_states.d_var_k_rope;
     }
 
-    query_key_kernel<<<blocks_for(qk_size), THREADS>>>(
+    query_key_kernel<<<score_tile_grid(batch_size, num_heads, timestep),
+                       dim3(SCORE_TILE, SCORE_TILE)>>>(
         mu_q, var_q, mu_k, var_k, batch_size, num_heads, timestep, head_dim,
         attn_states.d_mu_qk, attn_states.d_var_qk);
 
@@ -326,7 +334,6 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
     int batch_seq = batch_size * timestep;
     int qkv_size = 3 * this->embed_dim;
     size_t comp_size = (size_t)batch_seq * this->embed_dim;
-    size_t qk_size = (size_t)batch_size * num_heads * timestep * timestep;
 
     attn_delta_states.set_size(batch_size, num_heads, timestep, head_dim,
                                this->use_rope);
@@ -342,7 +349,8 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
         head_dim, attn_delta_states.d_delta_mu_v,
         attn_delta_states.d_delta_var_v);
 
-    mha_delta_score_kernel<<<blocks_for(qk_size), THREADS>>>(
+    mha_delta_score_kernel<<<score_tile_grid(batch_size, num_heads, timestep),
+                             dim3(SCORE_TILE, SCORE_TILE)>>>(
         attn_states.d_mu_v, attn_delta_states.d_delta_mu_buffer,
         attn_delta_states.d_delta_var_buffer, batch_size, num_heads, timestep,
         head_dim, attn_delta_states.d_delta_mu_att_score,
