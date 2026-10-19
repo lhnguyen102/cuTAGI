@@ -147,6 +147,20 @@ HRCSoftmax class_to_obs(int n_classes)
 //     return std::erfc(-x / std::sqrt(2)) / 2;
 // }
 
+std::vector<int> node_levels(const HRCSoftmax &hs, int n_classes)
+/* Tree level of each node: column c of hs.idx holds the level-c node on each
+ * class's path.
+ */
+{
+    std::vector<int> node_level(hs.len, 0);
+    for (int r = 0; r < n_classes; r++) {
+        for (int c = 0; c < hs.n_obs; c++) {
+            node_level[hs.idx[r * hs.n_obs + c] - 1] = c;
+        }
+    }
+    return node_level;
+}
+
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
                                 HRCSoftmax &hs, int n_classes,
                                 const std::vector<float> &level_scale,
@@ -172,13 +186,7 @@ std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
     std::vector<float> P_obs(hs.n_obs * n_classes);
     float alpha = 3;
 
-    // Column c of hs.idx holds the level-c node on each class's path.
-    std::vector<int> node_level(hs.len, 0);
-    for (int r = 0; r < n_classes; r++) {
-        for (int c = 0; c < hs.n_obs; c++) {
-            node_level[hs.idx[r * hs.n_obs + c] - 1] = c;
-        }
-    }
+    std::vector<int> node_level = node_levels(hs, n_classes);
 
     // Compute probability for each observation
     for (int i = 0; i < hs.len; i++) {

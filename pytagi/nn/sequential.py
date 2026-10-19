@@ -283,6 +283,10 @@ class Sequential:
     def output_to_host(self) -> List[float]:
         """Copies the raw output data from the device to the host.
 
+        A forward returns its outputs without refreshing the host copy of
+        output_z_buffer, so call this before reading output_z_buffer.mu_a,
+        var_a or jcb on a CUDA model.
+
         :return: A list of floating-point values representing the flattened output.
         :rtype: List[float]
         """

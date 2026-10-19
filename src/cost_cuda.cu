@@ -1,5 +1,6 @@
 #include <cuda_runtime.h>
 
+#include "../include/cost.h"
 #include "../include/cost_cuda.cuh"
 #include "../include/cuda_error_checking.cuh"
 
@@ -8,8 +9,8 @@ __global__ void node_prob_cuda(const float *mz, const float *Sz,
                                const float *level_offset, int len, int size,
                                float *P_z)
 /* P(node) = Phi(s * z + b) with z = mz / sqrt(1/alpha^2 + Sz), alpha = 3.
- * Same float/double op sequence as obs_to_class in cost.cpp, so z is
- * bit-equal; erfc runs in double to stay within one float ulp of the CPU.
+ * z keeps the float/double promotions of obs_to_class in cost.cpp; erfc runs
+ * in double so P(node) stays within one float ulp of the CPU's erfcf.
  */
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -65,13 +66,7 @@ void obs_to_class_cuda(const float *mz, const float *Sz, int rows,
                        const HRCSoftmax &hs, int n_classes,
                        const std::vector<float> &level_scale,
                        const std::vector<float> &level_offset, float *P) {
-    // Column c of hs.idx holds the level-c node on each class's path.
-    std::vector<int> node_level(hs.len, 0);
-    for (int r = 0; r < n_classes; r++) {
-        for (int c = 0; c < hs.n_obs; c++) {
-            node_level[hs.idx[r * hs.n_obs + c] - 1] = c;
-        }
-    }
+    std::vector<int> node_level = node_levels(hs, n_classes);
 
     size_t num_nodes = static_cast<size_t>(rows) * hs.len;
     size_t num_probs = static_cast<size_t>(rows) * n_classes;
