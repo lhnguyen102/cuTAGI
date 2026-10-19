@@ -51,4 +51,7 @@ code is comparable to the old one without a tolerance argument.
   that used the dense path.
 - Kernel changes elsewhere (RMSNorm reductions, tiled attention, cuBLAS) do
   change the sum order and are validated against a cross-entropy check at
-  L=8, not against bit-equality.
+  L=8, not against bit-equality. Since the dense Linear runs on cuBLAS, the
+  sparse and dense readouts agree to float32 rounding at the model level;
+  bit-equality holds against the tiled kernels, which the sparse kernels
+  mirror and which `LinearGemm::use_cublas = false` selects.

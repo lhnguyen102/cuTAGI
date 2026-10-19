@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <random>
+#include <string>
 #include <vector>
 
 #include "../../include/linear_layer.h"
@@ -184,6 +185,13 @@ Outputs run_cpu(LinearCase &c) {
             c.cpu.delta_mu_b, c.cpu.delta_var_b};
 }
 
+std::string describe(const LinearShape &shape) {
+    return "tokens=" + std::to_string(shape.tokens()) +
+           " in=" + std::to_string(shape.input_size) +
+           " out=" + std::to_string(shape.output_size) +
+           " bias=" + std::to_string(shape.bias);
+}
+
 const std::vector<LinearShape> kShapes = {
     {1, 1, 768, 1024},         {2, 32, 768, 1024},  {16, 64, 768, 1024},
     {1, 1, 768, 50267},        {2, 32, 768, 50267}, {16, 64, 768, 50267},
@@ -195,29 +203,33 @@ const std::vector<LinearShape> kShapes = {
 TEST(LinearCuda, CublasMatchesKernels) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     for (const auto &shape : kShapes) {
-        SCOPED_TRACE("tokens=" + std::to_string(shape.tokens()) +
-                     " in=" + std::to_string(shape.input_size) +
-                     " out=" + std::to_string(shape.output_size) +
-                     " bias=" + std::to_string(shape.bias));
+        SCOPED_TRACE(describe(shape));
         expect_cublas_matches_kernels(shape);
     }
 }
 
+// The host Linear runs single-threaded, so the vocabulary width is covered at
+// one token only.
 TEST(LinearCuda, CublasMatchesHostLinear) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
-    LinearCase c(LinearShape{2, 32, 768, 1024});
-    LinearFixture r(c);
-    ASSERT_NE(r.layer, nullptr);
-    Outputs cublas = r.run(true, false);
-    expect_outputs_close(cublas, run_cpu(c), 1e-5f, 1e-5f);
+    const std::vector<LinearShape> shapes = {
+        {1, 1, 768, 1024},  {2, 32, 768, 1024},        {2, 32, 1, 1024},
+        {1, 1, 768, 50267}, {2, 32, 768, 1024, false},
+    };
+    for (const auto &shape : shapes) {
+        SCOPED_TRACE(describe(shape));
+        LinearCase c(shape);
+        LinearFixture r(c);
+        ASSERT_NE(r.layer, nullptr);
+        Outputs cublas = r.run(true, false);
+        expect_outputs_close(cublas, run_cpu(c), 1e-5f, 1e-5f);
+    }
 }
 
 TEST(LinearCuda, Tf32MatchesKernelsAt1e3) {
     if (!g_gpu_enabled) GTEST_SKIP() << "GPU tests are disabled.";
     for (const auto &shape : kShapes) {
-        SCOPED_TRACE("tokens=" + std::to_string(shape.tokens()) +
-                     " in=" + std::to_string(shape.input_size) +
-                     " out=" + std::to_string(shape.output_size));
+        SCOPED_TRACE(describe(shape));
         LinearCase c(shape);
         LinearFixture r(c);
         Outputs kernels = r.run(false, false);
