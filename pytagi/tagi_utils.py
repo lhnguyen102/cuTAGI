@@ -20,6 +20,7 @@ class Utils:
     def __init__(self) -> None:
         """Initializes the Utils class by creating an instance of the C++ backend."""
         self._cpp_backend = cutagi.Utils()
+        self._label_tables = {}
 
     def label_to_obs(
         self, labels: np.ndarray, num_classes: int
@@ -41,11 +42,17 @@ class Utils:
         :rtype: Tuple[numpy.ndarray, numpy.ndarray, int]
         """
 
-        obs, obs_idx, num_obs = self._cpp_backend.label_to_obs_wrapper(
-            labels, num_classes
-        )
+        if num_classes not in self._label_tables:
+            hrc = self.get_hierarchical_softmax(num_classes)
+            self._label_tables[num_classes] = (
+                np.asarray(hrc.obs, dtype=np.float32).reshape(num_classes, -1),
+                np.asarray(hrc.idx, dtype=np.int32).reshape(num_classes, -1),
+                hrc.num_obs,
+            )
+        obs_table, idx_table, num_obs = self._label_tables[num_classes]
+        labels = np.asarray(labels)
 
-        return np.array(obs), np.array(obs_idx), int(num_obs)
+        return obs_table[labels].ravel(), idx_table[labels].ravel(), num_obs
 
     def label_to_one_hot(
         self, labels: np.ndarray, num_classes: int
