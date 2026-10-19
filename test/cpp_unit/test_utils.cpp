@@ -713,10 +713,10 @@ void sin_signal_smoother_test_runner(Sequential &model, int input_seq_len,
 }
 
 void expect_close(const std::vector<float> &a, const std::vector<float> &b,
-                  const char *name) {
+                  const char *name, float rel, float abs) {
     ASSERT_EQ(a.size(), b.size()) << name;
     for (size_t i = 0; i < a.size(); i++) {
-        float tol = 1e-5f * std::max(std::abs(a[i]), std::abs(b[i])) + 1e-6f;
+        float tol = rel * std::max(std::abs(a[i]), std::abs(b[i])) + abs;
         ASSERT_NEAR(a[i], b[i], tol) << name << " mismatch at index " << i;
     }
 }

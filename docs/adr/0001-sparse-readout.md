@@ -36,8 +36,8 @@ code is comparable to the old one without a tolerance argument.
   numbers the root 1; the output updaters, `obs_to_class`, calibration and the
   examples all subtract 1). The layer subtracts 1 once.
 - **CUDA only.** The CPU Linear throws. A CPU implementation would have no
-  caller; the parity reference is the dense CUDA kernel gathered at the same
-  indices.
+  caller; the parity reference is the dense tiled CUDA kernel, with the cuBLAS
+  path switched off, gathered at the same indices.
 
 ## Consequences
 

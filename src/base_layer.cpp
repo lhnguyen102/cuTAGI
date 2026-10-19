@@ -59,6 +59,8 @@ void BaseLayer::set_output_indices(const std::vector<int> &unit_idx,
             this->get_layer_name());
 }
 
+void BaseLayer::set_tf32(bool on) {}
+
 void BaseLayer::allocate_param_delta()
 /*
  */

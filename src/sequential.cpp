@@ -553,6 +553,17 @@ void Sequential::set_output_indices(const std::vector<int> &unit_idx, int n_obs)
     this->layers.back()->set_output_indices(unit_idx, n_obs);
 }
 
+void Sequential::set_tf32(bool on)
+/*TF32 tensor cores for the cuBLAS GEMMs of every CUDA linear projection.
+Applies to the current layers, so call it after to_device.
+ */
+{
+    for (auto &layer : this->layers) {
+        for_each_leaf_layer(layer.get(),
+                            [on](BaseLayer &leaf) { leaf.set_tf32(on); });
+    }
+}
+
 void Sequential::set_var_decay(float tau, float min_gain)
 /*Decay var_w(n) = var_w(0) / (1 + n / tau), floored at min_gain * var_w(0), on
 every weighted layer except the last one (the output layer, already contracted

@@ -1,4 +1,7 @@
+#include <cublas_v2.h>
+
 #include <cstdint>
+#include <vector>
 
 #include "../include/config.h"
 #include "../include/cuda_error_checking.cuh"
@@ -6,6 +9,158 @@
 #include "../include/linear_cuda_kernel.cuh"
 #include "../include/linear_layer.h"
 #include "../include/linear_layer_cuda.cuh"
+
+////////////////////////////////////////////////////////////////////////////////
+// cuBLAS path
+////////////////////////////////////////////////////////////////////////////////
+namespace {
+constexpr unsigned int ELEMENTWISE_THREADS = 256;
+
+unsigned int elementwise_blocks(size_t n) {
+    return static_cast<unsigned int>((n + ELEMENTWISE_THREADS - 1) /
+                                     ELEMENTWISE_THREADS);
+}
+
+void check_cublas(cublasStatus_t status, const char *call) {
+    if (status != CUBLAS_STATUS_SUCCESS) {
+        LOG(LogLevel::ERROR, std::string(call) + " failed with cuBLAS status " +
+                                 std::to_string(status));
+    }
+}
+
+// One handle per device, created on first use and never destroyed: cuBLAS
+// teardown after the CUDA runtime has shut down is undefined.
+cublasHandle_t cublas_handle(bool use_tf32) {
+    static std::vector<cublasHandle_t> handles;
+    int device = 0;
+    cudaGetDevice(&device);
+    if (handles.size() <= static_cast<size_t>(device)) {
+        handles.resize(device + 1, nullptr);
+    }
+    if (handles[device] == nullptr) {
+        check_cublas(cublasCreate(&handles[device]), "cublasCreate");
+    }
+    check_cublas(
+        cublasSetMathMode(handles[device], use_tf32 ? CUBLAS_TF32_TENSOR_OP_MATH
+                                                    : CUBLAS_DEFAULT_MATH),
+        "cublasSetMathMode");
+    return handles[device];
+}
+
+// Row-major C[m, n] = alpha * op(A) @ op(B) + beta * C. A is stored [m, k], or
+// [k, m] when trans_a; B is stored [k, n], or [n, k] when trans_b. cuBLAS is
+// column-major, so this computes C^T = op(B)^T @ op(A)^T with the row-major
+// buffers read as their transposes.
+void gemm_row_major(cublasHandle_t handle, bool trans_a, bool trans_b, int m,
+                    int n, int k, const float *A, const float *B, float beta,
+                    float *C) {
+    const float alpha = 1.0f;
+    check_cublas(
+        cublasSgemm(handle, trans_b ? CUBLAS_OP_T : CUBLAS_OP_N,
+                    trans_a ? CUBLAS_OP_T : CUBLAS_OP_N, n, m, k, &alpha, B,
+                    trans_b ? k : n, A, trans_a ? m : k, &beta, C, n),
+        "cublasSgemm");
+}
+
+// mu_z = mu_a @ mu_w^T + mu_b
+// var_z = var_a @ (mu_w^2)^T + (var_a + mu_a^2) @ var_w^T + var_b
+void linear_forward_cublas(const float *d_mu_a, const float *d_var_a,
+                           const float *d_mu_w, const float *d_var_w,
+                           const float *d_mu_b, const float *d_var_b,
+                           size_t input_size, size_t output_size,
+                           int batch_size, bool bias, LinearGemm &gemm,
+                           float *d_mu_z, float *d_var_z) {
+    size_t num_weights = input_size * output_size;
+    size_t num_activations = static_cast<size_t>(batch_size) * input_size;
+    gemm.reserve(num_weights, num_activations);
+    square_kernel<<<elementwise_blocks(num_weights), ELEMENTWISE_THREADS>>>(
+        d_mu_w, num_weights, gemm.d_w_sq);
+    var_plus_mu_sq_kernel<<<elementwise_blocks(num_activations),
+                            ELEMENTWISE_THREADS>>>(
+        d_mu_a, d_var_a, num_activations, gemm.d_a_sq);
+
+    cublasHandle_t handle = cublas_handle(gemm.use_tf32);
+    int m = batch_size, n = static_cast<int>(output_size),
+        k = static_cast<int>(input_size);
+    gemm_row_major(handle, false, true, m, n, k, d_mu_a, d_mu_w, 0.0f, d_mu_z);
+    gemm_row_major(handle, false, true, m, n, k, d_var_a, gemm.d_w_sq, 0.0f,
+                   d_var_z);
+    gemm_row_major(handle, false, true, m, n, k, gemm.d_a_sq, d_var_w, 1.0f,
+                   d_var_z);
+    if (bias) {
+        size_t num_outputs = static_cast<size_t>(batch_size) * output_size;
+        add_bias_kernel<<<elementwise_blocks(num_outputs),
+                          ELEMENTWISE_THREADS>>>(d_mu_b, d_var_b, output_size,
+                                                 num_outputs, d_mu_z, d_var_z);
+    }
+}
+
+// delta_mu_in = jcb * (delta_mu_out @ mu_w)
+// delta_var_in = jcb^2 * (delta_var_out @ mu_w^2), mu_w^2 from the forward
+void linear_state_backward_cublas(const float *d_delta_mu_out,
+                                  const float *d_delta_var_out,
+                                  const float *d_mu_w, const float *d_jcb,
+                                  size_t input_size, size_t output_size,
+                                  int batch_size, LinearGemm &gemm,
+                                  float *d_delta_mu_in, float *d_delta_var_in) {
+    cublasHandle_t handle = cublas_handle(gemm.use_tf32);
+    int m = batch_size, n = static_cast<int>(input_size),
+        k = static_cast<int>(output_size);
+    gemm_row_major(handle, false, false, m, n, k, d_delta_mu_out, d_mu_w, 0.0f,
+                   d_delta_mu_in);
+    gemm_row_major(handle, false, false, m, n, k, d_delta_var_out, gemm.d_w_sq,
+                   0.0f, d_delta_var_in);
+    size_t num_inputs = static_cast<size_t>(batch_size) * input_size;
+    scale_delta_kernel<<<elementwise_blocks(num_inputs), ELEMENTWISE_THREADS>>>(
+        d_jcb, num_inputs, d_delta_mu_in, d_delta_var_in);
+}
+
+// delta_mu_w = var_w * (delta_mu_out^T @ mu_a)
+// delta_var_w = var_w^2 * (delta_var_out^T @ mu_a^2)
+void linear_weight_backward_cublas(const float *d_delta_mu_out,
+                                   const float *d_delta_var_out,
+                                   const float *d_mu_a, const float *d_var_w,
+                                   size_t input_size, size_t output_size,
+                                   int batch_size, LinearGemm &gemm,
+                                   float *d_delta_mu_w, float *d_delta_var_w) {
+    size_t num_weights = input_size * output_size;
+    size_t num_activations = static_cast<size_t>(batch_size) * input_size;
+    gemm.reserve(num_weights, num_activations);
+    square_kernel<<<elementwise_blocks(num_activations), ELEMENTWISE_THREADS>>>(
+        d_mu_a, num_activations, gemm.d_a_sq);
+
+    cublasHandle_t handle = cublas_handle(gemm.use_tf32);
+    int m = static_cast<int>(output_size), n = static_cast<int>(input_size),
+        k = batch_size;
+    gemm_row_major(handle, true, false, m, n, k, d_delta_mu_out, d_mu_a, 0.0f,
+                   d_delta_mu_w);
+    gemm_row_major(handle, true, false, m, n, k, d_delta_var_out, gemm.d_a_sq,
+                   0.0f, d_delta_var_w);
+    scale_delta_kernel<<<elementwise_blocks(num_weights),
+                         ELEMENTWISE_THREADS>>>(d_var_w, num_weights,
+                                                d_delta_mu_w, d_delta_var_w);
+}
+}  // namespace
+
+LinearGemm::~LinearGemm() {
+    cudaFree(this->d_w_sq);
+    cudaFree(this->d_a_sq);
+}
+
+void LinearGemm::reserve(size_t num_weights, size_t num_activations) {
+    if (num_weights > this->w_capacity) {
+        cudaFree(this->d_w_sq);
+        CHECK_CUDA_ERROR(
+            cudaMalloc(&this->d_w_sq, num_weights * sizeof(float)));
+        this->w_capacity = num_weights;
+    }
+    if (num_activations > this->a_capacity) {
+        cudaFree(this->d_a_sq);
+        CHECK_CUDA_ERROR(
+            cudaMalloc(&this->d_a_sq, num_activations * sizeof(float)));
+        this->a_capacity = num_activations;
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Fully Connected Layer
@@ -22,8 +177,13 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
                          const float *d_mu_w, const float *d_var_w,
                          const float *d_mu_b, const float *d_var_b,
                          size_t input_size, size_t output_size, int batch_size,
-                         bool bias) {
-    if (output_size * input_size > 1024 * 128) {
+                         bool bias, LinearGemm &gemm) {
+    if (gemm.use_cublas) {
+        linear_forward_cublas(
+            cu_input_states->d_mu_a, cu_input_states->d_var_a, d_mu_w, d_var_w,
+            d_mu_b, d_var_b, input_size, output_size, batch_size, bias, gemm,
+            cu_output_states->d_mu_a, cu_output_states->d_var_a);
+    } else if (output_size * input_size > 1024 * 128) {
         // TODO: remove hardcoded kernel config
         constexpr unsigned int BLOCK_SIZE = 64U;
         constexpr unsigned int THREAD_TILE = 4U;
@@ -84,10 +244,20 @@ void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
                                 DeltaStateCuda *&cu_output_delta_states,
                                 BackwardStateCuda *&cu_next_bwd_states,
                                 const float *d_mu_w, size_t input_size,
-                                size_t output_size, int batch_size)
+                                size_t output_size, int batch_size,
+                                LinearGemm &gemm)
 /*
  */
 {
+    if (gemm.use_cublas) {
+        linear_state_backward_cublas(cu_input_delta_states->d_delta_mu,
+                                     cu_input_delta_states->d_delta_var, d_mu_w,
+                                     cu_next_bwd_states->d_jcb, input_size,
+                                     output_size, batch_size, gemm,
+                                     cu_output_delta_states->d_delta_mu,
+                                     cu_output_delta_states->d_delta_var);
+        return;
+    }
     constexpr unsigned int BLOCK_SIZE = 64U;
     constexpr unsigned int THREAD_TILE = 4U;
     constexpr unsigned int WARPS_X = 4U;
@@ -133,10 +303,19 @@ void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
                                  BackwardStateCuda *&cu_next_bwd_states,
                                  const float *d_var_w, size_t input_size,
                                  size_t output_size, int batch_size,
-                                 float *d_delta_mu_w, float *d_delta_var_w)
+                                 float *d_delta_mu_w, float *d_delta_var_w,
+                                 LinearGemm &gemm)
 /*
  */
 {
+    if (gemm.use_cublas) {
+        linear_weight_backward_cublas(cu_input_delta_states->d_delta_mu,
+                                      cu_input_delta_states->d_delta_var,
+                                      cu_next_bwd_states->d_mu_a, d_var_w,
+                                      input_size, output_size, batch_size, gemm,
+                                      d_delta_mu_w, d_delta_var_w);
+        return;
+    }
     constexpr unsigned int BLOCK_SIZE = 64U;
     constexpr unsigned int THREAD_TILE = 4U;
     constexpr unsigned int WARPS_X = 4U;
@@ -270,7 +449,7 @@ void LinearCuda::forward(BaseHiddenStates &input_states,
         linear_forward_cuda(cu_input_states, cu_output_states, this->d_mu_w,
                             this->d_var_w, this->d_mu_b, this->d_var_b,
                             this->input_size, this->output_size,
-                            effective_batch, this->bias);
+                            effective_batch, this->bias, this->gemm);
     }
 
     // Update number of actual states.
@@ -322,7 +501,8 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
     if (state_udapte) {
         linear_state_backward_cuda(
             cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
-            this->d_mu_w, this->input_size, this->output_size, effective_batch);
+            this->d_mu_w, this->input_size, this->output_size, effective_batch,
+            this->gemm);
         cu_output_delta_states->seq_len = seq_len;
     }
 
@@ -330,7 +510,7 @@ void LinearCuda::backward(BaseDeltaStates &input_delta_states,
         linear_weight_backward_cuda(
             cu_input_delta_states, cu_output_delta_states, cu_next_bwd_states,
             this->d_var_w, this->input_size, this->output_size, effective_batch,
-            this->d_delta_mu_w, this->d_delta_var_w);
+            this->d_delta_mu_w, this->d_delta_var_w, this->gemm);
 
         if (this->bias) {
             unsigned int grid_row_b =
@@ -379,6 +559,13 @@ void LinearCuda::set_output_indices(const std::vector<int> &unit_idx, int n_obs)
     this->num_output_idx = num;
     this->n_obs = n_obs;
     this->output_idx_set = true;
+}
+
+void LinearCuda::set_tf32(bool on)
+/*
+ */
+{
+    this->gemm.use_tf32 = on;
 }
 
 void LinearCuda::sparse_forward(HiddenStateCuda &input_states,

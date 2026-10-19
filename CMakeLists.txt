@@ -219,6 +219,9 @@ if(CMAKE_CUDA_COMPILER)
   # Set CUDA flags only on target i.e. only for files that are compiled for CUDA
   target_compile_options(cutagi_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 
+  find_package(CUDAToolkit REQUIRED)
+  target_link_libraries(cutagi_lib PUBLIC CUDA::cublas)
+
   if(MPI_FOUND)
     target_link_libraries(cutagi_lib PUBLIC MPI::MPI_CXX)
   endif()

@@ -1519,6 +1519,55 @@ __global__ void linear_bwd_delta_b(float const *var_b,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// cuBLAS path: elementwise steps around the SGEMMs
+////////////////////////////////////////////////////////////////////////////////
+__global__ void square_kernel(const float *x, size_t n, float *x_sq)
+/*
+ */
+{
+    size_t i = blockIdx.x * (size_t)blockDim.x + threadIdx.x;
+    if (i < n) x_sq[i] = x[i] * x[i];
+}
+
+__global__ void var_plus_mu_sq_kernel(const float *mu, const float *var,
+                                      size_t n, float *out)
+/*
+ */
+{
+    size_t i = blockIdx.x * (size_t)blockDim.x + threadIdx.x;
+    if (i < n) out[i] = var[i] + mu[i] * mu[i];
+}
+
+__global__ void add_bias_kernel(const float *mu_b, const float *var_b,
+                                size_t output_size, size_t n, float *mu_z,
+                                float *var_z)
+/*
+ */
+{
+    size_t i = blockIdx.x * (size_t)blockDim.x + threadIdx.x;
+    if (i < n) {
+        size_t unit = i % output_size;
+        mu_z[i] += mu_b[unit];
+        var_z[i] += var_b[unit];
+    }
+}
+
+// delta_mu *= scale, delta_var *= scale^2: the jcb factor of delta_z and the
+// var_w factor of delta_w.
+__global__ void scale_delta_kernel(const float *scale, size_t n,
+                                   float *delta_mu, float *delta_var)
+/*
+ */
+{
+    size_t i = blockIdx.x * (size_t)blockDim.x + threadIdx.x;
+    if (i < n) {
+        float s = scale[i];
+        delta_mu[i] *= s;
+        delta_var[i] *= s * s;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Sparse readout: only the path units of each token
 ////////////////////////////////////////////////////////////////////////////////
 constexpr int SPARSE_READOUT_MAX_OBS = 64;

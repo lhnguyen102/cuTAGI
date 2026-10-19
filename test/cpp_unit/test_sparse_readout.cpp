@@ -101,6 +101,9 @@ struct ReadoutFixture {
         Linear cpu(c.cfg.input_size, c.cfg.output_size, true);
         owner = cpu.to_cuda(0);
         layer = dynamic_cast<LinearCuda *>(owner.get());
+        // The sparse kernels mirror the sum order of the tiled dense kernels,
+        // not of cuBLAS.
+        layer->gemm.use_cublas = false;
         input.mu_a = c.mu_a;
         input.var_a = c.var_a;
         input.block_size = c.cfg.batch_size;

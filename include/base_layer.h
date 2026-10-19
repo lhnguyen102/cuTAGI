@@ -135,6 +135,10 @@ class BaseLayer {
 
     virtual void set_threads(int num);
 
+    // TF32 tensor cores for the cuBLAS GEMMs of CUDA linear projections;
+    // layers without one ignore it.
+    virtual void set_tf32(bool on);
+
     virtual void compute_input_output_size(const InitArgs &args);
 
     virtual void train();

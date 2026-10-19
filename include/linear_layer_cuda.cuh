@@ -52,6 +52,29 @@ __global__ void linear_bwd_delta_b(float const *var_b,
                                    int batch_size, float *delta_mu_b,
                                    float *delta_var_b);
 
+// cuBLAS path of one linear projection: its flags and the workspace of the
+// variance GEMMs. d_w_sq holds mu_w^2, written by each forward and reused by
+// the backward that follows it; d_a_sq holds a squared activation of the
+// current batch. use_cublas off runs the tiled kernels instead.
+struct LinearGemm {
+    bool use_cublas = true;
+    bool use_tf32 = false;
+    float *d_w_sq = nullptr;
+    float *d_a_sq = nullptr;
+
+    LinearGemm() = default;
+    ~LinearGemm();
+    LinearGemm(const LinearGemm &) = delete;
+    LinearGemm &operator=(const LinearGemm &) = delete;
+
+    // Grows the buffers to the given sizes; keeps them otherwise.
+    void reserve(size_t num_weights, size_t num_activations);
+
+   private:
+    size_t w_capacity = 0;
+    size_t a_capacity = 0;
+};
+
 // Kernel launchers shared with layers that embed a linear projection
 // (e.g. MultiheadAttentionCuda).
 void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
@@ -59,26 +82,29 @@ void linear_forward_cuda(HiddenStateCuda *&cu_input_states,
                          const float *d_mu_w, const float *d_var_w,
                          const float *d_mu_b, const float *d_var_b,
                          size_t input_size, size_t output_size, int batch_size,
-                         bool bias);
+                         bool bias, LinearGemm &gemm);
 
 void linear_state_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
                                 DeltaStateCuda *&cu_output_delta_states,
                                 BackwardStateCuda *&cu_next_bwd_states,
                                 const float *d_mu_w, size_t input_size,
-                                size_t output_size, int batch_size);
+                                size_t output_size, int batch_size,
+                                LinearGemm &gemm);
 
 void linear_weight_backward_cuda(DeltaStateCuda *&cu_input_delta_states,
                                  DeltaStateCuda *&cu_output_delta_states,
                                  BackwardStateCuda *&cu_next_bwd_states,
                                  const float *d_var_w, size_t input_size,
                                  size_t output_size, int batch_size,
-                                 float *d_delta_mu_w, float *d_delta_var_w);
+                                 float *d_delta_mu_w, float *d_delta_var_w,
+                                 LinearGemm &gemm);
 
 class LinearCuda : public BaseLayerCuda {
    public:
     float gain_w;
     float gain_b;
     std::string init_method;
+    LinearGemm gemm;
 
     LinearCuda(size_t ip_size, size_t op_size, bool bias = true,
                float gain_weight = 1.0f, float gain_bias = 1.0f,
@@ -113,6 +139,8 @@ class LinearCuda : public BaseLayerCuda {
 
     void set_output_indices(const std::vector<int> &unit_idx,
                             int n_obs) override;
+
+    void set_tf32(bool on) override;
 
     void update_weights() override;
 

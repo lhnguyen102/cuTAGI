@@ -44,8 +44,10 @@ class TestSparseReadout(unittest.TestCase):
         net.set_output_indices(y_idx, n_obs)
         m_sparse, v_sparse = net(x)
         self.assertEqual(m_sparse.shape, (n * n_obs,))
-        np.testing.assert_array_equal(m_sparse, m_gathered)
-        np.testing.assert_array_equal(v_sparse, v_gathered)
+        # The dense readout runs on cuBLAS; the sparse kernels keep the sum
+        # order of the tiled dense kernels (bit-equal in test_sparse_readout.cpp).
+        np.testing.assert_allclose(m_sparse, m_gathered, rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(v_sparse, v_gathered, rtol=1e-5, atol=1e-5)
 
         var_y = np.full((n * n_obs,), 4.0, dtype=np.float32)
         out_updater.update(

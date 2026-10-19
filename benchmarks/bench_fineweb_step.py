@@ -169,6 +169,7 @@ def bench(
     batch_size: int = DEFAULTS["batch_size"],
     seq_len: int = DEFAULTS["seq_len"],
     seed: int = DEFAULTS["seed"],
+    tf32: bool = DEFAULTS["tf32"],
 ):
     np.random.seed(seed)
     pytagi.manual_seed(seed)
@@ -192,6 +193,7 @@ def bench(
     net.set_var_decay(
         DEFAULTS["var_decay_tau"], min_gain=DEFAULTS["var_decay_min_gain"]
     )
+    net.set_tf32(tf32)
 
     step_ms = time_train_step(
         net, utils, hrc, batch_size, seq_len, dense, warmup, steps, seed
@@ -204,7 +206,7 @@ def bench(
     sha = subprocess.check_output(
         ["git", "rev-parse", "--short", "HEAD"], cwd=REPO_DIR, text=True
     ).strip()
-    mode = "dense" if dense else "sparse"
+    mode = ("dense" if dense else "sparse") + ("_tf32" if tf32 else "")
     result = {
         "sha": sha,
         "L": num_layers,

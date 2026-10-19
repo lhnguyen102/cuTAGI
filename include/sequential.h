@@ -120,6 +120,8 @@ class Sequential {
 
     void set_var_decay(float tau, float min_gain = 0.0f);
 
+    void set_tf32(bool on);
+
     void reset_lstm_states();
 
     // Utility function to get layer stack info

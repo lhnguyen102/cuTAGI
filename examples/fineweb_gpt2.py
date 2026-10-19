@@ -253,6 +253,7 @@ def main(
     eval_only: bool = False,
     max_new_tokens: int = 200,
     seed: int = 44,
+    tf32: bool = False,
 ):
     """Train a TAGI GPT-2 on FineWeb (BPE token level)."""
     np.random.seed(seed)
@@ -289,6 +290,7 @@ def main(
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
     net.set_cap_factor(cap_factor)
     net.set_var_decay(var_decay_tau, min_gain=var_decay_min_gain)
+    net.set_tf32(tf32)
 
     os.makedirs(out_dir, exist_ok=True)
     ckpt_path = os.path.join(out_dir, "ckpt.bin")
