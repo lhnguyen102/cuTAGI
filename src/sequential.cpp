@@ -952,23 +952,25 @@ Sequential::get_outputs()
 /*
  */
 {
-    if (this->device.compare("cuda") == 0) {
-        this->output_to_host();
-    }
-    int batch_size =
-        this->output_z_buffer->block_size * this->output_z_buffer->seq_len;
-    int num_outputs = this->output_z_buffer->actual_size;
-    std::vector<float> mu_a_output(batch_size * num_outputs);
-    std::vector<float> var_a_output(batch_size * num_outputs);
+    size_t num_data = this->output_z_buffer->block_size *
+                      this->output_z_buffer->seq_len *
+                      this->output_z_buffer->actual_size;
+    pybind11::array_t<float> py_m_pred(num_data);
+    pybind11::array_t<float> py_v_pred(num_data);
+    float *mu_a_dst = py_m_pred.mutable_data();
+    float *var_a_dst = py_v_pred.mutable_data();
 
-    for (int j = 0; j < batch_size * num_outputs; j++) {
-        mu_a_output[j] = this->output_z_buffer->mu_a[j];
-        var_a_output[j] = this->output_z_buffer->var_a[j];
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {
+        dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get())
+            ->to_host(mu_a_dst, var_a_dst, num_data);
+        return {py_m_pred, py_v_pred};
     }
-    auto py_m_pred =
-        pybind11::array_t<float>(mu_a_output.size(), mu_a_output.data());
-    auto py_v_pred =
-        pybind11::array_t<float>(var_a_output.size(), var_a_output.data());
+#endif
+    const auto &mu_a = this->output_z_buffer->mu_a;
+    const auto &var_a = this->output_z_buffer->var_a;
+    std::copy(mu_a.begin(), mu_a.begin() + num_data, mu_a_dst);
+    std::copy(var_a.begin(), var_a.begin() + num_data, var_a_dst);
 
     return {py_m_pred, py_v_pred};
 }

@@ -1,10 +1,12 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 import numpy as np
 
 from pytagi import Utils
+from pytagi.nn import Embedding, Linear, Sequential
 
 # path to binding code
 sys.path.append(
@@ -12,6 +14,15 @@ sys.path.append(
         os.path.join(os.path.dirname(__file__), "..", "..", "build")
     )
 )
+
+from examples.fineweb_gpt2 import (
+    ALPHA,
+    VOCAB_SIZE,
+    fit_level_calibration,
+    fit_level_links,
+)
+
+TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
 
 
 class TestReadoutCalibration(unittest.TestCase):
@@ -61,6 +72,56 @@ class TestReadoutCalibration(unittest.TestCase):
         np.testing.assert_allclose(
             np.sort(prob), [0] * 4 + [0.25] * 4, atol=1e-6
         )
+
+
+class TestFitLevelCalibration(unittest.TestCase):
+    @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
+    def test_sparse_forward_fits_the_dense_links(self):
+        batch_size, seq_len, n_batches, obs_scale = 2, 4, 3, 3.0
+        utils = Utils()
+        hrc = utils.get_hierarchical_softmax(VOCAB_SIZE)
+        net = Sequential(
+            Embedding(VOCAB_SIZE, 8, input_size=seq_len), Linear(8, hrc.len)
+        )
+        net.to_device("cuda")
+        rng = np.random.default_rng(0)
+        batches = [
+            (
+                rng.integers(0, VOCAB_SIZE, (batch_size, seq_len, 1)).astype(
+                    np.float32
+                ),
+                rng.integers(0, VOCAB_SIZE, batch_size * seq_len).astype(
+                    np.int32
+                ),
+            )
+            for _ in range(n_batches)
+        ]
+
+        with mock.patch(
+            "examples.fineweb_gpt2.get_batch", side_effect=list(batches)
+        ):
+            scale, offset = fit_level_calibration(
+                net, utils, hrc, batch_size, seq_len, obs_scale, n_batches
+            )
+
+        zs, obs_all = [], []
+        for x, labels in batches:
+            m_pred, v_pred = net(x)
+            n = len(labels)
+            m = m_pred.reshape(n, hrc.len) / obs_scale
+            v = v_pred.reshape(n, hrc.len) / obs_scale**2
+            obs, idx, n_obs = utils.label_to_obs(labels, VOCAB_SIZE)
+            obs = obs.reshape(n, n_obs)
+            idx = idx.reshape(n, n_obs).astype(np.int64) - 1
+            rows = np.arange(n)[:, None]
+            zs.append(m[rows, idx] / np.sqrt(1.0 / ALPHA**2 + v[rows, idx]))
+            obs_all.append(obs)
+        ref_scale, ref_offset = fit_level_links(
+            np.concatenate(zs), np.concatenate(obs_all)
+        )
+
+        np.testing.assert_array_equal(scale, ref_scale)
+        np.testing.assert_array_equal(offset, ref_offset)
 
 
 if __name__ == "__main__":

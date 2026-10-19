@@ -110,23 +110,24 @@ def fit_level_calibration(
     zs, obs_all = [], []
     for _ in range(n_batches):
         x, labels = get_batch("train", batch_size, seq_len)
-        m_pred, v_pred = net(x)
-        n = len(labels)
-        m = np.asarray(m_pred).reshape(n, hrc.len) / obs_scale
-        v = np.asarray(v_pred).reshape(n, hrc.len) / (obs_scale**2)
         obs, idx, n_obs = utils.label_to_obs(
             labels=labels.astype(np.int32), num_classes=VOCAB_SIZE
         )
-        obs = np.asarray(obs, dtype=np.float32).reshape(n, n_obs)
-        idx = np.asarray(idx, dtype=np.int64).reshape(n, n_obs) - 1
-        rows = np.arange(n)[:, None]
-        zs.append(m[rows, idx] / np.sqrt(1.0 / ALPHA**2 + v[rows, idx]))
-        obs_all.append(obs)
+        net.set_output_indices(idx, n_obs)
+        m_pred, v_pred = net(x)
+        n = len(labels)
+        m = m_pred.reshape(n, n_obs) / obs_scale
+        v = v_pred.reshape(n, n_obs) / (obs_scale**2)
+        zs.append(m / np.sqrt(1.0 / ALPHA**2 + v))
+        obs_all.append(obs.reshape(n, n_obs))
     net.train()
     np.random.set_state(rng_state)
+    return fit_level_links(np.concatenate(zs), np.concatenate(obs_all))
 
-    z = np.concatenate(zs)
-    obs = np.concatenate(obs_all)
+
+def fit_level_links(z, obs):
+    """Grid-search the per-level (scale, offset) of P(node) = Phi(s * z + b)
+    that minimizes the node cross-entropy. z and obs are (tokens, levels)."""
     n_obs = z.shape[1]
     scale = np.ones(n_obs, dtype=np.float32)
     offset = np.zeros(n_obs, dtype=np.float32)

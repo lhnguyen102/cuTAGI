@@ -125,6 +125,18 @@ void HiddenStateCuda::to_host(size_t num_data)
                cudaMemcpyDeviceToHost);
 }
 
+void HiddenStateCuda::to_host(float *mu_a_dst, float *var_a_dst,
+                              size_t num_data) const
+/*
+ */
+{
+    cudaSetDevice(this->device_idx);
+    cudaMemcpy(mu_a_dst, this->d_mu_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(var_a_dst, this->d_var_a, num_data * sizeof(float),
+               cudaMemcpyDeviceToHost);
+}
+
 void HiddenStateCuda::set_size(size_t new_size, size_t new_block_size)
 /*
  */
