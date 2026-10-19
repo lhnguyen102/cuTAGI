@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "../../include/common.h"
 #include "../../include/linear_layer.h"
 #include "test_utils.h"
 
@@ -27,7 +28,13 @@ struct LinearShape {
     int tokens() const { return batch_size * seq_len; }
 };
 
-struct LinearCase {
+// Constructed before the Linear member, so its weight init draws the same
+// values in every run.
+struct SeedWeights {
+    SeedWeights() { manual_seed(5); }
+};
+
+struct LinearCase : private SeedWeights {
     LinearShape shape;
     Linear cpu;
     std::vector<float> mu_a, var_a, delta_mu, delta_var;
@@ -116,6 +123,10 @@ void expect_close_scaled(const std::vector<float> &a,
 
 // delta_z sums over output_size terms, ten times the longest other sum at the
 // vocabulary width, so it gets its own tolerance.
+float rel_dz(const LinearShape &shape) {
+    return shape.output_size > 1024 ? 1e-4f : 1e-5f;
+}
+
 void expect_outputs_close(const Outputs &a, const Outputs &b, float rel,
                           float rel_dz) {
     expect_close_scaled(a.mu_z, b.mu_z, "fwd mu_z", rel);
@@ -145,8 +156,7 @@ void expect_cublas_matches_kernels(const LinearShape &shape) {
     ASSERT_NE(r.layer, nullptr);
     Outputs kernels = r.run(false, false);
     Outputs cublas = r.run(true, false);
-    float rel_dz = shape.output_size > 1024 ? 1e-4f : 1e-5f;
-    expect_outputs_close(cublas, kernels, 1e-5f, rel_dz);
+    expect_outputs_close(cublas, kernels, 1e-5f, rel_dz(shape));
 }
 
 Outputs run_cpu(LinearCase &c) {
@@ -222,7 +232,7 @@ TEST(LinearCuda, CublasMatchesHostLinear) {
         LinearFixture r(c);
         ASSERT_NE(r.layer, nullptr);
         Outputs cublas = r.run(true, false);
-        expect_outputs_close(cublas, run_cpu(c), 1e-5f, 1e-5f);
+        expect_outputs_close(cublas, run_cpu(c), 1e-5f, rel_dz(shape));
     }
 }
 
