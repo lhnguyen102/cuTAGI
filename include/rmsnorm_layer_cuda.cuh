@@ -13,6 +13,7 @@ class RMSNormCuda : public BaseLayerCuda {
    public:
     std::vector<int> normalized_shape;
     float *d_rms_ra = nullptr;
+    float *d_delta_w_partial = nullptr;
     float epsilon;
     float gain_w;
     int _batch_size = 0;
@@ -42,5 +43,5 @@ class RMSNormCuda : public BaseLayerCuda {
     std::unique_ptr<BaseLayer> to_host() override;
 
    protected:
-    void allocate_running_rms();
+    void allocate_batch_buffers();
 };

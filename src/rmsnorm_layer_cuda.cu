@@ -7,6 +7,10 @@
 namespace {
 constexpr int NUM_THREADS = 256;
 int num_blocks(int total) { return (total + NUM_THREADS - 1) / NUM_THREADS; }
+int num_row_tiles(int batch_size) {
+    return (batch_size + RMSNORM_DELTA_W_ROWS_PER_TILE - 1) /
+           RMSNORM_DELTA_W_ROWS_PER_TILE;
+}
 }  // namespace
 
 RMSNormCuda::RMSNormCuda(const std::vector<int> &normalized_shape, float eps,
@@ -26,7 +30,10 @@ RMSNormCuda::RMSNormCuda(const std::vector<int> &normalized_shape, float eps,
     }
 }
 
-RMSNormCuda::~RMSNormCuda() { cudaFree(d_rms_ra); }
+RMSNormCuda::~RMSNormCuda() {
+    cudaFree(d_rms_ra);
+    cudaFree(d_delta_w_partial);
+}
 
 std::string RMSNormCuda::get_layer_info() const { return "RMSNorm()"; }
 
@@ -34,11 +41,17 @@ std::string RMSNormCuda::get_layer_name() const { return "RMSNormCuda"; }
 
 LayerType RMSNormCuda::get_layer_type() const { return LayerType::Norm; }
 
-void RMSNormCuda::allocate_running_rms() {
+void RMSNormCuda::allocate_batch_buffers() {
     cudaSetDevice(this->device_idx);
     cudaFree(d_rms_ra);
     CHECK_CUDA_ERROR(
         cudaMalloc((void **)&d_rms_ra, this->_batch_size * sizeof(float)));
+    cudaFree(d_delta_w_partial);
+    size_t partial_size =
+        2 * static_cast<size_t>(num_row_tiles(this->_batch_size)) *
+        this->input_size;
+    CHECK_CUDA_ERROR(
+        cudaMalloc((void **)&d_delta_w_partial, partial_size * sizeof(float)));
 }
 
 void RMSNormCuda::forward(BaseHiddenStates &input_states,
@@ -55,11 +68,11 @@ void RMSNormCuda::forward(BaseHiddenStates &input_states,
 
     if (this->_batch_size != effective_batch) {
         this->_batch_size = effective_batch;
-        this->allocate_running_rms();
+        this->allocate_batch_buffers();
     }
 
-    rmsnorm_stat_rms_cuda<<<num_blocks(effective_batch), NUM_THREADS>>>(
-        cu_in->d_mu_a, cu_in->d_var_a, ni, effective_batch, d_rms_ra);
+    rmsnorm_stat_rms_cuda<<<effective_batch, RMSNORM_STAT_THREADS>>>(
+        cu_in->d_mu_a, cu_in->d_var_a, ni, d_rms_ra);
     rmsnorm_fwd_mean_var_cuda<<<num_blocks(effective_batch * ni),
                                 NUM_THREADS>>>(
         this->d_mu_w, this->d_var_w, cu_in->d_mu_a, cu_in->d_var_a, d_rms_ra,
@@ -102,9 +115,18 @@ void RMSNormCuda::backward(BaseDeltaStates &input_delta_states,
         cu_out_delta->seq_len = seq_len;
     }
     if (this->param_update) {
-        rmsnorm_bwd_delta_w_cuda<<<num_blocks(ni), NUM_THREADS>>>(
-            cu_bwd->d_mu_a, this->d_var_w, d_rms_ra, cu_in_delta->d_delta_mu,
+        int row_tiles = num_row_tiles(effective_batch);
+        float *partial_mu = d_delta_w_partial;
+        float *partial_var = d_delta_w_partial + row_tiles * ni;
+        dim3 partial_grid(
+            (ni + RMSNORM_DELTA_W_COLS - 1) / RMSNORM_DELTA_W_COLS, row_tiles);
+        dim3 partial_block(RMSNORM_DELTA_W_COLS, RMSNORM_DELTA_W_ROW_LANES);
+        rmsnorm_bwd_delta_w_partial_cuda<<<partial_grid, partial_block>>>(
+            cu_bwd->d_mu_a, d_rms_ra, cu_in_delta->d_delta_mu,
             cu_in_delta->d_delta_var, this->epsilon, ni, effective_batch,
+            partial_mu, partial_var);
+        rmsnorm_bwd_delta_w_cuda<<<num_blocks(ni), NUM_THREADS>>>(
+            partial_mu, partial_var, this->d_var_w, ni, row_tiles,
             this->d_delta_mu_w, this->d_delta_var_w);
     }
     CHECK_LAST_CUDA_ERROR();
