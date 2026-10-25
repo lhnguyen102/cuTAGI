@@ -114,7 +114,7 @@ def plot_attention_maps(attn_maps, seq_len, corrupt_steps=None):
 
 
 def main(
-    num_epochs: int = 10,
+    num_epochs: int = 50,
     batch_size: int = 16,
     seq_len: int = 20,
     n_features: int = 6,

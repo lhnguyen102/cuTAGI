@@ -716,7 +716,7 @@ void MultiheadAttention::forward(BaseHiddenStates &input_states,
                                  BaseTempStates &temp_states) {
     // TODO: check it is correct for 2 consecutive attention layers
     int batch_size = input_states.block_size;
-    this->set_cap_factor_udapte(batch_size);
+    this->set_cap_factor_udapte(batch_size * this->seq_len);
 
     attn_states.set_size(batch_size, num_heads, this->seq_len, head_dim);
 

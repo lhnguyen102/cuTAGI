@@ -547,19 +547,22 @@ void Sequential::step()
 }
 
 void Sequential::set_var_decay(float tau, float min_gain)
-/*Posterior variance decay var_w(n) = var_w(0) / (1 + n / tau) on every layer
-except the output layer, frozen once var_w(n) / var_w(0) reaches min_gain. The
-backward pass already contracts the output layer's variance; the hidden layers
-otherwise keep their prior Kalman gain. Applies to the current layers, so call
-it after to_device.
+/*Decay var_w(n) = var_w(0) / (1 + n / tau), floored at min_gain * var_w(0), on
+every weighted layer except the last one (the output layer, already contracted
+by the backward pass). Call after to_device.
 */
 {
-    for (size_t i = 0; i + 1 < this->layers.size(); i++) {
-        for_each_leaf_layer(this->layers[i].get(),
-                            [tau, min_gain](BaseLayer &leaf) {
-                                leaf.set_var_decay(tau, min_gain);
-                            });
+    std::vector<BaseLayer *> leaves;
+    for (const auto &layer : this->layers) {
+        for_each_leaf_layer(layer.get(), [&leaves](BaseLayer &leaf) {
+            leaves.push_back(&leaf);
+        });
     }
+    while (!leaves.empty() && leaves.back()->num_weights == 0) {
+        leaves.pop_back();
+    }
+    if (!leaves.empty()) leaves.pop_back();
+    for (auto *leaf : leaves) leaf->set_var_decay(tau, min_gain);
 }
 
 void Sequential::set_cap_factor(float cap_factor)

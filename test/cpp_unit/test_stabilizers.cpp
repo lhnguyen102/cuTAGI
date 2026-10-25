@@ -3,6 +3,7 @@
 #include <cmath>
 #include <vector>
 
+#include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
 #include "../../include/linear_layer.h"
 #include "../../include/sequential.h"
@@ -148,6 +149,18 @@ TEST(Stabilizers, VarDecayCudaMatchesCpu) {
     }
 }
 #endif
+
+TEST(Stabilizers, VarDecaySkipsOutputLayerBeforeTrailingActivation) {
+    Sequential model(Linear(INPUT_SIZE, 5), ReLU(), Linear(5, OUTPUT_SIZE),
+                     ReLU());
+    model.set_var_decay(10.0f);
+    auto hidden_var_w0 = var_w_of(model, 0);
+    auto output_var_w0 = var_w_of(model, 1);
+    train_one_step(model, VAR_OBS_NO_UPDATE);
+    expect_var_w_ratio(var_w_of(model, 0), hidden_var_w0, 1.0f / 1.1f,
+                       "hidden layer");
+    expect_var_w_ratio(var_w_of(model, 1), output_var_w0, 1.0f, "output layer");
+}
 
 TEST(Stabilizers, LoadKeepsVarDecayCounter) {
     const float tau = 10.0f;

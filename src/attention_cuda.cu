@@ -225,7 +225,7 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
     size_t qk_size = (size_t)batch_size * num_heads * timestep * timestep;
     size_t num_rows = (size_t)batch_size * num_heads * timestep;
 
-    this->set_cap_factor_udapte(batch_size);
+    this->set_cap_factor_udapte(batch_seq);
     attn_states.set_size(batch_size, num_heads, timestep, head_dim,
                          this->use_rope);
 
