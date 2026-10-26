@@ -110,6 +110,10 @@ class BaseLayer {
                           BaseTempStates &temp_states,
                           bool state_udapte = true);
 
+    // 1-based path units per token, consumed by the next forward.
+    virtual void set_output_indices(const std::vector<int> &unit_idx,
+                                    int n_obs);
+
     virtual void allocate_param_delta();
 
     virtual void update_weights();
@@ -130,6 +134,10 @@ class BaseLayer {
     virtual void apply_var_decay();
 
     virtual void set_threads(int num);
+
+    // TF32 tensor cores for the cuBLAS GEMMs of CUDA linear projections;
+    // layers without one ignore it.
+    virtual void set_tf32(bool on);
 
     virtual void compute_input_output_size(const InitArgs &args);
 

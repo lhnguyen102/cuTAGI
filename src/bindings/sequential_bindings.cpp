@@ -49,6 +49,7 @@ void bind_sequential(pybind11::module_& m) {
         .def("set_threads", &Sequential::set_threads)
         .def("set_cap_factor", &Sequential::set_cap_factor,
              pybind11::arg("cap_factor"))
+        .def("set_tf32", &Sequential::set_tf32, pybind11::arg("on"))
         .def("set_var_decay", &Sequential::set_var_decay, pybind11::arg("tau"),
              pybind11::arg("min_gain") = 0.0f)
         .def("train", &Sequential::train)
@@ -74,6 +75,18 @@ void bind_sequential(pybind11::module_& m) {
         .def("backward", &Sequential::backward)
         .def("smoother", &Sequential::smoother)
         .def("step", &Sequential::step)
+        .def(
+            "set_output_indices",
+            [](Sequential& self,
+               pybind11::array_t<int, pybind11::array::c_style |
+                                          pybind11::array::forcecast>
+                   unit_idx,
+               int n_obs) {
+                std::vector<int> idx(unit_idx.data(),
+                                     unit_idx.data() + unit_idx.size());
+                self.set_output_indices(idx, n_obs);
+            },
+            pybind11::arg("unit_idx"), pybind11::arg("n_obs"))
         .def("reset_lstm_states", &Sequential::reset_lstm_states)
         .def("output_to_host", &Sequential::output_to_host)
         .def("delta_z_to_host", &Sequential::delta_z_to_host)

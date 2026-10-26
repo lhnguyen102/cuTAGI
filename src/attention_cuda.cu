@@ -11,6 +11,13 @@ constexpr int THREADS = 256;
 
 inline int blocks_for(size_t total) { return (total + THREADS - 1) / THREADS; }
 
+// Grid of query_key_kernel and mha_delta_score_kernel: one SCORE_TILE x
+// SCORE_TILE score tile per block, one (batch, head) per z.
+inline dim3 score_tile_grid(int batch_size, int num_heads, int timestep) {
+    int tiles = (timestep + SCORE_TILE - 1) / SCORE_TILE;
+    return dim3(tiles, tiles, batch_size * num_heads);
+}
+
 inline void alloc_pair(float **d_mu, float **d_var, size_t n) {
     CHECK_CUDA_ERROR(cudaMalloc((void **)d_mu, n * sizeof(float)));
     CHECK_CUDA_ERROR(cudaMalloc((void **)d_var, n * sizeof(float)));
@@ -183,6 +190,10 @@ MultiheadAttentionCuda::~MultiheadAttentionCuda() {
     cudaFree(d_sin_cache);
 }
 
+void MultiheadAttentionCuda::set_tf32(bool on) {
+    this->in_proj_gemm.use_tf32 = on;
+}
+
 std::string MultiheadAttentionCuda::get_layer_info() const {
     return "SelfAttention(heads=" + std::to_string(this->num_heads) +
            ", kv_heads=" + std::to_string(this->num_kv_heads) +
@@ -233,7 +244,7 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
     HiddenStateCuda *p_proj = &in_proj_buffer;
     linear_forward_cuda(cu_in, p_proj, this->d_mu_w, this->d_var_w,
                         this->d_mu_b, this->d_var_b, this->embed_dim, qkv_size,
-                        batch_seq, this->bias);
+                        batch_seq, this->bias, this->in_proj_gemm);
 
     separate_in_proj_components_kernel<<<blocks_for(comp_size), THREADS>>>(
         in_proj_buffer.d_mu_a, in_proj_buffer.d_var_a, batch_size, num_heads,
@@ -258,7 +269,8 @@ void MultiheadAttentionCuda::forward(BaseHiddenStates &input_states,
         var_k = attn_states.d_var_k_rope;
     }
 
-    query_key_kernel<<<blocks_for(qk_size), THREADS>>>(
+    query_key_kernel<<<score_tile_grid(batch_size, num_heads, timestep),
+                       dim3(SCORE_TILE, SCORE_TILE)>>>(
         mu_q, var_q, mu_k, var_k, batch_size, num_heads, timestep, head_dim,
         attn_states.d_mu_qk, attn_states.d_var_qk);
 
@@ -326,7 +338,6 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
     int batch_seq = batch_size * timestep;
     int qkv_size = 3 * this->embed_dim;
     size_t comp_size = (size_t)batch_seq * this->embed_dim;
-    size_t qk_size = (size_t)batch_size * num_heads * timestep * timestep;
 
     attn_delta_states.set_size(batch_size, num_heads, timestep, head_dim,
                                this->use_rope);
@@ -342,7 +353,8 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
         head_dim, attn_delta_states.d_delta_mu_v,
         attn_delta_states.d_delta_var_v);
 
-    mha_delta_score_kernel<<<blocks_for(qk_size), THREADS>>>(
+    mha_delta_score_kernel<<<score_tile_grid(batch_size, num_heads, timestep),
+                             dim3(SCORE_TILE, SCORE_TILE)>>>(
         attn_states.d_mu_v, attn_delta_states.d_delta_mu_buffer,
         attn_delta_states.d_delta_var_buffer, batch_size, num_heads, timestep,
         head_dim, attn_delta_states.d_delta_mu_att_score,
@@ -401,14 +413,15 @@ void MultiheadAttentionCuda::backward(BaseDeltaStates &input_delta_states,
     if (state_udapte) {
         linear_state_backward_cuda(p_in_dproj, cu_out_delta, cu_bwd,
                                    this->d_mu_w, this->embed_dim, qkv_size,
-                                   batch_seq);
+                                   batch_seq, this->in_proj_gemm);
         cu_out_delta->seq_len = this->seq_len;
     }
 
     if (this->param_update) {
-        linear_weight_backward_cuda(
-            p_in_dproj, cu_out_delta, cu_bwd, this->d_var_w, this->embed_dim,
-            qkv_size, batch_seq, this->d_delta_mu_w, this->d_delta_var_w);
+        linear_weight_backward_cuda(p_in_dproj, cu_out_delta, cu_bwd,
+                                    this->d_var_w, this->embed_dim, qkv_size,
+                                    batch_seq, this->d_delta_mu_w,
+                                    this->d_delta_var_w, this->in_proj_gemm);
         if (this->bias) {
             unsigned int blocks_b = (qkv_size + 16 - 1) / 16;
             linear_bwd_delta_b<<<dim3(1, blocks_b), dim3(16, 16)>>>(

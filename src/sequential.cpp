@@ -546,6 +546,24 @@ void Sequential::step()
     }
 }
 
+void Sequential::set_output_indices(const std::vector<int> &unit_idx, int n_obs)
+/*
+ */
+{
+    this->layers.back()->set_output_indices(unit_idx, n_obs);
+}
+
+void Sequential::set_tf32(bool on)
+/*TF32 tensor cores for the cuBLAS GEMMs of every CUDA linear projection.
+Applies to the current layers, so call it after to_device.
+ */
+{
+    for (auto &layer : this->layers) {
+        for_each_leaf_layer(layer.get(),
+                            [on](BaseLayer &leaf) { leaf.set_tf32(on); });
+    }
+}
+
 void Sequential::set_var_decay(float tau, float min_gain)
 /*Decay var_w(n) = var_w(0) / (1 + n / tau), floored at min_gain * var_w(0), on
 every weighted layer except the last one (the output layer, already contracted
@@ -608,7 +626,9 @@ void Sequential::output_to_host() {
     if (this->device.compare("cuda") == 0) {
         HiddenStateCuda *cu_output_states =
             dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get());
-        cu_output_states->to_host();
+        cu_output_states->to_host(cu_output_states->block_size *
+                                  cu_output_states->seq_len *
+                                  cu_output_states->actual_size);
     }
 #endif
 }
@@ -943,23 +963,25 @@ Sequential::get_outputs()
 /*
  */
 {
-    if (this->device.compare("cuda") == 0) {
-        this->output_to_host();
-    }
-    int batch_size =
-        this->output_z_buffer->block_size * this->output_z_buffer->seq_len;
-    int num_outputs = this->layers.back()->output_size;
-    std::vector<float> mu_a_output(batch_size * num_outputs);
-    std::vector<float> var_a_output(batch_size * num_outputs);
+    size_t num_data = this->output_z_buffer->block_size *
+                      this->output_z_buffer->seq_len *
+                      this->output_z_buffer->actual_size;
+    pybind11::array_t<float> py_m_pred(num_data);
+    pybind11::array_t<float> py_v_pred(num_data);
+    float *mu_a_dst = py_m_pred.mutable_data();
+    float *var_a_dst = py_v_pred.mutable_data();
 
-    for (int j = 0; j < batch_size * num_outputs; j++) {
-        mu_a_output[j] = this->output_z_buffer->mu_a[j];
-        var_a_output[j] = this->output_z_buffer->var_a[j];
+#ifdef USE_CUDA
+    if (this->device.compare("cuda") == 0) {
+        dynamic_cast<HiddenStateCuda *>(this->output_z_buffer.get())
+            ->to_host(mu_a_dst, var_a_dst, num_data);
+        return {py_m_pred, py_v_pred};
     }
-    auto py_m_pred =
-        pybind11::array_t<float>(mu_a_output.size(), mu_a_output.data());
-    auto py_v_pred =
-        pybind11::array_t<float>(var_a_output.size(), var_a_output.data());
+#endif
+    const auto &mu_a = this->output_z_buffer->mu_a;
+    const auto &var_a = this->output_z_buffer->var_a;
+    std::copy(mu_a.begin(), mu_a.begin() + num_data, mu_a_dst);
+    std::copy(var_a.begin(), var_a.begin() + num_data, var_a_dst);
 
     return {py_m_pred, py_v_pred};
 }

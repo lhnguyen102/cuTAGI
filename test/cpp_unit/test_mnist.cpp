@@ -14,6 +14,7 @@
 #include "../../include/activation.h"
 #include "../../include/base_output_updater.h"
 #include "../../include/batchnorm_layer.h"
+#include "../../include/common.h"
 #include "../../include/conv2d_layer.h"
 #include "../../include/convtranspose2d_layer.h"
 #include "../../include/cuda_utils.h"
@@ -325,6 +326,7 @@ class MnistTest : public ::testing::Test {
                           << std::endl;
             }
         }
+        manual_seed(42);
     }
 
     void TearDown() override {}

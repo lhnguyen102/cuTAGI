@@ -134,6 +134,7 @@ def lstm_user_output_updater_test_runner(
             # Feed forward
             x = x.reshape(batch_size, input_seq_len, num_features)
             m_pred, _ = model(x)
+            model.output_to_host()
 
             delta_mu, delta_var = user_output_updater(
                 mu_obs=y,

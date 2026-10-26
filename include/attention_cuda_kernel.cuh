@@ -5,8 +5,14 @@
 #include "attention.h"
 
 // Mirrors the CPU stage functions in src/attention.cpp. One thread per output
-// element. Q, K, V are [batch_size, num_heads, timestep, head_dim] and scores
-// are [batch_size, num_heads, timestep, timestep].
+// element except the two tiled score kernels. Q, K, V are
+// [batch_size, num_heads, timestep, head_dim] and scores are
+// [batch_size, num_heads, timestep, timestep].
+
+// Side of the square score tile and of the head-dimension chunk that
+// query_key_kernel and mha_delta_score_kernel stage in shared memory.
+constexpr int SCORE_TILE = 32;
+constexpr int SCORE_THREADS = SCORE_TILE * SCORE_TILE;
 
 // ---------------------------------------------------------------------------
 // Forward Pass
@@ -74,33 +80,54 @@ __global__ void cat_in_proj_components_kernel(
 
 // QK^T with TAGI variance, scaled by 1/sqrt(head_dim).
 // qk shape [batch_size, num_heads, timestep, timestep].
-__global__ void query_key_kernel(const float *mu_q, const float *var_q,
-                                 const float *mu_k, const float *var_k,
-                                 int batch_size, int num_heads, int timestep,
-                                 int head_dim, float *mu_qk, float *var_qk) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = batch_size * num_heads * timestep * timestep;
-    if (idx >= total) return;
-    int key_timestep_idx = idx % timestep;
-    int query_timestep_idx = (idx / timestep) % timestep;
-    int head_idx = (idx / (timestep * timestep)) % num_heads;
-    int batch_idx = idx / (num_heads * timestep * timestep);
+// Block (SCORE_TILE, SCORE_TILE) computes one SCORE_TILE x SCORE_TILE score
+// tile of one (batch, head) = blockIdx.z; the head dimension streams through
+// shared memory SCORE_TILE columns at a time with coalesced loads. Each thread
+// sums its score over the head dimension in order, as the CPU query_key does.
+// batch_size and num_heads are not read: the grid's z extent is their product.
+__global__ void __launch_bounds__(SCORE_THREADS)
+    query_key_kernel(const float *mu_q, const float *var_q, const float *mu_k,
+                     const float *var_k, int batch_size, int num_heads,
+                     int timestep, int head_dim, float *mu_qk, float *var_qk) {
+    __shared__ float mu_q_tile[SCORE_TILE][SCORE_TILE + 1];
+    __shared__ float var_q_tile[SCORE_TILE][SCORE_TILE + 1];
+    __shared__ float mu_k_tile[SCORE_TILE][SCORE_TILE + 1];
+    __shared__ float var_k_tile[SCORE_TILE][SCORE_TILE + 1];
+
+    int tile_col = threadIdx.x, tile_row = threadIdx.y;
+    int query_timestep_idx = blockIdx.y * SCORE_TILE + tile_row;
+    int key_timestep_idx = blockIdx.x * SCORE_TILE + tile_col;
+    int load_key_timestep_idx = blockIdx.x * SCORE_TILE + tile_row;
+    int base = blockIdx.z * timestep * head_dim;
+    int q_off = base + query_timestep_idx * head_dim;
+    int k_off = base + load_key_timestep_idx * head_dim;
 
     float sum_mu = 0.0f;
     float sum_var = 0.0f;
-    int base = batch_idx * num_heads * timestep * head_dim +
-               head_idx * timestep * head_dim;
-    int q_off = base + query_timestep_idx * head_dim;
-    int k_off = base + key_timestep_idx * head_dim;
-    for (int dim_idx = 0; dim_idx < head_dim; dim_idx++) {
-        float mq = mu_q[q_off + dim_idx];
-        float vq = var_q[q_off + dim_idx];
-        float mk = mu_k[k_off + dim_idx];
-        float vk = var_k[k_off + dim_idx];
-        sum_mu += mq * mk;
-        sum_var += vq * vk + vq * mk * mk + vk * mq * mq;
+    for (int dim_start = 0; dim_start < head_dim; dim_start += SCORE_TILE) {
+        int dim_idx = dim_start + tile_col;
+        bool q_in = dim_idx < head_dim && query_timestep_idx < timestep;
+        bool k_in = dim_idx < head_dim && load_key_timestep_idx < timestep;
+        mu_q_tile[tile_row][tile_col] = q_in ? mu_q[q_off + dim_idx] : 0.0f;
+        var_q_tile[tile_row][tile_col] = q_in ? var_q[q_off + dim_idx] : 0.0f;
+        mu_k_tile[tile_row][tile_col] = k_in ? mu_k[k_off + dim_idx] : 0.0f;
+        var_k_tile[tile_row][tile_col] = k_in ? var_k[k_off + dim_idx] : 0.0f;
+        __syncthreads();
+        int tile_dims = min(SCORE_TILE, head_dim - dim_start);
+        for (int tile_dim = 0; tile_dim < tile_dims; tile_dim++) {
+            float mq = mu_q_tile[tile_row][tile_dim];
+            float vq = var_q_tile[tile_row][tile_dim];
+            float mk = mu_k_tile[tile_col][tile_dim];
+            float vk = var_k_tile[tile_col][tile_dim];
+            sum_mu += mq * mk;
+            sum_var += vq * vk + vq * mk * mk + vk * mq * mq;
+        }
+        __syncthreads();
     }
+    if (query_timestep_idx >= timestep || key_timestep_idx >= timestep) return;
     float scale = rsqrtf((float)head_dim);
+    int idx = blockIdx.z * timestep * timestep + query_timestep_idx * timestep +
+              key_timestep_idx;
     mu_qk[idx] = sum_mu * scale;
     var_qk[idx] = sum_var * scale * scale;
 }
@@ -223,30 +250,48 @@ __global__ void project_output_backward_kernel(const float *mu_in,
 // ---------------------------------------------------------------------------
 // Backward pass
 // ---------------------------------------------------------------------------
-__global__ void mha_delta_score_kernel(const float *mu_v, const float *delta_mu,
-                                       const float *delta_var, int batch_size,
-                                       int num_heads, int timestep,
-                                       int head_dim, float *delta_mu_s,
-                                       float *delta_var_s) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = batch_size * num_heads * timestep * timestep;
-    if (idx >= total) return;
-    int key_timestep_idx = idx % timestep;
-    int query_timestep_idx = (idx / timestep) % timestep;
-    int head_idx = (idx / (timestep * timestep)) % num_heads;
-    int batch_idx = idx / (num_heads * timestep * timestep);
+// delta_s[b,h,q,k] = sum_d V[b,h,k,d] * delta[b,h,q,d]. Same tiling as
+// query_key_kernel.
+__global__ void __launch_bounds__(SCORE_THREADS)
+    mha_delta_score_kernel(const float *mu_v, const float *delta_mu,
+                           const float *delta_var, int batch_size,
+                           int num_heads, int timestep, int head_dim,
+                           float *delta_mu_s, float *delta_var_s) {
+    __shared__ float mu_v_tile[SCORE_TILE][SCORE_TILE + 1];
+    __shared__ float delta_mu_tile[SCORE_TILE][SCORE_TILE + 1];
+    __shared__ float delta_var_tile[SCORE_TILE][SCORE_TILE + 1];
+
+    int tile_col = threadIdx.x, tile_row = threadIdx.y;
+    int query_timestep_idx = blockIdx.y * SCORE_TILE + tile_row;
+    int key_timestep_idx = blockIdx.x * SCORE_TILE + tile_col;
+    int load_key_timestep_idx = blockIdx.x * SCORE_TILE + tile_row;
+    int base = blockIdx.z * timestep * head_dim;
+    int d_off = base + query_timestep_idx * head_dim;
+    int v_off = base + load_key_timestep_idx * head_dim;
 
     float sum_mu = 0.0f;
     float sum_var = 0.0f;
-    int base = batch_idx * num_heads * timestep * head_dim +
-               head_idx * timestep * head_dim;
-    int v_off = base + key_timestep_idx * head_dim;
-    int d_off = base + query_timestep_idx * head_dim;
-    for (int dim_idx = 0; dim_idx < head_dim; dim_idx++) {
-        float mv = mu_v[v_off + dim_idx];
-        sum_mu += mv * delta_mu[d_off + dim_idx];
-        sum_var += mv * delta_var[d_off + dim_idx] * mv;
+    for (int dim_start = 0; dim_start < head_dim; dim_start += SCORE_TILE) {
+        int dim_idx = dim_start + tile_col;
+        bool d_in = dim_idx < head_dim && query_timestep_idx < timestep;
+        bool v_in = dim_idx < head_dim && load_key_timestep_idx < timestep;
+        delta_mu_tile[tile_row][tile_col] =
+            d_in ? delta_mu[d_off + dim_idx] : 0.0f;
+        delta_var_tile[tile_row][tile_col] =
+            d_in ? delta_var[d_off + dim_idx] : 0.0f;
+        mu_v_tile[tile_row][tile_col] = v_in ? mu_v[v_off + dim_idx] : 0.0f;
+        __syncthreads();
+        int tile_dims = min(SCORE_TILE, head_dim - dim_start);
+        for (int tile_dim = 0; tile_dim < tile_dims; tile_dim++) {
+            float mv = mu_v_tile[tile_col][tile_dim];
+            sum_mu += mv * delta_mu_tile[tile_row][tile_dim];
+            sum_var += mv * delta_var_tile[tile_row][tile_dim] * mv;
+        }
+        __syncthreads();
     }
+    if (query_timestep_idx >= timestep || key_timestep_idx >= timestep) return;
+    int idx = blockIdx.z * timestep * timestep + query_timestep_idx * timestep +
+              key_timestep_idx;
     delta_mu_s[idx] = sum_mu;
     delta_var_s[idx] = sum_var;
 }

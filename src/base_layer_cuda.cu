@@ -63,6 +63,48 @@ __global__ void device_var_decay(float factor, size_t size, float *var_w)
     }
 }
 
+__device__ __forceinline__ void weight_update_at(
+    float const *delta_mu_w, float const *delta_var_w, float cap_factor_udapte,
+    size_t col, float *mu_w, float *var_w, int *negative_var_count)
+/*
+ */
+{
+    float delta_mu_sign, delta_var_sign, delta_bar;
+    float tmp_mu = delta_mu_w[col];
+    float tmp_var = delta_var_w[col];
+    delta_mu_sign = (tmp_mu > 0) - (tmp_mu < 0);
+    delta_var_sign = (tmp_var > 0) - (tmp_var < 0);
+    delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
+
+    mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
+    var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
+    if (var_w[col] <= 0.0f) {
+        var_w[col] = 1E-5f;
+        atomicAdd(negative_var_count, 1);
+    }
+}
+
+__device__ __forceinline__ void bias_update_at(float const *delta_mu_b,
+                                               float const *delta_var_b,
+                                               float cap_factor_udapte,
+                                               size_t col, float *mu_b,
+                                               float *var_b)
+/*
+ */
+{
+    float delta_mu_sign, delta_var_sign, delta_bar;
+    delta_mu_sign = (delta_mu_b[col] > 0) - (delta_mu_b[col] < 0);
+    delta_var_sign = (delta_var_b[col] > 0) - (delta_var_b[col] < 0);
+    delta_bar = powf(var_b[col], 0.5) / cap_factor_udapte;
+
+    mu_b[col] += delta_mu_sign * min(fabsf(delta_mu_b[col]), delta_bar);
+    var_b[col] += delta_var_sign * min(fabsf(delta_var_b[col]), delta_bar);
+    if (var_b[col] <= 0.0f) {
+        var_b[col] = 1E-5f;
+        // printf("b"); //Constrain printout for debugging
+    }
+}
+
 __global__ void device_weight_update(float const *delta_mu_w,
                                      float const *delta_var_w,
                                      float cap_factor_udapte, size_t size,
@@ -72,20 +114,25 @@ __global__ void device_weight_update(float const *delta_mu_w,
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float delta_mu_sign, delta_var_sign, delta_bar;
     if (col < size) {
-        float tmp_mu = delta_mu_w[col];
-        float tmp_var = delta_var_w[col];
-        delta_mu_sign = (tmp_mu > 0) - (tmp_mu < 0);
-        delta_var_sign = (tmp_var > 0) - (tmp_var < 0);
-        delta_bar = powf(var_w[col], 0.5) / cap_factor_udapte;
+        weight_update_at(delta_mu_w, delta_var_w, cap_factor_udapte, col, mu_w,
+                         var_w, negative_var_count);
+    }
+}
 
-        mu_w[col] += delta_mu_sign * min(sqrt(tmp_mu * tmp_mu), delta_bar);
-        var_w[col] += delta_var_sign * min(sqrt(tmp_var * tmp_var), delta_bar);
-        if (var_w[col] <= 0.0f) {
-            var_w[col] = 1E-5f;
-            atomicAdd(negative_var_count, 1);
-        }
+__global__ void device_weight_row_update(float const *delta_mu_w,
+                                         float const *delta_var_w,
+                                         float cap_factor_udapte,
+                                         const int *rows, size_t row_size,
+                                         float *mu_w, float *var_w,
+                                         int *negative_var_count)
+/*
+ */
+{
+    size_t row = rows[blockIdx.x];
+    for (size_t j = threadIdx.x; j < row_size; j += blockDim.x) {
+        weight_update_at(delta_mu_w, delta_var_w, cap_factor_udapte,
+                         row * row_size + j, mu_w, var_w, negative_var_count);
     }
 }
 
@@ -97,18 +144,23 @@ __global__ void device_bias_update(float const *delta_mu_b,
  */
 {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    float delta_mu_sign, delta_var_sign, delta_bar;
     if (col < size) {
-        delta_mu_sign = (delta_mu_b[col] > 0) - (delta_mu_b[col] < 0);
-        delta_var_sign = (delta_var_b[col] > 0) - (delta_var_b[col] < 0);
-        delta_bar = powf(var_b[col], 0.5) / cap_factor_udapte;
+        bias_update_at(delta_mu_b, delta_var_b, cap_factor_udapte, col, mu_b,
+                       var_b);
+    }
+}
 
-        mu_b[col] += delta_mu_sign * min(fabsf(delta_mu_b[col]), delta_bar);
-        var_b[col] += delta_var_sign * min(fabsf(delta_var_b[col]), delta_bar);
-        if (var_b[col] <= 0.0f) {
-            var_b[col] = 1E-5f;
-            // printf("b"); //Constrain printout for debugging
-        }
+__global__ void device_bias_row_update(float const *delta_mu_b,
+                                       float const *delta_var_b,
+                                       float cap_factor_udapte, const int *rows,
+                                       int num_rows, float *mu_b, float *var_b)
+/*
+ */
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < num_rows) {
+        bias_update_at(delta_mu_b, delta_var_b, cap_factor_udapte, rows[i],
+                       mu_b, var_b);
     }
 }
 
@@ -192,6 +244,47 @@ void BaseLayerCuda::update_weights()
                      sizeof(int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
         LOG(LogLevel::ERROR, "Failed to copy negative var count from device");
+    }
+}
+
+void BaseLayerCuda::update_weight_rows(const int *d_rows, int num_rows,
+                                       size_t row_size)
+/*
+ */
+{
+    this->neg_var_w_counter = 0;
+    cudaError_t err =
+        cudaMemcpy(this->d_neg_var_count, &this->neg_var_w_counter, sizeof(int),
+                   cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        LOG(LogLevel::ERROR, "Failed to copy negative var count to device");
+    }
+
+    if (num_rows > 0) {
+        device_weight_row_update<<<num_rows, 256>>>(
+            this->d_delta_mu_w, this->d_delta_var_w, this->cap_factor_update,
+            d_rows, row_size, this->d_mu_w, this->d_var_w,
+            this->d_neg_var_count);
+    }
+
+    err = cudaMemcpy(&this->neg_var_w_counter, this->d_neg_var_count,
+                     sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        LOG(LogLevel::ERROR, "Failed to copy negative var count from device");
+    }
+}
+
+void BaseLayerCuda::update_bias_rows(const int *d_rows, int num_rows)
+/*
+ */
+{
+    if (this->bias && num_rows > 0) {
+        unsigned int num_add_threads = 256;
+        unsigned int blocks =
+            (num_rows + num_add_threads - 1) / num_add_threads;
+        device_bias_row_update<<<blocks, num_add_threads>>>(
+            this->d_delta_mu_b, this->d_delta_var_b, this->cap_factor_update,
+            d_rows, num_rows, this->d_mu_b, this->d_var_b);
     }
 }
 
@@ -503,7 +596,7 @@ void BaseLayerCuda::store_states_for_training_cuda(
     cu_bwd_states->copy_from(input_states, act_size);
 
     constexpr unsigned int THREADS = 256;
-    int out_size = this->output_size * batch_size * seq_len;
+    int out_size = output_states.actual_size * batch_size * seq_len;
     unsigned int out_blocks = (out_size + THREADS - 1) / THREADS;
 
     fill_output_states_on_device<<<out_blocks, THREADS>>>(out_size,

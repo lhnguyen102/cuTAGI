@@ -51,31 +51,32 @@ def sampled_metrics(
     obs_scale,
     num_samples,
     calib=None,
+    device="cpu",
 ):
     n = len(labels)
-    m = np.asarray(m_pred).reshape(n, hrc.len) / obs_scale
-    v = np.asarray(v_pred).reshape(n, hrc.len) / (obs_scale**2)
     idx = np.random.choice(n, size=min(num_samples, n), replace=False)
-    ce, ce_raw, correct, prob_sum = 0.0, 0.0, 0, 0.0
-    scale, offset = calib if calib is not None else (None, None)
-    for i in idx:
-        raw = np.asarray(
-            utils.obs_to_label_prob(m[i], v[i], hrc, VOCAB_SIZE)
-        ).reshape(-1)
-        ce_raw -= np.log(max(raw[labels[i]] / raw.sum(), 1e-9))
-        probs = raw
-        if calib is not None:
-            probs = np.asarray(
-                utils.obs_to_label_prob(
-                    m[i], v[i], hrc, VOCAB_SIZE, scale, offset
-                )
-            ).reshape(-1)
-        prob_sum += float(probs.sum())
-        probs = probs / probs.sum()
-        ce -= np.log(max(probs[labels[i]], 1e-9))
-        correct += int(np.argmax(probs) == labels[i])
-    k = len(idx)
-    return ce / k, 1.0 - correct / k, prob_sum / k, ce_raw / k
+    m = m_pred.reshape(n, hrc.len)[idx] / obs_scale
+    v = v_pred.reshape(n, hrc.len)[idx] / (obs_scale**2)
+    y = labels[idx]
+    rows = np.arange(len(idx))
+    raw = utils.obs_to_label_prob(m, v, hrc, VOCAB_SIZE, device=device).astype(
+        np.float64
+    )
+    probs = raw
+    if calib is not None:
+        probs = utils.obs_to_label_prob(
+            m, v, hrc, VOCAB_SIZE, calib[0], calib[1], device=device
+        ).astype(np.float64)
+    ce_raw = -np.log(np.maximum(raw[rows, y] / raw.sum(axis=1), 1e-9))
+    prob_sum = probs.sum(axis=1)
+    ce = -np.log(np.maximum(probs[rows, y] / prob_sum, 1e-9))
+    err = 1.0 - np.mean(probs.argmax(axis=1) == y)
+    return (
+        float(ce.mean()),
+        float(err),
+        float(prob_sum.mean()),
+        float(ce_raw.mean()),
+    )
 
 
 def _phi(x):
@@ -110,23 +111,24 @@ def fit_level_calibration(
     zs, obs_all = [], []
     for _ in range(n_batches):
         x, labels = get_batch("train", batch_size, seq_len)
-        m_pred, v_pred = net(x)
-        n = len(labels)
-        m = np.asarray(m_pred).reshape(n, hrc.len) / obs_scale
-        v = np.asarray(v_pred).reshape(n, hrc.len) / (obs_scale**2)
         obs, idx, n_obs = utils.label_to_obs(
             labels=labels.astype(np.int32), num_classes=VOCAB_SIZE
         )
-        obs = np.asarray(obs, dtype=np.float32).reshape(n, n_obs)
-        idx = np.asarray(idx, dtype=np.int64).reshape(n, n_obs) - 1
-        rows = np.arange(n)[:, None]
-        zs.append(m[rows, idx] / np.sqrt(1.0 / ALPHA**2 + v[rows, idx]))
-        obs_all.append(obs)
+        net.set_output_indices(idx, n_obs)
+        m_pred, v_pred = net(x)
+        n = len(labels)
+        m = m_pred.reshape(n, n_obs) / obs_scale
+        v = v_pred.reshape(n, n_obs) / (obs_scale**2)
+        zs.append(m / np.sqrt(1.0 / ALPHA**2 + v))
+        obs_all.append(obs.reshape(n, n_obs))
     net.train()
     np.random.set_state(rng_state)
+    return fit_level_links(np.concatenate(zs), np.concatenate(obs_all))
 
-    z = np.concatenate(zs)
-    obs = np.concatenate(obs_all)
+
+def fit_level_links(z, obs):
+    """Grid-search the per-level (scale, offset) of P(node) = Phi(s * z + b)
+    that minimizes the node cross-entropy. z and obs are (tokens, levels)."""
     n_obs = z.shape[1]
     scale = np.ones(n_obs, dtype=np.float32)
     offset = np.zeros(n_obs, dtype=np.float32)
@@ -251,6 +253,7 @@ def main(
     eval_only: bool = False,
     max_new_tokens: int = 200,
     seed: int = 44,
+    tf32: bool = False,
 ):
     """Train a TAGI GPT-2 on FineWeb (BPE token level)."""
     np.random.seed(seed)
@@ -287,6 +290,7 @@ def main(
     net.to_device("cuda" if pytagi.cuda.is_available() else "cpu")
     net.set_cap_factor(cap_factor)
     net.set_var_decay(var_decay_tau, min_gain=var_decay_min_gain)
+    net.set_tf32(tf32)
 
     os.makedirs(out_dir, exist_ok=True)
     ckpt_path = os.path.join(out_dir, "ckpt.bin")
@@ -319,6 +323,7 @@ def main(
                 obs_scale,
                 metric_samples,
                 calib,
+                device=net.device,
             )
             ces.append(ce)
             errs.append(err)
@@ -365,19 +370,32 @@ def main(
                 break
 
         x, labels = get_batch("train", batch_size, seq_len)
-        m_pred, v_pred = net(x)
         y_obs, y_idx, _ = utils.label_to_obs(
             labels=labels, num_classes=VOCAB_SIZE
         )
         if obs_scale != 1.0:
             y_obs = np.asarray(y_obs, dtype=np.float32) * obs_scale
-        out_updater.update_using_indices(
-            output_states=net.output_z_buffer,
-            mu_obs=y_obs,
-            var_obs=var_y,
-            selected_idx=y_idx,
-            delta_states=net.input_delta_z_buffer,
-        )
+        # Metric iterations need the full vocabulary; every other step only
+        # computes and updates the path units (bit-equal, see ADR 0001).
+        metric_iteration = iter_num % log_interval == 0
+        if not metric_iteration:
+            net.set_output_indices(y_idx, hrc.num_obs)
+        m_pred, v_pred = net(x)
+        if metric_iteration:
+            out_updater.update_using_indices(
+                output_states=net.output_z_buffer,
+                mu_obs=y_obs,
+                var_obs=var_y,
+                selected_idx=y_idx,
+                delta_states=net.input_delta_z_buffer,
+            )
+        else:
+            out_updater.update(
+                output_states=net.output_z_buffer,
+                mu_obs=y_obs,
+                var_obs=var_y,
+                delta_states=net.input_delta_z_buffer,
+            )
         net.backward()
         net.step()
 
@@ -390,7 +408,7 @@ def main(
             current_sigma_v = max(sigma_v_min, current_sigma_v * decay_factor)
             var_y[:] = current_sigma_v**2
 
-        if iter_num % log_interval == 0:
+        if metric_iteration:
             ce, err, psum, ce_raw = sampled_metrics(
                 utils,
                 hrc,
@@ -400,6 +418,7 @@ def main(
                 obs_scale,
                 metric_samples,
                 calib,
+                device=net.device,
             )
             losses.append(ce)
             error_rates.append(err)

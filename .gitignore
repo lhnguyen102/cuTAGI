@@ -33,6 +33,8 @@ saved_results/param_viz
 # VSCode
 .vscode
 
+benchmarks/results/
+
 # Cuda profiler
 *ncu-rep
 *sys-rep
