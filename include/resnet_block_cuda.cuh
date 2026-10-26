@@ -6,11 +6,11 @@
 
 class ResNetBlockCuda : public BaseLayerCuda {
    private:
-    std::shared_ptr<BaseLayer> main_block;
-    std::shared_ptr<BaseLayer> shortcut;
     int _batch_size = 0;
 
    public:
+    std::shared_ptr<BaseLayer> main_block;
+    std::shared_ptr<BaseLayer> shortcut;
     std::shared_ptr<BaseHiddenStates> input_z;
     std::shared_ptr<BaseDeltaStates> input_delta_z;
     std::shared_ptr<BaseHiddenStates> shortcut_output_z;

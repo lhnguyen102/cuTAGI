@@ -8,6 +8,7 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "../include/attention.h"
 #include "../include/base_layer.h"
 #include "../include/data_struct.h"
 #include "../include/sequential.h"
@@ -46,6 +47,10 @@ void bind_sequential(pybind11::module_& m) {
         .def("params_to_host", &Sequential::params_to_host)
         .def("params_to_device", &Sequential::params_to_device)
         .def("set_threads", &Sequential::set_threads)
+        .def("set_cap_factor", &Sequential::set_cap_factor,
+             pybind11::arg("cap_factor"))
+        .def("set_var_decay", &Sequential::set_var_decay, pybind11::arg("tau"),
+             pybind11::arg("min_gain") = 0.0f)
         .def("train", &Sequential::train)
         .def("eval", &Sequential::eval)
         .def("forward", &Sequential::forward_py)
@@ -142,8 +147,8 @@ void bind_sequential(pybind11::module_& m) {
              [](Sequential& self) {
                  auto scores = self.get_attention_scores();
                  pybind11::dict py_scores;
-                 for (const auto& pair : scores) {
-                     py_scores[pybind11::int_(pair.first)] = pair.second;
+                 for (size_t i = 0; i < scores.size(); i++) {
+                     py_scores[pybind11::int_(i)] = scores[i];
                  }
                  return py_scores;
              })

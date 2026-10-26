@@ -210,13 +210,11 @@ void LayerBlock::backward(BaseDeltaStates &input_delta_states,
     }
 
     // State update for input layer
-    if (state_update && this->layers.size() > 1) {
-        this->layers[0]->backward(input_delta_states, output_delta_states,
-                                  temp_states, state_update);
-    }
+    this->layers[0]->backward(input_delta_states, output_delta_states,
+                              temp_states, state_update);
 
     if (this->layers[0]->get_layer_type() == LayerType::Activation ||
-        !state_update || this->layers.size() == 1) {
+        !state_update) {
         output_delta_states.swap(input_delta_states);
     }
 }
@@ -261,8 +259,12 @@ void LayerBlock::compute_input_output_size(const InitArgs &args)
     this->out_height = this->layers.back()->out_height;
     this->out_width = this->layers.back()->out_width;
 
-    this->input_size = this->in_width * this->in_width * this->in_channels;
-    this->output_size = this->out_width * this->out_height * this->out_channels;
+    int spatial_in = this->in_width * this->in_height * this->in_channels;
+    int spatial_out = this->out_width * this->out_height * this->out_channels;
+    this->input_size =
+        spatial_in > 0 ? spatial_in : this->layers.front()->input_size;
+    this->output_size =
+        spatial_out > 0 ? spatial_out : this->layers.back()->output_size;
 }
 
 void LayerBlock::save(std::ofstream &file)

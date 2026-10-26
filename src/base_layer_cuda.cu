@@ -53,6 +53,16 @@ __global__ void device_raw_bias_update(float const *delta_mu_b,
     }
 }
 
+__global__ void device_var_decay(float factor, size_t size, float *var_w)
+/*
+ */
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col < size) {
+        var_w[col] *= factor;
+    }
+}
+
 __global__ void device_weight_update(float const *delta_mu_w,
                                      float const *delta_var_w,
                                      float cap_factor_udapte, size_t size,
@@ -183,6 +193,20 @@ void BaseLayerCuda::update_weights()
     if (err != cudaSuccess) {
         LOG(LogLevel::ERROR, "Failed to copy negative var count from device");
     }
+}
+
+void BaseLayerCuda::apply_var_decay()
+/*
+ */
+{
+    float factor = this->next_var_decay_factor();
+    if (factor == 1.0f || this->num_weights == 0) {
+        return;
+    }
+    unsigned int num_threads = 256;
+    unsigned int blocks = (this->num_weights + num_threads - 1) / num_threads;
+    device_var_decay<<<blocks, num_threads>>>(factor, this->num_weights,
+                                              this->d_var_w);
 }
 
 void BaseLayerCuda::update_biases()

@@ -26,6 +26,8 @@
 #include <map>
 #include <unordered_map>
 
+struct AttentionScores;
+
 class Sequential {
    public:
     bool valid_ = true;
@@ -112,6 +114,10 @@ class Sequential {
 
     void step();
 
+    void set_cap_factor(float cap_factor);
+
+    void set_var_decay(float tau, float min_gain = 0.0f);
+
     void reset_lstm_states();
 
     // Utility function to get layer stack info
@@ -169,8 +175,8 @@ class Sequential {
                                        std::vector<float>, std::vector<float>>>
     get_lstm_states(int time_step) const;
 
-    std::unordered_map<int, std::tuple<std::vector<float>, std::vector<float>>>
-    get_attention_scores() const;
+    // Scores of every attention layer, depth-first in forward order.
+    std::vector<AttentionScores> get_attention_scores() const;
 
     void set_lstm_states(
         const std::unordered_map<
