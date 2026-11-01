@@ -10,6 +10,7 @@ sys.path.append(
     )
 )
 
+import pytagi
 from pytagi.nn import Linear, Sequential
 
 TEST_CPU_ONLY = os.getenv("TEST_CPU_ONLY") == "1"
@@ -37,6 +38,8 @@ class TestGetOutputs(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_cuda_outputs_match_host_buffers(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         self.assert_outputs_match_host_buffers("cuda")
 
 

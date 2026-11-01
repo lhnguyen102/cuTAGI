@@ -10,6 +10,7 @@ sys.path.append(
     )
 )
 
+import pytagi
 from pytagi import Utils
 from pytagi.nn import Linear, OutputUpdater, Sequential
 
@@ -20,6 +21,8 @@ VOCAB_SIZE = 50257
 class TestSparseReadout(unittest.TestCase):
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_outputs_are_the_dense_outputs_at_the_path_units(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         batch_size, seq_len, embed_dim = 2, 4, 768
         utils = Utils()
         hrc = utils.get_hierarchical_softmax(VOCAB_SIZE)

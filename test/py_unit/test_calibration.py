@@ -5,6 +5,7 @@ from unittest import mock
 
 import numpy as np
 
+import pytagi
 from pytagi import Utils
 from pytagi.nn import Embedding, Linear, Sequential
 
@@ -81,6 +82,8 @@ class TestReadoutCalibration(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_cuda_batch_matches_cpu(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         rows = 5
         rng = np.random.default_rng(2)
         ma = 2.0 * rng.normal(size=(rows, self.hrc.len)).astype(np.float32)
@@ -115,6 +118,8 @@ class TestReadoutCalibration(unittest.TestCase):
 class TestFitLevelCalibration(unittest.TestCase):
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_sparse_forward_fits_the_dense_links(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         batch_size, seq_len, n_batches, obs_scale = 2, 4, 3, 3.0
         utils = Utils()
         hrc = utils.get_hierarchical_softmax(VOCAB_SIZE)
