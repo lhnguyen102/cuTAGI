@@ -256,7 +256,13 @@ TEST(LinearCuda, Tf32OffRestoresFp32Bits) {
     Outputs tf32 = r.run(true, true);
     Outputs fp32_again = r.run(true, false);
     expect_outputs_bit_equal(fp32_again, fp32);
-    EXPECT_NE(tf32.mu_z, fp32.mu_z) << "TF32 flag had no effect";
+    // cuBLAS runs TF32 mode as FP32 below compute capability 8.0.
+    int device = 0, major = 0;
+    cudaGetDevice(&device);
+    cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device);
+    if (major >= 8) {
+        EXPECT_NE(tf32.mu_z, fp32.mu_z) << "TF32 flag had no effect";
+    }
 }
 
 TEST(LinearCuda, CublasIsDeterministic) {

@@ -73,6 +73,7 @@ struct LinearGemm {
    private:
     size_t w_capacity = 0;
     size_t a_capacity = 0;
+    int device_idx = 0;
 };
 
 // Kernel launchers shared with layers that embed a linear projection

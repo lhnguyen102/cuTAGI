@@ -143,11 +143,14 @@ void linear_weight_backward_cublas(const float *d_delta_mu_out,
 }  // namespace
 
 LinearGemm::~LinearGemm() {
+    if (this->d_w_sq == nullptr && this->d_a_sq == nullptr) return;
+    cudaSetDevice(this->device_idx);
     cudaFree(this->d_w_sq);
     cudaFree(this->d_a_sq);
 }
 
 void LinearGemm::reserve(size_t num_weights, size_t num_activations) {
+    cudaGetDevice(&this->device_idx);
     if (num_weights > this->w_capacity) {
         cudaFree(this->d_w_sq);
         CHECK_CUDA_ERROR(
