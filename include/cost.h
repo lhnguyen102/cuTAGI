@@ -13,6 +13,7 @@
 #include "data_struct.h"
 
 HRCSoftmax class_to_obs(int n_classes);
+std::vector<int> node_levels(const HRCSoftmax &hs, int n_classes);
 std::vector<float> obs_to_class(std::vector<float> &mz, std::vector<float> &Sz,
                                 HRCSoftmax &hs, int n_classes,
                                 const std::vector<float> &level_scale = {},

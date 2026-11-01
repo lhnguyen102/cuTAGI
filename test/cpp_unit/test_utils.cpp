@@ -1,5 +1,9 @@
 #include "test_utils.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
 #include "../../include/activation.h"
 #include "../../include/batchnorm_layer.h"
 #include "../../include/common.h"
@@ -706,4 +710,22 @@ void sin_signal_smoother_test_runner(Sequential &model, int input_seq_len,
     // Compute metrics
     mse = mean_squared_error(mu_y, y_test);
     log_lik = avg_univar_log_lik(mu_y, y_test, std_y);
+}
+
+void expect_close(const std::vector<float> &a, const std::vector<float> &b,
+                  const char *name, float rel, float abs) {
+    ASSERT_EQ(a.size(), b.size()) << name;
+    for (size_t i = 0; i < a.size(); i++) {
+        float tol = rel * std::max(std::abs(a[i]), std::abs(b[i])) + abs;
+        ASSERT_NEAR(a[i], b[i], tol) << name << " mismatch at index " << i;
+    }
+}
+
+void expect_bit_equal(const std::vector<float> &a, const std::vector<float> &b,
+                      const char *name) {
+    ASSERT_EQ(a.size(), b.size()) << name;
+    for (size_t i = 0; i < a.size(); i++) {
+        ASSERT_EQ(std::memcmp(&a[i], &b[i], sizeof(float)), 0)
+            << name << " differs at " << i << ": " << a[i] << " vs " << b[i];
+    }
 }

@@ -32,35 +32,41 @@ __global__ void embedding_fwd_mean_var(const float *mu_a, const float *mu_w,
     }
 }
 
-__global__ void embedding_bwd_delta_w(const float *mu_a, const float *var_w,
-                                      const float *delta_mu,
-                                      const float *delta_var, int embedding_dim,
-                                      int num_inputs, int batch_size,
-                                      int padding_idx, float *delta_mu_w,
-                                      float *delta_var_w) {
+__global__ void embedding_token_rows(const float *mu_a, int num_tokens,
+                                     int padding_idx, int padding_row,
+                                     int *rows) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total_size = batch_size * num_inputs;
-
-    if (idx < total_size) {
-        int batch_idx = idx / num_inputs;
-        int input_idx = idx % num_inputs;
-
+    if (idx < num_tokens) {
         int cat_idx = static_cast<int>(mu_a[idx]);
+        rows[idx] = cat_idx == padding_idx ? padding_row : cat_idx;
+    }
+}
 
-        if (cat_idx != padding_idx) {
-            int out_idx = batch_idx * num_inputs * embedding_dim +
-                          input_idx * embedding_dim;
-
-            for (int k = 0; k < embedding_dim; k++) {
-                int emb_idx = cat_idx * embedding_dim + k;
-                float grad_mu = delta_mu[out_idx + k] * var_w[emb_idx];
-                float grad_var =
-                    delta_var[out_idx + k] * var_w[emb_idx] * var_w[emb_idx];
-
-                atomicAdd(&delta_mu_w[emb_idx], grad_mu);
-                atomicAdd(&delta_var_w[emb_idx], grad_var);
-            }
+// One block per touched row; tokens of a segment are summed in token order
+// with the unfused multiply-add of the CPU bwd_emb (the host build has no FMA
+// target), so the sums are bit-equal.
+__global__ void embedding_bwd_delta_w(
+    const float *var_w, const float *delta_mu, const float *delta_var,
+    const int *touched_row, const int *segment_offset, const int *segment_count,
+    const int *sorted_token, int embedding_dim, float *delta_mu_w,
+    float *delta_var_w) {
+    int row = touched_row[blockIdx.x];
+    int begin = segment_offset[blockIdx.x];
+    int end = begin + segment_count[blockIdx.x];
+    for (int k = threadIdx.x; k < embedding_dim; k += blockDim.x) {
+        size_t w = static_cast<size_t>(row) * embedding_dim + k;
+        float var_w_tmp = var_w[w];
+        float sum_mu = 0.0f;
+        float sum_var = 0.0f;
+        for (int s = begin; s < end; s++) {
+            size_t z = static_cast<size_t>(sorted_token[s]) * embedding_dim + k;
+            sum_mu = __fadd_rn(sum_mu, __fmul_rn(delta_mu[z], var_w_tmp));
+            sum_var = __fadd_rn(
+                sum_var,
+                __fmul_rn(__fmul_rn(delta_var[z], var_w_tmp), var_w_tmp));
         }
+        delta_mu_w[w] = sum_mu;
+        delta_var_w[w] = sum_var;
     }
 }
 
@@ -158,20 +164,38 @@ void EmbeddingCuda::backward(BaseDeltaStates &input_delta_states,
     int batch_size = input_delta_states.block_size;
 
     if (this->param_update) {
-        cudaMemset(this->d_delta_mu_w, 0, this->num_weights * sizeof(float));
-        cudaMemset(this->d_delta_var_w, 0, this->num_weights * sizeof(float));
-
-        int total_threads = batch_size * this->input_size;
+        int num_tokens = batch_size * this->input_size;
         constexpr int NUM_THREADS = 256;
-        int num_blocks = (total_threads + NUM_THREADS - 1) / NUM_THREADS;
+        int num_blocks = (num_tokens + NUM_THREADS - 1) / NUM_THREADS;
 
-        embedding_bwd_delta_w<<<num_blocks, NUM_THREADS>>>(
-            cu_next_bwd_states->d_mu_a, this->d_var_w,
-            cu_input_delta_states->d_delta_mu,
-            cu_input_delta_states->d_delta_var, this->embedding_dim,
-            this->input_size, batch_size, this->padding_idx, this->d_delta_mu_w,
-            this->d_delta_var_w);
+        this->segments.reserve(num_tokens);
+        embedding_token_rows<<<num_blocks, NUM_THREADS>>>(
+            cu_next_bwd_states->d_mu_a, num_tokens, this->padding_idx,
+            this->num_embeddings, this->segments.d_row);
+        this->segments.group(num_tokens);
+        this->num_touched_rows = this->segments.num_touched;
+        if (this->num_touched_rows > 0) {
+            int last_row;
+            cudaMemcpy(
+                &last_row,
+                this->segments.d_touched_row + this->num_touched_rows - 1,
+                sizeof(int), cudaMemcpyDeviceToHost);
+            if (last_row == this->num_embeddings) this->num_touched_rows--;
+        }
+        if (this->num_touched_rows > 0) {
+            embedding_bwd_delta_w<<<this->num_touched_rows, NUM_THREADS>>>(
+                this->d_var_w, cu_input_delta_states->d_delta_mu,
+                cu_input_delta_states->d_delta_var,
+                this->segments.d_touched_row, this->segments.d_segment_offset,
+                this->segments.d_segment_count, this->segments.d_sorted_item,
+                this->embedding_dim, this->d_delta_mu_w, this->d_delta_var_w);
+        }
     }
+}
+
+void EmbeddingCuda::update_weights() {
+    this->update_weight_rows(this->segments.d_touched_row,
+                             this->num_touched_rows, this->embedding_dim);
 }
 
 std::unique_ptr<BaseLayer> EmbeddingCuda::to_host() {

@@ -10,6 +10,7 @@ sys.path.append(
     )
 )
 
+import pytagi
 from pytagi.nn import (
     Embedding,
     Linear,
@@ -102,6 +103,8 @@ class TestTokenModel(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_embedding_pe_rmsnorm_linear_trains_on_cuda(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         self.check_one_step_updates_every_layer("cuda")
 
 

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../../include/base_output_updater.h"
+#include "../../include/common.h"
 #include "../../include/data_struct.h"
 #include "../../include/embedding_cpu.h"
 #include "../../include/linear_layer.h"
@@ -470,6 +471,10 @@ bool test_embedding_class_backward_cuda() {
     output_delta_states.allocate_memory();
     output_delta_states.to_device();
 
+    emb_layer.delta_params_to_host();
+    std::vector<float> delta_mu_w_before = emb_layer.delta_mu_w;
+    std::vector<float> delta_var_w_before = emb_layer.delta_var_w;
+
     emb_layer.backward(input_delta_states, output_delta_states, temp_states,
                        false);
 
@@ -492,14 +497,17 @@ bool test_embedding_class_backward_cuda() {
         }
     }
 
-    int tot_non_zero = 0;
+    // Backward writes touched rows only; every other delta stays as it was.
+    std::vector<bool> touched(emb_layer.delta_mu_w.size(), false);
+    for (const auto &i : unique_checking_idx) touched[i] = true;
     for (size_t i = 0; i < emb_layer.delta_mu_w.size(); i++) {
-        if (emb_layer.delta_mu_w[i] != 0 || emb_layer.delta_var_w[i] != 0) {
-            tot_non_zero += 1;
+        if (!touched[i] &&
+            (emb_layer.delta_mu_w[i] != delta_mu_w_before[i] ||
+             emb_layer.delta_var_w[i] != delta_var_w_before[i])) {
+            return false;
         }
     }
-
-    return tot_non_zero == unique_checking_idx.size();
+    return true;
 }
 
 TEST(EmbeddingTest, EmbeddingClassForward_CUDA) {
@@ -553,6 +561,17 @@ struct SingleTokenEmbedding {
 };
 
 }  // namespace
+
+TEST(EmbeddingTest, InitFollowsManualSeed) {
+    manual_seed(7);
+    Embedding first(16, 4, 1);
+    manual_seed(7);
+    Embedding same_seed(16, 4, 1);
+    manual_seed(8);
+    Embedding other_seed(16, 4, 1);
+    EXPECT_EQ(first.mu_w, same_seed.mu_w);
+    EXPECT_NE(first.mu_w, other_seed.mu_w);
+}
 
 TEST(EmbeddingTest, WeightDeltaVarianceScalesWithVarWSquared) {
     SingleTokenEmbedding emb;

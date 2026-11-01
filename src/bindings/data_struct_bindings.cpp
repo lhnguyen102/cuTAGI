@@ -11,9 +11,33 @@ void bind_base_hidden_states(pybind11::module_ &m) {
         m, "BaseHiddenStates")
         .def(pybind11::init<size_t, size_t>())
         .def(pybind11::init<>())
-        .def_readwrite("mu_a", &BaseHiddenStates::mu_a)
-        .def_readwrite("var_a", &BaseHiddenStates::var_a)
-        .def_readwrite("jcb", &BaseHiddenStates::jcb)
+        .def_property(
+            "mu_a",
+            [](BaseHiddenStates &self) {
+                self.sync_to_host();
+                return self.mu_a;
+            },
+            [](BaseHiddenStates &self, const std::vector<float> &v) {
+                self.mu_a = v;
+            })
+        .def_property(
+            "var_a",
+            [](BaseHiddenStates &self) {
+                self.sync_to_host();
+                return self.var_a;
+            },
+            [](BaseHiddenStates &self, const std::vector<float> &v) {
+                self.var_a = v;
+            })
+        .def_property(
+            "jcb",
+            [](BaseHiddenStates &self) {
+                self.sync_to_host();
+                return self.jcb;
+            },
+            [](BaseHiddenStates &self, const std::vector<float> &v) {
+                self.jcb = v;
+            })
         .def_readwrite("size", &BaseHiddenStates::size)
         .def_readwrite("block_size", &BaseHiddenStates::block_size)
         .def_readwrite("actual_size", &BaseHiddenStates::actual_size)

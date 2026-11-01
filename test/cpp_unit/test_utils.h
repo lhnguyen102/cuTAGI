@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 #include "../../include/data_struct.h"
 #include "../../include/dataloader.h"
@@ -103,6 +104,15 @@ class MPIFinalizer : public ::testing::Environment {
 // Register the MPI finalizer
 static ::testing::Environment *const mpi_env =
     ::testing::AddGlobalTestEnvironment(new MPIFinalizer);
+
+// a and b match at rel, default 1e-5. The abs floor absorbs the absolute
+// rounding of long alternating-sign sums (delta_mu_w reaches 5e-7 at 4096
+// rows).
+void expect_close(const std::vector<float> &a, const std::vector<float> &b,
+                  const char *name, float rel = 1e-5f, float abs = 1e-6f);
+
+void expect_bit_equal(const std::vector<float> &a, const std::vector<float> &b,
+                      const char *name);
 
 LayerBlock create_layer_block(int in_channels, int out_channels, int stride = 1,
                               int padding_type = 1);

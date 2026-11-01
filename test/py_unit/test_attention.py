@@ -10,6 +10,7 @@ sys.path.append(
     )
 )
 
+import pytagi
 from pytagi.nn import (
     LayerBlock,
     Linear,
@@ -134,6 +135,8 @@ class TestAttentionScores(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_scores_are_keyed_depth_first_with_head_shapes_on_cuda(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         self.check_scores_are_keyed_depth_first_with_head_shapes("cuda")
 
     def test_pre_remax_scores_are_scaled_query_key_products(self):
@@ -205,6 +208,8 @@ class TestAttentionInLayerBlock(unittest.TestCase):
 
     @unittest.skipIf(TEST_CPU_ONLY, "Skipping CUDA tests due to --cpu flag")
     def test_rmsnorm_attention_linear_trains_on_cuda(self):
+        if not pytagi.cuda.is_available():
+            self.skipTest("CUDA is not available")
         self.check_one_step_updates_every_layer("cuda")
 
 

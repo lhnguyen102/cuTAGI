@@ -41,9 +41,7 @@ class OutputUpdater:
         :param delta_states: The delta states object to be updated with the computed error signal.
         :type delta_states: pytagi.nn.data_struct.BaseDeltaStates
         """
-        self._cpp_backend.update(
-            output_states, mu_obs.tolist(), var_obs.tolist(), delta_states
-        )
+        self._cpp_backend.update(output_states, mu_obs, var_obs, delta_states)
 
     def update_using_indices(
         self,
@@ -70,11 +68,7 @@ class OutputUpdater:
         :type delta_states: pytagi.nn.data_struct.BaseDeltaStates
         """
         self._cpp_backend.update_using_indices(
-            output_states,
-            mu_obs.tolist(),
-            var_obs.tolist(),
-            selected_idx.tolist(),
-            delta_states,
+            output_states, mu_obs, var_obs, selected_idx, delta_states
         )
 
     def update_heteros(

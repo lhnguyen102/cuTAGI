@@ -20,6 +20,7 @@ class Utils:
     def __init__(self) -> None:
         """Initializes the Utils class by creating an instance of the C++ backend."""
         self._cpp_backend = cutagi.Utils()
+        self._label_tables = {}
 
     def label_to_obs(
         self, labels: np.ndarray, num_classes: int
@@ -41,11 +42,17 @@ class Utils:
         :rtype: Tuple[numpy.ndarray, numpy.ndarray, int]
         """
 
-        obs, obs_idx, num_obs = self._cpp_backend.label_to_obs_wrapper(
-            labels, num_classes
-        )
+        if num_classes not in self._label_tables:
+            hrc = self.get_hierarchical_softmax(num_classes)
+            self._label_tables[num_classes] = (
+                np.asarray(hrc.obs, dtype=np.float32).reshape(num_classes, -1),
+                np.asarray(hrc.idx, dtype=np.int32).reshape(num_classes, -1),
+                hrc.num_obs,
+            )
+        obs_table, idx_table, num_obs = self._label_tables[num_classes]
+        labels = np.asarray(labels)
 
-        return np.array(obs), np.array(obs_idx), int(num_obs)
+        return obs_table[labels].ravel(), idx_table[labels].ravel(), num_obs
 
     def label_to_one_hot(
         self, labels: np.ndarray, num_classes: int
@@ -195,15 +202,18 @@ class Utils:
         num_classes: int,
         level_scale: Optional[np.ndarray] = None,
         level_offset: Optional[np.ndarray] = None,
+        device: str = "cpu",
     ) -> np.ndarray:
         """Converts observation probabilities to label probabilities.
 
         This function takes the output statistics of a model (mean and variance) and
         uses the hierarchical softmax structure to compute the probability of each class label.
 
-        :param ma: The mean of the activation units for the output layer.
+        :param ma: The mean of the activation units for the output layer,
+            shape (len,) for one row or (rows, len) for a batch.
         :type ma: numpy.ndarray
-        :param Sa: The variance of the activation units for the output layer.
+        :param Sa: The variance of the activation units for the output layer,
+            same shape as ma.
         :type Sa: numpy.ndarray
         :param hr_softmax: An initialized hierarchical softmax structure.
         :type hr_softmax: pytagi.nn.HRCSoftmax
@@ -216,17 +226,22 @@ class Utils:
         :param level_offset: Readout calibration offset b, one per tree level.
             None means b = 0.
         :type level_offset: numpy.ndarray, optional
-        :return: An array of probabilities for each class label.
+        :param device: "cpu" or "cuda". The CUDA path scores all rows in one
+            kernel launch.
+        :type device: str
+        :return: Probabilities for each class label, shape (num_classes,) or
+            (rows, num_classes) following ma.
         :rtype: numpy.ndarray
         """
 
         level_scale = [] if level_scale is None else level_scale
         level_offset = [] if level_offset is None else level_offset
+        ma = np.asarray(ma)
         prob = self._cpp_backend.obs_to_label_prob_wrapper(
-            ma, Sa, hr_softmax, num_classes, level_scale, level_offset
+            ma, Sa, hr_softmax, num_classes, level_scale, level_offset, device
         )
 
-        return np.array(prob)
+        return prob.reshape(ma.shape[:-1] + (num_classes,))
 
     def create_rolling_window(
         self,

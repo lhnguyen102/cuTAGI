@@ -22,6 +22,7 @@ class BaseHiddenStates {
     size_t actual_size = 0;  // input size or output size without batch size
     size_t width = 0, height = 0, depth = 0;
     int device_idx = 0;
+    bool host_stale = false;
 
     BaseHiddenStates(size_t n, size_t m, int device_idx = 0);
     BaseHiddenStates();
@@ -34,6 +35,8 @@ class BaseHiddenStates {
     virtual std::string get_name() const { return "BaseHiddenStates"; };
 
     virtual void set_size(size_t size, size_t block_size);
+
+    virtual void sync_to_host() {}
 
     // Custom copy constructor
     BaseHiddenStates(const BaseHiddenStates &other)

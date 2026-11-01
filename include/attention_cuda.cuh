@@ -12,6 +12,7 @@
 #include "base_layer_cuda.cuh"
 #include "data_struct.h"
 #include "data_struct_cuda.cuh"
+#include "linear_layer_cuda.cuh"
 
 // Device mirror of AttentionStates. The masked scores are not stored: the mask
 // is applied in place on the Remax input buffer. RoPE buffers are allocated
@@ -82,6 +83,7 @@ class MultiheadAttentionCuda : public BaseLayerCuda {
     // Fused QKV projection output and its delta.
     HiddenStateCuda in_proj_buffer;
     DeltaStateCuda d_in_proj_buffer;
+    LinearGemm in_proj_gemm;
 
     std::unique_ptr<RemaxCuda> remax_layer;
     HiddenStateCuda remax_input;
@@ -115,6 +117,8 @@ class MultiheadAttentionCuda : public BaseLayerCuda {
     LayerType get_layer_type() const override;
 
     void init_weight_bias() override;
+
+    void set_tf32(bool on) override;
 
     void forward(BaseHiddenStates &input_states,
                  BaseHiddenStates &output_states,

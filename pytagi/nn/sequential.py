@@ -195,6 +195,16 @@ class Sequential:
         """
         self._cpp_backend.set_cap_factor(cap_factor)
 
+    def set_tf32(self, on: bool):
+        """Runs the cuBLAS GEMMs of every CUDA linear projection on TF32
+        tensor cores. Changes the results at the 1e-3 level. Call it after
+        to_device; CPU layers ignore it.
+
+        :param on: Enable TF32.
+        :type on: bool
+        """
+        self._cpp_backend.set_tf32(on)
+
     def set_var_decay(self, tau: float, min_gain: float = 0.0):
         """Decays the weight variance of every layer except the last one as
         var_w(n) = var_w(0) / (1 + n / tau), n = number of steps. Applies to the
@@ -259,12 +269,33 @@ class Sequential:
         """Performs a single step of inference to update the parameters."""
         self._cpp_backend.step()
 
+    def set_output_indices(self, unit_idx: np.ndarray, n_obs: int):
+        """Restricts the readout to the path units of the next forward.
+
+        The next forward computes only the n_obs listed units per token, so
+        its outputs have shape (tokens * n_obs,), and the following backward
+        and step touch only those readout rows. The results match the dense
+        path to float32 rounding. The indices apply to one forward; the one
+        after it is dense again. CUDA only, last layer must be a Linear.
+
+        :param unit_idx: 1-based unit ids, shape (tokens * n_obs,), as
+            returned by Utils.label_to_obs.
+        :type unit_idx: np.ndarray
+        :param n_obs: Units per token.
+        :type n_obs: int
+        """
+        self._cpp_backend.set_output_indices(unit_idx, n_obs)
+
     def reset_lstm_states(self):
         """Resets the hidden and cell states of all LSTM layers in the model."""
         self._cpp_backend.reset_lstm_states()
 
     def output_to_host(self) -> List[float]:
         """Copies the raw output data from the device to the host.
+
+        A forward returns its outputs without refreshing the host copy of
+        output_z_buffer, so call this before reading output_z_buffer.mu_a,
+        var_a or jcb on a CUDA model.
 
         :return: A list of floating-point values representing the flattened output.
         :rtype: List[float]

@@ -91,6 +91,7 @@ cuTAGI is released under the MIT license.
 
 **THIS IS AN OPEN SOURCE SOFTWARE FOR RESEARCH PURPOSES ONLY. THIS IS NOT A PRODUCT. NO WARRANTY EXPRESSED OR IMPLIED.**
 ## Related Papers
+* [py/cuTAGI: An Open-Source Library for Tractable Approximate Gaussian Inference in Bayesian Neural Networks](https://jmlr.org/papers/volume27/25-1634/25-1634.pdf) (Luong-Ha Nguyen, James-A. Goulet, Miquel Florensa-Montilla, Van-Dai Vuong. JMLR, 2026)
 * [Coupling LSTM Neural Networks and State-Space Models through Analytically Tractable Inference](https://www.sciencedirect.com/science/article/pii/S0169207024000335) (Van Dai Vuong, Luong-Ha Nguyen and James-A. Goulet. International Journal of Forecasting, 2024)
 * [Analytically tractable hidden-states inference in Bayesian neural networks](https://www.jmlr.org/papers/volume23/21-0758/21-0758.pdf) (Luong-Ha Nguyen and James-A. Goulet. Journal-to-conference track, ICLR 2024)
 * [Analytically tractable heteroscedastic uncertainty quantification in Bayesian neural networks for regression tasks](http://profs.polymtl.ca/jagoulet/Site/Papers/Deka_TAGIV_2024_preprint.pdf) (Bhargob Deka, Luong-Ha Nguyen and James-A. Goulet. Neurocomputing, 2024)
