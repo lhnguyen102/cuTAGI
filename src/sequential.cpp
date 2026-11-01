@@ -425,6 +425,7 @@ void Sequential::forward(const std::vector<float> &mu_x,
     }
 
     std::swap(this->output_z_buffer, this->input_z_buffer);
+    this->output_z_buffer->host_stale = this->device.compare("cuda") == 0;
 }
 
 void Sequential::forward(BaseHiddenStates &input_states)
@@ -479,6 +480,7 @@ void Sequential::forward(BaseHiddenStates &input_states)
     }
     // Output buffer is considered as the final output of network
     std::swap(this->output_z_buffer, this->input_z_buffer);
+    this->output_z_buffer->host_stale = this->device.compare("cuda") == 0;
 }
 
 void Sequential::backward()

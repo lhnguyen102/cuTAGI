@@ -123,6 +123,13 @@ void HiddenStateCuda::to_host(size_t num_data)
                cudaMemcpyDeviceToHost);
     cudaMemcpy(this->jcb.data(), this->d_jcb, num_data * sizeof(float),
                cudaMemcpyDeviceToHost);
+    this->host_stale = false;
+}
+
+void HiddenStateCuda::sync_to_host() {
+    if (this->host_stale) {
+        this->to_host(this->block_size * this->seq_len * this->actual_size);
+    }
 }
 
 void HiddenStateCuda::to_host(float *mu_a_dst, float *var_a_dst,

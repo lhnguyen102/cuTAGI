@@ -22,11 +22,10 @@ class TestGetOutputs(unittest.TestCase):
         net = Sequential(Linear(input_size, output_size))
         net.to_device(device)
         np.random.seed(5)
-        x = np.random.randn(batch_size, input_size).astype(np.float32)
+        for _ in range(2):
+            x = np.random.randn(batch_size, input_size).astype(np.float32)
+            m_pred, v_pred = net(x)
 
-        m_pred, v_pred = net(x)
-
-        net.output_to_host()
         n = batch_size * output_size
         self.assertEqual(m_pred.shape, (n,))
         self.assertEqual(v_pred.shape, (n,))
