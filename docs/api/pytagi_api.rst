@@ -9,4 +9,5 @@ with details about all public classes and methods.
    Metric <../autoapi/pytagi/metric/index>
    Neural Network <nn>
    Tagi_utils <../autoapi/pytagi/tagi_utils/index>
+   HSM Calibration <../autoapi/pytagi/hsm_calibration/index>
    Cuda <../autoapi/pytagi/cuda/index>
