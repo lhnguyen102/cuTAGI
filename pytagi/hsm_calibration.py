@@ -453,12 +453,12 @@ class HSMGainCalibrator:
 
         The probabilities sum to one when every leaf of the tree is a class.
         Otherwise (for example when the number of classes is not a power of
-        two) they are normalized over the classes: p_k = u_k / Z, where u_k
-        is the product over the path of class k and Z the sum over the
+        two) they are normalized over the classes: p_k = u_k / M, where u_k
+        is the product over the path of class k and M the sum over the
         classes. The variance treats the tree nodes as independent. For
         normalized probabilities it is the first-order delta method,
-        (var(u_k) - 2 p_k cov(u_k, Z) + p_k^2 var(Z)) / E[Z]^2, which keeps
-        the covariance of u_k with Z (the plain var(u_k) / E[Z]^2
+        (var(u_k) - 2 p_k cov(u_k, M) + p_k^2 var(M)) / E[M]^2, which keeps
+        the covariance of u_k with M (the plain var(u_k) / E[M]^2
         overestimates the variance of the most probable classes).
 
         With a large tree, ask only for the classes you need: the cost is then
@@ -691,14 +691,14 @@ class HSMGainCalibrator:
     def _normalize(
         self, mu_z, var_z, mu_u, var_u, mu_path, mu_other, var_path, siblings
     ):
-        """Normalized probabilities p_k = u_k / Z and their variance.
+        """Normalized probabilities p_k = u_k / M and their variance.
 
         The variance is the first-order delta method,
-        (var(u_k) - 2 p_k cov(u_k, Z) + p_k^2 var(Z)) / E[Z]^2, with the nodes
-        independent. cov(u_k, Z) = E[u_k Z] - E[u_k] E[Z], and E[u_k Z] is a
+        (var(u_k) - 2 p_k cov(u_k, M) + p_k^2 var(M)) / E[M]^2, with the nodes
+        independent. cov(u_k, M) = E[u_k M] - E[u_k] E[M], and E[u_k M] is a
         recursion up the path of class k: at a node where the path takes the
-        branch B, E[B^2] E[u Z] of the child on the path plus E[B B'] E[u]
-        E[Z] of the two children, where B' = 1 - B is the other branch.
+        branch B, E[B^2] E[u M] of the child on the path plus E[B B'] E[u]
+        E[M] of the two children, where B' = 1 - B is the other branch.
 
         ``mu_path``, ``mu_other`` and ``var_path`` have shape (..., levels);
         ``siblings`` gives the column of the other child subtree of each node
@@ -710,7 +710,7 @@ class HSMGainCalibrator:
             rows = rows[..., 0]
         sibling_mass = mass_table[rows, siblings]
         product = np.ones_like(mu_u)  # E[u] below the current node
-        joint = np.ones_like(mu_u)  # E[u Z] below the current node
+        joint = np.ones_like(mu_u)  # E[u M] below the current node
         for level in range(self.num_levels - 1, -1, -1):
             mean = mu_path[..., level]
             var = var_path[..., level]
@@ -726,16 +726,16 @@ class HSMGainCalibrator:
         return prob, np.maximum(var, 0.0)
 
     def _subtree_mass(self, mu_z, var_z, second_moment=False):
-        """Sum Z of the class probabilities, without visiting every class.
+        """Sum M of the class probabilities, without visiting every class.
 
         Subtrees that contain all their classes sum to one. The sum of an
         incomplete subtree is P * (sum of the + subtree) + (1 - P) * (sum of
         the - subtree), evaluated from the deepest level up, with 1 - P
         computed as Phi(-a).
 
-        :return: E[Z] (N,); with ``second_moment``, also the table of E[Z] of
+        :return: E[M] (N,); with ``second_moment``, also the table of E[M] of
             every incomplete subtree (followed by the columns 0 and 1 for a
-            missing and a complete subtree) and E[Z^2] (N,).
+            missing and a complete subtree) and E[M^2] (N,).
         """
         units = self._ragged_units
         gain = self._unit_to_gain[units]

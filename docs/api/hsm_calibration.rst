@@ -42,11 +42,19 @@ the fixed readout.
 
 When the number of classes is not a power of two, the tree has missing leaves
 and the class probabilities :math:`u_k` (products over the paths) sum to
-:math:`Z < 1`. The predictive probabilities are normalized,
-:math:`p_k = u_k / Z`, and their variance is approximated by
-:math:`\mathrm{var}(u_k) / Z^2`. The calibration update uses each node of the
-path of the true class on its own, so for such trees its objective differs
-slightly from the normalized predictive.
+:math:`M < 1`. The predictive probabilities are normalized,
+:math:`p_k = u_k / M`, and their variance is the first-order delta method
+
+.. math::
+
+   \mathrm{var}(p_k) \approx \frac{\mathrm{var}(u_k)
+   - 2 p_k \mathrm{cov}(u_k, M) + p_k^2 \mathrm{var}(M)}{\mathbb{E}[M]^2},
+
+with the tree nodes treated as independent. Keeping the covariance of
+:math:`u_k` with :math:`M` matters: :math:`\mathrm{var}(u_k) / \mathbb{E}[M]^2`
+alone overestimates the variance of the most probable classes. The calibration
+update uses each node of the path of the true class on its own, so for such
+trees its objective differs slightly from the normalized predictive.
 
 The gains can be shared by node (``sharing="node"``), by tree level
 (``sharing="level"``, default) or globally (``sharing="global"``).
