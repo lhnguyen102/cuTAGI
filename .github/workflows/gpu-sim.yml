@@ -1,0 +1,91 @@
+name: CUDA tests on simulated H100
+
+# Optional, non-required check. The hosted runners have no GPU, so this builds
+# the C++ unit tests with CUDA and runs them on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim). A simulator cannot reproduce
+# hardware-specific behavior or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "test/cpp_unit/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-sim:
+    name: CUDA 12.6, simulated H100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ca87fe3143b29166822b923d6050945c5179408c # v0.1.5
+        with:
+          gpu: nvidia/h100
+          # CUDA 12.6: src/cuda_utils.cpp uses cudaDeviceProp::clockRate,
+          # memoryClockRate and computeMode, which CUDA 13 removed.
+          cuda-toolkit: "12.6"
+          library-path: 'false'
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ccache ninja-build
+
+      - name: Restore ccache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ccache-gpu-sim-${{ github.sha }}
+          restore-keys: |
+            ccache-gpu-sim-
+
+      # CMakeLists.txt hard-codes the CUDA architectures to 75 80 86. The
+      # simulator runs PTX only, so this checkout (not the repository) is
+      # patched to 90-virtual, and the shared CUDA runtime it requires is set
+      # on the command line.
+      - name: Configure project
+        run: |
+          sed -i 's/^set(CMAKE_CUDA_ARCHITECTURES 75 80 86)$/set(CMAKE_CUDA_ARCHITECTURES 90-virtual)/' CMakeLists.txt
+          grep -n '^set(CMAKE_CUDA_ARCHITECTURES' CMakeLists.txt
+          cmake -B build -S . -GNinja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc \
+                -DCUDAToolkit_ROOT=/usr/local/cuda-12.6 \
+                -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared \
+                -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build unit tests
+        run: |
+          ccache -z
+          cmake --build build -j3 --target run_tests
+          ccache -s
+
+      # The DDP tests need several processes and the MNIST tests need the
+      # dataset. ResnetTest.TestResnetCifar10 needs the CIFAR-10 images, which
+      # are not in the repository. LinearCuda.Tf32OffRestoresFp32Bits expects
+      # the TF32 flag to change the cuBLAS result, but the simulator's cuBLAS
+      # does not round to TF32.
+      - name: Run unit tests
+        run: |
+          vgpu run ./build/run_tests --gtest_print_time=1 \
+                --gtest_filter='-*DDP*:*Ddp*:*ddp*:*Mnist*:*MNIST*:ResnetTest.TestResnetCifar10:LinearCuda.Tf32OffRestoresFp32Bits'
