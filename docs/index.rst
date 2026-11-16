@@ -120,5 +120,6 @@ Related references
    api/tutorials/index
    api/dev_guides
    api/multi_gpu
+   api/hsm_calibration
    api/theory/index
    api/about
